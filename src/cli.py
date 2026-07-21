@@ -12,6 +12,7 @@ ruflo-kb CLI 入口
 import argparse
 import asyncio
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from .queue.queue import get_queue_status, pause_queue, resume_queue, enqueue_ta
 from .orchestrator.orchestrator import get_orchestrator
 from .types import SourceType
 from .llm import create_embedding_provider, create_llm_provider
+from .project.discovery import auto_register_on_first_run
 from .cli_ext.project_cmd import (
     cmd_project_current,
     cmd_project_info,
@@ -101,7 +103,19 @@ def cmd_configure(args):
     elif args.provider == "anthropic":
         print(f"使用 Anthropic Provider")
 
+def _override_config_dir_from_env():
+    """Allow RUFLO_CONFIG_DIR env var to override OS-standard config dir (for tests)."""
+    env_dir = os.environ.get("RUFLO_CONFIG_DIR")
+    if env_dir:
+        # Monkey-patch at import time
+        import src.project.paths as paths
+        paths._OVERRIDE_CONFIG_DIR = Path(env_dir)
+
+
 def main():
+    _override_config_dir_from_env()
+    auto_register_on_first_run()  # idempotent
+
     parser = argparse.ArgumentParser(description="ruflo-kb 多Agent知识库")
     subparsers = parser.add_subparsers(dest="command", help="子命令")
 
