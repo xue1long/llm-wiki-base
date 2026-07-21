@@ -1,0 +1,85 @@
+# src/schemas/migration.py
+"""Migration framework — reversible schema upgrades with backup."""
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+
+class MigrationSafetyError(Exception):
+    """Raised when a migration runs without required backup."""
+
+
+class SchemaVersion(str, Enum):
+    V1_0 = "v1.0"
+    V2_0 = "v2.0"
+    V2_1 = "v2.1"
+    V3_0 = "v3.0"
+
+
+@dataclass
+class MigrationContext:
+    """Context passed to Migration.up() / .down() / .preview()."""
+    project_id: str
+    project_path: Path
+    backup_dir: Path | None = None          # REQUIRED for up()/down() (enforced)
+    dry_run: bool = False                   # preview-only if True
+
+
+@dataclass
+class MigrationPlan:
+    from_version: SchemaVersion
+    to_version: SchemaVersion
+    steps: list[str] = field(default_factory=list)
+    affected_files: list[Path] = field(default_factory=list)
+    reversible: bool = True
+
+
+@dataclass
+class MigrationResult:
+    success: bool
+    files_changed: int = 0
+    files_added: int = 0
+    files_removed: int = 0
+    backup_path: Path | None = None
+    errors: list[str] = field(default_factory=list)
+
+
+class Migration(ABC):
+    """Base class for reversible schema migrations.
+
+    Subclasses declare schema_name + from_version + to_version + implement
+    up() / down() / preview(). up() and down() MUST be idempotent.
+    """
+
+    @property
+    @abstractmethod
+    def schema_name(self) -> str: ...
+
+    @property
+    @abstractmethod
+    def from_version(self) -> SchemaVersion: ...
+
+    @property
+    @abstractmethod
+    def to_version(self) -> SchemaVersion: ...
+
+    @abstractmethod
+    def preview(self, ctx: MigrationContext) -> MigrationPlan: ...
+
+    @abstractmethod
+    def up(self, ctx: MigrationContext) -> MigrationResult: ...
+
+    @abstractmethod
+    def down(self, ctx: MigrationContext) -> MigrationResult: ...
+
+    def _require_backup(self, ctx: MigrationContext) -> None:
+        """Safety check: up()/down() require backup_dir unless dry_run."""
+        if ctx.dry_run:
+            return
+        if ctx.backup_dir is None:
+            raise MigrationSafetyError(
+                f"Migration {self.from_version}→{self.to_version} requires backup_dir. "
+                f"Call BackupManager.create_backup() first."
+            )
