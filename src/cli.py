@@ -33,6 +33,13 @@ from .cli_ext.project_cmd import (
     cmd_project_rename,
     cmd_project_discover,
 )
+from .cli_ext.schema_cmd import (
+    cmd_schema_list,
+    cmd_schema_diff,
+    cmd_schema_upgrade,
+    cmd_schema_downgrade,
+    cmd_schema_backup,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -192,6 +199,34 @@ def main():
 
     p_discover = p_project_sub.add_parser("discover", help="Auto-discover existing KBs")
     p_discover.set_defaults(func=cmd_project_discover)
+
+    # Schema subcommand
+    p_schema = subparsers.add_parser("schema", help="Schema management")
+    p_schema_sub = p_schema.add_subparsers(dest="schema_command")
+
+    p_slist = p_schema_sub.add_parser("list", help="List schemas + migrations")
+    p_slist.set_defaults(func=cmd_schema_list)
+
+    p_sdiff = p_schema_sub.add_parser("diff", help="Show schema version differences")
+    p_sdiff.add_argument("schema", help="Schema name")
+    p_sdiff.add_argument("from_v", help="From version (e.g. v2.0)")
+    p_sdiff.add_argument("to_v", help="To version (e.g. v2.1)")
+    p_sdiff.set_defaults(func=cmd_schema_diff)
+
+    p_sup = p_schema_sub.add_parser("upgrade", help="Upgrade schema")
+    p_sup.add_argument("--to", required=True, help="Target version")
+    p_sup.add_argument("--preview", action="store_true", help="Preview only")
+    p_sup.set_defaults(func=cmd_schema_upgrade)
+
+    p_sdown = p_schema_sub.add_parser("downgrade", help="Downgrade schema")
+    p_sdown.add_argument("--to", required=True, help="Target version")
+    p_sdown.add_argument("--preview", action="store_true")
+    p_sdown.set_defaults(func=cmd_schema_downgrade)
+
+    p_sbackup = p_schema_sub.add_parser("backup", help="List or restore backups")
+    p_sbackup.add_argument("action", choices=["list", "restore"], help="Action")
+    p_sbackup.add_argument("--name", help="Backup name (for restore)")
+    p_sbackup.set_defaults(func=cmd_schema_backup)
 
     args = parser.parse_args()
 
