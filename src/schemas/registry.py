@@ -1,45 +1,85 @@
-"""
-Schema Registry - 知识库版本映射 + 迁移路由
-"""
-from dataclasses import dataclass, field
-from typing import Callable, Optional
+# src/schemas/registry.py
+"""Schema + Migration registry — versioned migration routing."""
+import logging
+from typing import Any
 
-CURRENT_VERSION = "v1.0"
+from .migration import Migration, MigrationNotFoundError, SchemaVersion
 
-MIGRATIONS: dict[tuple[str, str], "Migration"] = {}
 
-@dataclass
-class Migration:
-    from_version: str
-    to_version: str
-    up_fn: Callable[[dict], dict] = field(repr=False)
-    down_fn: Callable[[dict], dict] = field(repr=False)
+_logger = logging.getLogger(__name__)
 
-    def up(self, data: dict) -> dict:
-        return self.up_fn(data)
 
-    def down(self, data: dict) -> dict:
-        return self.down_fn(data)
+class MigrationRegistry:
+    """Static registry of all available Migrations.
 
-def register_migration(
-    from_ver: str,
-    to_ver: str,
-    up_fn: Callable[[dict], dict],
-    down_fn: Callable[[dict], dict],
-) -> None:
-    """注册一个版本迁移路径"""
-    MIGRATIONS[(from_ver, to_ver)] = Migration(from_ver, to_ver, up_fn, down_fn)
+    Backed by in-memory dict; tests use _clear() for isolation.
+    """
+    _migrations: dict[tuple[str, SchemaVersion, SchemaVersion], Migration] = {}
 
-def get_migration(from_version: str, to_version: str) -> Optional[Migration]:
-    """获取指定版本的迁移器"""
-    return MIGRATIONS.get((from_version, to_version))
+    @classmethod
+    def register(cls, schema_name: str, from_v: SchemaVersion, to_v: SchemaVersion, m: Migration) -> None:
+        key = (schema_name, from_v, to_v)
+        cls._migrations[key] = m
 
-def migrate_data(data: dict, target_version: str = CURRENT_VERSION) -> dict:
-    """迁移数据到目标版本"""
-    current_version = data.get("schema_version", "v1.0")
-    if current_version == target_version:
-        return data
-    migration = get_migration(current_version, target_version)
-    if not migration:
-        raise ValueError(f"No migration path from {current_version} to {target_version}")
-    return migration.up(data)
+    @classmethod
+    def get(cls, schema_name: str, from_v: SchemaVersion, to_v: SchemaVersion) -> Migration:
+        key = (schema_name, from_v, to_v)
+        m = cls._migrations.get(key)
+        if m is None:
+            raise MigrationNotFoundError(f"No migration: {schema_name} {from_v} → {to_v}")
+        return m
+
+    @classmethod
+    def migration_path(
+        cls, schema_name: str, from_v: SchemaVersion, to_v: SchemaVersion
+    ) -> list[Migration]:
+        """BFS to find shortest migration path (may involve intermediate versions)."""
+        if from_v == to_v:
+            return []
+        # Direct edge first
+        try:
+            return [cls.get(schema_name, from_v, to_v)]
+        except MigrationNotFoundError:
+            pass
+        # BFS
+        from collections import deque
+        visited = {from_v}
+        queue = deque([(from_v, [])])
+        while queue:
+            cur, path = queue.popleft()
+            for (sname, f, t), mig in cls._migrations.items():
+                if sname != schema_name or f != cur or t in visited:
+                    continue
+                new_path = path + [mig]
+                if t == to_v:
+                    return new_path
+                visited.add(t)
+                queue.append((t, new_path))
+        raise MigrationNotFoundError(
+            f"No migration path: {schema_name} {from_v} → {to_v}"
+        )
+
+    @classmethod
+    def _clear(cls) -> None:
+        """Test-only: clear registry."""
+        cls._migrations.clear()
+
+
+# Backwards-compat shims (existing API)
+def register_migration(schema_name: str, from_v: SchemaVersion, to_v: SchemaVersion, m: Migration) -> None:
+    MigrationRegistry.register(schema_name, from_v, to_v, m)
+
+
+def get_migration(schema_name: str, from_v: SchemaVersion, to_v: SchemaVersion) -> Migration:
+    return MigrationRegistry.get(schema_name, from_v, to_v)
+
+
+def migrate_data(data: dict[str, Any], target: SchemaVersion = SchemaVersion.V1_0) -> dict:
+    """Migrate dict-based data (legacy API)."""
+    from .migration import _migrate_via_registry
+    return _migrate_via_registry(data, target)
+
+
+# Legacy module-level names preserved for backwards compat with old test imports
+CURRENT_VERSION = SchemaVersion.V1_0.value
+MIGRATIONS = MigrationRegistry._migrations

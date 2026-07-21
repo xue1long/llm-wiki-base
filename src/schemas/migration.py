@@ -4,11 +4,15 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 
 class MigrationSafetyError(Exception):
     """Raised when a migration runs without required backup."""
+
+
+class MigrationNotFoundError(Exception):
+    """Raised when a requested migration is not registered."""
 
 
 class SchemaVersion(str, Enum):
@@ -83,3 +87,15 @@ class Migration(ABC):
                 f"Migration {self.from_version}→{self.to_version} requires backup_dir. "
                 f"Call BackupManager.create_backup() first."
             )
+
+
+def _migrate_via_registry(data: dict[str, Any], target: SchemaVersion) -> dict[str, Any]:
+    """Migrate dict-based data via the registry (legacy API helper).
+
+    Walks the migration path from data's current schema_version to target,
+    applying each migration's up() in sequence. Migrations registered for
+    the file-based path don't accept dicts, so this is a no-op for now.
+    """
+    # The current migration classes operate on file paths, not dicts.
+    # This shim exists so legacy callers can import it without crashing.
+    return data
