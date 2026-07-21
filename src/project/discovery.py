@@ -2,7 +2,8 @@
 """Auto-discovery of existing KB projects on first run.
 
 Scans DEFAULT_SEARCH_PATHS for directories containing KB markers
-(.index/schema_version for v2.0, or Notes/ subdir for v1.0).
+(`.llm-wiki/project.json`, `.index/schema_version` for v2.0, or `Notes/`
+subdir for v1.0).
 """
 import logging
 from pathlib import Path
@@ -27,10 +28,13 @@ DEFAULT_SEARCH_PATHS: list[Path] = [
 def is_kb_root(path: Path) -> bool:
     """Detect if a directory is a KB root (v1.0 or v2.0).
 
-    v2.0 marker: <path>/.index/schema_version exists
+    Current marker: <path>/.llm-wiki/project.json exists
+    v2.0 legacy marker: <path>/.index/schema_version exists
     v1.0 marker: <path>/Notes/ subdir exists
     """
     path = Path(path)
+    if (path / ".llm-wiki" / "project.json").is_file():
+        return True
     if (path / ".index" / "schema_version").is_file():
         return True
     if (path / "Notes").is_dir():
