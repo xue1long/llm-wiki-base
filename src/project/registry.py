@@ -1,6 +1,7 @@
 """Global project registry — UUID → metadata mapping persisted to registry.json."""
 import json
 import logging
+import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -62,7 +63,7 @@ class GlobalRegistryStore:
                 for pid, pdata in data.get("projects", {}).items()
             }
             return GlobalRegistry(projects=projects)
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
+        except (json.JSONDecodeError, KeyError, ValueError, TypeError, AttributeError) as e:
             _logger.warning(f"[registry] corrupt registry.json: {e}; using empty")
             # Backup corrupt file
             try:
@@ -73,17 +74,19 @@ class GlobalRegistryStore:
 
     @classmethod
     def save(cls, reg: GlobalRegistry) -> None:
-        """Persist registry to disk. Creates parent dirs."""
+        """Persist registry to disk via atomic write (write to .tmp + os.replace)."""
         path = cls._path()
         path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = path.with_suffix(path.suffix + ".tmp")
         data = {
             "version": 1,
             "projects": {pid: e.to_dict() for pid, e in reg.projects.items()},
         }
-        path.write_text(
+        tmp_path.write_text(
             json.dumps(data, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+        os.replace(tmp_path, path)
 
     @classmethod
     def upsert(cls, entry: ProjectRegistryEntry) -> None:
@@ -114,7 +117,7 @@ class GlobalRegistryStore:
         return None
 
     @classmethod
-    def by_path(cls, path: Path) -> ProjectRegistryEntry | None:
+    def by_path(cls, path: Path | str) -> ProjectRegistryEntry | None:
         """Find entry whose path matches (after canonicalization)."""
         reg = cls.load()
         canonical = Path(path).resolve().as_posix()
