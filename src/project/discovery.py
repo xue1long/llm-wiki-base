@@ -1,0 +1,101 @@
+# src/project/discovery.py
+"""Auto-discovery of existing KB projects on first run.
+
+Scans DEFAULT_SEARCH_PATHS for directories containing KB markers
+(.index/schema_version for v2.0, or Notes/ subdir for v1.0).
+"""
+import logging
+from pathlib import Path
+
+from .context import ProjectContext
+from .registry import GlobalRegistryStore
+
+
+_logger = logging.getLogger(__name__)
+
+
+# Default search paths for first-run discovery.
+# Tests can monkeypatch this to use tmp dirs.
+DEFAULT_SEARCH_PATHS: list[Path] = [
+    Path.home() / "Documents",
+    Path.home() / "Notes",
+    Path.home() / "Knowledge",
+    Path.home() / "wiki",
+]
+
+
+def is_kb_root(path: Path) -> bool:
+    """Detect if a directory is a KB root (v1.0 or v2.0).
+
+    v2.0 marker: <path>/.index/schema_version exists
+    v1.0 marker: <path>/Notes/ subdir exists
+    """
+    path = Path(path)
+    if (path / ".index" / "schema_version").is_file():
+        return True
+    if (path / "Notes").is_dir():
+        return True
+    return False
+
+
+def discover_existing_kbs() -> list[Path]:
+    """Scan DEFAULT_SEARCH_PATHS (top-level + 1 level deeper) for KBs.
+
+    Returns list of KB root paths. Empty if none found.
+    """
+    found: list[Path] = []
+    seen: set[Path] = set()
+
+    for base in DEFAULT_SEARCH_PATHS:
+        if not base.exists() or not base.is_dir():
+            continue
+        try:
+            # base itself
+            if is_kb_root(base) and base.resolve() not in seen:
+                found.append(base.resolve())
+                seen.add(base.resolve())
+            # 1 level deeper
+            for child in base.iterdir():
+                if not child.is_dir():
+                    continue
+                child_resolved = child.resolve()
+                if is_kb_root(child) and child_resolved not in seen:
+                    found.append(child_resolved)
+                    seen.add(child_resolved)
+        except PermissionError:
+            _logger.warning(f"[discovery] permission denied: {base}")
+            continue
+    return found
+
+
+def auto_register_on_first_run() -> list[ProjectContext]:
+    """If registry.json doesn't exist, discover + register KBs.
+
+    Idempotent: if registry.json exists, no-op.
+
+    Returns list of newly registered ProjectContexts.
+    """
+    from .paths import registry_path as _registry_path
+    from .registry import registry_path as _default_registry_path
+
+    if _default_registry_path().exists():
+        return []  # not first run
+
+    kb_paths = discover_existing_kbs()
+    contexts: list[ProjectContext] = []
+    for kb_path in kb_paths:
+        try:
+            ctx = ProjectContext.from_path(kb_path)
+            contexts.append(ctx)
+        except Exception as e:
+            _logger.warning(f"[discovery] failed to register {kb_path}: {e}")
+
+    if contexts:
+        # Set last_project to most recently modified
+        contexts.sort(key=lambda c: c.path.stat().st_mtime, reverse=True)
+        GlobalRegistryStore.save_last_project(
+            id=contexts[0].id,
+            path=str(contexts[0].path),
+        )
+
+    return contexts
