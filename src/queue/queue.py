@@ -10,11 +10,14 @@ from ..events.event_bus import event_bus
 from ..events.events import EventName, TaskCreatedPayload, TaskStatusChangedPayload
 from ..types import KnowledgeTask, TaskStatus, SourceType
 from ..utils.idempotency import check_duplicate
+from ..circuit_breaker import get_circuit_breaker, CircuitState
+from ..timeout import TaskTimeoutError
 
 logger = logging.getLogger(__name__)
 
 QUEUE_FILE = ".kb-queue.json"
 MAX_RETRIES = 3
+CIRCUIT_BREAKER_NAME = "task_queue"
 
 _queue: list[KnowledgeTask] = []
 _processing = False
@@ -63,6 +66,7 @@ def enqueue_task(source: str, source_type: SourceType, task_hash: str) -> str:
 def update_task_status(task_id: str, status: TaskStatus, error: Optional[str] = None) -> None:
     """更新任务状态"""
     global _queue
+    breaker = get_circuit_breaker(CIRCUIT_BREAKER_NAME)
 
     task = next((t for t in _queue if t.id == task_id), None)
     if not task:
@@ -77,8 +81,23 @@ def update_task_status(task_id: str, status: TaskStatus, error: Optional[str] = 
 
     if status == TaskStatus.FAILED:
         task.retry_count += 1
-        if task.retry_count < MAX_RETRIES:
+        breaker.record_failure()
+
+        if task.retry_count >= MAX_RETRIES:
+            # 达到最大重试次数，标记为需要人工介入
+            task.status = TaskStatus.FAILED
+            logger.warning(f"[Queue] Task {task_id} exceeded max retries, moving to dead letter")
+
+            # 触发熔断检查
+            if breaker.state == CircuitState.OPEN:
+                logger.error(f"[Queue] Circuit breaker OPEN - queue paused due to repeated failures")
+                pause_queue()
+        else:
             task.status = TaskStatus.PENDING  # 自动重试
+    elif status == TaskStatus.ARCHIVED:
+        breaker.record_success()
+    elif status == TaskStatus.TIMEOUT:
+        breaker.record_failure()
 
     event_bus.emit(EventName.TASK_STATUS_CHANGED, TaskStatusChangedPayload(
         task_id=task_id,
@@ -93,13 +112,31 @@ def get_queue() -> list[KnowledgeTask]:
     return _queue.copy()
 
 def pause_queue() -> None:
+    """暂停队列处理"""
     global _paused
     _paused = True
+    logger.warning("[Queue] Queue paused")
 
 def resume_queue() -> None:
+    """恢复队列处理"""
     global _paused
     _paused = False
+    breaker = get_circuit_breaker(CIRCUIT_BREAKER_NAME)
+    breaker.record_success()  # 尝试恢复
+    logger.info("[Queue] Queue resumed")
     _process_next()
+
+def get_queue_status() -> dict:
+    """获取队列状态"""
+    breaker = get_circuit_breaker(CIRCUIT_BREAKER_NAME)
+    return {
+        "paused": _paused,
+        "circuit_breaker_state": breaker.state.value,
+        "failure_count": breaker.failure_count,
+        "pending_count": len([t for t in _queue if t.status == TaskStatus.PENDING]),
+        "running_count": len([t for t in _queue if t.status == TaskStatus.RUNNING]),
+        "failed_count": len([t for t in _queue if t.status == TaskStatus.FAILED]),
+    }
 
 def _save_queue() -> None:
     try:
@@ -122,6 +159,11 @@ def _process_next() -> None:
     global _processing, _paused, _queue
 
     if _processing or _paused:
+        return
+
+    breaker = get_circuit_breaker(CIRCUIT_BREAKER_NAME)
+    if not breaker.can_execute():
+        logger.warning(f"[Queue] Circuit breaker is {breaker.state.value}, skipping processing")
         return
 
     task = next((t for t in _queue if t.status == TaskStatus.PENDING), None)
