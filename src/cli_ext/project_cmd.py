@@ -97,7 +97,8 @@ def cmd_project_forget(args: argparse.Namespace) -> None:
             sys.exit(3)
         # Refuse if path is shared (multiple entries pointing to same path)
         all_entries = list(GlobalRegistryStore.load().projects.values())
-        same_path = [e for e in all_entries if e.path == entry.path and e.id != entry.id]
+        entry_path_canon = Path(entry.path).resolve().as_posix()
+        same_path = [e for e in all_entries if Path(e.path).resolve().as_posix() == entry_path_canon and e.id != entry.id]
         if same_path:
             print(f"Refusing --delete-data: path {kb_path} is also referenced by:", file=sys.stderr)
             for e in same_path:
@@ -121,18 +122,31 @@ def cmd_project_rename(args: argparse.Namespace) -> None:
         print(f"Project not found: {args.id_or_name}", file=sys.stderr)
         sys.exit(2)
 
-    # Update registry
-    entry.name = args.new_name
-    GlobalRegistryStore.upsert(entry)
-
-    # Update project.json
+    # Read + validate project.json FIRST (fail without touching registry if malformed)
     from pathlib import Path
     import json as _json
     project_json = Path(entry.path) / ".llm-wiki" / "project.json"
+    data = None
     if project_json.exists():
-        data = _json.loads(project_json.read_text(encoding="utf-8"))
-        data["name"] = args.new_name
-        project_json.write_text(_json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        try:
+            data = _json.loads(project_json.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                print(f"project.json at {project_json} is not a JSON object", file=sys.stderr)
+                sys.exit(3)
+        except _json.JSONDecodeError as e:
+            print(f"project.json at {project_json} is malformed: {e}", file=sys.stderr)
+            sys.exit(3)
+    else:
+        print(f"project.json not found at {project_json}", file=sys.stderr)
+        sys.exit(3)
+
+    # Write project.json (validated) BEFORE updating registry
+    data["name"] = args.new_name
+    project_json.write_text(_json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    # Only now update registry (file write succeeded)
+    entry.name = args.new_name
+    GlobalRegistryStore.upsert(entry)
 
     print(f"Renamed '{args.id_or_name}' → '{args.new_name}'")
 
