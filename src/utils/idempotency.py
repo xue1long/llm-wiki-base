@@ -1,0 +1,71 @@
+# ruflo-kb/src/utils/idempotency.py
+import hashlib
+import time
+from typing import Optional
+from ..types import SourceType
+
+TTL_SECONDS = 7 * 24 * 60 * 60  # 7天
+
+class IdempotencyCache:
+    def __init__(self):
+        self._cache: dict[str, float] = {}  # task_hash -> timestamp
+
+    def generate_hash(
+        self,
+        source_type: SourceType,
+        identifier: str,
+        content_prefix: str = ""
+    ) -> str:
+        """
+        生成幂等键
+        算法: md5(source_type + identifier + content_prefix)
+        """
+        prefix = source_type.value
+        data = f"{prefix}:{identifier}:{content_prefix[:1024]}"
+        return hashlib.md5(data.encode()).hexdigest()
+
+    def check_and_mark(self, task_hash: str) -> bool:
+        """
+        检查是否重复，返回 True 表示重复（应忽略）
+        """
+        now = time.time()
+
+        # 清理过期条目
+        expired = [h for h, t in self._cache.items() if now - t > TTL_SECONDS]
+        for h in expired:
+            del self._cache[h]
+
+        if task_hash in self._cache:
+            return True  # 重复
+
+        self._cache[task_hash] = now
+        return False
+
+    def remove(self, task_hash: str) -> None:
+        self._cache.pop(task_hash, None)
+
+    def clear(self) -> None:
+        self._cache.clear()
+
+# 全局单例
+_idempotency_cache: Optional[IdempotencyCache] = None
+
+def get_idempotency_cache() -> IdempotencyCache:
+    global _idempotency_cache
+    if _idempotency_cache is None:
+        _idempotency_cache = IdempotencyCache()
+    return _idempotency_cache
+
+def generate_task_hash(
+    source_type: SourceType,
+    source: str,
+    content_prefix: str = ""
+) -> str:
+    """便捷函数"""
+    cache = get_idempotency_cache()
+    return cache.generate_hash(source_type, source, content_prefix)
+
+def check_duplicate(task_hash: str) -> bool:
+    """检查是否重复提交"""
+    cache = get_idempotency_cache()
+    return cache.check_and_mark(task_hash)
