@@ -8,9 +8,15 @@ from typing import Any
 
 
 from . import paths
+from .paths import registry_path as _default_registry_path
 
 
 _logger = logging.getLogger(__name__)
+
+
+def registry_path() -> Path:
+    """Alias of paths.registry_path() — for downstream monkeypatching."""
+    return _default_registry_path()
 
 
 @dataclass
