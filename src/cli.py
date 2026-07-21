@@ -20,7 +20,13 @@ from .queue.queue import get_queue_status, pause_queue, resume_queue, enqueue_ta
 from .orchestrator.orchestrator import get_orchestrator
 from .types import SourceType
 from .llm import create_embedding_provider, create_llm_provider
-from .cli_ext.project_cmd import cmd_project_init, cmd_project_list
+from .cli_ext.project_cmd import (
+    cmd_project_current,
+    cmd_project_info,
+    cmd_project_init,
+    cmd_project_list,
+    cmd_project_select,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -139,6 +145,17 @@ def main():
 
     p_list = p_project_sub.add_parser("list", help="List registered projects")
     p_list.set_defaults(func=cmd_project_list)
+
+    p_info = p_project_sub.add_parser("info", help="Show project metadata")
+    p_info.add_argument("id_or_name", help="Project UUID or name")
+    p_info.set_defaults(func=cmd_project_info)
+
+    p_current = p_project_sub.add_parser("current", help="Show current project")
+    p_current.set_defaults(func=cmd_project_current)
+
+    p_select = p_project_sub.add_parser("select", help="Set last_project pointer")
+    p_select.add_argument("id_or_name", help="Project UUID or name")
+    p_select.set_defaults(func=cmd_project_select)
 
     args = parser.parse_args()
 
