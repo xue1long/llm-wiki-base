@@ -48,6 +48,12 @@ class GlobalRegistry:
     projects: dict[str, ProjectRegistryEntry] = field(default_factory=dict)  # id → entry
 
 
+@dataclass
+class LastProjectPointer:
+    id: str
+    path: str
+
+
 class GlobalRegistryStore:
     """Static methods for registry CRUD. All I/O goes through `paths.registry_path()`."""
 
@@ -108,6 +114,27 @@ class GlobalRegistryStore:
         if project_id in reg.projects:
             del reg.projects[project_id]
             cls.save(reg)
+
+    @classmethod
+    def load_last_project(cls) -> "LastProjectPointer | None":  # type: ignore
+        from .paths import last_project_path as _last_path
+        path = _last_path()
+        if not path.exists():
+            return None
+        try:
+            import json
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return LastProjectPointer(id=data["id"], path=data["path"])
+        except (json.JSONDecodeError, KeyError, OSError):
+            return None
+
+    @classmethod
+    def save_last_project(cls, id: str, path: str) -> None:
+        from .paths import last_project_path as _last_path
+        p = _last_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        import json
+        p.write_text(json.dumps({"id": id, "path": path}, indent=2), encoding="utf-8")
 
     @classmethod
     def by_id(cls, project_id: str) -> ProjectRegistryEntry | None:
