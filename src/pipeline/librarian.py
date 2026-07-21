@@ -2,6 +2,7 @@
 import logging
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 
 from ..events.event_bus import event_bus
 from ..events.events import EventName, LibrarianDonePayload, LibrarianMergedPayload
@@ -9,10 +10,22 @@ from ..utils.text import chunk_markdown
 from ..vector.upsert import vector_upsert_chunks
 from ..vector.search import vector_search_chunks
 from ..types import VectorChunk
+from ..llm import create_embedding_provider, EmbeddingProvider
 
 logger = logging.getLogger(__name__)
 
 SIMILARITY_THRESHOLD = 0.95
+
+_embedding_provider: Optional[EmbeddingProvider] = None
+
+def set_embedding_provider(provider: EmbeddingProvider) -> None:
+    """设置全局 embedding provider"""
+    global _embedding_provider
+    _embedding_provider = provider
+
+def get_embedding_provider() -> Optional[EmbeddingProvider]:
+    """获取全局 embedding provider"""
+    return _embedding_provider
 
 async def archive(task_id: str, note_path: str) -> LibrarianDonePayload | LibrarianMergedPayload:
     """
@@ -24,17 +37,21 @@ async def archive(task_id: str, note_path: str) -> LibrarianDonePayload | Librar
 
     # 2. Pre-write Hook: 查向量库相似度
     chunks = chunk_markdown(note_content)
-    if chunks:
-        # 取第一个 chunk 的前512字符作为检索key
-        search_key = chunks[0][:512]
+    embeddings = []
 
-        # TODO: 生成 embedding (暂时用占位符)
-        # embedding = await embed_text(search_key)
-        # results = vector_search_chunks(embedding, top_k=1)
-        # if results and results[0].score > SIMILARITY_THRESHOLD:
-        #     return await _merge_duplicates(task_id, note_path, note_content, results[0])
+    if chunks and _embedding_provider:
+        try:
+            # 生成所有 chunk 的 embedding
+            embedding_results = await _embedding_provider.embed(chunks)
+            embeddings = [e.embedding for e in embedding_results]
 
-        pass  # 暂时跳过，完整实现需要 embedding 服务
+            # 使用第一个 chunk 的 embedding 检索相似内容
+            results = vector_search_chunks(embeddings[0], top_k=1)
+            if results and results[0].score > SIMILARITY_THRESHOLD:
+                return await _merge_duplicates(task_id, note_path, note_content, results[0])
+        except Exception as e:
+            logger.warning(f"[Librarian] Embedding search failed: {e}, proceeding without dedup")
+            embeddings = []
 
     # 3. 移动到 Knowledge
     knowledge_dir = Path("Knowledge")
@@ -47,12 +64,16 @@ async def archive(task_id: str, note_path: str) -> LibrarianDonePayload | Librar
     knowledge_path.write_text(note_content, encoding="utf-8")
 
     # 4. 写入向量
+    if not embeddings:
+        # 如果没有 embedding provider，使用占位符
+        embeddings = [[0.0] * 1536 for _ in chunks]
+
     lance_chunks = [
         VectorChunk(
             id=f"{task_id}-chunk-{i}",
             task_id=task_id,
             content=chunk,
-            embedding=[0.0] * 1536,  # 占位符
+            embedding=embeddings[i] if i < len(embeddings) else [0.0] * 1536,
             path=str(knowledge_path),
             updated_at=int(datetime.now().timestamp()),
         )

@@ -1,7 +1,13 @@
 # ruflo-kb/src/searcher/hybrid_search.py
 import re
 from pathlib import Path
-from typing import TypedDict
+from typing import TypedDict, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..llm import EmbeddingProvider
+    from ..vector.search import ChunkSearchResult
+
+from ..vector.search import vector_search_chunks
 
 class SearchResult(TypedDict):
     path: str
@@ -9,6 +15,17 @@ class SearchResult(TypedDict):
     content: str
     score: float
     source: str
+
+_embedding_provider: Optional["EmbeddingProvider"] = None
+
+def set_embedding_provider(provider: "EmbeddingProvider") -> None:
+    """设置全局 embedding provider"""
+    global _embedding_provider
+    _embedding_provider = provider
+
+def get_embedding_provider() -> Optional["EmbeddingProvider"]:
+    """获取全局 embedding provider"""
+    return _embedding_provider
 
 def rrf_fusion(items: list, k: int = 60) -> dict:
     """Reciprocal Rank Fusion"""
@@ -22,14 +39,42 @@ def rrf_fusion(items: list, k: int = 60) -> dict:
 async def hybrid_search(query: str, top_k: int = 10) -> list[SearchResult]:
     """混合检索: 语义 + 关键词"""
     # 1. 语义检索 (需要 embedding 服务)
-    # semantic_results = await vector_search_chunks(query_embedding, top_k)
+    semantic_results: list[SearchResult] = []
+    if _embedding_provider:
+        try:
+            embedding_result = await _embedding_provider.embed([query])
+            query_embedding = embedding_result[0].embedding
+            vector_results: list[ChunkSearchResult] = vector_search_chunks(query_embedding, top_k)
+
+            for r in vector_results:
+                semantic_results.append(SearchResult(
+                    path=r.path,
+                    title=Path(r.path).stem,
+                    content=r.content[:300],
+                    score=r.score,
+                    source="semantic",
+                ))
+        except Exception:
+            pass  # Fallback to keyword only
 
     # 2. 关键词检索
     keyword_results = await _keyword_search(query, top_k)
 
     # 3. RRF 融合
-    all_results = keyword_results  # 暂时只使用关键词
-    return all_results[:top_k]
+    if semantic_results and keyword_results:
+        # 融合两种结果
+        fused_scores = rrf_fusion([*semantic_results, *keyword_results])
+        all_results = {**{r["path"]: r for r in semantic_results},
+                       **{r["path"]: r for r in keyword_results}}
+
+        for path, fused_score in fused_scores.items():
+            if path in all_results:
+                all_results[path]["score"] = fused_score
+
+        sorted_results = sorted(all_results.values(), key=lambda x: x["score"], reverse=True)
+        return sorted_results[:top_k]
+
+    return keyword_results[:top_k]
 
 async def _keyword_search(query: str, top_k: int) -> list[SearchResult]:
     """简单关键词检索"""
