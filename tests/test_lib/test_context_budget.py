@@ -8,7 +8,7 @@ def test_estimate_tokens_empty():
 def test_estimate_tokens_uses_half_chars():
     """Conservative 0.5 token per char."""
     assert estimate_tokens("a" * 100) == 50
-    assert estimate_tokens("hello world") == 6  # 11 chars / 2 = 5 (floor)
+    assert estimate_tokens("hello world") == 5  # 11 chars / 2 = 5 (floor)
     assert estimate_tokens("中文测试") == 2  # 4 chars / 2
 
 
