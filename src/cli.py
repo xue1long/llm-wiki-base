@@ -26,6 +26,10 @@ from .cli_ext.project_cmd import (
     cmd_project_init,
     cmd_project_list,
     cmd_project_select,
+    cmd_project_import,
+    cmd_project_forget,
+    cmd_project_rename,
+    cmd_project_discover,
 )
 
 logging.basicConfig(
@@ -156,6 +160,24 @@ def main():
     p_select = p_project_sub.add_parser("select", help="Set last_project pointer")
     p_select.add_argument("id_or_name", help="Project UUID or name")
     p_select.set_defaults(func=cmd_project_select)
+
+    p_import = p_project_sub.add_parser("import", help="Import existing KB")
+    p_import.add_argument("path", help="Path to existing KB root")
+    p_import.add_argument("--name", help="Override project name")
+    p_import.set_defaults(func=cmd_project_import)
+
+    p_forget = p_project_sub.add_parser("forget", help="Remove project from registry")
+    p_forget.add_argument("id_or_name", help="Project UUID or name")
+    p_forget.add_argument("--delete-data", action="store_true", help="Also delete files")
+    p_forget.set_defaults(func=cmd_project_forget)
+
+    p_rename = p_project_sub.add_parser("rename", help="Rename a project")
+    p_rename.add_argument("id_or_name", help="Current project UUID or name")
+    p_rename.add_argument("new_name", help="New project name")
+    p_rename.set_defaults(func=cmd_project_rename)
+
+    p_discover = p_project_sub.add_parser("discover", help="Auto-discover existing KBs")
+    p_discover.set_defaults(func=cmd_project_discover)
 
     args = parser.parse_args()
 
