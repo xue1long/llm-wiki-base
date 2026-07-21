@@ -28,6 +28,28 @@ Replace ruflo-kb's brittle regex-based quality scoring (`calculate_quality_metri
 - The legacy `calculate_quality_metrics` is **fully deleted** — not available as a fallback.
 - No migration of existing v1.0 frontmatter `quality_score` / `ad_ratio` / `text_density` / `fluency_score` fields (they're stripped on first access; schema migration handles this in wiki v2.0).
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- `JudgmentScores` (6 dimensions)
+- `Judgment` + `BatchJudgmentResult`
+- `QualityJudge.judge_batch`
+- `QuarantineStore`
+
+**This spec requires from other specs**:
+
+- **Wiki v2.0 (REQUIRED)**: `WikiPage` (judged object)
+- **Multi-Provider LLM (REQUIRED)**: `LLMProvider.complete()`
+- **AtomicContext (REQUIRED)**: for judge batch atomic commit
+- **src/shared/**: `ReviewItem` extended with `quality-warn` type
+
+**Phase**: Phase 3 — Quality
+**Priority**: P0 — MVP
+
 ## Architecture
 
 ### Pipeline integration
@@ -431,6 +453,32 @@ async def test_full_pipeline_no_judge_flag():
     # Mock: judge never called for this ingest
     # Verify: page in wiki/ (same as disabled but only this ingest)
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P0)
+
+- 6 dimensions: source_type_appropriateness / factuality / completeness / clarity / readability / searchability
+- 2-tier verdict: pass / reject (warn + hard_reject deferred)
+- 1 retry per page (configurable to 2)
+- Basic quarantine (mark + don't write; no archive / retry / discard CLI yet)
+- CLI: `quality score / quality config show / quality config set`
+
+### Polish (v2.0.1 or later)
+
+- 4-tier verdict (add warn + hard_reject)
+- 2 retries (default)
+- Quality-warn review item
+- Full quarantine CLI (list/retry/discard)
+
+### Deferred (v2.1+)
+
+- Quarantine archive retention (30 days)
+- Staging draft generation
+- Cross-page consistency check
 
 ## Implementation order
 

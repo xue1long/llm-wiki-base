@@ -22,6 +22,27 @@ These systems transform the wiki from a flat dump of pages into a self-curating 
 - No graph-based heat propagation (heat doesn't propagate via relations in v1).
 - No UI for heat/pool visualization (CLI + HTTP only).
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- `Pool` enum (pool_1..4 / ccd / drift)
+- `HeatTracker` (increment / decay)
+- `PoolRouter` (priority * similarity)
+- `ZombieDetector`
+- `WikiPage` extended with `pool` + `heat` + `last_used_at`
+
+**This spec requires from other specs**:
+
+- **Wiki v2.0 (REQUIRED)**: `WikiPage` base structure
+- **Multi-Provider LLM (OPTIONAL)**: zombie staging draft generation
+
+**Phase**: Phase 3 — Wiki Polish
+**Priority**: P1 — v2.1
+
 ## Architecture
 
 ### 5-Pool routing
@@ -346,6 +367,29 @@ tests/test_integration/test_heat_e2e.py:
         # Search without --include-drift
         # Verify: drift page excluded
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P1)
+
+- `heat` field (0-100) + decay (-10 per 30 days) + increment (+5 per AI retrieval)
+- Zombie detection at heat=0 for 30 days
+- CLI: `heat {show,top,cold,decay,zombies,restore,archive}`
+
+### Polish (v2.0.1 or later)
+
+- 5-Pool routing (priority * similarity scoring)
+- Staging draft generation for zombies
+- Heat propagation via relations
+
+### Deferred (v2.1+)
+
+- Pool inheritance
+- Custom decay policies
+- Heat-based page pinning
 
 ## Implementation order
 

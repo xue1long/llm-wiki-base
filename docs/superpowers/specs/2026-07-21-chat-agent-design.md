@@ -28,6 +28,30 @@ Built-in tools cover the full llm_wiki-main set: wiki search/read/write, source 
 - No agent-vs-agent collaboration.
 - No automatic prompt A/B testing (deferred).
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- `AgentRuntime` + `run_agent_loop`
+- `AgentLoopAction` JSON schema
+- 14 builtin tools (MVP: 5)
+- `ChatSession` persistence (deferred)
+- SSE streaming (deferred)
+
+**This spec requires from other specs**:
+
+- **Project multi-instancing (REQUIRED)**: per-project `ProjectContext`
+- **Wiki v2.0 (REQUIRED)**: wiki.search / wiki.read_page tools
+- **Multi-Provider LLM (REQUIRED)**: streaming + completion
+- **AtomicContext (OPTIONAL)**: for atomic chat session commits
+- **src/shared/**: `EventName` extended with `agent:*` events
+
+**Phase**: Phase 4 — Advanced
+**Priority**: P0 — MVP for HTTP endpoint only
+
 ## Architecture
 
 ### Pipeline integration
@@ -732,6 +756,34 @@ Deep mode (12 iter): ~$0.06-0.10 per turn.
 REPL 1-hour chat (10 turns): ~$0.30-0.50.
 
 Cost cap (default 0.5 USD/session) limits runaway.
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P0)
+
+- 5 tools only: wiki.search / wiki.read_page / source.search / graph.search / web.search
+- HTTP /chat endpoint (non-streaming JSON response)
+- 8 iterations max (fast=4 / standard=8 / deep=12)
+- No SSE, no REPL, no skills, no workspace, no shell
+- No cost cap
+
+### Polish (v2.0.1 or later)
+
+- CLI REPL (`chat`)
+- SSE streaming for HTTP
+- 9 remaining tools (wiki.write_page / workspace.* / skills.* / shell.exec / deep_research.run / llm.generate)
+- Session persistence to `.llm-wiki/chats/`
+- Cost cap (0.5 USD/session)
+
+### Deferred (v2.1+)
+
+- Skills marketplace
+- Voice I/O
+- Sub-agent delegation
+- Multi-provider per-task routing
 
 ## Implementation order
 

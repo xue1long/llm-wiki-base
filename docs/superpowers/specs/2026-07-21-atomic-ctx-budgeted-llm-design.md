@@ -24,6 +24,25 @@ Two utility modules that solve recurring cross-cutting concerns:
 - No automatic roll-back on partial failure (caller responsibility — `AtomicContext.flush_callback` runs even on exception via `finally`).
 - No multi-process suspension (single-process assumption; v1).
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- `AtomicContext` context manager (atomic multi-step commits)
+- `BudgetedLLM` context manager (token budget chunking)
+- `safe_write()` hook (respects AtomicContext)
+- 0.5 token/char conservative estimator
+
+**This spec requires from other specs**:
+
+- **src/shared/**: error classes
+
+**Phase**: Phase 1 — Foundations (parallel)
+**Priority**: P0 — MVP
+
 ## Architecture
 
 ```
@@ -368,6 +387,30 @@ tests/test_integration/test_budgeted_llm.py:
         # 1K char prompt
         # Verify: 1 chunk only
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P0)
+
+- AtomicContext with nested semantics
+- `safe_write` hook + `flush_pending_writes`
+- BudgetedLLM with paragraph chunking
+- 0.5 token/char conservative estimator
+- CLI: `atomic status / budget estimate / budget check`
+
+### Polish (v2.0.1 or later)
+
+- Per-thread / per-async-task suspension
+- Streaming output aggregation across chunks
+
+### Deferred (v2.1+)
+
+- tiktoken / model-specific tokenizers
+- Multi-process coordination
+- Persistent suspension state across crashes
 
 ## Implementation order
 

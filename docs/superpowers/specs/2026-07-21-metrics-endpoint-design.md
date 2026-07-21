@@ -18,6 +18,27 @@ This unlocks Grafana dashboards, Prometheus alerting, SLO monitoring, and day-to
 - No high-cardinality metrics (e.g., per-user, per-project-id); keep label sets bounded.
 - No metrics export to external systems (Datadog, New Relic); Prometheus pull model is sufficient.
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- `Counter` + `Gauge` + `Histogram` metric classes
+- `MetricsRegistry`
+- `LLMCostTracker` (per-model USD)
+- `MetricsStore` (SQLite 24h rolling window)
+- Prometheus text format 0.0.4 serializer
+- `GET /metrics` endpoint
+
+**This spec requires from other specs**:
+
+- **src/shared/**: event hooks for instrumentation
+
+**Phase**: Phase 4 — Polish
+**Priority**: P1 — v2.0.1
+
 ## Architecture
 
 ```
@@ -439,6 +460,30 @@ tests/test_integration/test_metrics_e2e.py:
     def test_cardinality_bounded():
         # Run 1000 ingests; verify number of unique label combinations bounded
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P1)
+
+- 5 core metrics: ingest_total / chat_total / llm_cost_usd_total / active_tasks / uptime_seconds
+- SQLite persistence with 24h rolling window
+- `GET /metrics` endpoint
+- CLI: `metrics {show,reset,export,cost}`
+
+### Polish (v2.0.1 or later)
+
+- Full metrics suite (search_total / judge_total / http_requests_total / etc.)
+- `--only` / `--skip` filtering
+
+### Deferred (v2.1+)
+
+- OpenTelemetry / OTLP export
+- Per-project metrics namespace
+- Long-term retention (30 days)
+- Alerting rules engine
 
 ## Implementation order
 

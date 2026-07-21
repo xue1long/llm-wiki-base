@@ -25,6 +25,28 @@ This spec unlocks the killer feature of llm_wiki-main: external agents (Claude C
 - No project template marketplace / skill library sharing.
 - No metrics endpoint (Prometheus / OpenTelemetry). v1 logs to file only.
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- FastAPI server on 127.0.0.1:19828
+- stdio MCP server (`python -m src.cli mcp`)
+- Daemon mode with pidfile management
+
+**This spec requires from other specs**:
+
+- **Project multi-instancing (REQUIRED)**: `ProjectContext`, `ProjectSettings`
+- **Wiki v2.0 (REQUIRED)**: search / files / ingest / reviews / chat endpoints
+- **Multi-Provider LLM (REQUIRED)**: LLM provider resolution per project
+- **Quality Gate (REQUIRED for /quality endpoint)**: `Judgment`, scoring
+- **AtomicContext (OPTIONAL)**: for atomic multi-step HTTP handlers
+
+**Phase**: Phase 2 — Core
+**Priority**: P0 — MVP
+
 ## Architecture
 
 ```
@@ -682,6 +704,33 @@ async def test_full_flow():
 ### Test fixture: isolated config dir
 
 Reuse `tests/_helpers/temp_config_dir.py` from Project spec. HTTP server writes to `~/.config/ruflo-kb/`; tests redirect this to tmpdir.
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P0)
+
+- 8 core endpoints: health / projects / files / search / ingest / reviews / chat (RAG) / schema (read-only)
+- 8 core MCP tools: status / projects / set_project / files / read_file / search / ingest / reviews
+- Auth: localhost-only, no token
+- Session CRUD: list / get / delete
+- No SSE (deferred)
+- Daemon mode: simple fork + pidfile
+
+### Polish (v2.0.1 or later)
+
+- SSE streaming for /chat
+- Session cancellation endpoint
+- --metrics flag for daemon
+- Remaining 5 endpoints (graph / rescan / cascade-delete / lint / dedup)
+
+### Deferred (v2.1+)
+
+- LAN access (allow_lan flag)
+- Token-based auth
+- SSE for /research, /lint, /dedup
 
 ## Implementation order
 

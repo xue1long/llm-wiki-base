@@ -26,6 +26,27 @@ This gives users a single command to validate their wiki integrity, complementin
 - No remote monitoring integration (Prometheus metrics spec already covers that).
 - No wiki rebuild (separate `cmd_rebuild_index` operation).
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- `HealthCheckRunner` + `Check` base class
+- 5 checks: H1 / H2 / H3 / H4 / H5
+- `HealthReport` JSON
+- `CheckResult` + `CheckIssue`
+
+**This spec requires from other specs**:
+
+- **Wiki v2.0 (REQUIRED)**: frontmatter loaders
+- **Wiki Fields (REQUIRED)**: H4 ID format uses `ID_PATTERN`
+- **src/shared/**: shared check base class
+
+**Phase**: Phase 1 — Foundations (parallel)
+**Priority**: P1 — small enough to land in MVP
+
 ## Architecture
 
 ```
@@ -608,6 +629,30 @@ tests/test_integration/test_health_e2e.py:
         # Run health --strict with one error
         # Verify: exit code 1
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P1)
+
+- 3 of 5 checks: H1 (file existence), H2 (break-links), H4 (ID format)
+- Text + JSON output
+- --strict / --only / --skip flags
+- CLI: `health [--only H1,H3] [--skip H5] [--strict] [--json]`
+
+### Polish (v2.0.1 or later)
+
+- H3 (density) + H5 (tag namespace)
+- --fix flag for H5 (auto-suggest tag prefixes)
+
+### Deferred (v2.1+)
+
+- H6-H11 (DB / done ratio / use_context / workflow_state / verified overdue / violation guard)
+- Custom check plugins
+- Per-check timeout
+- Integration with CI / pre-commit
 
 ## Implementation order
 

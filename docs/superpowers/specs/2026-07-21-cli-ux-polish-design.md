@@ -19,6 +19,25 @@ Two small UX improvements:
 - No template versioning (each template is current version).
 - No user-contributed templates in this spec (deferred).
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- Shell completion via `argcomplete` (bash + zsh)
+- 3 project templates (research / novels / business)
+- `TemplateLoader`
+
+**This spec requires from other specs**:
+
+- **Project multi-instancing (REQUIRED)**: project list for completion
+- **src/shared/**: completion caching
+
+**Phase**: Phase 4 — Polish
+**Priority**: P1 — v2.0.1
+
 ## Architecture
 
 ### Shell completion flow
@@ -340,6 +359,29 @@ tests/test_integration/test_completions.py:
         # Run `completions show bash`
         # Verify: valid bash completion script on stdout
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P1)
+
+- CLI completion: bash + zsh
+- 1 template only (research)
+- 1 hardcoded project name autocompletion
+
+### Polish (v2.0.1 or later)
+
+- Fish shell completion
+- 2 more templates (novels / business)
+- User-defined custom templates at `~/.config/ruflo-kb/templates/`
+
+### Deferred (v2.1+)
+
+- Template marketplace
+- Per-template custom commands or hooks
+- Custom completion caching
 
 ## Implementation order
 

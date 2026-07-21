@@ -27,6 +27,32 @@ The wiki directory is human-readable as-is (Obsidian vault), machine-traversable
 - No web search / Deep Research integration (depends on HTTP API spec).
 - Graph relevance scoring (4-signal model) is **deferred to v2.1** — see Open Questions.
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- `WikiPage` (base structure; extended by Wiki Fields / Relations / Heat)
+- `KnowledgeTask` (extended by Quality Gate / Deep Research)
+- `EventName` base enum (extended by Quality Gate / Chat Agent / Deep Research)
+- `ReviewItem` (extended by Quality Gate with `quality-warn` type)
+- Pipeline: Collector → Analyzer → Generator → Librarian
+- CascadeDelete result type
+- DedupResult + DuplicateGroup + MergeRequest types
+
+**This spec requires from other specs**:
+
+- **Project multi-instancing (REQUIRED)**: `ProjectContext`, `ProjectSettings`, `EventBus`
+- **Schemas v3 (REQUIRED)**: `Migration` base class for v1→v2 migration
+- **AtomicContext (REQUIRED)**: for cascade_delete atomic multi-step commits
+- **Multi-Provider LLM (REQUIRED)**: `LLMProvider.complete()` / `complete_stream()`
+- **src/shared/ (REQUIRED)**: `EventName`, `ReviewItem`, `KnowledgeTask` definitions
+
+**Phase**: Phase 2 — Core
+**Priority**: P0 — MVP
+
 ## Architecture
 
 ### Pipeline change
@@ -803,6 +829,38 @@ markers = [
 ### Real LLM smoke tests (opt-in)
 
 `tests/test_pipeline/test_analyzer.real-llm.py` — 走真实 LLM，pytest 默认跳过，`pytest -m real_llm` 启用。
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P0)
+
+- 4 page types: source / entity / concept / synthesis (query+comparison merged into source subsections)
+- 2-step CoT (Analyzer → Generator)
+- A1: cascade_delete
+- A2: folder-aware ingest
+- A3: review_items (4 basic types)
+- A4: lint (5 issue types, NO semantic LLM)
+- A5: schema routing validation
+- A6: ZIP export/import
+- A7: dedup (basic, no --auto)
+- Stub pages (auto-created on broken wikilink)
+- Indexer + log.md
+
+### Polish (v2.0.1 or later)
+
+- A4: lint semantic (LLM-driven)
+- A7: dedup --auto flag
+- overview.md auto-regenerate
+- _archive/ directory
+
+### Deferred (v2.1+)
+
+- wiki/_stubs/ automatic materialization (in Wiki v2.1 polish)
+- Templates/ user customization
+- query / comparison as separate page types
 
 ## Implementation order
 

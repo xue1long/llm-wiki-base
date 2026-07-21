@@ -28,6 +28,28 @@ Provider configurations live in a **global registry** at `~/.config/ruflo-kb/llm
 - No model quantization / LoRA management (Ollama handles internally).
 - No fine-tuning interface.
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- `OllamaProvider`
+- `OpenAICompatibleProvider`
+- `ProviderRegistry` (global config)
+- `NonStreamingToStreamingAdapter`
+- `LLMCostTracker`
+- `OllamaHealthChecker`
+
+**This spec requires from other specs**:
+
+- **Project multi-instancing (REQUIRED)**: per-project provider override
+- **src/shared/**: `LLMProvider` base interface
+
+**Phase**: Phase 2 — Core
+**Priority**: P0 — MVP
+
 ## Architecture
 
 ### Provider layer
@@ -744,6 +766,31 @@ tests/test_integration/test_provider_switch.py:
         # Project has no override → uses global default
         # Change global default → project uses new default (no restart needed)
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P0)
+
+- Ollama provider only
+- Global registry at `~/.config/ruflo-kb/llm-providers.json`
+- Per-project override via settings.llm.provider_registry_name
+- Health check at startup + manual `llm-providers test`
+- CLI: `llm-providers {list,add,remove,test,show,set-default}`
+
+### Polish (v2.0.1 or later)
+
+- OpenAI-compatible generic provider (LM Studio / vLLM)
+- Model auto-check + pull hint
+- Streaming adapter (use for future non-streaming providers)
+
+### Deferred (v2.1+)
+
+- Google Gemini / Anthropic Bedrock / Vertex AI
+- Subprocess CLI providers (Claude Code CLI / Codex CLI)
+- Vision / image input
 
 ## Implementation order
 

@@ -18,6 +18,26 @@ This unlocks image-aware search (find pages by what's depicted in their images) 
 - No custom vision model training (use provider's hosted vision).
 - No image editing / annotation UI (deferred; no GUI in this spec).
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- `ImageExtractor` (PDF → images)
+- `VisionCaptioner` (LLM)
+- `MediaPage` wiki page type
+- Image-aware search enhancement
+
+**This spec requires from other specs**:
+
+- **Wiki v2.0 (REQUIRED)**: writes `wiki/media/<id>.md` + image links in source page
+- **Multi-Provider LLM (REQUIRED)**: vision-capable model (gpt-4o-mini / claude-haiku-4-5)
+
+**Phase**: Phase 3 — Media
+**Priority**: P2 — v2.1
+
 ## Architecture
 
 ```
@@ -439,6 +459,32 @@ tests/test_integration/test_vision_e2e.py:
         # Plain text PDF (no images)
         # Verify: vision skipped; no errors
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P2)
+
+- PDF only (pdfplumber + Pillow)
+- GPT-4o-mini / Claude vision models
+- 20 images/task max, 5 concurrent
+- `wiki/media/` storage + .md caption pages
+- Image links embedded in source page
+
+### Polish (v2.0.1 or later)
+
+- DOCX / PPTX / EPUB extractors
+- Image rerank in search results
+- Per-image diff tracking
+
+### Deferred (v2.1+)
+
+- Video frame extraction
+- OCR fallback
+- Image generation
+- Image embedding (CLIP)
 
 ## Implementation order
 

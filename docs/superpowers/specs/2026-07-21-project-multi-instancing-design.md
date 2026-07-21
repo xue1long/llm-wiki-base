@@ -27,6 +27,26 @@ This spec is **prerequisite** for HTTP API + MCP server (separate spec) and lays
 - No project templates or "starter content" beyond the wiki v2.0 `ensure_knowledge_base` defaults.
 - No undo/redo of project-level operations (`project forget --delete-data` is irreversible; users should back up first).
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- `ProjectContext` (consumed by ALL other specs)
+- `ProjectSettings` (consumed by ALL other specs)
+- `GlobalRegistry` — global project list
+- `EventBus` with on_project / on_global dual subscription
+- `with_project_lock` async + `sync_with_project_lock`
+
+**This spec requires from other specs**:
+
+- **src/shared/ (REQUIRED)**: `PlatformdirsPath` helper for OS-config-dir
+
+**Phase**: Phase 1 — Foundations (parallel)
+**Priority**: P0 — MVP
+
 ## Architecture
 
 ### Layers
@@ -665,6 +685,31 @@ def temp_config_dir(tmp_path, monkeypatch):
     yield config_dir
     # Cleanup happens automatically via tmp_path
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P0)
+
+- UUID identity + project.json
+- registry.json + last_project.json
+- 4-step resolve chain (--project → CWD → last_project → error)
+- Per-project mutex (async + sync wrapper)
+- Auto-discovery on first run
+- CLI: `project {list,info,current,select,init,import,forget,rename,discover}`
+
+### Polish (v2.0.1 or later)
+
+- Per-project user permissions
+- Undo/redo for project operations
+- Project templates (3 bundled templates)
+
+### Deferred (v2.1+)
+
+- Remote registry sync
+- CLI shell completion for project names (handled in CLI/UX polish)
 
 ## Implementation order
 

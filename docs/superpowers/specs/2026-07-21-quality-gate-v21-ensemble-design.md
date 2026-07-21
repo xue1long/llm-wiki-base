@@ -17,6 +17,26 @@ This reduces single-judge bias (some LLM judges are too lenient on certain dimen
 - No ensemble training / fine-tuning (deferred).
 - No cross-project judge sharing.
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- Multi-judge ensemble voting
+- `EnsembleJudge`
+- `JudgeVote` + `AggregatedJudgment`
+- Per-dimension mean + veto logic
+
+**This spec requires from other specs**:
+
+- **Quality Gate v2.0 (REQUIRED)**: `JudgmentScores`, `Judgment`
+- **Multi-Provider LLM (REQUIRED)**: multiple provider registry entries
+
+**Phase**: Phase 4 — Advanced
+**Priority**: P2 — v2.1 experiment
+
 ## Architecture
 
 ```
@@ -267,6 +287,29 @@ tests/test_integration/test_judge_ensemble.py:
         # ensemble_enabled=false, ensemble_judges=[]
         # Verify: same as v2.0 (single judge behavior)
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P2)
+
+- Default 2 judges (primary + 1 configured)
+- Mean aggregation
+- Veto on factuality < 0.2
+
+### Polish (v2.0.1 or later)
+
+- Configurable judge count (2-3)
+- Per-dimension judge specialization
+- Judge A/B testing framework
+
+### Deferred (v2.1+)
+
+- Ensemble training via user feedback
+- Model disagreement visualization UI
+- Cross-project judge sharing
 
 ## Implementation order
 

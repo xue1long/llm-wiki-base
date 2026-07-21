@@ -22,6 +22,26 @@ Upgrade ruflo-kb's schema framework from a simple migration script (`src/schemas
 - No remote schema registry (local only).
 - No schema compatibility matrix UI (CLI only).
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- `Migration` base class (forward-compat + reversible)
+- `SchemaRegistry` (multiple schema types)
+- `BackupManager` (timestamped backups + latest symlink)
+- `ForwardCompatModel` (extra='allow')
+- v2.0 → v2.1 migration template
+
+**This spec requires from other specs**:
+
+- **src/shared/**: error classes (MigrationError)
+
+**Phase**: Phase 1 — Foundations (parallel)
+**Priority**: P0 — MVP
+
 ## Architecture
 
 ```
@@ -426,6 +446,31 @@ tests/test_integration/test_schema_upgrade_e2e.py:
         # Upgrade → upgrade again
         # Verify: 2nd call is no-op (files unchanged)
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P0)
+
+- Migration base class with up()/down()/preview()
+- Wiki page schema registry
+- Frontmatter loading with extra='allow'
+- v2.0 → v2.1 migration (for Wiki Relations spec)
+- CLI: `schema {list,diff,upgrade,downgrade,backup}`
+
+### Polish (v2.0.1 or later)
+
+- Multi-schema transactional migrations
+- Auto-upgrade on read
+- Per-schema version registry
+
+### Deferred (v2.1+)
+
+- Lazy migration on read
+- Remote schema registry
+- Custom migration hooks
 
 ## Implementation order
 

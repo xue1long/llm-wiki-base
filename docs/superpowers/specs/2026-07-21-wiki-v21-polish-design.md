@@ -21,6 +21,28 @@ Three small but high-value polish features on top of Wiki v2.0:
 - No LLM call deduplication beyond lint semantic (Analyzer / Generator caches deferred).
 - No cross-project lint cache sharing.
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- Stub auto-materialization worker (background)
+- Dedup `--auto` flag (high confidence auto-merge)
+- Lint semantic cache TTL
+- `StubMaterializerWorker`
+- `DedupHistoryStore` (30-day archive)
+
+**This spec requires from other specs**:
+
+- **Wiki v2.0 (REQUIRED)**: stub pages + dedup foundation
+- **Quality Gate (REQUIRED)**: lint semantic uses Judge LLM
+- **AtomicContext (REQUIRED)**: stub materialization + dedup auto atomic commits
+
+**Phase**: Phase 3 — Wiki Polish
+**Priority**: P1 — v2.0.1
+
 ## Architecture
 
 ### Stub auto-materialization
@@ -334,6 +356,28 @@ tests/test_integration/test_lint_cache.py:
         # Ingest new source (index_version changes)
         # Run cmd_lint (cache miss → invalidate + LLM)
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P1)
+
+- All 3 features bundled
+- CLI: `stubs / dedup --auto / lint --cache-ttl`
+
+### Polish (v2.0.1 or later)
+
+- Stub materialization retry budget
+- Dedup archive retention (default 30 days)
+- Lint cache invalidation triggers (index_version change)
+
+### Deferred (v2.1+)
+
+- Stubs UI (click to materialize)
+- Dedup --auto for medium confidence
+- Lint cache cross-project sharing
 
 ## Implementation order
 

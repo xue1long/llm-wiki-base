@@ -28,6 +28,29 @@ These fields form a **L0-L3 layered validation** (NKB pattern): L0 (always requi
 - No new page types (existing source/entity/concept/.../stub types unchanged).
 - No tag validator CLI in this spec (deferred to Quality Gate v2.x lint extension).
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- L0-L3 layered field validation
+- `FieldsValidator`
+- `TagNamespace` validator (8 prefixes)
+- `GradeRouter` (grade A/B/C → processing_depth concept/memory)
+- UUID v7 page IDs (`card_<13hex>_<8hex>_<slug>`)
+- `WikiPage` extended with 8 new fields
+
+**This spec requires from other specs**:
+
+- **Wiki v2.0 (REQUIRED)**: `WikiPage` base structure
+- **Schemas v3 (REQUIRED)**: v2.0 → v2.2 migration
+- **Health Check (REQUIRED)**: H4 ID format uses `ID_PATTERN`
+
+**Phase**: Phase 3 — Wiki Polish
+**Priority**: P1 — v2.0.1
+
 ## Architecture
 
 ```
@@ -477,6 +500,30 @@ tests/test_integration/test_wiki_fields_e2e.py:
         # Run tags audit
         # Verify: invalid tags listed + suggested prefix
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P1)
+
+- 4 fields: id (UUID v7) / grade / processing_depth / is_immutable
+- Tag namespace validation (8 prefixes)
+- Migration v2.0 → v2.2
+- CLI: `fields validate / tags validate`
+
+### Polish (v2.0.1 or later)
+
+- Remaining 4 fields: use_context / maturity / workflow_state
+- L3 per-type conditional fields
+- Tag audit CLI
+
+### Deferred (v2.1+)
+
+- Auto-promote memory → concept
+- Tag auto-suggestion
+- Per-namespace tag color/icon
 
 ## Implementation order
 

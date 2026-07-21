@@ -25,6 +25,30 @@ This spec completes the wiki v2.0 loop: `Analyzer` flags uncertain facts as revi
 - No collaboration (multi-user research session merging; deferred).
 - No result caching beyond task-level persistence (each run re-queries).
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- 6 web search providers (MVP: 1 Tavily)
+- `ResearchRunner`
+- `optimizeResearchTopic` (LLM)
+- `synthesizeFindings` (LLM)
+- `ResearchState` persistence (deferred)
+- `TopicOptimizer`
+
+**This spec requires from other specs**:
+
+- **Wiki v2.0 (REQUIRED)**: writes `wiki/synthesis/<slug>.md`
+- **Multi-Provider LLM (REQUIRED)**: LLM calls for optimizer + synthesizer
+- **Quality Gate (REQUIRED for auto-ingest)**: judges synthesized pages
+- **src/shared/**: `ReviewItem.search_queries` consumed via `--from-review-id`
+
+**Phase**: Phase 4 — Advanced
+**Priority**: P0 — MVP (Tavily only)
+
 ## Architecture
 
 ### Pipeline
@@ -663,6 +687,34 @@ tests/test_integration/test_deep_research_e2e.py:
         # Mock provider raises exception
         # Verify: state.failed; error logged
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P0)
+
+- Tavily only
+- 1 concurrent task × 3 concurrent queries
+- No state persistence (in-memory)
+- Auto-ingest: disabled by default (`--no-ingest` default)
+- CLI: `research {run,list,show}`
+
+### Polish (v2.0.1 or later)
+
+- SearXNG
+- State persistence to `.index/research/`
+- Review items integration (`--from-review-id`)
+- Auto-ingest top 5 (default)
+- HTTP + MCP endpoints
+
+### Deferred (v2.1+)
+
+- 4 more providers (Firecrawl / Brave / SerpApi / Ollama Web Search)
+- Result caching
+- Cross-source synthesis templates
+- Scheduling / cron recurring research
 
 ## Implementation order
 

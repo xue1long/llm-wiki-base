@@ -18,6 +18,28 @@ The Generator's Step 2 prompt is extended to emit `relations` alongside `body_ma
 - No relation inference from natural language (LLM-only for now).
 - No graph versioning (relations don't have their own history).
 
+
+## Input Contract
+
+> Reference: [`_input_contracts.md`](_input_contracts.md) for cross-spec dependency map.
+
+**This spec provides** (consumed by other specs):
+
+- `Relation` dataclass (target / type / weight / context)
+- `RelationSync` (bidirectional)
+- `RelationQuery` (list / backlinks / neighbors / path)
+- 16 built-in relation types
+- User-defined x-* types
+
+**This spec requires from other specs**:
+
+- **Wiki v2.0 (REQUIRED)**: `WikiPage` extended with `relations` field
+- **Schemas v3 (REQUIRED)**: v2.0 → v2.1 migration for relations field
+- **src/shared/**: bidirectional sync primitives
+
+**Phase**: Phase 3 — Wiki Polish
+**Priority**: P1 — v2.1
+
 ## Architecture
 
 ```
@@ -331,6 +353,31 @@ tests/test_integration/test_relations_e2e.py:
         # LLM emits relation with type "x-my-type"
         # Accept and persist
 ```
+
+
+## MVP Scope / Polish / Deferred
+
+> This section partitions the spec's features into delivery tiers. See [`_input_contracts.md`](_input_contracts.md) for cross-spec context.
+
+### MVP Scope (P1)
+
+- Generator emits relations per page
+- Bidirectional sync via INVERSE_RELATIONS table
+- 16 built-in types (is_part_of / references / causes / etc.)
+- User-defined x-* types
+- CLI: `relations {list,backlinks,neighbors,path,types,add-type}`
+
+### Polish (v2.0.1 or later)
+
+- Relation versioning
+- Relation inference from prose
+
+### Deferred (v2.1+)
+
+- Visual graph UI
+- 4-signal relevance scoring (separate spec)
+- Graph algorithms (Louvain / PageRank)
+- Cross-project relations
 
 ## Implementation order
 
