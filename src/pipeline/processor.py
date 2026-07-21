@@ -8,6 +8,7 @@ from datetime import datetime
 from ..events.event_bus import event_bus
 from ..events.events import EventName, ProcessorDonePayload
 from ..utils.text import trim_text, chunk_markdown
+from ..permissions import AgentType, enforce_permission, Permission
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,10 @@ def calculate_quality_metrics(content: str) -> dict:
 
 async def process(task_id: str, raw_path: str, content: str) -> ProcessorDonePayload:
     """处理内容：清洗 + 摘要 + 标签 + 质量评分"""
+
+    # 权限检查: Processor 只允许读 Inbox/Processing
+    enforce_permission(AgentType.PROCESSOR, raw_path, Permission.READ)
+
     # 1. 清洗
     cleaned = trim_text(content)
 
@@ -90,7 +95,10 @@ async def process(task_id: str, raw_path: str, content: str) -> ProcessorDonePay
 """
 
     # 6. 保存到 Notes
+    # 权限检查: Processor 只允许写 Notes
     notes_dir = Path("Notes")
+    enforce_permission(AgentType.PROCESSOR, str(notes_dir), Permission.WRITE)
+
     notes_dir.mkdir(exist_ok=True)
     note_path = notes_dir / f"{task_id}.md"
     note_path.write_text(note_content, encoding="utf-8")

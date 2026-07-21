@@ -10,6 +10,7 @@ from ..utils.extract.pdf import extract_pdf_text
 from ..utils.extract.office import extract_office_text
 from ..utils.text import html_to_text
 from ..types import SourceType
+from ..permissions import AgentType, enforce_permission, Permission
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,9 @@ async def collect(task_id: str, source: str, source_type: SourceType) -> Collect
         file_path = Path(source)
         ext = file_path.suffix.lower()
 
+        # 权限检查: Collector 只允许读本地文件
+        enforce_permission(AgentType.COLLECTOR, source, Permission.READ)
+
         if ext == ".pdf":
             content = extract_pdf_text(source)
         elif ext in [".docx", ".doc", ".xlsx", ".xls"]:
@@ -36,9 +40,13 @@ async def collect(task_id: str, source: str, source_type: SourceType) -> Collect
         else:
             raise ValueError(f"Unsupported file type: {source}")
 
-    # 保存原始内容
+    # 保存原始内容到 Inbox/Processing
     inbox.move_to_processing(source)
     raw_path = inbox.processing_path / f"{task_id}{ext}"
+
+    # 权限检查: Collector 只允许写 Inbox/Processing
+    enforce_permission(AgentType.COLLECTOR, str(raw_path), Permission.WRITE)
+
     raw_path.write_text(content, encoding="utf-8")
 
     payload = CollectorDonePayload(
