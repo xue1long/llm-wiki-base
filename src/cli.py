@@ -20,6 +20,7 @@ from .queue.queue import get_queue_status, pause_queue, resume_queue, enqueue_ta
 from .orchestrator.orchestrator import get_orchestrator
 from .types import SourceType
 from .llm import create_embedding_provider, create_llm_provider
+from .cli_ext.project_cmd import cmd_project_init, cmd_project_list
 
 logging.basicConfig(
     level=logging.INFO,
@@ -126,6 +127,18 @@ def main():
     p_config.add_argument("--provider", default="openai", choices=["openai", "anthropic"], help="LLM Provider")
     p_config.add_argument("--openai-key", help="OpenAI API Key")
     p_config.set_defaults(func=cmd_configure)
+
+    # Project subcommand
+    p_project = subparsers.add_parser("project", help="Manage projects")
+    p_project_sub = p_project.add_subparsers(dest="project_command")
+
+    p_init = p_project_sub.add_parser("init", help="Initialize new project")
+    p_init.add_argument("path", help="Project root directory")
+    p_init.add_argument("--name", help="Project name (default: path basename)")
+    p_init.set_defaults(func=cmd_project_init)
+
+    p_list = p_project_sub.add_parser("list", help="List registered projects")
+    p_list.set_defaults(func=cmd_project_list)
 
     args = parser.parse_args()
 
