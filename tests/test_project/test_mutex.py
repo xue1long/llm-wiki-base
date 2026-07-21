@@ -1,5 +1,6 @@
 import asyncio
-import time
+
+import pytest
 
 from src.project.mutex import (
     with_project_lock,
@@ -15,10 +16,6 @@ def setup_function(_):
 async def test_async_lock_serializes_same_project():
     """Two concurrent calls with same project_id run sequentially."""
     order: list[str] = []
-
-    async def task_a():
-        async with with_project_lock("proj-1", lambda: _delay_then(order, "a", 0.1)) if False else None:
-            pass  # not used; see below
 
     async def slow():
         order.append("slow-start")
@@ -39,11 +36,6 @@ async def test_async_lock_serializes_same_project():
     assert result_fast == "fast"
     # Order: slow fully completes, then fast starts
     assert order.index("slow-end") < order.index("fast-start")
-
-
-def _delay_then(order, label, t):
-    """Stub: in real test we'd await asyncio.sleep"""
-    pass  # not used; see coroutine test
 
 
 async def test_async_lock_different_projects_concurrent():
@@ -86,7 +78,6 @@ async def test_async_lock_propagates_exception():
     async def fail():
         raise ValueError("boom")
 
-    import pytest
     with pytest.raises(ValueError, match="boom"):
         await with_project_lock("proj-fail", fail)
 
