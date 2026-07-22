@@ -1,7 +1,10 @@
 """Wiki core types — page model, events, tasks, review items."""
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from .relations import Relation
 
 
 class PageType(str, Enum):
@@ -40,6 +43,7 @@ class WikiPage:
     created_at: int = 0
     updated_at: int = 0
     body: str = ""
+    relations: list["Relation"] = field(default_factory=list)
 
     def to_frontmatter_dict(self) -> dict:
         return {
@@ -49,10 +53,12 @@ class WikiPage:
             "sources": list(self.sources),
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "relations": [r.to_dict() for r in self.relations],
         }
 
     @classmethod
     def from_dict(cls, d: dict, body: str = "") -> "WikiPage":
+        from .relations import Relation
         return cls(
             id=d["id"],
             title=d["title"],
@@ -61,6 +67,7 @@ class WikiPage:
             created_at=d.get("created_at", 0),
             updated_at=d.get("updated_at", 0),
             body=body,
+            relations=[Relation.from_dict(r) for r in d.get("relations", [])],
         )
 
 
