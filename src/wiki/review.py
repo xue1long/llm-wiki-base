@@ -1,80 +1,83 @@
-"""Wiki review queue — stub for HTTP API integration.
-
-Provides load/add/resolve operations against the project's review-queue file.
-Full implementation lives in a follow-up task; this module exists so routers
-in src/server/routes/reviews.py can import the names they need.
-"""
+"""Review items — async human judgment queue (A3)."""
+import json
+import uuid
 from pathlib import Path
-from typing import Optional
 
 from .types import ReviewItem
 
 
-def _reviews_file(paths) -> Path:
-    return paths.wiki / "_reviews.json"
+REVIEWS_FILE = ".index/reviews.json"
+REVIEWS_RESOLVED_FILE = ".index/reviews_resolved.json"
 
 
-def load_reviews(paths) -> list[ReviewItem]:
-    """Load all reviews from project's review queue. Empty list if missing."""
-    f = _reviews_file(paths)
+def _review_file(paths, resolved: bool = False) -> Path:
+    name = REVIEWS_RESOLVED_FILE if resolved else REVIEWS_FILE
+    return paths.root / name
+
+
+def load_reviews(paths, resolved: bool = False) -> list[ReviewItem]:
+    f = _review_file(paths, resolved)
     if not f.exists():
         return []
-    import json
-    data = json.loads(f.read_text(encoding="utf-8"))
-    return [ReviewItem(**item) for item in data.get("reviews", [])]
+    try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    return [ReviewItem(**item) for item in data.get("items", [])]
 
 
-def add_review(paths, review: ReviewItem) -> None:
-    """Append a review to the project's review queue."""
-    f = _reviews_file(paths)
+def save_reviews(paths, items: list[ReviewItem], resolved: bool = False) -> None:
+    f = _review_file(paths, resolved)
     f.parent.mkdir(parents=True, exist_ok=True)
-    import json
-    data = {"reviews": []}
-    if f.exists():
-        try:
-            data = json.loads(f.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            data = {"reviews": []}
-    data["reviews"].append({
-        "id": review.id,
-        "type": review.type,
-        "title": review.title,
-        "normalized_title": review.normalized_title,
-        "detail": review.detail,
-        "confidence": review.confidence,
-        "search_queries": list(review.search_queries),
-        "page_path": review.page_path,
-        "created_at": review.created_at,
-        "source_task_id": review.source_task_id,
-        "status": review.status,
-    })
+    data = {"version": 1, "items": [_item_to_dict(i) for i in items]}
     f.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def resolve_review(paths, review_id: str, action: str = "skip") -> bool:
-    """Mark a review as resolved. Returns True if found and updated."""
-    items = load_reviews(paths)
-    found = False
-    for item in items:
-        if item.id == review_id:
-            item.status = "resolved" if action == "resolve" else "dismissed"
-            found = True
-            break
-    if not found:
-        return False
-    f = _reviews_file(paths)
-    import json
-    data = {
-        "reviews": [
-            {
-                "id": i.id, "type": i.type, "title": i.title,
-                "normalized_title": i.normalized_title, "detail": i.detail,
-                "confidence": i.confidence, "search_queries": list(i.search_queries),
-                "page_path": i.page_path, "created_at": i.created_at,
-                "source_task_id": i.source_task_id, "status": i.status,
-            }
-            for i in items
-        ]
+def _item_to_dict(item: ReviewItem) -> dict:
+    return {
+        "id": item.id,
+        "type": item.type,
+        "title": item.title,
+        "normalized_title": item.normalized_title,
+        "detail": item.detail,
+        "confidence": item.confidence,
+        "search_queries": list(item.search_queries),
+        "page_path": item.page_path,
+        "created_at": item.created_at,
+        "source_task_id": item.source_task_id,
+        "status": item.status,
     }
-    f.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    return True
+
+
+def add_review(paths, type: str, title: str, **kwargs) -> ReviewItem:
+    """Add a new review item; dedup by (type, normalized_title)."""
+    normalized = " ".join(title.lower().split())
+    items = load_reviews(paths)
+    for it in items:
+        if it.type == type and it.normalized_title == normalized:
+            return it
+    item = ReviewItem(
+        id=str(uuid.uuid4())[:8],
+        type=type,
+        title=title,
+        normalized_title=normalized,
+        status="open",
+        **kwargs,
+    )
+    items.append(item)
+    save_reviews(paths, items)
+    return item
+
+
+def resolve_review(paths, item_id: str, action: str = "skip") -> None:
+    """Move item from open → resolved."""
+    items = load_reviews(paths)
+    target = next((i for i in items if i.id == item_id), None)
+    if target is None:
+        return
+    items = [i for i in items if i.id != item_id]
+    save_reviews(paths, items)
+    target.status = action  # "skip" | "fixed" | "merged"
+    resolved = load_reviews(paths, resolved=True)
+    resolved.append(target)
+    save_reviews(paths, resolved, resolved=True)
