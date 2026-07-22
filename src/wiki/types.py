@@ -44,6 +44,10 @@ class WikiPage:
     updated_at: int = 0
     body: str = ""
     relations: list["Relation"] = field(default_factory=list)
+    # NEW v2.2 fields
+    grade: str = "B"                       # "A" | "B" | "C"
+    processing_depth: str = "concept"      # "concept" | "memory"
+    is_immutable: bool = False
 
     def to_frontmatter_dict(self) -> dict:
         return {
@@ -54,6 +58,9 @@ class WikiPage:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "relations": [r.to_dict() for r in self.relations],
+            "grade": self.grade,
+            "processing_depth": self.processing_depth,
+            "is_immutable": self.is_immutable,
         }
 
     @classmethod
@@ -68,6 +75,9 @@ class WikiPage:
             updated_at=d.get("updated_at", 0),
             body=body,
             relations=[Relation.from_dict(r) for r in d.get("relations", [])],
+            grade=d.get("grade", "B"),
+            processing_depth=d.get("processing_depth", "concept"),
+            is_immutable=d.get("is_immutable", False),
         )
 
 
