@@ -3,6 +3,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Literal
 from ...project.context import ProjectContext, ProjectNotFoundError
+from ...agent.runtime import AgentRuntime
+from ...agent.types import AgentConfig
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
 
@@ -20,37 +22,27 @@ class ChatRequest(BaseModel):
 
 @router.post("/projects/{project_id}/chat")
 async def chat(project_id: str, body: ChatRequest):
-    """Non-streaming RAG chat (MVP)."""
+    """Non-streaming agent chat (MVP)."""
     ctx = _resolve_ctx(project_id)
-    # Use hybrid search for context (RAG)
-    from ...searcher.hybrid_search import hybrid_search
-    refs = await hybrid_search(ctx, body.message, top_k=body.topK, mode="hybrid")
-    # Build prompt + LLM call
-    from ...llm.provider_factory import create_llm_provider
-    from ...llm.registry import ProviderRegistry
-    config = ProviderRegistry.get("default") if "default" in ProviderRegistry.load() else None
-    if not config:
-        from ...project.settings import ProjectSettings
-        config_name = ctx.settings.llm.provider_registry_name
-        config = ProviderRegistry.get(config_name)
-    provider = create_llm_provider(config.name)
-    system = f"You are a helpful assistant with access to a wiki. Cite sources by [N]."
-    context = "\n".join(f"[{i+1}] {r.get('title','')}: {r.get('snippet','')[:200]}" for i, r in enumerate(refs))
-    prompt = f"Context:\n{context}\n\nUser: {body.message}"
-    response = await provider.complete(prompt=prompt, system=system)
+    runtime = AgentRuntime(ctx, AgentConfig(model="gpt-4o-mini", max_iterations=8))
+    events = await runtime.run(body.message)
+    # Extract final answer + references from events
+    final_answer = ""
+    references = []
+    for e in events:
+        if e.type == "final_answer":
+            final_answer = e.payload["answer"]
+        if e.type == "tool_completed" and e.payload["tool"] in ("wiki.search", "source.search", "graph.search"):
+            references.extend(e.payload.get("result", {}).get("results", []))
     return {
-        "sessionId": body.sessionId or "s-default",
+        "sessionId": body.sessionId or "s-mvp",
         "projectId": project_id,
         "mode": body.mode,
-        "message": {"role": "assistant", "content": response.content},
-        "references": [
-            {"path": r.get("path", ""), "title": r.get("title", ""),
-             "kind": "wiki", "score": r.get("score"), "snippet": r.get("snippet")}
-            for r in refs
-        ],
+        "message": {"role": "assistant", "content": final_answer},
+        "references": references[:10],
         "usage": {
-            "promptChars": len(prompt), "completionChars": len(response.content),
-            "referenceCount": len(refs),
+            "iterations": sum(1 for e in events if e.type in ("tool_started", "final_answer")),
+            "toolCalls": sum(1 for e in events if e.type == "tool_completed"),
         },
     }
 
