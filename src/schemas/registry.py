@@ -60,6 +60,17 @@ class MigrationRegistry:
         )
 
     @classmethod
+    def list_migrations(cls) -> list[tuple[str, str, str]]:
+        """Return all registered migrations as (schema_name, from_version, to_version) tuples.
+
+        Output is sorted by (schema_name, from_version, to_version) for deterministic ordering.
+        Public accessor so route handlers do not need to touch the private _migrations dict.
+        """
+        return sorted(
+            (s, f.value, t.value) for (s, f, t) in cls._migrations.keys()
+        )
+
+    @classmethod
     def _clear(cls) -> None:
         """Test-only: clear registry."""
         cls._migrations.clear()

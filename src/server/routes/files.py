@@ -6,10 +6,26 @@ from ...project.context import ProjectContext, ProjectNotFoundError
 router = APIRouter(prefix="/api/v1", tags=["files"])
 
 
+def _resolve_root(ctx, root: str) -> Path:
+    """Resolve the listing root within the project's wiki tree.
+
+    Prevents the previous ``getattr(ctx.paths, f"wiki_{root.rstrip('s')}...")``
+    bug that produced ``wiki_wiki`` for ``root="wiki"``. Explicit mapping:
+    - ``root == "wiki"``    -> ``ctx.paths.wiki``
+    - ``root == "sources"`` -> ``ctx.paths.sources``
+    - anything else          -> subdirectory under ``ctx.paths.wiki``
+    """
+    if root == "wiki":
+        return ctx.paths.wiki
+    if root == "sources":
+        return ctx.paths.sources
+    return ctx.paths.wiki / root
+
+
 @router.get("/projects/{project_id}/files")
 async def list_files(project_id: str, root: str = "wiki", recursive: bool = True, max_files: int = 2000):
     ctx = _resolve_ctx(project_id)
-    base = getattr(ctx.paths, f"wiki_{root.rstrip('s') if root != 'sources' else 'sources'}", None) or ctx.paths.wiki / root
+    base = _resolve_root(ctx, root)
     if not base.exists():
         return {"files": [], "truncated": False, "totalCount": 0}
     files = list(base.rglob("*.md")) if recursive else list(base.glob("*.md"))
@@ -28,16 +44,25 @@ async def list_files(project_id: str, root: str = "wiki", recursive: bool = True
 @router.get("/projects/{project_id}/files/content")
 async def file_content(project_id: str, path: str):
     ctx = _resolve_ctx(project_id)
-    file_path = ctx.path / path
-    if not file_path.exists():
+    base = _resolve_root(ctx, "wiki")
+    candidate = (base / path).resolve()
+    # Path-traversal guard: the resolved file must remain under the wiki root.
+    try:
+        candidate.relative_to(base.resolve())
+    except ValueError:
+        raise HTTPException(403, f"Path escapes project root: {path}")
+    if not candidate.exists():
         raise HTTPException(404, f"File not found: {path}")
-    if file_path.stat().st_size > 2_000_000:
+    if candidate.is_dir():
+        raise HTTPException(400, f"Path is a directory: {path}")
+    size = candidate.stat().st_size
+    if size > 2_000_000:
         raise HTTPException(413, "File too large (> 2MB)")
     return {
         "path": path,
-        "content": file_path.read_text(encoding="utf-8"),
+        "content": candidate.read_text(encoding="utf-8"),
         "truncated": False,
-        "size": file_path.stat().st_size,
+        "size": size,
     }
 
 
