@@ -65,6 +65,10 @@ from .cli_ext.heat_cmd import (
     cmd_heat_show, cmd_heat_top, cmd_heat_cold, cmd_heat_decay,
     cmd_heat_zombies, cmd_heat_restore, cmd_heat_archive,
 )
+from .cli_ext.wiki_polish_cmd import (
+    cmd_stubs_list, cmd_stubs_promote, cmd_dedup_auto,
+    cmd_lint_cache_clear, cmd_lint,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -482,6 +486,18 @@ def main():
     p_harchive.add_argument("page_id")
     p_harchive.add_argument("--project")
     p_harchive.set_defaults(func=cmd_heat_archive)
+
+    # Wiki polish commands
+    p_stubs = subparsers.add_parser("stubs", help="Manage wiki stub pages")
+    p_stubs_sub = p_stubs.add_subparsers(dest="stubs_command", required=True)
+    p_slist = p_stubs_sub.add_parser("list"); p_slist.add_argument("--project"); p_slist.set_defaults(func=cmd_stubs_list)
+    p_spromote = p_stubs_sub.add_parser("promote"); p_spromote.add_argument("--project"); p_spromote.set_defaults(func=cmd_stubs_promote)
+    p_dedup = subparsers.add_parser("dedup", help="Deduplicate wiki pages")
+    p_dedup_sub = p_dedup.add_subparsers(dest="dedup_command", required=True)
+    p_dauto = p_dedup_sub.add_parser("auto"); p_dauto.add_argument("--threshold", default="high", choices=["high", "medium", "low"]); p_dauto.add_argument("--project"); p_dauto.set_defaults(func=cmd_dedup_auto)
+    p_lint = subparsers.add_parser("lint", help="Run wiki lint with caching")
+    p_lint.add_argument("--cache-ttl", type=int, default=None); p_lint.add_argument("--no-cache", action="store_true"); p_lint.add_argument("--project"); p_lint.set_defaults(func=cmd_lint)
+    p_lcache = subparsers.add_parser("lint-cache-clear", help="Clear lint cache"); p_lcache.add_argument("--project"); p_lcache.set_defaults(func=cmd_lint_cache_clear)
 
     args = parser.parse_args()
 
