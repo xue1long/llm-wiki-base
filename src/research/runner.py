@@ -106,8 +106,7 @@ async def run_deep_research(
         synthesis_text = str(synthesis_response)
 
     # Step 4: Write synthesis page
-    from ..wiki.page_writer import write_page as _wp_write
-    from ..wiki.types import PageType, WikiPage
+    from ..wiki.types import PageType
     from ..lib.write_hooks import safe_write
 
     task_id = f"research-{int(time.time())}"
