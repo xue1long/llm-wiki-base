@@ -16,14 +16,11 @@ from ..wiki.types import WikiPage
 from .analyzer import analyze
 from .generator import generate
 from .collector import collect
-from .processor import process
-from .librarian import archive
 
 _logger = logging.getLogger(__name__)
 
 event_bus.on("collector:start", lambda p: _on_collector_start(p))
 event_bus.on(EventName.COLLECTOR_DONE, lambda p: _on_collector_done(p))
-event_bus.on(EventName.PROCESSOR_DONE, lambda p: _on_processor_done(p))
 
 def _on_collector_start(payload: dict):
     task_id = payload["task_id"]
@@ -32,11 +29,26 @@ def _on_collector_start(payload: dict):
 
 async def _on_collector_done(payload):
     task_id = payload.task_id
-    await process(task_id, payload.raw_path, payload.content)
+    from pathlib import Path
+    paths = _resolve_wiki_paths()
+    await run_ingest(
+        paths=paths,
+        source_path=Path(payload.raw_path),
+        source_text=payload.content,
+        provider=_get_provider(),
+        task_id=task_id,
+    )
 
-async def _on_processor_done(payload):
-    task_id = payload.task_id
-    await archive(task_id, payload.note_path)
+
+def _get_provider():
+    from ..llm.provider_factory import create_llm_provider
+    return create_llm_provider("openai")
+
+
+def _resolve_wiki_paths():
+    from ..wiki.paths import WikiPaths
+    root = Path.cwd() / "Knowledge"
+    return WikiPaths(root)
 
 
 async def run_ingest(
