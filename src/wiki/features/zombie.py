@@ -31,8 +31,8 @@ class ZombieDetector:
 
     @staticmethod
     def list_zombies(paths) -> list[dict]:
-        from .page_writer import read_page
-        from .types import PageType
+        from ..storage.page_writer import read_page
+        from ..core.types import PageType
         zombies = []
         for t, dp in [(PageType.SOURCE, "wiki_sources"), (PageType.ENTITY, "wiki_entities"),
                       (PageType.CONCEPT, "wiki_concepts"), (PageType.SYNTHESIS, "wiki_synthesis")]:

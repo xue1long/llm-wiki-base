@@ -1,8 +1,8 @@
 """LLM-driven duplicate-entity detection (A7, basic MVP)."""
 import logging
 
-from .paths import WikiPaths
-from .page_writer import read_page
+from ..core.paths import WikiPaths
+from ..storage.page_writer import read_page
 
 
 _logger = logging.getLogger(__name__)

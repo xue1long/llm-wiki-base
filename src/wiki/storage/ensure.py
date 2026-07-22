@@ -1,7 +1,7 @@
 """Ensure the knowledge-base directory tree exists."""
 from pathlib import Path
 
-from .paths import WikiPaths
+from ..core.paths import WikiPaths
 
 
 def ensure_knowledge_base(root: Path | str) -> WikiPaths:

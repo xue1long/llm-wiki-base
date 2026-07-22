@@ -5,9 +5,9 @@ from pathlib import Path
 
 import yaml
 
-from .ensure import ensure_knowledge_base
-from .paths import WikiPaths
-from .types import PageType, WikiPage
+from ..storage.ensure import ensure_knowledge_base
+from ..core.paths import WikiPaths
+from ..core.types import PageType, WikiPage
 
 
 # [[target]] or [[target|alias]] — group 1 = target, group 2 = optional alias.

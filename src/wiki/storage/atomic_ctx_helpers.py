@@ -1,9 +1,9 @@
 """Convenience wrapper combining AtomicContext + flush_pending_writes."""
 from contextlib import contextmanager
 
-from ..lib.atomic_ctx import AtomicContext
-from ..lib.write_hooks import flush_pending_writes
-from .paths import WikiPaths
+from ...lib.atomic_ctx import AtomicContext
+from ...lib.write_hooks import flush_pending_writes
+from ..core.paths import WikiPaths
 
 
 @contextmanager

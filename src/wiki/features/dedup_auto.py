@@ -6,9 +6,9 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .page_writer import read_page, write_page, page_path_for
-from .types import PageType, WikiPage
-from .paths import WikiPaths
+from ..storage.page_writer import read_page, write_page, page_path_for
+from ..core.types import PageType, WikiPage
+from ..core.paths import WikiPaths
 
 
 _logger = logging.getLogger(__name__)

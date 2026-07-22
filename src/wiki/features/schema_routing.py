@@ -1,8 +1,8 @@
 """Validate wiki page types live in correct subdirs."""
-from .ensure import ensure_knowledge_base
-from .page_writer import read_page
-from .paths import WikiPaths
-from .types import PageType
+from ..storage.ensure import ensure_knowledge_base
+from ..storage.page_writer import read_page
+from ..core.paths import WikiPaths
+from ..core.types import PageType
 
 
 _TYPE_TO_DIR = {

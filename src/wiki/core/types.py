@@ -4,7 +4,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from .relations import Relation
+    from ..features.relations import Relation
 
 
 class PageType(str, Enum):
@@ -72,7 +72,7 @@ class WikiPage:
 
     @classmethod
     def from_dict(cls, d: dict, body: str = "") -> "WikiPage":
-        from .relations import Relation
+        from ..features.relations import Relation
         return cls(
             id=d["id"],
             title=d["title"],
@@ -144,3 +144,23 @@ def make_review_item(
         source_task_id=source_task_id,
         status=status,
     )
+
+
+# Relation types historically lived in ``src.wiki.relations``.  Keep a lazy
+# compatibility bridge here for callers that imported them from ``types``;
+# deferring the import preserves the core -> features dependency direction.
+_RELATION_EXPORTS = {
+    "Relation",
+    "RelationType",
+    "RelationQuery",
+    "RelationSync",
+    "SyncReport",
+    "parse_relations_from_response",
+}
+
+
+def __getattr__(name: str):
+    if name in _RELATION_EXPORTS:
+        from ..features import relations
+        return getattr(relations, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

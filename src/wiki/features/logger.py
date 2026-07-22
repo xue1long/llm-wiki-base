@@ -4,8 +4,8 @@ import time
 from datetime import datetime
 from typing import Optional
 
-from ..lib.write_hooks import safe_write
-from .paths import WikiPaths
+from ...lib.write_hooks import safe_write
+from ..core.paths import WikiPaths
 
 
 LOG_HEADER = "# Wiki Operation Log\n\n"

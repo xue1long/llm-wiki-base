@@ -91,7 +91,7 @@ class SyncReport:
 
 def _infer_type(paths, slug: str):
     """Find which subdir contains the page. Defaults to SOURCE if not found."""
-    from .types import PageType
+    from ..core.types import PageType
     for type_, dir_prop in [
         (PageType.ENTITY, "wiki_entities"),
         (PageType.CONCEPT, "wiki_concepts"),
@@ -109,9 +109,9 @@ class RelationSync:
     @staticmethod
     def sync_page(paths, page_id: str, relations: list[Relation]) -> SyncReport:
         """Write relations to page; apply inverse relations to target pages."""
-        from .page_writer import read_page, write_page
-        from .page_writer import page_path_for
-        from .types import PageType
+        from ..storage.page_writer import read_page, write_page
+        from ..storage.page_writer import page_path_for
+        from ..core.types import PageType
 
         report = SyncReport(page_id=page_id)
         # Load page
@@ -147,9 +147,9 @@ class RelationQuery:
 
     @staticmethod
     def list_relations(paths, page_id: str) -> list[Relation]:
-        from .page_writer import read_page
-        from .page_writer import page_path_for
-        from .types import PageType  # noqa: F401  (kept for symmetry / potential use)
+        from ..storage.page_writer import read_page
+        from ..storage.page_writer import page_path_for
+        from ..core.types import PageType  # noqa: F401  (kept for symmetry / potential use)
         page_type = _infer_type(paths, page_id)
         page_file = page_path_for(paths, page_type, page_id)
         if not page_file.exists():
@@ -159,8 +159,8 @@ class RelationQuery:
     @staticmethod
     def find_backlinks(paths, page_id: str) -> list[Relation]:
         """Scan all wiki pages for relations where target == page_id."""
-        from .page_writer import read_page
-        from .types import PageType
+        from ..storage.page_writer import read_page
+        from ..core.types import PageType
         backlinks: list[Relation] = []
         for type_, dir_prop in [
             (PageType.SOURCE, "wiki_sources"),

@@ -5,10 +5,10 @@ import logging
 # Lightweight imports (no heavy side effects). The pipeline imports below are
 # deferred to the call site to avoid pulling in src/pipeline/__init__.py
 # (which requires pypdf, lancedb, docx, openpyxl, mcp, pyarrow at import time).
-from .page_writer import read_page, write_page
-from .paths import WikiPaths
+from ..storage.page_writer import read_page, write_page
+from ..core.paths import WikiPaths
 from .schema_routing import validate_schema_routing  # noqa: F401  (re-exported per plan)
-from .types import PageType, WikiPage
+from ..core.types import PageType, WikiPage
 from .wikilink import extract_wikilinks
 
 

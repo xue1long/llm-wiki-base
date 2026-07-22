@@ -3,9 +3,9 @@ from pathlib import Path
 
 import yaml
 
-from ..lib.write_hooks import safe_write
-from .paths import WikiPaths
-from .types import PageType, WikiPage
+from ...lib.write_hooks import safe_write
+from ..core.paths import WikiPaths
+from ..core.types import PageType, WikiPage
 
 
 _TYPE_TO_DIR: dict[PageType, str] = {

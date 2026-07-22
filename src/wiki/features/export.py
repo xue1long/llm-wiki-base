@@ -3,8 +3,8 @@ import logging
 import zipfile
 from pathlib import Path
 
-from .ensure import ensure_knowledge_base
-from .paths import WikiPaths
+from ..storage.ensure import ensure_knowledge_base
+from ..core.paths import WikiPaths
 
 
 _logger = logging.getLogger(__name__)

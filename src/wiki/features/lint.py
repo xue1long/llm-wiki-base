@@ -11,10 +11,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-from .ensure import ensure_knowledge_base
+from ..storage.ensure import ensure_knowledge_base
 from .indexer import read_index
-from .page_writer import read_page
-from .paths import WikiPaths
+from ..storage.page_writer import read_page
+from ..core.paths import WikiPaths
 
 
 class LintSeverity(str, Enum):

@@ -1,9 +1,9 @@
 """Maintain wiki/index.md as a flat catalog of all pages."""
 from typing import Iterable
 
-from ..lib.write_hooks import safe_write
-from .paths import WikiPaths
-from .types import PageType
+from ...lib.write_hooks import safe_write
+from ..core.paths import WikiPaths
+from ..core.types import PageType
 
 
 INDEX_HEADER = "# Wiki Index\n\n"

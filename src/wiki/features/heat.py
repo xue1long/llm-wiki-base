@@ -27,7 +27,7 @@ class HeatTracker:
 
     def increment(self, page_id: str, delta: int = HEAT_INCREMENT, reason: str = "ai_retrieval"):
         """Increase heat (e.g., on AI retrieval)."""
-        from .page_writer import read_page, write_page, page_path_for
+        from ..storage.page_writer import read_page, write_page, page_path_for
         page_file = page_path_for(self.paths, _infer_type(self.paths, page_id), page_id)
         if not page_file.exists():
             return
@@ -41,8 +41,8 @@ class HeatTracker:
 
     def decay(self) -> list[HeatEvent]:
         """Decay all pages whose last_used_at > HEAT_DECAY_DAYS ago."""
-        from .page_writer import read_page, write_page
-        from .types import PageType
+        from ..storage.page_writer import read_page, write_page
+        from ..core.types import PageType
         from .zombie import ZombieDetector
         events: list[HeatEvent] = []
         now = int(time.time() * 1000)
@@ -69,7 +69,7 @@ class HeatTracker:
 
 
 def _infer_type(paths, slug):
-    from .types import PageType
+    from ..core.types import PageType
     for t, dp in [(PageType.ENTITY, "wiki_entities"), (PageType.CONCEPT, "wiki_concepts"),
                   (PageType.SOURCE, "wiki_sources"), (PageType.SYNTHESIS, "wiki_synthesis")]:
         if (getattr(paths, dp) / f"{slug}.md").exists():

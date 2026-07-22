@@ -3,7 +3,7 @@ import json
 import uuid
 from pathlib import Path
 
-from .types import ReviewItem
+from ..core.types import ReviewItem
 
 
 REVIEWS_FILE = ".index/reviews.json"

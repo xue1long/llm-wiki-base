@@ -11,13 +11,13 @@ the wiki unchanged.
 import logging
 import time
 
-from ..lib.write_hooks import DELETE_SENTINEL, safe_write
+from ...lib.write_hooks import DELETE_SENTINEL, safe_write
 
-from .ensure import ensure_knowledge_base
+from ..storage.ensure import ensure_knowledge_base
 from .indexer import append_to_index, read_index
-from .page_writer import read_page, write_page, page_path_for
-from .paths import WikiPaths
-from .types import WikiPage
+from ..storage.page_writer import read_page, write_page, page_path_for
+from ..core.paths import WikiPaths
+from ..core.types import WikiPage
 
 _logger = logging.getLogger(__name__)
 
