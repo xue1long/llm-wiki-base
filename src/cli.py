@@ -44,6 +44,11 @@ from .cli_ext.atomic_cmd import cmd_atomic_status, cmd_budget_estimate, cmd_budg
 from .cli_ext.completions_cmd import cmd_completions
 from .cli_ext.templates_cmd import cmd_templates_list, cmd_templates_show, cmd_templates_apply
 from .cli_ext.metrics_cmd import cmd_metrics_show, cmd_metrics_reset, cmd_metrics_export, cmd_metrics_cost
+from .cli_ext.llm_providers_cmd import (
+    cmd_llm_providers_list, cmd_llm_providers_show,
+    cmd_llm_providers_add, cmd_llm_providers_remove,
+    cmd_llm_providers_test, cmd_llm_providers_set_default,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -286,6 +291,31 @@ def main():
     p_mexport.set_defaults(func=cmd_metrics_export)
     p_mcost = p_metrics_sub.add_parser("cost")
     p_mcost.set_defaults(func=cmd_metrics_cost)
+
+    # LLM providers
+    p_llm = subparsers.add_parser("llm-providers", help="Manage LLM providers")
+    p_llm_sub = p_llm.add_subparsers(dest="llm_providers_command")
+    p_llm_list = p_llm_sub.add_parser("list")
+    p_llm_list.set_defaults(func=cmd_llm_providers_list)
+    p_llm_show = p_llm_sub.add_parser("show")
+    p_llm_show.add_argument("name")
+    p_llm_show.set_defaults(func=cmd_llm_providers_show)
+    p_llm_add = p_llm_sub.add_parser("add")
+    p_llm_add.add_argument("name")
+    p_llm_add.add_argument("type", choices=["openai", "anthropic", "ollama"])
+    p_llm_add.add_argument("--base-url", default="")
+    p_llm_add.add_argument("--api-key", default="")
+    p_llm_add.add_argument("--model", default="")
+    p_llm_add.set_defaults(func=cmd_llm_providers_add)
+    p_llm_rm = p_llm_sub.add_parser("remove")
+    p_llm_rm.add_argument("name")
+    p_llm_rm.set_defaults(func=cmd_llm_providers_remove)
+    p_llm_test = p_llm_sub.add_parser("test")
+    p_llm_test.add_argument("name")
+    p_llm_test.set_defaults(func=cmd_llm_providers_test)
+    p_llm_sd = p_llm_sub.add_parser("set-default")
+    p_llm_sd.add_argument("name")
+    p_llm_sd.set_defaults(func=cmd_llm_providers_set_default)
 
     args = parser.parse_args()
 
