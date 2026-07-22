@@ -55,6 +55,7 @@ from .cli_ext.quality_cmd import (
 )
 from .cli_ext.vision_cmd import cmd_vision_list, cmd_vision_extract
 from .cli_ext.serve import cmd_serve, cmd_serve_stop, cmd_serve_status
+from .cli_ext.research_cmd import add_research_subcommands
 
 logging.basicConfig(
     level=logging.INFO,
@@ -381,6 +382,9 @@ def main():
     # MCP (stdio Model Context Protocol server)
     p_mcp = subparsers.add_parser("mcp", help="Start stdio MCP server")
     p_mcp.set_defaults(func=lambda args: asyncio.run(_run_mcp()))
+
+    # Deep Research (research {run,list,show})
+    add_research_subcommands(subparsers)
 
     args = parser.parse_args()
 
