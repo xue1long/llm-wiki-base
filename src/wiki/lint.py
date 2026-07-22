@@ -50,6 +50,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
     issues: list[LintIssue] = []
     body_hashes: dict[str, list[str]] = {}
     pages_seen: set[str] = set()
+    files_scanned = 0
 
     for sub in (
         paths.wiki_sources,
@@ -60,6 +61,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
         if not sub.exists():
             continue
         for md_file in sub.glob("*.md"):
+            files_scanned += 1
             page = read_page(Path(md_file))
             pages_seen.add(page.id)
 
@@ -124,5 +126,5 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
     return LintReport(
         project_id=project_id,
         issues=issues,
-        scanned_pages=len(pages_seen),
+        scanned_pages=files_scanned,
     )

@@ -19,6 +19,17 @@ def test_lint_clean_wiki_no_issues(tmp_path):
     assert report.issues == []
 
 
+def test_lint_counts_files_with_duplicate_page_ids(tmp_path):
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    write_page(p, WikiPage(id="shared", title="Entity", type=PageType.ENTITY, body="Entity body"))
+    write_page(p, WikiPage(id="shared", title="Concept", type=PageType.CONCEPT, body="Concept body"))
+
+    report = lint_wiki(p)
+
+    assert report.scanned_pages == 2
+
+
 def test_lint_detects_orphan(tmp_path):
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
