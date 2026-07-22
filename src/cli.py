@@ -49,6 +49,7 @@ from .cli_ext.llm_providers_cmd import (
     cmd_llm_providers_add, cmd_llm_providers_remove,
     cmd_llm_providers_test, cmd_llm_providers_set_default,
 )
+from .cli_ext.health_cmd import cmd_health
 
 logging.basicConfig(
     level=logging.INFO,
@@ -316,6 +317,15 @@ def main():
     p_llm_sd = p_llm_sub.add_parser("set-default")
     p_llm_sd.add_argument("name")
     p_llm_sd.set_defaults(func=cmd_llm_providers_set_default)
+
+    # Health
+    p_health = subparsers.add_parser("health", help="Run wiki health checks (H1/H2/H4)")
+    p_health.add_argument("--only", nargs="*", help="Run only these checks")
+    p_health.add_argument("--skip", nargs="*", help="Skip these checks")
+    p_health.add_argument("--strict", action="store_true", help="Exit 1 on error")
+    p_health.add_argument("--json", action="store_true", help="JSON output")
+    p_health.add_argument("--project", help="Project path (default: cwd)")
+    p_health.set_defaults(func=cmd_health)
 
     args = parser.parse_args()
 
