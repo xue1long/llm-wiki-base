@@ -54,6 +54,7 @@ from .cli_ext.quality_cmd import (
     cmd_quality_score, cmd_quality_config_show, cmd_quality_config_set,
 )
 from .cli_ext.vision_cmd import cmd_vision_list, cmd_vision_extract
+from .cli_ext.serve import cmd_serve, cmd_serve_stop, cmd_serve_status
 
 logging.basicConfig(
     level=logging.INFO,
@@ -359,6 +360,17 @@ def main():
     p_vextract.add_argument("--provider", default=None)
     p_vextract.add_argument("--model", default=None)
     p_vextract.set_defaults(func=cmd_vision_extract)
+
+    # Serve (HTTP API server)
+    p_serve = subparsers.add_parser("serve", help="Start HTTP API server")
+    p_serve.add_argument("--host", default="127.0.0.1")
+    p_serve.add_argument("--port", type=int, default=19828)
+    p_serve.add_argument("--daemon", action="store_true")
+    p_serve.set_defaults(func=cmd_serve)
+    p_serve_stop = subparsers.add_parser("serve-stop", help="Stop daemon server")
+    p_serve_stop.set_defaults(func=cmd_serve_stop)
+    p_serve_status = subparsers.add_parser("serve-status", help="Check daemon status")
+    p_serve_status.set_defaults(func=cmd_serve_status)
 
     args = parser.parse_args()
 
