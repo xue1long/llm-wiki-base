@@ -1,15 +1,12 @@
 """Deep Research runner — LLM-driven topic + parallel web search + synthesis."""
 import asyncio
 import json
-import logging
 import time
 import os
 
 from ..llm.provider_factory import create_llm_provider
 from ..llm.registry import ProviderRegistry
 from .providers.tavily import TavilyProvider
-
-_logger = logging.getLogger(__name__)
 
 DEFAULT_QUERY_COUNT = 3
 DEFAULT_TOP_N_INGEST = 5
@@ -74,12 +71,14 @@ async def run_deep_research(
     api_key = os.environ.get("TAVILY_API_KEY", "")
     provider = TavilyProvider(api_key)
     all_results: list[dict] = []
-    if provider.api_key:
-        tasks = [provider.search(q, top_k=top_k) for q in queries]
-        results_per_query = await asyncio.gather(*tasks)
-        for r in results_per_query:
-            all_results.extend(r)
-    await provider.close()
+    try:
+        if provider.api_key:
+            tasks = [provider.search(q, top_k=top_k) for q in queries]
+            results_per_query = await asyncio.gather(*tasks)
+            for r in results_per_query:
+                all_results.extend(r)
+    finally:
+        await provider.close()
 
     # Dedupe by URL
     seen_urls = set()
@@ -109,12 +108,13 @@ async def run_deep_research(
     from ..wiki.types import PageType
     from ..lib.write_hooks import safe_write
 
-    task_id = f"research-{int(time.time())}"
     slug = topic.lower().replace(" ", "-")[:50] or "research"
     date = time.strftime("%Y-%m-%d")
+    synth_filename = f"research-{slug}-{date}.md"
+    task_id = synth_filename.removesuffix(".md")
     fm_yaml = (
         f"---\n"
-        f"id: research-{slug}-{date}\n"
+        f"id: {task_id}\n"
         f"title: Research: {topic}\n"
         f"type: synthesis\n"
         f"sources: {[s['url'] for s in sources[:5]]}\n"
@@ -123,7 +123,7 @@ async def run_deep_research(
         f"research_task_id: {task_id}\n"
         f"---\n"
     )
-    synth_path = ctx.paths.wiki_synthesis / f"research-{slug}-{date}.md"
+    synth_path = ctx.paths.wiki_synthesis / synth_filename
     safe_write(synth_path, fm_yaml + f"# Research: {topic}\n\n" + synthesis_text + "\n")
 
     if log_event is not None:
@@ -131,7 +131,7 @@ async def run_deep_research(
     if append_to_index is not None:
         append_to_index(
             ctx.paths,
-            [(f"research-{slug}-{date}", PageType.SYNTHESIS, f"Research: {topic}")],
+            [(task_id, PageType.SYNTHESIS, f"Research: {topic}")],
         )
 
     # Step 5: Auto-ingest (MVP: disabled by default)

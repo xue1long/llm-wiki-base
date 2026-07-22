@@ -1,7 +1,6 @@
 """Deep Research CLI subcommands."""
 import argparse
 import asyncio
-import json
 import sys
 
 from ..research.runner import run_deep_research
