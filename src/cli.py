@@ -43,6 +43,7 @@ from .cli_ext.schema_cmd import (
 from .cli_ext.atomic_cmd import cmd_atomic_status, cmd_budget_estimate, cmd_budget_check
 from .cli_ext.completions_cmd import cmd_completions
 from .cli_ext.templates_cmd import cmd_templates_list, cmd_templates_show, cmd_templates_apply
+from .cli_ext.metrics_cmd import cmd_metrics_show, cmd_metrics_reset, cmd_metrics_export, cmd_metrics_cost
 
 logging.basicConfig(
     level=logging.INFO,
@@ -272,6 +273,19 @@ def main():
     p_tmpl_apply.add_argument("name", help="Template name")
     p_tmpl_apply.add_argument("--project", help="Project to apply to (UUID/name)")
     p_tmpl_apply.set_defaults(func=cmd_templates_apply)
+
+    # Metrics
+    p_metrics = subparsers.add_parser("metrics", help="Metrics utilities")
+    p_metrics_sub = p_metrics.add_subparsers(dest="metrics_command")
+    p_mshow = p_metrics_sub.add_parser("show")
+    p_mshow.set_defaults(func=cmd_metrics_show)
+    p_mreset = p_metrics_sub.add_parser("reset")
+    p_mreset.set_defaults(func=cmd_metrics_reset)
+    p_mexport = p_metrics_sub.add_parser("export")
+    p_mexport.add_argument("path", help="Output JSON path")
+    p_mexport.set_defaults(func=cmd_metrics_export)
+    p_mcost = p_metrics_sub.add_parser("cost")
+    p_mcost.set_defaults(func=cmd_metrics_cost)
 
     args = parser.parse_args()
 
