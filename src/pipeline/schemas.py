@@ -14,10 +14,6 @@ class EntityMention:
     def to_dict(self) -> dict:
         return asdict(self)
 
-    @classmethod
-    def from_dict(cls, d: dict) -> "EntityMention":
-        return cls(**d)
-
 
 @dataclass
 class ConceptMention:

@@ -41,9 +41,6 @@ class IdempotencyCache:
         self._cache[task_hash] = now
         return False
 
-    def remove(self, task_hash: str) -> None:
-        self._cache.pop(task_hash, None)
-
     def clear(self) -> None:
         self._cache.clear()
 
