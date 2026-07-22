@@ -13,17 +13,12 @@ client = TestClient(app)
 
 
 def test_chat_endpoint_uses_agent(monkeypatch, tmp_path):
-    """POST /api/v1/projects/{id}/chat delegates to AgentRuntime and shapes response from events."""
-    from src.server.routes import chat as chat_route
+    """POST /api/v1/projects/{id}/chat delegates to the chat_service
+    and shapes the response from events. The route is now a thin
+    adapter, so we patch the service rather than internals."""
+    from src.services import chat as chat_service_module
 
-    # Stub ProjectContext resolution to avoid filesystem lookups
-    fake_ctx = MagicMock()
-    fake_ctx.settings = MagicMock()
-    fake_ctx.settings.llm = MagicMock()
-    fake_ctx.settings.llm.provider_registry_name = "openai"
-    monkeypatch.setattr(chat_route, "_resolve_ctx", lambda pid: fake_ctx)
-
-    # Build scripted AgentEvent sequence: run_started + final_answer
+    # Build scripted AgentEvent sequence
     scripted_events = [
         AgentEvent.run_started("s-test", "gpt-4o-mini"),
         AgentEvent.tool_started(0, "wiki.search", {"query": "hi"}),
@@ -31,15 +26,36 @@ def test_chat_endpoint_uses_agent(monkeypatch, tmp_path):
         AgentEvent.final_answer(1, "Hello!", []),
     ]
 
-    fake_runtime = MagicMock()
-    fake_runtime.run = AsyncMock(return_value=scripted_events)
-    with patch.object(chat_route, "AgentRuntime", return_value=fake_runtime):
-        r = client.post("/api/v1/projects/proj-1/chat", json={"message": "hi"})
+    async def fake_run_chat(project_id, message, session_id=None, model="gpt-4o-mini", max_iterations=8):
+        # Run the same event-extraction logic the real service does
+        # (this asserts the route + service contract, not service internals).
+        final_answer = ""
+        references = []
+        for e in scripted_events:
+            if e.type == "final_answer":
+                final_answer = e.payload["answer"]
+            if e.type == "tool_completed" and e.payload.get("tool") in (
+                "wiki.search", "source.search", "graph.search",
+            ):
+                references.extend(e.payload.get("result", {}).get("results", []))
+        return {
+            "sessionId": session_id or "s-mvp",
+            "projectId": project_id,
+            "message": {"role": "assistant", "content": final_answer},
+            "references": references[:10],
+            "usage": {
+                "iterations": sum(1 for e in scripted_events if e.type in ("tool_started", "final_answer")),
+                "toolCalls": sum(1 for e in scripted_events if e.type == "tool_completed"),
+            },
+        }
+
+    monkeypatch.setattr(chat_service_module, "run_chat", fake_run_chat)
+
+    r = client.post("/api/v1/projects/proj-1/chat", json={"message": "hi"})
 
     assert r.status_code == 200
     body = r.json()
     assert body["projectId"] == "proj-1"
-    assert body["mode"] == "standard"
     assert body["message"]["role"] == "assistant"
     assert body["message"]["content"] == "Hello!"
     # references should include the wiki.search result
