@@ -16,6 +16,11 @@ class OllamaProvider(LLMProvider):
         self.base_url = config.base_url.rstrip("/")
         self.model = model_override or config.default_chat_model
         self.client = httpx.AsyncClient(timeout=config.timeout_seconds)
+        # Auto-register for bulk-close on app shutdown (see ProviderRegistry.aclose_all).
+        # This prevents the httpx.AsyncClient from leaking when business code
+        # creates an OllamaProvider but never calls .close().
+        from .registry import ProviderRegistry
+        ProviderRegistry._loaded_providers.add(self)
 
     async def complete(self, prompt, response_format=None, system=None, **kwargs) -> LLMResponse:
         messages = []

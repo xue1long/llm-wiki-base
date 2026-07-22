@@ -16,6 +16,12 @@ def _config_path() -> Path:
 
 
 class ProviderRegistry:
+    # Tracks provider instances that hold unmanaged resources (httpx
+    # AsyncClient, connection pools, etc.). aclose_all() closes them in
+    # bulk — call from app shutdown (FastAPI lifespan) to avoid leaks.
+    # Providers auto-register on __init__ and are removed by aclose_all().
+    _loaded_providers: set = set()
+
     @staticmethod
     def load() -> dict[str, ProviderConfig]:
         path = _config_path()
@@ -61,6 +67,33 @@ class ProviderRegistry:
         providers.pop(name)
         ProviderRegistry.save(providers)
         return True
+
+    @staticmethod
+    async def aclose_all() -> None:
+        """Close all tracked provider instances that expose an async close().
+
+        Idempotent: a second call is a no-op. Errors from individual close()
+        calls are logged but do not prevent other providers from being closed.
+        Call this from app shutdown (e.g. FastAPI lifespan) to release
+        httpx.AsyncClient and similar resources.
+        """
+        # Snapshot to allow providers to mutate the set during iteration
+        # (defensive — current close() implementations don't, but future ones might).
+        snapshot = list(ProviderRegistry._loaded_providers)
+        for provider in snapshot:
+            close = getattr(provider, "close", None)
+            if close is None:
+                continue
+            try:
+                result = close()
+                if hasattr(result, "__await__"):
+                    await result
+            except Exception as e:
+                _logger.warning(
+                    "[registry] aclose_all: failed to close %r: %s",
+                    provider, e,
+                )
+        ProviderRegistry._loaded_providers.clear()
 
 
 def _default_providers() -> dict[str, ProviderConfig]:

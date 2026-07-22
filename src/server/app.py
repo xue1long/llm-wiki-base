@@ -25,7 +25,14 @@ def create_app() -> FastAPI:
         except Exception as e:
             _logger.warning(f"[startup] health check failed: {e}")
         yield
-        # Shutdown: cleanup
+        # Shutdown: close any providers auto-registered during request handling.
+        # Without this, every OllamaProvider created via create_llm_provider()
+        # would leak its httpx.AsyncClient until the process exits.
+        try:
+            from ..llm.registry import ProviderRegistry as _PR
+            await _PR.aclose_all()
+        except Exception as e:
+            _logger.warning(f"[shutdown] aclose_all failed: {e}")
         _logger.info("[server] shutting down")
 
     app = FastAPI(
