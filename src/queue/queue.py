@@ -23,6 +23,16 @@ _queue: list[KnowledgeTask] = []
 _processing = False
 _paused = False
 
+
+def _default_state() -> dict:
+    """Default in-memory queue state snapshot (read-only contract for ingest API)."""
+    return {
+        "paused": _paused,
+        "pending": len([t for t in _queue if t.status == TaskStatus.PENDING]),
+        "running": len([t for t in _queue if t.status == TaskStatus.RUNNING]),
+        "failed": len([t for t in _queue if t.status == TaskStatus.FAILED]),
+    }
+
 def generate_task_id() -> str:
     unique_part = uuid.uuid4().hex[:8]
     return f"kb-{datetime.now().strftime('%Y%m%d%H%M%S')}-{unique_part}"
