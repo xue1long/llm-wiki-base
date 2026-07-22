@@ -50,6 +50,9 @@ from .cli_ext.llm_providers_cmd import (
     cmd_llm_providers_test, cmd_llm_providers_set_default,
 )
 from .cli_ext.health_cmd import cmd_health
+from .cli_ext.quality_cmd import (
+    cmd_quality_score, cmd_quality_config_show, cmd_quality_config_set,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -326,6 +329,21 @@ def main():
     p_health.add_argument("--json", action="store_true", help="JSON output")
     p_health.add_argument("--project", help="Project path (default: cwd)")
     p_health.set_defaults(func=cmd_health)
+
+    # Quality
+    p_quality = subparsers.add_parser("quality", help="Quality gate")
+    p_quality_sub = p_quality.add_subparsers(dest="quality_command")
+    p_qscore = p_quality_sub.add_parser("score", help="Score a markdown page")
+    p_qscore.add_argument("path", help="Path to .md file")
+    p_qscore.set_defaults(func=cmd_quality_score)
+    p_qconfig = p_quality_sub.add_parser("config", help="Quality config")
+    p_qconfig_sub = p_qconfig.add_subparsers(dest="quality_config_command")
+    p_qcshow = p_qconfig_sub.add_parser("show")
+    p_qcshow.set_defaults(func=cmd_quality_config_show)
+    p_qcset = p_qconfig_sub.add_parser("set")
+    p_qcset.add_argument("key")
+    p_qcset.add_argument("value")
+    p_qcset.set_defaults(func=cmd_quality_config_set)
 
     args = parser.parse_args()
 
