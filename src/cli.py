@@ -1,12 +1,9 @@
 # ruflo-kb/src/cli.py
 """
-ruflo-kb CLI 入口
+ruflo-kb CLI 入口.
 
-用法:
-    python -m src.cli init          # 初始化知识库目录
-    python -m src.cli status         # 查看队列状态
-    python -m src.cli ingest <url>  # 采集URL
-    python -m src.cli search <query> # 搜索
+Subcommands are delegated to the ``src.cli_ext`` modules imported below.
+Run ``python -m src.cli --help`` for the full list.
 """
 
 import argparse
@@ -16,11 +13,6 @@ import os
 import sys
 from pathlib import Path
 
-from .knowledge_base import ensure_knowledge_base, get_knowledge_base_paths
-from .queue.queue import get_queue_status, pause_queue, resume_queue, enqueue_task
-from .orchestrator.orchestrator import get_orchestrator
-from .types import SourceType
-from .llm import create_embedding_provider, create_llm_provider
 from .project.discovery import auto_register_on_first_run
 from .cli_ext.project_cmd import (
     cmd_project_current,
@@ -40,75 +32,41 @@ from .cli_ext.schema_cmd import (
     cmd_schema_downgrade,
     cmd_schema_backup,
 )
+from .cli_ext.atomic_cmd import cmd_atomic_status, cmd_budget_estimate, cmd_budget_check
+from .cli_ext.completions_cmd import cmd_completions
+from .cli_ext.templates_cmd import cmd_templates_list, cmd_templates_show, cmd_templates_apply
+from .cli_ext.metrics_cmd import cmd_metrics_show, cmd_metrics_reset, cmd_metrics_export, cmd_metrics_cost
+from .cli_ext.llm_providers_cmd import (
+    cmd_llm_providers_list, cmd_llm_providers_show,
+    cmd_llm_providers_add, cmd_llm_providers_remove,
+    cmd_llm_providers_test, cmd_llm_providers_set_default,
+)
+from .cli_ext.health_cmd import cmd_health
+from .cli_ext.quality_cmd import (
+    cmd_quality_score, cmd_quality_config_show, cmd_quality_config_set,
+)
+from .cli_ext.vision_cmd import cmd_vision_list, cmd_vision_extract
+from .cli_ext.serve import cmd_serve, cmd_serve_stop, cmd_serve_status
+from .cli_ext.research_cmd import add_research_subcommands
+from .cli_ext.relations_cmd import (
+    cmd_relations_list, cmd_relations_backlinks, cmd_relations_neighbors,
+    cmd_relations_path, cmd_relations_types, cmd_relations_add_type,
+)
+from .cli_ext.fields_cmd import cmd_fields_validate, cmd_tags_validate
+from .cli_ext.heat_cmd import (
+    cmd_heat_show, cmd_heat_top, cmd_heat_cold, cmd_heat_decay,
+    cmd_heat_zombies, cmd_heat_restore, cmd_heat_archive,
+)
+from .cli_ext.wiki_polish_cmd import (
+    cmd_stubs_list, cmd_stubs_promote, cmd_dedup_auto,
+    cmd_lint_cache_clear, cmd_lint,
+)
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-def cmd_init(args):
-    """初始化知识库目录"""
-    paths = ensure_knowledge_base(args.path)
-    print(f"知识库目录已初始化:")
-    print(f"  根目录: {paths.base}")
-    print(f"  Inbox: {paths.inbox}")
-    print(f"  Notes: {paths.notes}")
-    print(f"  Knowledge: {paths.knowledge}")
-    print(f"  Index: {paths.index}")
-
-def cmd_status(args):
-    """查看队列状态"""
-    status = get_queue_status()
-    print("队列状态:")
-    for key, value in status.items():
-        print(f"  {key}: {value}")
-
-def cmd_pause(args):
-    """暂停队列"""
-    pause_queue()
-    print("队列已暂停")
-
-def cmd_resume(args):
-    """恢复队列"""
-    resume_queue()
-    print("队列已恢复")
-
-def cmd_ingest(args):
-    """采集内容"""
-    orchestrator = get_orchestrator()
-    result = orchestrator.process(args.url)
-
-    if result.get("status") == "ignored":
-        print(f"重复提交，已忽略: {args.url}")
-    elif result.get("status") == "queued":
-        print(f"已加入队列: {result.get('task_id')}")
-    elif result.get("status") == "searching":
-        print(f"搜索模式不支持直接采集，请使用 ? <query> 进行搜索")
-    else:
-        print(f"未知状态: {result}")
-
-def cmd_search(args):
-    """搜索内容"""
-    orchestrator = get_orchestrator()
-    result = orchestrator.process(f"?{args.query}")
-
-    if result.get("status") == "searching":
-        print(f"搜索中: {result.get('query')}")
-    else:
-        print(f"状态: {result}")
-
-def cmd_configure(args):
-    """配置 LLM Provider"""
-    if args.openai_key:
-        import os
-        os.environ["OPENAI_API_KEY"] = args.openai_key
-        print(f"已设置 OpenAI API Key")
-
-    if args.provider == "openai":
-        print(f"使用 OpenAI Provider")
-    elif args.provider == "anthropic":
-        print(f"使用 Anthropic Provider")
 
 def _override_config_dir_from_env():
     """Allow RUFLO_CONFIG_DIR env var to override OS-standard config dir (for tests)."""
@@ -119,45 +77,18 @@ def _override_config_dir_from_env():
         paths._OVERRIDE_CONFIG_DIR = Path(env_dir)
 
 
+def _run_mcp():
+    """Start the stdio MCP server (delegates to src.mcp_server.main.main)."""
+    from .mcp_server.main import main as mcp_main
+    asyncio.run(mcp_main())
+
+
 def main():
     _override_config_dir_from_env()
     auto_register_on_first_run()  # idempotent
 
     parser = argparse.ArgumentParser(description="ruflo-kb 多Agent知识库")
     subparsers = parser.add_subparsers(dest="command", help="子命令")
-
-    # init
-    p_init = subparsers.add_parser("init", help="初始化知识库目录")
-    p_init.add_argument("--path", default=".", help="知识库根目录路径")
-    p_init.set_defaults(func=cmd_init)
-
-    # status
-    p_status = subparsers.add_parser("status", help="查看队列状态")
-    p_status.set_defaults(func=cmd_status)
-
-    # pause
-    p_pause = subparsers.add_parser("pause", help="暂停队列")
-    p_pause.set_defaults(func=cmd_pause)
-
-    # resume
-    p_resume = subparsers.add_parser("resume", help="恢复队列")
-    p_resume.set_defaults(func=cmd_resume)
-
-    # ingest
-    p_ingest = subparsers.add_parser("ingest", help="采集URL或文件")
-    p_ingest.add_argument("url", help="URL或文件路径")
-    p_ingest.set_defaults(func=cmd_ingest)
-
-    # search
-    p_search = subparsers.add_parser("search", help="搜索知识库")
-    p_search.add_argument("query", help="搜索关键词")
-    p_search.set_defaults(func=cmd_search)
-
-    # configure
-    p_config = subparsers.add_parser("configure", help="配置 LLM")
-    p_config.add_argument("--provider", default="openai", choices=["openai", "anthropic"], help="LLM Provider")
-    p_config.add_argument("--openai-key", help="OpenAI API Key")
-    p_config.set_defaults(func=cmd_configure)
 
     # Project subcommand
     p_project = subparsers.add_parser("project", help="Manage projects")
@@ -227,6 +158,242 @@ def main():
     p_sbackup.add_argument("action", choices=["list", "restore"], help="Action")
     p_sbackup.add_argument("--name", help="Backup name (for restore)")
     p_sbackup.set_defaults(func=cmd_schema_backup)
+
+    # Atomic context status
+    p_atomic = subparsers.add_parser("atomic", help="Atomic context status")
+    p_atomic.set_defaults(func=cmd_atomic_status)
+
+    # Token budget utilities
+    p_budget = subparsers.add_parser("budget", help="Token budget utilities")
+    p_budget_sub = p_budget.add_subparsers(dest="budget_command")
+
+    p_bestimate = p_budget_sub.add_parser("estimate", help="Estimate tokens for file")
+    p_bestimate.add_argument("path", help="File path")
+    p_bestimate.set_defaults(func=cmd_budget_estimate)
+
+    p_bcheck = p_budget_sub.add_parser("check", help="Check if file fits in model")
+    p_bcheck.add_argument("path", help="File path")
+    p_bcheck.add_argument("--model", default="gpt-4o-mini", help="Model name")
+    p_bcheck.set_defaults(func=cmd_budget_check)
+
+    # Completions
+    p_comp = subparsers.add_parser("completions", help="Manage shell completions")
+    p_comp_sub = p_comp.add_subparsers(dest="completions_action")
+    p_comp_inst = p_comp_sub.add_parser("install")
+    p_comp_inst.add_argument("shell", choices=["bash", "zsh", "fish"])
+    p_comp_inst.set_defaults(func=cmd_completions)
+    p_comp_show = p_comp_sub.add_parser("show")
+    p_comp_show.add_argument("shell", choices=["bash", "zsh"])
+    p_comp_show.set_defaults(func=cmd_completions)
+    p_comp_pw = p_comp_sub.add_parser("print-words")
+    p_comp_pw.set_defaults(func=cmd_completions)
+
+    # Templates
+    p_tmpl = subparsers.add_parser("templates", help="Project templates")
+    p_tmpl_sub = p_tmpl.add_subparsers(dest="templates_action")
+    p_tmpl_list = p_tmpl_sub.add_parser("list")
+    p_tmpl_list.set_defaults(func=cmd_templates_list)
+    p_tmpl_show = p_tmpl_sub.add_parser("show")
+    p_tmpl_show.add_argument("name", help="Template name")
+    p_tmpl_show.set_defaults(func=cmd_templates_show)
+    p_tmpl_apply = p_tmpl_sub.add_parser("apply")
+    p_tmpl_apply.add_argument("name", help="Template name")
+    p_tmpl_apply.add_argument("--project", help="Project to apply to (UUID/name)")
+    p_tmpl_apply.set_defaults(func=cmd_templates_apply)
+
+    # Metrics
+    p_metrics = subparsers.add_parser("metrics", help="Metrics utilities")
+    p_metrics_sub = p_metrics.add_subparsers(dest="metrics_command")
+    p_mshow = p_metrics_sub.add_parser("show")
+    p_mshow.set_defaults(func=cmd_metrics_show)
+    p_mreset = p_metrics_sub.add_parser("reset")
+    p_mreset.set_defaults(func=cmd_metrics_reset)
+    p_mexport = p_metrics_sub.add_parser("export")
+    p_mexport.add_argument("path", help="Output JSON path")
+    p_mexport.set_defaults(func=cmd_metrics_export)
+    p_mcost = p_metrics_sub.add_parser("cost")
+    p_mcost.set_defaults(func=cmd_metrics_cost)
+
+    # LLM providers
+    p_llm = subparsers.add_parser("llm-providers", help="Manage LLM providers")
+    p_llm_sub = p_llm.add_subparsers(dest="llm_providers_command")
+    p_llm_list = p_llm_sub.add_parser("list")
+    p_llm_list.set_defaults(func=cmd_llm_providers_list)
+    p_llm_show = p_llm_sub.add_parser("show")
+    p_llm_show.add_argument("name")
+    p_llm_show.set_defaults(func=cmd_llm_providers_show)
+    p_llm_add = p_llm_sub.add_parser("add")
+    p_llm_add.add_argument("name")
+    p_llm_add.add_argument("type", choices=["openai", "anthropic", "ollama"])
+    p_llm_add.add_argument("--base-url", default="")
+    p_llm_add.add_argument("--api-key", default="")
+    p_llm_add.add_argument("--model", default="")
+    p_llm_add.set_defaults(func=cmd_llm_providers_add)
+    p_llm_rm = p_llm_sub.add_parser("remove")
+    p_llm_rm.add_argument("name")
+    p_llm_rm.set_defaults(func=cmd_llm_providers_remove)
+    p_llm_test = p_llm_sub.add_parser("test")
+    p_llm_test.add_argument("name")
+    p_llm_test.set_defaults(func=cmd_llm_providers_test)
+    p_llm_sd = p_llm_sub.add_parser("set-default")
+    p_llm_sd.add_argument("name")
+    p_llm_sd.set_defaults(func=cmd_llm_providers_set_default)
+
+    # Health
+    p_health = subparsers.add_parser("health", help="Run wiki health checks (H1/H2/H4)")
+    p_health.add_argument("--only", nargs="*", help="Run only these checks")
+    p_health.add_argument("--skip", nargs="*", help="Skip these checks")
+    p_health.add_argument("--strict", action="store_true", help="Exit 1 on error")
+    p_health.add_argument("--json", action="store_true", help="JSON output")
+    p_health.add_argument("--project", help="Project path (default: cwd)")
+    p_health.set_defaults(func=cmd_health)
+
+    # Quality
+    p_quality = subparsers.add_parser("quality", help="Quality gate")
+    p_quality_sub = p_quality.add_subparsers(dest="quality_command")
+    p_qscore = p_quality_sub.add_parser("score", help="Score a markdown page")
+    p_qscore.add_argument("path", help="Path to .md file")
+    p_qscore.set_defaults(func=cmd_quality_score)
+    p_qconfig = p_quality_sub.add_parser("config", help="Quality config")
+    p_qconfig_sub = p_qconfig.add_subparsers(dest="quality_config_command")
+    p_qcshow = p_qconfig_sub.add_parser("show")
+    p_qcshow.set_defaults(func=cmd_quality_config_show)
+    p_qcset = p_qconfig_sub.add_parser("set")
+    p_qcset.add_argument("key")
+    p_qcset.add_argument("value")
+    p_qcset.set_defaults(func=cmd_quality_config_set)
+
+    # Vision
+    p_vision = subparsers.add_parser("vision", help="Vision/image utilities")
+    p_vision_sub = p_vision.add_subparsers(dest="vision_command")
+    p_vlist = p_vision_sub.add_parser("list")
+    p_vlist.add_argument("--project-root", default=None)
+    p_vlist.set_defaults(func=cmd_vision_list)
+    p_vextract = p_vision_sub.add_parser("extract", help="Extract + caption images from PDF")
+    p_vextract.add_argument("path", help="Path to PDF")
+    p_vextract.add_argument("--task-id", default=None)
+    p_vextract.add_argument("--project-root", default=None)
+    p_vextract.add_argument("--provider", default=None)
+    p_vextract.add_argument("--model", default=None)
+    p_vextract.set_defaults(func=cmd_vision_extract)
+
+    # Serve (HTTP API server)
+    p_serve = subparsers.add_parser("serve", help="Start HTTP API server")
+    p_serve.add_argument("--host", default="127.0.0.1")
+    p_serve.add_argument("--port", type=int, default=19828)
+    p_serve.add_argument("--daemon", action="store_true")
+    p_serve.set_defaults(func=cmd_serve)
+    p_serve_stop = subparsers.add_parser("serve-stop", help="Stop daemon server")
+    p_serve_stop.set_defaults(func=cmd_serve_stop)
+    p_serve_status = subparsers.add_parser("serve-status", help="Check daemon status")
+    p_serve_status.set_defaults(func=cmd_serve_status)
+
+    # MCP (stdio Model Context Protocol server)
+    p_mcp = subparsers.add_parser("mcp", help="Start stdio MCP server")
+    p_mcp.set_defaults(func=lambda args: asyncio.run(_run_mcp()))
+
+    # Deep Research (research {run,list,show})
+    add_research_subcommands(subparsers)
+
+    # Relations subcommand
+    p_relations = subparsers.add_parser("relations", help="Manage wiki relations")
+    p_rel_sub = p_relations.add_subparsers(dest="relations_command", required=True)
+
+    p_r_list = p_rel_sub.add_parser("list", help="List relations of a page")
+    p_r_list.add_argument("page_id")
+    p_r_list.add_argument("--project", required=True)
+    p_r_list.set_defaults(func=cmd_relations_list)
+
+    p_r_bl = p_rel_sub.add_parser("backlinks", help="Find backlinks to a page")
+    p_r_bl.add_argument("page_id")
+    p_r_bl.add_argument("--project", required=True)
+    p_r_bl.set_defaults(func=cmd_relations_backlinks)
+
+    p_r_n = p_rel_sub.add_parser("neighbors", help="Find neighbors within N hops")
+    p_r_n.add_argument("page_id")
+    p_r_n.add_argument("--depth", type=int, default=1)
+    p_r_n.add_argument("--project", required=True)
+    p_r_n.set_defaults(func=cmd_relations_neighbors)
+
+    p_r_path = p_rel_sub.add_parser("path", help="Find shortest path between pages")
+    p_r_path.add_argument("from_id")
+    p_r_path.add_argument("to_id")
+    p_r_path.add_argument("--project", required=True)
+    p_r_path.set_defaults(func=cmd_relations_path)
+
+    p_r_types = p_rel_sub.add_parser("types", help="List known relation types")
+    p_r_types.set_defaults(func=cmd_relations_types)
+
+    p_r_add = p_rel_sub.add_parser("add-type", help="Register a user-defined relation type")
+    p_r_add.add_argument("name")
+    p_r_add.set_defaults(func=cmd_relations_add_type)
+
+    # Fields validation
+    p_fields = subparsers.add_parser("fields", help="Validate wiki fields")
+    p_fields_sub = p_fields.add_subparsers(dest="fields_command", required=True)
+    p_fvalidate = p_fields_sub.add_parser("validate")
+    p_fvalidate.add_argument("path")
+    p_fvalidate.add_argument("--project")
+    p_fvalidate.set_defaults(func=cmd_fields_validate)
+
+    # Tags validation
+    p_tags = subparsers.add_parser("tags", help="Validate tags")
+    p_tags_sub = p_tags.add_subparsers(dest="tags_command", required=True)
+    p_tvalidate = p_tags_sub.add_parser("validate")
+    p_tvalidate.add_argument("page_path", nargs="?")
+    p_tvalidate.add_argument("--all", action="store_true")
+    p_tvalidate.add_argument("--project")
+    p_tvalidate.set_defaults(func=cmd_tags_validate)
+
+    # Heat subcommand
+    p_heat = subparsers.add_parser("heat", help="Wiki heat decay + zombie detection")
+    p_heat_sub = p_heat.add_subparsers(dest="heat_command", required=True)
+
+    p_hshow = p_heat_sub.add_parser("show")
+    p_hshow.add_argument("page_id")
+    p_hshow.add_argument("--project")
+    p_hshow.set_defaults(func=cmd_heat_show)
+
+    p_htop = p_heat_sub.add_parser("top")
+    p_htop.add_argument("--limit", type=int, default=10)
+    p_htop.add_argument("--project")
+    p_htop.set_defaults(func=cmd_heat_top)
+
+    p_hcold = p_heat_sub.add_parser("cold")
+    p_hcold.add_argument("--limit", type=int, default=10)
+    p_hcold.add_argument("--project")
+    p_hcold.set_defaults(func=cmd_heat_cold)
+
+    p_hdecay = p_heat_sub.add_parser("decay")
+    p_hdecay.add_argument("--dry-run", action="store_true")
+    p_hdecay.add_argument("--project")
+    p_hdecay.set_defaults(func=cmd_heat_decay)
+
+    p_hzombies = p_heat_sub.add_parser("zombies")
+    p_hzombies.add_argument("--project")
+    p_hzombies.set_defaults(func=cmd_heat_zombies)
+
+    p_hrestore = p_heat_sub.add_parser("restore")
+    p_hrestore.add_argument("page_id")
+    p_hrestore.add_argument("--project")
+    p_hrestore.set_defaults(func=cmd_heat_restore)
+
+    p_harchive = p_heat_sub.add_parser("archive")
+    p_harchive.add_argument("page_id")
+    p_harchive.add_argument("--project")
+    p_harchive.set_defaults(func=cmd_heat_archive)
+
+    # Wiki polish commands
+    p_stubs = subparsers.add_parser("stubs", help="Manage wiki stub pages")
+    p_stubs_sub = p_stubs.add_subparsers(dest="stubs_command", required=True)
+    p_slist = p_stubs_sub.add_parser("list"); p_slist.add_argument("--project"); p_slist.set_defaults(func=cmd_stubs_list)
+    p_spromote = p_stubs_sub.add_parser("promote"); p_spromote.add_argument("--project"); p_spromote.set_defaults(func=cmd_stubs_promote)
+    p_dedup = subparsers.add_parser("dedup", help="Deduplicate wiki pages")
+    p_dedup_sub = p_dedup.add_subparsers(dest="dedup_command", required=True)
+    p_dauto = p_dedup_sub.add_parser("auto"); p_dauto.add_argument("--threshold", default="high", choices=["high", "medium", "low"]); p_dauto.add_argument("--project"); p_dauto.set_defaults(func=cmd_dedup_auto)
+    p_lint = subparsers.add_parser("lint", help="Run wiki lint with caching")
+    p_lint.add_argument("--cache-ttl", type=int, default=None); p_lint.add_argument("--no-cache", action="store_true"); p_lint.add_argument("--project"); p_lint.set_defaults(func=cmd_lint)
+    p_lcache = subparsers.add_parser("lint-cache-clear", help="Clear lint cache"); p_lcache.add_argument("--project"); p_lcache.set_defaults(func=cmd_lint_cache_clear)
 
     args = parser.parse_args()
 

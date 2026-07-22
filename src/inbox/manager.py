@@ -71,15 +71,6 @@ class InboxManager:
             if f.is_file() and not f.name.startswith(".")
         ]
 
-    def clear_processing(self, file_path: str) -> None:
-        """
-        处理完成后清除 Processing 中的文件
-        """
-        p = Path(file_path)
-        if p.exists() and self.processing_path in p.parents:
-            p.unlink()
-            logger.info(f"[Inbox] Cleared Processing file: {p}")
-
 # 全局单例
 _inbox_manager: Optional[InboxManager] = None
 

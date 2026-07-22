@@ -12,6 +12,30 @@ from src.cli_ext.schema_cmd import (
 )
 
 
+def _reset_registry_with_real_migrations():
+    """Reset MigrationRegistry to a known state with the real v2.x migrations.
+
+    tests/test_schemas/test_migration_path_finds_hops uses MigrationRegistry._clear()
+    but does not restore state, leaving dummy (no-op) migrations in the registry.
+    When v2_to_v2_2 is also imported (via tests/test_schemas/test_v2_to_v2_2.py),
+    its auto-registration overwrites the V2.0→V2_1 slot with a no-op stub.
+
+    This helper makes tests below independent of the test_schemas test order.
+    """
+    from src.schemas.migration import SchemaVersion
+    from src.schemas.registry import MigrationRegistry
+    from src.schemas.migrations.v1_to_v2 import V1ToV2WikiPageMigration
+    from src.schemas.migrations.v2_to_v2_1 import V2ToV2_1WikiPageMigration
+
+    MigrationRegistry._clear()
+    MigrationRegistry.register(
+        "wiki_page", SchemaVersion.V1_0, SchemaVersion.V2_0, V1ToV2WikiPageMigration()
+    )
+    MigrationRegistry.register(
+        "wiki_page", SchemaVersion.V2_0, SchemaVersion.V2_1, V2ToV2_1WikiPageMigration()
+    )
+
+
 def test_cmd_schema_list(tmp_path, monkeypatch, capsys):
     """schema list shows registered schemas + versions."""
     from src.cli_ext import schema_cmd
@@ -33,6 +57,7 @@ def test_cmd_schema_list(tmp_path, monkeypatch, capsys):
 
 def test_cmd_schema_diff(tmp_path, monkeypatch, capsys):
     """schema diff shows field changes between versions."""
+    _reset_registry_with_real_migrations()
     # Set up project context (CWD-based)
     kb = tmp_path / "kb"
     kb.mkdir()
@@ -58,6 +83,7 @@ def test_cmd_schema_diff(tmp_path, monkeypatch, capsys):
 
 def test_cmd_schema_upgrade(tmp_path, monkeypatch, capsys):
     """schema upgrade applies migration + reports result."""
+    _reset_registry_with_real_migrations()
     kb = tmp_path / "kb"
     kb.mkdir()
     (kb / ".llm-wiki").mkdir()

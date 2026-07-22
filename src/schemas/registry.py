@@ -60,6 +60,17 @@ class MigrationRegistry:
         )
 
     @classmethod
+    def list_migrations(cls) -> list[tuple[str, str, str]]:
+        """Return all registered migrations as (schema_name, from_version, to_version) tuples.
+
+        Output is sorted by (schema_name, from_version, to_version) for deterministic ordering.
+        Public accessor so route handlers do not need to touch the private _migrations dict.
+        """
+        return sorted(
+            (s, f.value, t.value) for (s, f, t) in cls._migrations.keys()
+        )
+
+    @classmethod
     def _clear(cls) -> None:
         """Test-only: clear registry."""
         cls._migrations.clear()
@@ -78,8 +89,3 @@ def migrate_data(data: dict[str, Any], target: SchemaVersion = SchemaVersion.V1_
     """Migrate dict-based data (legacy API)."""
     from .migration import _migrate_via_registry
     return _migrate_via_registry(data, target)
-
-
-# Legacy module-level names preserved for backwards compat with old test imports
-CURRENT_VERSION = SchemaVersion.V1_0.value
-MIGRATIONS = MigrationRegistry._migrations
