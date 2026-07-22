@@ -134,6 +134,12 @@ def _override_config_dir_from_env():
         paths._OVERRIDE_CONFIG_DIR = Path(env_dir)
 
 
+def _run_mcp():
+    """Start the stdio MCP server (delegates to src.mcp_server.main.main)."""
+    from .mcp_server.main import main as mcp_main
+    asyncio.run(mcp_main())
+
+
 def main():
     _override_config_dir_from_env()
     auto_register_on_first_run()  # idempotent
@@ -371,6 +377,10 @@ def main():
     p_serve_stop.set_defaults(func=cmd_serve_stop)
     p_serve_status = subparsers.add_parser("serve-status", help="Check daemon status")
     p_serve_status.set_defaults(func=cmd_serve_status)
+
+    # MCP (stdio Model Context Protocol server)
+    p_mcp = subparsers.add_parser("mcp", help="Start stdio MCP server")
+    p_mcp.set_defaults(func=lambda args: asyncio.run(_run_mcp()))
 
     args = parser.parse_args()
 
