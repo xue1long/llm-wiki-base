@@ -19,7 +19,15 @@ class AgentLoopAction:
     def from_json(cls, raw: str) -> "AgentLoopAction":
         import json
         d = json.loads(raw)
-        return cls(**d)
+        # Drop unknown keys to tolerate LLM-added fields like 'topK' (LLM uses camelCase).
+        # cls(**d) would TypeError on unknown keys, which would push every real LLM
+        # iteration into the parse-error branch.
+        known = {f.name for f in cls.__dataclass_fields__.values()}
+        filtered = {k: v for k, v in d.items() if k in known}
+        # Normalize topK -> top_k if present (LLM emits camelCase per PLANNER_PROMPT).
+        if "topK" in d and "top_k" in known:
+            filtered["top_k"] = d["topK"]
+        return cls(**filtered)
 
 
 @dataclass

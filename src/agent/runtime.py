@@ -36,7 +36,21 @@ class AgentRuntime:
     def __init__(self, ctx, config: AgentConfig | None = None):
         self.ctx = ctx
         self.config = config or AgentConfig()
-        cfg = ProviderRegistry.get(ctx.settings.llm.provider_registry_name)
+        # Resolve LLM provider with a fallback chain — real ProjectContext does
+        # not (yet) expose ctx.settings.llm.provider_registry_name, so we try:
+        #   1) "default" key in the registry (preferred for tests / explicit config)
+        #   2) ctx.settings.llm.provider_registry_name (pre-task-3 chat.py path)
+        #   3) first available provider (graceful default)
+        providers = ProviderRegistry.load()
+        cfg = providers.get("default")
+        if cfg is None:
+            try:
+                config_name = ctx.settings.llm.provider_registry_name
+                cfg = ProviderRegistry.get(config_name)
+            except AttributeError:
+                if not providers:
+                    raise RuntimeError("No LLM providers configured")
+                cfg = next(iter(providers.values()))
         self.provider = create_llm_provider(cfg.name, model_override=self.config.model)
         self.tools = TOOLS
 
@@ -87,7 +101,17 @@ class AgentRuntime:
                     continue
                 events.append(AgentEvent.tool_started(iteration, action.tool, {"query": action.query}))
                 try:
-                    result = await tool.execute(self.ctx, query=action.query, top_k=action.top_k, path=action.path)
+                    # Filter out None-valued kwargs so tools with narrower signatures
+                    # (e.g. wiki.read_page only accepts `path`) don't TypeError on
+                    # the universal query/top_k/path trio.
+                    result = await tool.execute(
+                        self.ctx,
+                        **{k: v for k, v in {
+                            "query": action.query,
+                            "path": action.path,
+                            "top_k": action.top_k,
+                        }.items() if v is not None}
+                    )
                 except Exception as e:
                     result = {"error": str(e)}
                 events.append(AgentEvent.tool_completed(iteration, action.tool, result))

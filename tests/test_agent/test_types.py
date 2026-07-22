@@ -21,6 +21,23 @@ def test_agent_loop_action_from_json():
     assert obj.allow_overwrite is False
 
 
+def test_agent_loop_action_from_json_tolerates_topk():
+    """from_json must tolerate LLM emitting camelCase 'topK' (and any other unknown keys)."""
+    # LLM emits camelCase 'topK' (per PLANNER_PROMPT) — must not raise TypeError.
+    raw = json.dumps({
+        "action": "tool",
+        "tool": "wiki.search",
+        "query": "x",
+        "topK": 7,
+        "extraneous": "ignored",
+    })
+    obj = AgentLoopAction.from_json(raw)
+    assert obj.action == "tool"
+    assert obj.tool == "wiki.search"
+    # topK normalized to top_k
+    assert obj.top_k == 7
+
+
 def test_agent_event_factory():
     """Test AgentEvent factory methods produce well-formed events."""
     # Test run_started

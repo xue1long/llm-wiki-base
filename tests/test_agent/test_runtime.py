@@ -91,6 +91,66 @@ def test_agent_run_returns_final(ctx, provider_cfg, fake_provider):
     assert final_events[0].payload["answer"] == "Hello world!"
 
 
+def test_agent_run_uses_settings_fallback_chain(ctx, provider_cfg, fake_provider):
+    """AgentRuntime.__init__ must not crash when ctx.settings is absent (real ProjectContext).
+
+    Should fall through: ctx.settings.llm.provider_registry_name -> 'default' key ->
+    first available provider. Use a bare MagicMock ctx without settings to exercise the
+    AttributeError branch.
+    """
+    from src.agent.types import AgentConfig
+    bare_ctx = MagicMock(spec=[])  # no attributes at all -> AttributeError on .settings
+    with patch("src.agent.runtime.ProviderRegistry") as MockRegistry, \
+         patch("src.agent.runtime.create_llm_provider", return_value=fake_provider):
+        # 'default' not present -> first branch skipped. ctx.settings missing -> second branch
+        # AttributeError caught -> third branch: pick first available provider.
+        MockRegistry.load.return_value = {"openai": provider_cfg}
+        MockRegistry.get.return_value = provider_cfg
+        from src.agent.runtime import AgentRuntime
+        runtime = AgentRuntime(bare_ctx, AgentConfig())
+        assert runtime.provider is fake_provider
+
+
+def test_agent_run_filters_none_tool_kwargs(ctx, provider_cfg, fake_provider):
+    """AgentRuntime tool dispatch must omit None-valued kwargs so tools like
+    wiki.read_page (signature: execute(ctx, path)) don't TypeError on query/top_k
+    when the LLM explicitly nulls those fields."""
+    # First call: tool action with explicit nulls. Second call: final answer.
+    fake_provider.complete.side_effect = [
+        {
+            "action": "tool",
+            "tool": "wiki.read_page",
+            "path": "wiki_entities/alice.md",
+            "query": None,
+            "top_k": None,
+        },
+        {
+            "action": "final",
+            "answer": "Read alice successfully.",
+        },
+    ]
+
+    async def fake_read_page(ctx, path):
+        # Strict signature — must NOT receive query/top_k
+        return {"path": path, "ok": True}
+
+    with patch("src.agent.runtime.ProviderRegistry") as MockRegistry, \
+         patch("src.agent.runtime.create_llm_provider", return_value=fake_provider):
+        MockRegistry.get.return_value = provider_cfg
+        from src.agent.runtime import AgentRuntime
+
+        runtime = AgentRuntime(ctx)
+        # Replace wiki.read_page tool with strict-signature stub
+        from src.agent.tools import WikiReadPageTool
+        runtime.tools["wiki.read_page"].execute = fake_read_page
+
+        events = _run(runtime.run("read alice"))
+
+    completed = [e for e in events if e.type == "tool_completed"]
+    assert len(completed) == 1
+    assert completed[0].payload["result"] == {"path": "wiki_entities/alice.md", "ok": True}
+
+
 def test_agent_run_max_iterations(ctx, provider_cfg, fake_provider):
     """AgentRuntime.run() emits max_iterations_reached event when LLM never returns final."""
     # LLM always returns tool action. We use a known tool ("wiki.search") whose
