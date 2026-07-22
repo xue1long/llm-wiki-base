@@ -6,23 +6,22 @@ import sys
 from ..wiki.heat import HeatTracker
 from ..wiki.zombie import ZombieDetector
 from ..wiki.page_writer import read_page, write_page, page_path_for
-from ..wiki.paths import WikiPaths
 from ..wiki.types import PageType
-from ..project.context import ProjectContext, ProjectNotFoundError
+from ..project.context import ProjectNotFoundError
+from ..lib.project import resolve_project
 
 
 def _resolve_ctx(project_arg):
     """Resolve project context; returns (ctx, WikiPaths).
 
-    NOTE: ProjectContext exposes ctx.path (Path), NOT ctx.paths. WikiPaths must
-    be derived: WikiPaths(ctx.path). Passing ctx.paths would be wrong.
+    Thin wrapper over resolve_project that converts ProjectNotFoundError to
+    a CLI-friendly stderr message + sys.exit(2).
     """
     try:
-        ctx = ProjectContext.resolve(project_arg, by_id_only=True)
+        return resolve_project(project_arg, by_id_only=True)
     except ProjectNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(2)
-    return ctx, WikiPaths(ctx.path)
 
 
 def _infer_type(paths, slug):
