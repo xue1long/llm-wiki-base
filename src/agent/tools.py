@@ -86,13 +86,17 @@ class WebSearchTool:
     description = "Web search via Tavily or SearXNG (per LLM provider spec)"
 
     async def execute(self, ctx, query: str, top_k: int = 5) -> dict:
-        # MVP: use Tavily if configured, else SearXNG, else return empty
-        from ..llm.registry import ProviderRegistry
-        providers = ProviderRegistry.load()
+        # MVP: use Tavily if configured, else SearXNG, else return empty.
+        # Named-lookup chain preserved as explicit ProviderRegistry.require() calls so
+        # the fallback order (tavily → searxng → none) stays deterministic.
+        from ..llm.registry import ProviderRegistry, ProviderNotFoundError
         for name in ("tavily", "searxng"):
-            if name in providers:
+            try:
+                ProviderRegistry.require(name)
                 # Reuse existing web search logic (in MVP: stub)
                 return {"query": query, "results": [], "provider": name}
+            except ProviderNotFoundError:
+                continue
         return {"query": query, "results": [], "provider": "(no web search configured)"}
 
 

@@ -40,7 +40,9 @@ class AgentRuntime:
         # not (yet) expose ctx.settings.llm.provider_registry_name, so we try:
         #   1) "default" key in the registry (preferred for tests / explicit config)
         #   2) ctx.settings.llm.provider_registry_name (pre-task-3 chat.py path)
-        #   3) first available provider (graceful default)
+        #   3) first available provider via get_default() (graceful default)
+        # Only the "first available" branch was migrated to use ProviderRegistry.get_default();
+        # the named lookups stay as explicit ProviderRegistry.get() calls to preserve order.
         providers = ProviderRegistry.load()
         cfg = providers.get("default")
         if cfg is None:
@@ -48,9 +50,7 @@ class AgentRuntime:
                 config_name = ctx.settings.llm.provider_registry_name
                 cfg = ProviderRegistry.get(config_name)
             except AttributeError:
-                if not providers:
-                    raise RuntimeError("No LLM providers configured")
-                cfg = next(iter(providers.values()))
+                cfg = ProviderRegistry.get_default()
         self.provider = create_llm_provider(cfg.name, model_override=self.config.model)
         self.tools = TOOLS
 

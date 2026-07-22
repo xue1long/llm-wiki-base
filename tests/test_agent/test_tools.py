@@ -98,9 +98,12 @@ def test_wiki_read_page(tmp_path):
 
 def test_web_search_no_provider(ctx):
     """web.search with no tavily/searxng provider returns empty with explanatory provider string."""
+    from src.llm.registry import ProviderNotFoundError
     # ProviderRegistry is imported lazily inside execute(), so patch the source module.
     with patch("src.llm.registry.ProviderRegistry") as MockRegistry:
-        MockRegistry.load.return_value = {}
+        # tools.py migrated from load()+in to require(); patch require() to raise
+        # so the named-lookup chain falls through to the "no web search configured" branch.
+        MockRegistry.require.side_effect = ProviderNotFoundError("not configured")
         from src.agent.tools import WebSearchTool
         result = _run(WebSearchTool().execute(ctx, query="test", top_k=5))
 
