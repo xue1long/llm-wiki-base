@@ -108,19 +108,23 @@ collector:start → Collector → collector:done
 
 ### Critical gotcha: `ProjectContext.path` vs `WikiPaths`
 
-`ProjectContext` (in `src/project/context.py`) exposes `path: Path`, **NOT** `paths: WikiPaths`. CLI handlers that operate on the wiki MUST derive `WikiPaths`:
+`ProjectContext` (in `src/project/context.py`) exposes `path: Path`, **NOT** `paths: WikiPaths`. The clean way to operate on the wiki is via the service layer or the `src/lib/project.py` helpers:
 
 ```python
-from src.wiki.paths import WikiPaths
+# Preferred: use the central helpers in src/lib/project.py
+from src.lib.project import resolve_project, resolve_ctx_only
 
-ctx = ProjectContext.resolve(proj_arg, by_id_only=True)
-paths = WikiPaths(ctx.path)        # ← THIS PATTERN
+ctx, paths = resolve_project(proj_arg, by_id_only=True)
+# Use paths.wiki_sources, paths.wiki_entities, paths.index, etc.
 
-# Then use paths.wiki_sources, paths.wiki_entities, paths.index, etc.
-# Using ctx.paths.X will raise AttributeError at runtime.
+# Or, for a CLI handler that needs the same pattern:
+from src.lib.project import resolve_project
+
+def _resolve_ctx(proj_arg):
+    return resolve_project(proj_arg, by_id_only=True)
 ```
 
-This bug has been fixed 4+ times in CLI handlers (wiki-relations, wiki-fields-v22, wiki-heat-5pool, wiki-v21-polish). When writing new CLI handlers, use `_resolve_ctx(proj_arg)` helper that returns `(ctx, WikiPaths(ctx.path))`.
+4 of the 9 historical `_resolve_ctx` copies have been migrated to the helpers (`heat_cmd`, `wiki_polish_cmd`, `fields_cmd`, `relations_cmd`); the other 5 are eliminated by routing through the service layer. **Do not** access `ctx.paths.X` — that attribute does not exist.
 
 ### Test infrastructure
 
@@ -137,12 +141,14 @@ When adding a new test directory that imports from `src/`, add a matching `conft
 
 - **Permissions** (`src/permissions.py`) — `AgentType` × `Permission` allow-list. `Orchestrator` always passes; the other agents are restricted.
 - **Circuit breaker** (`src/circuit_breaker.py`) — global registry `get_circuit_breaker(name)`. OPEN after 3 failures, auto-HALF_OPEN after 60s, recovers after 2 successes.
-- **Timeout** (`src/timeout.py`) — `@with_timeout(seconds, task_id=...)` decorator. Pipeline stages don't currently apply it.
 - **Queue** (`src/queue/queue.py`) — module-level `_queue`, JSON-persisted to `.kb-queue.json`. `MAX_RETRIES = 3`, then dead-letter.
 - **Idempotency** (`src/utils/idempotency.py`) — md5-keyed dedup, in-memory TTL 7 days.
 - **Schemas** (`src/schemas/`) — Migration framework. `Migration` ABC with `up`/`down`/`preview`. MigrationRegistry indexes by `(schema_name, from_version, to_version)`.
-- **Sync** (`src/sync/`) — `SnapshotStore` JSON, `FileSyncWatcher` watchdog observer.
+- **Sync** (`src/sync/`) — `SnapshotStore` JSON, `FileSyncWatcher` watchdog observer. `start_watch` / `stop` are **deprecated** (no current callers; remove in 1.0).
 - **Vector store** (`src/vector/`) — `LanceDB` singleton, 1536-dim float32. `init_vector_store(db_path)` must be called before any upsert/search.
+- **Service layer** (`src/services/`) — business logic between HTTP routes and core domain. Routes are thin adapters; services are unit-testable without HTTP. 7 modules: `files`, `projects`, `schema`, `reviews`, `ingest`, `search`, `chat`.
+- **Project resolution** (`src/lib/project.py`) — single entry point. `resolve_project(arg, by_id_only) -> (ProjectContext, WikiPaths)`; `resolve_ctx_only(...)` for the no-paths case. Replaces 9 hand-rolled `_resolve_ctx` copies.
+- **LLM providers** (`src/llm/registry.py`) — `ProviderRegistry` loads from `~/.config/ruflo-kb/llm-providers.json`. `OllamaProvider.__init__` auto-registers in `_loaded_providers`; `ProviderRegistry.aclose_all()` is called from FastAPI lifespan shutdown to release `httpx.AsyncClient` resources.
 
 ## Implementation workflow
 
@@ -171,3 +177,34 @@ Commit prefixes on `feat/continue-implementation`: `feat(scope):` for new featur
 Plans are completed in dependency order. Check `.superpowers/sdd/progress.md` for current status. When picking up a plan, read it once for global constraints, then dispatch one implementer subagent per task with `superpowers:subagent-driven-development`.
 
 Known finished plans (this session): wiki-v2, wiki-relations, wiki-fields-v22, wiki-heat-5pool, wiki-v21-polish, http-api-mcp, web-search-deep-research, chat-agent, schemas-v3, atomic-ctx+budgeted-llm, multi-provider-llm, project-multi-instancing.
+
+## Recent architectural changes (cleanup series, 2026-07-22)
+
+In a single cleanup pass, the following changes landed on `feat/continue-implementation`:
+
+**Dead code removal**:
+- `src/timeout.py` deleted (131 lines) — `with_timeout`, `run_with_timeout`, `TimeoutTracker`, `TaskTimeoutError`, `TaskTimeoutConfig` had zero callers
+- `src/knowledge_base.py` deleted (107 lines) — old `Inbox/Notes/Knowledge` layout; superseded by `src/wiki/storage/ensure.py`
+- `InboxManager.clear_processing`, `IdempotencyCache.remove`, `EntityMention.to_dict` + `from_dict` removed
+- `src/schemas/__init__.py: CURRENT_VERSION / MIGRATIONS` back-compat shims removed
+- `FileSyncWatcher.start_watch / .stop` marked `DeprecationWarning` (no current callers; remove in 1.0)
+
+**Bug fixes surfaced by the audit**:
+- `OllamaProvider.close()` was not called by any business code → `httpx.AsyncClient` leak. Fixed via `ProviderRegistry._loaded_providers` + `aclose_all()` + FastAPI lifespan shutdown hook.
+- Test isolation bug: `test_cmd_schema_upgrade` failed when run with `test_schemas/` due to `MigrationRegistry` not being cleared after tests.
+
+**Service layer (P0)** — `src/services/`:
+- 7 new modules: `files.py`, `projects.py`, `schema.py`, `reviews.py`, `ingest.py`, `search.py`, `chat.py`
+- Each service has a corresponding test file under `tests/test_server/test_service_*.py`
+- HTTP routes in `src/server/routes/` are now thin adapters (Pydantic validation + service call + HTTP status mapping)
+- CLI handlers in `src/cli_ext/` can call services directly without HTTP machinery
+
+**`src/lib/project.py`**: central `resolve_project` / `resolve_ctx_only` helpers. 4 of 9 `_resolve_ctx` copies migrated; the other 5 are eliminated by routing through the service layer.
+
+**`src/wiki/` split** (commit `4645664`):
+- `core/` — types, paths, page model, id generator
+- `storage/` — page_writer, ensure, atomic_ctx_helpers
+- `features/` — relations, heat, review, lint, dedup, stubs, zombie, tag_namespace, import, export, cascade_delete, indexer, wikilink, folder_ingest, schema_routing, logger
+- `src/wiki/__init__.py` re-exports public surface + `sys.modules` aliases so old `from src.wiki.<module>` imports still work
+
+**`src/cli.py` slimmed** (511 → 407 lines): 7 legacy `cmd_*` deleted (`init`/`status`/`pause`/`resume`/`ingest`/`search`/`configure`), each superseded by `src/cli_ext/*` modules.
