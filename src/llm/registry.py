@@ -7,6 +7,24 @@ from pathlib import Path
 from .types import ProviderConfig
 
 
+class ProviderNotFoundError(KeyError):
+    """Raised when a requested provider is not in the registry.
+
+    Subclasses KeyError for backward compatibility with code that
+    catches the old `KeyError` from ProviderRegistry.get(). Prefer
+    `ProviderRegistry.require(name)` or `get_default()` for new code.
+    """
+    def __init__(self, name: str):
+        super().__init__(name)
+        self.name = name
+
+    def __str__(self) -> str:
+        return (
+            f"Provider '{self.name}' not configured. "
+            f"Run: ruflo-kb llm-providers add {self.name}"
+        )
+
+
 _logger = logging.getLogger(__name__)
 
 
@@ -67,6 +85,38 @@ class ProviderRegistry:
         providers.pop(name)
         ProviderRegistry.save(providers)
         return True
+
+    @staticmethod
+    def require(name: str) -> ProviderConfig:
+        """Get provider by name; raise ProviderNotFoundError (subclass of KeyError).
+
+        Use this from CLI / service code that wants a friendly error
+        message with a hint to run `llm-providers add`. Falls back to
+        `KeyError` semantics via inheritance, so existing `except KeyError`
+        blocks keep working.
+        """
+        try:
+            return ProviderRegistry.get(name)
+        except KeyError as e:
+            raise ProviderNotFoundError(name) from e
+
+    @staticmethod
+    def get_default() -> ProviderConfig:
+        """Return the 'default' provider, or the first one available.
+
+        Resolution order:
+          1. A provider named "default" in the registry
+          2. The first provider (insertion order)
+
+        Raises:
+            ProviderNotFoundError: if no providers are configured.
+        """
+        providers = ProviderRegistry.load()
+        if not providers:
+            raise ProviderNotFoundError(
+                "default (none configured; run: ruflo-kb llm-providers add)"
+            )
+        return providers.get("default") or next(iter(providers.values()))
 
     @staticmethod
     async def aclose_all() -> None:
