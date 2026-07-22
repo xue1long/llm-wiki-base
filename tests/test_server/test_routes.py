@@ -53,32 +53,35 @@ def test_projects_list_with_empty_registry(monkeypatch, tmp_path):
 # 3. files ---------------------------------------------------------------
 
 def test_files_content_rejects_path_traversal(monkeypatch, tmp_path):
-    """GET /api/v1/projects/x/files/content?path=../../etc/passwd returns 4xx."""
-    # Inject a fake ProjectContext with the forward-dep ctx.paths attribute.
-    project_root = tmp_path / "proj"
-    (project_root / "wiki").mkdir(parents=True)
-    fake_ctx = MagicMock()
-    fake_ctx.path = project_root
-    fake_ctx.paths = MagicMock()
-    fake_ctx.paths.wiki = project_root / "wiki"
-    fake_ctx.paths.sources = project_root / "wiki" / "sources"
-    monkeypatch.setattr(files_route, "_resolve_ctx", lambda pid: fake_ctx)
+    """GET /api/v1/projects/x/files/content?path=../../etc/passwd returns 4xx.
+
+    The route is now a thin adapter over src.services.files.read_file_content;
+    we patch the service to raise PathTraversalError and verify the route
+    translates that to HTTP 403.
+    """
+    from src.services import files as files_service
+    monkeypatch.setattr(
+        files_service,
+        "read_file_content",
+        lambda pid, path: (_ for _ in ()).throw(files_service.PathTraversalError("escapes wiki root")),
+    )
 
     r = client.get("/api/v1/projects/x/files/content?path=../../etc/passwd")
-    assert 400 <= r.status_code < 500
-    assert "escape" in r.json()["detail"].lower() or "outside" in r.json()["detail"].lower()
+    assert r.status_code == 403
+    assert "escape" in r.json()["detail"].lower()
 
 
 def test_files_content_rejects_directory(monkeypatch, tmp_path):
-    """GET .../files/content?path=<dir> returns 400."""
-    project_root = tmp_path / "proj"
-    (project_root / "wiki" / "subdir").mkdir(parents=True)
-    fake_ctx = MagicMock()
-    fake_ctx.path = project_root
-    fake_ctx.paths = MagicMock()
-    fake_ctx.paths.wiki = project_root / "wiki"
-    fake_ctx.paths.sources = project_root / "wiki" / "sources"
-    monkeypatch.setattr(files_route, "_resolve_ctx", lambda pid: fake_ctx)
+    """GET .../files/content?path=<dir> returns 400.
+
+    The service raises PathIsDirectoryError; route maps to 400.
+    """
+    from src.services import files as files_service
+    monkeypatch.setattr(
+        files_service,
+        "read_file_content",
+        lambda pid, path: (_ for _ in ()).throw(files_service.PathIsDirectoryError("is a directory")),
+    )
 
     r = client.get("/api/v1/projects/x/files/content?path=subdir")
     assert r.status_code == 400
