@@ -8,18 +8,42 @@ ruflo-kb — a Python 3.11+ multi-agent knowledge-base platform. Ingest URLs / f
 
 ## Commands
 
+> **Full environment setup story (Python 3.14 wheels, proxy workarounds, the
+> sibling-conftest cascade that affects new test directories) lives in
+> [`docs/environment/SETUP.md`](docs/environment/SETUP.md). Read that first if
+> any test is failing unexpectedly — it covers the four pitfalls that are
+> not obvious from reading the code alone.**
+
 Setup (from repo root):
 
 ```
-pip install -e ".[dev]"
-pip install watchdog        # required only by src/sync/file_watcher.py
+# Quick online install (fast path; on this host, bypass the 127.0.0.1:7897
+# proxy which times out on large wheels — see SETUP.md §2):
+env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
+  pip install -e ".[dev]"
+env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
+  pip install watchdog tavily-python pypdf
+
+# Offline install for the two heavy native packages (pyarrow + lancedb):
+env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
+  pip install docs/environment/wheels/pyarrow-25.0.0-cp314-cp314-win_amd64.whl \
+                docs/environment/wheels/lancedb-0.27.1-cp39-abi3-win_amd64.whl
 ```
 
 Run all tests:
 
 ```
-pytest -v
-PYTHONPATH=. pytest tests/test_wiki/ tests/test_cli_ext/ tests/test_pipeline/ tests/test_server/ tests/test_agent/ -v   # touched areas
+# The two flags matter; without them you get collection errors:
+#   PYTHONPATH=.        so `from src.xxx import ...` resolves
+#   --import-mode=importlib   so same-named test files (test_paths.py,
+#                             test_types.py, test_registry.py) in
+#                             different test_X/ directories don't collide
+env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
+  PYTHONPATH=. python -m pytest --import-mode=importlib
+# → 426 passed in ~30s on Python 3.14 / Windows
+
+# Touched areas only:
+PYTHONPATH=. pytest tests/test_wiki/ tests/test_cli_ext/ tests/test_pipeline/ tests/test_server/ tests/test_agent/ -v
 ```
 
 Run a single test file or test node:
@@ -128,14 +152,16 @@ def _resolve_ctx(proj_arg):
 
 ### Test infrastructure
 
-`pytest` collection fails on heavy deps (platformdirs, lancedb, pyarrow, pypdf, docx, openpyxl, mcp, tavily) when not installed. Per-directory `conftest.py` files stub them:
+`pytest` collection fails on heavy deps (platformdirs, lancedb, pyarrow, pypdf, docx, openpyxl, mcp, tavily) when not installed. Per-directory `conftest.py` files stub them so that tests can be collected even when those packages are missing:
 
 - `tests/test_pipeline/conftest.py`
 - `tests/test_server/conftest.py`
 - `tests/test_cli_ext/conftest.py`
 - `tests/test_wiki/conftest.py`
+- `tests/test_llm/conftest.py`
+- `tests/test_lib/conftest.py`
 
-When adding a new test directory that imports from `src/`, add a matching `conftest.py` (copy an existing one).
+`sys.modules.setdefault` is global to the pytest session, so an alphabetically-later conftest can re-stub a module after an earlier conftest has restored it. The four conftests under `tests/test_{project,vector,searcher,mcp_server}/` work around this; the full pattern is documented in [`docs/environment/SETUP.md`](docs/environment/SETUP.md) §4. When adding a new test directory that imports from `src/`, copy an existing `conftest.py` and, if the new directory actually needs the real heavy module, also copy the "restore real module" pattern.
 
 ## Cross-cutting concerns
 

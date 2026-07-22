@@ -1,0 +1,27 @@
+# Exact versions verified to work with ruflo-kb on Python 3.14.3 (Windows AMD64).
+# Install: pip install -r docs/environment/requirements-cp314.txt
+# (Or, for the two large native packages, install from the local wheels:
+#   pip install docs/environment/wheels/pyarrow-25.0.0-cp314-cp314-win_amd64.whl
+#   pip install docs/environment/wheels/lancedb-0.27.1-cp39-abi3-win_amd64.whl
+# )
+
+# Runtime
+lancedb==0.27.1
+pypdf>=4.0.0
+python-docx>=1.0.0
+openpyxl>=3.1.0
+pyyaml>=6.0
+httpx>=0.25.0
+platformdirs>=4.0
+mcp>=0.1.0
+
+# Native / heavy (see wheels/ for offline install)
+pyarrow==25.0.0
+watchdog==6.0.0
+
+# Web search provider
+tavily-python==0.7.26
+
+# Dev / test
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
