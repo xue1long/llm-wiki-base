@@ -8,6 +8,7 @@ from ..wiki.relations import (
 )
 from ..wiki.paths import WikiPaths
 from ..project.context import ProjectContext, ProjectNotFoundError
+from ..lib.project import resolve_ctx_only
 
 
 def _paths(ctx: ProjectContext) -> WikiPaths:
@@ -90,7 +91,7 @@ def cmd_relations_add_type(args: argparse.Namespace) -> None:
 
 def _resolve(project_id):
     try:
-        return ProjectContext.resolve(project_id, by_id_only=True)
+        return resolve_ctx_only(project_id, by_id_only=True)
     except ProjectNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr); sys.exit(2)
 
