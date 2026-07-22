@@ -61,6 +61,10 @@ from .cli_ext.relations_cmd import (
     cmd_relations_path, cmd_relations_types, cmd_relations_add_type,
 )
 from .cli_ext.fields_cmd import cmd_fields_validate, cmd_tags_validate
+from .cli_ext.heat_cmd import (
+    cmd_heat_show, cmd_heat_top, cmd_heat_cold, cmd_heat_decay,
+    cmd_heat_zombies, cmd_heat_restore, cmd_heat_archive,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -440,6 +444,44 @@ def main():
     p_tvalidate.add_argument("--all", action="store_true")
     p_tvalidate.add_argument("--project")
     p_tvalidate.set_defaults(func=cmd_tags_validate)
+
+    # Heat subcommand
+    p_heat = subparsers.add_parser("heat", help="Wiki heat decay + zombie detection")
+    p_heat_sub = p_heat.add_subparsers(dest="heat_command", required=True)
+
+    p_hshow = p_heat_sub.add_parser("show")
+    p_hshow.add_argument("page_id")
+    p_hshow.add_argument("--project")
+    p_hshow.set_defaults(func=cmd_heat_show)
+
+    p_htop = p_heat_sub.add_parser("top")
+    p_htop.add_argument("--limit", type=int, default=10)
+    p_htop.add_argument("--project")
+    p_htop.set_defaults(func=cmd_heat_top)
+
+    p_hcold = p_heat_sub.add_parser("cold")
+    p_hcold.add_argument("--limit", type=int, default=10)
+    p_hcold.add_argument("--project")
+    p_hcold.set_defaults(func=cmd_heat_cold)
+
+    p_hdecay = p_heat_sub.add_parser("decay")
+    p_hdecay.add_argument("--dry-run", action="store_true")
+    p_hdecay.add_argument("--project")
+    p_hdecay.set_defaults(func=cmd_heat_decay)
+
+    p_hzombies = p_heat_sub.add_parser("zombies")
+    p_hzombies.add_argument("--project")
+    p_hzombies.set_defaults(func=cmd_heat_zombies)
+
+    p_hrestore = p_heat_sub.add_parser("restore")
+    p_hrestore.add_argument("page_id")
+    p_hrestore.add_argument("--project")
+    p_hrestore.set_defaults(func=cmd_heat_restore)
+
+    p_harchive = p_heat_sub.add_parser("archive")
+    p_harchive.add_argument("page_id")
+    p_harchive.add_argument("--project")
+    p_harchive.set_defaults(func=cmd_heat_archive)
 
     args = parser.parse_args()
 
