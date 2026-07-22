@@ -7,23 +7,17 @@ import yaml
 
 from ..wiki.id_generator import is_valid_id
 from ..wiki.page_writer import read_page
-from ..wiki.paths import WikiPaths
 from ..wiki.tag_namespace import validate_tags
-from ..project.context import ProjectContext, ProjectNotFoundError
+from ..lib.project import resolve_project
 
 
 def _resolve_ctx(project_arg):
     """Resolve project context; returns (ctx, WikiPaths) for compatibility.
 
-    ProjectContext exposes `ctx.path` (Path), NOT `ctx.paths`. WikiPaths must
-    be derived — same pattern as relations_cmd._paths.
+    Delegates to the centralised helper; preserves the (ctx, paths) tuple
+    interface for the two cmd_* callers.
     """
-    try:
-        ctx = ProjectContext.resolve(project_arg, by_id_only=True)
-    except ProjectNotFoundError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(2)
-    return ctx, WikiPaths(ctx.path)
+    return resolve_project(project_arg)
 
 
 def cmd_fields_validate(args: argparse.Namespace) -> None:
