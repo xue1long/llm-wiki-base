@@ -210,7 +210,10 @@ def test_cmd_project_forget_refuses_when_id_used_by_other(tmp_path, monkeypatch,
 
     config_dir.joinpath("registry.json").write_text(json.dumps({
         "version": 1,
-        "projects": {"uuid-r": {"id": "uuid-r", "path": str(kb), "name": "r", "last_opened": 0, "schema_version": "v2.0"}}
+        "projects": {
+            "uuid-r": {"id": "uuid-r", "path": str(kb), "name": "r", "last_opened": 0, "schema_version": "v2.0"},
+            "uuid-r2": {"id": "uuid-r2", "path": str(kb), "name": "r2", "last_opened": 0, "schema_version": "v2.0"},
+        }
     }))
 
     args = type("Args", (), {"id_or_name": "uuid-r", "delete_data": True})()
@@ -262,6 +265,7 @@ def test_cmd_project_discover_finds_and_registers(tmp_path, monkeypatch, capsys)
     """cmd_project_discover runs auto_register_on_first_run."""
     from src.cli_ext import project_cmd
     from src.project import paths, registry, discovery
+    from src.project.registry import GlobalRegistryStore
 
     config_dir = tmp_path / "config"
     config_dir.mkdir()
