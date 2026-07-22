@@ -56,6 +56,10 @@ from .cli_ext.quality_cmd import (
 from .cli_ext.vision_cmd import cmd_vision_list, cmd_vision_extract
 from .cli_ext.serve import cmd_serve, cmd_serve_stop, cmd_serve_status
 from .cli_ext.research_cmd import add_research_subcommands
+from .cli_ext.relations_cmd import (
+    cmd_relations_list, cmd_relations_backlinks, cmd_relations_neighbors,
+    cmd_relations_path, cmd_relations_types, cmd_relations_add_type,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -385,6 +389,39 @@ def main():
 
     # Deep Research (research {run,list,show})
     add_research_subcommands(subparsers)
+
+    # Relations subcommand
+    p_relations = subparsers.add_parser("relations", help="Manage wiki relations")
+    p_rel_sub = p_relations.add_subparsers(dest="relations_command", required=True)
+
+    p_r_list = p_rel_sub.add_parser("list", help="List relations of a page")
+    p_r_list.add_argument("page_id")
+    p_r_list.add_argument("--project", required=True)
+    p_r_list.set_defaults(func=cmd_relations_list)
+
+    p_r_bl = p_rel_sub.add_parser("backlinks", help="Find backlinks to a page")
+    p_r_bl.add_argument("page_id")
+    p_r_bl.add_argument("--project", required=True)
+    p_r_bl.set_defaults(func=cmd_relations_backlinks)
+
+    p_r_n = p_rel_sub.add_parser("neighbors", help="Find neighbors within N hops")
+    p_r_n.add_argument("page_id")
+    p_r_n.add_argument("--depth", type=int, default=1)
+    p_r_n.add_argument("--project", required=True)
+    p_r_n.set_defaults(func=cmd_relations_neighbors)
+
+    p_r_path = p_rel_sub.add_parser("path", help="Find shortest path between pages")
+    p_r_path.add_argument("from_id")
+    p_r_path.add_argument("to_id")
+    p_r_path.add_argument("--project", required=True)
+    p_r_path.set_defaults(func=cmd_relations_path)
+
+    p_r_types = p_rel_sub.add_parser("types", help="List known relation types")
+    p_r_types.set_defaults(func=cmd_relations_types)
+
+    p_r_add = p_rel_sub.add_parser("add-type", help="Register a user-defined relation type")
+    p_r_add.add_argument("name")
+    p_r_add.set_defaults(func=cmd_relations_add_type)
 
     args = parser.parse_args()
 

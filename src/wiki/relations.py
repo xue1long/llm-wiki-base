@@ -74,6 +74,11 @@ class Relation:
         return Relation(target_id="<this_page_id>", type=inv_type, weight=self.weight, context=self.context)
 
 
+def parse_relations_from_response(relations_raw: list[dict]) -> list["Relation"]:
+    """Convert raw LLM response dicts to Relation instances."""
+    return [Relation.from_dict(r) for r in relations_raw if r]
+
+
 SYMMETRIC_RELATIONS = frozenset({"contradicts", "analogous_to", "opposite_of"})
 
 

@@ -4,6 +4,7 @@ from typing import Optional
 
 from ..lib.budgeted import BudgetedLLM
 from ..wiki.paths import WikiPaths
+from ..wiki.relations import parse_relations_from_response
 from ..wiki.types import PageType, WikiPage
 from .schemas import AnalysisResult
 
@@ -28,12 +29,17 @@ For each suggested page, render Markdown content. Output strict JSON:
       "type": "source|entity|concept|synthesis",
       "title": "<title>",
       "frontmatter_extra": {{...}},        // optional extra frontmatter fields
-      "body_markdown": "<markdown body, may use [[wikilinks]]>"
+      "body_markdown": "<markdown body, may use [[wikilinks]]>",
+      "relations": [                      // optional cross-page relations
+        {{"target": "<other-slug>", "type": "references|supports|causes|...",
+          "weight": 0.0-1.0, "context": "<why>"}}
+      ]
     }}
   ]
 }}
 
 Use [[other-slug]] for cross-references. frontmatter_extra may include tags, etc.
+Relation types use the same vocabulary as the analysis (references, supports, causes, etc.).
 """
 
 
@@ -75,6 +81,19 @@ async def generate(
                             "title": {"type": "string"},
                             "frontmatter_extra": {"type": "object"},
                             "body_markdown": {"type": "string"},
+                            "relations": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "target": {"type": "string"},
+                                        "type": {"type": "string"},
+                                        "weight": {"type": "number"},
+                                        "context": {"type": "string"},
+                                    },
+                                    "required": ["target", "type"],
+                                },
+                            },
                         },
                         "required": ["id", "type", "title", "body_markdown"],
                     },
@@ -102,5 +121,6 @@ async def generate(
             created_at=now,
             updated_at=now,
             body=p["body_markdown"],
+            relations=parse_relations_from_response(p.get("relations", [])),
         ))
     return pages
