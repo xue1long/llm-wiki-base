@@ -4,7 +4,6 @@ import os
 import time
 
 from ..llm.provider_factory import create_llm_provider
-from ..llm.registry import ProviderRegistry
 from .types import (
     BatchJudgmentResult,
     Judgment,

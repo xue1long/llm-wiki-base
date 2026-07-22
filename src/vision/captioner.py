@@ -6,7 +6,6 @@ import logging
 import time
 
 from ..llm.provider_factory import create_llm_provider
-from ..llm.registry import ProviderRegistry
 from .extractor import ExtractedImage
 
 

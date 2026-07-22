@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from ..llm.provider_factory import create_llm_provider
-from ..llm.registry import ProviderRegistry
+from ..llm.registry import ProviderNotFoundError, ProviderRegistry
 from .types import JudgmentScores, QualitySettings, compute_total, verdict_for
 from .judge import JUDGE_PROMPT
 
@@ -60,8 +60,13 @@ class EnsembleJudge:
         """Return list of (provider_name, model_override_or_None) tuples."""
         judges = [(self.primary_provider, None)]
         for name in self.ensemble_judges:
-            if name != self.primary_provider and name in ProviderRegistry.load():
-                judges.append((name, None))
+            if name == self.primary_provider:
+                continue
+            try:
+                ProviderRegistry.require(name)
+            except ProviderNotFoundError:
+                continue
+            judges.append((name, None))
         if len(judges) < 2:
             _logger.warning(
                 "[ensemble] only %d judge available; ensemble degraded to single", len(judges)
@@ -74,10 +79,7 @@ class EnsembleJudge:
         judges = self.resolve_judges()
 
         async def vote_one(name, model):
-            try:
-                cfg = ProviderRegistry.get(name)
-            except KeyError:
-                cfg = None
+            cfg = ProviderRegistry.require(name)
             provider = create_llm_provider(name, model_override=model)
             prompt = JUDGE_PROMPT.format(
                 source_text=(source_text or "")[:3000],

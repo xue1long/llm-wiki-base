@@ -32,7 +32,7 @@ async def run_deep_research(
 
     Returns: {"synthesis_path": str, "sources": list, "queries": list, "task_id": str}
     """
-    cfg = ProviderRegistry.get(ctx.settings.llm.provider_registry_name)
+    cfg = ProviderRegistry.require(ctx.settings.llm.provider_registry_name)
     llm = create_llm_provider(cfg.name)
 
     # Step 1: Get queries (from review item OR generate)
