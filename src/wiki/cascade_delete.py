@@ -9,8 +9,9 @@ All operations run inside atomic_pipeline_op() so partial failure leaves
 the wiki unchanged.
 """
 import logging
-import os
 import time
+
+from ..lib.write_hooks import DELETE_SENTINEL, safe_write
 
 from .ensure import ensure_knowledge_base
 from .indexer import append_to_index, read_index
@@ -80,7 +81,7 @@ def cascade_delete(paths: WikiPaths, source_id: str) -> dict:
         if not new_sources:
             page_file = page_path_for(paths, page.type, page.id)
             if page_file.exists():
-                os.unlink(page_file)
+                safe_write(page_file, DELETE_SENTINEL)
             deleted_pages.append(page.id)
         else:
             page.sources = new_sources
@@ -89,15 +90,17 @@ def cascade_delete(paths: WikiPaths, source_id: str) -> dict:
             updated_pages.append(page.id)
 
     # Delete the source itself
-    os.unlink(source_path)
+    safe_write(source_path, DELETE_SENTINEL)
 
-    # Rebuild index without the source slug
-    entries = read_index(paths)
-    entries = [e for e in entries if e[0] != source_id]
-    if paths.llm_wiki_index.exists():
-        os.unlink(paths.llm_wiki_index)
+    # Rebuild index without the source slug — write the full set from scratch
+    # so the on-disk stale entries don't suppress our rewrite via dedup.
+    entries = [e for e in read_index(paths) if e[0] != source_id]
+    from .indexer import INDEX_HEADER, _format_entry
     if entries:
-        append_to_index(paths, entries)
+        content = INDEX_HEADER + "".join(_format_entry(s, t, ttl) for s, t, ttl in entries)
+        safe_write(paths.llm_wiki_index, content)
+    elif paths.llm_wiki_index.exists():
+        safe_write(paths.llm_wiki_index, DELETE_SENTINEL)
 
     _logger.info(
         f"[cascade_delete] deleted {source_id}; "
