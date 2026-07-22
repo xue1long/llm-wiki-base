@@ -40,6 +40,7 @@ from .cli_ext.schema_cmd import (
     cmd_schema_downgrade,
     cmd_schema_backup,
 )
+from .cli_ext.atomic_cmd import cmd_atomic_status, cmd_budget_estimate, cmd_budget_check
 
 logging.basicConfig(
     level=logging.INFO,
@@ -227,6 +228,23 @@ def main():
     p_sbackup.add_argument("action", choices=["list", "restore"], help="Action")
     p_sbackup.add_argument("--name", help="Backup name (for restore)")
     p_sbackup.set_defaults(func=cmd_schema_backup)
+
+    # Atomic context status
+    p_atomic = subparsers.add_parser("atomic", help="Atomic context status")
+    p_atomic.set_defaults(func=cmd_atomic_status)
+
+    # Token budget utilities
+    p_budget = subparsers.add_parser("budget", help="Token budget utilities")
+    p_budget_sub = p_budget.add_subparsers(dest="budget_command")
+
+    p_bestimate = p_budget_sub.add_parser("estimate", help="Estimate tokens for file")
+    p_bestimate.add_argument("path", help="File path")
+    p_bestimate.set_defaults(func=cmd_budget_estimate)
+
+    p_bcheck = p_budget_sub.add_parser("check", help="Check if file fits in model")
+    p_bcheck.add_argument("path", help="File path")
+    p_bcheck.add_argument("--model", default="gpt-4o-mini", help="Model name")
+    p_bcheck.set_defaults(func=cmd_budget_check)
 
     args = parser.parse_args()
 

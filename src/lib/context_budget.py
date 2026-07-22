@@ -2,6 +2,33 @@
 from typing import List
 
 
+# Known model context windows (tokens). Conservative defaults for unknown.
+_MODEL_CONTEXT_WINDOWS = {
+    "gpt-4o": 128_000,
+    "gpt-4o-mini": 128_000,
+    "gpt-4-turbo": 128_000,
+    "gpt-3.5-turbo": 16_385,
+    "claude-opus-4-8": 200_000,
+    "claude-sonnet-5": 200_000,
+    "claude-haiku-4-5": 200_000,
+    "qwen2.5:7b": 32_768,
+    "qwen2.5:14b": 32_768,
+    "llama3.1:8b": 131_072,
+    "llama3.1:70b": 131_072,
+}
+
+DEFAULT_CONTEXT_WINDOW = 8_192
+
+
+def get_model_context_window(model: str) -> int:
+    """Return the model's context window in tokens.
+
+    Falls back to DEFAULT_CONTEXT_WINDOW (8K) for unknown models —
+    a conservative choice that surfaces chunking needs immediately.
+    """
+    return _MODEL_CONTEXT_WINDOWS.get(model, DEFAULT_CONTEXT_WINDOW)
+
+
 def estimate_tokens(text: str) -> int:
     """Conservative: 0.5 token per character.
 
