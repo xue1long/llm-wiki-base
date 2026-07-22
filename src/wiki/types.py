@@ -48,6 +48,10 @@ class WikiPage:
     grade: str = "B"                       # "A" | "B" | "C"
     processing_depth: str = "concept"      # "concept" | "memory"
     is_immutable: bool = False
+    # NEW heat fields (wiki-heat-5pool T1)
+    heat: int = 50
+    last_used_at: int = 0
+    zombie_since: int | None = None
 
     def to_frontmatter_dict(self) -> dict:
         return {
@@ -61,6 +65,9 @@ class WikiPage:
             "grade": self.grade,
             "processing_depth": self.processing_depth,
             "is_immutable": self.is_immutable,
+            "heat": self.heat,
+            "last_used_at": self.last_used_at,
+            "zombie_since": self.zombie_since,
         }
 
     @classmethod
@@ -78,6 +85,9 @@ class WikiPage:
             grade=d.get("grade", "B"),
             processing_depth=d.get("processing_depth", "concept"),
             is_immutable=d.get("is_immutable", False),
+            heat=d.get("heat", 50),
+            last_used_at=d.get("last_used_at", 0),
+            zombie_since=d.get("zombie_since"),
         )
 
 
