@@ -11,7 +11,6 @@ from ..events.events import EventName, TaskCreatedPayload, TaskStatusChangedPayl
 from ..types import KnowledgeTask, TaskStatus, SourceType
 from ..utils.idempotency import check_duplicate
 from ..circuit_breaker import get_circuit_breaker, CircuitState
-from ..timeout import TaskTimeoutError
 
 logger = logging.getLogger(__name__)
 
