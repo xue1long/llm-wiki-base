@@ -49,11 +49,19 @@ Score this page on 6 dimensions (0.0-1.0 each). Output strict JSON:
 
 
 class QualityJudge:
-    """LLM-as-judge for batch of wiki pages."""
+    """LLM-as-judge for batch of wiki pages.
 
-    def __init__(self, settings: QualitySettings, provider_registry_name: str = "openai"):
+    When ``ensemble_judges`` is non-empty, ``judge_batch`` delegates to
+    :class:`EnsembleJudge` for multi-judge voting with mean aggregation +
+    factuality veto. Single-judge mode (default) keeps the existing
+    1-retry-per-page semantics.
+    """
+
+    def __init__(self, settings: QualitySettings, provider_registry_name: str = "openai",
+                 ensemble_judges: list | None = None):
         self.settings = settings
         self.provider_registry_name = provider_registry_name
+        self.ensemble_judges = ensemble_judges or []
         self.provider = create_llm_provider(provider_registry_name)
 
     async def judge_page(self, page_id: str, page_type: str, page_body: str,
@@ -107,6 +115,9 @@ class QualityJudge:
     async def judge_batch(self, pages: list, source_texts: dict | None = None) -> BatchJudgmentResult:
         """Judge all pages; retry rejected ones; quarantine final rejects.
 
+        If ``self.ensemble_judges`` is non-empty, delegates each page to
+        :class:`EnsembleJudge` (no retry — veto is the hard stop).
+
         ``pages`` is a list of dicts with keys ``id`` / ``type`` / ``body`` so the
         judge doesn't require the wiki types module.
         """
@@ -116,6 +127,45 @@ class QualityJudge:
         pages_rejected: list[str] = []
         pages_quarantined: list[str] = []
 
+        if self.ensemble_judges:
+            # Multi-judge path: no retry; veto replaces retry semantics.
+            from .ensemble import EnsembleJudge
+            ensemble = EnsembleJudge(
+                self.settings,
+                ensemble_judges=self.ensemble_judges,
+                primary_provider=self.provider_registry_name,
+            )
+            for page in pages:
+                pid = page["id"]
+                ptype = page.get("type", "entity")
+                body = page.get("body", "")
+                src = source_texts.get(pid, "")
+                agg = await ensemble.judge_page(pid, ptype, body, src)
+                j = Judgment(
+                    page_id=agg.page_id,
+                    page_type=agg.page_type,
+                    scores=agg.aggregated_scores,
+                    total_score=agg.aggregated_total,
+                    verdict=agg.verdict,
+                    issues=agg.issues,
+                    improvement_suggestions=agg.improvement_suggestions,
+                    judged_at=agg.judged_at,
+                    llm_call_count=agg.llm_call_count,
+                )
+                judgments[pid] = j
+                if j.verdict == "pass":
+                    pages_passed.append(pid)
+                else:
+                    pages_quarantined.append(pid)
+                    pages_rejected.append(pid)
+            return BatchJudgmentResult(
+                pages=judgments,
+                pages_passed=pages_passed,
+                pages_rejected=pages_rejected,
+                pages_quarantined=pages_quarantined,
+            )
+
+        # Single-judge path: 1 retry per page (MVP semantics).
         for page in pages:
             pid = page["id"]
             src = source_texts.get(pid, "")
