@@ -4,8 +4,7 @@ import logging
 from typing import Protocol
 
 from ..searcher.hybrid_search import hybrid_search
-from ..wiki.page_writer import read_page, page_path_for
-from ..wiki.types import PageType
+from ..wiki import PageType, page_path_for, read_page
 
 
 _logger = logging.getLogger(__name__)
