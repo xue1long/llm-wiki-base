@@ -8,7 +8,7 @@ from ..migration import (
     Migration, MigrationContext, MigrationPlan, MigrationResult, SchemaVersion,
 )
 from ..registry import MigrationRegistry
-from ...wiki.id_generator import generate_page_id, ID_PATTERN
+from ...wiki.core.id_generator import generate_page_id, ID_PATTERN
 
 
 _logger = logging.getLogger(__name__)

@@ -60,8 +60,9 @@ class ProjectContext:
         import json
         identity = ProjectIdentity.from_dict(json.loads(project_json.read_text(encoding="utf-8")))
 
-        # Register / update in global registry
-        resolved_name = name or project_path.name
+        # Register / update in global registry.
+        # Priority: explicit name arg > project.json's name field > directory name.
+        resolved_name = name or identity.name or project_path.name
         entry = ProjectRegistryEntry(
             id=uuid,
             path=str(project_path),
