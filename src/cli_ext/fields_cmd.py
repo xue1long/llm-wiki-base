@@ -5,9 +5,9 @@ from pathlib import Path
 
 import yaml
 
-from ..wiki.id_generator import is_valid_id
-from ..wiki.page_writer import read_page
-from ..wiki.tag_namespace import validate_tags
+from ..wiki.core.id_generator import is_valid_id
+from ..wiki.storage.page_writer import read_page
+from ..wiki.features.tag_namespace import validate_tags
 from ..lib.project import resolve_project
 
 

@@ -1,13 +1,13 @@
 """Tests for RelationSync (bidirectional) + RelationQuery (list/backlinks/neighbors/path)."""
 import pytest
 
-from src.wiki.ensure import ensure_knowledge_base
-from src.wiki.page_writer import page_path_for, read_page, write_page
-from src.wiki.paths import WikiPaths
-from src.wiki.relations import (
+from src.wiki.storage.ensure import ensure_knowledge_base
+from src.wiki.storage.page_writer import page_path_for, read_page, write_page
+from src.wiki.core.paths import WikiPaths
+from src.wiki.features.relations import (
     Relation, RelationSync, RelationQuery,
 )
-from src.wiki.types import PageType, WikiPage
+from src.wiki.core.types import PageType, WikiPage
 
 
 def _make_page(paths: WikiPaths, slug: str, type_: PageType, body: str = "x") -> None:

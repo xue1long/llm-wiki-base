@@ -1,5 +1,5 @@
 """Tests for src.wiki.relations."""
-from src.wiki.relations import (
+from src.wiki.features.relations import (
     Relation, RelationType, INVERSE_RELATIONS, USER_TYPE_PREFIX,
 )
 

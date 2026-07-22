@@ -3,10 +3,10 @@ import argparse
 import shutil
 import sys
 
-from ..wiki.heat import HeatTracker
-from ..wiki.zombie import ZombieDetector
-from ..wiki.page_writer import read_page, write_page, page_path_for
-from ..wiki.types import PageType
+from ..wiki.features.heat import HeatTracker
+from ..wiki.features.zombie import ZombieDetector
+from ..wiki.storage.page_writer import read_page, write_page, page_path_for
+from ..wiki.core.types import PageType
 from ..project.context import ProjectNotFoundError
 from ..lib.project import resolve_project
 

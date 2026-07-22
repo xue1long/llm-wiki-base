@@ -1,10 +1,10 @@
 # tests/test_wiki/test_lint.py
-from src.wiki.types import PageType, WikiPage
-from src.wiki.lint import lint_wiki, LintSeverity
-from src.wiki.ensure import ensure_knowledge_base
-from src.wiki.paths import WikiPaths
-from src.wiki.page_writer import write_page
-from src.wiki.indexer import append_to_index
+from src.wiki.core.types import PageType, WikiPage
+from src.wiki.features.lint import lint_wiki, LintSeverity
+from src.wiki.storage.ensure import ensure_knowledge_base
+from src.wiki.core.paths import WikiPaths
+from src.wiki.storage.page_writer import write_page
+from src.wiki.features.indexer import append_to_index
 
 
 def test_lint_clean_wiki_no_issues(tmp_path):

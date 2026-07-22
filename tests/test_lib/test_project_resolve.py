@@ -7,7 +7,7 @@ try/except + WikiPaths construction logic).
 import pytest
 
 from src.project.context import ProjectContext
-from src.wiki.paths import WikiPaths
+from src.wiki.core.paths import WikiPaths
 
 
 def test_resolve_project_returns_ctx_and_paths(monkeypatch, tmp_path):

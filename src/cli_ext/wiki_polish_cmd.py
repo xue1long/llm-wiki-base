@@ -2,12 +2,12 @@
 import argparse
 import asyncio
 import sys
-from ..wiki.dedup_auto import dedup_auto
-from ..wiki.lint_cache import cache_key, get as cache_get, put as cache_put, invalidate_all, DEFAULT_TTL
-from ..wiki.stubs import StubMaterializerWorker
-from ..wiki.lint import lint_wiki
-from ..wiki.page_writer import read_page
-from ..wiki.types import PageType
+from ..wiki.features.dedup_auto import dedup_auto
+from ..wiki.features.lint_cache import cache_key, get as cache_get, put as cache_put, invalidate_all, DEFAULT_TTL
+from ..wiki.features.stubs import StubMaterializerWorker
+from ..wiki.features.lint import lint_wiki
+from ..wiki.storage.page_writer import read_page
+from ..wiki.core.types import PageType
 from ..project.context import ProjectNotFoundError
 from ..lib.project import resolve_project
 

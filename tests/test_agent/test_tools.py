@@ -65,7 +65,7 @@ def test_wiki_search_returns_results(ctx):
 
 def test_wiki_read_page(tmp_path):
     """wiki.read_page reads a markdown file with YAML frontmatter and returns body fields."""
-    from src.wiki.types import PageType, WikiPage
+    from src.wiki.core.types import PageType, WikiPage
     import yaml
 
     # Create a real wiki page on disk

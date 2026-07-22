@@ -2,8 +2,8 @@ import asyncio
 import pytest
 from src.shared.test_helpers import ScriptedLLMProvider
 from src.pipeline.pipeline import run_ingest
-from src.wiki.ensure import ensure_knowledge_base
-from src.wiki.paths import WikiPaths
+from src.wiki.storage.ensure import ensure_knowledge_base
+from src.wiki.core.paths import WikiPaths
 from src.events.events import CollectorDonePayload
 import src.pipeline.pipeline as pipeline_mod
 

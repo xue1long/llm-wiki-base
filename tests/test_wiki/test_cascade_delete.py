@@ -1,11 +1,11 @@
 import pytest
-from src.wiki.types import PageType, WikiPage
-from src.wiki.cascade_delete import cascade_delete
-from src.wiki.ensure import ensure_knowledge_base
-from src.wiki.paths import WikiPaths
-from src.wiki.page_writer import write_page
-from src.wiki.indexer import append_to_index
-from src.wiki.atomic_ctx_helpers import atomic_pipeline_op
+from src.wiki.core.types import PageType, WikiPage
+from src.wiki.features.cascade_delete import cascade_delete
+from src.wiki.storage.ensure import ensure_knowledge_base
+from src.wiki.core.paths import WikiPaths
+from src.wiki.storage.page_writer import write_page
+from src.wiki.features.indexer import append_to_index
+from src.wiki.storage.atomic_ctx_helpers import atomic_pipeline_op
 from src.lib.write_hooks import flush_pending_writes
 
 
@@ -14,7 +14,7 @@ def test_cascade_delete_defers_deletions_on_failure(tmp_path, monkeypatch):
     write_page(p, WikiPage(id="src-1", title="Source", type=PageType.SOURCE, sources=["raw/sources/x.pdf"], body=""))
     write_page(p, WikiPage(id="ent-a", title="A", type=PageType.ENTITY, sources=["raw/sources/x.pdf", "raw/sources/y.pdf"], body="links"))
     def fail_write(*args, **kwargs): raise RuntimeError("mid-operation")
-    monkeypatch.setattr("src.wiki.cascade_delete.write_page", fail_write)
+    monkeypatch.setattr("src.wiki.features.cascade_delete.write_page", fail_write)
     with pytest.raises(RuntimeError):
         with atomic_pipeline_op(p): cascade_delete(p, "src-1")
     assert (p.wiki_sources / "src-1.md").exists()

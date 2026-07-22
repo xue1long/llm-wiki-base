@@ -1,6 +1,6 @@
-from src.wiki.logger import log_event, read_log
-from src.wiki.ensure import ensure_knowledge_base
-from src.wiki.paths import WikiPaths
+from src.wiki.features.logger import log_event, read_log
+from src.wiki.storage.ensure import ensure_knowledge_base
+from src.wiki.core.paths import WikiPaths
 
 
 def test_log_event_appends(tmp_path):

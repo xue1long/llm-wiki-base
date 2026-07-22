@@ -2,7 +2,7 @@
 import time
 from pathlib import Path
 
-from src.wiki.lint_cache import cache_key, get, put, invalidate_all, DEFAULT_TTL
+from src.wiki.features.lint_cache import cache_key, get, put, invalidate_all, DEFAULT_TTL
 
 
 def test_cache_key_deterministic():

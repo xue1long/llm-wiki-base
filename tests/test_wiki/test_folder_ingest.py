@@ -1,5 +1,5 @@
-from src.wiki.folder_ingest import collect_files, folder_context_for
-from src.wiki.ensure import ensure_knowledge_base
+from src.wiki.features.folder_ingest import collect_files, folder_context_for
+from src.wiki.storage.ensure import ensure_knowledge_base
 
 
 def test_collect_files_recursive(tmp_path):

@@ -1,7 +1,7 @@
-from src.wiki.types import PageType, WikiPage
-from src.wiki.indexer import append_to_index, read_index, _format_entry
-from src.wiki.ensure import ensure_knowledge_base
-from src.wiki.paths import WikiPaths
+from src.wiki.core.types import PageType, WikiPage
+from src.wiki.features.indexer import append_to_index, read_index, _format_entry
+from src.wiki.storage.ensure import ensure_knowledge_base
+from src.wiki.core.paths import WikiPaths
 
 
 def test_format_entry():

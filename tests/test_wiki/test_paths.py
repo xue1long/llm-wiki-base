@@ -1,6 +1,6 @@
 """Tests for WikiPaths + ensure_knowledge_base."""
-from src.wiki.paths import WikiPaths
-from src.wiki.ensure import ensure_knowledge_base
+from src.wiki.core.paths import WikiPaths
+from src.wiki.storage.ensure import ensure_knowledge_base
 
 
 def test_wiki_paths_under_root(tmp_path):

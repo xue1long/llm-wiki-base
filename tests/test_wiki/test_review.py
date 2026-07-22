@@ -1,7 +1,7 @@
 # tests/test_wiki/test_review.py
-from src.wiki.review import load_reviews, add_review, resolve_review
-from src.wiki.ensure import ensure_knowledge_base
-from src.wiki.paths import WikiPaths
+from src.wiki.features.review import load_reviews, add_review, resolve_review
+from src.wiki.storage.ensure import ensure_knowledge_base
+from src.wiki.core.paths import WikiPaths
 
 
 def test_add_review_creates_item(tmp_path):

@@ -1,9 +1,9 @@
 """Tests for src/wiki/zombie.py."""
-from src.wiki.zombie import ZombieDetector
-from src.wiki.types import PageType, WikiPage
-from src.wiki.ensure import ensure_knowledge_base
-from src.wiki.paths import WikiPaths
-from src.wiki.page_writer import write_page
+from src.wiki.features.zombie import ZombieDetector
+from src.wiki.core.types import PageType, WikiPage
+from src.wiki.storage.ensure import ensure_knowledge_base
+from src.wiki.core.paths import WikiPaths
+from src.wiki.storage.page_writer import write_page
 
 
 def test_zombie_detected_at_zero_heat(tmp_path):

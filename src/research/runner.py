@@ -14,12 +14,12 @@ DEFAULT_TOP_N_INGEST = 5
 # Wiki logger/indexer are implemented as wiki-v2 Tasks 5/6.
 # Defer (skip silently) when unavailable so the research runner can ship independently.
 try:
-    from ..wiki.logger import log_event  # wiki-v2 T6
+    from ..wiki.features.logger import log_event  # wiki-v2 T6
 except ImportError:
     log_event = None
 
 try:
-    from ..wiki.indexer import append_to_index  # wiki-v2 T5
+    from ..wiki.features.indexer import append_to_index  # wiki-v2 T5
 except ImportError:
     append_to_index = None
 
@@ -37,7 +37,7 @@ async def run_deep_research(
 
     # Step 1: Get queries (from review item OR generate)
     if from_review_id:
-        from ..wiki.review import load_reviews
+        from ..wiki.features.review import load_reviews
         items = load_reviews(ctx.paths)
         review = next((i for i in items if i.id == from_review_id), None)
         queries = review.search_queries if review and review.search_queries else [topic]
@@ -105,7 +105,7 @@ async def run_deep_research(
         synthesis_text = str(synthesis_response)
 
     # Step 4: Write synthesis page
-    from ..wiki.types import PageType
+    from ..wiki.core.types import PageType
     from ..lib.write_hooks import safe_write
 
     slug = topic.lower().replace(" ", "-")[:50] or "research"

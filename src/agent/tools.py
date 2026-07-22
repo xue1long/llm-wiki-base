@@ -65,8 +65,8 @@ class GraphSearchTool:
     description = "Find entity neighbors via wikilinks"
 
     async def execute(self, ctx, query: str, top_k: int = 5) -> dict:
-        from ..wiki.wikilink import extract_wikilinks
-        from ..wiki.page_writer import read_page
+        from ..wiki.features.wikilink import extract_wikilinks
+        from ..wiki.storage.page_writer import read_page
         matches = []
         for sub in [ctx.paths.wiki_sources, ctx.paths.wiki_entities,
                     ctx.paths.wiki_concepts, ctx.paths.wiki_synthesis]:

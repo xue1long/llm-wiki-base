@@ -1,9 +1,9 @@
-from src.wiki.types import PageType, WikiPage
-from src.wiki.export import export_wiki
-from src.wiki.import_ import import_wiki
-from src.wiki.ensure import ensure_knowledge_base
-from src.wiki.paths import WikiPaths
-from src.wiki.page_writer import write_page
+from src.wiki.core.types import PageType, WikiPage
+from src.wiki.features.export import export_wiki
+from src.wiki.features.import_ import import_wiki
+from src.wiki.storage.ensure import ensure_knowledge_base
+from src.wiki.core.paths import WikiPaths
+from src.wiki.storage.page_writer import write_page
 
 
 def test_export_creates_zip_with_wiki_files(tmp_path):

@@ -1,11 +1,11 @@
 """Tests for src/wiki/heat.py."""
 import time
 
-from src.wiki.heat import HeatTracker, HeatEvent
-from src.wiki.types import PageType, WikiPage
-from src.wiki.ensure import ensure_knowledge_base
-from src.wiki.paths import WikiPaths
-from src.wiki.page_writer import write_page
+from src.wiki.features.heat import HeatTracker, HeatEvent
+from src.wiki.core.types import PageType, WikiPage
+from src.wiki.storage.ensure import ensure_knowledge_base
+from src.wiki.core.paths import WikiPaths
+from src.wiki.storage.page_writer import write_page
 
 
 def test_increment_updates_heat(tmp_path):
@@ -18,7 +18,7 @@ def test_increment_updates_heat(tmp_path):
     tracker.increment("foo")
 
     # Reload
-    from src.wiki.page_writer import read_page, page_path_for
+    from src.wiki.storage.page_writer import read_page, page_path_for
     p = read_page(page_path_for(paths, PageType.ENTITY, "foo"))
     assert p.heat == 55
     assert p.last_used_at > 0
@@ -34,7 +34,7 @@ def test_increment_clamps_to_100(tmp_path):
     tracker = HeatTracker(paths)
     tracker.increment("foo")
 
-    from src.wiki.page_writer import read_page, page_path_for
+    from src.wiki.storage.page_writer import read_page, page_path_for
     p = read_page(page_path_for(paths, PageType.ENTITY, "foo"))
     assert p.heat == 100
 
@@ -54,6 +54,6 @@ def test_decay_reduces_heat(tmp_path):
     assert events[0].page_id == "foo"
     assert events[0].reason == "decay"
 
-    from src.wiki.page_writer import read_page, page_path_for
+    from src.wiki.storage.page_writer import read_page, page_path_for
     p = read_page(page_path_for(paths, PageType.ENTITY, "foo"))
     assert p.heat == 70  # 80 - 10

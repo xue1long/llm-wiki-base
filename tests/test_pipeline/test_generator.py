@@ -3,14 +3,14 @@ import pytest
 from src.shared.test_helpers import ScriptedLLMProvider
 from src.pipeline.schemas import AnalysisResult, EntityMention, PageSpec
 from src.pipeline.generator import generate
-from src.wiki.types import PageType, WikiPage
+from src.wiki.core.types import PageType, WikiPage
 
 
 @pytest.mark.asyncio
 async def test_generate_returns_pages(tmp_path):
-    from src.wiki.ensure import ensure_knowledge_base
+    from src.wiki.storage.ensure import ensure_knowledge_base
     ensure_knowledge_base(tmp_path)
-    from src.wiki.paths import WikiPaths
+    from src.wiki.core.paths import WikiPaths
     paths = WikiPaths(tmp_path)
 
     analysis = AnalysisResult(
@@ -50,8 +50,8 @@ async def test_generate_returns_pages(tmp_path):
 @pytest.mark.asyncio
 async def test_generate_emits_relations(tmp_path):
     """Generator populates WikiPage.relations from LLM response."""
-    from src.wiki.ensure import ensure_knowledge_base
-    from src.wiki.paths import WikiPaths
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
     ensure_knowledge_base(tmp_path)
     paths = WikiPaths(tmp_path)
 

@@ -2,11 +2,11 @@
 import argparse
 import json
 import sys
-from ..wiki.relations import (
+from ..wiki.features.relations import (
     Relation, RelationType, INVERSE_RELATIONS, USER_TYPE_PREFIX,
     RelationSync, RelationQuery,
 )
-from ..wiki.paths import WikiPaths
+from ..wiki.core.paths import WikiPaths
 from ..project.context import ProjectContext, ProjectNotFoundError
 from ..lib.project import resolve_ctx_only
 

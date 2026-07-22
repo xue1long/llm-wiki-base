@@ -1,6 +1,6 @@
 """Tests for src/wiki/id_generator.py + WikiPage v2.2 fields."""
-from src.wiki.id_generator import generate_page_id, is_valid_id, ID_PATTERN
-from src.wiki.types import PageType, WikiPage
+from src.wiki.core.id_generator import generate_page_id, is_valid_id, ID_PATTERN
+from src.wiki.core.types import PageType, WikiPage
 
 
 def test_generate_id_format():

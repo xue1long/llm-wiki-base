@@ -34,7 +34,7 @@ def cmd_research_show(args: argparse.Namespace) -> None:
         ctx = ProjectContext.resolve(args.project, by_id_only=True)
     except ProjectNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr); sys.exit(2)
-    from ..wiki.page_writer import read_page
+    from ..wiki.storage.page_writer import read_page
     path = ctx.paths.wiki_synthesis / f"{args.task_id}.md"
     if not path.exists():
         print(f"Synthesis not found: {path}", file=sys.stderr); sys.exit(2)

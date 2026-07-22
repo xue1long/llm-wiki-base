@@ -10,7 +10,7 @@ is derived from the path. See ADR-0004.
 from __future__ import annotations
 
 from ..project.context import ProjectContext
-from ..wiki.paths import WikiPaths
+from ..wiki.core.paths import WikiPaths
 
 
 def resolve_project(

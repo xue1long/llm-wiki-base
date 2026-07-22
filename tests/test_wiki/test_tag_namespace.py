@@ -1,5 +1,5 @@
 """Tests for src/wiki/tag_namespace.py."""
-from src.wiki.tag_namespace import TAG_PREFIXES, is_valid, parse, validate_tags
+from src.wiki.features.tag_namespace import TAG_PREFIXES, is_valid, parse, validate_tags
 
 
 def test_valid():

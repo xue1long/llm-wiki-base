@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Optional
 
 from ..lib.project import resolve_project
-from ..wiki.review import load_reviews, resolve_review as _wiki_resolve
+from ..wiki.features.review import load_reviews, resolve_review as _wiki_resolve
 
 
 def list_reviews(

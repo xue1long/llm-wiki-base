@@ -1,10 +1,10 @@
 """Tests for src/wiki/stubs.py."""
 import pytest
-from src.wiki.stubs import StubMaterializerWorker
-from src.wiki.types import PageType, WikiPage
-from src.wiki.ensure import ensure_knowledge_base
-from src.wiki.paths import WikiPaths
-from src.wiki.page_writer import write_page
+from src.wiki.features.stubs import StubMaterializerWorker
+from src.wiki.core.types import PageType, WikiPage
+from src.wiki.storage.ensure import ensure_knowledge_base
+from src.wiki.core.paths import WikiPaths
+from src.wiki.storage.page_writer import write_page
 
 
 def test_find_referenced_stubs(tmp_path):

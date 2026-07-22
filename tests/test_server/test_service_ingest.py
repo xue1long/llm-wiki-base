@@ -12,7 +12,7 @@ def _stub_resolve(monkeypatch, project_dir):
 
 def _fake_resolve(project_dir):
     from src.project.context import ProjectContext
-    from src.wiki.paths import WikiPaths
+    from src.wiki.core.paths import WikiPaths
     identity = type("I", (), {"id": "u"})()
     ctx = ProjectContext(identity=identity, path=project_dir, name="p", schema_version="v2.0")
     return ctx, WikiPaths(project_dir)

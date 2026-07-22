@@ -8,11 +8,11 @@ from ..queue.queue import update_task_status
 from ..types import TaskStatus
 from ..lib.atomic_ctx import AtomicContext
 from ..lib.write_hooks import flush_pending_writes
-from ..wiki.indexer import append_to_index
-from ..wiki.logger import log_event
-from ..wiki.page_writer import write_page
-from ..wiki.paths import WikiPaths
-from ..wiki.types import WikiPage
+from ..wiki.features.indexer import append_to_index
+from ..wiki.features.logger import log_event
+from ..wiki.storage.page_writer import write_page
+from ..wiki.core.paths import WikiPaths
+from ..wiki.core.types import WikiPage
 from .analyzer import analyze
 from .generator import generate
 from .collector import collect
@@ -46,7 +46,7 @@ def _get_provider():
 
 
 def _resolve_wiki_paths():
-    from ..wiki.paths import WikiPaths
+    from ..wiki.core.paths import WikiPaths
     root = Path.cwd() / "Knowledge"
     return WikiPaths(root)
 

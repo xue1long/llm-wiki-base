@@ -3,9 +3,9 @@ import logging
 from typing import Optional
 
 from ..lib.budgeted import BudgetedLLM
-from ..wiki.paths import WikiPaths
-from ..wiki.relations import parse_relations_from_response
-from ..wiki.types import PageType, WikiPage
+from ..wiki.core.paths import WikiPaths
+from ..wiki.features.relations import parse_relations_from_response
+from ..wiki.core.types import PageType, WikiPage
 from .schemas import AnalysisResult
 
 
