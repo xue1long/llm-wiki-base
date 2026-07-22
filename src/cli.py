@@ -60,6 +60,7 @@ from .cli_ext.relations_cmd import (
     cmd_relations_list, cmd_relations_backlinks, cmd_relations_neighbors,
     cmd_relations_path, cmd_relations_types, cmd_relations_add_type,
 )
+from .cli_ext.fields_cmd import cmd_fields_validate, cmd_tags_validate
 
 logging.basicConfig(
     level=logging.INFO,
@@ -422,6 +423,23 @@ def main():
     p_r_add = p_rel_sub.add_parser("add-type", help="Register a user-defined relation type")
     p_r_add.add_argument("name")
     p_r_add.set_defaults(func=cmd_relations_add_type)
+
+    # Fields validation
+    p_fields = subparsers.add_parser("fields", help="Validate wiki fields")
+    p_fields_sub = p_fields.add_subparsers(dest="fields_command", required=True)
+    p_fvalidate = p_fields_sub.add_parser("validate")
+    p_fvalidate.add_argument("path")
+    p_fvalidate.add_argument("--project")
+    p_fvalidate.set_defaults(func=cmd_fields_validate)
+
+    # Tags validation
+    p_tags = subparsers.add_parser("tags", help="Validate tags")
+    p_tags_sub = p_tags.add_subparsers(dest="tags_command", required=True)
+    p_tvalidate = p_tags_sub.add_parser("validate")
+    p_tvalidate.add_argument("page_path", nargs="?")
+    p_tvalidate.add_argument("--all", action="store_true")
+    p_tvalidate.add_argument("--project")
+    p_tvalidate.set_defaults(func=cmd_tags_validate)
 
     args = parser.parse_args()
 
