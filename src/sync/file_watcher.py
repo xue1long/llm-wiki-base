@@ -2,6 +2,7 @@
 文件监听 + 增量同步
 """
 from __future__ import annotations
+import warnings
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -64,7 +65,18 @@ class FileSyncWatcher:
         return changes
 
     def start_watch(self) -> None:
-        """启动后台监听"""
+        """启动后台监听
+
+        .. deprecated::
+            No current call sites. Keep until real-time sync is wired up.
+            Scheduled for removal in 1.0 release.
+        """
+        warnings.warn(
+            "FileSyncWatcher.start_watch has no current call sites; "
+            "scheduled for removal in 1.0 release",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         class Handler(FileSystemEventHandler):
             def __init__(self, callback: Callable[[str], None]):
                 self.callback = callback
@@ -82,6 +94,17 @@ class FileSyncWatcher:
         self._observer.start()
 
     def stop(self) -> None:
+        """停止后台监听
+
+        .. deprecated::
+            No current call sites. See start_watch.
+        """
+        warnings.warn(
+            "FileSyncWatcher.stop has no current call sites; "
+            "scheduled for removal in 1.0 release",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if self._observer:
             self._observer.stop()
             self._observer.join()
