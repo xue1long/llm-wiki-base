@@ -7,18 +7,17 @@ from ..wiki.lint_cache import cache_key, get as cache_get, put as cache_put, inv
 from ..wiki.stubs import StubMaterializerWorker
 from ..wiki.lint import lint_wiki
 from ..wiki.page_writer import read_page
-from ..wiki.paths import WikiPaths
 from ..wiki.types import PageType
-from ..project.context import ProjectContext, ProjectNotFoundError
+from ..project.context import ProjectNotFoundError
+from ..lib.project import resolve_project
 
 
 def _resolve_ctx(project_arg):
     try:
-        ctx = ProjectContext.resolve(project_arg, by_id_only=True)
+        return resolve_project(project_arg, by_id_only=True)
     except ProjectNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(2)
-    return ctx, WikiPaths(ctx.path)
 
 
 def cmd_stubs_list(args):
