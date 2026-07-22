@@ -23,12 +23,12 @@ def cmd_llm_providers_list(_args: argparse.Namespace) -> None:
 
 def cmd_llm_providers_show(args: argparse.Namespace) -> None:
     """Print full ProviderConfig JSON."""
-    from ..llm.registry import ProviderRegistry
+    from ..llm.registry import ProviderNotFoundError, ProviderRegistry
 
     try:
-        p = ProviderRegistry.get(args.name)
-    except KeyError:
-        print(f"Provider not found: {args.name}", file=sys.stderr)
+        p = ProviderRegistry.require(args.name)
+    except ProviderNotFoundError as e:
+        print(str(e), file=sys.stderr)
         sys.exit(2)
     print(json.dumps(p.to_dict(), indent=2, ensure_ascii=False))
 
@@ -85,12 +85,12 @@ def cmd_llm_providers_remove(args: argparse.Namespace) -> None:
 def cmd_llm_providers_test(args: argparse.Namespace) -> None:
     """Ping a provider; show installed models + missing config warnings."""
     from ..llm.provider_factory import _create_from_config
-    from ..llm.registry import ProviderRegistry
+    from ..llm.registry import ProviderNotFoundError, ProviderRegistry
 
     try:
-        config = ProviderRegistry.get(args.name)
-    except KeyError:
-        print(f"Provider not found: {args.name}", file=sys.stderr)
+        config = ProviderRegistry.require(args.name)
+    except ProviderNotFoundError as e:
+        print(str(e), file=sys.stderr)
         sys.exit(2)
 
     async def _run():

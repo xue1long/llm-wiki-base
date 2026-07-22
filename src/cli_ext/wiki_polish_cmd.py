@@ -34,10 +34,10 @@ def cmd_stubs_list(args):
 
 def _provider():
     from ..llm.provider_factory import create_llm_provider
-    from ..llm.registry import ProviderRegistry
-    providers = ProviderRegistry.load()
-    config = providers.get("default") or next(iter(providers.values()), None)
-    if not config:
+    from ..llm.registry import ProviderNotFoundError, ProviderRegistry
+    try:
+        config = ProviderRegistry.get_default()
+    except ProviderNotFoundError:
         print("Error: no LLM providers configured", file=sys.stderr)
         sys.exit(2)
     return create_llm_provider(config.name)
