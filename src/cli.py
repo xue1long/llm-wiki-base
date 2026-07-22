@@ -41,6 +41,8 @@ from .cli_ext.schema_cmd import (
     cmd_schema_backup,
 )
 from .cli_ext.atomic_cmd import cmd_atomic_status, cmd_budget_estimate, cmd_budget_check
+from .cli_ext.completions_cmd import cmd_completions
+from .cli_ext.templates_cmd import cmd_templates_list, cmd_templates_show, cmd_templates_apply
 
 logging.basicConfig(
     level=logging.INFO,
@@ -245,6 +247,31 @@ def main():
     p_bcheck.add_argument("path", help="File path")
     p_bcheck.add_argument("--model", default="gpt-4o-mini", help="Model name")
     p_bcheck.set_defaults(func=cmd_budget_check)
+
+    # Completions
+    p_comp = subparsers.add_parser("completions", help="Manage shell completions")
+    p_comp_sub = p_comp.add_subparsers(dest="completions_action")
+    p_comp_inst = p_comp_sub.add_parser("install")
+    p_comp_inst.add_argument("shell", choices=["bash", "zsh", "fish"])
+    p_comp_inst.set_defaults(func=cmd_completions)
+    p_comp_show = p_comp_sub.add_parser("show")
+    p_comp_show.add_argument("shell", choices=["bash", "zsh"])
+    p_comp_show.set_defaults(func=cmd_completions)
+    p_comp_pw = p_comp_sub.add_parser("print-words")
+    p_comp_pw.set_defaults(func=cmd_completions)
+
+    # Templates
+    p_tmpl = subparsers.add_parser("templates", help="Project templates")
+    p_tmpl_sub = p_tmpl.add_subparsers(dest="templates_action")
+    p_tmpl_list = p_tmpl_sub.add_parser("list")
+    p_tmpl_list.set_defaults(func=cmd_templates_list)
+    p_tmpl_show = p_tmpl_sub.add_parser("show")
+    p_tmpl_show.add_argument("name", help="Template name")
+    p_tmpl_show.set_defaults(func=cmd_templates_show)
+    p_tmpl_apply = p_tmpl_sub.add_parser("apply")
+    p_tmpl_apply.add_argument("name", help="Template name")
+    p_tmpl_apply.add_argument("--project", help="Project to apply to (UUID/name)")
+    p_tmpl_apply.set_defaults(func=cmd_templates_apply)
 
     args = parser.parse_args()
 
