@@ -53,6 +53,7 @@ from .cli_ext.health_cmd import cmd_health
 from .cli_ext.quality_cmd import (
     cmd_quality_score, cmd_quality_config_show, cmd_quality_config_set,
 )
+from .cli_ext.vision_cmd import cmd_vision_list, cmd_vision_extract
 
 logging.basicConfig(
     level=logging.INFO,
@@ -344,6 +345,20 @@ def main():
     p_qcset.add_argument("key")
     p_qcset.add_argument("value")
     p_qcset.set_defaults(func=cmd_quality_config_set)
+
+    # Vision
+    p_vision = subparsers.add_parser("vision", help="Vision/image utilities")
+    p_vision_sub = p_vision.add_subparsers(dest="vision_command")
+    p_vlist = p_vision_sub.add_parser("list")
+    p_vlist.add_argument("--project-root", default=None)
+    p_vlist.set_defaults(func=cmd_vision_list)
+    p_vextract = p_vision_sub.add_parser("extract", help="Extract + caption images from PDF")
+    p_vextract.add_argument("path", help="Path to PDF")
+    p_vextract.add_argument("--task-id", default=None)
+    p_vextract.add_argument("--project-root", default=None)
+    p_vextract.add_argument("--provider", default=None)
+    p_vextract.add_argument("--model", default=None)
+    p_vextract.set_defaults(func=cmd_vision_extract)
 
     args = parser.parse_args()
 
