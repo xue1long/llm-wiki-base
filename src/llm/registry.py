@@ -135,6 +135,16 @@ class ProviderRegistry:
 
     @staticmethod
     def remove(name: str) -> bool:
+        """Remove a provider by name and persist the post-removal state.
+
+        Returns:
+            bool: ``True`` if the provider was present and removed;
+                  ``False`` if it was already absent (no-op).
+
+        Note: `remove()` persists across saves — env-sourced providers do NOT
+        re-derive on subsequent `load()` while the file exists. To re-enable,
+        delete the registry file or re-add explicitly via `add()`.
+        """
         providers = ProviderRegistry.load()
         if name not in providers:
             return False
