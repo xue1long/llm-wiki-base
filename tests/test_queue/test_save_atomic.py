@@ -19,10 +19,14 @@ from src.queue.queue import (
     TaskStatus,
 )
 from src.types import SourceType
+from src.utils.idempotency import get_idempotency_cache
 
 
 def setup_function(_):
-    __reset_for_testing()
+    get_idempotency_cache().clear()
+    q._queue.clear()
+    q._paused = True
+    q._in_flight.clear()
 
 
 def test_save_writes_via_tmp_then_replace(tmp_path, monkeypatch):

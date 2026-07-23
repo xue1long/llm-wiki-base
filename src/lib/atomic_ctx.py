@@ -63,17 +63,33 @@ class AtomicContext:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         local = _get_local()
         local.stack_depth -= 1
-        if local.stack_depth == 0:
-            local.suspended = False
-        # Flush callback runs once, only on outer context, after flag reset
-        if self._is_outer and self._flush_callback:
+        if local.stack_depth > 0:
+            return False
+
+        from . import write_hooks
+
+        local.suspended = False
+        if not (self._is_outer and self._flush_callback):
+            return False
+
+        pending = list(write_hooks._pending_writes.items())
+        write_hooks._pending_writes.clear()
+
+        # Flush the captured batch one path at a time so a failed write does
+        # not prevent the remaining paths from reaching disk.  The global
+        # buffer is already clear, so callback failures cannot leak writes.
+        for path, content in pending:
             try:
-                self._flush_callback()
-            except Exception as e:
-                _logger.error(f"[AtomicContext] flush_callback failed: {e}")
-                if exc_val is None:
-                    raise  # re-raise if no inner exception
-                # else: log + continue (don't mask original exception)
+                write_hooks.safe_write(path, content)
+            except Exception:
+                _logger.exception("atomic flush write failed for %s", path)
+        try:
+            self._flush_callback()
+        except Exception as e:
+            _logger.error(f"[AtomicContext] flush_callback failed: {e}")
+            if exc_val is None:
+                raise
+        return False
 
 
 def __reset_for_testing() -> None:

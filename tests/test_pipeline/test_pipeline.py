@@ -5,6 +5,10 @@ from src.pipeline.pipeline import run_ingest
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths
 from src.events.events import CollectorDonePayload
+from src.queue import queue as queue_mod
+from src.queue.queue import enqueue_task, get_queue
+from src.types import SourceType, TaskStatus
+from src.utils.idempotency import get_idempotency_cache
 import src.pipeline.pipeline as pipeline_mod
 
 
@@ -54,7 +58,13 @@ async def test_collector_done_triggers_run_ingest(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda: p)
     monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: provider)
 
-    payload = CollectorDonePayload(task_id="t1", raw_path=str(raw), content="content")
+    get_idempotency_cache().clear()
+    queue_mod._queue.clear()
+    queue_mod._paused = True
+    task_id = enqueue_task("x.md", SourceType.FILE, "pipeline-integration")
+    queue_mod._queue[0].status = TaskStatus.RUNNING
+    queue_mod._in_flight.add(task_id)
+    payload = CollectorDonePayload(task_id=task_id, raw_path=str(raw), content="content")
     await pipeline_mod._on_collector_done(payload)
     assert (p.wiki_sources / "x.md").exists()
     assert "x" in p.llm_wiki_index.read_text(encoding="utf-8")

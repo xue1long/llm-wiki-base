@@ -4,6 +4,8 @@ from ..types import TaskStatus
 VALID_TRANSITIONS = {
     (TaskStatus.PENDING, TaskStatus.RUNNING),
     (TaskStatus.RUNNING, TaskStatus.WAITING_REVIEW),
+    (TaskStatus.RUNNING, TaskStatus.APPROVED),
+    (TaskStatus.RUNNING, TaskStatus.FAILED),
     (TaskStatus.WAITING_REVIEW, TaskStatus.APPROVED),
     (TaskStatus.WAITING_REVIEW, TaskStatus.REJECTED),
     (TaskStatus.REJECTED, TaskStatus.ARCHIVED),
