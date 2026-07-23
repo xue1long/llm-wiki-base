@@ -43,7 +43,8 @@ class ProviderConfig:
 
         Args:
             redact: When True, ``api_key`` is masked ("***" + last 4 chars,
-                or "***" if shorter than 4 chars). Default False preserves
+                or "***" if shorter than 5 chars to avoid leaking the
+                entire key when it's only 4 chars). Default False preserves
                 the full key for internal callers that need to make actual
                 API requests — call sites that display the result to a
                 user MUST pass ``redact=True``.
