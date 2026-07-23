@@ -72,7 +72,7 @@ def enqueue_task(source: str, source_type: SourceType, task_hash: str) -> str:
             retry_count=0,
         )
         _queue.append(task)
-        _save_queue()
+        _save_queue_unlocked()
 
     # Event handlers may update the queue, so never emit while holding _lock.
     event_bus.emit(EventName.TASK_CREATED, TaskCreatedPayload(
@@ -105,6 +105,9 @@ def update_task_status(task_id: str, status: TaskStatus, error: Optional[str] = 
         if error is not None:
             task.error = error
 
+        emit_status = status
+        retry_will_resume = False
+
         if status == TaskStatus.FAILED:
             task.retry_count += 1
             breaker.record_failure()
@@ -120,19 +123,30 @@ def update_task_status(task_id: str, status: TaskStatus, error: Optional[str] = 
                     _pause_queue_unlocked()
             else:
                 task.status = TaskStatus.PENDING  # 自动重试
+                retry_will_resume = True
         elif status == TaskStatus.ARCHIVED:
             breaker.record_success()
         elif status == TaskStatus.TIMEOUT:
             breaker.record_failure()
 
-        event_bus.emit(EventName.TASK_STATUS_CHANGED, TaskStatusChangedPayload(
+        # Capture the payload under the lock and release before emitting; the
+        # lock is a non-reentrant threading.Lock and any handler that calls
+        # back into the queue would deadlock.
+        emit_payload = TaskStatusChangedPayload(
             task_id=task_id,
             from_status=prev_status,
-            to_status=status,
+            to_status=emit_status,
             error=error,
-        ))
+        )
 
-        _save_queue()
+        _save_queue_unlocked()
+
+    # Outside the lock: notify subscribers, then advance the queue so a
+    # retry / new pending task is picked up without waiting for the next
+    # enqueue / resume.
+    event_bus.emit(EventName.TASK_STATUS_CHANGED, emit_payload)
+    if retry_will_resume:
+        _process_next()
 
 def get_queue() -> list[KnowledgeTask]:
     with _lock:
@@ -172,6 +186,12 @@ def get_queue_status() -> dict:
         }
 
 def _save_queue() -> None:
+    """Persist queue to disk. Self-locking; safe to call without holding the lock."""
+    with _lock:
+        _save_queue_unlocked()
+
+
+def _save_queue_unlocked() -> None:
     """Persist queue to disk; callers hold the queue mutex."""
     try:
         pending = [t for t in _queue if t.status != TaskStatus.APPROVED]
@@ -182,6 +202,17 @@ def _save_queue() -> None:
 
 
 def _load_queue() -> None:
+    """Load queue from disk. Self-locking; safe to call without holding the lock.
+
+    On any existing-but-corrupt file, log a warning and start with an empty
+    queue rather than raising. Missing file → empty queue (no warning).
+    """
+    global _queue
+    with _lock:
+        _load_queue_unlocked()
+
+
+def _load_queue_unlocked() -> None:
     """Load queue from disk; callers hold the queue mutex.
 
     On any existing-but-corrupt file, log a warning and start with an empty
@@ -210,14 +241,20 @@ def _load_queue() -> None:
 def __reset_for_testing() -> None:
     """Test-only: re-load the queue from disk and clear in-flight tracking."""
     with _lock:
-        _load_queue()
+        _load_queue_unlocked()
         _in_flight.clear()
 
 
 def release_in_flight(task_id: str) -> None:
-    """Release a task after its collector pipeline reaches a terminal state."""
+    """Release a task after its collector pipeline reaches a terminal state.
+
+    After dropping the in-flight flag, kick the scheduler so any backlog (e.g.
+    tasks queued while paused, or a retry that was reset to PENDING) advances
+    without waiting for the next enqueue / resume.
+    """
     with _lock:
         _in_flight.discard(task_id)
+    _process_next()
 
 
 def _process_next() -> None:
@@ -250,6 +287,5 @@ def _process_next() -> None:
         "source_type": source_type,
     })
 
-# 启动时加载队列
-with _lock:
-    _load_queue()
+# 启动时加载队列（_load_queue 自带锁）
+_load_queue()

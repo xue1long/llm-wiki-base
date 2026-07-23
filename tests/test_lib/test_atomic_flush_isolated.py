@@ -6,7 +6,7 @@ from src.lib.atomic_ctx import AtomicContext, __reset_for_testing
 
 def setup_function(_):
     __reset_for_testing()
-    write_hooks._pending_writes.clear()
+    write_hooks._reset_for_testing()
 
 
 def test_atomic_flush_isolates_write_failures(monkeypatch, tmp_path):
@@ -28,7 +28,7 @@ def test_atomic_flush_isolates_write_failures(monkeypatch, tmp_path):
         write_hooks.safe_write(second, "two")
 
     assert writes == [(first, "one"), (second, "two")]
-    assert write_hooks._pending_writes == {}
+    assert write_hooks._current_bucket() == {}
 
 
 def test_atomic_context_clears_pending_before_callback(tmp_path):
@@ -36,10 +36,10 @@ def test_atomic_context_clears_pending_before_callback(tmp_path):
     observed = []
 
     def callback():
-        observed.append(dict(write_hooks._pending_writes))
+        observed.append(dict(write_hooks._current_bucket()))
 
     with AtomicContext(flush_callback=callback):
         write_hooks.safe_write(target, "content")
 
     assert observed == [{}]
-    assert write_hooks._pending_writes == {}
+    assert write_hooks._current_bucket() == {}

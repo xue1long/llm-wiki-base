@@ -13,7 +13,7 @@ from src.lib.write_hooks import safe_write, flush_pending_writes, get_pending_co
 
 def setup_function(_):
     __reset_for_testing()
-    write_hooks._pending_writes.clear()
+    write_hooks._reset_for_testing()
 
 
 def test_safe_write_outside_ctx_uses_tmp_then_replace(tmp_path):
@@ -87,7 +87,7 @@ def test_safe_write_atomic_pending_writes_unaffected(tmp_path):
     """After a non-suspended write, _pending_writes must remain empty."""
     target = tmp_path / "page.md"
     safe_write(target, "hello")
-    assert write_hooks._pending_writes == {}
+    assert write_hooks._current_bucket() == {}
 
 
 def test_safe_write_atomic_overwrites_existing_file(tmp_path):

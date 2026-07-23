@@ -7,7 +7,7 @@ from src.lib.write_hooks import safe_write, flush_pending_writes, get_pending_co
 def setup_function(_):
     __reset_for_testing()
     from src.lib import write_hooks
-    write_hooks._pending_writes.clear()
+    write_hooks._reset_for_testing()
 
 
 def test_safe_write_writes_directly_when_not_suspended(tmp_path):

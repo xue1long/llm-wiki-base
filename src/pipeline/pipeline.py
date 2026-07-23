@@ -20,28 +20,69 @@ from .collector import collect
 
 _logger = logging.getLogger(__name__)
 
-event_bus.on("collector:start", lambda p: _on_collector_start(p))
-event_bus.on(EventName.COLLECTOR_DONE, lambda p: _on_collector_done(p))
 
-def _schedule_collector(task_id: str, source: str, source_type) -> None:
-    """Run the collector and release in-flight state if it fails pre-done."""
-    async def runner():
+def _dispatch_collector_done(payload) -> None:
+    """Synchronous adapter for the COLLECTOR_DONE event.
+
+    `EventBus.emit()` invokes handlers synchronously and cannot await a
+    returned coroutine, so registering the async `_on_collector_done` directly
+    left the coroutine discarded and `run_ingest` never ran. This adapter
+    schedules the coroutine on a running loop, or runs it inline when no
+    loop is active (e.g. inside a synchronous test or CLI entrypoint).
+    """
+    coro = _on_collector_done(payload)
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop — run inline. This is safe because `_on_collector_done`
+        # does its own try/except and always calls `release_in_flight`.
         try:
-            await collect(task_id, source, source_type)
-        except Exception as exc:
-            _logger.exception("collector failed for %s", task_id)
-            try:
-                update_task_status(task_id, TaskStatus.FAILED, error=str(exc))
-            finally:
-                release_in_flight(task_id)
-
-    asyncio.create_task(runner())
+            asyncio.run(coro)
+        except Exception:
+            _logger.exception("collector:done dispatch failed")
+        return
+    loop.create_task(coro)
 
 
-def _on_collector_start(payload: dict):
+def _dispatch_collector_start(payload) -> None:
+    """Synchronous adapter for the collector:start event.
+
+    Mirrors `_dispatch_collector_done`: schedules the async
+    `_on_collector_start` coroutine when a loop is running, runs inline
+    otherwise. Prevents `RuntimeWarning: coroutine was never awaited`.
+    """
+    coro = _on_collector_start(payload)
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        try:
+            asyncio.run(coro)
+        except Exception:
+            _logger.exception("collector:start dispatch failed")
+        return
+    loop.create_task(coro)
+
+
+event_bus.on("collector:start", _dispatch_collector_start)
+event_bus.on(EventName.COLLECTOR_DONE, _dispatch_collector_done)
+
+
+async def _schedule_collector(task_id: str, source: str, source_type) -> None:
+    """Run the collector and release in-flight state if it fails pre-done."""
+    try:
+        await collect(task_id, source, source_type)
+    except Exception as exc:
+        _logger.exception("collector failed for %s", task_id)
+        try:
+            update_task_status(task_id, TaskStatus.FAILED, error=str(exc))
+        finally:
+            release_in_flight(task_id)
+
+
+async def _on_collector_start(payload: dict):
     task_id = payload["task_id"]
     update_task_status(task_id, TaskStatus.RUNNING)
-    _schedule_collector(task_id, payload["source"], payload["source_type"])
+    await _schedule_collector(task_id, payload["source"], payload["source_type"])
 
 async def _on_collector_done(payload):
     task_id = payload.task_id

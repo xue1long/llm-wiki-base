@@ -72,12 +72,16 @@ class AtomicContext:
         if not (self._is_outer and self._flush_callback):
             return False
 
-        pending = list(write_hooks._pending_writes.items())
-        write_hooks._pending_writes.clear()
+        # Snapshot and clear only THIS thread's pending-writes bucket. Other
+        # threads' buckets are untouched; their AtomicContext exit will flush
+        # them. See src/lib/write_hooks.py for the per-thread design.
+        bucket = write_hooks._current_bucket()
+        pending = list(bucket.items())
+        bucket.clear()
 
         # Flush the captured batch one path at a time so a failed write does
-        # not prevent the remaining paths from reaching disk.  The global
-        # buffer is already clear, so callback failures cannot leak writes.
+        # not prevent the remaining paths from reaching disk. The bucket is
+        # already clear, so callback failures cannot leak writes.
         for path, content in pending:
             try:
                 write_hooks.safe_write(path, content)
@@ -87,8 +91,9 @@ class AtomicContext:
             self._flush_callback()
         except Exception as e:
             _logger.error(f"[AtomicContext] flush_callback failed: {e}")
-            if exc_val is None:
-                raise
+            # Docstring contract: "flush failures logged but never raised from
+            # __exit__". A body exception already wins the propagation slot, so
+            # we must swallow callback failures unconditionally to honour it.
         return False
 
 

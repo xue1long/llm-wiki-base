@@ -18,7 +18,7 @@ from src.lib.write_hooks import DELETE_SENTINEL
 
 def setup_function(_):
     __reset_for_testing()
-    write_hooks._pending_writes.clear()
+    write_hooks._reset_for_testing()
 
 
 def test_dedup_record_inside_atomic_context_uses_sentinel(tmp_path):
@@ -41,8 +41,9 @@ def test_dedup_record_inside_atomic_context_uses_sentinel(tmp_path):
     assert b_path.exists()
 
     # _pending_writes should have a DELETE_SENTINEL keyed by b_path
-    found_sentinel = any(v is DELETE_SENTINEL for v in write_hooks._pending_writes.values())
+    pending = write_hooks._current_bucket()
+    found_sentinel = any(v is DELETE_SENTINEL for v in pending.values())
     assert found_sentinel, (
-        f"Expected DELETE_SENTINEL in _pending_writes, got keys="
-        f"{list(write_hooks._pending_writes.keys())}"
+        f"Expected DELETE_SENTINEL in pending bucket, got keys="
+        f"{list(pending.keys())}"
     )

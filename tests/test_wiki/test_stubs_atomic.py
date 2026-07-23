@@ -14,7 +14,7 @@ from src.lib.write_hooks import DELETE_SENTINEL
 
 def setup_function(_):
     __reset_for_testing()
-    write_hooks._pending_writes.clear()
+    write_hooks._reset_for_testing()
 
 
 def test_stub_unlink_uses_sentinel(tmp_path):
@@ -70,9 +70,10 @@ def test_stub_unlink_uses_sentinel(tmp_path):
         assert result is True
 
     # _pending_writes should contain DELETE_SENTINEL keyed by the stub path
-    found_sentinel = any(v is DELETE_SENTINEL for v in write_hooks._pending_writes.values())
+    pending = write_hooks._current_bucket()
+    found_sentinel = any(v is DELETE_SENTINEL for v in pending.values())
     assert found_sentinel, (
-        f"Expected DELETE_SENTINEL in _pending_writes, got {write_hooks._pending_writes}"
+        f"Expected DELETE_SENTINEL in pending bucket, got {pending}"
     )
 
     # On disk: nothing committed yet (real page write is also deferred via
