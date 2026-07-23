@@ -24,6 +24,16 @@ _processing = False
 _paused = False
 
 
+class InvalidTransition(Exception):
+    """Raised when a task status change violates the state machine."""
+
+    def __init__(self, task_id: str, prev_status: str, next_status: str):
+        super().__init__(task_id, prev_status, next_status)
+        self.task_id = task_id
+        self.prev_status = prev_status
+        self.next_status = next_status
+
+
 def _default_state() -> dict:
     """Default in-memory queue state snapshot (read-only contract for ingest API)."""
     return {
@@ -74,19 +84,24 @@ def enqueue_task(source: str, source_type: SourceType, task_hash: str) -> str:
     return task.id
 
 def update_task_status(task_id: str, status: TaskStatus, error: Optional[str] = None) -> None:
-    """更新任务状态"""
+    """Update a task after validating the state-machine transition."""
     global _queue
     breaker = get_circuit_breaker(CIRCUIT_BREAKER_NAME)
 
     task = next((t for t in _queue if t.id == task_id), None)
-    if not task:
-        return
+    if task is None:
+        raise KeyError(task_id)
 
-    prev_status = task.status
+    from ..orchestrator.state_machine import can_transition
+
+    prev_status = TaskStatus(task.status)
+    if not can_transition(prev_status, status):
+        raise InvalidTransition(task_id, prev_status.value, status.value)
+
     task.status = status
     task.updated_at = int(datetime.now().timestamp())
 
-    if error:
+    if error is not None:
         task.error = error
 
     if status == TaskStatus.FAILED:

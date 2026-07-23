@@ -8,11 +8,12 @@
 """
 
 import asyncio
+import inspect
 import logging
 from enum import Enum
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Optional, Callable, Awaitable
+from typing import Any, Callable, Optional
 from functools import wraps
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,7 @@ class CircuitBreaker:
     success_count: int = 0
     last_failure_time: Optional[datetime] = None
     opened_at: Optional[datetime] = None
+    on_state_change: Optional[Callable[[CircuitState, CircuitState], None]] = None
 
     def record_success(self) -> None:
         """记录成功"""
@@ -90,7 +92,8 @@ class CircuitBreaker:
 
     def _transition_to(self, new_state: CircuitState) -> None:
         """状态转换"""
-        logger.info(f"[CircuitBreaker:{self.name}] {self.state.value} -> {new_state.value}")
+        previous_state = self.state
+        logger.info(f"[CircuitBreaker:{self.name}] {previous_state.value} -> {new_state.value}")
         self.state = new_state
 
         if new_state == CircuitState.OPEN:
@@ -103,47 +106,72 @@ class CircuitBreaker:
             self.success_count = 0
             self.opened_at = None
 
+        if self.on_state_change is not None:
+            self.on_state_change(previous_state, new_state)
+
+
+# 全局熔断器实例
+_circuit_breakers: dict[str, CircuitBreaker] = {}
+
+
 def circuit_breaker(
-    name: str,
+    name: str = "default",
     config: Optional[CircuitBreakerConfig] = None,
+    *,
+    on_state_change: Optional[Callable[[CircuitState, CircuitState], None]] = None,
 ):
-    """
-    熔断器装饰器
+    """Decorate a sync or async callable with a named shared breaker."""
 
-    用法:
-    @circuit_breaker("my_operation")
-    async def my_operation():
-        ...
-    """
-    breaker = CircuitBreaker(name=name, config=config or CircuitBreakerConfig())
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        breaker = _circuit_breakers.setdefault(
+            name,
+            CircuitBreaker(
+                name=name,
+                config=config or CircuitBreakerConfig(),
+                on_state_change=on_state_change,
+            ),
+        )
 
-    def decorator(func: Callable[..., Awaitable]) -> Callable[..., Awaitable]:
+        if inspect.iscoroutinefunction(func):
+            @wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                if not breaker.can_execute():
+                    raise CircuitOpenError(f"Circuit {name} is OPEN")
+
+                try:
+                    result = await func(*args, **kwargs)
+                except Exception:
+                    breaker.record_failure()
+                    raise
+                breaker.record_success()
+                return result
+
+            async_wrapper.circuit_breaker = breaker
+            return async_wrapper
+
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs):
             if not breaker.can_execute():
                 raise CircuitOpenError(f"Circuit {name} is OPEN")
 
             try:
-                result = await func(*args, **kwargs)
-                breaker.record_success()
-                return result
-            except Exception as e:
+                result = func(*args, **kwargs)
+            except Exception:
                 breaker.record_failure()
                 raise
+            breaker.record_success()
+            return result
 
-        # 暴露熔断器状态
         wrapper.circuit_breaker = breaker
         return wrapper
 
     return decorator
 
+
 class CircuitOpenError(Exception):
     """熔断器开启异常"""
     pass
 
-
-# 全局熔断器实例
-_circuit_breakers: dict[str, CircuitBreaker] = {}
 
 def get_circuit_breaker(name: str) -> CircuitBreaker:
     """获取或创建熔断器"""

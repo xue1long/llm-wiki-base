@@ -5,6 +5,7 @@ from pathlib import Path
 from ..events.event_bus import event_bus
 from ..events.events import EventName, ProcessorDonePayload, LibrarianDonePayload
 from ..queue.queue import enqueue_task, update_task_status
+from ..types import TaskStatus
 from .router import route_task, parse_source, TaskIntent
 from .audit_hard import run_hard_audit
 from .state_machine import can_transition, get_next_status
@@ -56,10 +57,10 @@ def _on_processor_done(payload: ProcessorDonePayload):
     result = run_hard_audit(payload.note_path)
 
     if result.passed:
-        update_task_status(task_id, "approved")
+        update_task_status(task_id, TaskStatus.APPROVED)
     else:
-        update_task_status(task_id, "rejected", "; ".join(result.reasons))
+        update_task_status(task_id, TaskStatus.REJECTED, "; ".join(result.reasons))
 
 def _on_librarian_done(payload: LibrarianDonePayload):
     """归档完成后标记为完成"""
-    update_task_status(payload.task_id, "archived")
+    update_task_status(payload.task_id, TaskStatus.ARCHIVED)

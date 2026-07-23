@@ -27,4 +27,7 @@ EVENT_TO_STATUS = {
 }
 
 def get_next_status(current: TaskStatus, event: str) -> TaskStatus | None:
-    return EVENT_TO_STATUS.get(event)
+    candidate = EVENT_TO_STATUS.get(event)
+    if candidate is None:
+        return None
+    return candidate if can_transition(current, candidate) else None
