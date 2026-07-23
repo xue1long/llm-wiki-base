@@ -91,6 +91,16 @@ class ProviderRegistry:
         path.write_text(
             json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
         )
+        # Restrict permissions on the registry file — it contains plaintext
+        # API keys. On POSIX this enforces 0o600 (owner read/write only);
+        # on Windows chmod is a best-effort no-op for most permission bits,
+        # but we still try so the operator gets the strongest guarantee
+        # the platform supports. Swallow OSError/NotImplementedError so
+        # we don't fail save() on systems that don't support chmod.
+        try:
+            os.chmod(path, 0o600)
+        except (OSError, NotImplementedError, AttributeError):
+            pass
 
     @staticmethod
     def get(name: str) -> ProviderConfig:

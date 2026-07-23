@@ -22,7 +22,7 @@ def cmd_llm_providers_list(_args: argparse.Namespace) -> None:
 
 
 def cmd_llm_providers_show(args: argparse.Namespace) -> None:
-    """Print full ProviderConfig JSON."""
+    """Print full ProviderConfig JSON (api_key masked)."""
     from ..llm.registry import ProviderNotFoundError, ProviderRegistry
 
     try:
@@ -30,7 +30,8 @@ def cmd_llm_providers_show(args: argparse.Namespace) -> None:
     except ProviderNotFoundError as e:
         print(str(e), file=sys.stderr)
         sys.exit(2)
-    print(json.dumps(p.to_dict(), indent=2, ensure_ascii=False))
+    # redact=True: never print the plaintext API key (I-llm-12).
+    print(json.dumps(p.to_dict(redact=True), indent=2, ensure_ascii=False))
 
 
 def cmd_llm_providers_add(args: argparse.Namespace) -> None:
