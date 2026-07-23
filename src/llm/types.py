@@ -40,8 +40,8 @@ class ProviderConfig:
     # Runtime-only hint (NEVER serialised). True when the api_key was
     # materialised from os.environ by _default_providers() rather than
     # explicit user input via `llm-providers add`. Registry.save() uses
-    # this to skip persistence — env-sourced keys remain the source of
-    # truth in os.environ, and we must not write them to disk unredacted.
+    # this to persist the entry with a blank key — env vars remain the source
+    # of truth while the provider stays discoverable across save/reload.
     sourced_from_env: bool = False
 
     def to_dict(self, redact: bool = False) -> dict:

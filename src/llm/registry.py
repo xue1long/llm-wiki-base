@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+from dataclasses import replace
 from pathlib import Path
 
 from .types import ProviderConfig
@@ -87,13 +88,12 @@ class ProviderRegistry:
     def save(providers: dict[str, ProviderConfig]) -> None:
         path = _config_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        # Skip env-sourced entries (sourced_from_env=True) — env vars
-        # are the single source of truth for those api_keys; persisting
-        # them would leak credentials onto disk on first save. User
-        # adds via `llm-providers add` set sourced_from_env=False and
-        # ARE persisted.
+        # Keep env-sourced entries discoverable across save/reload, but strip
+        # their credentials before persistence. The provider factory resolves
+        # a blank key from os.environ only when the provider is instantiated.
         persisted = {
-            k: v for k, v in providers.items() if not v.sourced_from_env
+            k: replace(v, api_key="") if v.sourced_from_env else v
+            for k, v in providers.items()
         }
         data = {
             "version": 1,
@@ -231,8 +231,8 @@ def _default_providers() -> dict[str, ProviderConfig]:
             default_chat_model="gpt-4o-mini",
             default_embedding_model="text-embedding-3-small",
             # Env-sourced: api_key came from os.environ, not an explicit
-            # user add. Registry.save() will skip persistence — env vars
-            # remain the source of truth.
+            # user add. Registry.save() persists this entry with a blank key;
+            # the factory resolves the credential from env when used.
             sourced_from_env=True,
         ),
         "anthropic": ProviderConfig(

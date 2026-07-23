@@ -1,4 +1,4 @@
-"""Tests for env-sourced API keys NOT being persisted to disk.
+"""Tests for stripping env-sourced API keys during persistence.
 
 Background (T10 followup): _default_providers() reads OPENAI_API_KEY /
 ANTHROPIC_API_KEY from the environment. Before the fix, the first
@@ -9,15 +9,19 @@ security concern: any process with read access to that file (backups,
 sync agents, container snapshots) inherits the credential.
 
 The fix: env-sourced ProviderConfig entries carry a runtime-only
-sourced_from_env=True hint. Registry.save() excludes those entries
-from the JSON, so env vars remain the single source of truth.
-Explicit `llm-providers add` (sourced_from_env=False) is still
-persisted — that's the intentional ownership boundary.
+sourced_from_env=True hint. Registry.save() persists those entries with
+api_key="", so secrets remain in the environment while providers stay
+discoverable across save/reload. Explicit `llm-providers add`
+(sourced_from_env=False) still persists its key — that's the intentional
+ownership boundary.
 """
+import asyncio
 import json
 
 import pytest
 
+from src.llm.provider_factory import create_llm_provider
+from src.llm.openai_provider import OpenAIProvider
 from src.llm.registry import (
     ProviderRegistry,
     _default_providers,
@@ -68,16 +72,13 @@ def test_env_sourced_key_not_persisted_on_first_save(monkeypatch, tmp_path):
         "This is a security regression — env keys must never be written to disk."
     )
 
-    # The loaded-on-disk providers dict should NOT contain the openai
-    # entry (since it was the only env-sourced one).
+    # The provider entry remains discoverable but its key is stripped.
     loaded = ProviderRegistry.load()
-    assert "openai" not in loaded, (
-        "Env-sourced 'openai' provider was persisted to disk; expected it to be skipped."
-    )
+    assert loaded["openai"].api_key == ""
 
 
 def test_env_sourced_anthropic_key_not_persisted(monkeypatch, tmp_path):
-    """ANTHROPIC_API_KEY from env is also skipped on save."""
+    """ANTHROPIC_API_KEY is stripped while its provider entry persists."""
     target = _isolated_registry(monkeypatch, tmp_path)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "anthro-secret-12345")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -88,15 +89,14 @@ def test_env_sourced_anthropic_key_not_persisted(monkeypatch, tmp_path):
     raw = target.read_text(encoding="utf-8")
     assert "anthro-secret-12345" not in raw
     loaded = ProviderRegistry.load()
-    assert "anthropic" not in loaded
+    assert loaded["anthropic"].api_key == ""
 
 
-def test_ollama_default_persists_normally(monkeypatch, tmp_path):
-    """Ollama default has no env-sourced key — it must persist normally.
+def test_env_sourced_defaults_persist_with_empty_keys(monkeypatch, tmp_path):
+    """Env-backed defaults persist as discoverable entries with blank keys.
 
-    Sanity check that the persistence filter doesn't accidentally drop
-    every default. Only env-sourced entries (those reading
-    OPENAI_API_KEY / ANTHROPIC_API_KEY from os.environ) are filtered.
+    Ollama persists unchanged, while OpenAI and Anthropic keep their provider
+    metadata without copying environment credentials onto disk.
     """
     target = _isolated_registry(monkeypatch, tmp_path)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -109,9 +109,8 @@ def test_ollama_default_persists_normally(monkeypatch, tmp_path):
     assert "ollama" in raw["providers"], (
         "Ollama is not env-sourced; it MUST persist."
     )
-    assert "openai" not in raw["providers"], (
-        "openai without env vars: empty key — should not persist."
-    )
+    assert raw["providers"]["openai"]["api_key"] == ""
+    assert raw["providers"]["anthropic"]["api_key"] == ""
 
 
 def test_explicit_add_persists_key(monkeypatch, tmp_path):
@@ -187,14 +186,14 @@ def test_sourced_from_env_flag_is_runtime_only(monkeypatch, tmp_path):
     assert not hasattr(cfg2, "sourced_from_env") or cfg2.sourced_from_env is False
 
 
-def test_upsert_env_sourced_provider_does_not_persist(monkeypatch, tmp_path):
-    """upsert() of an env-sourced ProviderConfig also skips persistence.
+def test_upsert_env_sourced_provider_does_not_persist_key(monkeypatch, tmp_path):
+    """upsert() strips the key from an env-sourced ProviderConfig.
 
     Belt-and-braces: even if a caller manually constructs a
     sourced_from_env=True ProviderConfig and hands it to upsert(), the
-    save filter must strip it. (Defence in depth — the default path
-    only matters, but if a downstream caller ever decides to "re-save
-    the defaults", they shouldn't accidentally leak keys.)
+    saved entry must have a blank key. (Defence in depth — the default path
+    only matters, but if a downstream caller ever decides to re-save the
+    defaults, they shouldn't accidentally leak keys.)
     """
     target = _isolated_registry(monkeypatch, tmp_path)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -212,3 +211,65 @@ def test_upsert_env_sourced_provider_does_not_persist(monkeypatch, tmp_path):
     assert "env-leak-attempt" not in raw, (
         "upsert() of a sourced_from_env=True config leaked the key to disk."
     )
+
+
+def test_save_then_load_preserves_env_sourced_provider_with_empty_key(
+    monkeypatch, tmp_path
+):
+    """A registry save keeps env-backed providers without persisting secrets."""
+    target = _isolated_registry(monkeypatch, tmp_path)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-env-key")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    providers = ProviderRegistry.load()
+    assert providers["openai"].api_key == "test-env-key"
+
+    ProviderRegistry.upsert(
+        ProviderConfig(name="local", type="ollama", base_url="http://localhost:11434")
+    )
+
+    assert "test-env-key" not in target.read_text(encoding="utf-8")
+    reloaded = ProviderRegistry.load()
+    assert "openai" in reloaded, (
+        "Env-sourced 'openai' provider disappeared after save/reload."
+    )
+    assert reloaded["openai"].api_key == ""
+
+
+def test_load_resolves_env_key_at_runtime(monkeypatch, tmp_path):
+    """Factory resolves a persisted blank key only when the provider is used."""
+    _isolated_registry(monkeypatch, tmp_path)
+    monkeypatch.setenv("OPENAI_API_KEY", "runtime-env-key")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    ProviderRegistry.save({
+        "openai": ProviderConfig(
+            name="openai",
+            type="openai",
+            base_url="https://api.openai.com/v1",
+            api_key="",
+            default_chat_model="gpt-4o-mini",
+        )
+    })
+
+    loaded = ProviderRegistry.load()
+    assert loaded["openai"].api_key == ""
+
+    observed = {}
+
+    async def fake_post_json(provider, url, payload):
+        observed["authorization"] = provider._headers()["Authorization"]
+        return {
+            "choices": [{"message": {"content": "ok"}}],
+            "model": payload["model"],
+        }
+
+    monkeypatch.setattr(OpenAIProvider, "_post_json", fake_post_json)
+    provider = create_llm_provider("openai")
+    response = asyncio.run(
+        provider.complete([{"role": "user", "content": "hello"}])
+    )
+
+    assert response.content == "ok"
+    assert observed["authorization"] == "Bearer runtime-env-key"
+    assert ProviderRegistry.load()["openai"].api_key == ""
