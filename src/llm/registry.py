@@ -173,11 +173,19 @@ class ProviderRegistry:
         Resolution order (highest precedence first):
           1. ``$RUFLO_LLM_PROVIDER`` env var (if non-empty AND matches a
              registered provider name — otherwise we raise).
-          2. Provider explicitly named ``"default"`` in the registry.
-          3. First provider in insertion order.
+          2. Provider explicitly named ``"default"`` in the registry
+             (back-compat alias — kept because some installs saved their
+             preferred provider under the literal name "default").
+          3. First persisted (non-env-sourced) provider in insertion order.
+             This honours ``llm-providers add ... --default`` — the user
+             added this provider explicitly, so it should win over the
+             env-sourced OpenAI/Anthropic entries that auto-register from
+             environment variables.
+          4. First provider in insertion order (legacy fallback when no
+             persisted entry exists).
 
         Raises:
-            ProviderNotFoundError: when #2/#3 produce no provider.
+            ProviderNotFoundError: when no providers exist.
             ValueError: when the env var names a provider not present.
             RegistryCorruptError: propagated from :meth:`load`.
         """
@@ -198,9 +206,38 @@ class ProviderRegistry:
                 "default (none configured; run: ruflo-kb llm-providers add)"
             )
 
+        # #2: legacy named-default
         named = providers.get("default")
         if named is not None:
             return named
+
+        # #3: prefer explicitly-added (non-env) providers over env-sourced
+        # ones. The env-sourced entries are auto-registered from env vars
+        # (OPENAI_API_KEY etc.) and should never silently win over a user
+        # who ran ``llm-providers add ollama ...``.
+        #
+        # ``sourced_from_env`` is not part of the serialised schema (it's a
+        # runtime-only hint that the audit cleanup explicitly excluded from
+        # ``to_dict``), so after a save→load roundtrip every provider looks
+        # "persisted". We recover the distinction by comparing the loaded
+        # set against ``_default_providers()``: a provider whose config
+        # matches the env-derived default exactly is treated as env-sourced.
+        defaults = _default_providers()
+        env_sourced_names = {
+            name for name, default_cfg in defaults.items()
+            if name in providers
+            and not providers[name].api_key
+            and providers[name].base_url == default_cfg.base_url
+            and providers[name].default_chat_model == default_cfg.default_chat_model
+        }
+        persisted = [
+            (name, cfg) for name, cfg in providers.items()
+            if name not in env_sourced_names
+        ]
+        if persisted:
+            return persisted[0][1]
+
+        # #4: legacy fallback — first in insertion order.
         return next(iter(providers.values()))
 
     @staticmethod
