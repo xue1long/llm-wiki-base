@@ -11,11 +11,12 @@ from ..events.events import EventName, CollectorDonePayload
 from ..inbox.manager import get_inbox_manager
 from ..utils.extract.pdf import extract_pdf_text
 from ..utils.extract.office import extract_office_text
-from ..utils.text import html_to_text
 from ..types import SourceType
 from ..permissions import AgentType, enforce_permission, Permission, PermissionDenied
 
 logger = logging.getLogger(__name__)
+
+MAX_REDIRECT_HOPS = 5
 
 
 def _check_url_allowlisted(url: str) -> None:
@@ -40,10 +41,23 @@ async def collect(task_id: str, source: str, source_type: SourceType) -> Collect
     if source_type == SourceType.URL:
         enforce_permission(AgentType.COLLECTOR, source, Permission.READ)
         _check_url_allowlisted(source)
-        response = httpx.get(source, timeout=30, follow_redirects=True)
-        response.raise_for_status()
-        content = html_to_text(response.text)
-        ext = ".html.txt"
+        current_url = source
+        for _ in range(MAX_REDIRECT_HOPS):
+            response = httpx.get(current_url, timeout=30, follow_redirects=False)
+            if response.is_redirect:
+                location = response.headers.get("Location") or response.headers.get("location") or ""
+                if not location:
+                    response.raise_for_status()
+                # Re-validate the redirect target against the same ACL
+                _check_url_allowlisted(location)
+                current_url = location
+                continue
+            response.raise_for_status()
+            break
+        else:
+            raise PermissionDenied(f"Too many redirects (>{MAX_REDIRECT_HOPS}) from {source}")
+        content = response.text
+        ext = ".html"
         raw_path = inbox.processing_path / f"{task_id}{ext}"
     else:
         file_path = Path(source)
