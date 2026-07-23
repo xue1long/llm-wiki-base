@@ -6,6 +6,7 @@ import os
 
 from ..llm.provider_factory import create_llm_provider
 from ..llm.registry import ProviderRegistry
+from ..wiki.core.paths import WikiPaths
 from .providers.tavily import TavilyProvider
 
 DEFAULT_QUERY_COUNT = 3
@@ -32,13 +33,16 @@ async def run_deep_research(
 
     Returns: {"synthesis_path": str, "sources": list, "queries": list, "task_id": str}
     """
-    cfg = ProviderRegistry.require(ctx.settings.llm.provider_registry_name)
+    # TODO: ctx.settings.llm.provider_registry_name never worked — ProjectContext has no
+    # settings attribute. Replaced with ProviderRegistry.get_default() (audit C-9).
+    cfg = ProviderRegistry.get_default()
     llm = create_llm_provider(cfg.name)
 
     # Step 1: Get queries (from review item OR generate)
     if from_review_id:
         from ..wiki.features.review import load_reviews
-        items = load_reviews(ctx.paths)
+        paths = WikiPaths(ctx.path)
+        items = load_reviews(paths)
         review = next((i for i in items if i.id == from_review_id), None)
         queries = review.search_queries if review and review.search_queries else [topic]
     else:
@@ -123,14 +127,15 @@ async def run_deep_research(
         f"research_task_id: {task_id}\n"
         f"---\n"
     )
-    synth_path = ctx.paths.wiki_synthesis / synth_filename
+    paths = WikiPaths(ctx.path)
+    synth_path = paths.wiki_synthesis / synth_filename
     safe_write(synth_path, fm_yaml + f"# Research: {topic}\n\n" + synthesis_text + "\n")
 
     if log_event is not None:
-        log_event(ctx.paths, event="research", task_id=task_id, detail=f"synthesized {topic}")
+        log_event(paths, event="research", task_id=task_id, detail=f"synthesized {topic}")
     if append_to_index is not None:
         append_to_index(
-            ctx.paths,
+            paths,
             [(task_id, PageType.SYNTHESIS, f"Research: {topic}")],
         )
 
@@ -150,6 +155,6 @@ async def run_deep_research(
         "topic": topic,
         "queries": queries,
         "sources": sources,
-        "synthesis_path": str(synth_path.relative_to(ctx.paths.root)),
+        "synthesis_path": str(synth_path.relative_to(paths.root)),
         "ingest_task_ids": ingest_task_ids,
     }

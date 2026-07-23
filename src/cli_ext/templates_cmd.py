@@ -37,8 +37,10 @@ def cmd_templates_apply(args: argparse.Namespace) -> None:
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(2)
+    from ..wiki.core.paths import WikiPaths
+    paths = WikiPaths(ctx.path)
     for rel_path, content in t.files.items():
-        dest = ctx.paths.root / rel_path
+        dest = paths.root / rel_path
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content, encoding="utf-8")
-    print(f"Applied template '{t.name}' to {ctx.paths.root}")
+    print(f"Applied template '{t.name}' to {paths.root}")

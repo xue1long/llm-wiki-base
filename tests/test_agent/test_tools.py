@@ -38,8 +38,10 @@ def _run(coro):
 
 @pytest.fixture
 def ctx(tmp_path):
-    """Mock ProjectContext with paths attribute."""
+    """Mock ProjectContext with path attribute (WikiPaths is constructed from it)."""
     ctx = MagicMock()
+    ctx.path = tmp_path
+    # Legacy ctx.paths attributes still set for backward-compat checks
     ctx.paths.root = tmp_path
     ctx.paths.raw_sources = tmp_path / "raw"
     ctx.paths.wiki_sources = tmp_path / "wiki_sources"
@@ -53,7 +55,7 @@ def test_wiki_search_returns_results(ctx):
     """wiki.search dispatches to hybrid_search and returns its results."""
     fake_results = [{"path": "a.md", "title": "A", "score": 0.9}]
 
-    async def fake_hybrid_search(c, q, top_k=5, mode="hybrid"):
+    async def fake_hybrid_search(query, top_k=10):
         return fake_results
 
     with patch("src.agent.tools.hybrid_search", new=fake_hybrid_search):
@@ -82,12 +84,13 @@ def test_wiki_read_page(tmp_path):
     fm = yaml.dump(page.to_frontmatter_dict(), allow_unicode=True, sort_keys=False, default_flow_style=False)
     page_path.write_text(f"---\n{fm}---\n\n{page.body}", encoding="utf-8")
 
-    # Mock ctx with paths.root pointing at tmp_path
+    # Mock ctx with path and paths.root pointing at tmp_path
     ctx = MagicMock()
+    ctx.path = tmp_path
     ctx.paths.root = tmp_path
 
     from src.agent.tools import WikiReadPageTool
-    # Pass a relative path so the tool joins it with ctx.paths.root
+    # Pass a relative path so the tool joins it with paths.root
     result = _run(WikiReadPageTool().execute(ctx, path="wiki_entities/alice.md"))
 
     assert result["id"] == "alice"
