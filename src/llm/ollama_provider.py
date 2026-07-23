@@ -130,11 +130,3 @@ class OllamaProvider(LLMProvider):
         if client is None:
             return
         await client.aclose()
-
-    # Backwards-compat shim: previous tests / callers may have used
-    # ``provider.embedding`` directly. Re-export ``embed`` so callers that
-    # intend "embedding" continue to work.
-    async def embedding(self, texts):
-        """Legacy alias for :meth:`embed` (single-text)."""
-        out = await self.embed(texts)
-        return out[0] if isinstance(texts, str) else out

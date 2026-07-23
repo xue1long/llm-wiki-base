@@ -30,6 +30,7 @@ _install_hybrid_search_stub()
 
 from src.agent.types import AgentConfig, AgentEvent  # noqa: E402
 from src.agent.tools import TOOLS  # noqa: E402
+from src.llm.base import LLMResponse  # noqa: E402
 
 
 def _run(coro):
@@ -71,10 +72,13 @@ def fake_provider():
 def test_agent_run_returns_final(ctx, provider_cfg, fake_provider):
     """AgentRuntime.run() returns final_answer event when LLM emits 'final' action."""
     # LLM immediately returns final
-    fake_provider.complete.return_value = {
-        "action": "final",
-        "answer": "Hello world!",
-    }
+    fake_provider.complete.return_value = LLMResponse(
+        content=json.dumps({
+            "action": "final",
+            "answer": "Hello world!",
+        }),
+        model="test",
+    )
 
     with patch("src.agent.runtime.ProviderRegistry") as MockRegistry, \
          patch("src.agent.runtime.create_llm_provider", return_value=fake_provider):
@@ -117,17 +121,23 @@ def test_agent_run_filters_none_tool_kwargs(ctx, provider_cfg, fake_provider):
     when the LLM explicitly nulls those fields."""
     # First call: tool action with explicit nulls. Second call: final answer.
     fake_provider.complete.side_effect = [
-        {
-            "action": "tool",
-            "tool": "wiki.read_page",
-            "path": "wiki_entities/alice.md",
-            "query": None,
-            "top_k": None,
-        },
-        {
-            "action": "final",
-            "answer": "Read alice successfully.",
-        },
+        LLMResponse(
+            content=json.dumps({
+                "action": "tool",
+                "tool": "wiki.read_page",
+                "path": "wiki_entities/alice.md",
+                "query": None,
+                "top_k": None,
+            }),
+            model="test",
+        ),
+        LLMResponse(
+            content=json.dumps({
+                "action": "final",
+                "answer": "Read alice successfully.",
+            }),
+            model="test",
+        ),
     ]
 
     async def fake_read_page(ctx, path):
@@ -158,12 +168,15 @@ def test_agent_run_max_iterations(ctx, provider_cfg, fake_provider):
     # recording "unknown tool" and continuing silently.
     # Note: keys match AgentLoopAction dataclass field names (snake_case) so
     # AgentLoopAction.from_json() can parse them.
-    fake_provider.complete.return_value = {
-        "action": "tool",
-        "tool": "wiki.search",
-        "query": "x",
-        "top_k": 5,
-    }
+    fake_provider.complete.return_value = LLMResponse(
+        content=json.dumps({
+            "action": "tool",
+            "tool": "wiki.search",
+            "query": "x",
+            "top_k": 5,
+        }),
+        model="test",
+    )
 
     # Patch all tool execute() methods so they don't reach real I/O
     for tool in TOOLS.values():
