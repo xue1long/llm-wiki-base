@@ -37,6 +37,12 @@ class ProviderConfig:
     default_embedding_model: str = ""
     timeout_seconds: int = 60
     extra_headers: dict[str, str] = field(default_factory=dict)
+    # Runtime-only hint (NEVER serialised). True when the api_key was
+    # materialised from os.environ by _default_providers() rather than
+    # explicit user input via `llm-providers add`. Registry.save() uses
+    # this to skip persistence — env-sourced keys remain the source of
+    # truth in os.environ, and we must not write them to disk unredacted.
+    sourced_from_env: bool = False
 
     def to_dict(self, redact: bool = False) -> dict:
         """Serialize to dict.

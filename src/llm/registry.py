@@ -87,7 +87,18 @@ class ProviderRegistry:
     def save(providers: dict[str, ProviderConfig]) -> None:
         path = _config_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        data = {"version": 1, "providers": {k: v.to_dict() for k, v in providers.items()}}
+        # Skip env-sourced entries (sourced_from_env=True) — env vars
+        # are the single source of truth for those api_keys; persisting
+        # them would leak credentials onto disk on first save. User
+        # adds via `llm-providers add` set sourced_from_env=False and
+        # ARE persisted.
+        persisted = {
+            k: v for k, v in providers.items() if not v.sourced_from_env
+        }
+        data = {
+            "version": 1,
+            "providers": {k: v.to_dict() for k, v in persisted.items()},
+        }
         path.write_text(
             json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
         )
@@ -219,6 +230,10 @@ def _default_providers() -> dict[str, ProviderConfig]:
             api_key=os.environ.get("OPENAI_API_KEY", ""),
             default_chat_model="gpt-4o-mini",
             default_embedding_model="text-embedding-3-small",
+            # Env-sourced: api_key came from os.environ, not an explicit
+            # user add. Registry.save() will skip persistence — env vars
+            # remain the source of truth.
+            sourced_from_env=True,
         ),
         "anthropic": ProviderConfig(
             name="anthropic",
@@ -227,6 +242,7 @@ def _default_providers() -> dict[str, ProviderConfig]:
             base_url="https://api.anthropic.com/v1",
             api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
             default_chat_model="claude-haiku-4-5",
+            sourced_from_env=True,
         ),
         "ollama": ProviderConfig(
             name="ollama",
@@ -234,5 +250,6 @@ def _default_providers() -> dict[str, ProviderConfig]:
             base_url="http://127.0.0.1:11434",
             default_chat_model="qwen2.5:7b",
             default_embedding_model="nomic-embed-text",
+            # Ollama has no env-sourced key — persist normally.
         ),
     }
