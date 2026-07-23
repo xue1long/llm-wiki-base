@@ -143,7 +143,7 @@ class ProviderRegistry:
 
         Note: `remove()` persists across saves — env-sourced providers do NOT
         re-derive on subsequent `load()` while the file exists. To re-enable,
-        delete the registry file or re-add explicitly via `add()`.
+        delete the registry file or re-add explicitly via `upsert()`.
         """
         providers = ProviderRegistry.load()
         if name not in providers:

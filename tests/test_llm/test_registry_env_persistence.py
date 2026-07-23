@@ -281,7 +281,7 @@ def test_load_resolves_env_key_at_runtime(monkeypatch, tmp_path):
 #
 # Note: `remove()` persists across saves — env-sourced providers do NOT
 # re-derive on subsequent `load()` while the file exists. To re-enable,
-# delete the registry file or re-add explicitly via `add()`.
+# delete the registry file or re-add explicitly via `upsert()`.
 #
 # This is documented behaviour: `remove()` writes the post-removal
 # contents to disk, so the absence is durable. The `_default_providers()`
@@ -297,7 +297,7 @@ def test_remove_env_sourced_provider_persists_absence(monkeypatch, tmp_path):
     load() — the file's existence short-circuits `_default_providers()`.
 
     To re-enable, the operator must either delete the registry file or
-    re-add the provider explicitly via `add()`.
+    re-add the provider explicitly via `upsert()`.
     """
     target = _isolated_registry(monkeypatch, tmp_path)
     monkeypatch.setenv("OPENAI_API_KEY", "env-still-set")
