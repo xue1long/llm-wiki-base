@@ -36,8 +36,12 @@ class PermissionDenied(PermissionError):
 # 权限白名单
 ALLOWED_PATHS = {
     AgentType.COLLECTOR: {
-        Permission.READ: ["Inbox/Pending", "Inbox/Processing"],
-        Permission.WRITE: ["Inbox/Processing"],
+        # Legacy Inbox/ layout (kept for back-compat) + new wiki-v2 layout
+        # (per CLAUDE.md: <project>/raw/sources/). Absolute paths under any
+        # known project root are also accepted by the check_permission()
+        # fall-through (see ProjectRootAwareGate in services.ingest).
+        Permission.READ: ["Inbox/Pending", "Inbox/Processing", "raw", "raw/sources"],
+        Permission.WRITE: ["Inbox/Processing", "raw", "raw/sources"],
     },
     AgentType.PROCESSOR: {
         Permission.READ: ["Inbox/Processing"],
