@@ -94,6 +94,52 @@ def test_chat_returns_on_final_answer(monkeypatch, tmp_path):
     assert result["message"]["content"] == "ok"
 
 
+def test_chat_empty_final_answer_does_not_raise_agent_run_failed(monkeypatch, tmp_path):
+    """Regression (T8 auditfix Finding 1): a `final_answer` event with empty
+    answer content must NOT be misinterpreted as "no final_answer seen" and
+    must NOT raise AgentRunFailed. The agent legitimately returned an empty
+    answer, which is a successful run, not a failure.
+
+    Before the fix, the implementation used `if not final_answer:` to decide
+    whether to raise AgentRunFailed — an empty string would trigger the
+    exception, contradicting the event-based contract.
+    """
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id": "u", "name": "p", "created_at": 1000, "schema_version": "v2.0"}',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "src.services.chat.resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+
+    class FakeAgentConfig:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+    monkeypatch.setattr(chat_service, "AgentConfig", FakeAgentConfig)
+
+    class FakeRuntime:
+        def __init__(self, ctx, config): pass
+        async def run(self, message):
+            # final_answer event present, but the answer content is empty
+            # (a legitimate "I don't know" / silent response).
+            return [
+                SimpleNamespace(type="final_answer", payload={"answer": ""}),
+            ]
+
+    monkeypatch.setattr(chat_service, "AgentRuntime", FakeRuntime)
+
+    # Must NOT raise AgentRunFailed — the final_answer event was seen.
+    result = asyncio.run(chat_service.run_chat("u", "hello"))
+    assert result["message"]["content"] == ""
+    assert result["projectId"] == "u"
+
+
 def test_agent_run_failed_includes_last_event_for_diagnostics(monkeypatch, tmp_path):
     """AgentRunFailed carries the last-seen event name for diagnostics."""
     project_dir = tmp_path / "kb"

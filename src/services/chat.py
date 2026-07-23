@@ -69,18 +69,24 @@ async def run_chat(
     final_answer = ""
     references = []
     last_event_type: str | None = None
+    final_answer_seen = False
     for e in events:
         last_event_type = e.type
         if e.type == "final_answer":
+            # Track whether a `final_answer` event was seen, independently
+            # of whether its answer content is empty. A valid `final_answer`
+            # event with empty content (legitimately empty response) must
+            # NOT be misinterpreted as "no final_answer seen".
+            final_answer_seen = True
             final_answer = e.payload["answer"]
         if e.type == "tool_completed" and e.payload.get("tool") in (
             "wiki.search", "source.search", "graph.search",
         ):
             references.extend(e.payload.get("result", {}).get("results", []))
 
-    if not final_answer:
-        # The agent ran but never produced a final_answer — surface the
-        # failure instead of returning a 200 with empty content (C-15).
+    if not final_answer_seen:
+        # The agent ran but never produced a final_answer event — surface
+        # the failure instead of returning a 200 with empty content (C-15).
         raise AgentRunFailed(last_event=last_event_type, budget=max_iterations)
 
     return {

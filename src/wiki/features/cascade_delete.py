@@ -49,14 +49,17 @@ def cascade_delete(paths: WikiPaths, source_id: str) -> dict:
         {"deleted_source": bool, "updated_pages": list[str],
          "deleted_pages": list[str]}
     """
-    ensure_knowledge_base(paths.root)
-    source_path = paths.wiki_sources / f"{source_id}.md"
-    if not source_path.exists():
-        raise FileNotFoundError(f"Source page not found: {source_id}")
-
-    # Open our own atomic context — T8 (I-pipeline-2). This batches all
-    # safe_write() calls below into one commit on function return.
+    # Open our own atomic context FIRST (T8 I-pipeline-2 auditfix).
+    # This is the first executable line so that all setup, validation, and
+    # the actual cascade work happens INSIDE the context. On context exit,
+    # either all changes commit or none do. The caller no longer needs to
+    # wrap us; a redundant outer wrapper is a safe no-op.
     with atomic_pipeline_op(paths):
+        ensure_knowledge_base(paths.root)
+        source_path = paths.wiki_sources / f"{source_id}.md"
+        if not source_path.exists():
+            raise FileNotFoundError(f"Source page not found: {source_id}")
+
         # Read the source page itself to learn which raw paths it represents.
         # Other pages reference the source via these same path strings (and/or
         # via the source_id substring for future prefix-style identifiers).
