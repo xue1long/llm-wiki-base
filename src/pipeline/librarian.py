@@ -63,6 +63,7 @@ async def archive(
     chunks = chunk_markdown(note_content)
     embeddings = []
 
+    similar_result = None
     if chunks:
         try:
             provider = get_embedding_provider()
@@ -78,12 +79,17 @@ async def archive(
             # 使用第一个 chunk 的 embedding 检索相似内容
             results = vector_search_chunks(embeddings[0], top_k=1)
             if results and results[0].score > SIMILARITY_THRESHOLD:
-                return await _merge_duplicates(
-                    task_id, note_path, note_content, results[0], paths
-                )
+                similar_result = results[0]
         except Exception as e:
             logger.warning(f"[Librarian] Embedding search failed: {e}, proceeding without dedup")
             embeddings = []
+
+    # _merge_duplicates is called OUTSIDE the broad except so that PermissionError
+    # raised by the is_relative_to validation actually propagates to the caller.
+    if similar_result is not None:
+        return await _merge_duplicates(
+            task_id, note_path, note_content, similar_result, paths
+        )
 
     # 3. 移动到 Knowledge — anchored inside ``paths.knowledge_dir`` when available.
     if paths is not None:

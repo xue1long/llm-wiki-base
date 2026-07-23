@@ -46,7 +46,7 @@ def extract_docx_text(file_path: str) -> str:
 
     try:
         doc = Document(file_path)
-    except (zipfile.BadZipFile, Exception) as exc:
+    except Exception as exc:
         # python-docx surfaces corrupt / encrypted / password-protected DOCX
         # files as PackageNotFoundError or zipfile.BadZipFile. Wrap them in
         # a typed error so callers can distinguish "encryption" from generic
@@ -69,7 +69,7 @@ def extract_xlsx_text(file_path: str) -> str:
 
     try:
         wb = load_workbook(file_path, data_only=True)
-    except (zipfile.BadZipFile, Exception) as exc:
+    except Exception as exc:
         _raise_if_encrypted(exc, suffix=".xlsx")
         raise
 
