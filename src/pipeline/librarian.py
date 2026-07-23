@@ -1,31 +1,31 @@
 # ruflo-kb/src/pipeline/librarian.py
+"""Archive a note into the Knowledge store + dedup via vector similarity.
+
+Embedding provider is sourced from ``src.llm.embedding_runtime`` (the
+process-global singleton). Initialisation happens at app startup.
+"""
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
 
 from ..events.event_bus import event_bus
 from ..events.events import EventName, LibrarianDonePayload, LibrarianMergedPayload
+from ..llm.embedding_runtime import (
+    get_embedding_provider as _runtime_get_embedding_provider,
+)
 from ..utils.text import chunk_markdown
 from ..vector.upsert import vector_upsert_chunks
 from ..vector.search import vector_search_chunks
 from ..types import VectorChunk
-from ..llm import create_embedding_provider, EmbeddingProvider
 
 logger = logging.getLogger(__name__)
 
 SIMILARITY_THRESHOLD = 0.95
 
-_embedding_provider: Optional[EmbeddingProvider] = None
+# Public re-exports preserve the existing module attribute surface
+# (callers across the codebase may import librarian.get_embedding_provider).
+get_embedding_provider = _runtime_get_embedding_provider
 
-def set_embedding_provider(provider: EmbeddingProvider) -> None:
-    """设置全局 embedding provider"""
-    global _embedding_provider
-    _embedding_provider = provider
-
-def get_embedding_provider() -> Optional[EmbeddingProvider]:
-    """获取全局 embedding provider"""
-    return _embedding_provider
 
 async def archive(task_id: str, note_path: str) -> LibrarianDonePayload | LibrarianMergedPayload:
     """
@@ -39,11 +39,17 @@ async def archive(task_id: str, note_path: str) -> LibrarianDonePayload | Librar
     chunks = chunk_markdown(note_content)
     embeddings = []
 
-    if chunks and _embedding_provider:
+    if chunks:
         try:
-            # 生成所有 chunk 的 embedding
-            embedding_results = await _embedding_provider.embed(chunks)
-            embeddings = [e.embedding for e in embedding_results]
+            provider = get_embedding_provider()
+            # The shared runtime's protocol returns list[list[float]] — accept
+            # either shape (concrete provider returns list[EmbeddingResponse])
+            # and normalise below.
+            embedding_results = await provider.embed(chunks)
+            if embedding_results and hasattr(embedding_results[0], "embedding"):
+                embeddings = [e.embedding for e in embedding_results]
+            else:
+                embeddings = list(embedding_results)
 
             # 使用第一个 chunk 的 embedding 检索相似内容
             results = vector_search_chunks(embeddings[0], top_k=1)
@@ -89,6 +95,7 @@ async def archive(task_id: str, note_path: str) -> LibrarianDonePayload | Librar
 
     event_bus.emit(EventName.LIBRARIAN_DONE, payload)
     return payload
+
 
 async def _merge_duplicates(task_id: str, new_path: str, new_content: str, similar_result) -> LibrarianMergedPayload:
     """

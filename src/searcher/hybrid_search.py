@@ -1,13 +1,21 @@
 # ruflo-kb/src/searcher/hybrid_search.py
+"""Hybrid semantic + keyword search across the wiki.
+
+Embedding provider is sourced from ``src.llm.embedding_runtime`` (the
+process-global singleton). Initialisation happens at app startup.
+"""
 import re
 from pathlib import Path
-from typing import TypedDict, Optional, TYPE_CHECKING
+from typing import TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..llm import EmbeddingProvider
     from ..vector.search import ChunkSearchResult
 
+from ..llm.embedding_runtime import (
+    get_embedding_provider as _runtime_get_embedding_provider,
+)
 from ..vector.search import vector_search_chunks
+
 
 class SearchResult(TypedDict):
     path: str
@@ -16,16 +24,11 @@ class SearchResult(TypedDict):
     score: float
     source: str
 
-_embedding_provider: Optional["EmbeddingProvider"] = None
 
-def set_embedding_provider(provider: "EmbeddingProvider") -> None:
-    """设置全局 embedding provider"""
-    global _embedding_provider
-    _embedding_provider = provider
+# Public re-export — preserves the prior ``hybrid_search.get_embedding_provider``
+# attribute surface for downstream callers.
+get_embedding_provider = _runtime_get_embedding_provider
 
-def get_embedding_provider() -> Optional["EmbeddingProvider"]:
-    """获取全局 embedding provider"""
-    return _embedding_provider
 
 def rrf_fusion(items: list, k: int = 60) -> dict:
     """Reciprocal Rank Fusion"""
@@ -36,26 +39,33 @@ def rrf_fusion(items: list, k: int = 60) -> dict:
         scores[key] = score + 1 / (k + i + 1)
     return scores
 
+
 async def hybrid_search(query: str, top_k: int = 10) -> list[SearchResult]:
     """混合检索: 语义 + 关键词"""
     # 1. 语义检索 (需要 embedding 服务)
     semantic_results: list[SearchResult] = []
-    if _embedding_provider:
-        try:
-            embedding_result = await _embedding_provider.embed([query])
-            query_embedding = embedding_result[0].embedding
-            vector_results: list[ChunkSearchResult] = vector_search_chunks(query_embedding, top_k)
+    try:
+        provider = get_embedding_provider()
+        embedding_result = await provider.embed([query])
+        # Normalise: accept either list[list[float]] or list[EmbeddingResponse].
+        first = embedding_result[0]
+        query_embedding = first.embedding if hasattr(first, "embedding") else first
+        vector_results: list["ChunkSearchResult"] = vector_search_chunks(query_embedding, top_k)
 
-            for r in vector_results:
-                semantic_results.append(SearchResult(
-                    path=r.path,
-                    title=Path(r.path).stem,
-                    content=r.content[:300],
-                    score=r.score,
-                    source="semantic",
-                ))
-        except Exception:
-            pass  # Fallback to keyword only
+        for r in vector_results:
+            semantic_results.append(SearchResult(
+                path=r.path,
+                title=Path(r.path).stem,
+                content=r.content[:300],
+                score=r.score,
+                source="semantic",
+            ))
+    except Exception:
+        # Provider not configured, embed call failed, or vector search
+        # unavailable. Fall through to keyword-only results. The runtime
+        # raises RuntimeError when nothing has been configured; we swallow
+        # it here so search degrades gracefully to keyword-only.
+        pass
 
     # 2. 关键词检索
     keyword_results = await _keyword_search(query, top_k)
@@ -75,6 +85,7 @@ async def hybrid_search(query: str, top_k: int = 10) -> list[SearchResult]:
         return sorted_results[:top_k]
 
     return keyword_results[:top_k]
+
 
 async def _keyword_search(query: str, top_k: int) -> list[SearchResult]:
     """简单关键词检索"""
