@@ -72,19 +72,61 @@ def _to_posix(p: str) -> str:
     return str(p).replace("\\", "/")
 
 
+def _normalise_segments(p: str) -> str:
+    """Normalise a POSIX path's dot segments WITHOUT filesystem resolution.
+
+    Splits ``p`` into segments, walks a stack: push a normal segment,
+    on ``..`` pop one segment (if any), and ignore leading ``..``
+    segments. Rejects paths that try to escape upward beyond the claimed
+    root by leaving a leftover ``..`` in the final form.
+
+    This is a pure-string operation — no ``Path.resolve()`` is invoked,
+    so the result is CWD-independent. It runs *before* the
+    ``is_relative_to`` boundary check so traversal attempts like
+    ``Inbox/Processing/../../secret.txt`` are rejected.
+    """
+    raw = _to_posix(p).strip("/")
+    if not raw:
+        return ""
+    stack: list[str] = []
+    for seg in raw.split("/"):
+        if seg == "" or seg == ".":
+            # Empty (from "//") or current-dir — skip.
+            continue
+        if seg == "..":
+            # Pop one segment if any; otherwise the path tried to escape
+            # above its claimed root. Leave the ".." in the stack so the
+            # resulting path is *not* a descendant of any reasonable
+            # boundary (which is how we reject the attempt below).
+            if stack:
+                stack.pop()
+            else:
+                stack.append("..")
+        else:
+            stack.append(seg)
+    return "/".join(stack)
+
+
 def _is_within(child: str, boundary: str) -> bool:
     """Return True iff ``child`` is the boundary path or a descendant.
 
     Uses PurePosixPath.is_relative_to (Python 3.9+). Both inputs are
     pre-normalised to forward slashes; no resolve(), no CWD involvement.
 
-    The boundary must be a strict ancestor: ``child == boundary`` returns
-    True (the file at the boundary itself is allowed), but ``InboxEvil``
-    does NOT match boundary ``Inbox`` because they share only a prefix,
-    not an ancestor relationship.
+    Dot segments are collapsed before the boundary check, so a path like
+    ``Inbox/Processing/../../secret.txt`` is rejected (its normalised
+    form is ``../secret.txt`` which is *not* under any reasonable
+    boundary). The boundary must be a strict ancestor: ``child ==
+    boundary`` returns True (the file at the boundary itself is
+    allowed), but ``InboxEvil`` does NOT match boundary ``Inbox``
+    because they share only a prefix, not an ancestor relationship.
     """
-    c = PurePosixPath(_to_posix(child))
-    b = PurePosixPath(_to_posix(boundary))
+    c_norm = _normalise_segments(child)
+    b_norm = _normalise_segments(boundary)
+    if not c_norm or not b_norm:
+        return False
+    c = PurePosixPath(c_norm)
+    b = PurePosixPath(b_norm)
     # Compare on trailing-slash basis so boundary == "Inbox" rejects
     # "InboxEvil" while still accepting "Inbox/x".
     return c == b or c.is_relative_to(b)

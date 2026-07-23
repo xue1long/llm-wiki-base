@@ -102,3 +102,55 @@ def test_url_path_returns_allowed_for_collector_read():
         Permission.READ,
     )
     assert res.allowed
+
+
+def test_dotdot_traversal_blocked():
+    """C-13 follow-up: '..' segments must not escape the allowed dir.
+
+    `PurePosixPath.is_relative_to` is purely lexical — it does not
+    normalise parent references. Without explicit handling, a path like
+    ``Inbox/Processing/../../secret.txt`` slips through the boundary
+    check, even though filesystem access resolves it outside the
+    allowed directory. This regression pins the contract that such
+    traversal is rejected.
+    """
+    res = check_permission(
+        AgentType.COLLECTOR,
+        "Inbox/Processing/../../secret.txt",
+        Permission.WRITE,
+        allowed_paths=["Inbox/Processing"],
+    )
+    assert not res.allowed
+
+
+def test_backslash_traversal_blocked():
+    """C-13 follow-up: '..' segments with backslash separators must
+    also be blocked.
+
+    On Windows, callers sometimes pass backslash-separated paths. The
+    normalisation step must convert them to forward slashes first, then
+    reject the resulting traversal.
+    """
+    res = check_permission(
+        AgentType.COLLECTOR,
+        "Inbox\\..\\secret.txt",
+        Permission.WRITE,
+        allowed_paths=["Inbox"],
+    )
+    assert not res.allowed
+
+
+def test_normalized_within_root_allowed():
+    """C-13 follow-up: legitimate nested paths inside the allowed dir
+    must still be allowed.
+
+    The normalisation must only block traversal, not legitimate descent
+    into sub-directories of the allowed root.
+    """
+    res = check_permission(
+        AgentType.COLLECTOR,
+        "Inbox/Processing/sub/file.md",
+        Permission.WRITE,
+        allowed_paths=["Inbox/Processing"],
+    )
+    assert res.allowed
