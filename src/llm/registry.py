@@ -25,6 +25,15 @@ class ProviderNotFoundError(KeyError):
         )
 
 
+class RegistryCorruptError(Exception):
+    """Raised when the registry JSON file exists but is unparseable.
+
+    Previously ``ProviderRegistry.load()`` would silently swallow parse
+    errors and fall back to defaults, hiding config corruption from the
+    user. We now raise so a CLI invocation can surface the mistake.
+    """
+
+
 _logger = logging.getLogger(__name__)
 
 
@@ -33,11 +42,17 @@ def _config_path() -> Path:
     return config_dir() / "llm-providers.json"
 
 
+# Env var that overrides default-resolution order (highest precedence)
+RUFLO_LLM_PROVIDER_ENV = "RUFLO_LLM_PROVIDER"
+
+
 class ProviderRegistry:
     # Tracks provider instances that hold unmanaged resources (httpx
     # AsyncClient, connection pools, etc.). aclose_all() closes them in
     # bulk — call from app shutdown (FastAPI lifespan) to avoid leaks.
-    # Providers auto-register on __init__ and are removed by aclose_all().
+    # Providers auto-register on __init__ and are removed by aclose_all()
+    # ONLY after a successful close(). Failed-close entries are kept so
+    # the operator can retry without losing the ownership reference.
     _loaded_providers: set = set()
 
     @staticmethod
@@ -46,14 +61,27 @@ class ProviderRegistry:
         if not path.exists():
             return _default_providers()
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            return _default_providers()
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as e:
+            # File exists but is invalid JSON — surface the corruption
+            # instead of silently masking the user error with defaults.
+            raise RegistryCorruptError(
+                f"Failed to parse {path}: {e}. Fix or delete the file."
+            ) from e
+        try:
             return {
                 k: ProviderConfig.from_dict(v)
                 for k, v in data.get("providers", {}).items()
             }
-        except (json.JSONDecodeError, KeyError, TypeError) as e:
-            _logger.warning("[registry] corrupt llm-providers.json (%s); using defaults", e)
-            return _default_providers()
+        except (KeyError, TypeError) as e:
+            # Structure error (missing 'name'/'type') is also corruption.
+            raise RegistryCorruptError(
+                f"Invalid provider entry in {path}: {e}"
+            ) from e
 
     @staticmethod
     def save(providers: dict[str, ProviderConfig]) -> None:
@@ -102,37 +130,60 @@ class ProviderRegistry:
 
     @staticmethod
     def get_default() -> ProviderConfig:
-        """Return the 'default' provider, or the first one available.
+        """Return the resolved default provider.
 
-        Resolution order:
-          1. A provider named "default" in the registry
-          2. The first provider (insertion order)
+        Resolution order (highest precedence first):
+          1. ``$RUFLO_LLM_PROVIDER`` env var (if non-empty AND matches a
+             registered provider name — otherwise we raise).
+          2. Provider explicitly named ``"default"`` in the registry.
+          3. First provider in insertion order.
 
         Raises:
-            ProviderNotFoundError: if no providers are configured.
+            ProviderNotFoundError: when #2/#3 produce no provider.
+            ValueError: when the env var names a provider not present.
+            RegistryCorruptError: propagated from :meth:`load`.
         """
         providers = ProviderRegistry.load()
+
+        env_name = os.environ.get(RUFLO_LLM_PROVIDER_ENV, "").strip()
+        if env_name:
+            if env_name not in providers:
+                raise ValueError(
+                    f"{RUFLO_LLM_PROVIDER_ENV}={env_name} but no such "
+                    f"provider is registered. Available: "
+                    f"{sorted(providers.keys())}"
+                )
+            return providers[env_name]
+
         if not providers:
             raise ProviderNotFoundError(
                 "default (none configured; run: ruflo-kb llm-providers add)"
             )
-        return providers.get("default") or next(iter(providers.values()))
+
+        named = providers.get("default")
+        if named is not None:
+            return named
+        return next(iter(providers.values()))
 
     @staticmethod
     async def aclose_all() -> None:
         """Close all tracked provider instances that expose an async close().
 
-        Idempotent: a second call is a no-op. Errors from individual close()
-        calls are logged but do not prevent other providers from being closed.
+        Idempotent: a second call after a successful full sweep is a no-op.
+        Errors from individual close() calls are logged but do not prevent
+        other providers from being closed. Providers whose close() raised
+        are KEPT in :attr:`_loaded_providers` (we don't lose ownership of
+        the resource reference — the caller can retry or explicitly drop it).
+
         Call this from app shutdown (e.g. FastAPI lifespan) to release
         httpx.AsyncClient and similar resources.
         """
-        # Snapshot to allow providers to mutate the set during iteration
-        # (defensive — current close() implementations don't, but future ones might).
         snapshot = list(ProviderRegistry._loaded_providers)
         for provider in snapshot:
             close = getattr(provider, "close", None)
             if close is None:
+                # No close() — nothing to release; safe to drop the tracker.
+                ProviderRegistry._loaded_providers.discard(provider)
                 continue
             try:
                 result = close()
@@ -143,7 +194,10 @@ class ProviderRegistry:
                     "[registry] aclose_all: failed to close %r: %s",
                     provider, e,
                 )
-        ProviderRegistry._loaded_providers.clear()
+                # Keep the reference so the caller can retry.
+                continue
+            # Only remove on success.
+            ProviderRegistry._loaded_providers.discard(provider)
 
 
 def _default_providers() -> dict[str, ProviderConfig]:
@@ -159,7 +213,8 @@ def _default_providers() -> dict[str, ProviderConfig]:
         "anthropic": ProviderConfig(
             name="anthropic",
             type="anthropic",
-            base_url="https://api.anthropic.com",
+            # MUST include /v1 path; the Anthropic SDK is mounted at /v1/messages.
+            base_url="https://api.anthropic.com/v1",
             api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
             default_chat_model="claude-haiku-4-5",
         ),

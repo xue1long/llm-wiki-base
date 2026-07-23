@@ -92,5 +92,14 @@ class BudgetedLLM:
         results = await asyncio.gather(*tasks)
         return list(results)
 
-    async def _single_call(self, prompt: str, response_format: Optional[dict], system: Optional[str]) -> dict:
-        return await self.provider.complete(prompt=prompt, response_format=response_format, system=system)
+    async def _single_call(self, prompt: str, response_format: Optional[dict], system: Optional[str]):
+        # Build a single-turn user message out of the prompt. Real providers
+        # implement `complete(messages=[...])` (chat contract). This wrapper
+        # preserves the legacy `prompt=...` calling shape so existing callers
+        # (analyzer/generator) don't have to wrap each call site.
+        messages = [{"role": "user", "content": prompt}]
+        return await self.provider.complete(
+            messages=messages,
+            response_format=response_format,
+            system=system,
+        )

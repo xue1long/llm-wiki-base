@@ -9,7 +9,9 @@ async def test_budgeted_short_prompt_single_call():
     provider = ScriptedLLMProvider([{"choices": [{"message": {"content": "ok"}}]}])
     async with BudgetedLLM(model="gpt-4o-mini", op="test", provider=provider) as bl:
         result = await bl.call(prompt="short", response_format=None)
-    assert result == {"choices": [{"message": {"content": "ok"}}]}
+    # ScriptedLLMProvider now wraps entries as LLMResponse(content=json.dumps(entry))
+    import json as _json
+    assert _json.loads(result.content) == {"choices": [{"message": {"content": "ok"}}]}
     assert bl.chunks_processed == 1
 
 
@@ -28,6 +30,10 @@ async def test_budgeted_long_prompt_chunks():
     assert bl.chunks_processed >= 2   # multiple chunks
     assert isinstance(result, list)
     assert len(result) == bl.chunks_processed
+    # Each chunk result is an LLMResponse (post Task 3 wrapper).
+    from src.llm.base import LLMResponse
+    for chunk in result:
+        assert isinstance(chunk, LLMResponse)
 
 
 @pytest.mark.asyncio

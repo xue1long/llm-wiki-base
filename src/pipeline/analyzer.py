@@ -57,7 +57,7 @@ async def analyze(
     )
 
     async with BudgetedLLM(model="gpt-4o-mini", op="analyzer", provider=provider) as bl:
-        response = await provider.complete(
+        llm_resp = await bl.call(
             prompt=prompt,
             response_format={
                 "type": "object",
@@ -73,6 +73,8 @@ async def analyze(
             },
         )
 
+    response = _parse_llm_response(llm_resp)
+
     return AnalysisResult(
         task_id=task_id,
         source_path=source_path,
@@ -84,3 +86,22 @@ async def analyze(
         links_to_existing=response.get("links_to_existing", []),
         folder_context=folder_context,
     )
+
+
+def _parse_llm_response(llm_resp) -> dict:
+    """Parse ``LLMResponse.content`` (or a raw dict/str from mocks/tests) as JSON.
+
+    Mocks used by the test suite (ScriptedLLMProvider, budgeted tests) return
+    dicts directly. Real providers return LLMResponse whose ``.content`` is
+    the model output (string). This helper normalises both into a dict.
+    Raises ``json.JSONDecodeError`` on bad JSON — never falls through silently.
+    """
+    # Raw dict (legacy mock / legacy test): use as-is.
+    if isinstance(llm_resp, dict):
+        return llm_resp
+    # LLMResponse / any object exposing .content
+    content = getattr(llm_resp, "content", llm_resp)
+    if not isinstance(content, str):
+        # Last-ditch: stringify and parse (covers invalid mocks returning bytes/None).
+        content = str(content)
+    return json.loads(content)
