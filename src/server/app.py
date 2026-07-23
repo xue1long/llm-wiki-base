@@ -4,6 +4,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+# Importing the pipeline module registers the ``collector:start`` handler on
+# the singleton ``event_bus`` at module load time. Without this, the HTTP
+# server enqueues ingest tasks via POST /api/v1/projects/{id}/ingest but no
+# listener ever picks them up — audit finding C-7. Regression covered by
+# tests/test_server/test_app_registers_pipeline.py.
+import src.pipeline.pipeline  # noqa: F401  (registers event_bus handler)
+
 
 _logger = logging.getLogger(__name__)
 
@@ -22,7 +29,7 @@ def create_app() -> FastAPI:
             from ..llm.provider_factory import create_embedding_provider
             from ..llm.embedding_runtime import set_embedding_provider
             from ..vector.store import init_vector_store_for_paths
-            from ..wiki.ensure import ensure_knowledge_base
+            from ..wiki.storage.ensure import ensure_knowledge_base
 
             # Initialise embedding provider from the default registry entry.
             try:
