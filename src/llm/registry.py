@@ -5,6 +5,7 @@ import os
 from dataclasses import replace
 from pathlib import Path
 
+from ..lib.write_hooks import safe_write
 from .types import ProviderConfig
 
 
@@ -99,8 +100,14 @@ class ProviderRegistry:
             "version": 1,
             "providers": {k: v.to_dict() for k, v in persisted.items()},
         }
-        path.write_text(
-            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+        # Plan 20 binding constraint: route through safe_write so the
+        # write is atomic (no torn file on crash mid-write) AND
+        # AtomicContext-aware (a future caller inside an AtomicContext
+        # will defer the write to the commit point instead of
+        # short-circuiting the transactional boundary).
+        safe_write(
+            path,
+            json.dumps(data, indent=2, ensure_ascii=False),
         )
         # Restrict permissions on the registry file — it contains plaintext
         # API keys. On POSIX this enforces 0o600 (owner read/write only);
