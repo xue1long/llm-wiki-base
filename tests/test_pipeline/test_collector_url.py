@@ -109,7 +109,12 @@ async def test_url_redirect_to_loopback_blocked(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_collect_file_source_still_works(tmp_path, monkeypatch):
-    """FILE source path: move_to_processing is called and payload is emitted with source_type=file."""
+    """FILE source path: collector writes the staged copy under processing_path
+    and emits the done payload. The source itself is NOT moved by collect()
+    — that deferral is exercised by tests/test_pipeline/test_collector_retry_path.py
+    and the move happens later in pipeline._on_collector_done after run_ingest
+    succeeds. (Audit fix C-7 follow-up.)
+    """
     src_path = tmp_path / "Inbox"
     src_path.mkdir()
     foo = src_path / "foo.md"
@@ -118,12 +123,6 @@ async def test_collect_file_source_still_works(tmp_path, monkeypatch):
     inbox = MagicMock()
     inbox.processing_path = tmp_path / "Processing"
     inbox.processing_path.mkdir()
-
-    # Move semantics: pretend the inbox renames to processing dir
-    def fake_move(path):
-        target = inbox.processing_path / Path(path).name
-        return target
-    inbox.move_to_processing.side_effect = fake_move
 
     monkeypatch.setattr("src.pipeline.collector.Path", Path)  # real Path
 
@@ -134,10 +133,16 @@ async def test_collect_file_source_still_works(tmp_path, monkeypatch):
     ):
         payload = await collect("t1", str(foo), SourceType.FILE)
 
-    inbox.move_to_processing.assert_called_once_with(str(foo))
+    # collect() must NOT move the source — that would break queue retries.
+    inbox.move_to_processing.assert_not_called()
+    assert foo.exists(), "source must remain at original path after collect()"
+    # Staged copy is written under processing_path keyed by task_id.
     assert (inbox.processing_path / "t1.md").exists()
     assert payload.raw_path == str(inbox.processing_path / "t1.md")
     emit.assert_called_once()
     # emit was called with CollectorDonePayload; check via public attributes
     args, _ = emit.call_args
     assert args[1].task_id == "t1"
+    # Original source is threaded through so the post-success move in
+    # pipeline._on_collector_done knows where to move from.
+    assert args[1].source == str(foo)

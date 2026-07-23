@@ -35,7 +35,14 @@ def _check_url_allowlisted(url: str) -> None:
 
 
 async def collect(task_id: str, source: str, source_type: SourceType) -> CollectorDonePayload:
-    """采集内容"""
+    """采集内容
+
+    Reads the source and writes a staged copy under ``inbox.processing_path``
+    so the downstream Analyzer/Generator has a stable raw_path. The source
+    itself is NOT moved — that is deferred to ``pipeline._on_collector_done``
+    (post-pipeline-success) so queue retries with the original source path
+    can re-read it after a transient LLM failure.
+    """
     inbox = get_inbox_manager()
     content = ""
 
@@ -76,7 +83,11 @@ async def collect(task_id: str, source: str, source_type: SourceType) -> Collect
         else:
             raise ValueError(f"Unsupported file type: {source}")
 
-        inbox.move_to_processing(source)
+        # Note: previously ``inbox.move_to_processing(source)`` ran here,
+        # BEFORE the LLM stage. That caused all 3 queue retries to fail
+        # with FileNotFoundError because the file had already been moved.
+        # The move is now deferred to pipeline._on_collector_done — see
+        # tests/test_pipeline/test_collector_retry_path.py.
         raw_path = inbox.processing_path / f"{task_id}{ext}"
 
     # 权限检查: Collector 只允许写 Inbox/Processing
@@ -92,6 +103,7 @@ async def collect(task_id: str, source: str, source_type: SourceType) -> Collect
         task_id=task_id,
         raw_path=str(raw_path),
         content=content,
+        source=source,
     )
 
     event_bus.emit(EventName.COLLECTOR_DONE, payload)

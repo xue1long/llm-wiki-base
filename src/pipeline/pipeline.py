@@ -89,6 +89,7 @@ async def _on_collector_start(payload: dict):
         "task_id": done_payload.task_id,
         "raw_path": done_payload.raw_path,
         "content": done_payload.content,
+        "source": getattr(done_payload, "source", None),
     }
     if "project_id" in payload:
         done_payload_dict["project_id"] = payload["project_id"]
@@ -107,6 +108,8 @@ async def _on_collector_done(payload):
     content = payload["content"] if isinstance(payload, dict) else payload.content
     project_id = payload.get("project_id") if isinstance(payload, dict) else None
 
+    original_source = payload.get("source") if isinstance(payload, dict) else getattr(payload, "source", None)
+
     try:
         paths = _resolve_wiki_paths(project_id=project_id)
         await run_ingest(
@@ -116,6 +119,27 @@ async def _on_collector_done(payload):
             provider=_get_provider(),
             task_id=task_id,
         )
+        # Post-success: NOW move the original source into Processing so the
+        # next queue retry cannot re-read it. Pre-fix this happened in
+        # collector.collect() BEFORE the LLM ran, which meant any LLM
+        # failure caused all 3 retries to hit FileNotFoundError. See
+        # tests/test_pipeline/test_collector_retry_path.py.
+        if original_source:
+            try:
+                from ..inbox.manager import get_inbox_manager
+                from ..permissions import AgentType, Permission, enforce_permission
+                enforce_permission(AgentType.COLLECTOR, original_source, Permission.WRITE)
+                inbox = get_inbox_manager()
+                src_path = Path(original_source)
+                if src_path.exists():
+                    inbox.move_to_processing(original_source)
+            except FileNotFoundError:
+                # Already moved by a prior successful run — nothing to do.
+                pass
+            except Exception as mv_exc:
+                _logger.warning(
+                    "[pipeline] post-success move failed for %s: %s", task_id, mv_exc,
+                )
         update_task_status(task_id, TaskStatus.APPROVED)
     except Exception as exc:
         _logger.exception("ingest failed for %s", task_id)

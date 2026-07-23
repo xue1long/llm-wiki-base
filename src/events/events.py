@@ -37,6 +37,10 @@ class CollectorDonePayload:
     task_id: str
     raw_path: str
     content: str
+    # Original (pre-move) source path. Carried through so
+    # ``pipeline._on_collector_done`` can move the source into
+    # Inbox/Processing AFTER run_ingest succeeds (audit fix C-7 follow-up).
+    source: str | None = None
 
 @dataclass
 class ProcessorDonePayload:
