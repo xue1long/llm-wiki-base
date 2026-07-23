@@ -4,6 +4,7 @@
 import hashlib
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -45,7 +46,6 @@ class SnapshotStore:
             json.dumps(self._data, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-        import os
         os.replace(tmp, self.path)
 
     def get(self, key: str) -> Optional[str]:

@@ -4,6 +4,7 @@ Verifies C-6 fix: _save_queue writes via *.tmp then os.replace (no torn writes),
 and _load_queue recovers from JSONDecodeError / OSError instead of raising.
 """
 import json
+import os
 import pytest
 from pathlib import Path
 
@@ -93,8 +94,11 @@ def test_round_trip_persists_tasks(tmp_path, monkeypatch):
 def test_atomic_write_does_not_partial_write(tmp_path, monkeypatch):
     """On any IO failure mid-save, the target file must remain the prior good state.
 
-    We monkeypatch the .tmp write to raise — the original target must be
-    untouched (still parseable, or unchanged).
+    We monkeypatch os.replace (the C-level function that src/lib/write_hooks.py
+    calls in its atomic-write primitive) to raise — the original target must
+    remain untouched. Note: we patch os.replace, NOT Path.replace, because
+    safe_write uses the module-level os.replace function. Patching Path.replace
+    would be a no-op against the production code path.
     """
     monkeypatch.chdir(tmp_path)
     # Seed a valid queue
@@ -103,23 +107,23 @@ def test_atomic_write_does_not_partial_write(tmp_path, monkeypatch):
     original = target.read_text(encoding="utf-8")
     original_tasks = json.loads(original)
 
-    # Now simulate a mid-write failure
-    real_replace = Path.replace
-
-    def broken_replace(self, other):
+    # Simulate a mid-write failure by breaking os.replace (the function
+    # safe_write actually invokes in src/lib/write_hooks.py:43).
+    def broken_replace(src, dst):
         raise OSError("simulated mid-write failure")
 
-    monkeypatch.setattr(Path, "replace", broken_replace)
+    monkeypatch.setattr(os, "replace", broken_replace)
     try:
         enqueue_task("another", SourceType.FILE, "another-hash")
     except OSError:
         pass  # ok — what matters is target state
 
-    # Restore real replace
-    monkeypatch.setattr(Path, "replace", real_replace)
+    # Restore real os.replace via monkeypatch.undo (safer than manually re-binding)
+    monkeypatch.undo()
 
-    # Target file should still exist and still be valid JSON matching original
+    # Target file must still hold the exact original content — the failed
+    # os.replace means the new content never reached the target, so the file
+    # is byte-for-byte unchanged from before the failed save.
     assert target.exists()
     post = json.loads(target.read_text(encoding="utf-8"))
-    # If the atomic pattern works, target was untouched by the failed write
-    assert post == original_tasks or len(post) >= len(original_tasks)
+    assert post == original_tasks
