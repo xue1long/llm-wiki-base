@@ -116,12 +116,17 @@ async def hybrid_search(query: str, top_k: int = 10) -> list[SearchResult]:
                 score=r.score,
                 source="semantic",
             ))
-    except Exception:
+    except Exception as e:
         # Provider not configured, embed call failed, or vector search
         # unavailable. Fall through to keyword-only results. The runtime
-        # raises RuntimeError when nothing has been configured; we swallow
-        # it here so search degrades gracefully to keyword-only.
-        pass
+        # raises RuntimeError when nothing has been configured; we log
+        # the failure mode (class + reason, truncated to 200 chars) and
+        # degrade gracefully to keyword-only.
+        logger.warning(
+            "hybrid_search: semantic retrieval failed (%s: %s); falling back to keyword-only",
+            type(e).__name__,
+            str(e)[:200],
+        )
 
     # 2. 关键词检索
     keyword_results = await _keyword_search(query, top_k)

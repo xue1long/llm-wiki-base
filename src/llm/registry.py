@@ -2,8 +2,10 @@
 import json
 import logging
 import os
+from dataclasses import replace
 from pathlib import Path
 
+from ..lib.write_hooks import safe_write
 from .types import ProviderConfig
 
 
@@ -87,9 +89,25 @@ class ProviderRegistry:
     def save(providers: dict[str, ProviderConfig]) -> None:
         path = _config_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        data = {"version": 1, "providers": {k: v.to_dict() for k, v in providers.items()}}
-        path.write_text(
-            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+        # Keep env-sourced entries discoverable across save/reload, but strip
+        # their credentials before persistence. The provider factory resolves
+        # a blank key from os.environ only when the provider is instantiated.
+        persisted = {
+            k: replace(v, api_key="") if v.sourced_from_env else v
+            for k, v in providers.items()
+        }
+        data = {
+            "version": 1,
+            "providers": {k: v.to_dict() for k, v in persisted.items()},
+        }
+        # Plan 20 binding constraint: route through safe_write so the
+        # write is atomic (no torn file on crash mid-write) AND
+        # AtomicContext-aware (a future caller inside an AtomicContext
+        # will defer the write to the commit point instead of
+        # short-circuiting the transactional boundary).
+        safe_write(
+            path,
+            json.dumps(data, indent=2, ensure_ascii=False),
         )
         # Restrict permissions on the registry file — it contains plaintext
         # API keys. On POSIX this enforces 0o600 (owner read/write only);
@@ -219,6 +237,10 @@ def _default_providers() -> dict[str, ProviderConfig]:
             api_key=os.environ.get("OPENAI_API_KEY", ""),
             default_chat_model="gpt-4o-mini",
             default_embedding_model="text-embedding-3-small",
+            # Env-sourced: api_key came from os.environ, not an explicit
+            # user add. Registry.save() persists this entry with a blank key;
+            # the factory resolves the credential from env when used.
+            sourced_from_env=True,
         ),
         "anthropic": ProviderConfig(
             name="anthropic",
@@ -227,6 +249,7 @@ def _default_providers() -> dict[str, ProviderConfig]:
             base_url="https://api.anthropic.com/v1",
             api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
             default_chat_model="claude-haiku-4-5",
+            sourced_from_env=True,
         ),
         "ollama": ProviderConfig(
             name="ollama",
@@ -234,5 +257,6 @@ def _default_providers() -> dict[str, ProviderConfig]:
             base_url="http://127.0.0.1:11434",
             default_chat_model="qwen2.5:7b",
             default_embedding_model="nomic-embed-text",
+            # Ollama has no env-sourced key — persist normally.
         ),
     }

@@ -7,8 +7,9 @@ per project. ``init_vector_store_for_paths(paths)`` opens the handle for
 returns the table for whichever project was most recently initialised
 (``current_project_key``).
 
-The legacy ``init_vector_store(db_path: str)`` entry point is preserved as
-a thin wrapper for backwards compatibility with existing tests / scripts.
+Note: the legacy ``init_vector_store(db_path: str)`` entry point (parent-walking
+heuristic) has been removed. Callers must construct a ``WikiPaths`` explicitly
+and pass it to ``init_vector_store_for_paths``.
 """
 from pathlib import Path
 from typing import Any, Optional
@@ -73,30 +74,6 @@ def init_vector_store_for_paths(paths: WikiPaths) -> None:
         table = db.create_table("chunks", schema=_build_schema(), exist_ok=True)
         _per_project[key] = (db, table)
     _current_project_key = key
-
-
-def init_vector_store(db_path: str) -> None:
-    """Legacy entry point — derives a WikiPaths from ``db_path`` and delegates.
-
-    Behaviour preserved for callers that pass ``str(<project>/.index/lancedb)``
-    or similar; tests continue to work without modification.
-    """
-    p = Path(db_path).expanduser().resolve()
-    # ``db_path`` may point at the lancedb dir itself OR its parent. Walk up
-    # at most two levels until we find a directory that looks like a project
-    # root (containing ".index" or "wiki"). Fall back to the immediate parent
-    # parent as the project root.
-    candidate_root = p.parent
-    for _ in range(3):
-        if (candidate_root / ".index").exists() or (candidate_root / "wiki").exists():
-            break
-        candidate_root = candidate_root.parent
-    else:
-        candidate_root = p.parent.parent if p.parent.parent != Path(".") else p.parent
-    paths = WikiPaths(candidate_root)
-    # Ensure the layout exists so index_dir is present.
-    paths.index.mkdir(parents=True, exist_ok=True)
-    init_vector_store_for_paths(paths)
 
 
 def get_table(project_paths: "WikiPaths | None" = None):

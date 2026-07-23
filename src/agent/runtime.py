@@ -84,13 +84,9 @@ class AgentRuntime:
                     "required": ["action"],
                 },
             )
-            # LLMResponse.content holds the raw JSON string; legacy mocks /
-            # unit tests may still pass dicts directly. Normalise here.
+            # LLMResponse.content holds the raw JSON string.
             try:
-                if isinstance(response, dict):
-                    raw_json = json.dumps(response)
-                else:
-                    raw_json = response.content if isinstance(response.content, str) else str(response.content)
+                raw_json = response.content if isinstance(response.content, str) else str(response.content)
             except Exception as e:
                 _logger.warning(f"[agent] could not extract JSON body: {e}")
                 observations.append(f"[parse error: {e}]")

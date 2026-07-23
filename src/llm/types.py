@@ -37,13 +37,20 @@ class ProviderConfig:
     default_embedding_model: str = ""
     timeout_seconds: int = 60
     extra_headers: dict[str, str] = field(default_factory=dict)
+    # Runtime-only hint (NEVER serialised). True when the api_key was
+    # materialised from os.environ by _default_providers() rather than
+    # explicit user input via `llm-providers add`. Registry.save() uses
+    # this to persist the entry with a blank key — env vars remain the source
+    # of truth while the provider stays discoverable across save/reload.
+    sourced_from_env: bool = False
 
     def to_dict(self, redact: bool = False) -> dict:
         """Serialize to dict.
 
         Args:
             redact: When True, ``api_key`` is masked ("***" + last 4 chars,
-                or "***" if shorter than 4 chars). Default False preserves
+                or "***" if shorter than 5 chars to avoid leaking the
+                entire key when it's only 4 chars). Default False preserves
                 the full key for internal callers that need to make actual
                 API requests — call sites that display the result to a
                 user MUST pass ``redact=True``.

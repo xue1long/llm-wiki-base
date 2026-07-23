@@ -47,8 +47,6 @@ class OpenAIProvider(LLMProvider):
         else:
             self._client_kind = "httpx"
             self._sdk = None
-        # Health-check uses the SDK when present (the brief's default)
-        self.client = client
 
     # ----- internal helpers ------------------------------------------------
     def _headers(self) -> dict:
