@@ -4,6 +4,7 @@
 Embedding provider is sourced from ``src.llm.embedding_runtime`` (the
 process-global singleton). Initialisation happens at app startup.
 """
+import logging
 import re
 from pathlib import Path
 from typing import TypedDict, TYPE_CHECKING
@@ -15,6 +16,12 @@ from ..llm.embedding_runtime import (
     get_embedding_provider as _runtime_get_embedding_provider,
 )
 from ..vector.search import vector_search_chunks
+
+logger = logging.getLogger(__name__)
+
+#: Default cap for ``top_k`` in :func:`hybrid_search`. Callers requesting
+#: more than this raise :class:`ValueError`.
+MAX_TOP_K: int = 100
 
 
 class SearchResult(TypedDict):
@@ -30,18 +37,67 @@ class SearchResult(TypedDict):
 get_embedding_provider = _runtime_get_embedding_provider
 
 
-def rrf_fusion(items: list, k: int = 60) -> dict:
-    """Reciprocal Rank Fusion"""
-    scores = {}
-    for i, item in enumerate(items):
+def rrf_fusion(
+    semantic_results: list[SearchResult],
+    keyword_results: list[SearchResult],
+    k: int = 60,
+) -> list[SearchResult]:
+    """Reciprocal Rank Fusion over two SEPARATE lists.
+
+    Each list's contribution is ``sum(1 / (k + rank))`` for each doc that
+    appears in that list; then merge across lists by sum and sort desc.
+
+    If one list is empty, the other list's results are returned (not an
+    empty list) — an empty list on one side is normal degradation, not
+    a request for zero results.
+
+    Returns a new list of :class:`SearchResult` dicts with ``score`` set
+    to the fused RRF score.
+    """
+    if not semantic_results and not keyword_results:
+        return []
+
+    scores: dict[str, float] = {}
+    # Track the source-result dict per path so we can return SearchResult
+    # objects with metadata. Prefer semantic (richer), fall back to keyword.
+    by_path: dict[str, SearchResult] = {}
+
+    for i, item in enumerate(semantic_results):
         key = item["path"]
-        score = scores.get(key, 0)
-        scores[key] = score + 1 / (k + i + 1)
-    return scores
+        scores[key] = scores.get(key, 0.0) + 1.0 / (k + i + 1)
+        by_path.setdefault(key, item)
+
+    for i, item in enumerate(keyword_results):
+        key = item["path"]
+        scores[key] = scores.get(key, 0.0) + 1.0 / (k + i + 1)
+        by_path.setdefault(key, item)
+
+    out: list[SearchResult] = []
+    for path, fused_score in scores.items():
+        result = dict(by_path[path])
+        result["score"] = fused_score
+        out.append(result)
+
+    out.sort(key=lambda r: r["score"], reverse=True)
+    return out
 
 
 async def hybrid_search(query: str, top_k: int = 10) -> list[SearchResult]:
-    """混合检索: 语义 + 关键词"""
+    """混合检索: 语义 + 关键词
+
+    Validates inputs:
+    - ``query.strip()`` must be non-empty (raises ``ValueError``)
+    - ``1 <= top_k <= MAX_TOP_K`` (raises ``ValueError``)
+    """
+    if not query or not query.strip():
+        raise ValueError("query cannot be empty")
+    if not isinstance(top_k, int) or isinstance(top_k, bool):
+        raise ValueError(f"top_k must be an int, got {type(top_k).__name__}")
+    if top_k < 1:
+        raise ValueError(f"top_k must be >= 1, got {top_k}")
+    if top_k > MAX_TOP_K:
+        raise ValueError(f"top_k must be <= {MAX_TOP_K}, got {top_k}")
+
     # 1. 语义检索 (需要 embedding 服务)
     semantic_results: list[SearchResult] = []
     try:
@@ -70,21 +126,18 @@ async def hybrid_search(query: str, top_k: int = 10) -> list[SearchResult]:
     # 2. 关键词检索
     keyword_results = await _keyword_search(query, top_k)
 
-    # 3. RRF 融合
-    if semantic_results and keyword_results:
-        # 融合两种结果
-        fused_scores = rrf_fusion([*semantic_results, *keyword_results])
-        all_results = {**{r["path"]: r for r in semantic_results},
-                       **{r["path"]: r for r in keyword_results}}
+    # 3. RRF 融合 — always over TWO separate lists; if one side is empty
+    # the other side's results are still returned (per the resolved
+    # ambiguity in task-13 brief).
+    if not semantic_results and not keyword_results:
+        return []
+    if not semantic_results:
+        return keyword_results[:top_k]
+    if not keyword_results:
+        return semantic_results[:top_k]
 
-        for path, fused_score in fused_scores.items():
-            if path in all_results:
-                all_results[path]["score"] = fused_score
-
-        sorted_results = sorted(all_results.values(), key=lambda x: x["score"], reverse=True)
-        return sorted_results[:top_k]
-
-    return keyword_results[:top_k]
+    fused = rrf_fusion(semantic_results, keyword_results, k=60)
+    return fused[:top_k]
 
 
 async def _keyword_search(query: str, top_k: int) -> list[SearchResult]:
