@@ -3,6 +3,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from ..lib.write_hooks import safe_write
 from ..templates.loader import load, list_bundled
 
 
@@ -42,5 +43,8 @@ def cmd_templates_apply(args: argparse.Namespace) -> None:
     for rel_path, content in t.files.items():
         dest = paths.root / rel_path
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(content, encoding="utf-8")
+        # Audit I6/M1: route through safe_write so writes are atomic and
+        # AtomicContext-aware (a future `templates apply` invocation inside
+        # a wider atomic operation will not produce torn files).
+        safe_write(dest, content)
     print(f"Applied template '{t.name}' to {paths.root}")

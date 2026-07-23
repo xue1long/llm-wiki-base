@@ -135,3 +135,21 @@ def test_files_content_returns_404_when_project_not_found():
         r = client.get("/api/v1/projects/does-not-exist/files/content?path=x.md")
     assert r.status_code == 404
     assert "Project not found" in r.json()["detail"]
+
+
+# schema ---------------------------------------------------------------
+
+def test_schema_get_returns_404_when_project_not_found():
+    """GET /projects/<missing>/schema -> 404 (audit I7).
+
+    The schema service raises ProjectNotFoundError when the project is not
+    registered. The route catches it and maps it to HTTP 404 so unknown
+    projects are not silently returned with an empty schemas list.
+    """
+    with patch(
+        "src.server.routes.schema.schema_service.get_schema",
+        side_effect=_stub_pnf,
+    ):
+        r = client.get("/api/v1/projects/does-not-exist/schema")
+    assert r.status_code == 404
+    assert "Project not found" in r.json()["detail"]

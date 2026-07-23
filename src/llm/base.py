@@ -76,11 +76,16 @@ class LLMProvider(ABC):
         """Generate a single-text embedding (for legacy callers)."""
         raise NotImplementedError
 
-    async def health_check(self) -> bool:
-        """Return True if the provider is reachable. Subclasses override
-        this to perform an actual probe (e.g. Ollama's /api/version).
-        Base default returns True (provider is local / configured)."""
-        return True
+    async def health_check(self) -> dict:
+        """Return ``{"ok": bool, "detail": str, ...}`` describing reachability.
+
+        Standardised contract (audit I2): every concrete provider
+        implements this so callers (CLI, server lifespan, tests) can
+        consume the result uniformly without per-provider branching.
+        Subclasses override to perform an actual probe.
+        Base default returns ``{"ok": True, "detail": "no probe"}``.
+        """
+        return {"ok": True, "detail": "no probe"}
 
     async def close(self) -> None:
         """Release any unmanaged resources. Subclasses override; default is a no-op

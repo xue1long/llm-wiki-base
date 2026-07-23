@@ -52,7 +52,8 @@ async def run_deep_research(
             f'Output strict JSON: {{"queries": ["q1", "q2", ...]}}'
         )
         response = await llm.complete(
-            prompt=queries_prompt,
+            # Audit fix I1: messages=[...] is the canonical chat contract.
+            messages=[{"role": "user", "content": queries_prompt}],
             response_format={
                 "type": "object",
                 "properties": {"queries": {"type": "array", "items": {"type": "string"}}},
@@ -102,7 +103,10 @@ async def run_deep_research(
         f"Sources ({len(sources)}):\n{sources_block}\n\n"
         "Write a comprehensive research summary with citations [N]. Use markdown."
     )
-    synthesis_response = await llm.complete(prompt=synthesis_prompt)
+    # Audit fix I1: messages=[...] required by LLMProvider.complete().
+    synthesis_response = await llm.complete(
+        messages=[{"role": "user", "content": synthesis_prompt}],
+    )
     if hasattr(synthesis_response, "content"):
         synthesis_text = synthesis_response.content
     else:

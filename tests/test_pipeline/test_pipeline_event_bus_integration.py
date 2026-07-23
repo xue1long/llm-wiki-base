@@ -123,7 +123,7 @@ def test_sync_enqueue_full_chain_runs_to_completion_no_running_loop(
 
     monkeypatch.setattr(pipeline_mod, "collect", stub_collect)
     monkeypatch.setattr(pipeline_mod, "run_ingest", successful_ingest)
-    monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda: tmp_path)
+    monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda project_id=None: tmp_path)
     monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: object())
 
     # Unpause so the synchronous enqueue actually triggers the chain.
@@ -173,7 +173,7 @@ def test_sync_enqueue_full_chain_when_run_ingest_raises(tmp_path, monkeypatch):
 
     monkeypatch.setattr(pipeline_mod, "collect", stub_collect)
     monkeypatch.setattr(pipeline_mod, "run_ingest", failed_ingest)
-    monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda: tmp_path)
+    monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda project_id=None: tmp_path)
     monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: object())
 
     queue_mod._paused = False

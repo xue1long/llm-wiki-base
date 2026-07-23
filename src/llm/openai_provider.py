@@ -163,21 +163,21 @@ class OpenAIProvider(LLMProvider):
         out = await self._embed_batch([text])
         return out[0]
 
-    async def health_check(self) -> bool:
-        """Probe /v1/models and return True on any successful response.
+    async def health_check(self) -> dict:
+        """Probe /v1/models and return ``{"ok": bool, "detail": str}``.
 
-        The base default is True; OpenAI providers with an SDK client
-        ``models.list()`` honour the brief; httpx-only providers always
-        return True (no client to probe against).
+        Standardised dict contract (audit I2): every provider's
+        ``health_check()`` returns a dict so callers can show the
+        ``detail`` on failure rather than guessing.
         """
         if self._client_kind != "sdk":
-            return True
+            return {"ok": True, "detail": "no SDK client to probe"}
         try:
             # openai SDK exposes `models.list()`
             await self._sdk.models.list()
-            return True
-        except Exception:
-            return False
+            return {"ok": True, "detail": "models.list() OK"}
+        except Exception as e:
+            return {"ok": False, "detail": f"models.list() failed: {e}"}
 
     async def close(self) -> None:
         """No-op for OpenAI: per-call httpx clients close themselves; SDK

@@ -60,13 +60,23 @@ class AtomicContext:
         local.stack_depth += 1
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
         local = _get_local()
         local.stack_depth -= 1
         if local.stack_depth > 0:
             return False
 
         from . import write_hooks
+
+        bucket = write_hooks._current_bucket()
+
+        # Audit fix (C1): an exception raised in the body MUST NOT commit
+        # buffered writes. Discard the pending bucket so partial state is
+        # not flushed. The body's exception continues to propagate.
+        if exc_type is not None:
+            bucket.clear()
+            local.suspended = False
+            return False
 
         local.suspended = False
         if not (self._is_outer and self._flush_callback):
@@ -75,7 +85,6 @@ class AtomicContext:
         # Snapshot and clear only THIS thread's pending-writes bucket. Other
         # threads' buckets are untouched; their AtomicContext exit will flush
         # them. See src/lib/write_hooks.py for the per-thread design.
-        bucket = write_hooks._current_bucket()
         pending = list(bucket.items())
         bucket.clear()
 

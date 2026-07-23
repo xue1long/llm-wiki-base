@@ -9,6 +9,7 @@ from pathlib import Path
 from ..events.event_bus import event_bus
 from ..events.events import EventName, CollectorDonePayload
 from ..inbox.manager import get_inbox_manager
+from ..lib.write_hooks import safe_write
 from ..utils.extract.pdf import extract_pdf_text
 from ..utils.extract.office import extract_office_text
 from ..types import SourceType
@@ -81,7 +82,11 @@ async def collect(task_id: str, source: str, source_type: SourceType) -> Collect
     # 权限检查: Collector 只允许写 Inbox/Processing
     enforce_permission(AgentType.COLLECTOR, str(raw_path), Permission.WRITE)
 
-    raw_path.write_text(content, encoding="utf-8")
+    # Audit I6: route through safe_write so writes honour AtomicContext
+    # (when called from inside one) and use the atomic-write pattern
+    # outside one. The previous raw `write_text` could produce torn files
+    # on a crash mid-write.
+    safe_write(raw_path, content)
 
     payload = CollectorDonePayload(
         task_id=task_id,

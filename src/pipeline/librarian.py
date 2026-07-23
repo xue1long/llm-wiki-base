@@ -19,6 +19,7 @@ from ..events.events import EventName, LibrarianDonePayload, LibrarianMergedPayl
 from ..llm.embedding_runtime import (
     get_embedding_provider as _runtime_get_embedding_provider,
 )
+from ..lib.write_hooks import safe_write
 from ..utils.text import chunk_markdown
 from ..vector.upsert import vector_upsert_chunks
 from ..vector.search import vector_search_chunks
@@ -105,12 +106,19 @@ async def archive(
     knowledge_path = knowledge_dir / file_name
 
     # 读取原始 note 并写入 knowledge (保留原有内容)
-    knowledge_path.write_text(note_content, encoding="utf-8")
+    # Audit I6: route through safe_write (atomic + AtomicContext-aware).
+    safe_write(knowledge_path, note_content)
 
-    # 4. 写入向量
+    # 4. 写入向量 — Audit M2: if the embedding provider is missing or the
+    # embed call failed, DO NOT write zero vectors (they poison the index).
+    # Raise so the caller can surface a clear error rather than silently
+    # corrupting the vector store with all-zero embeddings.
     if not embeddings:
-        # 如果没有 embedding provider，使用占位符
-        embeddings = [[0.0] * 1536 for _ in chunks]
+        raise RuntimeError(
+            f"[Librarian] No embeddings produced for {task_id}: "
+            f"embedding provider may be unconfigured or the embed call failed. "
+            f"Refusing to write zero vectors to the index."
+        )
 
     lance_chunks = [
         VectorChunk(
@@ -177,7 +185,9 @@ async def _merge_duplicates(
         + f"\n\n---\n**合并来源**: {new_path}\n**合并时间**: {datetime.now().isoformat()}\n"
     )
 
-    existing_resolved.write_text(merged_content, encoding="utf-8")
+    # Audit I6: route through safe_write so merge writes are atomic and
+    # AtomicContext-aware.
+    safe_write(existing_resolved, merged_content)
 
     payload = LibrarianMergedPayload(
         task_id=task_id,

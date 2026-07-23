@@ -136,8 +136,10 @@ async def generate_answer(query: str, context: list[dict]) -> Optional[str]:
 回答："""
 
     try:
+        # Audit fix I1: LLMProvider.complete() requires ``messages=[...]``.
+        # Wrap the legacy single-string prompt into the new chat-message shape.
         response = await _llm_provider.complete(
-            prompt,
+            [{"role": "user", "content": prompt}],
             max_tokens=500,
             temperature=0.7,
         )

@@ -21,7 +21,8 @@ async def test_handler_marks_task_approved_on_success(tmp_path, monkeypatch):
     task_id = enqueue_task("source.txt", SourceType.FILE, "hash-success")
     queue_mod._in_flight.add(task_id)
     queue_mod._queue[0].status = TaskStatus.RUNNING
-    monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda: tmp_path)
+    # Audit I5: _resolve_wiki_paths now takes project_id kwarg.
+    monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda project_id=None: tmp_path)
     monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: object())
 
     async def successful_ingest(**kwargs):
@@ -46,7 +47,8 @@ async def test_handler_marks_task_failed_on_exception(tmp_path, monkeypatch):
     # retry_count is set to MAX_RETRIES - 1 so the very next FAILED transition
     # increments it to MAX_RETRIES, dead-lettering the task (per I-queue-11).
     queue_mod._queue[0].retry_count = queue_mod.MAX_RETRIES - 1
-    monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda: tmp_path)
+    # Audit I5: _resolve_wiki_paths now takes project_id kwarg.
+    monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda project_id=None: tmp_path)
     monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: object())
 
     async def failed_ingest(**kwargs):

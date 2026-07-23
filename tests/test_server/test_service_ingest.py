@@ -25,7 +25,8 @@ def test_enqueue_url_source(monkeypatch, tmp_path):
     _stub_resolve(monkeypatch, project_dir)
 
     from src.queue import queue as q
-    monkeypatch.setattr(ingest_service, "enqueue_task", lambda source, stype, thash: "task-123")
+    # Audit I5: ingest service now passes project_id through to enqueue_task.
+    monkeypatch.setattr(ingest_service, "enqueue_task", lambda source, stype, thash, project_id=None: "task-123")
 
     result = ingest_service.enqueue_source("u", "https://example.com/page")
     assert result["status"] == "queued"
@@ -41,7 +42,7 @@ def test_enqueue_file_source_detected(monkeypatch, tmp_path):
 
     from src.queue import queue as q
     captured = {}
-    def fake_enqueue(source, stype, thash):
+    def fake_enqueue(source, stype, thash, project_id=None):
         captured["source"] = source
         captured["stype"] = stype
         return "task-456"
@@ -60,7 +61,7 @@ def test_enqueue_folder_source(monkeypatch, tmp_path):
 
     from src.queue import queue as q
     captured = {}
-    def fake_enqueue(source, stype, thash):
+    def fake_enqueue(source, stype, thash, project_id=None):
         captured["source"] = source
         return "task-789"
     monkeypatch.setattr(ingest_service, "enqueue_task", fake_enqueue)
@@ -77,7 +78,7 @@ def test_enqueue_duplicate_returns_ignored(monkeypatch, tmp_path):
     _stub_resolve(monkeypatch, project_dir)
 
     from src.queue import queue as q
-    monkeypatch.setattr(ingest_service, "enqueue_task", lambda source, stype, thash: "")
+    monkeypatch.setattr(ingest_service, "enqueue_task", lambda source, stype, thash, project_id=None: "")
 
     result = ingest_service.enqueue_source("u", "https://example.com/dup")
     assert result["status"] == "ignored"

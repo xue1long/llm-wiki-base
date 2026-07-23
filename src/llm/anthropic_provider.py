@@ -166,17 +166,21 @@ class AnthropicProvider(LLMProvider):
         """Anthropic doesn't provide a public embeddings API."""
         raise NotImplementedError("Anthropic does not support embeddings API")
 
-    async def health_check(self) -> bool:
-        """Probe via SDK; httpx-only providers return True."""
+    async def health_check(self) -> dict:
+        """Probe via SDK; return ``{"ok": bool, "detail": str}`` (audit I2).
+
+        Standardised dict contract shared by every LLM provider so callers
+        can render the detail string in logs / CLI.
+        """
         if self._client_kind != "sdk":
-            return True
+            return {"ok": True, "detail": "no SDK client to probe"}
         try:
             # anthropic SDK doesn't have a generic models.list; use a minimal
             # messages probe via /v1/models which IS available on the API
             await self._sdk.models.list(limit=1)  # type: ignore[attr-defined]
-            return True
-        except Exception:
-            return False
+            return {"ok": True, "detail": "models.list() OK"}
+        except Exception as e:
+            return {"ok": False, "detail": f"models.list() failed: {e}"}
 
     async def close(self) -> None:
         """No-op for Anthropic — SDK clients managed externally."""

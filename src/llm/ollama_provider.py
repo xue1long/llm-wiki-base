@@ -104,15 +104,20 @@ class OllamaProvider(LLMProvider):
         return embeddings
 
     async def health_check(self) -> dict:
-        """Return dict ``{reachable, version, error}`` for legacy callers."""
+        """Probe ``/api/version`` and return ``{"ok": bool, "detail": str, "version": str|None}``.
+
+        Standardised shape (audit I2): every provider returns the same
+        ``{"ok", "detail", ...}`` dict so the server lifespan, CLI,
+        and tests can consume ``health_check()`` uniformly.
+        """
         try:
             resp = await self.client.get(
                 f"{self.base_url}/api/version", timeout=5,
             )
             resp.raise_for_status()
-            return {"reachable": True, "version": resp.json().get("version")}
+            return {"ok": True, "detail": "reachable", "version": resp.json().get("version")}
         except (httpx.HTTPError, httpx.ConnectError) as e:
-            return {"reachable": False, "error": str(e)}
+            return {"ok": False, "detail": str(e), "version": None}
 
     async def close(self) -> None:
         """Close the cached ``AsyncClient`` exactly once per base_url.

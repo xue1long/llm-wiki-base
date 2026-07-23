@@ -21,6 +21,9 @@ class TaskCreatedPayload:
     source_type: SourceType
     task_hash: str
     status: str = "pending"
+    # Audit I5: optional project_id so the collector/ingest chain can
+    # resolve the correct WikiPaths rather than the CWD-relative default.
+    project_id: str | None = None
 
 @dataclass
 class TaskStatusChangedPayload:

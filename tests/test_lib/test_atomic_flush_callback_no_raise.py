@@ -29,7 +29,13 @@ def test_flush_callback_failure_does_not_raise_with_no_body_exception(caplog):
 
 
 def test_flush_callback_failure_does_not_suppress_body_exception(caplog):
-    """Body exceptions still propagate; callback failure is logged but swallowed."""
+    """Body exceptions still propagate; callback is not invoked when body raises.
+
+    With the audit C1 fix the flush_callback is no longer invoked when the
+    body raised. The body's exception still propagates and is the only thing
+    the caller observes — partial state is discarded so a callback failure
+    cannot mask the original error.
+    """
     def failing_callback():
         raise RuntimeError("callback exploded")
 
@@ -43,4 +49,5 @@ def test_flush_callback_failure_does_not_suppress_body_exception(caplog):
 
     assert raised is not None
     assert str(raised) == "body exploded"
-    assert any("flush_callback failed" in rec.message for rec in caplog.records)
+    # Callback is not invoked when the body raised.
+    assert not any("flush_callback failed" in rec.message for rec in caplog.records)

@@ -55,7 +55,7 @@ async def test_collector_done_triggers_run_ingest(tmp_path, monkeypatch):
         {"pages": [{"id": "x", "type": "source", "title": "X",
                     "frontmatter_extra": {}, "body_markdown": "b"}]},
     ])
-    monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda: p)
+    monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda project_id=None: p)
     monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: provider)
 
     get_idempotency_cache().clear()

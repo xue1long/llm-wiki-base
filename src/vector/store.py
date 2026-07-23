@@ -99,12 +99,34 @@ def init_vector_store(db_path: str) -> None:
     init_vector_store_for_paths(paths)
 
 
-def get_table():
-    """Return the LanceDB table for the currently-active project.
+def get_table(project_paths: "WikiPaths | None" = None):
+    """Return the LanceDB table for the requested project.
+
+    Audit I3: ``get_table()`` previously returned the table for whichever
+    project was most recently initialised — so a search request for
+    project B silently read project A's vectors. The fix is to accept an
+    explicit ``project_paths`` argument so the search service resolves the
+    correct handle. Falls back to the process-global "current" handle for
+    legacy callers (single-project CLI, tests).
+
+    Args:
+        project_paths: optional WikiPaths for the target project. When
+            provided, the table for THAT project is returned regardless of
+            which project is currently "active".
 
     Raises:
-        RuntimeError: when no project has been initialised yet.
+        RuntimeError: when no project has been initialised yet (and no
+            explicit paths were passed).
     """
+    if project_paths is not None:
+        key = _project_key(project_paths)
+        if key not in _per_project:
+            # Lazy initialisation so callers do not have to call
+            # `init_vector_store_for_paths` separately. Opens the handle on
+            # demand for this specific project.
+            init_vector_store_for_paths(project_paths)
+        _, table = _per_project[key]
+        return table
     if _current_project_key is None:
         raise RuntimeError("Vector store not initialized")
     _, table = _per_project[_current_project_key]

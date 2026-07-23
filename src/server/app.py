@@ -53,8 +53,8 @@ def create_app() -> FastAPI:
                 for name, config in ProviderRegistry.load().items():
                     provider = _create_from_config(config)
                     health = await provider.health_check()
-                    if not health.get("reachable"):
-                        _logger.warning(f"[startup] provider {name!r} unreachable: {health.get('error')}")
+                    if not health.get("ok"):
+                        _logger.warning(f"[startup] provider {name!r} unreachable: {health.get('detail')}")
                     await provider.close()
             except Exception as e:
                 _logger.warning(f"[startup] health check failed: {e}")

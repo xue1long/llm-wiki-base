@@ -51,10 +51,15 @@ def generate_task_id() -> str:
     unique_part = uuid.uuid4().hex[:8]
     return f"kb-{datetime.now().strftime('%Y%m%d%H%M%S')}-{unique_part}"
 
-def enqueue_task(source: str, source_type: SourceType, task_hash: str) -> str:
+def enqueue_task(source: str, source_type: SourceType, task_hash: str,
+                project_id: str | None = None) -> str:
     """
     入队新任务
     返回 task_id，若重复则返回空字符串
+
+    Audit I5: ``project_id`` is threaded through into the
+    ``collector:start`` payload so the pipeline resolves the correct
+    project's WikiPaths rather than the CWD-relative ``Knowledge/`` default.
     """
     with _lock:
         if check_duplicate(task_hash):
@@ -70,6 +75,7 @@ def enqueue_task(source: str, source_type: SourceType, task_hash: str) -> str:
             created_at=int(datetime.now().timestamp()),
             updated_at=int(datetime.now().timestamp()),
             retry_count=0,
+            project_id=project_id,
         )
         _queue.append(task)
         _save_queue_unlocked()
@@ -80,8 +86,9 @@ def enqueue_task(source: str, source_type: SourceType, task_hash: str) -> str:
         source=task.source,
         source_type=task.source_type,
         task_hash=task.task_hash,
+        project_id=project_id,
     ))
-    _process_next()
+    _process_next(task_id=task.id, project_id=project_id)
     return task.id
 
 def update_task_status(task_id: str, status: TaskStatus, error: Optional[str] = None) -> None:
@@ -290,7 +297,7 @@ def release_in_flight(task_id: str) -> None:
     _process_next()
 
 
-def _process_next() -> None:
+def _process_next(task_id: str | None = None, project_id: str | None = None) -> None:
     breaker = get_circuit_breaker(CIRCUIT_BREAKER_NAME)
     with _lock:
         if _paused:
@@ -299,26 +306,45 @@ def _process_next() -> None:
             logger.warning(f"[Queue] Circuit breaker is {breaker.state.value}, skipping processing")
             return
 
-        task = next(
-            (candidate for candidate in _queue
-             if candidate.status == TaskStatus.PENDING
-             and candidate.id not in _in_flight),
-            None,
-        )
-        if task is None:
-            return
-        _in_flight.add(task.id)
-        task_id = task.id
-        source = task.source
-        source_type = task.source_type
+        if task_id is not None:
+            # Explicit dispatch path (audit I5): enqueue_task triggers
+            # _process_next(task_id, project_id) so the freshly enqueued task
+            # is picked up immediately with the originating project_id
+            # threaded through.
+            task = next((t for t in _queue if t.id == task_id), None)
+            if task is None or task.id in _in_flight or task.status != TaskStatus.PENDING:
+                return
+            _in_flight.add(task.id)
+            source = task.source
+            source_type = task.source_type
+            # Prefer the caller-supplied project_id, fall back to the task's
+            # own project_id if present.
+            effective_project_id = project_id or task.project_id
+        else:
+            task = next(
+                (candidate for candidate in _queue
+                 if candidate.status == TaskStatus.PENDING
+                 and candidate.id not in _in_flight),
+                None,
+            )
+            if task is None:
+                return
+            _in_flight.add(task.id)
+            task_id = task.id
+            source = task.source
+            source_type = task.source_type
+            effective_project_id = task.project_id
 
     # The collector chain owns the RUNNING transition and clears _in_flight
     # when collector:done finishes. Release the lock before emitting.
-    event_bus.emit("collector:start", {
+    payload = {
         "task_id": task_id,
         "source": source,
         "source_type": source_type,
-    })
+    }
+    if effective_project_id is not None:
+        payload["project_id"] = effective_project_id
+    event_bus.emit("collector:start", payload)
 
 # 启动时加载队列（_load_queue 自带锁）
 _load_queue()

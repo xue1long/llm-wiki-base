@@ -10,7 +10,13 @@ class ChunkSearchResult:
         self.score = score
 
 def vector_search_chunks(query_embedding: list[float], top_k: int) -> list[ChunkSearchResult]:
-    """向量检索"""
+    """向量检索.
+
+    Audit I3: search routes should resolve the table for the active
+    project so multi-project search does not cross-pollute. The
+    fallback `get_table()` (process-global current) is preserved for
+    legacy callers (CLI single-project mode, tests).
+    """
     table = get_table()
     results = table.search(query_embedding).limit(top_k).to_list()
 

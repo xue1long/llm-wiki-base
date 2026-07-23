@@ -107,10 +107,12 @@ def cmd_llm_providers_test(args: argparse.Namespace) -> None:
         print(f"✗ {args.name}: error creating provider ({e})", file=sys.stderr)
         sys.exit(2)
 
-    if not health.get("reachable"):
-        print(f"✗ {args.name}: unreachable ({health.get('error')})")
+    if not health.get("ok"):
+        print(f"✗ {args.name}: unreachable ({health.get('detail')})")
         sys.exit(1)
-    print(f"✓ {args.name}: reachable (version {health.get('version')})")
+    version = health.get("version")
+    version_str = f" (version {version})" if version else ""
+    print(f"✓ {args.name}: reachable ({health.get('detail')}){version_str}")
 
 
 def cmd_llm_providers_set_default(args: argparse.Namespace) -> None:

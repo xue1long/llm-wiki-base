@@ -83,17 +83,36 @@ async def _on_collector_start(payload: dict):
     # temporary asyncio.run loop cannot close before run_ingest completes.
     # External listeners of `collector:done` still receive the emit from
     # `collect()`, but the pipeline does not rely on the bus dispatch here.
-    await _on_collector_done(done_payload)
+    # Audit I5: forward the originating project_id so _on_collector_done
+    # resolves the correct project's WikiPaths.
+    done_payload_dict = {
+        "task_id": done_payload.task_id,
+        "raw_path": done_payload.raw_path,
+        "content": done_payload.content,
+    }
+    if "project_id" in payload:
+        done_payload_dict["project_id"] = payload["project_id"]
+    await _on_collector_done(done_payload_dict)
 
 
 async def _on_collector_done(payload):
-    task_id = payload.task_id
+    """Run the analyzer + generator + atomic write + index + log.
+
+    Audit I5: when the originating ``project_id`` is present in the
+    payload, resolve the project's WikiPaths so multi-project ingest
+    writes to the correct project (not the CWD-relative default).
+    """
+    task_id = payload["task_id"] if isinstance(payload, dict) else payload.task_id
+    raw_path_str = payload["raw_path"] if isinstance(payload, dict) else payload.raw_path
+    content = payload["content"] if isinstance(payload, dict) else payload.content
+    project_id = payload.get("project_id") if isinstance(payload, dict) else None
+
     try:
-        paths = _resolve_wiki_paths()
+        paths = _resolve_wiki_paths(project_id=project_id)
         await run_ingest(
             paths=paths,
-            source_path=Path(payload.raw_path),
-            source_text=payload.content,
+            source_path=Path(raw_path_str),
+            source_text=content,
             provider=_get_provider(),
             task_id=task_id,
         )
@@ -106,12 +125,42 @@ async def _on_collector_done(payload):
 
 
 def _get_provider():
+    """Resolve the configured default LLM provider (audit I4).
+
+    Previously hard-coded ``"openai"`` — ignored ``RUFLO_LLM_PROVIDER``
+    and the registry's named-default. Now reads ``ProviderRegistry.get_default()``
+    so the configured provider is honoured by the pipeline. Falls back to
+    OpenAI only when the registry is empty / corrupt (so import-time tests
+    still work).
+    """
     from ..llm.provider_factory import create_llm_provider
-    return create_llm_provider("openai")
+    from ..llm.registry import ProviderRegistry, RegistryCorruptError, ProviderNotFoundError
+    try:
+        cfg = ProviderRegistry.get_default()
+        return create_llm_provider(cfg.name)
+    except (RegistryCorruptError, ProviderNotFoundError, ValueError):
+        # No default available (e.g. tests with empty registry): fall back
+        # to OpenAI so the pipeline still functions.
+        return create_llm_provider("openai")
 
 
-def _resolve_wiki_paths():
+def _resolve_wiki_paths(project_id: str | None = None):
+    """Resolve WikiPaths for the active project (audit I5).
+
+    When ``project_id`` is provided, look up the project's path in the
+    global registry and build WikiPaths from it. Falls back to the
+    legacy CWD-relative ``Knowledge/`` behaviour for callers that do
+    not yet thread project_id through (e.g. tests / CLI single-project mode).
+    """
     from ..wiki.core.paths import WikiPaths
+    if project_id is not None:
+        try:
+            from ..project.registry import GlobalRegistryStore
+            entry = GlobalRegistryStore.by_id(project_id)
+            if entry is not None:
+                return WikiPaths(Path(entry.path))
+        except Exception:
+            pass
     root = Path.cwd() / "Knowledge"
     return WikiPaths(root)
 
