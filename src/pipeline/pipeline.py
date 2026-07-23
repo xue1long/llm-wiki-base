@@ -4,7 +4,6 @@ import logging
 from pathlib import Path
 
 from ..events.event_bus import event_bus
-from ..events.events import EventName
 from ..queue.queue import release_in_flight, update_task_status
 from ..types import TaskStatus
 from ..lib.atomic_ctx import AtomicContext
@@ -21,68 +20,71 @@ from .collector import collect
 _logger = logging.getLogger(__name__)
 
 
-def _dispatch_collector_done(payload) -> None:
-    """Synchronous adapter for the COLLECTOR_DONE event.
-
-    `EventBus.emit()` invokes handlers synchronously and cannot await a
-    returned coroutine, so registering the async `_on_collector_done` directly
-    left the coroutine discarded and `run_ingest` never ran. This adapter
-    schedules the coroutine on a running loop, or runs it inline when no
-    loop is active (e.g. inside a synchronous test or CLI entrypoint).
-    """
-    coro = _on_collector_done(payload)
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        # No running loop — run inline. This is safe because `_on_collector_done`
-        # does its own try/except and always calls `release_in_flight`.
-        try:
-            asyncio.run(coro)
-        except Exception:
-            _logger.exception("collector:done dispatch failed")
-        return
-    loop.create_task(coro)
-
-
 def _dispatch_collector_start(payload) -> None:
     """Synchronous adapter for the collector:start event.
 
-    Mirrors `_dispatch_collector_done`: schedules the async
-    `_on_collector_start` coroutine when a loop is running, runs inline
-    otherwise. Prevents `RuntimeWarning: coroutine was never awaited`.
+    Runs the full collector -> ingest chain on a single event loop. In the
+    no-running-loop case (`enqueue_task(...)` called from a sync thread, the
+    production entry path), we drive the loop with `asyncio.run` and the
+    chain itself `await`s both `collect()` and `_on_collector_done(payload)`
+    on the same coroutine, so when `asyncio.run` returns the loop has no
+    outstanding tasks and the child ingestion cannot be cancelled.
+
+    The previous design used `loop.create_task` to schedule the done handler
+    from inside a running coroutine. Under `asyncio.run`, the temporary loop
+    is closed as soon as the outer coroutine returns, which cancelled the
+    child task before `run_ingest` could finish.
     """
     coro = _on_collector_start(payload)
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
+        # No loop — safe to use asyncio.run since `_on_collector_start` now
+        # drives both the collector and the ingest on the same coroutine
+        # via direct awaits, with no fire-and-forget child tasks.
         try:
             asyncio.run(coro)
         except Exception:
-            _logger.exception("collector:start dispatch failed")
+            _logger.exception("collector chain dispatch failed")
         return
+    # Persistent loop case (e.g. tests already inside asyncio.run): schedule
+    # the whole chain as a single task. Callers wanting completion should
+    # `await` it themselves; no internal handoff via the event bus.
     loop.create_task(coro)
 
 
+# NB: there is no COLLECTOR_DONE handler registration. _on_collector_done is
+# driven directly from _on_collector_start once collect() returns its payload,
+# which keeps the chain on one coroutine and avoids the asyncio.run
+# cancellation race documented in the audit. `collect()` still emits
+# EventName.COLLECTOR_DONE for any external listeners.
 event_bus.on("collector:start", _dispatch_collector_start)
-event_bus.on(EventName.COLLECTOR_DONE, _dispatch_collector_done)
 
 
-async def _schedule_collector(task_id: str, source: str, source_type) -> None:
-    """Run the collector and release in-flight state if it fails pre-done."""
+async def _on_collector_start(payload: dict):
+    """Run the collector, then directly drive the ingest stage.
+
+    Returns nothing. Always either (a) marks the task APPROVED/FAILED with
+    `_in_flight` released, or (b) marks it FAILED before collector completion
+    and releases `_in_flight`. Never leaves the task RUNNING.
+    """
+    task_id = payload["task_id"]
+    update_task_status(task_id, TaskStatus.RUNNING)
     try:
-        await collect(task_id, source, source_type)
+        done_payload = await collect(task_id, payload["source"], payload["source_type"])
     except Exception as exc:
         _logger.exception("collector failed for %s", task_id)
         try:
             update_task_status(task_id, TaskStatus.FAILED, error=str(exc))
         finally:
             release_in_flight(task_id)
+        return
+    # Internal handoff: drive the ingest stage on the same coroutine so the
+    # temporary asyncio.run loop cannot close before run_ingest completes.
+    # External listeners of `collector:done` still receive the emit from
+    # `collect()`, but the pipeline does not rely on the bus dispatch here.
+    await _on_collector_done(done_payload)
 
-
-async def _on_collector_start(payload: dict):
-    task_id = payload["task_id"]
-    update_task_status(task_id, TaskStatus.RUNNING)
-    await _schedule_collector(task_id, payload["source"], payload["source_type"])
 
 async def _on_collector_done(payload):
     task_id = payload.task_id
