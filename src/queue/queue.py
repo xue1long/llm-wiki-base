@@ -107,27 +107,58 @@ def update_task_status(task_id: str, status: TaskStatus, error: Optional[str] = 
 
         emit_status = status
         retry_will_resume = False
+        dead_letter_payload: dict | None = None
 
         if status == TaskStatus.FAILED:
             task.retry_count += 1
             breaker.record_failure()
 
             if task.retry_count >= MAX_RETRIES:
-                # 达到最大重试次数，标记为需要人工介入
-                task.status = TaskStatus.FAILED
-                logger.warning(f"[Queue] Task {task_id} exceeded max retries, moving to dead letter")
+                # Retry exhaustion: flip to DEAD_LETTER, emit dead-letter
+                # event with diagnostic payload, and pause the queue if the
+                # circuit breaker has tripped.
+                task.status = TaskStatus.DEAD_LETTER
+                emit_status = TaskStatus.DEAD_LETTER
+                last_error = task.error or error or ""
+                dead_letter_payload = {
+                    "task_id": task_id,
+                    "retry_count": task.retry_count,
+                    "last_error": last_error,
+                }
+                logger.warning(
+                    f"[Queue] Task {task_id} exceeded max retries, moving to dead letter"
+                )
 
                 # 触发熔断检查
                 if breaker.state == CircuitState.OPEN:
-                    logger.error(f"[Queue] Circuit breaker OPEN - queue paused due to repeated failures")
+                    logger.error(
+                        f"[Queue] Circuit breaker OPEN - queue paused due to repeated failures"
+                    )
                     _pause_queue_unlocked()
             else:
                 task.status = TaskStatus.PENDING  # 自动重试
+                emit_status = TaskStatus.PENDING
                 retry_will_resume = True
         elif status == TaskStatus.ARCHIVED:
             breaker.record_success()
         elif status == TaskStatus.TIMEOUT:
             breaker.record_failure()
+            if task.retry_count + 1 >= MAX_RETRIES:
+                task.status = TaskStatus.DEAD_LETTER
+                emit_status = TaskStatus.DEAD_LETTER
+                dead_letter_payload = {
+                    "task_id": task_id,
+                    "retry_count": task.retry_count + 1,
+                    "last_error": task.error or error or "",
+                }
+                logger.warning(
+                    f"[Queue] Task {task_id} timed out beyond max retries, moving to dead letter"
+                )
+                if breaker.state == CircuitState.OPEN:
+                    logger.error(
+                        f"[Queue] Circuit breaker OPEN - queue paused due to repeated failures"
+                    )
+                    _pause_queue_unlocked()
 
         # Capture the payload under the lock and release before emitting; the
         # lock is a non-reentrant threading.Lock and any handler that calls
@@ -145,6 +176,8 @@ def update_task_status(task_id: str, status: TaskStatus, error: Optional[str] = 
     # retry / new pending task is picked up without waiting for the next
     # enqueue / resume.
     event_bus.emit(EventName.TASK_STATUS_CHANGED, emit_payload)
+    if dead_letter_payload is not None:
+        event_bus.emit(EventName.TASK_DEAD_LETTER, dead_letter_payload)
     if retry_will_resume:
         _process_next()
 

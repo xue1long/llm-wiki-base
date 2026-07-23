@@ -6,6 +6,7 @@ from ..types import TaskStatus, SourceType
 class EventName:
     TASK_CREATED = "task:created"
     TASK_STATUS_CHANGED = "task:status:changed"
+    TASK_DEAD_LETTER = "task:dead_letter"
     COLLECTOR_DONE = "collector:done"
     PROCESSOR_DONE = "processor:done"
     LIBRARIAN_DONE = "librarian:done"

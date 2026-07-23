@@ -19,6 +19,7 @@ class SchemaVersion(str, Enum):
     V1_0 = "v1.0"
     V2_0 = "v2.0"
     V2_1 = "v2.1"
+    V2_2 = "v2.2"
     V3_0 = "v3.0"
 
 

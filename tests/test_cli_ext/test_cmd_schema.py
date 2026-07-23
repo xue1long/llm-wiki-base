@@ -42,6 +42,9 @@ def test_cmd_schema_list(tmp_path, monkeypatch, capsys):
     from src.schemas.registry import MigrationRegistry
     from src.schemas.migration import SchemaVersion
 
+    # Reset registry to avoid colliding with the auto-registered v1_to_v2
+    # migration that this test module imports at the top.
+    MigrationRegistry._clear()
     MigrationRegistry.register(
         "wiki_page", SchemaVersion.V1_0, SchemaVersion.V2_0, _dummy_mig()
     )

@@ -9,6 +9,23 @@ from .migration import Migration, MigrationNotFoundError, SchemaVersion
 _logger = logging.getLogger(__name__)
 
 
+class MigrationKeyCollision(Exception):
+    """Raised when two migrations register the same (schema, from, to) key.
+
+    The `key` attribute holds the colliding tuple
+    `(schema_name, from_version, to_version)` so callers can diagnose which
+    key collided.
+    """
+
+    def __init__(self, key: tuple[str, SchemaVersion, SchemaVersion]):
+        self.key = key
+        schema_name, from_v, to_v = key
+        super().__init__(
+            f"Migration already registered for {schema_name} {from_v.value} → "
+            f"{to_v.value} (key={key!r})"
+        )
+
+
 class MigrationRegistry:
     """Static registry of all available Migrations.
 
@@ -19,6 +36,8 @@ class MigrationRegistry:
     @classmethod
     def register(cls, schema_name: str, from_v: SchemaVersion, to_v: SchemaVersion, m: Migration) -> None:
         key = (schema_name, from_v, to_v)
+        if key in cls._migrations:
+            raise MigrationKeyCollision(key)
         cls._migrations[key] = m
 
     @classmethod
@@ -86,6 +105,16 @@ def get_migration(schema_name: str, from_v: SchemaVersion, to_v: SchemaVersion) 
 
 
 def migrate_data(data: dict[str, Any], target: SchemaVersion = SchemaVersion.V1_0) -> dict:
-    """Migrate dict-based data (legacy API)."""
-    from .migration import _migrate_via_registry
-    return _migrate_via_registry(data, target)
+    """Legacy dict-based migration API — deliberately raises.
+
+    The current migration classes operate on file paths (see
+    ``src/schemas/migrations/``) and cannot be safely applied to arbitrary
+    dicts. Callers must use the file-based path: instantiate the appropriate
+    ``Migration`` subclass, construct a ``MigrationContext`` with the
+    project path + backup directory, and call ``.up(ctx)`` / ``.down(ctx)``.
+    """
+    raise NotImplementedError(
+        "migrate_data() is a no-op legacy stub. Use the file-based migration "
+        "classes in src.schemas.migrations (e.g. V2ToV2_2WikiPageMigration) "
+        "via MigrationRegistry.get(...).up(ctx)."
+    )

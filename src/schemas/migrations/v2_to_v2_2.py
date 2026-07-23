@@ -17,7 +17,7 @@ _logger = logging.getLogger(__name__)
 class V2ToV2_2WikiPageMigration(Migration):
     schema_name = "wiki_page"
     from_version = SchemaVersion.V2_0
-    to_version = SchemaVersion.V2_1   # Plan reuses V2_1 for V2.2 (no separate enum value)
+    to_version = SchemaVersion.V2_2
 
     def preview(self, ctx: MigrationContext) -> MigrationPlan:
         files = list(ctx.project_path.glob("wiki/**/*.md"))
@@ -97,5 +97,5 @@ class V2ToV2_2WikiPageMigration(Migration):
 
 
 MigrationRegistry.register(
-    "wiki_page", SchemaVersion.V2_0, SchemaVersion.V2_1, V2ToV2_2WikiPageMigration()
+    "wiki_page", SchemaVersion.V2_0, SchemaVersion.V2_2, V2ToV2_2WikiPageMigration()
 )

@@ -181,7 +181,7 @@ def test_sync_enqueue_full_chain_when_run_ingest_raises(tmp_path, monkeypatch):
     # First pass: raises, retry path runs — counter goes to MAX_RETRIES (was
     # 0 → 1 after first FAILED update). Second pass: clears in-flight and
     # re-emits, this time the retry counter is already at MAX_RETRIES, so
-    # the final state is FAILED and stays FAILED (no further PENDING resume).
+    # the final state is DEAD_LETTER (per I-queue-11 dead-letter surface).
     task_id = enqueue_task("source.txt", SourceType.FILE, "hash-sync-raise")
     assert task_id
 
@@ -199,7 +199,7 @@ def test_sync_enqueue_full_chain_when_run_ingest_raises(tmp_path, monkeypatch):
     )
 
     task = get_queue()[0]
-    assert task.status is TaskStatus.FAILED, (
-        f"expected FAILED after ingest exception; got {task.status!r}"
+    assert task.status is TaskStatus.DEAD_LETTER, (
+        f"expected DEAD_LETTER after retry exhaustion; got {task.status!r}"
     )
     assert task_id not in queue_mod._in_flight

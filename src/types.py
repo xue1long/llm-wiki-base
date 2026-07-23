@@ -12,6 +12,7 @@ class TaskStatus(str, Enum):
     ARCHIVED = "archived"
     FAILED = "failed"
     TIMEOUT = "timeout"
+    DEAD_LETTER = "dead_letter"
 
 class SourceType(str, Enum):
     URL = "url"

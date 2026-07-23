@@ -13,8 +13,10 @@ VALID_TRANSITIONS = {
     (TaskStatus.APPROVED, TaskStatus.ARCHIVED),
     (TaskStatus.FAILED, TaskStatus.PENDING),     # retry
     (TaskStatus.FAILED, TaskStatus.ARCHIVED),
+    (TaskStatus.FAILED, TaskStatus.DEAD_LETTER), # retry exhaustion
     (TaskStatus.TIMEOUT, TaskStatus.PENDING),    # retry
     (TaskStatus.TIMEOUT, TaskStatus.ARCHIVED),
+    (TaskStatus.TIMEOUT, TaskStatus.DEAD_LETTER), # retry exhaustion
 }
 
 def can_transition(from_status: TaskStatus, to_status: TaskStatus) -> bool:
