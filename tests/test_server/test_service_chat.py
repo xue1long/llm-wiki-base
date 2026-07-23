@@ -2,6 +2,8 @@
 import asyncio
 from types import SimpleNamespace
 
+import pytest
+
 from src.services import chat as chat_service
 
 
@@ -54,7 +56,9 @@ def test_run_chat_extracts_final_answer(monkeypatch, tmp_path):
 
 
 def test_run_chat_no_final_answer(monkeypatch, tmp_path):
-    """If the agent never produces a final_answer, the message is empty."""
+    """If the agent never produces a final_answer, run_chat must raise
+    AgentRunFailed (C-15). This replaces the pre-T8 contract which silently
+    returned an empty message."""
     project_dir = tmp_path / "kb"
     project_dir.mkdir()
     (project_dir / ".llm-wiki").mkdir()
@@ -81,9 +85,8 @@ def test_run_chat_no_final_answer(monkeypatch, tmp_path):
 
     monkeypatch.setattr(chat_service, "AgentRuntime", FakeRuntime)
 
-    result = asyncio.run(chat_service.run_chat("u", "hello"))
-    assert result["message"]["content"] == ""
-    assert result["references"] == []
+    with pytest.raises(chat_service.AgentRunFailed):
+        asyncio.run(chat_service.run_chat("u", "hello"))
 
 
 def _fake_resolve(project_dir):

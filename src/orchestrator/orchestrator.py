@@ -52,9 +52,24 @@ event_bus.on(EventName.PROCESSOR_DONE, lambda payload: _on_processor_done(payloa
 event_bus.on(EventName.LIBRARIAN_DONE, lambda payload: _on_librarian_done(payload))
 
 def _on_processor_done(payload: ProcessorDonePayload):
-    """Processor 完成后触发硬规则审核"""
+    """Processor 完成后触发硬规则审核.
+
+    I-orch-4 fix (T8): wrap run_hard_audit in try/except. Pre-T8, an audit
+    exception (e.g. corrupt YAML, OS error reading the note) propagated up
+    through the EventBus, was swallowed by the bus, and the task stayed in
+    WAITING_REVIEW forever. Now we catch the exception, log it, and mark the
+    task REJECTED with the error string so the caller learns what failed.
+    """
     task_id = payload.task_id
-    result = run_hard_audit(payload.note_path)
+    try:
+        result = run_hard_audit(payload.note_path)
+    except Exception as e:
+        logger.exception(
+            "[orchestrator] run_hard_audit raised for task %s note %s: %s",
+            task_id, payload.note_path, e,
+        )
+        update_task_status(task_id, TaskStatus.REJECTED, str(e))
+        return
 
     if result.passed:
         update_task_status(task_id, TaskStatus.APPROVED)
