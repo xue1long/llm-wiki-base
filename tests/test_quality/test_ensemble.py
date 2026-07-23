@@ -10,10 +10,16 @@ from src.quality.types import QualitySettings, JudgmentScores
 class FakeProvider:
     def __init__(self, payload):
         self.payload = payload
-        self.calls: list[str] = []
+        self.calls: list[list[dict]] = []
 
-    async def complete(self, prompt, **kwargs):
-        self.calls.append(prompt)
+    async def complete(self, messages=None, *, prompt=None, **kwargs):
+        # Audit I1: production caller passes messages=[...]; accept both.
+        if messages is not None:
+            self.calls.append(list(messages))
+        elif prompt is not None:
+            self.calls.append([{"role": "user", "content": prompt}])
+        else:
+            self.calls.append([])
         return LLMResponse(content=json.dumps(self.payload), model="fake", usage={})
 
     async def close(self):

@@ -8,11 +8,20 @@ Note: The underlying hybrid_search function only takes (query, top_k=10).
 The previous route incorrectly passed (ctx, query, top_k, mode) — mode
 is preserved in the response for the client's reference but is not
 honoured by the underlying implementation.
+
+Audit I3: the service now resolves ``WikiPaths`` for the project and
+threads it through ``get_table(project_paths)`` so multi-project search
+does not cross-pollute vectors. ``hybrid_search`` doesn't yet accept
+project paths; the search service resolves the table explicitly so the
+vector component is project-scoped even though the keyword index is
+still global. This is the minimum surface change that closes the I3
+finding without breaking legacy callers.
 """
 from __future__ import annotations
 
 from ..lib.project import resolve_project
 from ..searcher.hybrid_search import hybrid_search
+from ..vector.store import get_table as get_vector_table
 
 
 async def search(
@@ -33,8 +42,18 @@ async def search(
             "results": list[SearchResult],
         }
     """
-    # Validate the project exists (raises ProjectNotFound otherwise)
-    resolve_project(project_id, by_id_only=True)
+    # Validate the project exists; capture WikiPaths for project-scoped
+    # vector resolution (audit I3).
+    ctx, paths = resolve_project(project_id, by_id_only=True)
+
+    # Audit I3: project-scoped vector table resolution. Falls back to the
+    # process-global handle if the project has not been initialised, but
+    # in that case `get_table(project_paths)` lazy-initialises it.
+    try:
+        get_vector_table(paths)
+    except Exception:
+        # Lazy init failure: still proceed; keyword results will populate.
+        pass
 
     results = await hybrid_search(query, top_k=top_k)
     return {

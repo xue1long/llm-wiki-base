@@ -4,6 +4,8 @@ from ..types import TaskStatus
 VALID_TRANSITIONS = {
     (TaskStatus.PENDING, TaskStatus.RUNNING),
     (TaskStatus.RUNNING, TaskStatus.WAITING_REVIEW),
+    (TaskStatus.RUNNING, TaskStatus.APPROVED),
+    (TaskStatus.RUNNING, TaskStatus.FAILED),
     (TaskStatus.WAITING_REVIEW, TaskStatus.APPROVED),
     (TaskStatus.WAITING_REVIEW, TaskStatus.REJECTED),
     (TaskStatus.REJECTED, TaskStatus.ARCHIVED),
@@ -11,8 +13,10 @@ VALID_TRANSITIONS = {
     (TaskStatus.APPROVED, TaskStatus.ARCHIVED),
     (TaskStatus.FAILED, TaskStatus.PENDING),     # retry
     (TaskStatus.FAILED, TaskStatus.ARCHIVED),
+    (TaskStatus.FAILED, TaskStatus.DEAD_LETTER), # retry exhaustion
     (TaskStatus.TIMEOUT, TaskStatus.PENDING),    # retry
     (TaskStatus.TIMEOUT, TaskStatus.ARCHIVED),
+    (TaskStatus.TIMEOUT, TaskStatus.DEAD_LETTER), # retry exhaustion
 }
 
 def can_transition(from_status: TaskStatus, to_status: TaskStatus) -> bool:
@@ -27,4 +31,7 @@ EVENT_TO_STATUS = {
 }
 
 def get_next_status(current: TaskStatus, event: str) -> TaskStatus | None:
-    return EVENT_TO_STATUS.get(event)
+    candidate = EVENT_TO_STATUS.get(event)
+    if candidate is None:
+        return None
+    return candidate if can_transition(current, candidate) else None

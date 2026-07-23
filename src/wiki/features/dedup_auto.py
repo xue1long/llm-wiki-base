@@ -9,6 +9,7 @@ from pathlib import Path
 from ..storage.page_writer import read_page, write_page, page_path_for
 from ..core.types import PageType, WikiPage
 from ..core.paths import WikiPaths
+from ...lib.write_hooks import safe_write, DELETE_SENTINEL
 
 
 _logger = logging.getLogger(__name__)
@@ -41,7 +42,9 @@ class DedupHistoryStore:
             if src.exists():
                 content = src.read_text(encoding="utf-8")
                 (record_dir / f"{slug}.md").write_text(content, encoding="utf-8")
-                src.unlink()
+                # Use safe_write so the deletion is deferred when called inside
+                # an AtomicContext (atomic, batched commit).
+                safe_write(src, DELETE_SENTINEL)
         record = DedupMergeRecord(
             id=record_id, canonical_slug=canonical, merged_slugs=merged,
             confidence=confidence, merged_at=int(time.time() * 1000), archive_dir=record_dir,

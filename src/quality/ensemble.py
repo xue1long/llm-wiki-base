@@ -86,7 +86,10 @@ class EnsembleJudge:
                 page_id=page_id, page_type=page_type,
                 page_body=(page_body or "")[:2000],
             )
-            response = await provider.complete(prompt=prompt)
+            # Audit fix I1: LLMProvider.complete() requires messages=[...].
+            response = await provider.complete(
+                messages=[{"role": "user", "content": prompt}],
+            )
             raw = response.content if hasattr(response, "content") else response
             if "```" in raw:
                 raw = raw.split("```", 2)[1]

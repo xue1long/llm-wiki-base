@@ -31,12 +31,13 @@ def string_similarity(a: str, b: str) -> float:
     longer = a_lower if len(a_lower) > len(b_lower) else b_lower
     shorter = b_lower if len(a_lower) > len(b_lower) else a_lower
 
-    if longer in shorter:
-        return len(shorter) / len(longer)
-
     # Prefix match: shorter at start of longer
+    # Use len(shorter)/len(longer) so a prefix returns a proper ratio
+    # (e.g. 'a' vs 'apple' → 1/5 = 0.2, not 1.0). The previous
+    # len(shorter)/len(shorter) branch always returned 1.0, hiding the fact
+    # that only part of the longer string matched.
     if shorter in longer and longer.startswith(shorter):
-        return len(shorter) / len(shorter)  # 1.0 * len ratio = 1.0 * shorter/shorter
+        return len(shorter) / len(longer)
 
     # 简单字符匹配
     match_count = sum(1 for char in shorter if char in longer)

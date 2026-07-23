@@ -60,20 +60,50 @@ class AtomicContext:
         local.stack_depth += 1
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
         local = _get_local()
         local.stack_depth -= 1
-        if local.stack_depth == 0:
+        if local.stack_depth > 0:
+            return False
+
+        from . import write_hooks
+
+        bucket = write_hooks._current_bucket()
+
+        # Audit fix (C1): an exception raised in the body MUST NOT commit
+        # buffered writes. Discard the pending bucket so partial state is
+        # not flushed. The body's exception continues to propagate.
+        if exc_type is not None:
+            bucket.clear()
             local.suspended = False
-        # Flush callback runs once, only on outer context, after flag reset
-        if self._is_outer and self._flush_callback:
+            return False
+
+        local.suspended = False
+        if not (self._is_outer and self._flush_callback):
+            return False
+
+        # Snapshot and clear only THIS thread's pending-writes bucket. Other
+        # threads' buckets are untouched; their AtomicContext exit will flush
+        # them. See src/lib/write_hooks.py for the per-thread design.
+        pending = list(bucket.items())
+        bucket.clear()
+
+        # Flush the captured batch one path at a time so a failed write does
+        # not prevent the remaining paths from reaching disk. The bucket is
+        # already clear, so callback failures cannot leak writes.
+        for path, content in pending:
             try:
-                self._flush_callback()
-            except Exception as e:
-                _logger.error(f"[AtomicContext] flush_callback failed: {e}")
-                if exc_val is None:
-                    raise  # re-raise if no inner exception
-                # else: log + continue (don't mask original exception)
+                write_hooks.safe_write(path, content)
+            except Exception:
+                _logger.exception("atomic flush write failed for %s", path)
+        try:
+            self._flush_callback()
+        except Exception as e:
+            _logger.error(f"[AtomicContext] flush_callback failed: {e}")
+            # Docstring contract: "flush failures logged but never raised from
+            # __exit__". A body exception already wins the propagation slot, so
+            # we must swallow callback failures unconditionally to honour it.
+        return False
 
 
 def __reset_for_testing() -> None:

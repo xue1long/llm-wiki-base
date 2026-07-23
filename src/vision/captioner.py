@@ -57,7 +57,10 @@ class VisionCaptioner:
         # the provider's native vision API (out of MVP scope).
         full_prompt = f"{prompt}\n\n[image: data:image/png;base64,{b64[:80]}... ({len(b64)} chars)]"
         try:
-            response = await self.provider.complete(prompt=full_prompt)
+            # Audit fix I1: messages=[...] required by LLMProvider.complete().
+            response = await self.provider.complete(
+                messages=[{"role": "user", "content": full_prompt}],
+            )
             raw = response.content if hasattr(response, "content") else response
             if isinstance(raw, dict):
                 data = raw

@@ -9,7 +9,7 @@ from src.lib import write_hooks
 
 def setup_function(_):
     __reset_for_testing()
-    write_hooks._pending_writes.clear()
+    write_hooks._reset_for_testing()
 
 
 def test_cmd_atomic_status_idle(capsys):

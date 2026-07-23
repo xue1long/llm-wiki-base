@@ -68,6 +68,31 @@ class HeatTracker:
             f.write(json.dumps({"page_id": page_id, "delta": delta, "reason": reason, "at": int(time.time() * 1000)}) + "\n")
 
 
+def decay(page: "WikiPage", now: int | None = None) -> "WikiPage":
+    """Pure-function heat decay for a single page.
+
+    Short-circuits if ``page.is_immutable`` (zombie-resist flag).
+    Threshold is based on ``max(page.created_at, page.last_used_at)`` —
+    treats 0 as missing, so a page with ``last_used_at == 0`` falls back to
+    ``created_at`` as its activity baseline.
+    """
+    # Zombie-resist: immutable pages never decay.
+    if page.is_immutable:
+        return page
+
+    if now is None:
+        now = int(time.time() * 1000)
+
+    threshold = now - HEAT_DECAY_DAYS * 86400 * 1000
+    # Treat 0 as missing: use created_at as fallback when last_used_at==0.
+    last_activity = max(page.created_at, page.last_used_at)
+    if last_activity > 0 and last_activity < threshold and page.heat > 0:
+        page.heat = max(0, page.heat - HEAT_DECAY_AMOUNT)
+        if page.heat == 0 and page.zombie_since is None:
+            page.zombie_since = now
+    return page
+
+
 def _infer_type(paths, slug):
     from ..core.types import PageType
     for t, dp in [(PageType.ENTITY, "wiki_entities"), (PageType.CONCEPT, "wiki_concepts"),

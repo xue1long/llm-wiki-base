@@ -7,6 +7,7 @@ import logging
 # (which requires pypdf, lancedb, docx, openpyxl, mcp, pyarrow at import time).
 from ..storage.page_writer import read_page, write_page
 from ..core.paths import WikiPaths
+from ...lib.write_hooks import safe_write, DELETE_SENTINEL
 from .schema_routing import validate_schema_routing  # noqa: F401  (re-exported per plan)
 from ..core.types import PageType, WikiPage
 from .wikilink import extract_wikilinks
@@ -80,9 +81,8 @@ class StubMaterializerWorker:
             new_page = pages[0]
             new_page.id = stub_id
             write_page(self.paths, new_page)
-            # Remove stub
-            import os
-            os.unlink(stub_path)
+            # Remove stub via safe_write (atomic; deferred when in AtomicContext)
+            safe_write(stub_path, DELETE_SENTINEL)
             _logger.info(f"[stubs] materialized {stub_id}")
             return True
         return False

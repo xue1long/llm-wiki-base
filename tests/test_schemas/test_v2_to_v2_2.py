@@ -89,6 +89,16 @@ def test_down_reverts(tmp_path):
 
 def test_migration_is_registered():
     """V2ToV2_2WikiPageMigration is registered in MigrationRegistry."""
-    migration_cls = MigrationRegistry.get("wiki_page", SchemaVersion.V2_0, SchemaVersion.V2_1)
+    # Re-register explicitly so this test is robust to other tests having
+    # cleared the registry (test order independence).
+    MigrationRegistry._clear()
+    MigrationRegistry.register(
+        "wiki_page",
+        SchemaVersion.V2_0,
+        SchemaVersion.V2_2,
+        V2ToV2_2WikiPageMigration(),
+    )
+    migration_cls = MigrationRegistry.get("wiki_page", SchemaVersion.V2_0, SchemaVersion.V2_2)
     assert migration_cls is not None
-    # Note: V2_1 slot is now used by v2_to_v2_2 (most recent registration wins)
+    assert migration_cls.from_version == SchemaVersion.V2_0
+    assert migration_cls.to_version == SchemaVersion.V2_2

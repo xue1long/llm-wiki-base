@@ -137,8 +137,12 @@ def test_schema_endpoint_returns_list(monkeypatch, tmp_path):
         MigrationRegistry._clear()
 
 
-def test_schema_endpoint_unknown_project_returns_empty_schemas(monkeypatch, tmp_path):
-    """GET schema for unknown project_id returns 200 with empty list (no leak)."""
+def test_schema_endpoint_unknown_project_returns_404(monkeypatch, tmp_path):
+    """GET schema for unknown project_id returns 404 (audit I7).
+
+    Previously the route returned 200 with an empty schemas list, which
+    conflated unknown-project with known-project-no-pending-migrations.
+    """
     from src.project import paths as project_paths
     cfg = tmp_path / "cfg"
     cfg.mkdir()
@@ -147,10 +151,8 @@ def test_schema_endpoint_unknown_project_returns_empty_schemas(monkeypatch, tmp_
     MigrationRegistry._clear()
     try:
         r = client.get("/api/v1/projects/does-not-exist/schema")
-        assert r.status_code == 200
-        body = r.json()
-        assert body["project_id"] == "does-not-exist"
-        assert body["schemas"] == []
+        assert r.status_code == 404
+        assert "does-not-exist" in r.json()["detail"]
     finally:
         MigrationRegistry._clear()
 

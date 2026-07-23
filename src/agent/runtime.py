@@ -69,7 +69,7 @@ class AgentRuntime:
                 observations="\n".join(observations) or "(none yet)",
             )
             response = await self.provider.complete(
-                prompt=prompt,
+                messages=[{"role": "user", "content": prompt}],
                 response_format={
                     "type": "object",
                     "properties": {
@@ -84,8 +84,19 @@ class AgentRuntime:
                     "required": ["action"],
                 },
             )
+            # LLMResponse.content holds the raw JSON string; legacy mocks /
+            # unit tests may still pass dicts directly. Normalise here.
             try:
-                action = AgentLoopAction.from_json(json.dumps(response))
+                if isinstance(response, dict):
+                    raw_json = json.dumps(response)
+                else:
+                    raw_json = response.content if isinstance(response.content, str) else str(response.content)
+            except Exception as e:
+                _logger.warning(f"[agent] could not extract JSON body: {e}")
+                observations.append(f"[parse error: {e}]")
+                continue
+            try:
+                action = AgentLoopAction.from_json(raw_json)
             except Exception as e:
                 _logger.warning(f"[agent] parse error: {e}")
                 observations.append(f"[parse error: {e}]")

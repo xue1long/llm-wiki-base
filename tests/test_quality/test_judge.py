@@ -12,10 +12,18 @@ class FakeProvider:
 
     def __init__(self, payload: dict):
         self.payload = payload
-        self.calls: list[str] = []
+        self.calls: list[list[dict]] = []
 
-    async def complete(self, prompt: str, **kwargs):
-        self.calls.append(prompt)
+    async def complete(self, messages=None, *, prompt=None, **kwargs):
+        # Audit I1: the production caller now passes messages=[...].
+        # Accept both shapes for backward-compat with old tests, but record
+        # what was actually passed.
+        if messages is not None:
+            self.calls.append(list(messages))
+        elif prompt is not None:
+            self.calls.append([{"role": "user", "content": prompt}])
+        else:
+            self.calls.append([])
         # Return content as a plain JSON string — judge parses either LLMResponse.content or dict.
         from src.llm.base import LLMResponse
         return LLMResponse(

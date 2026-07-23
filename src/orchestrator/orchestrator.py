@@ -5,6 +5,7 @@ from pathlib import Path
 from ..events.event_bus import event_bus
 from ..events.events import EventName, ProcessorDonePayload, LibrarianDonePayload
 from ..queue.queue import enqueue_task, update_task_status
+from ..types import TaskStatus
 from .router import route_task, parse_source, TaskIntent
 from .audit_hard import run_hard_audit
 from .state_machine import can_transition, get_next_status
@@ -51,15 +52,30 @@ event_bus.on(EventName.PROCESSOR_DONE, lambda payload: _on_processor_done(payloa
 event_bus.on(EventName.LIBRARIAN_DONE, lambda payload: _on_librarian_done(payload))
 
 def _on_processor_done(payload: ProcessorDonePayload):
-    """Processor 完成后触发硬规则审核"""
+    """Processor 完成后触发硬规则审核.
+
+    I-orch-4 fix (T8): wrap run_hard_audit in try/except. Pre-T8, an audit
+    exception (e.g. corrupt YAML, OS error reading the note) propagated up
+    through the EventBus, was swallowed by the bus, and the task stayed in
+    WAITING_REVIEW forever. Now we catch the exception, log it, and mark the
+    task REJECTED with the error string so the caller learns what failed.
+    """
     task_id = payload.task_id
-    result = run_hard_audit(payload.note_path)
+    try:
+        result = run_hard_audit(payload.note_path)
+    except Exception as e:
+        logger.exception(
+            "[orchestrator] run_hard_audit raised for task %s note %s: %s",
+            task_id, payload.note_path, e,
+        )
+        update_task_status(task_id, TaskStatus.REJECTED, str(e))
+        return
 
     if result.passed:
-        update_task_status(task_id, "approved")
+        update_task_status(task_id, TaskStatus.APPROVED)
     else:
-        update_task_status(task_id, "rejected", "; ".join(result.reasons))
+        update_task_status(task_id, TaskStatus.REJECTED, "; ".join(result.reasons))
 
 def _on_librarian_done(payload: LibrarianDonePayload):
     """归档完成后标记为完成"""
-    update_task_status(payload.task_id, "archived")
+    update_task_status(payload.task_id, TaskStatus.ARCHIVED)

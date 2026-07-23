@@ -1,10 +1,15 @@
 # src/server/routes/chat.py
-from fastapi import APIRouter
+import logging
+
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Literal
+from ...project.context import ProjectNotFoundError
 from ...services import chat as chat_service
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
+
+_logger = logging.getLogger(__name__)
 
 
 class ChatRequest(BaseModel):
@@ -21,8 +26,29 @@ class ChatRequest(BaseModel):
 @router.post("/projects/{project_id}/chat")
 async def chat(project_id: str, body: ChatRequest):
     """Non-streaming agent chat (MVP)."""
-    return await chat_service.run_chat(
-        project_id=project_id,
-        message=body.message,
-        session_id=body.sessionId,
-    )
+    try:
+        return await chat_service.run_chat(
+            project_id=project_id,
+            message=body.message,
+            session_id=body.sessionId,
+        )
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except chat_service.AgentRunFailed as e:
+        # The agent loop exhausted its budget without producing a final
+        # answer (C-15). Surface this as a 502 Bad Gateway so the client
+        # can distinguish "agent failed to converge" from "agent succeeded
+        # with empty answer".
+        _logger.warning(
+            "[chat] agent run failed for project=%s: %s",
+            project_id, e,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "agent_run_failed",
+                "message": str(e),
+                "lastEvent": e.last_event,
+                "budget": e.budget,
+            },
+        )

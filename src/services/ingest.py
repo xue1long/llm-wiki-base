@@ -4,8 +4,11 @@ Extracted from src/server/routes/ingest.py. Determines the SourceType
 from the request shape, generates an idempotency hash, and enqueues
 the task.
 
-Note: The project_id is resolved for validation (raises ProjectNotFound
-if unknown) but the queue is project-agnostic; tasks are global.
+Audit I5: the service now resolves the project's UUID and threads it
+through ``enqueue_task(project_id=...)`` so the collector/ingest chain
+runs against the correct project's WikiPaths rather than the CWD-relative
+default. Project identity lookup is the safe form (lookup-by-id only)
+so the HTTP route behaviour matches the other 404-aware services.
 """
 from __future__ import annotations
 
@@ -36,7 +39,9 @@ def enqueue_source(
          "reason": None | "Duplicate"}
     """
     # Validate the project exists (raises ProjectNotFound otherwise)
-    resolve_project(project_id, by_id_only=True)
+    # and capture the resolved UUID so we can thread it through the queue.
+    ctx, _paths = resolve_project(project_id, by_id_only=True)
+    resolved_id = ctx.id
 
     if isinstance(source, str):
         source_str = source
@@ -46,7 +51,7 @@ def enqueue_source(
         source_type = SourceType.FILE
 
     task_hash = generate_task_hash(source_type, source_str, folder_context or "")
-    task_id = enqueue_task(source_str, source_type, task_hash)
+    task_id = enqueue_task(source_str, source_type, task_hash, project_id=resolved_id)
     if not task_id:
         return {"status": "ignored", "taskId": None, "reason": "Duplicate"}
     return {"status": "queued", "taskId": task_id, "reason": None}

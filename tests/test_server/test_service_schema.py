@@ -1,4 +1,6 @@
 """Tests for src.services.schema — schema migration listing per project."""
+import pytest
+
 from src.services import schema as schema_service
 
 
@@ -11,14 +13,18 @@ def _isolated_registry(monkeypatch, tmp_path):
     return cfg
 
 
-def test_get_schema_unknown_project_returns_empty(monkeypatch, tmp_path):
-    """Unknown project_id returns an empty schemas list (no leak)."""
+def test_get_schema_unknown_project_raises_not_found(monkeypatch, tmp_path):
+    """Unknown project_id raises ProjectNotFoundError so the route maps to 404.
+
+    Audit I7: the previous behaviour returned 200 with an empty list, which
+    conflated unknown-project with known-project-no-pending-migrations.
+    """
+    from src.project.context import ProjectNotFoundError
+
     _isolated_registry(monkeypatch, tmp_path)
 
-    result = schema_service.get_schema("does-not-exist")
-    assert result["project_id"] == "does-not-exist"
-    assert result["schema_version"] is None
-    assert result["schemas"] == []
+    with pytest.raises(ProjectNotFoundError):
+        schema_service.get_schema("does-not-exist")
 
 
 def test_get_schema_filters_by_project_version(monkeypatch, tmp_path):

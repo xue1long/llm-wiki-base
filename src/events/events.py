@@ -6,6 +6,7 @@ from ..types import TaskStatus, SourceType
 class EventName:
     TASK_CREATED = "task:created"
     TASK_STATUS_CHANGED = "task:status:changed"
+    TASK_DEAD_LETTER = "task:dead_letter"
     COLLECTOR_DONE = "collector:done"
     PROCESSOR_DONE = "processor:done"
     LIBRARIAN_DONE = "librarian:done"
@@ -20,6 +21,9 @@ class TaskCreatedPayload:
     source_type: SourceType
     task_hash: str
     status: str = "pending"
+    # Audit I5: optional project_id so the collector/ingest chain can
+    # resolve the correct WikiPaths rather than the CWD-relative default.
+    project_id: str | None = None
 
 @dataclass
 class TaskStatusChangedPayload:

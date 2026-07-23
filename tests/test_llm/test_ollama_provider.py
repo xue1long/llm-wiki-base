@@ -64,7 +64,8 @@ def test_health_check_reachable():
     import asyncio
     h = asyncio.run(p.health_check())
     asyncio.run(p.close())
-    assert h["reachable"] is True
+    # Audit I2: standardised dict shape {"ok": bool, "detail": str, "version": str|None}.
+    assert h["ok"] is True
     assert h["version"] == "0.5.0"
 
 
@@ -79,4 +80,5 @@ def test_health_check_unreachable():
     import asyncio
     h = asyncio.run(p.health_check())
     asyncio.run(p.close())
-    assert h["reachable"] is False
+    # Audit I2: standardised dict shape — `ok` not `reachable`.
+    assert h["ok"] is False

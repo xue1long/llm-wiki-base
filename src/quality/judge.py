@@ -79,7 +79,11 @@ class QualityJudge:
         )
         # Providers return either LLMResponse or a dict (legacy OpenAIProvider).
         # We accept both: extract the actual JSON dict either way.
-        response = await self.provider.complete(prompt=prompt)
+        # Audit fix I1: LLMProvider.complete() requires messages=[...] — wrap
+        # the legacy single-string prompt into a chat-message list.
+        response = await self.provider.complete(
+            messages=[{"role": "user", "content": prompt}],
+        )
         if hasattr(response, "content"):
             raw = response.content
         else:

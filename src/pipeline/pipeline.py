@@ -1,10 +1,10 @@
 # ruflo-kb/src/pipeline/pipeline.py
 import asyncio
 import logging
+from pathlib import Path
 
 from ..events.event_bus import event_bus
-from ..events.events import EventName
-from ..queue.queue import update_task_status
+from ..queue.queue import release_in_flight, update_task_status
 from ..types import TaskStatus
 from ..lib.atomic_ctx import AtomicContext
 from ..lib.write_hooks import flush_pending_writes
@@ -19,34 +19,148 @@ from .collector import collect
 
 _logger = logging.getLogger(__name__)
 
-event_bus.on("collector:start", lambda p: _on_collector_start(p))
-event_bus.on(EventName.COLLECTOR_DONE, lambda p: _on_collector_done(p))
 
-def _on_collector_start(payload: dict):
+def _dispatch_collector_start(payload) -> None:
+    """Synchronous adapter for the collector:start event.
+
+    Runs the full collector -> ingest chain on a single event loop. In the
+    no-running-loop case (`enqueue_task(...)` called from a sync thread, the
+    production entry path), we drive the loop with `asyncio.run` and the
+    chain itself `await`s both `collect()` and `_on_collector_done(payload)`
+    on the same coroutine, so when `asyncio.run` returns the loop has no
+    outstanding tasks and the child ingestion cannot be cancelled.
+
+    The previous design used `loop.create_task` to schedule the done handler
+    from inside a running coroutine. Under `asyncio.run`, the temporary loop
+    is closed as soon as the outer coroutine returns, which cancelled the
+    child task before `run_ingest` could finish.
+    """
+    coro = _on_collector_start(payload)
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No loop — safe to use asyncio.run since `_on_collector_start` now
+        # drives both the collector and the ingest on the same coroutine
+        # via direct awaits, with no fire-and-forget child tasks.
+        try:
+            asyncio.run(coro)
+        except Exception:
+            _logger.exception("collector chain dispatch failed")
+        return
+    # Persistent loop case (e.g. tests already inside asyncio.run): schedule
+    # the whole chain as a single task. Callers wanting completion should
+    # `await` it themselves; no internal handoff via the event bus.
+    loop.create_task(coro)
+
+
+# NB: there is no COLLECTOR_DONE handler registration. _on_collector_done is
+# driven directly from _on_collector_start once collect() returns its payload,
+# which keeps the chain on one coroutine and avoids the asyncio.run
+# cancellation race documented in the audit. `collect()` still emits
+# EventName.COLLECTOR_DONE for any external listeners.
+event_bus.on("collector:start", _dispatch_collector_start)
+
+
+async def _on_collector_start(payload: dict):
+    """Run the collector, then directly drive the ingest stage.
+
+    Returns nothing. Always either (a) marks the task APPROVED/FAILED with
+    `_in_flight` released, or (b) marks it FAILED before collector completion
+    and releases `_in_flight`. Never leaves the task RUNNING.
+    """
     task_id = payload["task_id"]
     update_task_status(task_id, TaskStatus.RUNNING)
-    asyncio.create_task(collect(task_id, payload["source"], payload["source_type"]))
+    try:
+        done_payload = await collect(task_id, payload["source"], payload["source_type"])
+    except Exception as exc:
+        _logger.exception("collector failed for %s", task_id)
+        try:
+            update_task_status(task_id, TaskStatus.FAILED, error=str(exc))
+        finally:
+            release_in_flight(task_id)
+        return
+    # Internal handoff: drive the ingest stage on the same coroutine so the
+    # temporary asyncio.run loop cannot close before run_ingest completes.
+    # External listeners of `collector:done` still receive the emit from
+    # `collect()`, but the pipeline does not rely on the bus dispatch here.
+    # Audit I5: forward the originating project_id so _on_collector_done
+    # resolves the correct project's WikiPaths.
+    done_payload_dict = {
+        "task_id": done_payload.task_id,
+        "raw_path": done_payload.raw_path,
+        "content": done_payload.content,
+    }
+    if "project_id" in payload:
+        done_payload_dict["project_id"] = payload["project_id"]
+    await _on_collector_done(done_payload_dict)
+
 
 async def _on_collector_done(payload):
-    task_id = payload.task_id
-    from pathlib import Path
-    paths = _resolve_wiki_paths()
-    await run_ingest(
-        paths=paths,
-        source_path=Path(payload.raw_path),
-        source_text=payload.content,
-        provider=_get_provider(),
-        task_id=task_id,
-    )
+    """Run the analyzer + generator + atomic write + index + log.
+
+    Audit I5: when the originating ``project_id`` is present in the
+    payload, resolve the project's WikiPaths so multi-project ingest
+    writes to the correct project (not the CWD-relative default).
+    """
+    task_id = payload["task_id"] if isinstance(payload, dict) else payload.task_id
+    raw_path_str = payload["raw_path"] if isinstance(payload, dict) else payload.raw_path
+    content = payload["content"] if isinstance(payload, dict) else payload.content
+    project_id = payload.get("project_id") if isinstance(payload, dict) else None
+
+    try:
+        paths = _resolve_wiki_paths(project_id=project_id)
+        await run_ingest(
+            paths=paths,
+            source_path=Path(raw_path_str),
+            source_text=content,
+            provider=_get_provider(),
+            task_id=task_id,
+        )
+        update_task_status(task_id, TaskStatus.APPROVED)
+    except Exception as exc:
+        _logger.exception("ingest failed for %s", task_id)
+        update_task_status(task_id, TaskStatus.FAILED, error=str(exc))
+    finally:
+        release_in_flight(task_id)
 
 
 def _get_provider():
+    """Resolve the configured default LLM provider (audit I4).
+
+    Previously hard-coded ``"openai"`` — ignored ``RUFLO_LLM_PROVIDER``
+    and the registry's named-default. Now reads ``ProviderRegistry.get_default()``
+    so the configured provider is honoured by the pipeline. Falls back to
+    OpenAI only when the registry is empty / corrupt (so import-time tests
+    still work).
+    """
     from ..llm.provider_factory import create_llm_provider
-    return create_llm_provider("openai")
+    from ..llm.registry import ProviderRegistry, RegistryCorruptError, ProviderNotFoundError
+    try:
+        cfg = ProviderRegistry.get_default()
+        return create_llm_provider(cfg.name)
+    except (RegistryCorruptError, ProviderNotFoundError, ValueError):
+        # No default available (e.g. tests with empty registry): fall back
+        # to OpenAI so the pipeline still functions.
+        return create_llm_provider("openai")
 
 
-def _resolve_wiki_paths():
+def _resolve_wiki_paths(project_id: str | None = None):
+    """Resolve WikiPaths for the active project (audit I5).
+
+    When ``project_id`` is provided, look up the project's path in the
+    global registry and build WikiPaths from it. Falls back to the
+    legacy CWD-relative ``Knowledge/`` behaviour for callers that do
+    not yet thread project_id through (e.g. tests / CLI single-project mode).
+    """
     from ..wiki.core.paths import WikiPaths
+    if project_id is not None:
+        try:
+            from ..project.registry import GlobalRegistryStore
+            entry = GlobalRegistryStore.by_id(project_id)
+            if entry is not None:
+                return WikiPaths(Path(entry.path))
+        except Exception:
+            pass
     root = Path.cwd() / "Knowledge"
     return WikiPaths(root)
 

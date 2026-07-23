@@ -12,6 +12,7 @@ class TaskStatus(str, Enum):
     ARCHIVED = "archived"
     FAILED = "failed"
     TIMEOUT = "timeout"
+    DEAD_LETTER = "dead_letter"
 
 class SourceType(str, Enum):
     URL = "url"
@@ -31,6 +32,10 @@ class KnowledgeTask:
     raw_path: Optional[str] = None
     note_path: Optional[str] = None
     knowledge_path: Optional[str] = None
+    # Audit I5: optional project_id so the collector/pipeline chain can
+    # resolve the correct project's WikiPaths rather than the CWD-relative
+    # default. Persisted on disk so it survives queue reloads.
+    project_id: Optional[str] = None
 
 @dataclass
 class ProcessedNote:

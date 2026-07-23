@@ -1,13 +1,17 @@
 """Factory to instantiate LLM provider from registry entry.
 
-Existing OpenAI/Anthropic providers take simple kwargs (api_key/endpoint/model).
-This module adapts the new ``ProviderConfig`` shape into those constructors so we
-do not have to refactor the well-tested legacy providers.
+Each branch forwards ``ProviderConfig.timeout_seconds`` and
+``extra_headers`` to the provider constructor so time-sensitive callers
+can tune their LLM calls.
 """
+import logging
 import os
 
 from .base import LLMProvider, EmbeddingProvider
 from .types import ProviderConfig
+
+
+_logger = logging.getLogger(__name__)
 
 
 def create_llm_provider(
@@ -25,37 +29,18 @@ def _create_from_config(config: ProviderConfig, model_override: str | None = Non
     if not config.api_key:
         env_key = _env_var_for_provider(config.name)
         if env_key and os.environ.get(env_key):
-            config = ProviderConfig(
-                name=config.name,
-                type=config.type,
-                base_url=config.base_url,
-                api_key=os.environ[env_key],
-                models=config.models,
-                default_chat_model=config.default_chat_model,
-                default_embedding_model=config.default_embedding_model,
-                timeout_seconds=config.timeout_seconds,
-                extra_headers=config.extra_headers,
-            )
-
-    model = model_override or config.default_chat_model
+            from dataclasses import replace
+            config = replace(config, api_key=os.environ[env_key])
 
     if config.type == "ollama":
         from .ollama_provider import OllamaProvider
         return OllamaProvider(config, model_override=model_override)
-    elif config.type == "openai":
+    if config.type == "openai":
         from .openai_provider import OpenAIProvider
-        return OpenAIProvider(
-            api_key=config.api_key or None,
-            endpoint=config.base_url,
-            model=model or "gpt-4o-mini",
-        )
-    elif config.type == "anthropic":
+        return OpenAIProvider(config, model_override=model_override)
+    if config.type == "anthropic":
         from .anthropic_provider import AnthropicProvider
-        return AnthropicProvider(
-            api_key=config.api_key or None,
-            endpoint=config.base_url,
-            model=model or "claude-haiku-4-5",
-        )
+        return AnthropicProvider(config, model_override=model_override)
     raise ValueError(f"Unknown provider type: {config.type}")
 
 
@@ -75,15 +60,13 @@ def create_embedding_provider(
             model=model or "text-embedding-3-small",
             dimension=dimension,
         )
-    elif provider == "ollama":
-        # Convenience: build a thin EmbeddingProvider-compatible wrapper that
-        # delegates to OllamaProvider.embed.
+    if provider == "ollama":
         from .ollama_provider import OllamaProvider
         from .types import ProviderConfig
         cfg = ProviderConfig(
             name="ollama", type="ollama",
             base_url=endpoint or "http://127.0.0.1:11434",
-            default_chat_model=model or "",
+            default_chat_model="",
             default_embedding_model=model or "",
         )
         ollama = OllamaProvider(cfg)

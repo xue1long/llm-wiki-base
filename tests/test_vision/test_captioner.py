@@ -12,7 +12,8 @@ class FakeProvider:
         self.payload = payload
         self.calls = 0
 
-    async def complete(self, prompt, **kwargs):
+    async def complete(self, messages=None, *, prompt=None, **kwargs):
+        # Audit I1: production caller passes messages=[...]; accept both.
         self.calls += 1
         return LLMResponse(content=json.dumps(self.payload), model="fake", usage={})
 
@@ -73,7 +74,7 @@ def test_caption_batch_concurrent(monkeypatch):
 def test_caption_one_handles_bad_payload(monkeypatch):
     """Non-JSON content → caption falls back without raising."""
     class BadProvider(FakeProvider):
-        async def complete(self, prompt, **kwargs):
+        async def complete(self, messages=None, *, prompt=None, **kwargs):
             self.calls += 1
             return LLMResponse(content="not json", model="x", usage={})
     provider = BadProvider({})

@@ -45,15 +45,17 @@ def test_flush_callback_not_called_on_inner_exit():
     assert calls == ["flushed"]
 
 
-def test_exception_propagates_and_still_flushes():
+def test_exception_propagates_and_discards_pending():
+    """Body exceptions propagate AND discard pending writes (audit C1)."""
     calls = []
     try:
         with AtomicContext(flush_callback=lambda: calls.append("flushed")):
             raise ValueError("oops")
     except ValueError:
         pass
-    # Flush still runs (finally-like behavior)
-    assert calls == ["flushed"]
+    # Flush does NOT run when body raises (audit fix C1): partial state
+    # would corrupt the data. The callback is only invoked on a clean exit.
+    assert calls == []
 
 
 def test_thread_isolation():

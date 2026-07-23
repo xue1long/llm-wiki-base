@@ -12,6 +12,26 @@ from .schemas import AnalysisResult
 _logger = logging.getLogger(__name__)
 
 
+def _parse_llm_response(llm_resp) -> dict:
+    """Normalise provider output to a dict (LLMResponse.content -> JSON).
+
+    Legacy mock providers and unit tests pass dicts directly; production
+    providers return an LLMResponse whose ``.content`` is a JSON string.
+    Raises ``json.JSONDecodeError`` if the body is not valid JSON — falls
+    through silently, never.
+    """
+    if isinstance(llm_resp, dict):
+        return llm_resp
+    content = getattr(llm_resp, "content", llm_resp)
+    if not isinstance(content, str):
+        content = str(content)
+    import json
+    return json.loads(content)
+
+
+_logger = logging.getLogger(__name__)
+
+
 GENERATOR_PROMPT = """You are rendering wiki pages for a knowledge base.
 
 ## Analysis result (from Step 1)
@@ -67,7 +87,7 @@ async def generate(
     )
 
     response = await provider.complete(
-        prompt=prompt,
+        messages=[{"role": "user", "content": prompt}],
         response_format={
             "type": "object",
             "properties": {
@@ -102,6 +122,7 @@ async def generate(
             "required": ["pages"],
         },
     )
+    response = _parse_llm_response(response)
 
     import time
     now = int(time.time() * 1000)

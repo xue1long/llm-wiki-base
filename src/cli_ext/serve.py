@@ -154,12 +154,34 @@ def _daemonize_windows(args: argparse.Namespace, log_path: Path) -> None:
     print("Warning: daemon started but pidfile not detected within 5s")
 
 
+def _read_pidfile_or_cleanup() -> int | None:
+    """Read PID from PIDFILE, cleaning up + exiting cleanly on parse/missing errors.
+
+    Returns the parsed PID, or None if the pidfile is missing (silent — caller
+    decides what to print). Raises SystemExit(0) on parse failure after removing
+    the stale pidfile.
+    """
+    if not PIDFILE.exists():
+        return None
+    try:
+        return int(PIDFILE.read_text().strip())
+    except (ValueError, FileNotFoundError):
+        # Pidfile was corrupt (non-int content) or vanished between exists()
+        # and read_text(). Treat as stale; unlink and signal caller to exit 0.
+        try:
+            PIDFILE.unlink(missing_ok=True)
+            print("stale pidfile removed")
+        except OSError:
+            pass
+        sys.exit(0)
+
+
 def cmd_serve_stop(args: argparse.Namespace) -> None:
     """Stop daemon (SIGTERM via pidfile)."""
-    if not PIDFILE.exists():
+    pid = _read_pidfile_or_cleanup()
+    if pid is None:
         print("No server running (no pidfile)")
         return
-    pid = int(PIDFILE.read_text().strip())
     try:
         os.kill(pid, signal.SIGTERM)
         print(f"Sent SIGTERM to PID {pid}")
@@ -171,10 +193,10 @@ def cmd_serve_stop(args: argparse.Namespace) -> None:
 
 def cmd_serve_status(args: argparse.Namespace) -> None:
     """Check if server is running."""
-    if not PIDFILE.exists():
+    pid = _read_pidfile_or_cleanup()
+    if pid is None:
         print("Server not running")
         return
-    pid = int(PIDFILE.read_text().strip())
     try:
         os.kill(pid, 0)
         print(f"Server running (PID {pid})")

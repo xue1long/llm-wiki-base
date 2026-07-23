@@ -17,15 +17,16 @@ async def test_run_deep_research_generates_queries_and_writes_synthesis(tmp_path
     )
     paths.wiki_synthesis.mkdir(parents=True)
     ctx = MagicMock()
-    ctx.paths = paths
-    ctx.settings.llm.provider_registry_name = "test-provider"
+    ctx.path = tmp_path
+    ctx.paths = paths  # legacy attribute, may be removed in future
+    # ctx.settings.llm.provider_registry_name is gone — runner now uses ProviderRegistry.get_default()
 
     llm = MagicMock()
     llm.complete = AsyncMock(side_effect=[
         {"queries": ["query one", "query two", "query three"]},
         SimpleNamespace(content="Synthesized findings [1]."),
     ])
-    monkeypatch.setattr(runner.ProviderRegistry, "get", lambda name: SimpleNamespace(name=name))
+    monkeypatch.setattr(runner.ProviderRegistry, "get_default", lambda: SimpleNamespace(name="default"))
     monkeypatch.setattr(runner, "create_llm_provider", lambda name: llm)
 
     search = AsyncMock(return_value=[
@@ -70,15 +71,16 @@ async def test_run_deep_research_survives_tavily_http_error_and_task_id_matches_
     )
     paths.wiki_synthesis.mkdir(parents=True)
     ctx = MagicMock()
-    ctx.paths = paths
-    ctx.settings.llm.provider_registry_name = "test-provider"
+    ctx.path = tmp_path
+    ctx.paths = paths  # legacy attribute, may be removed in future
+    # ctx.settings.llm.provider_registry_name is gone — runner now uses ProviderRegistry.get_default()
 
     llm = MagicMock()
     llm.complete = AsyncMock(side_effect=[
         {"queries": ["q1", "q2", "q3"]},
         SimpleNamespace(content="Synthesis despite Tavily failure."),
     ])
-    monkeypatch.setattr(runner.ProviderRegistry, "get", lambda name: SimpleNamespace(name=name))
+    monkeypatch.setattr(runner.ProviderRegistry, "get_default", lambda: SimpleNamespace(name="default"))
     monkeypatch.setattr(runner, "create_llm_provider", lambda name: llm)
 
     # Don't mock TavilyProvider.search itself — let the real one run so its
