@@ -26,6 +26,10 @@ class Permission(str, Enum):
     READ = "read"
     WRITE = "write"
 
+
+class PermissionDenied(PermissionError):
+    """Raised when an agent is denied access to a resource."""
+
 # 权限白名单
 ALLOWED_PATHS = {
     AgentType.COLLECTOR: {
@@ -75,6 +79,14 @@ def check_permission(
     Returns:
         PermissionCheckResult: 包含是否允许及原因
     """
+    # URL reads are gated separately by the collector's network ACL.
+    if (
+        agent == AgentType.COLLECTOR
+        and permission == Permission.READ
+        and path.startswith(("http://", "https://"))
+    ):
+        return PermissionCheckResult(allowed=True)
+
     path_obj = Path(path)
     path_str = normalize_path(path)
 
@@ -113,7 +125,7 @@ def enforce_permission(
     """
     result = check_permission(agent, path, permission)
     if not result.allowed:
-        raise PermissionError(f"权限拒绝: {result.reason}")
+        raise PermissionDenied(f"权限拒绝: {result.reason}")
 
 class PermissionGuard:
     """权限守卫上下文管理器"""
