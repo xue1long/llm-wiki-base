@@ -36,6 +36,13 @@ from src.llm.types import ProviderConfig
 def _isolated_registry(monkeypatch, tmp_path):
     """Point _config_path() at a tmp file so the test does not touch the real registry.
 
+    The registry reads/writes the file path returned by `_config_path()`; the
+    surrounding `_config_dir()` helper only matters for the *default* location
+    when no override is set. Because we override `_config_path` to return a
+    per-test tmp file, we do NOT need to stub `_config_dir()` — the registry
+    never reaches it. This keeps the helper minimal and prevents accidental
+    coupling to the platform's user-config directory.
+
     Returns the path to the (eventually-written) JSON file.
     """
     from src.llm import registry as reg
