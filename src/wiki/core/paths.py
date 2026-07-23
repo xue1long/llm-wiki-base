@@ -50,3 +50,14 @@ class WikiPaths:
     @property
     def llm_wiki_index(self) -> Path:
         return self.root / "wiki" / "index.md"
+
+    @property
+    def knowledge_dir(self) -> Path:
+        """Librarian's archive directory — canonical location for archived notes.
+
+        v2 layout: notes live under ``wiki/sources`` and similar typed
+        subdirectories. ``knowledge_dir`` is kept as an alias for ``wiki``
+        so that legacy code and tests that reference the old ``Knowledge/``
+        directory still resolve within the project root.
+        """
+        return self.root / "wiki"

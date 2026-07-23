@@ -9,4 +9,18 @@ def test_cosine_similarity():
 def test_string_similarity():
     assert string_similarity("hello", "hello") == 1.0
     assert string_similarity("abc", "xyz") == 0.0
-    assert string_similarity("hello world", "hello") > 0.5
+    # After the T16 fix, prefix matches return the proper length ratio
+    # (5/11 ≈ 0.45), not 1.0. The shorter token is "hello", the longer is
+    # "hello world"; the ratio is 5/11.
+    assert abs(string_similarity("hello world", "hello") - (5 / 11)) < 1e-9
+
+
+def test_prefix_returns_proper_ratio():
+    # 'a' is a prefix of 'apple' → 1/5 = 0.2, NOT 1.0
+    assert string_similarity("a", "apple") < 0.5
+    assert abs(string_similarity("a", "apple") - (1 / 5)) < 1e-9
+
+
+def test_symmetric_score():
+    # string_similarity must be symmetric
+    assert abs(string_similarity("hello", "helo") - string_similarity("helo", "hello")) < 1e-9

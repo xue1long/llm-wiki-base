@@ -26,15 +26,18 @@ def convert_html_tables_to_markdown(html: str) -> str:
 
         return f"{header}\n{separator}\n{body}"
 
-    tables = re.findall(r"<table[^>]*>([\s\S]*?)</table>", html, re.IGNORECASE)
-    result = html
+    # Use re.sub with a callback so tables with attributes
+    # (e.g. <table class="data">) are still converted. The previous
+    # string.replace approach only matched the bare form `<table>...</table>`,
+    # silently dropping any table that had attributes.
+    pattern = re.compile(r"<table[^>]*>([\s\S]*?)</table>", re.IGNORECASE)
 
-    for table in tables:
-        md_table = parse_table(table)
-        if md_table:
-            result = result.replace(f"<table>{table}</table>", md_table, 1)
+    def _convert(match: re.Match) -> str:
+        inner = match.group(1)
+        md_table = parse_table(inner)
+        return md_table if md_table else match.group(0)
 
-    return result
+    return pattern.sub(_convert, html)
 
 def html_img_tags_to_markdown(html: str, base_url: str = "") -> str:
     """HTML img 标签转 Markdown"""
