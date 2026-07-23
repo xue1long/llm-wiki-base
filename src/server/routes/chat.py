@@ -4,6 +4,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Literal
+from ...project.context import ProjectNotFoundError
 from ...services import chat as chat_service
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
@@ -31,6 +32,8 @@ async def chat(project_id: str, body: ChatRequest):
             message=body.message,
             session_id=body.sessionId,
         )
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))
     except chat_service.AgentRunFailed as e:
         # The agent loop exhausted its budget without producing a final
         # answer (C-15). Surface this as a 502 Bad Gateway so the client

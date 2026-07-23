@@ -8,12 +8,15 @@ Agent 读写权限定义：
 - Librarian:  读 Notes, 只写 Knowledge
 - Searcher:   只读 Knowledge 和 .index
 - Orchestrator: 读写所有目录
+
+边界检查使用 PurePath 语义 (is_relative_to / posix-prefix 比对)，不使用
+Path.resolve() —— 因此结果与 os.getcwd() 无关。C-13 修复。
 """
 
 from enum import Enum
-from pathlib import Path
+from pathlib import PurePosixPath
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Iterable
 
 class AgentType(str, Enum):
     COLLECTOR = "collector"
@@ -59,14 +62,39 @@ class PermissionCheckResult:
     allowed: bool
     reason: Optional[str] = None
 
-def normalize_path(p: str) -> str:
-    """标准化路径"""
-    return str(Path(p).resolve()).replace("\\", "/")
+
+def _to_posix(p: str) -> str:
+    """Convert a path-like string to a POSIX (forward-slash) string.
+
+    Pure-string normalisation — no filesystem resolution. This is what
+    makes the boundary check CWD-independent.
+    """
+    return str(p).replace("\\", "/")
+
+
+def _is_within(child: str, boundary: str) -> bool:
+    """Return True iff ``child`` is the boundary path or a descendant.
+
+    Uses PurePosixPath.is_relative_to (Python 3.9+). Both inputs are
+    pre-normalised to forward slashes; no resolve(), no CWD involvement.
+
+    The boundary must be a strict ancestor: ``child == boundary`` returns
+    True (the file at the boundary itself is allowed), but ``InboxEvil``
+    does NOT match boundary ``Inbox`` because they share only a prefix,
+    not an ancestor relationship.
+    """
+    c = PurePosixPath(_to_posix(child))
+    b = PurePosixPath(_to_posix(boundary))
+    # Compare on trailing-slash basis so boundary == "Inbox" rejects
+    # "InboxEvil" while still accepting "Inbox/x".
+    return c == b or c.is_relative_to(b)
+
 
 def check_permission(
     agent: AgentType,
     path: str,
     permission: Permission,
+    allowed_paths: Optional[Iterable[str]] = None,
 ) -> PermissionCheckResult:
     """
     检查 Agent 是否有权限访问指定路径
@@ -75,11 +103,20 @@ def check_permission(
         agent: Agent 类型
         path: 要访问的路径
         permission: 读或写权限
+        allowed_paths: 可选，覆盖默认白名单；用于单次调用收紧/放宽。
+                       缺省时使用模块级 ALLOWED_PATHS。
 
     Returns:
         PermissionCheckResult: 包含是否允许及原因
+
+    Notes:
+        C-13 修复：边界检查使用 PurePosixPath.is_relative_to，移除
+        Path.resolve() 调用，因此 CWD 不影响结果。
     """
-    # URL reads are gated separately by the collector's network ACL.
+    # URL reads are gated separately by the collector's network ACL
+    # (T4 `_check_url_allowlisted`). Returning True here keeps the URL
+    # gate as the single source of truth for SSRF / DNS checks; the
+    # file-system boundary check is meaningless for URL schemes.
     if (
         agent == AgentType.COLLECTOR
         and permission == Permission.READ
@@ -87,27 +124,25 @@ def check_permission(
     ):
         return PermissionCheckResult(allowed=True)
 
-    path_obj = Path(path)
-    path_str = normalize_path(path)
-
     # Orchestrator 有完全权限
     if agent == AgentType.ORCHESTRATOR:
         return PermissionCheckResult(allowed=True)
 
-    # 获取 Agent 的权限白名单
-    allowed_dirs = ALLOWED_PATHS.get(agent, {}).get(permission, [])
+    # 确定本次白名单：显式 allowed_paths 优先；否则取 ALLOWED_PATHS 默认值
+    if allowed_paths is None:
+        dirs = list(ALLOWED_PATHS.get(agent, {}).get(permission, []))
+    else:
+        dirs = list(allowed_paths)
 
-    if not allowed_dirs:
+    if not dirs:
         return PermissionCheckResult(
             allowed=False,
             reason=f"{agent.value} 不允许 {permission.value} 操作"
         )
 
-    # 检查路径是否在允许的目录内
-    for allowed_dir in allowed_dirs:
-        allowed_path = normalize_path(allowed_dir)
-        # 检查是否在允许目录内或其子目录
-        if path_str.startswith(allowed_path) or path_obj.name == Path(allowed_path).name:
+    # 检查路径是否在允许的目录内 (PurePosixPath 边界比对，无 CWD 依赖)
+    for allowed_dir in dirs:
+        if _is_within(path, allowed_dir):
             return PermissionCheckResult(allowed=True)
 
     return PermissionCheckResult(
