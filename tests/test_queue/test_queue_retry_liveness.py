@@ -8,6 +8,7 @@ Two scenarios that the prior implementation missed:
    (e.g. via get_queue) does not deadlock.
 """
 import threading
+from pathlib import Path
 
 from src.queue import queue as q
 from src.queue.queue import (
@@ -25,6 +26,7 @@ def setup_function(_):
     q._queue.clear()
     q._paused = True
     q._in_flight.clear()
+    Path(".kb-queue.json").unlink(missing_ok=True)
     __reset_for_testing()
 
 
