@@ -1,5 +1,5 @@
 # ruflo-kb/src/inbox/manager.py
-import shutil
+import os
 import logging
 from pathlib import Path
 from typing import Optional
@@ -37,7 +37,10 @@ class InboxManager:
             raise FileNotFoundError(f"File not found: {file_path}")
 
         dst = self.processing_path / src.name
-        shutil.move(str(src), str(dst))
+        # os.replace is idempotent on dst-exists (overwrites). shutil.move is
+        # not portable (on POSIX, it falls back to copy+unlink when the
+        # destination exists on a different filesystem, which fails the move).
+        os.replace(str(src), str(dst))
         logger.info(f"[Inbox] Moved to Processing: {dst}")
         return dst
 
@@ -46,13 +49,14 @@ class InboxManager:
         将文件从 Processing 移动到 Error，并写入 error.log
         """
         src = Path(file_path)
+        if not src.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+
         dst = self.error_path / src.name
+        os.replace(str(src), str(dst))
 
-        if src.exists():
-            shutil.move(str(src), str(dst))
-
-        # 写入错误日志
-        error_file = self.error_path / f"{src.stem}.error.log"
+        # 写入错误日志（使用完整文件名以避免同名不同扩展名冲突）
+        error_file = self.error_path / f"{src.name}.error.log"
         with open(error_file, "w", encoding="utf-8") as f:
             f.write(f"[{datetime.now().isoformat()}] Error:\n{error_log}\n")
 

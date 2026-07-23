@@ -42,7 +42,7 @@ def test_move_to_error(temp_inbox):
 
     assert new_path == temp_inbox.error_path / "test.txt"
     assert new_path.exists()
-    assert (temp_inbox.error_path / "test.error.log").exists()
+    assert (temp_inbox.error_path / "test.txt.error.log").exists()
 
 def test_scan_pending(temp_inbox):
     temp_inbox.ensure_dirs()
