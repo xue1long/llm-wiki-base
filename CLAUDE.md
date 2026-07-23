@@ -40,7 +40,7 @@ Run all tests:
 #                             different test_X/ directories don't collide
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
   PYTHONPATH=. python -m pytest --import-mode=importlib
-# → 426 passed in ~30s on Python 3.14 / Windows
+# → 719 passed in ~30s on Python 3.14 / Windows
 
 # Touched areas only:
 PYTHONPATH=. pytest tests/test_wiki/ tests/test_cli_ext/ tests/test_pipeline/ tests/test_server/ tests/test_agent/ -v
@@ -61,8 +61,8 @@ CLI (entry is `src/cli.py`, run from the repo root — paths like `Inbox/`, `Not
 python -m src.cli init [--path DIR]            # legacy layout
 python -m src.cli project init <path>          # multi-project layout (current)
 python -m src.cli project list | current | info | select | import | forget
-python -m src.cli ingest <url-or-file>         # enqueue a Collector task
 python -m src.cli search <query>               # dispatch a SEARCHER_QUERY event
+# Ingestion is via the HTTP API (see "Ingesting raw documents" below)
 python -m src.cli configure --provider openai|anthropic [--openai-key KEY]
 python -m src.cli relations {list|backlinks|neighbors|path|types|add-type}
 python -m src.cli fields validate <page> --project <id>
@@ -78,6 +78,55 @@ python -m src.cli mcp                          # stdio MCP server (8 tools)
 ```
 
 There is no linter, formatter, type checker, or build target configured (no `Makefile`, `tox.ini`, `ruff.toml`, `mypy.ini`). `pyproject.toml` declares only the package metadata and `setuptools` as build backend.
+
+### Ingesting raw documents
+
+There is **no** top-level `python -m src.cli ingest` command — it was removed in the 2026-07-22 cleanup. The current ingestion path is the HTTP API (the `Inbox/` watcher and `python -m src.cli project import` only register/import an existing KB; they do **not** parse raw files).
+
+```bash
+# 1. Initialize a project (one-time; creates wiki/, .llm-wiki/, .index/)
+python -m src.cli project init <project_path>
+
+# 2. Configure an LLM provider (Anthropic / OpenAI / Ollama)
+python -m src.cli llm-providers add --provider openai --api-key $OPENAI_API_KEY --default
+# Ollama (local):  --provider ollama --base-url http://127.0.0.1:11434
+
+# 3. Start the server
+python -m src.cli serve --host 127.0.0.1 --port 8765
+
+# 4. Find the project_id
+python -m src.cli project list
+
+# 5. Enqueue ingestion (URL, single file, or whole folder)
+PROJECT=<id from step 4>
+curl -X POST http://127.0.0.1:8765/api/v1/projects/$PROJECT/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"source": "https://example.com/paper.pdf"}'                # URL
+
+curl -X POST http://127.0.0.1:8765/api/v1/projects/$PROJECT/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"source": "/abs/path/to/notes.docx"}'                       # file
+
+curl -X POST http://127.0.0.1:8765/api/v1/projects/$PROJECT/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"source": {"folder": "/abs/path/to/stuff"}, "folderContext": "papers"}'
+```
+
+The route handler (`src/server/routes/ingest.py`) calls `services.ingest.enqueue_source`, which validates the project exists and pushes a task onto `src/queue/queue.py`. Processing is async — `enqueue_task` returns `{status, taskId}` immediately; the Collector → Analyzer → Generator pipeline runs in the background. Idempotency is by md5(source + folder_context) with a 7-day TTL (`src/utils/idempotency.py`).
+
+Supported source formats (extracted by `src/utils/extract/`): PDF (pypdf), DOCX (python-docx), XLSX (openpyxl), HTML, MD, TXT. Vector embeddings are 1536-dim float32 in LanceDB (`src/vector/`); upsert requires `init_vector_store_for_paths(WikiPaths)` to have been called for the project (the server's lifespan does this automatically).
+
+Alternative ingestion paths:
+- **MCP** (`python -m src.cli mcp`) — stdio server exposes `ingest` as an MCP tool for Claude Desktop
+- **Programmatic** — `from src.pipeline.pipeline import run_ingest` runs Collector → Analyzer → Generator → atomic write synchronously (no queue); `from src.wiki.features.folder_ingest import collect_files` enumerates files in a folder for batch processing
+
+Verify results:
+```bash
+ls <project_path>/wiki/{sources,entities,concepts,synthesis}/     # generated pages
+cat <project_path>/wiki/index.md                                    # catalog (id, type, title)
+cat <project_path>/wiki/log.md                                       # audit trail
+python -m src.cli health --project <project_id>                     # H1/H2/H4 checks
+```
 
 ## Architecture (Wiki v2 — current)
 
@@ -197,14 +246,15 @@ Commit prefixes on `feat/continue-implementation`: `feat(scope):` for new featur
 - **Tests mirror `src/` layout one level deep.** `tests/test_<module>.py` for top-level modules; `tests/test_<package>/test_<file>.py` for sub-packages (e.g. `tests/test_vector/test_store.py`).
 - **WikiPage frontmatter must round-trip cleanly.** When adding a field to `WikiPage`, update BOTH `to_frontmatter_dict()` and `from_dict()` (use `.get(key, default)` for backwards compat with older pages).
 - **`safe_write` buffers; `os.unlink` does not.** Multi-step atomic operations (cascade_delete, export/import) must defer deletions through the `DELETE_SENTINEL` mechanism in `safe_write` or the atomic guarantee is broken.
+- **Server runtime is not covered by tests.** No test imports `src.server.app` or `src.cli serve`. Import-time crashes in the lifespan hook (e.g. the `from ..wiki.ensure import …` regression that broke `python -m src.cli serve` after the wiki split) only surface when the server is actually started. After any refactor that touches `src/server/`, `src/cli.py`, or top-level imports of `src/wiki/`, run `python -m src.cli serve --port <free>` and curl `/health` to confirm the lifespan completes.
 
-## Active plans (in `docs/superpowers/plans/`)
+## Plans (in `docs/superpowers/plans/`)
 
 Plans are completed in dependency order. Check `.superpowers/sdd/progress.md` for current status. When picking up a plan, read it once for global constraints, then dispatch one implementer subagent per task with `superpowers:subagent-driven-development`.
 
-Known finished plans (this session): wiki-v2, wiki-relations, wiki-fields-v22, wiki-heat-5pool, wiki-v21-polish, http-api-mcp, web-search-deep-research, chat-agent, schemas-v3, atomic-ctx+budgeted-llm, multi-provider-llm, project-multi-instancing.
+Known finished plans: wiki-v2, wiki-relations, wiki-fields-v22, wiki-heat-5pool, wiki-v21-polish, http-api-mcp, web-search-deep-research, chat-agent, schemas-v3, atomic-ctx+budgeted-llm, multi-provider-llm, project-multi-instancing, plus the 2026-07-23 cleanup trio (`full-audit-fix`, `followup-carryovers`, `cleanup-final-minors`).
 
-## Recent architectural changes (cleanup series, 2026-07-22)
+## Recent architectural changes (cleanup series, 2026-07-22 → 2026-07-23)
 
 In a single cleanup pass, the following changes landed on `feat/continue-implementation`:
 
@@ -219,6 +269,8 @@ In a single cleanup pass, the following changes landed on `feat/continue-impleme
 - `OllamaProvider.close()` was not called by any business code → `httpx.AsyncClient` leak. Fixed via `ProviderRegistry._loaded_providers` + `aclose_all()` + FastAPI lifespan shutdown hook.
 - Test isolation bug: `test_cmd_schema_upgrade` failed when run with `test_schemas/` due to `MigrationRegistry` not being cleared after tests.
 
+**2026-07-23 follow-up audits** extended the cleanup: `atomic_ctx` exception rollback (atomic guarantee was previously broken on handler errors); `LLM.complete(messages)` call-site fixes; `health_check` response shape normalization; vector store project-isolation (no cross-project bleed); `pipeline` provider selection now respects project config; `safe_write` enforcement at remaining call sites; `schema` 404 returns proper status; `hybrid_search` exception classification (logs class + reason, no longer silent swallow); `Registry.save` uses `safe_write` for atomic write-hook compliance; env-sourced LLM providers persist with empty `api_key` (not stored).
+
 **Service layer (P0)** — `src/services/`:
 - 7 new modules: `files.py`, `projects.py`, `schema.py`, `reviews.py`, `ingest.py`, `search.py`, `chat.py`
 - Each service has a corresponding test file under `tests/test_server/test_service_*.py`
@@ -231,6 +283,7 @@ In a single cleanup pass, the following changes landed on `feat/continue-impleme
 - `core/` — types, paths, page model, id generator
 - `storage/` — page_writer, ensure, atomic_ctx_helpers
 - `features/` — relations, heat, review, lint, dedup, stubs, zombie, tag_namespace, import, export, cascade_delete, indexer, wikilink, folder_ingest, schema_routing, logger
-- `src/wiki/__init__.py` re-exports public surface + `sys.modules` aliases so old `from src.wiki.<module>` imports still work
+- `src/wiki/__init__.py` re-exports the most commonly used *symbols* (functions/classes) for convenience (`from src.wiki import WikiPage, WikiPaths, ensure_knowledge_base, ...`).
+- **Old module paths are NOT aliased.** `from src.wiki.ensure import X` is broken — there is no `sys.modules` shim for `src.wiki.<old_module>`. All production code must use the layered paths (`src.wiki.core.paths`, `src.wiki.storage.ensure`, `src.wiki.features.relations`, ...). A grep for `from (\.\.|src\.)wiki\.(ensure|page_writer|types|paths|...)` should return zero matches outside `tests/` and `docs/superpowers/{specs,plans}/`.
 
 **`src/cli.py` slimmed** (511 → 407 lines): 7 legacy `cmd_*` deleted (`init`/`status`/`pause`/`resume`/`ingest`/`search`/`configure`), each superseded by `src/cli_ext/*` modules.
