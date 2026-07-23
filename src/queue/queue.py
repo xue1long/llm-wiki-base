@@ -8,6 +8,7 @@ from typing import Optional
 
 from ..events.event_bus import event_bus
 from ..events.events import EventName, TaskCreatedPayload, TaskStatusChangedPayload
+from ..lib.write_hooks import safe_write
 from ..types import KnowledgeTask, TaskStatus, SourceType
 from ..utils.idempotency import check_duplicate
 from ..circuit_breaker import get_circuit_breaker, CircuitState
@@ -148,21 +149,48 @@ def get_queue_status() -> dict:
     }
 
 def _save_queue() -> None:
+    """Persist queue to disk via safe_write (atomic tmp+replace when not suspended)."""
     try:
         pending = [t for t in _queue if t.status != TaskStatus.APPROVED]
-        with open(QUEUE_FILE, "w", encoding="utf-8") as f:
-            json.dump([vars(t) for t in pending], f, ensure_ascii=False, indent=2)
+        payload = json.dumps([vars(t) for t in pending], ensure_ascii=False, indent=2)
+        safe_write(QUEUE_FILE, payload)
     except Exception as e:
         logger.error(f"[Queue] Failed to save: {e}")
 
+
 def _load_queue() -> None:
+    """Load queue from disk; recover from JSONDecodeError / OSError (empty list).
+
+    On any existing-but-corrupt file, log a warning and start with an empty
+    queue rather than raising. Missing file → empty queue (no warning).
+    """
     global _queue
+    _queue = []
+    queue_path = Path(QUEUE_FILE)
+    if not queue_path.exists():
+        return
     try:
-        with open(QUEUE_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            _queue = [KnowledgeTask(**t) for t in data]
-    except FileNotFoundError:
+        data = json.loads(queue_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning(f"[Queue] queue file corrupt ({e}); starting with empty queue")
+        return
+    if not isinstance(data, list):
+        logger.warning("[Queue] queue file did not contain a list; starting with empty queue")
+        return
+    try:
+        _queue = [KnowledgeTask(**row) for row in data]
+    except (TypeError, ValueError) as e:
+        logger.warning(f"[Queue] queue file rows malformed ({e}); starting with empty queue")
         _queue = []
+
+
+def __reset_for_testing() -> None:
+    """Test-only: re-load the queue from disk.
+
+    Used by tests that mutate the on-disk queue file directly and need a
+    fresh in-memory state to mirror it. Production code never calls this.
+    """
+    _load_queue()
 
 def _process_next() -> None:
     global _processing, _paused, _queue
