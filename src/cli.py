@@ -261,6 +261,8 @@ def main():
     p_qcset = p_qconfig_sub.add_parser("set")
     p_qcset.add_argument("key")
     p_qcset.add_argument("value")
+    p_qcset.add_argument("--config-root", default=None,
+                         help="Override config root (default: cwd)")
     p_qcset.set_defaults(func=cmd_quality_config_set)
 
     # Vision

@@ -32,6 +32,15 @@ def cmd_schema_list(args: argparse.Namespace) -> None:
         print()
 
 
+def _parse_version_or_exit(raw: str) -> SchemaVersion:
+    """Parse a version string into SchemaVersion, or exit 2 with friendly error."""
+    try:
+        return SchemaVersion(raw)
+    except ValueError as e:
+        print(f"Invalid version: {e}", file=sys.stderr)
+        sys.exit(2)
+
+
 def cmd_schema_diff(args: argparse.Namespace) -> None:
     """Show field changes between two versions of a schema.
 
@@ -44,8 +53,8 @@ def cmd_schema_diff(args: argparse.Namespace) -> None:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(2)
 
-    from_v = SchemaVersion(args.from_v)
-    to_v = SchemaVersion(args.to_v)
+    from_v = _parse_version_or_exit(args.from_v)
+    to_v = _parse_version_or_exit(args.to_v)
     print(f"Schema diff: {args.schema} {from_v.value} → {to_v.value}")
     print()
     # Simple diff: count pages at each version
@@ -72,7 +81,7 @@ def cmd_schema_upgrade(args: argparse.Namespace) -> None:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(2)
 
-    to_v = SchemaVersion(args.to)
+    to_v = _parse_version_or_exit(args.to)
     # Read current version
     pj = ctx.path / ".llm-wiki" / "project.json"
     if not pj.exists():
@@ -127,7 +136,7 @@ def cmd_schema_downgrade(args: argparse.Namespace) -> None:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(2)
 
-    to_v = SchemaVersion(args.to)
+    to_v = _parse_version_or_exit(args.to)
     pj = ctx.path / ".llm-wiki" / "project.json"
     import json
     data = json.loads(pj.read_text(encoding="utf-8"))
@@ -170,5 +179,8 @@ def cmd_schema_backup(args: argparse.Namespace) -> None:
         for b in backups:
             print(f"  {b.name}  {b.reason}")
     elif args.action == "restore":
+        if not args.name:
+            print("Backup name required for restore (use --name)", file=sys.stderr)
+            sys.exit(2)
         BackupManager.restore(ctx.path, args.name)
         print(f"Restored from {args.name}")
