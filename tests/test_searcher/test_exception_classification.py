@@ -45,7 +45,16 @@ def test_setup_resets_runtime_provider():
 @pytest.mark.asyncio
 async def test_semantic_exception_is_logged_with_class_and_reason(tmp_path, monkeypatch, caplog):
     """When the embedding provider raises, the warning must include the
-    exception class name AND a snippet of the exception message."""
+    exception class name AND a snippet of the exception message — and the
+    keyword fallback must actually run and return its results (proves
+    degradation path is wired, not just an empty list)."""
+    # Pre-populate a known keyword result so we can prove the keyword
+    # fallback ran — not just that the function returned a list.
+    knowledge_dir = tmp_path / "Knowledge"
+    knowledge_dir.mkdir()
+    kw_file = knowledge_dir / "kw-result.md"
+    kw_file.write_text("python tutorials are great", encoding="utf-8")
+
     monkeypatch.chdir(tmp_path)  # keyword fallback looks at CWD/ so isolate it
 
     exc = RuntimeError("upstream embedding service returned 503")
@@ -72,8 +81,16 @@ async def test_semantic_exception_is_logged_with_class_and_reason(tmp_path, monk
         f"log message should mention keyword-only fallback; got: {msg!r}"
     )
 
-    # The handler still returns a list (keyword fallback ran)
-    assert isinstance(result, list)
+    # Keyword fallback actually ran AND returned our pre-populated result.
+    # This proves the function executed _keyword_search (not just ``return []``
+    # after swallowing the semantic exception). Compare by filename since
+    # ``_keyword_search`` returns paths relative to CWD (it uses
+    # ``Path("Knowledge").glob("*.md")``).
+    paths = [r["path"] for r in result]
+    assert "kw-result.md" in paths[0], (
+        f"keyword fallback must return the pre-populated result; "
+        f"got paths: {paths!r}"
+    )
 
 
 @pytest.mark.asyncio
@@ -89,7 +106,8 @@ async def test_semantic_exception_does_not_raise_to_caller(tmp_path, monkeypatch
 
 @pytest.mark.asyncio
 async def test_semantic_exception_message_is_truncated(tmp_path, monkeypatch, caplog):
-    """Exception message should be truncated to ~200 chars to avoid log spam."""
+    """Exception message must be truncated at the 200-char boundary, preserving
+    the first 200 chars and dropping the rest (proves truncation, not deletion)."""
     monkeypatch.chdir(tmp_path)
     big_msg = "X" * 1000
     set_embedding_provider(_BoomEmbedProvider(RuntimeError(big_msg)))
@@ -102,8 +120,27 @@ async def test_semantic_exception_message_is_truncated(tmp_path, monkeypatch, ca
     msg = warnings[0].message
     # The full 1000-char payload must NOT appear in the log
     assert big_msg not in msg, "exception message must be truncated before logging"
-    # But a substring of it should
-    assert "X" in msg
+    # The reason argument (passed via %s after the class name) must be
+    # truncated to at most 200 chars — production uses ``str(e)[:200]``.
+    # Log records from ``logger.warning("...%s: %s...", cls, reason)`` carry
+    # both args in ``record.args``. Find the reason arg (the 1000-char string,
+    # possibly truncated) and assert its length.
+    reason_arg = None
+    for arg in warnings[0].args:
+        if isinstance(arg, str) and arg.startswith("X"):
+            reason_arg = arg
+            break
+    assert reason_arg is not None, (
+        f"expected the exception reason argument in log args; got args={warnings[0].args!r}"
+    )
+    assert len(reason_arg) <= 200, (
+        f"reason argument must be truncated to <= 200 chars; "
+        f"got length={len(reason_arg)}"
+    )
+    # First 200 chars must be preserved (proves truncation, not deletion)
+    assert reason_arg == "X" * 200, (
+        f"expected first 200 chars preserved as 'X'*200; got: {reason_arg[:50]!r}..."
+    )
 
 
 def test_module_uses_module_logger_not_root():
