@@ -171,7 +171,7 @@ def _resolve_ctx(proj_arg):
 - **Idempotency** (`src/utils/idempotency.py`) — md5-keyed dedup, in-memory TTL 7 days.
 - **Schemas** (`src/schemas/`) — Migration framework. `Migration` ABC with `up`/`down`/`preview`. MigrationRegistry indexes by `(schema_name, from_version, to_version)`.
 - **Sync** (`src/sync/`) — `SnapshotStore` JSON, `FileSyncWatcher` watchdog observer. `start_watch` / `stop` are **deprecated** (no current callers; remove in 1.0).
-- **Vector store** (`src/vector/`) — `LanceDB` singleton, 1536-dim float32. `init_vector_store(db_path)` must be called before any upsert/search.
+- **Vector store** (`src/vector/`) — `LanceDB` singleton, 1536-dim float32. `init_vector_store_for_paths(WikiPaths)` must be called before any upsert/search; the legacy `init_vector_store(db_path)` parent-walking heuristic was removed (use `WikiPaths(root)` to construct the canonical path object).
 - **Service layer** (`src/services/`) — business logic between HTTP routes and core domain. Routes are thin adapters; services are unit-testable without HTTP. 7 modules: `files`, `projects`, `schema`, `reviews`, `ingest`, `search`, `chat`.
 - **Project resolution** (`src/lib/project.py`) — single entry point. `resolve_project(arg, by_id_only) -> (ProjectContext, WikiPaths)`; `resolve_ctx_only(...)` for the no-paths case. Replaces 9 hand-rolled `_resolve_ctx` copies.
 - **LLM providers** (`src/llm/registry.py`) — `ProviderRegistry` loads from `~/.config/ruflo-kb/llm-providers.json`. `OllamaProvider.__init__` auto-registers in `_loaded_providers`; `ProviderRegistry.aclose_all()` is called from FastAPI lifespan shutdown to release `httpx.AsyncClient` resources.

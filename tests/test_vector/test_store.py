@@ -3,18 +3,29 @@ import pytest
 import tempfile
 import os
 from pathlib import Path
-from src.vector.store import init_vector_store, get_table, close_vector_store
+from src.wiki.storage.ensure import ensure_knowledge_base
+from src.wiki.core.paths import WikiPaths
+from src.vector.store import init_vector_store_for_paths, get_table, close_vector_store, __reset_for_testing
 
-def test_init_vector_store():
+
+def setup_function(_):
+    """Reset module-level state before each test so they are independent."""
+    __reset_for_testing()
+
+
+def test_init_vector_store_for_paths():
+    """Canonical entry point: init then get_table returns the table."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = os.path.join(tmpdir, "test.db")
-        init_vector_store(db_path)
+        ensure_knowledge_base(Path(tmpdir))
+        paths = WikiPaths(Path(tmpdir))
+        init_vector_store_for_paths(paths)
 
         # Should be able to get the table after init
         table = get_table()
         assert table is not None
 
         close_vector_store()
+
 
 def test_vector_store_not_initialized():
     # Before initialization, get_table should raise
