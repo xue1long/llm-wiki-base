@@ -221,7 +221,6 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
 
         self._client_kind = "sdk" if client is not None else "httpx"
         self._sdk = client
-        self.client = client
 
     def _headers(self) -> dict:
         h = {

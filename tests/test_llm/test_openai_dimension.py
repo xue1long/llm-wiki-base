@@ -34,7 +34,7 @@ def test_openai_embedding_dimension_sent():
     )
     import asyncio
     out = asyncio.run(p.embed(["hello"]))
-    assert p.client.embeddings.captured.get("dimensions") == 1024
+    assert p._sdk.embeddings.captured.get("dimensions") == 1024
     assert isinstance(out[0], EmbeddingResponse)
     assert len(out[0].embedding) == 1024
 
@@ -47,7 +47,7 @@ def test_openai_embedding_dimension_none_omitted():
     )
     import asyncio
     asyncio.run(p.embed(["hello"]))
-    assert "dimensions" not in p.client.embeddings.captured
+    assert "dimensions" not in p._sdk.embeddings.captured
 
 
 def test_openai_embedding_dimension_mismatch_raises():

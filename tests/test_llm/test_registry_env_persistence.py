@@ -36,6 +36,13 @@ from src.llm.types import ProviderConfig
 def _isolated_registry(monkeypatch, tmp_path):
     """Point _config_path() at a tmp file so the test does not touch the real registry.
 
+    The registry reads/writes the file path returned by `_config_path()`; the
+    surrounding `_config_dir()` helper only matters for the *default* location
+    when no override is set. Because we override `_config_path` to return a
+    per-test tmp file, we do NOT need to stub `_config_dir()` — the registry
+    never reaches it. This keeps the helper minimal and prevents accidental
+    coupling to the platform's user-config directory.
+
     Returns the path to the (eventually-written) JSON file.
     """
     from src.llm import registry as reg
@@ -273,3 +280,107 @@ def test_load_resolves_env_key_at_runtime(monkeypatch, tmp_path):
     assert response.content == "ok"
     assert observed["authorization"] == "Bearer runtime-env-key"
     assert ProviderRegistry.load()["openai"].api_key == ""
+
+
+# ---------------------------------------------------------------------------
+# Tests for remove() persistence behaviour (Task C2)
+# ---------------------------------------------------------------------------
+#
+# Note: `remove()` persists across saves — env-sourced providers do NOT
+# re-derive on subsequent `load()` while the file exists. To re-enable,
+# delete the registry file or re-add explicitly via `upsert()`.
+#
+# This is documented behaviour: `remove()` writes the post-removal
+# contents to disk, so the absence is durable. The `_default_providers()`
+# env-derivation path only runs when the file is absent (or unreadable).
+# ---------------------------------------------------------------------------
+
+def test_remove_env_sourced_provider_persists_absence(monkeypatch, tmp_path):
+    """remove() of an env-sourced provider persists across saves/loads.
+
+    This documents the actual behaviour: once you explicitly remove an
+    env-sourced provider, the absence is committed to disk. The provider
+    does NOT silently re-derive from the environment on subsequent
+    load() — the file's existence short-circuits `_default_providers()`.
+
+    To re-enable, the operator must either delete the registry file or
+    re-add the provider explicitly via `upsert()`.
+    """
+    target = _isolated_registry(monkeypatch, tmp_path)
+    monkeypatch.setenv("OPENAI_API_KEY", "env-still-set")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    # Env is set, so the first load materialises the openai provider.
+    initial = ProviderRegistry.load()
+    assert "openai" in initial, "precondition: env sources the openai provider"
+
+    # Explicitly remove it. This writes the post-removal dict to disk.
+    assert ProviderRegistry.remove("openai") is True
+
+    # Even though OPENAI_API_KEY is still set, the saved file says 'absent'.
+    # load() short-circuits to the file's contents (which lacks 'openai'),
+    # so the env-sourced default does NOT re-derive.
+    reloaded = ProviderRegistry.load()
+    assert "openai" not in reloaded, (
+        "remove() of an env-sourced provider should persist the absence. "
+        "If the provider re-appears here, the file is not being honoured "
+        "and env re-derivation is leaking through."
+    )
+
+    # Sanity: the file on disk has no openai entry.
+    raw = json.loads(target.read_text(encoding="utf-8"))
+    assert "openai" not in raw["providers"], (
+        "Registry file should not contain 'openai' after remove()."
+    )
+
+
+def test_remove_user_added_provider_persists_absence(monkeypatch, tmp_path):
+    """remove() of a user-added provider persists across saves/loads.
+
+    The user-added provider has sourced_from_env=False, so neither env
+    nor default-derivation is involved. After remove(), the file must
+    reflect the absence and a subsequent save+load must not resurrect it.
+    """
+    target = _isolated_registry(monkeypatch, tmp_path)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    # 1. Add a user provider (no env).
+    cfg = ProviderConfig(
+        name="custom",
+        type="openai",
+        base_url="https://example.com/v1",
+        api_key="user-key",
+        default_chat_model="gpt-4o-mini",
+    )
+    ProviderRegistry.save({cfg.name: cfg})
+
+    loaded = ProviderRegistry.load()
+    assert "custom" in loaded, "precondition: user-added provider present"
+
+    # 2. Remove it.
+    assert ProviderRegistry.remove("custom") is True
+
+    # 3. Reload directly — absence should persist.
+    reloaded = ProviderRegistry.load()
+    assert "custom" not in reloaded, (
+        "remove() of a user-added provider should persist the absence."
+    )
+
+    # 4. Do another save (e.g. upserting an unrelated provider) and reload.
+    # The removal must not be undone by a subsequent save+load cycle.
+    ProviderRegistry.upsert(
+        ProviderConfig(
+            name="local",
+            type="ollama",
+            base_url="http://localhost:11434",
+        )
+    )
+    final = ProviderRegistry.load()
+    assert "custom" not in final, (
+        "remove() must persist across subsequent save() calls."
+    )
+
+    # Sanity: file contents match expected.
+    raw = json.loads(target.read_text(encoding="utf-8"))
+    assert "custom" not in raw["providers"]
