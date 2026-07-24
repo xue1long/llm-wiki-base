@@ -49,7 +49,6 @@ For each suggested page, render Markdown content. Output strict JSON:
       "id": "<slug>",
       "type": "source|entity|concept|synthesis",
       "title": "<title>",
-      "frontmatter_extra": {{...}},        // optional extra frontmatter fields
       "body_markdown": "<markdown body, may use [[wikilinks]]>",
       "relations": [                      // optional cross-page relations
         {{"target": "<other-slug>", "type": "references|supports|causes|...",
@@ -59,8 +58,8 @@ For each suggested page, render Markdown content. Output strict JSON:
   ]
 }}
 
-Use [[other-slug]] for cross-references. frontmatter_extra may include tags, etc.
-Relation types use the same vocabulary as the analysis (references, supports, causes, etc.).
+Use [[other-slug]] for cross-references.
+Relation types use the same vocabulary as the analysis (see src.wiki.features.relations for the canonical list).
 
 {WIKI_RULES_SUMMARY}
 """
@@ -103,7 +102,6 @@ async def generate(
                             "id": {"type": "string"},
                             "type": {"type": "string"},
                             "title": {"type": "string"},
-                            "frontmatter_extra": {"type": "object"},
                             "body_markdown": {"type": "string"},
                             "relations": {
                                 "type": "array",
@@ -137,7 +135,6 @@ async def generate(
         except ValueError:
             _logger.warning(f"Unknown page type: {p['type']}")
             continue
-        fm = p.get("frontmatter_extra", {})
         pages.append(WikiPage(
             id=p["id"],
             title=p["title"],
