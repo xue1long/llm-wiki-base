@@ -15,7 +15,9 @@ def test_h4_passes_for_valid_uuid_v7_ids(tmp_path):
     assert result.issue_count == 0
 
 
-def test_h4_warns_on_old_slug_format(tmp_path):
+def test_h4_accepts_legacy_slug_ids(tmp_path):
+    # H4 intentionally accepts both UUID v7 and legacy slug IDs as valid
+    # (commit 710702c). Pages with pure-slug IDs should pass with 0 issues.
     (tmp_path / "wiki" / "entities").mkdir(parents=True)
     (tmp_path / "wiki" / "entities" / "a.md").write_text(
         "---\nid: lin-feng\n---\nbody", encoding="utf-8",
@@ -23,10 +25,8 @@ def test_h4_warns_on_old_slug_format(tmp_path):
 
     check = H4IdFormatCheck(tmp_path)
     result = check.run()
-    # Warning (not error) keeps check "passed"
     assert result.passed
-    assert result.issue_count == 1
-    assert result.issues[0].code == "H4-INVALID-ID-FORMAT"
+    assert result.issue_count == 0
 
 
 def test_h4_errors_on_missing_id(tmp_path):
