@@ -43,6 +43,23 @@ async def test_keyword_search_scans_v2_wiki_tree(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_keyword_search_warns_when_paths_none(caplog):
+    """When _keyword_search is invoked with paths=None, it must emit
+    a WARNING on logger 'src.searcher.hybrid_search' containing
+    'paths is None' so operators / callers can find legacy callers.
+    """
+    import logging
+    caplog.set_level(logging.WARNING, logger="src.searcher.hybrid_search")
+    results = await _keyword_search("anything", top_k=10, paths=None)
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert warnings, "expected a WARNING when paths is None"
+    msg = warnings[0].message
+    assert "paths is None" in msg, (
+        f"deprecation message must mention 'paths is None'; got: {msg!r}"
+    )
+
+
+@pytest.mark.asyncio
 async def test_keyword_search_finds_nested_pages(tmp_path):
     """Pages nested deeper than one level must also be found."""
     # Place a page under wiki/sources/sub/nested.md
