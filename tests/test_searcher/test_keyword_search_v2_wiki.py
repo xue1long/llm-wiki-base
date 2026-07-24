@@ -72,3 +72,45 @@ async def test_keyword_search_finds_nested_pages(tmp_path):
     results = await _keyword_search("magic term", top_k=10, paths=paths)
     assert len(results) == 1
     assert "nested" in results[0]["path"]
+
+
+@pytest.mark.asyncio
+async def test_keyword_search_skips_archive_and_stubs(tmp_path):
+    """Pages in wiki/_archive/ (heat archive target) and wiki/_stubs/
+    (placeholders) must not be returned by keyword search, even though
+    rglob walks them. The catalog (index.md) and audit log (log.md)
+    must also be skipped so they do not match every query.
+    """
+    # Files that should NOT be found
+    (tmp_path / "wiki" / "_archive").mkdir(parents=True)
+    (tmp_path / "wiki" / "_archive" / "archived.md").write_text(
+        "# Archived\\n\\nkeyword appears here but should be skipped\\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "wiki" / "_stubs").mkdir(parents=True)
+    (tmp_path / "wiki" / "_stubs" / "stub.md").write_text(
+        "# Stub\\n\\nkeyword appears here but should be skipped\\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "wiki" / "index.md").write_text(
+        "# Catalog\\n\\nkeyword appears here but should be skipped\\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "wiki" / "log.md").write_text(
+        "# Audit log\\n\\nkeyword appears here but should be skipped\\n",
+        encoding="utf-8",
+    )
+    # Real page that SHOULD be found
+    (tmp_path / "wiki" / "sources").mkdir(parents=True)
+    (tmp_path / "wiki" / "sources" / "real.md").write_text(
+        "# Real\\n\\nkeyword appears here\\n",
+        encoding="utf-8",
+    )
+    paths = WikiPaths(tmp_path)
+    results = await _keyword_search("keyword", top_k=10, paths=paths)
+    paths_found = sorted(r["path"] for r in results)
+    assert len(paths_found) == 1, (
+        f"keyword search must skip _archive / _stubs / index.md / log.md; "
+        f"got paths={paths_found!r}"
+    )
+    assert "real.md" in paths_found[0]

@@ -178,7 +178,17 @@ async def _keyword_search(
 
     query_lower = query.lower()
 
+    # rglob so nested pages under the four typed subdirs are found,
+    # but skip wiki/_archive (heat archive target) and wiki/_stubs
+    # (placeholders) so keyword search does not surface archived or
+    # not-yet-real pages. Also skip index.md / log.md (catalog +
+    # audit log) -- those live directly under knowledge_dir and would
+    # match every query by their title/list.
+    skip_parts = {"_archive", "_stubs", "index.md", "log.md"}
     for file in knowledge_dir.rglob("*.md"):
+        rel_parts = file.relative_to(knowledge_dir).parts
+        if any(part in skip_parts for part in rel_parts):
+            continue
         content = file.read_text(encoding="utf-8")
         content_lower = content.lower()
 
