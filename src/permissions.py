@@ -37,9 +37,10 @@ class PermissionDenied(PermissionError):
 ALLOWED_PATHS = {
     AgentType.COLLECTOR: {
         # Legacy Inbox/ layout (kept for back-compat) + new wiki-v2 layout
-        # (per CLAUDE.md: <project>/raw/sources/). Absolute paths under any
-        # known project root are also accepted by the check_permission()
-        # fall-through (see ProjectRootAwareGate in services.ingest).
+        # (per CLAUDE.md: <project>/raw/sources/). Callers resolve an
+        # absolute project root via src/lib/project.py:resolve_project()
+        # (used by src/services/ingest.py) and pass paths relative to it
+        # so the boundary check above can match.
         Permission.READ: ["Inbox/Pending", "Inbox/Processing", "raw", "raw/sources"],
         Permission.WRITE: ["Inbox/Processing", "raw", "raw/sources"],
     },
