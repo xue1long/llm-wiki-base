@@ -42,7 +42,7 @@ Run all tests:
 #                             different test_X/ directories don't collide
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
   PYTHONPATH=. python -m pytest --import-mode=importlib
-# → 719 passed in ~30s on Python 3.14 / Windows
+# → 722 passed in ~25s on Python 3.14 / Windows
 
 # Touched areas only:
 PYTHONPATH=. pytest tests/test_wiki/ tests/test_cli_ext/ tests/test_pipeline/ tests/test_server/ tests/test_agent/ -v
