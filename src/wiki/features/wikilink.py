@@ -6,6 +6,7 @@ from pathlib import Path
 import yaml
 
 from ..storage.ensure import ensure_knowledge_base
+from ...lib.write_hooks import safe_write
 from ..core.paths import WikiPaths
 from ..core.types import PageType, WikiPage
 
@@ -58,5 +59,5 @@ def create_stub_if_missing(project_root: Path, target: str) -> Path | None:
     )
     content = f"---\n{fm_text}---\n\n{page.body}"
     path = paths.wiki_stubs / f"{target}.md"
-    path.write_text(content, encoding="utf-8")
+    safe_write(path, content)
     return path

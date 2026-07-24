@@ -1,6 +1,7 @@
 """Zombie page detection — generate staging draft when heat hits 0."""
 from pathlib import Path
 import time
+from ...lib.write_hooks import safe_write
 
 
 STAGING_DIR = ".index/staging"
@@ -26,7 +27,7 @@ class ZombieDetector:
 2. **Archive**: Move to wiki/_archive/{page.id}.md
 3. **Update**: Re-ingest source to refresh content
 """
-        draft_path.write_text(content, encoding="utf-8")
+        safe_write(draft_path, content)
         return draft_path
 
     @staticmethod
