@@ -8,10 +8,16 @@ from ..migration import (
     Migration, MigrationContext, MigrationPlan, MigrationResult, SchemaVersion,
 )
 from ..registry import MigrationRegistry
-from ...wiki.core.id_generator import generate_page_id, ID_PATTERN
+from ...wiki.core.id_generator import generate_page_id
 
 
 _logger = logging.getLogger(__name__)
+
+
+# Strict UUID v7 pattern — used to detect "already converted" IDs.
+# ID_PATTERN was widened (commit 710702c) to also accept legacy slugs,
+# so we can't use it here to detect work that still needs converting.
+_UUID_V7_PATTERN = re.compile(r"^card_[0-9a-f]{13}_[0-9a-f]{8}_[a-z0-9-]+$")
 
 
 class V2ToV2_2WikiPageMigration(Migration):
@@ -89,7 +95,7 @@ class V2ToV2_2WikiPageMigration(Migration):
     def _convert_id_to_uuid_v7(self, text: str) -> str:
         """Convert 'id: <slug>' to 'id: card_<millis>_<rand>_<slug>'."""
         m = re.search(r"^id: ([a-z0-9-]+)$", text, re.MULTILINE)
-        if m and not ID_PATTERN.match(m.group(1)):
+        if m and not _UUID_V7_PATTERN.match(m.group(1)):
             slug = m.group(1)
             new_id = generate_page_id(slug)
             text = text.replace(f"id: {slug}", f"id: {new_id}", 1)
