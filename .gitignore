@@ -11,6 +11,16 @@ docs/environment/wheels/
 
 # --- tool runtime artifacts ---
 .claude/worktrees/
+.claude/sdd/          # task briefs/reports (ephemeral)
 .workbuddy/
 codebase-index-report.md
 registry.json
+
+# --- project memory (session-specific, not for commit) ---
+.memory/
+
+# local secrets (API keys)
+.env
+
+# wiki spec sync
+.wiki-spec-md5

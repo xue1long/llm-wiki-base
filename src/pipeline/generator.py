@@ -7,6 +7,7 @@ from ..wiki.core.paths import WikiPaths
 from ..wiki.features.relations import parse_relations_from_response
 from ..wiki.core.types import PageType, WikiPage
 from .schemas import AnalysisResult
+from .wiki_rules_prompt import WIKI_RULES_SUMMARY
 
 
 _logger = logging.getLogger(__name__)
@@ -60,6 +61,8 @@ For each suggested page, render Markdown content. Output strict JSON:
 
 Use [[other-slug]] for cross-references. frontmatter_extra may include tags, etc.
 Relation types use the same vocabulary as the analysis (references, supports, causes, etc.).
+
+{WIKI_RULES_SUMMARY}
 """
 
 
@@ -84,6 +87,7 @@ async def generate(
     prompt = GENERATOR_PROMPT.format(
         analysis_json=analysis_json,
         existing_wiki_index=existing_wiki_index or "(empty)",
+        WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
     )
 
     response = await provider.complete(

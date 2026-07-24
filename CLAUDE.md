@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ruflo-kb — a Python 3.11+ multi-agent knowledge-base platform. Ingest URLs / files (PDF, DOCX, XLSX, HTML, MD, TXT), process them through Collector → Analyzer → Generator, archive structured Markdown notes plus 1536-dim LanceDB vectors, and serve hybrid (semantic + keyword / RRF) search. Codebase is being incrementally migrated from `Novel-Knowledge-Base`; the active migration plan lives at `docs/superpowers/plans/2026-07-21-nkb-to-ruflo-migration.md` and follows a TDD-per-task workflow with one commit per task.
 
+**Session memory:** `.memory/` — persisted learnings, project facts, user preferences, and runbooks. Read it when starting a new session or picking up after compaction.
+
 ## Commands
 
 > **Full environment setup story (Python 3.14 wheels, proxy workarounds, the
@@ -152,6 +154,8 @@ The wiki is the **primary data model**. Legacy `Notes/<task_id>.md` output is pr
 | `last_used_at` | int | 0 | Heat: last AI retrieval timestamp |
 | `zombie_since` | int\|None | None | Heat: 0-heat timestamp |
 
+**Wiki 规范（含命名/Frontmatter/Body 规则）：** [`docs/guides/wiki-spec.md`](docs/guides/wiki-spec.md)
+
 Layout (created by `python -m src.cli project init <path>`):
 
 ```
@@ -236,6 +240,42 @@ For multi-step work (especially the plans in `docs/superpowers/plans/`), use `su
 5. **Durable progress** — update `.superpowers/sdd/progress.md` ledger after each task. The ledger is the recovery map after compaction.
 
 Commit prefixes on `feat/continue-implementation`: `feat(scope):` for new features, `fix(scope):` for fixes, `chore:` for project docs/infra, `refactor:` for restructuring. Scoped to a single concern.
+
+## Automatic Memory Capture
+
+After each significant event, capture learnings to `.memory/` so future sessions can fast-start.
+
+**Trigger conditions — capture to `.memory/` when:**
+- Discovering a bug, workaround, or regression → write a `feedback-*.md` entry
+- Completing a multi-step task (especially via subagent-driven-development) → write a `feedback-*.md` entry
+- Learning a non-obvious constraint, configuration detail, or path structure → write a `feedback-*.md` or `arch-*.md` entry
+- Starting a new project type or initializing a new knowledge base → write a `quickstart-*.md` entry
+- Completing a plan → update `.superpowers/sdd/progress.md` ledger
+
+**File naming convention:**
+- `feedback-<short-name>.md` — bug workarounds, regression findings, non-obvious gotchas
+- `arch-<topic>.md` — architecture constraints, directory conventions, config loading
+- `quickstart-<topic>.md` — step-by-step runbook for recurring setup tasks
+- `project-<name>.md` — project-specific facts (IDs, commands, known issues)
+- `user-preferences.md` — collaboration style, user habits
+
+**Format:**
+```markdown
+---
+name: <short-kebab-case-slug>
+description: <one-line summary for future relevance check>
+metadata:
+  type: <user|feedback|project|reference>
+---
+
+# Title
+
+**When:** [what triggered this learning]
+**Why:** [the root cause or design reason]
+**How to apply:** [what to do in future sessions]
+```
+
+**Index:** All entries are listed in `.memory/MEMORY.md`.
 
 ## Things to know before editing
 

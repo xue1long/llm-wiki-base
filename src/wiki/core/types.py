@@ -52,6 +52,8 @@ class WikiPage:
     heat: int = 50
     last_used_at: int = 0
     zombie_since: int | None = None
+    # Tags: controlled namespace prefixes (e.g. char/女主角, genre/都市)
+    tags: list[str] = field(default_factory=list)
 
     def to_frontmatter_dict(self) -> dict:
         return {
@@ -68,6 +70,7 @@ class WikiPage:
             "heat": self.heat,
             "last_used_at": self.last_used_at,
             "zombie_since": self.zombie_since,
+            "tags": list(self.tags),
         }
 
     @classmethod
@@ -88,6 +91,7 @@ class WikiPage:
             heat=d.get("heat", 50),
             last_used_at=d.get("last_used_at", 0),
             zombie_since=d.get("zombie_since"),
+            tags=list(d.get("tags", [])),
         )
 
 
