@@ -96,6 +96,10 @@ async def hybrid_search(
     search falls back to the legacy CWD-relative ``Knowledge/`` and
     emits a deprecation warning — callers should pass the project's
     ``WikiPaths`` so keyword search actually finds v2 wiki pages.
+
+    Keyword search skips wiki/_archive/, wiki/_stubs/, wiki/index.md
+    and wiki/log.md so archived/placeholder/catalog/log content does
+    not surface in results.
     """
     if not query or not query.strip():
         raise ValueError("query cannot be empty")
@@ -157,6 +161,13 @@ async def _keyword_search(
     query: str, top_k: int, paths: "WikiPaths | None" = None,
 ) -> list[SearchResult]:
     """简单关键词检索
+
+    Uses rglob() so nested pages under the four typed subdirs
+    (``sources/``, ``entities/``, ``concepts/``, ``synthesis/``) are
+    found. Pages under ``_archive/`` (heat archive target) and
+    ``_stubs/`` (placeholders) are skipped, as are the top-level
+    ``index.md`` (catalog) and ``log.md`` (audit log) which would
+    otherwise match every query by their title or contents.
 
     When ``paths`` is provided, scan ``paths.knowledge_dir`` (the
     v2 wiki tree, alias for ``<root>/wiki``). When ``None``, fall back
