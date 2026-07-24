@@ -2,12 +2,19 @@
 """
 目录权限边界校验
 
-Agent 读写权限定义：
-- Collector:   只写 Inbox/Processing
-- Processor:  读 Inbox/Processing, 只写 Notes
-- Librarian:  读 Notes, 只写 Knowledge
-- Searcher:   只读 Knowledge 和 .index
+Agent 读写权限定义（双布局 back-compat）：
+
+wiki-v2 布局（当前，per CLAUDE.md）：
+- Collector:   读写 raw/sources (legacy Inbox/Processing 仍保留)
 - Orchestrator: 读写所有目录
+
+wiki-v1 / legacy 布局（历史保留，已无 active caller）：
+- Processor/Librarian 的 Notes/Knowledge 条目已从 ALLOWED_PATHS 删除
+  （refactor pipeline: remove dead processor.process — 2026-07）。
+- Inbox/Pending、Inbox/Processing 仍保留给 Collector 的 read 路径，
+  以兼容旧项目布局。
+
+Searcher 已从 ALLOWED_PATHS 移除（legacy Knowledge/.index 无 caller）。
 
 边界检查使用 PurePath 语义 (is_relative_to / posix-prefix 比对)，不使用
 Path.resolve() —— 因此结果与 os.getcwd() 无关。C-13 修复。
