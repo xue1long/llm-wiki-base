@@ -55,7 +55,7 @@ async def search(
         # Lazy init failure: still proceed; keyword results will populate.
         pass
 
-    results = await hybrid_search(query, top_k=top_k)
+    results = await hybrid_search(query, top_k=top_k, paths=paths)
     return {
         "query": query,
         "mode": mode,

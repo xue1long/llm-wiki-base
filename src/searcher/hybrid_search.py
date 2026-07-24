@@ -82,12 +82,20 @@ def rrf_fusion(
     return out
 
 
-async def hybrid_search(query: str, top_k: int = 10) -> list[SearchResult]:
+async def hybrid_search(
+    query: str, top_k: int = 10, paths: "WikiPaths | None" = None,
+) -> list[SearchResult]:
     """混合检索: 语义 + 关键词
 
     Validates inputs:
     - ``query.strip()`` must be non-empty (raises ``ValueError``)
     - ``1 <= top_k <= MAX_TOP_K`` (raises ``ValueError``)
+
+    When ``paths`` is provided, the keyword search scans the v2
+    wiki tree (``paths.knowledge_dir``). When ``None``, the keyword
+    search falls back to the legacy CWD-relative ``Knowledge/`` and
+    emits a deprecation warning — callers should pass the project's
+    ``WikiPaths`` so keyword search actually finds v2 wiki pages.
     """
     if not query or not query.strip():
         raise ValueError("query cannot be empty")
@@ -129,7 +137,7 @@ async def hybrid_search(query: str, top_k: int = 10) -> list[SearchResult]:
         )
 
     # 2. 关键词检索
-    keyword_results = await _keyword_search(query, top_k)
+    keyword_results = await _keyword_search(query, top_k, paths=paths)
 
     # 3. RRF 融合 — always over TWO separate lists; if one side is empty
     # the other side's results are still returned (per the resolved
@@ -145,10 +153,25 @@ async def hybrid_search(query: str, top_k: int = 10) -> list[SearchResult]:
     return fused[:top_k]
 
 
-async def _keyword_search(query: str, top_k: int) -> list[SearchResult]:
-    """简单关键词检索"""
+async def _keyword_search(
+    query: str, top_k: int, paths: "WikiPaths | None" = None,
+) -> list[SearchResult]:
+    """简单关键词检索
+
+    When ``paths`` is provided, scan ``paths.knowledge_dir`` (the
+    v2 wiki tree, alias for ``<root>/wiki``). When ``None``, fall back
+    to the CWD-relative ``Knowledge/`` and emit a deprecation warning
+    — v2 wikis store pages under ``<root>/wiki/`` and the legacy
+    index is empty in real production runs.
+    """
     results = []
-    knowledge_dir = Path("Knowledge")
+    if paths is not None:
+        knowledge_dir = paths.knowledge_dir
+    else:
+        logger.warning(
+            "_keyword_search: paths is None — falling back to CWD-relative Knowledge/. Pass WikiPaths (e.g. via services/search.search) so keyword search actually finds v2 wiki pages. This fallback will be removed in 1.0."
+        )
+        knowledge_dir = Path("Knowledge")
 
     if not knowledge_dir.exists():
         return results

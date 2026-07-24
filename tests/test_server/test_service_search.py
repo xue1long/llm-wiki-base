@@ -19,7 +19,7 @@ def test_search_returns_results(monkeypatch, tmp_path):
         lambda project_id, by_id_only=True: _fake_resolve(project_dir),
     )
 
-    async def fake_hybrid_search(query, top_k=10):
+    async def fake_hybrid_search(query, top_k=10, paths=None):
         return [
             {"path": "wiki/a.md", "title": "A", "content": "abc", "score": 0.9, "source": "hybrid"},
         ]
@@ -49,7 +49,7 @@ def test_search_empty_results(monkeypatch, tmp_path):
         lambda project_id, by_id_only=True: _fake_resolve(project_dir),
     )
 
-    async def fake_hybrid_search(query, top_k=10):
+    async def fake_hybrid_search(query, top_k=10, paths=None):
         return []
 
     monkeypatch.setattr(search_service, "hybrid_search", fake_hybrid_search)
