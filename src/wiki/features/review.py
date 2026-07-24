@@ -4,6 +4,7 @@ import uuid
 from pathlib import Path
 
 from ..core.types import ReviewItem
+from ...lib.write_hooks import safe_write
 
 
 REVIEWS_FILE = ".index/reviews.json"
@@ -30,7 +31,7 @@ def save_reviews(paths, items: list[ReviewItem], resolved: bool = False) -> None
     f = _review_file(paths, resolved)
     f.parent.mkdir(parents=True, exist_ok=True)
     data = {"version": 1, "items": [_item_to_dict(i) for i in items]}
-    f.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    safe_write(f, json.dumps(data, indent=2, ensure_ascii=False))
 
 
 def _item_to_dict(item: ReviewItem) -> dict:
