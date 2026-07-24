@@ -96,3 +96,54 @@ def test_url_passes_through(project):
     assert result["status"] == "queued"
     last = list(queue_module._queue)[-1]
     assert last.source == "https://example.com/paper.pdf"
+
+
+def test_absolute_path_via_symlink_anchors(tmp_path, monkeypatch):
+    """If the project root is a symlink, the caller may supply a path
+    through the real path or the symlink -- both should anchor to the
+    project root. Uses .resolve() before .relative_to() so symlinks
+    collapse to the same canonical root.
+    """
+    import os
+
+    # Set up: project_root is a symlink to a real dir.
+    real_root = tmp_path / "real_kb"
+    real_root.mkdir()
+    link_root = tmp_path / "link_kb"
+    os.symlink(str(real_root), str(link_root))
+
+    from src.project import paths as project_paths
+    cfg_dir = tmp_path / "cfg"
+    cfg_dir.mkdir()
+    monkeypatch.setattr(project_paths, "_OVERRIDE_CONFIG_DIR", cfg_dir)
+
+    (link_root / ".llm-wiki").mkdir()
+    (link_root / ".llm-wiki" / "project.json").write_text(
+        '''{"id": "sym", "name": "s", "created_at": 1000, "schema_version": "v2.0"}''',
+        encoding="utf-8",
+    )
+
+    from src.project.registry import GlobalRegistryStore, ProjectRegistryEntry
+    GlobalRegistryStore.upsert(ProjectRegistryEntry(
+        id="sym", name="s", path=str(link_root),
+        last_opened=1000, schema_version="v2.0",
+    ))
+
+    # Caller supplies the REAL path (not the symlinked one). Use a
+    # unique source name so the idempotency hash does not collide
+    # with other tests in this file.
+    target = real_root / "raw" / "sources" / "symlink_x.md"
+    target.parent.mkdir(parents=True)
+    target.write_text("x", encoding="utf-8")
+
+    result = ingest_service.enqueue_source(
+        project_id="sym",
+        source=str(target),
+    )
+    assert result["status"] == "queued"
+    last = list(queue_module._queue)[-1]
+    assert last.source == "raw/sources/symlink_x.md", (
+        f"absolute path through real dir should still anchor via symlink "
+        f"resolution; got source={last.source!r}"
+    )
+

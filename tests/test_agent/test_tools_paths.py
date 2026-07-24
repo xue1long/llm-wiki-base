@@ -158,7 +158,7 @@ def test_graph_search_tool_uses_paths(monkeypatch, tmp_path):
     ctx = FakeCtx(tmp_path)
     tool = GraphSearchTool()
     result = _run(tool.execute(ctx, query="keyword", top_k=5))
-    assert "matches" in result
+    assert "results" in result
 
 
 def test_wiki_search_tool_calls_hybrid_search_without_mode_kwarg(monkeypatch):

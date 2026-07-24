@@ -40,7 +40,7 @@ def test_graph_search_handles_none_ctx():
     tool = GraphSearchTool()
     result = _run(tool.execute(ctx=None, query="keyword", top_k=5))
     assert result["query"] == "keyword"
-    assert result["matches"] == []
+    assert result["results"] == []
     assert "error" in result
     assert "ctx is required" in result["error"]
 
@@ -48,7 +48,7 @@ def test_graph_search_handles_none_ctx():
 
 def test_ctx_none_error_shapes_are_consistent():
     """All three tools must return the same error-dict shape when ctx=None:
-    {"error": "...", "query": <the requested query or None>, "results"|"matches": []}.
+    {"error": "...", "query": <the requested query or None>, "results": []}.
     Callers should be able to rely on the same keys regardless of which
     tool raised the guard.
     """
@@ -64,8 +64,12 @@ def test_ctx_none_error_shapes_are_consistent():
         assert "error" in result, f"{label} error missing 'error' key"
         assert "ctx is required" in result["error"], f"{label} error missing 'ctx is required' substring"
         assert "query" in result, f"{label} missing 'query' key (should be None for read_page)"
+        # All three tools now share the "results" key on error and success.
+        assert "results" in result, f"{label} missing 'results' key (was 'matches' before M4 unification)"
         # read_page uses None, search tools use the requested query string.
         if label == "wiki.read_page":
             assert result["query"] is None
+            assert result["results"] is None
         else:
             assert result["query"] == "kw"
+            assert result["results"] == []

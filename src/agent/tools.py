@@ -86,7 +86,7 @@ class GraphSearchTool:
 
     async def execute(self, ctx, query: str, top_k: int = 5) -> dict:
         if ctx is None:
-            return {"query": query, "matches": [], "error": "ctx is required for graph.search"}
+            return {"query": query, "results": [], "error": "ctx is required for graph.search"}
         from ..wiki.features.wikilink import extract_wikilinks
         from ..wiki.storage.page_writer import read_page
         paths = WikiPaths(ctx.path)
@@ -100,7 +100,7 @@ class GraphSearchTool:
                                     "links": extract_wikilinks(p.body)[:10]})
                     if len(matches) >= top_k:
                         break
-        return {"query": query, "matches": matches}
+        return {"query": query, "results": matches}
 
 
 class WebSearchTool:

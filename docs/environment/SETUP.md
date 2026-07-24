@@ -1,6 +1,6 @@
 # Environment Setup
 
-How to get ruflo-kb's test suite to **746 / 746 passing** from a fresh Python
+How to get ruflo-kb's test suite to **748 / 748 passing** from a fresh Python
 3.14 install on Windows. The story also covers the host's proxy quirks and
 the test-conftest cascade that bites anyone who tries to run the suite on a
 Python version newer than the project was last validated against.
@@ -70,7 +70,7 @@ env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy `
   PYTHONPATH=. C:\Python314\python.exe -m pytest --import-mode=importlib
 ```
 
-Expected: `746 passed in ~25s`. Two flags matter:
+Expected: `748 passed in ~25s`. Two flags matter:
 
 - `--import-mode=importlib` — disambiguates same-named test files across
   directories (`test_paths.py`, `test_types.py`, `test_registry.py` all

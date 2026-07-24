@@ -85,7 +85,9 @@ async def test_semantic_exception_is_logged_with_class_and_reason(tmp_path, monk
     # This proves the function executed _keyword_search (not just ``return []``
     # after swallowing the semantic exception). Compare by filename since
     # ``_keyword_search`` returns paths relative to CWD (it uses
-    # ``Path("Knowledge").rglob("*.md")``).
+    # ``Path("Knowledge").rglob("*.md")`` with the same
+    # _archive / _stubs / index.md / log.md skip rules as the
+    # v2-wiki branch).
     paths = [r["path"] for r in result]
     assert "kw-result.md" in paths[0], (
         f"keyword fallback must return the pre-populated result; "

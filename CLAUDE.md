@@ -42,7 +42,7 @@ Run all tests:
 #                             different test_X/ directories don't collide
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
   PYTHONPATH=. python -m pytest --import-mode=importlib
-# → 746 passed in ~25s on Python 3.14 / Windows
+# → 748 passed in ~25s on Python 3.14 / Windows
 
 # Touched areas only:
 PYTHONPATH=. pytest tests/test_wiki/ tests/test_cli_ext/ tests/test_pipeline/ tests/test_server/ tests/test_agent/ -v
@@ -91,7 +91,8 @@ python -m src.cli project init <project_path>
 # 2. Configure an LLM provider (Anthropic / OpenAI / Ollama)
 python -m src.cli llm-providers add openai-prov openai --api-key $OPENAI_API_KEY
 python -m src.cli llm-providers set-default openai-prov
-# Ollama (local):  add <name> ollama --base-url http://127.0.0.1:11434
+python -m src.cli llm-providers add ollama-prov ollama --base-url http://127.0.0.1:11434
+python -m src.cli llm-providers set-default ollama-prov
 
 # 3. Start the server
 python -m src.cli serve --host 127.0.0.1 --port 8765

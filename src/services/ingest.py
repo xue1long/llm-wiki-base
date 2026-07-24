@@ -46,9 +46,9 @@ def _normalize_absolute_path(
     # match the documented allowlist (raw/sources, Inbox/Processing).
     raw_posix = raw.replace("\\", "/")
     root_posix = str(project_root).replace("\\", "/")
-    # M3: use os.path.isabs (treats Windows drive-relative like
-    # "C:foo" as absolute) instead of Path.is_absolute (which
-    # returns False for drive-relative paths).
+    # Use os.path.isabs as the absolute-path test (matches Path.is_absolute
+    # for both POSIX and Windows drive-relative paths; documented as the
+    # boundary check used by the Collector permission allowlist).
     if not os.path.isabs(raw_posix):
         return raw_posix
     # M2: resolve both paths to canonicalise symlinks before
