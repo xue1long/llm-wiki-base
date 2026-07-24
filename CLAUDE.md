@@ -89,8 +89,9 @@ There is **no** top-level `python -m src.cli ingest` command — it was removed 
 python -m src.cli project init <project_path>
 
 # 2. Configure an LLM provider (Anthropic / OpenAI / Ollama)
-python -m src.cli llm-providers add --provider openai --api-key $OPENAI_API_KEY --default
-# Ollama (local):  --provider ollama --base-url http://127.0.0.1:11434
+python -m src.cli llm-providers add openai-prov openai --api-key $OPENAI_API_KEY
+python -m src.cli llm-providers set-default openai-prov
+# Ollama (local):  add <name> ollama --base-url http://127.0.0.1:11434
 
 # 3. Start the server
 python -m src.cli serve --host 127.0.0.1 --port 8765
