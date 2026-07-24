@@ -114,7 +114,7 @@ curl -X POST http://127.0.0.1:8765/api/v1/projects/$PROJECT/ingest \
 
 The route handler (`src/server/routes/ingest.py`) calls `services.ingest.enqueue_source`, which validates the project exists and pushes a task onto `src/queue/queue.py`. Processing is async — `enqueue_task` returns `{status, taskId}` immediately; the Collector → Analyzer → Generator pipeline runs in the background. Idempotency is by md5(source + folder_context) with a 7-day TTL (`src/utils/idempotency.py`).
 
-Supported source formats (extracted by `src/utils/extract/`): PDF (pypdf), DOCX (python-docx), XLSX (openpyxl), HTML, MD, TXT. Vector embeddings are 1536-dim float32 in LanceDB (`src/vector/`); upsert requires `init_vector_store_for_paths(WikiPaths)` to have been called for the project (the server's lifespan does this automatically).
+Supported source formats (extracted by `src/utils/extract/`): PDF (pypdf), DOCX (python-docx), XLSX (openpyxl), MD, TXT, plus HTML **when the source is a URL** (the local-file branch raises `Unsupported file type` for `.html`). Vector embeddings are 1536-dim float32 in LanceDB (`src/vector/`); upsert requires `init_vector_store_for_paths(WikiPaths)` to have been called for the project (the server's lifespan does this automatically).
 
 Alternative ingestion paths:
 - **MCP** (`python -m src.cli mcp`) — stdio server exposes `ingest` as an MCP tool for Claude Desktop
