@@ -178,7 +178,7 @@ async def _keyword_search(
 
     query_lower = query.lower()
 
-    for file in knowledge_dir.glob("*.md"):
+    for file in knowledge_dir.rglob("*.md"):
         content = file.read_text(encoding="utf-8")
         content_lower = content.lower()
 
