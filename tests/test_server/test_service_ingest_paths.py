@@ -13,11 +13,18 @@ from src.queue import queue as queue_module
 
 
 @pytest.fixture(autouse=True)
-def _reset_queue():
-    """Clear the module-level _queue so tasks from this test do not leak
-    into later tests (e.g. tests/test_e2e/test_ingest_happy_path.py
+def _isolate_queue(tmp_path, monkeypatch):
+    """Redirect the queue's on-disk persistence to a per-test tmp path
+    AND clear in-flight tracking so tasks this test enqueues cannot
+    leak into later tests (e.g. tests/test_e2e/test_ingest_happy_path.py
     which drives _process_next on whatever is at the head of the queue).
+
+    Without this, the global _queue persists between tests via
+    .kb-queue.json and the first call to __reset_for_testing() reloads
+    any tasks other tests had saved.
     """
+    # Fresh file per test so any persistence stays in this test only.
+    monkeypatch.setattr(queue_module, "QUEUE_FILE", tmp_path / "queue.json")
     queue_module.__reset_for_testing()
     yield
     queue_module.__reset_for_testing()
@@ -35,7 +42,7 @@ def project(tmp_path, monkeypatch):
     project_root.mkdir()
     (project_root / ".llm-wiki").mkdir()
     (project_root / ".llm-wiki" / "project.json").write_text(
-        '{"id": "u", "name": "p", "created_at": 1000, "schema_version": "v2.0"}',
+        '''{"id": "u", "name": "p", "created_at": 1000, "schema_version": "v2.0"}''',
         encoding="utf-8",
     )
 
@@ -55,7 +62,6 @@ def test_absolute_path_inside_project_is_anchored(project):
         source=str(target),
     )
     assert result["status"] == "queued"
-    # Task queued with the relative path
     last = list(queue_module._queue)[-1]
     assert last.source == "raw/sources/x.md"
     assert last.source_type.value == "file"
