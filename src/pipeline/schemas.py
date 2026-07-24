@@ -29,6 +29,11 @@ class PageSpec:
     slug: str
     title: str
     reasoning: str = ""
+    # v2.2 fields — defaults match WikiPage so existing fixtures keep working.
+    grade: str = "B"                # "A" | "B" | "C"
+    processing_depth: str = "concept"  # "concept" | "memory"
+    is_immutable: bool = False
+    tags: list[str] = field(default_factory=list)
 
 
 @dataclass

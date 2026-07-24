@@ -148,6 +148,9 @@ async def generate(
             created_at=now,
             updated_at=now,
             body=p["body_markdown"],
+            grade=p.get("grade", "B"),
+            processing_depth=p.get("processing_depth", "concept"),
+            is_immutable=p.get("is_immutable", False),
             relations=parse_relations_from_response(p.get("relations", [])),
         ))
     return pages

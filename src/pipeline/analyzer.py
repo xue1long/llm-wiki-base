@@ -32,7 +32,16 @@ Extract structured analysis. Output strict JSON:
     {{"name": "...", "slug": "...", "context": "...", "confidence": 0.0-1.0}}
   ],
   "suggested_pages": [
-    {{"type": "source|entity|concept|synthesis", "slug": "...", "title": "...", "reasoning": "..."}}
+    {{
+      "type": "source|entity|concept|synthesis",
+      "slug": "...",
+      "title": "...",
+      "reasoning": "...",
+      "grade": "A|B|C",                    // optional; default B
+      "processing_depth": "concept|memory", // optional; default concept
+      "is_immutable": false,               // optional; default false
+      "tags": ["genre/x", "func/y"]        // optional; default []
+    }}
   ],
   "links_to_existing": ["<slug>"]          // existing wiki pages this references
 }}
