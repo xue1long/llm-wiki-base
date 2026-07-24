@@ -98,7 +98,7 @@ python -m src.cli serve --host 127.0.0.1 --port 8765
 # 4. Find the project_id
 python -m src.cli project list
 
-# 5. Enqueue ingestion (URL, single file, or whole folder)
+# 5. Enqueue ingestion (URL or single file)
 PROJECT=<id from step 4>
 curl -X POST http://127.0.0.1:8765/api/v1/projects/$PROJECT/ingest \
   -H "Content-Type: application/json" \
@@ -106,11 +106,10 @@ curl -X POST http://127.0.0.1:8765/api/v1/projects/$PROJECT/ingest \
 
 curl -X POST http://127.0.0.1:8765/api/v1/projects/$PROJECT/ingest \
   -H "Content-Type: application/json" \
-  -d '{"source": "/abs/path/to/notes.docx"}'                       # file
+  -d '{"source": "/abs/path/to/notes.docx"}'                       # file (absolute path; resolved to the project's wiki tree)
+```
 
-curl -X POST http://127.0.0.1:8765/api/v1/projects/$PROJECT/ingest \
-  -H "Content-Type: application/json" \
-  -d '{"source": {"folder": "/abs/path/to/stuff"}, "folderContext": "papers"}'
+> **Note:** Folder ingestion (`{"source": {"folder": ...}}`) is not yet wired up — the route handler accepts the shape but does not enumerate directory contents. Use a single-file loop, or call `src.pipeline.folder_ingest.collect_files` programmatically until folder support lands.
 ```
 
 The route handler (`src/server/routes/ingest.py`) calls `services.ingest.enqueue_source`, which validates the project exists and pushes a task onto `src/queue/queue.py`. Processing is async — `enqueue_task` returns `{status, taskId}` immediately; the Collector → Analyzer → Generator pipeline runs in the background. Idempotency is by md5(source + folder_context) with a 7-day TTL (`src/utils/idempotency.py`).
