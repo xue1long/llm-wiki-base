@@ -17,6 +17,6 @@
 - `processing_depth: concept | memory` controls depth (default concept)
 - `is_immutable: true | false` makes the page zombie-resistant (default false)
 - `heat: 0..100` decay tracker (default 50); `last_used_at` (unix ms); `zombie_since` (int | None)
-- `relations[]` is typed links to other pages (16 built-in types + `x-*` user-defined)
+- `relations[]` is typed links to other pages (17 built-in types + `x-*` user-defined)
 - `tags` uses controlled namespaces (`genre/`, `func/`, `char/`, `event/`, `mood/`, `entity/`, `scene_phase/`, `status/`)
 - Body uses `[[wikilink]]` syntax; cross-page references are resolved by the Generator

@@ -145,7 +145,7 @@ The wiki is the **primary data model**. Legacy `Notes/<task_id>.md` output is pr
 | `sources` | list[str] | [] | Raw source paths |
 | `created_at` / `updated_at` | int | 0 | Unix ms |
 | `body` | str | "" | Markdown body (may contain `[[wikilinks]]`) |
-| `relations` | list[Relation] | [] | Typed relations (16 built-in + `x-*` user) |
+| `relations` | list[Relation] | [] | Typed relations (17 built-in + `x-*` user) |
 | `grade` | str | "B" | v2.2: A \| B \| C |
 | `processing_depth` | str | "concept" | v2.2: concept \| memory |
 | `is_immutable` | bool | False | v2.2: zombie-resist flag |
