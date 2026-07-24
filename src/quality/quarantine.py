@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .types import Judgment
+from ..lib.atomic_ctx import AtomicContext
+from ..lib.write_hooks import flush_pending_writes, safe_write
 
 
 QUARANTINE_DIR = ".index/quarantine"
@@ -28,12 +30,13 @@ class QuarantineStore:
         quarantine_dir = Path(project_root) / QUARANTINE_DIR / task_id
         quarantine_dir.mkdir(parents=True, exist_ok=True)
         page_path = quarantine_dir / f"{page_id}.md"
-        page_path.write_text(content, encoding="utf-8")
         judgment_path = quarantine_dir / f"{page_id}.judgment.json"
-        judgment_path.write_text(
-            json.dumps(judgment.to_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        # Atomic pair: page + judgment sidecar must appear together.
+        # Wrap in AtomicContext so a mid-write crash leaves the wiki
+        # unchanged rather than torn (page-only or judgment-only).
+        with AtomicContext(flush_callback=flush_pending_writes):
+            safe_write(page_path, content)
+            safe_write(judgment_path, json.dumps(judgment.to_dict(), indent=2, ensure_ascii=False))
         return page_path
 
     @staticmethod
