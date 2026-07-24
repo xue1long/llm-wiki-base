@@ -52,5 +52,5 @@ def test_completions_print_words_includes_subcommands(capsys):
     args = type("Args", (), {})()
     cmd_completions_print_words(args)
     out = capsys.readouterr().out
-    for sub in ("project", "ingest", "schema", "metrics", "chat"):
+    for sub in ("project", "schema", "metrics", "llm-providers", "heat"):
         assert sub in out, f"Missing subcommand '{sub}' in print-words output"
