@@ -37,6 +37,8 @@ class WikiReadPageTool:
     description = "Read a wiki page by ID or path"
 
     async def execute(self, ctx, path: str) -> dict:
+        if ctx is None:
+            return {"error": "ctx is required for wiki.read_page"}
         paths = WikiPaths(ctx.path)
         from pathlib import Path
         path = Path(path)
@@ -56,6 +58,8 @@ class SourceSearchTool:
     description = "Search raw/sources/ for keyword matches"
 
     async def execute(self, ctx, query: str, top_k: int = 5) -> dict:
+        if ctx is None:
+            return {"query": query, "results": [], "error": "ctx is required for source.search"}
         paths = WikiPaths(ctx.path)
         results = []
         query_lower = query.lower()
@@ -74,6 +78,8 @@ class GraphSearchTool:
     description = "Find entity neighbors via wikilinks"
 
     async def execute(self, ctx, query: str, top_k: int = 5) -> dict:
+        if ctx is None:
+            return {"query": query, "matches": [], "error": "ctx is required for graph.search"}
         from ..wiki.features.wikilink import extract_wikilinks
         from ..wiki.storage.page_writer import read_page
         paths = WikiPaths(ctx.path)
