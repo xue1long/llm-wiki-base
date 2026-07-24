@@ -44,10 +44,6 @@ ALLOWED_PATHS = {
         Permission.READ: ["Inbox/Pending", "Inbox/Processing", "raw", "raw/sources"],
         Permission.WRITE: ["Inbox/Processing", "raw", "raw/sources"],
     },
-    AgentType.PROCESSOR: {
-        Permission.READ: ["Inbox/Processing"],
-        Permission.WRITE: ["Notes"],
-    },
     AgentType.LIBRARIAN: {
         Permission.READ: ["Notes"],
         Permission.WRITE: ["Knowledge"],

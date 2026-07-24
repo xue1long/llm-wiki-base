@@ -1,16 +1,6 @@
 # ruflo-kb/src/pipeline/processor.py
 import re
-import yaml
-import logging
-from pathlib import Path
-from datetime import datetime
 
-from ..events.event_bus import event_bus
-from ..events.events import EventName, ProcessorDonePayload
-from ..utils.text import trim_text, chunk_markdown
-from ..permissions import AgentType, enforce_permission, Permission
-
-logger = logging.getLogger(__name__)
 
 def calculate_quality_metrics(content: str) -> dict:
     """
@@ -44,73 +34,3 @@ def calculate_quality_metrics(content: str) -> dict:
         "text_density": round(text_density, 2),
         "fluency_score": round(fluency_score, 2),
     }
-
-async def process(task_id: str, raw_path: str, content: str) -> ProcessorDonePayload:
-    """处理内容：清洗 + 摘要 + 标签 + 质量评分"""
-
-    # 权限检查: Processor 只允许读 Inbox/Processing
-    enforce_permission(AgentType.PROCESSOR, raw_path, Permission.READ)
-
-    # 1. 清洗
-    cleaned = trim_text(content)
-
-    # 2. 生成摘要
-    summary = cleaned[:200] + ("..." if len(cleaned) > 200 else "")
-
-    # 3. 简单标签提取
-    words = re.findall(r"\b[a-z]{4,}\b", cleaned.lower())
-    word_freq = {}
-    for w in words:
-        word_freq[w] = word_freq.get(w, 0) + 1
-    tags = sorted(word_freq.keys(), key=word_freq.get, reverse=True)[:5]
-
-    # 4. 计算质量指标
-    metrics = calculate_quality_metrics(cleaned)
-
-    # 5. 生成结构化笔记
-    title = Path(raw_path).stem
-    processed_at = int(datetime.now().timestamp())
-
-    frontmatter = {
-        "title": title,
-        "source": raw_path,
-        "tags": tags,
-        "quality_score": metrics["quality_score"],
-        "ad_ratio": metrics["ad_ratio"],
-        "text_density": metrics["text_density"],
-        "fluency_score": metrics["fluency_score"],
-        "processed_at": datetime.fromtimestamp(processed_at).isoformat(),
-    }
-
-    note_content = f"""---
-{yaml.dump(frontmatter, allow_unicode=True, sort_keys=False)}---
-
-# {title}
-
-## 摘要
-{summary}
-
-## 内容
-{cleaned}
-"""
-
-    # 6. 保存到 Notes
-    # 权限检查: Processor 只允许写 Notes
-    notes_dir = Path("Notes")
-    enforce_permission(AgentType.PROCESSOR, str(notes_dir), Permission.WRITE)
-
-    notes_dir.mkdir(exist_ok=True)
-    note_path = notes_dir / f"{task_id}.md"
-    note_path.write_text(note_content, encoding="utf-8")
-
-    payload = ProcessorDonePayload(
-        task_id=task_id,
-        note_path=str(note_path),
-        quality_score=metrics["quality_score"],
-        ad_ratio=metrics["ad_ratio"],
-        text_density=metrics["text_density"],
-        fluency_score=metrics["fluency_score"],
-    )
-
-    event_bus.emit(EventName.PROCESSOR_DONE, payload)
-    return payload
