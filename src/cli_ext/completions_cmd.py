@@ -66,10 +66,10 @@ def cmd_completions_show(args: argparse.Namespace) -> None:
 def cmd_completions_print_words(_args: argparse.Namespace) -> None:
     """Print all subcommand + project names (for completion scripts)."""
     subcommands = [
-        "project", "ingest", "search", "status", "pause", "resume", "delete", "review",
-        "lint", "export", "import", "dedup", "config", "templates", "llm-providers",
-        "stubs", "relations", "tags", "fields", "schema", "research", "quality", "health",
-        "atomic", "budget", "metrics", "serve", "serve-stop", "mcp", "chat", "vision",
+        "atomic", "budget", "completions", "dedup", "fields", "health", "heat",
+        "llm-providers", "lint", "lint-cache-clear", "mcp", "metrics", "project",
+        "quality", "relations", "research", "schema", "serve", "serve-status",
+        "serve-stop", "stubs", "tags", "templates", "vision",
     ]
     print(" ".join(subcommands), end="")
     try:
