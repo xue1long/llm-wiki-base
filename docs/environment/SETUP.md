@@ -1,6 +1,6 @@
 # Environment Setup
 
-How to get ruflo-kb's test suite to **426 / 426 passing** from a fresh Python
+How to get ruflo-kb's test suite to **722 / 722 passing** from a fresh Python
 3.14 install on Windows. The story also covers the host's proxy quirks and
 the test-conftest cascade that bites anyone who tries to run the suite on a
 Python version newer than the project was last validated against.
@@ -14,7 +14,7 @@ Python version newer than the project was last validated against.
 | Python | **3.14.3** (`C:\Python314\python.exe`) |
 | pytest | 9.1.1 |
 | Platform | Windows 11 Pro, AMD64 |
-| Working dir | `D:\201\2026-7-21\agent-knowledge\ruflo-kb` |
+| Working dir | `<repo-root>` (this checkout's root) |
 
 The project also runs on Python 3.12 (the alternative interpreter installed at
 `C:\Users\hp\AppData\Local\Programs\Python\Python312\python.exe`); the wheels
@@ -65,12 +65,12 @@ env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy `
 ## 3. Run the test suite
 
 ```powershell
-cd "D:\201\2026-7-21\agent-knowledge\ruflo-kb"
+cd "<repo-root>"
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy `
   PYTHONPATH=. C:\Python314\python.exe -m pytest --import-mode=importlib
 ```
 
-Expected: `426 passed in ~30s`. Two flags matter:
+Expected: `722 passed in ~25s`. Two flags matter:
 
 - `--import-mode=importlib` — disambiguates same-named test files across
   directories (`test_paths.py`, `test_types.py`, `test_registry.py` all
