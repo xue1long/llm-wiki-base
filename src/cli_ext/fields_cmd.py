@@ -47,7 +47,7 @@ def cmd_fields_validate(args: argparse.Namespace) -> None:
         errors.append(f"L1: invalid processing_depth: {page.processing_depth}")
     # L4: id format (backwards-compat warning, non-fatal)
     if page.id and not is_valid_id(page.id):
-        warnings.append(f"WARN: id '{page.id}' does not match UUID v7 format (backwards compat)")
+        warnings.append(f"WARN: id '{page.id}' does not match UUID v7 or legacy slug format (backwards compat)")
 
     for w in warnings:
         print(f"  {w}")

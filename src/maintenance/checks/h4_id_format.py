@@ -1,4 +1,4 @@
-"""H4: All wiki page IDs match UUID v7 format."""
+"""H4: All wiki page IDs match valid format (UUID v7 or legacy slug)."""
 import re
 
 from ..health_check import Check, CheckIssue, CheckResult, CheckSeverity
@@ -35,7 +35,7 @@ class H4IdFormatCheck(Check):
                 issues.append(CheckIssue(
                     severity=CheckSeverity.WARNING,
                     code="H4-INVALID-ID-FORMAT",
-                    message=f"Page id '{page_id}' does not match UUID v7 format",
+                    message=f"Page id '{page_id}' does not match UUID v7 or legacy slug format",
                     page_id=str(page_id),
                 ))
                 stats["invalid_ids"] += 1
