@@ -33,8 +33,6 @@ async def run_deep_research(
 
     Returns: {"synthesis_path": str, "sources": list, "queries": list, "task_id": str}
     """
-    # TODO: ctx.settings.llm.provider_registry_name never worked — ProjectContext has no
-    # settings attribute. Replaced with ProviderRegistry.get_default() (audit C-9).
     cfg = ProviderRegistry.get_default()
     llm = create_llm_provider(cfg.name)
 
@@ -128,6 +126,9 @@ async def run_deep_research(
         f"sources: {[s['url'] for s in sources[:5]]}\n"
         f"created_at: {int(time.time()*1000)}\n"
         f"updated_at: {int(time.time()*1000)}\n"
+        f"grade: B\n"
+        f"processing_depth: concept\n"
+        f"is_immutable: false\n"
         f"research_task_id: {task_id}\n"
         f"---\n"
     )
