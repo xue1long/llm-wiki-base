@@ -79,9 +79,11 @@ python -m src.cli llm-providers list
 
 如无输出或无可用 provider：
 ```bash
-python -m src.cli llm-providers add --provider openai --api-key YOUR_KEY --default
+python -m src.cli llm-providers add openai-prov openai --api-key YOUR_KEY
+python -m src.cli llm-providers set-default openai-prov
 # 或
-python -m src.cli llm-providers add --provider anthropic --api-key YOUR_KEY --default
+python -m src.cli llm-providers add anthropic-prov anthropic --api-key YOUR_KEY
+python -m src.cli llm-providers set-default anthropic-prov
 ```
 
 ---

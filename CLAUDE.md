@@ -63,7 +63,8 @@ CLI (entry is `src/cli.py`, run from the repo root — paths like `Inbox/`, `Not
 python -m src.cli project init <path>          # multi-project layout (current)
 python -m src.cli project list | current | info | select | import | forget
 # Ingestion is via the HTTP API (see "Ingesting raw documents" below)
-python -m src.cli llm-providers add --provider openai|anthropic [--api-key KEY]
+python -m src.cli llm-providers add <name> <type>          # <type>=openai|anthropic|ollama
+python -m src.cli llm-providers set-default <name>
 python -m src.cli relations {list|backlinks|neighbors|path|types|add-type}
 python -m src.cli fields validate <page> --project <id>
 python -m src.cli tags validate [--all] --project <id>
