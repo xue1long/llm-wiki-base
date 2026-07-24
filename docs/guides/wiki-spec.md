@@ -1,7 +1,7 @@
 ---
 rules:
   id:
-    pattern: "^[a-z0-9-]+$"
+    pattern: "^(?:card_[0-9a-f]{13}_[0-9a-f]{8}_[a-z0-9-]+|[a-z0-9-]+)$"
     max_length: 64
     reserved: [index, log]
   frontmatter:
@@ -23,8 +23,12 @@ rules:
 
 ## ID 命名规则
 
-ID 必须为小写 kebab-case slug，如 `shuang-dian`、`ceo-romance`。
-不得使用 `index`、`log` 等保留 ID。
+ID 有两种可用格式：
+
+- kebab-case slug：如 `shuang-dian`、`ceo-romance`
+- UUID v7 (`card_<13hex>_<8hex>_<slug>`)：如 `card_018f3a8e2b1c4_a3f9d12c_lin-feng`，v2.2+ 默认生成
+
+审计工具（H4）同意两种格式；不得使用 `index`、`log` 等保留 ID。
 
 ## Frontmatter 字段
 
