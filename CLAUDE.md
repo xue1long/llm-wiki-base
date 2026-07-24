@@ -60,12 +60,10 @@ pytest -k idempotency -v                       # by keyword
 CLI (entry is `src/cli.py`, run from the repo root — paths like `Inbox/`, `Notes/`, `Knowledge/`, `wiki/` are resolved relative to CWD or `--path`):
 
 ```
-python -m src.cli init [--path DIR]            # legacy layout
 python -m src.cli project init <path>          # multi-project layout (current)
 python -m src.cli project list | current | info | select | import | forget
-python -m src.cli search <query>               # dispatch a SEARCHER_QUERY event
 # Ingestion is via the HTTP API (see "Ingesting raw documents" below)
-python -m src.cli configure --provider openai|anthropic [--openai-key KEY]
+python -m src.cli llm-providers add --provider openai|anthropic [--api-key KEY]
 python -m src.cli relations {list|backlinks|neighbors|path|types|add-type}
 python -m src.cli fields validate <page> --project <id>
 python -m src.cli tags validate [--all] --project <id>
