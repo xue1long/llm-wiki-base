@@ -4,11 +4,12 @@
 Embedding provider is sourced from ``src.llm.embedding_runtime`` (the
 process-global singleton). Initialisation happens at app startup.
 
-The ``paths: WikiPaths`` parameter (added by the T16 audit fix) anchors
-all filesystem writes inside ``paths.knowledge_dir``. ``_merge_duplicates``
-rejects any ``existing_path`` that resolves outside the knowledge_dir —
-this closes a path-injection vector where a corrupt vector-store result
-could redirect writes to arbitrary locations.
+The ``paths: WikiPaths`` parameter (required since the wiki-v2 split)
+anchors all filesystem writes inside ``paths.knowledge_dir`` (alias for
+``<root>/wiki``). ``_merge_duplicates`` rejects any ``existing_path``
+that resolves outside the knowledge_dir — this closes a path-injection
+vector where a corrupt vector-store result could redirect writes to
+arbitrary locations.
 """
 import logging
 from pathlib import Path
@@ -38,7 +39,7 @@ get_embedding_provider = _runtime_get_embedding_provider
 async def archive(
     task_id: str,
     note_path: str,
-    paths: WikiPaths | None = None,
+    paths: WikiPaths,
 ) -> LibrarianDonePayload | LibrarianMergedPayload:
     """
     归档到 Knowledge
@@ -52,10 +53,8 @@ async def archive(
         Path to the source note (typically inside ``paths.wiki_sources``
         or similar typed subdirectory).
     paths:
-        WikiPaths for the project. When provided, the archive target is
-        anchored inside ``paths.knowledge_dir``. When ``None`` (legacy
-        callers), the function falls back to the historical CWD-relative
-        ``Knowledge/`` behaviour.
+        WikiPaths for the project. The archive target is anchored inside
+        ``paths.knowledge_dir`` (alias for ``<root>/wiki`` in v2).
     """
     # 1. 读取笔记内容
     note_content = Path(note_path).read_text(encoding="utf-8")
@@ -92,15 +91,9 @@ async def archive(
             task_id, note_path, note_content, similar_result, paths
         )
 
-    # 3. 移动到 Knowledge — anchored inside ``paths.knowledge_dir`` when available.
-    if paths is not None:
-        knowledge_dir = paths.knowledge_dir
-        knowledge_dir.mkdir(parents=True, exist_ok=True)
-    else:
-        # Legacy fallback: keep the original CWD-relative behaviour so
-        # old callers that have not been migrated still work.
-        knowledge_dir = Path("Knowledge")
-        knowledge_dir.mkdir(exist_ok=True)
+    # 3. 移动到 <root>/wiki (paths.knowledge_dir — the v2 archive target).
+    knowledge_dir = paths.knowledge_dir
+    knowledge_dir.mkdir(parents=True, exist_ok=True)
 
     file_name = Path(note_path).name
     knowledge_path = knowledge_dir / file_name
@@ -148,7 +141,7 @@ async def _merge_duplicates(
     new_path: str,
     new_content: str,
     similar_result,
-    paths: WikiPaths | None = None,
+    paths: WikiPaths,
 ) -> LibrarianMergedPayload:
     """
     合并重复内容
@@ -163,19 +156,18 @@ async def _merge_duplicates(
     existing_path = similar_result.path
     existing_resolved = Path(existing_path).resolve()
 
-    if paths is not None:
-        knowledge_resolved = paths.knowledge_dir.resolve()
-        # is_relative_to (3.9+) returns True/False; older versions raise
-        # ValueError. Accept both shapes via try/except, then check the result.
-        try:
-            inside = existing_resolved.is_relative_to(knowledge_resolved)
-        except (ValueError, AttributeError):
-            inside = False
-        if not inside:
-            raise PermissionError(
-                f"librarian._merge_duplicates: existing_path {existing_path!r} "
-                f"is outside the project knowledge_dir ({knowledge_resolved})"
-            )
+    knowledge_resolved = paths.knowledge_dir.resolve()
+    # is_relative_to (3.9+) returns True/False; older versions raise
+    # ValueError. Accept both shapes via try/except, then check the result.
+    try:
+        inside = existing_resolved.is_relative_to(knowledge_resolved)
+    except (ValueError, AttributeError):
+        inside = False
+    if not inside:
+        raise PermissionError(
+            f"librarian._merge_duplicates: existing_path {existing_path!r} "
+            f"is outside the project knowledge_dir ({knowledge_resolved})"
+        )
 
     existing_content = existing_resolved.read_text(encoding="utf-8")
 
