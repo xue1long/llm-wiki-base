@@ -14,24 +14,28 @@ MEDIA_DIR = "wiki/media"
 
 def _build_frontmatter(page_id: str, caption: ImageCaption, image_path: str,
                        task_id: str) -> str:
-    return (
-        "---\n"
-        f"id: {page_id}\n"
-        f"title: Image from {task_id}\n"
-        f"type: media\n"
-        f"sources: [raw/sources/{task_id}.pdf]\n"
-        f"caption: {caption.caption}\n"
-        f"alt_text: {caption.alt_text}\n"
-        f"entities: {caption.entities}\n"
-        f"confidence: {caption.confidence}\n"
-        f"image: {image_path}\n"
-        f"created_at: {caption.generated_at}\n"
-        f"updated_at: {caption.generated_at}\n"
-        f"grade: B\n"
-        f"processing_depth: concept\n"
-        f"is_immutable: false\n"
-        "---\n"
-    )
+    # Build frontmatter as a dict + yaml.dump so captions / alt text
+    # containing colons or quotes round-trip cleanly through yaml.safe_load.
+    import yaml
+    fm_dict = {
+        "id": page_id,
+        "title": f"Image from {task_id}",
+        "type": "media",
+        "sources": [f"raw/sources/{task_id}.pdf"],
+        "caption": caption.caption,
+        "alt_text": caption.alt_text,
+        "entities": caption.entities,
+        "confidence": caption.confidence,
+        "image": image_path,
+        "created_at": caption.generated_at,
+        "updated_at": caption.generated_at,
+        "grade": "B",
+        "processing_depth": "concept",
+        "is_immutable": False,
+    }
+    return "---\n" + yaml.dump(
+        fm_dict, allow_unicode=True, sort_keys=False, default_flow_style=False
+    ) + "---\n"
 
 
 def _build_body(caption: ImageCaption, image_rel_path: str) -> str:
@@ -60,5 +64,6 @@ class MediaPage:
         image_rel = f"media/{image_filename}"
         fm = _build_frontmatter(page_id, caption, image_rel, image.task_id)
         body = _build_body(caption, image_rel)
-        page_path.write_text(fm + body, encoding="utf-8")
+        from ..lib.write_hooks import safe_write
+        safe_write(page_path, fm + body)
         return page_path

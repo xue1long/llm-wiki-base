@@ -4,6 +4,8 @@ import json
 import time
 import os
 
+import yaml
+
 from ..llm.provider_factory import create_llm_provider
 from ..llm.registry import ProviderRegistry
 from ..wiki.core.paths import WikiPaths
@@ -118,19 +120,24 @@ async def run_deep_research(
     date = time.strftime("%Y-%m-%d")
     synth_filename = f"research-{slug}-{date}.md"
     task_id = synth_filename.removesuffix(".md")
+    # Build frontmatter as a dict + yaml.dump so titles with colons or
+    # URLs with # / ? round-trip cleanly through yaml.safe_load.
+    fm_dict = {
+        "id": task_id,
+        "title": f"Research: {topic}",
+        "type": "synthesis",
+        "sources": [s["url"] for s in sources[:5]],
+        "created_at": int(time.time() * 1000),
+        "updated_at": int(time.time() * 1000),
+        "grade": "B",
+        "processing_depth": "concept",
+        "is_immutable": False,
+        "research_task_id": task_id,
+    }
     fm_yaml = (
-        f"---\n"
-        f"id: {task_id}\n"
-        f"title: Research: {topic}\n"
-        f"type: synthesis\n"
-        f"sources: {[s['url'] for s in sources[:5]]}\n"
-        f"created_at: {int(time.time()*1000)}\n"
-        f"updated_at: {int(time.time()*1000)}\n"
-        f"grade: B\n"
-        f"processing_depth: concept\n"
-        f"is_immutable: false\n"
-        f"research_task_id: {task_id}\n"
-        f"---\n"
+        "---\n"
+        + yaml.dump(fm_dict, allow_unicode=True, sort_keys=False, default_flow_style=False)
+        + "---\n"
     )
     paths = WikiPaths(ctx.path)
     synth_path = paths.wiki_synthesis / synth_filename
