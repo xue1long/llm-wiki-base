@@ -12,23 +12,52 @@ import pytest
 # since lancedb (a transitive import) may not be installed in this env.
 # The brief notes this — hybrid_search signature differs from the real one.
 def _install_hybrid_search_stub():
-    """Create a stub for src.searcher.hybrid_search that won't import lancedb."""
+    """Create a stub for src.searcher.hybrid_search that won't import lancedb,
+    but exposes the same names as the real module so subsequent test_searcher
+    imports (MAX_TOP_K, rrf_fusion, SearchResult) don't fail. Also stub
+    src.searcher.qa and src.searcher.searcher since test_searcher imports from
+    those too.
+    """
     searcher_pkg = types.ModuleType("src.searcher")
-    searcher_pkg.__path__ = []
     sys.modules["src.searcher"] = searcher_pkg
 
     hybrid_mod = types.ModuleType("src.searcher.hybrid_search")
 
-    async def _stub_hybrid_search(ctx, query, top_k=5, mode="hybrid"):
+    async def _stub_hybrid_search(query, top_k=10, paths=None):
         return []
 
     hybrid_mod.hybrid_search = _stub_hybrid_search
+    hybrid_mod.MAX_TOP_K = 100
+    hybrid_mod.rrf_fusion = lambda *args, **kwargs: []
+    hybrid_mod.SearchResult = dict
+    hybrid_mod.get_embedding_provider = (
+        __import__("src.llm.embedding_runtime", fromlist=["get_embedding_provider"])
+        .get_embedding_provider
+    )
     sys.modules["src.searcher.hybrid_search"] = hybrid_mod
+    setattr(searcher_pkg, "hybrid_search", hybrid_mod.hybrid_search)
 
-    setattr(searcher_pkg, "hybrid_search", hybrid_mod)
+    # Add a module-level logger for tests that assert on it
+    import logging as _logging
+    hybrid_mod.logger = _logging.getLogger("src.searcher.hybrid_search")
+
+    # Stub src.searcher.qa (test_searcher imports generate_answer from it)
+    qa_mod = types.ModuleType("src.searcher.qa")
+    async def _stub_generate_answer(*args, **kwargs):
+        return ""
+    qa_mod.generate_answer = _stub_generate_answer
+    sys.modules["src.searcher.qa"] = qa_mod
+    setattr(searcher_pkg, "generate_answer", qa_mod.generate_answer)
+
+    # Stub src.searcher.searcher (no public surface; just needs to exist)
+    searcher_mod = types.ModuleType("src.searcher.searcher")
+    sys.modules["src.searcher.searcher"] = searcher_mod
 
 
 _install_hybrid_search_stub()
+
+
+
 
 
 def _run(coro):
@@ -55,7 +84,7 @@ def test_wiki_search_returns_results(ctx):
     """wiki.search dispatches to hybrid_search and returns its results."""
     fake_results = [{"path": "a.md", "title": "A", "score": 0.9}]
 
-    async def fake_hybrid_search(query, top_k=10):
+    async def fake_hybrid_search(query, top_k=10, paths=None):
         return fake_results
 
     with patch("src.agent.tools.hybrid_search", new=fake_hybrid_search):
