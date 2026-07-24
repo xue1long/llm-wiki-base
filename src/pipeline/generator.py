@@ -51,7 +51,7 @@ For each suggested page, render Markdown content. Output strict JSON:
       "title": "<title>",
       "body_markdown": "<markdown body, may use [[wikilinks]]>",
       "relations": [                      // optional cross-page relations
-        {{"target": "<other-slug>", "type": "references|supports|causes|...",
+        {{"target": "<other-slug>", "type": "<one of the 17 built-in relation types below>",
           "weight": 0.0-1.0, "context": "<why>"}}
       ]
     }}
@@ -59,7 +59,12 @@ For each suggested page, render Markdown content. Output strict JSON:
 }}
 
 Use [[other-slug]] for cross-references.
-Relation types use the same vocabulary as the analysis (see src.wiki.features.relations for the canonical list).
+
+Built-in relation types (17): is_part_of, contains, references, referenced_by,
+causes, caused_by, contradicts, supports, supported_by, supersedes, superseded_by,
+depends_on, required_by, analogous_to, opposite_of, derived_from, derives.
+You may also use `x-<name>` for any user-registered type. Do not invent
+relation type names outside this set.
 
 {WIKI_RULES_SUMMARY}
 """
