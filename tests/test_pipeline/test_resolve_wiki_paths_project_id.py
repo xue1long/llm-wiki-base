@@ -33,21 +33,21 @@ def test_resolve_wiki_paths_uses_project_id_when_provided(tmp_path, monkeypatch)
     assert paths.root == project_root
 
 
-def test_resolve_wiki_paths_falls_back_to_cwd_knowledge_when_no_id(tmp_path, monkeypatch):
-    """Legacy callers without project_id still resolve to CWD/Knowledge."""
+def test_resolve_wiki_paths_falls_back_to_cwd_when_no_id(tmp_path, monkeypatch):
+    """Legacy callers without project_id resolve to CWD as the wiki root."""
     monkeypatch.chdir(tmp_path)
     paths = pipeline_mod._resolve_wiki_paths()
-    assert paths.root == tmp_path / "Knowledge"
+    assert paths.root == tmp_path
 
 
 def test_resolve_wiki_paths_falls_back_when_unknown_project_id(tmp_path, monkeypatch):
-    """Unknown project_id does not raise — falls back to legacy CWD default."""
+    """Unknown project_id does not raise — falls back to CWD as the wiki root."""
     from src.project import paths as project_paths
     cfg_dir = tmp_path / "cfg"
     cfg_dir.mkdir()
     monkeypatch.setattr(project_paths, "_OVERRIDE_CONFIG_DIR", cfg_dir)
     monkeypatch.chdir(tmp_path)
 
-    # No project registered; resolve should still succeed via legacy path.
+    # No project registered; resolve should still succeed via the fallback.
     paths = pipeline_mod._resolve_wiki_paths(project_id="does-not-exist")
-    assert paths.root == tmp_path / "Knowledge"
+    assert paths.root == tmp_path

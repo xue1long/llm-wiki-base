@@ -172,9 +172,10 @@ def _resolve_wiki_paths(project_id: str | None = None):
     """Resolve WikiPaths for the active project (audit I5).
 
     When ``project_id`` is provided, look up the project's path in the
-    global registry and build WikiPaths from it. Falls back to the
-    legacy CWD-relative ``Knowledge/`` behaviour for callers that do
-    not yet thread project_id through (e.g. tests / CLI single-project mode).
+    global registry and build WikiPaths from it. Falls back to CWD for
+    callers that do not yet thread project_id through (e.g. tests / CLI
+    single-project mode). CWD is treated as the project root, so the
+    wiki tree is the canonical ``<root>/wiki/`` shape.
     """
     from ..wiki.core.paths import WikiPaths
     if project_id is not None:
@@ -185,8 +186,9 @@ def _resolve_wiki_paths(project_id: str | None = None):
                 return WikiPaths(Path(entry.path))
         except Exception:
             pass
-    root = Path.cwd() / "Knowledge"
-    return WikiPaths(root)
+    # WikiPaths interprets root as the project root, so the wiki tree
+    # lives at <root>/wiki/ — matches the canonical wiki-v2 shape.
+    return WikiPaths(Path.cwd())
 
 
 async def run_ingest(
