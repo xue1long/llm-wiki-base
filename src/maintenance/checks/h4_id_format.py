@@ -4,14 +4,13 @@ import re
 from ..health_check import Check, CheckIssue, CheckResult, CheckSeverity
 
 
-# UUID v7 format: card_<13hex_millis>_<8hex_random>_<slug>
-# Slug: kebab-case, [a-z0-9-]+
-ID_PATTERN = re.compile(r"^card_[0-9a-f]{13}_[0-9a-f]{8}_[a-z0-9-]+$")
+# Accepts both UUID v7 (card_<13hex>_<8hex>_<slug>) and legacy pure slug
+ID_PATTERN = re.compile(r"^(?:card_[0-9a-f]{13}_[0-9a-f]{8}_[a-z0-9-]+|[a-z0-9-]+)$")
 
 
 class H4IdFormatCheck(Check):
     name = "H4"
-    description = "All wiki page IDs match UUID v7 format"
+    description = "All wiki page IDs match valid format (UUID v7 or legacy slug)"
 
     def run(self) -> CheckResult:
         issues: list[CheckIssue] = []

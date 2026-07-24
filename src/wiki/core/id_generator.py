@@ -11,7 +11,8 @@ def generate_page_id(slug: str) -> str:
     return f"card_{millis:013x}_{rand}_{slug}"
 
 
-ID_PATTERN = re.compile(r"^card_[0-9a-f]{13}_[0-9a-f]{8}_[a-z0-9-]+$")
+# Accepts both UUID v7 (card_<13hex>_<8hex>_<slug>) and legacy pure slug
+ID_PATTERN = re.compile(r"^(?:card_[0-9a-f]{13}_[0-9a-f]{8}_[a-z0-9-]+|[a-z0-9-]+)$")
 
 
 def is_valid_id(s: str) -> bool:

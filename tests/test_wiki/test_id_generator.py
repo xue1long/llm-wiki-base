@@ -14,11 +14,11 @@ def test_generate_id_format():
 
 
 def test_is_valid_id():
-    """is_valid_id accepts UUID v7 format, rejects slug-only or random strings."""
+    """is_valid_id accepts UUID v7 format and legacy pure slugs."""
     assert is_valid_id("card_0123456789abc_01234567_my-slug")
     assert is_valid_id(generate_page_id("test"))
-    assert not is_valid_id("foo-bar")
-    assert not is_valid_id("card_xyz_01234567_my-slug")
+    assert is_valid_id("foo-bar")  # slug now accepted
+    assert not is_valid_id("card_xyz_01234567_my-slug")  # invalid hex
     assert not is_valid_id("")
 
 
