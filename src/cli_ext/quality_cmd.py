@@ -7,6 +7,7 @@ from pathlib import Path
 
 from ..quality.judge import QualityJudge
 from ..quality.types import QualitySettings
+from ..lib.write_hooks import safe_write
 
 
 def cmd_quality_score(args: argparse.Namespace) -> None:
@@ -58,7 +59,7 @@ def cmd_quality_config_set(args: argparse.Namespace) -> None:
         data.setdefault(top, {})[sub] = v
     else:
         data[args.key] = v
-    config_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    safe_write(config_path, json.dumps(data, indent=2, ensure_ascii=False))
     print(f"Set {args.key} = {v}")
 
 

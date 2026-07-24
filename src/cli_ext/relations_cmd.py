@@ -9,6 +9,7 @@ from ..wiki.features.relations import (
 from ..wiki.core.paths import WikiPaths
 from ..project.context import ProjectContext, ProjectNotFoundError
 from ..lib.project import resolve_ctx_only
+from ..lib.write_hooks import safe_write
 
 
 def _paths(ctx: ProjectContext) -> WikiPaths:
@@ -85,7 +86,7 @@ def cmd_relations_add_type(args: argparse.Namespace) -> None:
     types = set(data.get("user_relation_types", []))
     types.add(name)
     data["user_relation_types"] = sorted(types)
-    config_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    safe_write(config_path, json.dumps(data, indent=2, ensure_ascii=False))
     print(f"Registered user relation type: {name}")
 
 
