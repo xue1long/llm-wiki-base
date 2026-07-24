@@ -27,6 +27,9 @@ def _build_frontmatter(page_id: str, caption: ImageCaption, image_path: str,
         f"image: {image_path}\n"
         f"created_at: {caption.generated_at}\n"
         f"updated_at: {caption.generated_at}\n"
+        f"grade: B\n"
+        f"processing_depth: concept\n"
+        f"is_immutable: false\n"
         "---\n"
     )
 
