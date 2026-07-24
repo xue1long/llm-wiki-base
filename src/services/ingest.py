@@ -12,6 +12,7 @@ so the HTTP route behaviour matches the other 404-aware services.
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Union
 
@@ -45,10 +46,17 @@ def _normalize_absolute_path(
     # match the documented allowlist (raw/sources, Inbox/Processing).
     raw_posix = raw.replace("\\", "/")
     root_posix = str(project_root).replace("\\", "/")
-    if not Path(raw_posix).is_absolute():
+    # M3: use os.path.isabs (treats Windows drive-relative like
+    # "C:foo" as absolute) instead of Path.is_absolute (which
+    # returns False for drive-relative paths).
+    if not os.path.isabs(raw_posix):
         return raw_posix
+    # M2: resolve both paths to canonicalise symlinks before
+    # relative_to. Pure-string relative_to would raise ValueError if
+    # the caller supplies the real path but the registry holds the
+    # symlinked root (or vice versa).
     try:
-        rel = Path(raw_posix).relative_to(root_posix)
+        rel = Path(raw_posix).resolve().relative_to(Path(root_posix).resolve())
         return str(rel).replace("\\", "/")
     except ValueError:
         raise IngestPathError(

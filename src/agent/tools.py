@@ -38,7 +38,14 @@ class WikiReadPageTool:
 
     async def execute(self, ctx, path: str) -> dict:
         if ctx is None:
-            return {"error": "ctx is required for wiki.read_page"}
+            # Match the error-dict shape used by SourceSearchTool /
+            # GraphSearchTool so callers can rely on the same keys
+            # regardless of which tool raised the guard.
+            return {
+                "error": "ctx is required for wiki.read_page",
+                "query": None,
+                "results": None,
+            }
         paths = WikiPaths(ctx.path)
         from pathlib import Path
         path = Path(path)
