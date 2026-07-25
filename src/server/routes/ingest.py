@@ -5,6 +5,7 @@ from typing import Union
 from ...project.context import ProjectNotFoundError
 from ...services import ingest as ingest_service
 from ...services.ingest import IngestPathError
+from ..ingest_tracker import get_task, list_tasks
 
 router = APIRouter(prefix="/api/v1", tags=["ingest"])
 
@@ -27,3 +28,32 @@ async def ingest(project_id: str, body: IngestRequest):
         # Surface as HTTP 400 (client error) rather than the default
         # 500 the unhandled exception would produce.
         raise HTTPException(400, str(e))
+
+
+@router.get("/projects/{project_id}/ingest/status/{task_id}")
+async def ingest_status(project_id: str, task_id: str):
+    """Return the lifecycle record for a single ingest task.
+
+    Spec: FRONTEND_DESIGN.md §14.1. The frontend polls this after submitting
+    an ingest to render a progress indicator.
+
+    Returns 404 if the task_id is not tracked. Note that idempotency hits
+    (status="ignored" returned by POST /ingest) are not tracked because the
+    queue refuses to enqueue them in the first place — the frontend should
+    treat such a response as terminal without polling.
+    """
+    rec = get_task(task_id)
+    if rec is None:
+        raise HTTPException(404, f"task {task_id!r} not found (or already pruned)")
+    # Sanity-check project ownership (do not leak other projects' task IDs).
+    if rec.get("project_id") and rec["project_id"] != project_id:
+        raise HTTPException(404, f"task {task_id!r} not found in this project")
+    return rec
+
+
+@router.get("/projects/{project_id}/ingest/tasks")
+async def ingest_tasks(project_id: str):
+    """Return all tracked ingest tasks for a project (most recent first)."""
+    items = list_tasks(project_id=project_id)
+    items.sort(key=lambda t: t.get("started_at") or 0, reverse=True)
+    return {"tasks": items}
