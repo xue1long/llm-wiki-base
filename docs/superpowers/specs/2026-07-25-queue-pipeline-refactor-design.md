@@ -10,6 +10,17 @@
 
 Split `src/queue/queue.py` (350+ lines) and `src/pipeline/pipeline.py` (110+ lines) from monolithic modules with mixed concerns into a **Protocol-bounded, dependency-injectable** structure where business logic is testable in isolation from IO. All 748 existing tests must remain green; all existing public import paths must continue to work.
 
+### Critical behavioral invariants (REFUSE to break)
+
+These are the things that are **easy to subtly break** during this refactor and that would surface only at runtime or in obscure test failures:
+
+1. **`safe_write` integration** — `JsonFileBackend` must call `safe_write` (not direct `os.replace`) so that queue.json writes participate in the `AtomicContext` suspension/batching system. Detected by `tests/test_queue/test_save_atomic.py::test_atomic_write_does_not_partial_write` (monkeypatches `os.replace`).
+2. **APPROVED task filtering** — APPROVED tasks are not persisted to disk and are filtered out of `snapshot()`. If we naively save every task, the queue file balloons with already-processed tasks and may re-process them on restart.
+3. **Service-level single lock** — all multi-step orchestration (snapshot + check + acquire + emit + save) must happen inside `QueueService._service_lock`. Splitting into per-component locks reintroduces a race that `tests/test_queue/test_lock.py` guards.
+4. **External `collector:done` listener** — `collect()` must still emit `EventName.COLLECTOR_DONE` for external subscribers, even though the pipeline-internal chain now drives `_on_collector_done` via direct `await`. Detected by `tests/test_pipeline/test_pipeline_event_bus_integration.py::test_event_bus_dispatch_external_listener_runs`.
+5. **Circuit breaker is a process-level singleton** — `get_circuit_breaker("task_queue")` returns the same `CircuitBreaker` instance every call. Do not cache the instance on `QueueService`; resolve the name on each call so test reset (`breaker.state = CircuitState.CLOSED`) takes effect.
+6. **Monkeys-patchable private helpers** — `pipeline._resolve_wiki_paths` and `pipeline._get_provider` are imported and patched by `tests/test_pipeline/test_pipeline_event_bus_integration.py:126-127`. They must remain reachable from `src.pipeline.pipeline` (compat shim is OK).
+
 ## Non-goals (out of #1 scope)
 
 - ❌ Add concurrency (deferred to #3)
@@ -110,7 +121,7 @@ Split `src/queue/queue.py` (350+ lines) and `src/pipeline/pipeline.py` (110+ lin
 
 | File | Public API | Private | Depends on |
 |---|---|---|---|
-| `__init__.py` | `enqueue_task`, `update_task_status`, `release_in_flight`, `_process_next`, `generate_task_id`, `get_default_queue_service` | — | re-export from `service` + `state` |
+| `__init__.py` | `enqueue_task`, `update_task_status`, `get_queue`, `pause_queue`, `resume_queue`, `generate_task_id`, `get_default_queue_service` | — | re-export from `service` + `state` |
 | `ports.py` | `QueueBackend`, `InFlightTracker`, `EventEmitter`, `RetryPolicy` (Protocol) | — | `typing`, `dataclass` only |
 | `events.py` | **Re-export** `EventName` constants and queue-related payload dataclasses from `src/events/events.py` (NOT redefine — only centralize imports) | — | `src/events/events.py` |
 | `state.py` | `can_transition`, `InvalidTransition` | — | `src/types.py::TaskStatus` |
@@ -118,7 +129,7 @@ Split `src/queue/queue.py` (350+ lines) and `src/pipeline/pipeline.py` (110+ lin
 | `in_flight.py` | `InMemoryInFlightTracker` (implements `InFlightTracker`) | — | — |
 | `retry.py` | `DefaultRetryPolicy` (implements `RetryPolicy`), `DeadLetter`, `decide_retry_action`, `RetryDecision` dataclass | — | `state`, circuit_breaker |
 | `scheduler.py` | `Scheduler` class, `select_next_task` (pure function) | — | `ports`, `state` |
-| `service.py` | `QueueService`, `get_default_queue_service` | `_default_service` | all of the above |
+| `service.py` | `QueueService`, `get_default_queue_service`, `__reset_for_testing` (test-only re-load hook, replaces `queue.py:281`) | `_default_service`, `release_in_flight` (private — only `pipeline.py` consumes it via `from src.queue.service import release_in_flight`) | all of the above |
 | `queue.py` | **DELETED** (replaced by service + submodules) | — | — |
 
 ### `src/pipeline/` new structure
@@ -133,7 +144,7 @@ Split `src/queue/queue.py` (350+ lines) and `src/pipeline/pipeline.py` (110+ lin
 | `stages/collector.py` | `CollectorStage` (implements `PipelineStage`) | — | `wiki`, `queue.ports` |
 | `stages/analyzer.py` | `AnalyzerStage` | — | `llm`, `pipeline.schemas` |
 | `stages/generator.py` | `GeneratorStage` | — | `llm`, `pipeline.schemas` |
-| `ingest.py` | `run_ingest` (pure function) | — | `stages/`, `wiki.storage` |
+| `ingest.py` | `run_ingest` (async coroutine; NOT a pure function — has IO side effects: LLM calls + wiki page writes under `AtomicContext`) | — | `stages/`, `wiki.storage` |
 | `service.py` | `PipelineService`, `get_default_pipeline_service`, `register_stages` (explicit registration) | — | all of the above |
 | `pipeline.py` | **DELETED** | — | — |
 
@@ -144,11 +155,13 @@ Split `src/queue/queue.py` (350+ lines) and `src/pipeline/pipeline.py` (110+ lin
 - Orchestration entry points (`QueueService.enqueue`, `PipelineService.run`)
 - Pure functions (`can_transition`, `run_ingest`, `decide_retry_action`)
 - Event dataclasses (for external listeners)
+- Test-only hooks (`__reset_for_testing`) — must remain importable for tests but are NOT part of the production API surface
 
 **Private** (`_` prefix / not re-exported):
 - `_acquire_file_lock` / `_release_file_lock`
 - Internal helpers (e.g. `_save_queue_unlocked`)
 - Default singleton private variables (e.g. `_default_service`)
+- `release_in_flight` — only `pipeline.py` (and its successors) consume it; keep as `QueueService._release_in_flight` (or module-private `service._release_in_flight`) and import explicitly there. **Not in `__init__.py`.**
 
 **No cross-module private access**:
 - `persistence.py` cannot import `service.py` (would create cycle)
@@ -160,7 +173,7 @@ Split `src/queue/queue.py` (350+ lines) and `src/pipeline/pipeline.py` (110+ lin
 1. `enqueue_task` signature unchanged: `(source, source_type, task_hash, project_id=None) -> str`
 2. `update_task_status` signature unchanged: `(task_id, status, error=None) -> None`, still raises `InvalidTransition`
 3. `generate_task_id` signature unchanged: `() -> str`
-4. `run_ingest` signature unchanged (verify against all current call sites)
+4. `run_ingest` signature unchanged (verify against all current call sites); behavior unchanged: async coroutine, performs LLM calls (analyze + generate), appends a source page (Fix D from `pipeline.py:217-260`), writes pages under `AtomicContext`, returns `list[WikiPage]`
 5. `EventName` string values unchanged: `"collector:start"`, `"task:created"`, etc. (only **centralize** to constants, do not rename)
 6. Event payload field order/types preserved
 
@@ -328,6 +341,49 @@ def dispatch_collector_start(emitter: EventEmitter, runner: PipelineRunner) -> C
     return _handler
 ```
 
+### Lock granularity (CRITICAL — do not split)
+
+The current code uses a single module-level `_lock = threading.Lock()` that serializes:
+- Reads/writes to `_queue` (queue state)
+- Reads/writes to `_in_flight` set
+- Reads/writes to `_paused` flag
+- Persistence (`_save_queue_unlocked`)
+- Loading (`_load_queue_unlocked`)
+
+**The new design MUST preserve this single-lock invariant.** Reason: the `select_next_task` + `tracker.acquire` sequence must be atomic across the whole queue — otherwise two concurrent `enqueue` calls can both see "no in-flight, PENDING" and both emit `collector:start` for the same task. This is exactly what `tests/test_queue/test_lock.py::test_50_concurrent_enqueue_does_not_duplicate_task_id` guards.
+
+**Concretely**: `InMemoryInFlightTracker` and `JsonFileBackend` may have their own internal locks for thread-safety of their own data structures, but **all multi-step orchestration** (snapshot + check + acquire + emit) happens inside a single `with self._service_lock:` block in `QueueService`. The Protocols do not have a "lock" concept — locking is the caller's responsibility.
+
+```python
+# service.py
+class QueueService:
+    def __init__(self, backend, tracker, emitter, retry_policy,
+                 circuit_breaker_name="task_queue"):
+        self.backend = backend
+        self.tracker = tracker
+        self.emitter = emitter
+        self.retry_policy = retry_policy
+        self._breaker = get_circuit_breaker(circuit_breaker_name)
+        self._service_lock = threading.Lock()
+        self._paused = False
+
+    def advance(self, *, prefer_task_id=None, project_id=None) -> bool:
+        with self._service_lock:  # ← service lock serializes the whole sequence
+            if self._paused: return False
+            if not self._breaker.can_execute(): return False
+            task = select_next_task(self.backend, self.tracker,
+                                    prefer_task_id=prefer_task_id)
+            if task is None: return False
+            if not self.tracker.acquire(task.id): return False
+            # snapshot of source/source_type/project_id, then release lock
+            payload = self._build_collector_payload(task, project_id)
+        # lock released; emit is safe to do outside
+        self.emitter.emit("collector:start", payload)
+        return True
+```
+
+**Test impact**: `tests/test_queue/test_lock.py` and its 50-thread concurrency test must continue to pass against the new `QueueService`. The `tracker.is_in_flight()` and `tracker.acquire()` calls inside `select_next_task` are protected by `self._service_lock` — they do not need their own cross-instance lock.
+
 ## Error handling
 
 ### Error classification (across all layers)
@@ -455,8 +511,11 @@ class PipelineRunner:
 ```python
 class JsonFileBackend(QueueBackend):
     def save(self, task: KnowledgeTask) -> None:
-        with self._lock, self._open_queue_file() as f:
-            data = json.load(f)
+        # Acquire backend lock + queue snapshot under service lock
+        # (the service layer holds the service-level lock around all
+        # backend operations — see "Lock granularity" below)
+        with self._lock:
+            data = self._load_unlocked()
             tasks = data.get("tasks", [])
             idx = next((i for i, t in enumerate(tasks) if t["id"] == task.id), None)
             if idx is None:
@@ -465,16 +524,27 @@ class JsonFileBackend(QueueBackend):
                 tasks[idx] = asdict(task)
             data["tasks"] = tasks
             data["version"] = data.get("version", 0) + 1
-            tmp = self.path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2),
-                           encoding="utf-8")
-            os.replace(tmp, self.path)
+            # CRITICAL: use safe_write, NOT direct os.replace.
+            # safe_write integrates with AtomicContext (buffers writes
+            # when suspended) and accepts DELETE_SENTINEL for deferred
+            # deletion. Direct os.replace would break both contracts.
+            from ..lib.write_hooks import safe_write
+            safe_write(self.path, json.dumps(data, ensure_ascii=False, indent=2))
+
+    def snapshot(self) -> list[KnowledgeTask]:
+        # Return current tasks (filter out APPROVED — see below)
+        with self._lock:
+            data = self._load_unlocked()
+            return [KnowledgeTask(**row) for row in data.get("tasks", [])
+                    if row.get("status") != TaskStatus.APPROVED.value]
 ```
 
+**APPROVED filtering invariant**: the current `_save_queue_unlocked` (queue.py:237) excludes APPROVED tasks before persisting (`pending = [t for t in _queue if t.status != TaskStatus.APPROVED]`). The new `JsonFileBackend.snapshot()` must apply the same filter, so the in-memory model matches what's on disk. APPROVED tasks are terminal and re-loading them on next startup would re-process already-completed work.
+
 **Error handling**:
-- `tmp.write_text` failure → tmp file residual, cleaned on next startup
-- `os.replace` failure → raise `QueueBackendError`, business layer catches → 5xx
-- **Critical invariant**: on any IO error, `.kb-queue.json` is either old or new version, never half-corrupt (atomic rename)
+- `safe_write` raises on IO failure → bubbles up as `QueueBackendError`, business layer catches → 5xx
+- Atomic write via `*.tmp + os.replace` (handled inside `safe_write` itself) → on any IO error, target file is either old or new version, never half-corrupt
+- `safe_write` automatically buffers when `AtomicContext` is suspended — caller inside an AtomicContext gets the same "batched write at commit point" semantics as other wiki IO
 
 ### Error propagation path summary
 
@@ -678,10 +748,15 @@ async def test_runner_marks_task_failed_on_stage_exception(queue_service):
 | `test_queue.py::test_generate_task_id` | `test_state.py` or `test_service.py` | keep (tests `generate_task_id` function) |
 | `test_queue_retry_liveness.py` | `test_service.py` | rewrite with fake_backend, more precise assertions |
 | `test_lock.py` | `test_service.py` + `test_in_flight.py` | split, some test tracker lock, some test service serialization |
+| `test_save_atomic.py` (7 tests) | `test_persistence.py` | **CRITICAL**: these tests monkeypatch `os.replace` to verify atomic-write failure semantics; the new `JsonFileBackend` MUST use `safe_write` (which itself uses `os.replace`) so these tests pass unchanged. `test_atomic_write_does_not_partial_write` is the canary — if it fails after the refactor, the backend is bypassing `safe_write` |
+| `test_update_task_status_transitions.py` (4 tests) | `test_service.py` | rewrite — exercise state machine transitions through `QueueService.update_status` |
+| `test_dead_letter.py` | `test_service.py` + `test_retry.py` | split: dead-letter behavior covered by `DefaultRetryPolicy.decide`; service-level emit/transition by `QueueService.update_status` |
 | `test_pipeline_terminal_status.py` | `test_runner.py` | rewrite to run runner + fake stages |
 | `test_collector_retry_path.py` | `test_runner.py` | same as above |
 | `test_pipeline.py::test_collector_done_triggers_run_ingest` | `test_runner.py::test_runner_chains_stages` | rewrite |
-| `test_pipeline_event_bus_integration.py` | `test_dispatcher.py` | rewrite with fake emitter |
+| `test_pipeline_event_bus_integration.py` | `test_dispatcher.py` | rewrite with fake emitter; **preserve** `test_event_bus_dispatch_external_listener_runs` (external listener must still receive `collector:done` even though pipeline drives `_on_collector_done` directly) |
+| `tests/test_e2e/test_ingest_happy_path.py` | `tests/test_e2e/test_ingest_happy_path.py` | keep — end-to-end test that uses `pause_queue()` / `resume_queue()`; the new service must expose these |
+| `tests/test_server/test_service_ingest.py`, `tests/test_server/test_service_ingest_paths.py` | (unchanged) | these test `src.services.ingest`, not queue directly — should not need refactoring |
 | remaining `test_queue_*.py` | all rewritten as service layer tests | rewrite |
 
 **Target**: 22 old tests + 30+ new unit tests + 5+ E2E tests = ~60 tests. **All existing assertion input/outputs must be preserved** (only the implementation location changes).
@@ -699,8 +774,9 @@ PYTHONPATH=. python -m pytest tests/test_queue/ tests/test_pipeline/ -v
 # Expect: 60+ passed
 
 # 3. Compatibility verification (ensure import paths still work)
-python -c "from src.queue import enqueue_task, update_task_status"
-python -c "from src.pipeline.pipeline import _on_collector_start, run_ingest"
+python -c "from src.queue import enqueue_task, update_task_status, get_queue, pause_queue, resume_queue"
+python -c "from src.queue.queue import __reset_for_testing"  # test-only
+python -c "from src.pipeline.pipeline import _on_collector_start, run_ingest, _resolve_wiki_paths, _get_provider"
 python -c "from src.pipeline.collector import collect"
 # Expect: no ImportError
 
@@ -709,17 +785,92 @@ python -m src.cli serve --port 18888 &
 sleep 2
 curl http://127.0.0.1:18888/health
 # Expect: 200 OK
+
+# 5. AtomicContext integration sanity check
+python -c "
+from src.lib.atomic_ctx import AtomicContext
+from src.lib.write_hooks import get_pending_count
+from src.queue import enqueue_task
+# Inside an AtomicContext, enqueue_task should buffer the queue.json
+# write via safe_write rather than touching disk directly.
+with AtomicContext():
+    enqueue_task('test.txt', None, 'hash-test-atomic')
+assert get_pending_count() > 0, 'queue.json write should be buffered under AtomicContext'
+print('OK: safe_write integration preserved')
+"
+# Expect: prints "OK: safe_write integration preserved"
 ```
+
+## Implementation notes (preserved behavior)
+
+### `_resolve_wiki_paths` and `_get_provider` monkey-patch surface
+
+`tests/test_pipeline/test_pipeline_event_bus_integration.py:126-127` does:
+```python
+monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda project_id=None: tmp_path)
+monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: object())
+```
+
+These helpers live in `src/pipeline/pipeline.py` today. The refactor must preserve the **patchability** of these helpers. Recommended placement: keep them in `src/pipeline/ingest.py` (or a new `src/pipeline/_helpers.py`) and re-export them from `src/pipeline/pipeline` via the compat layer:
+
+```python
+# src/pipeline/__init__.py compat layer
+import sys
+from .ingest import _resolve_wiki_paths, _get_provider, run_ingest
+# Create a stub module so `from src.pipeline.pipeline import _resolve_wiki_paths` works
+class _PipelineCompat:
+    pass
+_pipeline_compat = _PipelineCompat()
+_pipeline_compat._resolve_wiki_paths = _resolve_wiki_paths
+_pipeline_compat._get_provider = _get_provider
+_pipeline_compat.run_ingest = run_ingest
+sys.modules.setdefault("src.pipeline.pipeline", _pipeline_compat)
+```
+
+When tests monkey-patch `src.pipeline.pipeline._resolve_wiki_paths`, the patch must reach the function actually called. The simplest contract: `src/pipeline/ingest.py` does `from .helpers import _resolve_wiki_paths, _get_provider`, and `src/pipeline/helpers.py` re-defines them. Tests patch the symbol in `src.pipeline.pipeline` (the compat module), and the call sites in `ingest.py` look it up dynamically.
+
+**Alternative (simpler)**: keep `_resolve_wiki_paths` and `_get_provider` as top-level functions in the compat shim module (`src/pipeline/pipeline.py` becomes a thin shim, not deleted), and have the new `src/pipeline/ingest.py` import them from there. Tests keep their existing `monkeypatch.setattr(pipeline_mod, ...)` pattern unchanged.
+
+**Recommended**: the "alternative (simpler)" path. Delete is not strictly required for #1 — the goal is testability, not minimal lines of code. The compat shim can host `_resolve_wiki_paths`, `_get_provider`, and a thin re-export of `run_ingest`. Implementation phase may decide.
+
+### Circuit breaker is a process-level singleton
+
+`src/queue/queue.py:96` does `breaker = get_circuit_breaker(CIRCUIT_BREAKER_NAME)` on every `update_task_status` call. `get_circuit_breaker` is itself a module-level cache (`src/circuit_breaker.py`), so the same `CircuitBreaker` instance is returned every call.
+
+The new `QueueService` must preserve this — store the breaker name (string) in the service, resolve via `get_circuit_breaker` on each call. Do NOT cache the breaker instance on the service, because tests reset breaker state in-place (`tests/test_pipeline/test_pipeline_event_bus_integration.py:49-53` does `breaker.state = CircuitState.CLOSED` etc.) and a cached reference would diverge from the canonical singleton.
+
+```python
+# service.py
+class QueueService:
+    def __init__(self, ..., circuit_breaker_name: str = "task_queue"):
+        self._breaker_name = circuit_breaker_name
+
+    def _breaker(self):
+        return get_circuit_breaker(self._breaker_name)
+```
+
+### `collector:done` event must still be emitted
+
+`src/pipeline/collector.py::collect` emits `EventName.COLLECTOR_DONE` for external listeners (e.g. `tests/test_pipeline/test_pipeline_event_bus_integration.py::test_event_bus_dispatch_external_listener_runs` asserts on this). The pipeline-internal chain drives `_on_collector_done` directly via `await` (not via the bus), but `collect()` must keep emitting.
+
+**Do not** centralize the `await _on_collector_done` in the dispatcher and remove the `collect()` emit — this would break the external listener test. The current arrangement is intentional.
+
+### `_save_queue` is called inside `with _lock:`
+
+The current `update_task_status` does `_save_queue_unlocked()` while holding `_lock`. The new `QueueService.update_status` must call `self.backend.save(task)` while holding `self._service_lock` — otherwise another thread could read state between the in-memory update and the disk write, and a crash in between would lose the in-memory state on reload. This is the same lock contract as the current code, just renamed.
 
 ## Definition of Done
 
 1. `src/queue/queue.py` no longer exists (replaced by `src/queue/service.py` + 4 submodules)
-2. `src/pipeline/pipeline.py` no longer exists (replaced by `src/pipeline/service.py` + stages)
-3. `from src.queue import enqueue_task` still works (compat layer in `__init__.py`)
-4. `from src.pipeline.pipeline import _on_collector_start` still works (compat layer)
-5. **All 748 tests still pass** (`pytest --import-mode=importlib`)
-6. At least 3 new "Protocol + Fake" example tests, as templates for future test work
-7. Implementation broken into 6-10 TDD-driven commits, each commit keeps tests green
+2. `src/pipeline/pipeline.py` either no longer exists OR is reduced to a compat shim that re-exports `_resolve_wiki_paths`, `_get_provider`, and `run_ingest` (decision deferred to implementation phase)
+3. `from src.queue import enqueue_task, update_task_status, get_queue, pause_queue, resume_queue, generate_task_id` all work
+4. `from src.queue.queue import __reset_for_testing` works for tests
+5. `from src.pipeline.pipeline import _on_collector_start, run_ingest, _resolve_wiki_paths, _get_provider` all work
+6. **All 748 tests still pass** (`pytest --import-mode=importlib`), including the `test_save_atomic` canary that detects safe_write bypass
+7. **AtomicContext integration preserved**: a sanity check that `enqueue_task` inside `AtomicContext` buffers via `safe_write` (see Verification #5)
+8. **External `collector:done` listener still works**: `test_event_bus_dispatch_external_listener_runs` passes unchanged
+9. At least 3 new "Protocol + Fake" example tests, as templates for future test work
+10. Implementation broken into 6-10 TDD-driven commits, each commit keeps tests green
 
 ## Open questions
 
