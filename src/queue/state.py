@@ -34,6 +34,7 @@ class InvalidTransition(Exception):
 #   DEAD_LETTER    → (terminal)
 _LEGAL: frozenset[tuple[TaskStatus, TaskStatus]] = frozenset({
     (TaskStatus.PENDING, TaskStatus.RUNNING),
+    (TaskStatus.PENDING, TaskStatus.FAILED),
     (TaskStatus.RUNNING, TaskStatus.WAITING_REVIEW),
     (TaskStatus.RUNNING, TaskStatus.APPROVED),
     (TaskStatus.RUNNING, TaskStatus.FAILED),
