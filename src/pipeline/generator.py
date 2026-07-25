@@ -41,6 +41,13 @@ relations[].target) 始终用 ASCII(中文术语用拼音或英文翻译)。
 ## Existing wiki index
 {existing_wiki_index}
 
+## Page Templates (use these to structure body_markdown)
+Match the section headings exactly. Fill each `<!-- slot:NAME -->` with
+substantive content from the source. Do NOT add new `##` sections not
+in the template. Do NOT omit `##` sections present in the template.
+
+{PAGE_TEMPLATES}
+
 ## Task
 For each suggested page, render Markdown content. Output strict JSON:
 {{
@@ -92,6 +99,7 @@ async def generate(
         analysis_json=analysis_json,
         existing_wiki_index=existing_wiki_index or "(empty)",
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
+        PAGE_TEMPLATES=_render_template_section(paths.root),
     )
 
     response = await provider.complete(
@@ -194,3 +202,29 @@ async def generate(
             relations=parse_relations_from_response(p.get("relations", [])),
         ))
     return pages
+
+
+def _render_template_section(project_root) -> str:
+    """Render the bundled templates as a prompt section.
+
+    Falls back to a brief hint if no templates are available (e.g. running
+    from a checkout where the bundled dir was pruned). The Generator
+    should not silently lose this section — but it also should not crash
+    the pipeline if the templates dir is missing.
+    """
+    from ..wiki.templates import list_available
+    try:
+        templates = list_available(project_root)
+    except Exception as e:  # pragma: no cover
+        _logger.warning("Could not load wiki page templates: %s", e)
+        return "(no templates available)"
+
+    if not templates:
+        return "(no templates available)"
+
+    parts: list[str] = []
+    for tpl in templates:
+        parts.append(f"### {tpl.type.value}")
+        parts.append(tpl.body_markdown.strip())
+        parts.append("")
+    return "\n".join(parts).rstrip()
