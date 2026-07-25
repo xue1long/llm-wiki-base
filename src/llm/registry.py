@@ -86,7 +86,15 @@ class ProviderRegistry:
             ) from e
 
     @staticmethod
-    def save(providers: dict[str, ProviderConfig]) -> None:
+    def save(providers: dict[str, ProviderConfig], default_name: Optional[str] = None) -> None:
+        """Persist providers + (optional) explicit default name.
+
+        When `default_name` is None, the file's "default" field is set to
+        null (preserves the existing "no explicit default" semantic).
+        Migration: older files have no "default" key at all; load() returns
+        None for the default-name slot in that case, and get_default()
+        falls through to the legacy 4-tier resolution.
+        """
         path = _config_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         # Keep env-sourced entries discoverable across save/reload, but strip
@@ -99,6 +107,7 @@ class ProviderRegistry:
         data = {
             "version": 1,
             "providers": {k: v.to_dict() for k, v in persisted.items()},
+            "default": default_name,  # NEW: explicit default slot (Task 4 P2)
         }
         # Plan 20 binding constraint: route through safe_write so the
         # write is atomic (no torn file on crash mid-write) AND
@@ -126,6 +135,51 @@ class ProviderRegistry:
         if name not in providers:
             raise KeyError(f"Provider not found: {name}")
         return providers[name]
+
+    @staticmethod
+    def list() -> dict[str, ProviderConfig]:
+        """Alias for load() — matches the spec's "list" verb.
+
+        Kept for ergonomics; load() remains the canonical name.
+        """
+        return ProviderRegistry.load()
+
+    @staticmethod
+    def get_default_name() -> Optional[str]:
+        """Return the explicit default provider name (slot tier 2), or None.
+
+        Reads the registry file directly (not via load()) to avoid
+        double-parsing. Returns None if the file has no "default" key
+        (legacy files predate this feature).
+        """
+        path = _config_path()
+        if not path.exists():
+            return None
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            return None
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            return None  # corrupt — fall through to legacy tiers
+        return data.get("default")
+
+    @staticmethod
+    def set_default(name: str) -> None:
+        """Set the explicit default provider (slot tier 2 in get_default).
+
+        Persistence: rewrites the registry file with the new
+        ``"default"`` field. Other providers are preserved.
+
+        Raises:
+            ProviderNotFoundError: if no provider with the given name
+                is currently registered.
+        """
+        providers = ProviderRegistry.load()
+        if name not in providers:
+            raise ProviderNotFoundError(name)
+        ProviderRegistry.save(providers, default_name=name)
 
     @staticmethod
     def upsert(config: ProviderConfig) -> None:
@@ -201,12 +255,25 @@ class ProviderRegistry:
                 )
             return providers[env_name]
 
+        # #2: explicit default set via ProviderRegistry.set_default()
+        # (NEW in Task 4 P2 — sits between env override and legacy
+        # named-default so env vars still win for testing/overriding)
+        explicit = ProviderRegistry.get_default_name()
+        if explicit is not None:
+            if explicit not in providers:
+                raise ProviderNotFoundError(
+                    f"explicit default {explicit!r} is set but not in the "
+                    f"registry (was it removed?). Available: "
+                    f"{sorted(providers.keys())}"
+                )
+            return providers[explicit]
+
         if not providers:
             raise ProviderNotFoundError(
                 "default (none configured; run: ruflo-kb llm-providers add)"
             )
 
-        # #2: legacy named-default
+        # #3: legacy named-default
         named = providers.get("default")
         if named is not None:
             return named
