@@ -5,14 +5,14 @@
 
 <!-- slot:basic_info -->
 
-## 背景
+## 简介
 
-<!-- slot:background -->
+<!-- slot:summary -->
 
-## 关键特征
+## 别名
 
-<!-- slot:characteristics -->
+<!-- slot:aliases? -->
 
-## 相关实体
+## 相关引用
 
-<!-- slot:related_entities -->
+<!-- slot:related -->

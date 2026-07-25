@@ -215,7 +215,7 @@ def add_wiki_templates_parser(subparsers) -> None:
     """Register the wiki-templates subcommand on the given subparsers object."""
     p = subparsers.add_parser(
         "wiki-templates",
-        help="Wiki page template management (list/show/edit/reset)",
+        help="Wiki page template management (list/show/edit/reset/status/diff/upgrade)",
     )
     sub = p.add_subparsers(dest="wiki_templates_command", required=True)
 
@@ -235,9 +235,211 @@ def add_wiki_templates_parser(subparsers) -> None:
     p_edit.add_argument("--no-open", action="store_true", help="Copy without opening editor (CI)")
     p_edit.set_defaults(func=cmd_wiki_templates_edit)
 
+    # status
+    p_status = sub.add_parser(
+        "status",
+        help="Show per-type template source/version + bundled-upgrade flag",
+    )
+    p_status.set_defaults(func=cmd_wiki_templates_status)
+
+    # diff <type>
+    p_diff = sub.add_parser(
+        "diff",
+        help="Diff user override against bundled (or bundled against user if no override)",
+    )
+    p_diff.add_argument("type", help="PageType: source|entity|concept|synthesis")
+    p_diff.set_defaults(func=cmd_wiki_templates_diff)
+
+    # upgrade <type>
+    p_upgrade = sub.add_parser(
+        "upgrade",
+        help="Overwrite user override with bundled (requires --force, or --if-unmodified)",
+    )
+    p_upgrade.add_argument("type", help="PageType: source|entity|concept|synthesis")
+    p_upgrade.add_argument(
+        "--force", action="store_true",
+        help="Overwrite without checking for user edits",
+    )
+    p_upgrade.add_argument(
+        "--if-unmodified", action="store_true",
+        help="Only overwrite if user file hasn't been modified since install",
+    )
+    p_upgrade.set_defaults(func=cmd_wiki_templates_upgrade)
+
     # reset <type>
     p_reset = sub.add_parser("reset", help="Remove user/project override (back up to .bak)")
     p_reset.add_argument("type", help="PageType: source|entity|concept|synthesis")
     p_reset.add_argument("--project", default=None, help="Project name (resolves to project path)")
     p_reset.add_argument("--yes", action="store_true", help="Skip confirmation (CI use)")
     p_reset.set_defaults(func=cmd_wiki_templates_reset)
+
+
+# ---------------------------------------------------------------------------
+# v3: status / diff / upgrade
+# ---------------------------------------------------------------------------
+
+def _resolve_target_path(args, page_type: "PageType") -> Path:
+    """Return the user or project override file path for a page type.
+
+    Same logic as cmd_wiki_templates_edit: --project → project dir, else
+    user dir. Raises FileNotFoundError if neither exists.
+    """
+    if args.project:
+        from ..lib.project import resolve_project
+        ctx, _paths = resolve_project(args.project, by_id_only=True)
+        return ctx.path / _PROJECT_DIR_NAME / f"{page_type.value}.md"
+    return _USER_DIR / f"{page_type.value}.md"
+
+
+def cmd_wiki_templates_status(_args: argparse.Namespace) -> None:
+    """Show per-type template source/version + bundled-upgrade flag.
+
+    Refreshing the state file at every call ensures we capture any
+    sha256 changes to the bundled files since last invocation.
+    """
+    from ..wiki.templates.state import refresh_state, State
+    from ..wiki.templates.types import BUNDLED_DIR
+
+    # Refresh state so we always have current bundled sha256s.
+    state, changed = refresh_state()
+
+    # For each PageType, print:
+    # - source (bundled / user / project)
+    # - version
+    # - bundled-updated (since last refresh_state() — usually "" unless a deploy)
+    templates = list_available(Path.cwd())
+    print(f"{'TYPE':<10}  {'VERSION':<8}  {'SOURCE':<10}  NOTES")
+    print(f"{'----':<10}  {'-------':<8}  {'------':<10}  -----")
+    for t in templates:
+        notes = ""
+        if t.source in ("project", "user") and t.type.value in changed:
+            notes = "bundled-updated"
+        elif t.source == "bundled":
+            notes = "(default)"
+        print(f"{t.type.value:<10}  {t.version:<8}  {t.source:<10}  {notes}")
+
+
+def cmd_wiki_templates_diff(args: argparse.Namespace) -> None:
+    """Show diff between user override (if any) and bundled.
+
+    If no user override exists, prints "(no override; bundled is the
+    active template)". Exit 0 either way.
+    """
+    import difflib
+    from ..wiki.templates.types import BUNDLED_DIR
+
+    type_name = args.type
+    try:
+        page_type = PageType(type_name)
+    except ValueError:
+        valid = ", ".join(pt.value for pt in PageType)
+        print(f"Unknown type {type_name!r}. Valid: {valid}", file=sys.stderr)
+        sys.exit(2)
+
+    user_path = _USER_DIR / f"{page_type.value}.md"
+    bundled_path = BUNDLED_DIR / f"{page_type.value}.md"
+
+    if not user_path.is_file():
+        print(f"(no override; bundled is the active template: {bundled_path})")
+        return
+
+    if not bundled_path.is_file():
+        print(f"Bundled template missing: {bundled_path}", file=sys.stderr)
+        sys.exit(2)
+
+    user_text = user_path.read_text(encoding="utf-8").splitlines(keepends=True)
+    bundled_text = bundled_path.read_text(encoding="utf-8").splitlines(keepends=True)
+
+    diff = difflib.unified_diff(
+        bundled_text, user_text,
+        fromfile=f"bundled/{page_type.value}.md",
+        tofile=f"user/{page_type.value}.md",
+    )
+    has_changes = False
+    for line in diff:
+        has_changes = True
+        sys.stdout.write(line)
+    if not has_changes:
+        print("(user override is identical to bundled)")
+
+
+def cmd_wiki_templates_upgrade(args: argparse.Namespace) -> None:
+    """Overwrite user override with current bundled content.
+
+    Modes:
+      --force          : overwrite unconditionally
+      --if-unmodified  : only overwrite if user file hash matches the
+                         sha256 recorded in state file at install time
+                         (i.e. user never modified it after install)
+
+    Without either flag, refuse and instruct user to use --force or
+    --if-unmodified. This is the Bug 6 fix: never silently overwrite
+    a modified user override.
+    """
+    from ..wiki.templates.state import State, compute_sha256
+    from ..wiki.templates.types import BUNDLED_DIR
+
+    type_name = args.type
+    try:
+        page_type = PageType(type_name)
+    except ValueError:
+        valid = ", ".join(pt.value for pt in PageType)
+        print(f"Unknown type {type_name!r}. Valid: {valid}", file=sys.stderr)
+        sys.exit(2)
+
+    if not args.force and not args.if_unmodified:
+        print(
+            f"Refusing to overwrite user override without --force or "
+            "--if-unmodified.\n"
+            f"  Use `wiki-templates diff {type_name}` to see what would change.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    user_path = _USER_DIR / f"{page_type.value}.md"
+    bundled_path = BUNDLED_DIR / f"{page_type.value}.md"
+
+    if not bundled_path.is_file():
+        print(f"Bundled template missing: {bundled_path}", file=sys.stderr)
+        sys.exit(2)
+
+    bundled_text = bundled_path.read_text(encoding="utf-8")
+    bundled_sha = compute_sha256(bundled_path)
+
+    if args.if_unmodified:
+        if not user_path.is_file():
+            print(f"No user override to upgrade: {user_path}", file=sys.stderr)
+            sys.exit(1)
+        # Compare against recorded installed_sha256; missing → treat
+        # as modified (don't silently overwrite).
+        state = State.load()
+        prev = state.bundled.get(page_type.value)
+        if prev is None:
+            print(
+                "State file has no recorded sha256 for this type — cannot "
+                "verify 'unmodified'. Re-run with --force.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        user_sha = compute_sha256(user_path)
+        if user_sha != prev.sha256:
+            print(
+                f"User override at {user_path} has been modified since the "
+                "last recorded state (sha256 mismatch). Use --force to "
+                "overwrite, or edit manually.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+    # Back up + overwrite
+    if user_path.is_file():
+        backup = user_path.with_suffix(user_path.suffix + ".bak")
+        shutil.copy2(user_path, backup)
+    user_path.parent.mkdir(parents=True, exist_ok=True)
+    user_path.write_text(bundled_text, encoding="utf-8")
+
+    print(f"Upgraded: {user_path}")
+    if user_path.with_suffix(user_path.suffix + ".bak").is_file():
+        print(f"Backup:   {user_path.with_suffix(user_path.suffix + '.bak')}")
+    print(f"New sha:  {bundled_sha[:16]}…")
+    print("Next resolve() will use this user override.")

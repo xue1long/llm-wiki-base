@@ -24,3 +24,18 @@ registry.json
 
 # wiki spec sync
 .wiki-spec-md5
+
+# --- runtime artifacts (per-project data, not source) ---
+# The following are generated when the server runs or when ingest
+# happens; they belong to a specific project + machine and should not
+# be committed.
+.index                    # vector index dir
+.llm-wiki                 # LLM cache dir
+.obsidian                 # Obsidian vault (when this repo is opened in Obsidian)
+.kb-queue.json           # queue persistence (in-memory state is canonical)
+.kb-queue.json.bak*      # rotated queue backups
+.server-pid              # server daemon pidfile
+metrics.db               # metrics sqlite db
+
+# Backups of wiki/ contents left from earlier rounds
+.wiki-*-backup

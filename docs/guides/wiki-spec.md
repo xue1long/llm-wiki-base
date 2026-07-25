@@ -87,3 +87,57 @@ Tags 使用受控命名空间前缀，格式为 `prefix/name`。可用前缀：
 - `李白`(历史人物) ❌ concept → ✅ entity
 - `网络文学`(题材大类) ❌ entity → ✅ concept
 - `画面感`(抽象技巧) ✓ concept
+
+## Wiki Page Templates (Plan 25)
+
+每种 `PageType` 都有一个**章节模板**,Generator 提示 LLM 按模板填充 slot,保证知识库结构一致。
+
+**模板格式** — 普通 Markdown,用 HTML 注释做标记:
+
+```markdown
+<!-- wiki-template-version: 1.0.0 -->
+<!-- wiki-template-type: concept -->
+
+## 定义
+
+<!-- slot:definition -->
+
+## 例子
+
+<!-- slot:examples -->
+
+## 别名
+
+<!-- if:has_aliases -->
+
+<!-- slot:aliases -->
+
+<!-- /if:has_aliases -->
+```
+
+**标记种类**:
+
+| 标记 | 含义 |
+|---|---|
+| `<!-- wiki-template-version: X.Y.Z -->` | 模板版本(必需) |
+| `<!-- wiki-template-type: TYPE -->` | PageType(必需,parser 验证) |
+| `<!-- slot:NAME -->` | LLM 应填充的位置 |
+| `<!-- slot:NAME? -->` | 可选 slot,空则省略整个章节 |
+| `<!-- if:LABEL -->...<!-- /if:LABEL -->` | 同 `?`,LABEL 只是标签 |
+| `<!-- include:_base.md -->` | 引用片段(深度 ≤ 3 防循环) |
+
+**优先级(三级)**:
+1. `<project>/.wiki-templates/<type>.md` (项目级覆盖)
+2. `~/.config/ruflo-kb/wiki-templates/<type>.md` (用户全局)
+3. `src/wiki/templates/bundled/<type>.md` (bundled 默认)
+
+**默认模板**:每个 PageType 在 bundled/ 都有 4-5 个章节骨架。详见 `src/wiki/templates/bundled/`。
+
+**CLI 管理**:
+```bash
+python -m src.cli wiki-templates list         # 列出所有 PageType
+python -m src.cli wiki-templates show concept # 查看模板内容
+python -m src.cli wiki-templates edit concept # 复制 bundled → user/,打开编辑器
+python -m src.cli wiki-templates edit concept --project novel-wiki  # 复制到项目
+python -m src.cli wiki-templates reset concept # 删除 user/ 覆盖,回落到 bundled
+```

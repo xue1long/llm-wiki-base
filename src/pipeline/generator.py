@@ -43,8 +43,12 @@ relations[].target) 始终用 ASCII(中文术语用拼音或英文翻译)。
 
 ## Page Templates (use these to structure body_markdown)
 Match the section headings exactly. Fill each `<!-- slot:NAME -->` with
-substantive content from the source. Do NOT add new `##` sections not
-in the template. Do NOT omit `##` sections present in the template.
+substantive content from the source. For `<!-- slot:NAME? -->` or
+`<!-- if:X -->...<!-- /if:X -->` (optional sections), OMIT the entire
+heading + slot if you have nothing to put in the slot — don't write
+empty sections. Do NOT add new `##` sections not in the template.
+Do NOT omit `##` sections present in the template (unless they are
+optional and empty).
 
 {PAGE_TEMPLATES}
 

@@ -162,8 +162,14 @@ async def run_ingest(
     # We unconditionally append a source page so the wiki has a stable
     # attachment point for ``wiki/<page>.md#sources: [Inbox/...]`` and
     # for cascade_delete to find.
+    #
+    # Phase 4 (Plan 25 v1 follow-up): build the body from the source.md
+    # template via the resolver so the section headings stay in sync with
+    # the bundled template (## 来源元数据 / ## 摘要 / ## 关键观点 /
+    # ## 抽取的概念).
     import time as _time
     from ..wiki.core.types import PageType, WikiPage
+    from ..wiki.templates import resolve as resolve_template
 
     # task_id already starts with "kb-" (queue.generate_task_id()), so
     # don't prepend another ``kb-`` prefix.
@@ -172,18 +178,42 @@ async def run_ingest(
         Path(str(source_path)).name
         if hasattr(source_path, "name") else str(source_path)
     )
-    source_summary = (analysis.summary or "").strip() or "(无摘要)"
-    source_body = (
-        f"## 来源\n\n"
-        f"- 路径: `{source_path}`\n"
-        f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-        f"- 任务 ID: `{task_id}`\n\n"
-        f"## 摘要\n\n"
-        f"{source_summary}\n\n"
-        f"## 抽取的概念\n\n"
-        f"本次摄取共生成 **{len(pages)}** 个下游页面"
-        f"{('（共 '+ str(len(analysis.suggested_pages)) + ' 个建议页）') if analysis.suggested_pages else ''}。\n"
-    )
+
+    # Render via the bundled source.md template. Falls back to the
+    # legacy inline body if the template is missing (operator deleted
+    # bundled file).
+    try:
+        source_tpl = resolve_template(PageType.SOURCE, paths.root)
+        source_body = (
+            source_tpl.body_markdown
+            .replace("<!-- slot:source_meta -->", (
+                f"- 路径: `{source_path}`\n"
+                f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"- 任务 ID: `{task_id}`\n"
+            ))
+            .replace("<!-- slot:summary -->", (analysis.summary or "(无摘要)").strip() or "(无摘要)")
+            .replace("<!-- slot:key_points -->", "(见下游概念页)")
+            .replace("<!-- slot:extracted_concepts -->", (
+                f"本次摄取共生成 **{len(pages)}** 个下游页面"
+                f"{('（共 '+ str(len(analysis.suggested_pages)) + ' 个建议页）') if analysis.suggested_pages else ''}。"
+            ))
+        )
+    except FileNotFoundError:
+        # Fallback: hardcoded legacy body (matches the previous
+        # behaviour pre-template integration).
+        source_summary = (analysis.summary or "").strip() or "(无摘要)"
+        source_body = (
+            f"## 来源\n\n"
+            f"- 路径: `{source_path}`\n"
+            f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"- 任务 ID: `{task_id}`\n\n"
+            f"## 摘要\n\n"
+            f"{source_summary}\n\n"
+            f"## 抽取的概念\n\n"
+            f"本次摄取共生成 **{len(pages)}** 个下游页面"
+            f"{('（共 '+ str(len(analysis.suggested_pages)) + ' 个建议页）') if analysis.suggested_pages else ''}。\n"
+        )
+
     source_page = WikiPage(
         id=source_slug,
         title=source_title,

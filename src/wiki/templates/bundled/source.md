@@ -9,6 +9,10 @@
 
 <!-- slot:summary -->
 
-## 关键内容
+## 关键观点
 
 <!-- slot:key_points -->
+
+## 抽取的概念
+
+<!-- slot:extracted_concepts -->

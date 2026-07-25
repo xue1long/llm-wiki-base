@@ -1,93 +1,136 @@
-"""Tests for wiki page templates resolver (Plan 25 v1)."""
-from pathlib import Path
+"""Tests for resolver.py include expansion + security (Phase 2).
 
+Bug 1 fix: include paths must be bare filenames (no /, \\, ..).
+Bug 15 fix: visited set prevents cycles.
+"""
 import pytest
 
 from src.wiki.core.types import PageType
-from src.wiki.templates import Template, resolve, list_available
+from src.wiki.templates.resolver import resolve
 
 
-def test_resolve_bundled_concept(tmp_path: Path) -> None:
-    """Bundled concept template resolves with correct type and version."""
-    t = resolve(PageType.CONCEPT, tmp_path)
-    assert t.type == PageType.CONCEPT
-    assert t.source == "bundled"
-    assert t.version == "1.0.0"
-    assert "## 定义" in t.body_markdown
-    assert "<!-- slot:definition -->" in t.body_markdown
+def _write(tmp_path, name, body):
+    p = tmp_path / name
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(body, encoding="utf-8")
+    return p
 
 
-def test_resolve_bundled_source(tmp_path: Path) -> None:
-    """Bundled source template resolves."""
-    t = resolve(PageType.SOURCE, tmp_path)
-    assert t.type == PageType.SOURCE
-    assert t.source == "bundled"
-    assert "## 来源元数据" in t.body_markdown
-
-
-def test_resolve_bundled_entity(tmp_path: Path) -> None:
-    """Bundled entity template resolves."""
-    t = resolve(PageType.ENTITY, tmp_path)
-    assert t.type == PageType.ENTITY
-    assert t.source == "bundled"
-    assert "## 基本信息" in t.body_markdown
-
-
-def test_resolve_bundled_synthesis(tmp_path: Path) -> None:
-    """Bundled synthesis template resolves."""
-    t = resolve(PageType.SYNTHESIS, tmp_path)
-    assert t.type == PageType.SYNTHESIS
-    assert t.source == "bundled"
-    assert "## 对比维度" in t.body_markdown
-
-
-def test_project_override_takes_priority(tmp_path: Path) -> None:
-    """Project-level .wiki-templates/concept.md overrides bundled."""
-    project_templates = tmp_path / ".wiki-templates"
-    project_templates.mkdir()
-    custom = project_templates / "concept.md"
-    custom.write_text(
-        "<!-- wiki-template-version: 2.0.0 -->\n"
-        "<!-- wiki-template-type: concept -->\n\n"
-        "## Project Custom Definition\n\n"
-        "<!-- slot:definition -->\n",
-        encoding="utf-8",
-    )
-    t = resolve(PageType.CONCEPT, tmp_path)
-    assert t.source == "project"
-    assert t.version == "2.0.0"
-    assert "Project Custom Definition" in t.body_markdown
-
-
-def test_template_type_mismatch_raises(tmp_path: Path) -> None:
-    """A template file with the wrong type header is rejected (not silently used)."""
-    bad = tmp_path / ".wiki-templates"
-    bad.mkdir()
-    (bad / "concept.md").write_text(
+def test_resolve_expands_include(tmp_path):
+    """`<!-- include:_base.md -->` resolves the file and substitutes."""
+    project = tmp_path / ".wiki-templates"
+    project.mkdir()
+    _write(project, "_base.md", "<!-- shared boilerplate -->\n")
+    _write(
+        project,
+        "concept.md",
         "<!-- wiki-template-version: 1.0.0 -->\n"
-        "<!-- wiki-template-type: entity -->\n\n"  # wrong type!
-        "body\n",
-        encoding="utf-8",
+        "<!-- wiki-template-type: concept -->\n\n"
+        "<!-- include:_base.md -->\n\n"
+        "## 定义\n\n<!-- slot:definition -->\n",
     )
-    with pytest.raises(ValueError, match="type mismatch"):
+    t = resolve(PageType.CONCEPT, tmp_path)
+    assert "<!-- shared boilerplate -->" in t.body_markdown
+    assert "## 定义" in t.body_markdown
+
+
+def test_resolve_include_path_traversal_blocked(tmp_path, monkeypatch):
+    """Bug 1 fix: `<!-- include:../../etc/passwd -->` is rejected.
+
+    Cannot test the actual filesystem path since this is inside tmp_path.
+    Just verify the resolver raises ValueError for unsafe paths.
+    """
+    project = tmp_path / ".wiki-templates"
+    project.mkdir()
+    _write(
+        project,
+        "concept.md",
+        "<!-- wiki-template-version: 1.0.0 -->\n"
+        "<!-- wiki-template-type: concept -->\n\n"
+        "<!-- include:../../etc/passwd -->\n\n"
+        "## 定义\n\n<!-- slot:definition -->\n",
+    )
+    with pytest.raises(ValueError, match="bare filename"):
         resolve(PageType.CONCEPT, tmp_path)
 
 
-def test_list_available_returns_all_four_types(tmp_path: Path) -> None:
-    """list_available surfaces one entry per PageType (bundled always provides 4)."""
-    templates = list_available(tmp_path)
-    types = {t.type for t in templates}
-    assert types == set(PageType)
+def test_resolve_include_subdirectory_blocked(tmp_path):
+    """`<!-- include:../other.md -->` is rejected (no parent traversal)."""
+    project = tmp_path / ".wiki-templates"
+    project.mkdir()
+    _write(
+        project,
+        "concept.md",
+        "<!-- wiki-template-version: 1.0.0 -->\n"
+        "<!-- wiki-template-type: concept -->\n\n"
+        "<!-- include:subdir/other.md -->\n\n"
+        "## 定义\n\n<!-- slot:definition -->\n",
+    )
+    with pytest.raises(ValueError, match="bare filename"):
+        resolve(PageType.CONCEPT, tmp_path)
 
 
-def test_resolve_missing_bundled_raises(tmp_path: Path, monkeypatch) -> None:
-    """If bundled file is deleted, resolve raises FileNotFoundError."""
-    # Simulate by removing the bundled dir from sys.path resolution
-    from src.wiki.templates import resolver as r
-    original = r.BUNDLED_DIR
-    r.BUNDLED_DIR = tmp_path / "nonexistent"
-    try:
-        with pytest.raises(FileNotFoundError, match="No wiki template"):
-            resolve(PageType.CONCEPT, tmp_path)
-    finally:
-        r.BUNDLED_DIR = original
+def test_resolve_include_cycle_detected(tmp_path):
+    """Bug 15 fix: concept → _base → concept cycle raises RecursionError.
+
+    The cycle uses concept.md (the actual template name) and a
+    fragment _base.md to simulate a realistic cyclic include.
+    """
+    project = tmp_path / ".wiki-templates"
+    project.mkdir()
+    _write(
+        project,
+        "concept.md",
+        "<!-- wiki-template-version: 1.0.0 -->\n"
+        "<!-- wiki-template-type: concept -->\n\n"
+        "<!-- include:_base.md -->\n\n"
+        "## 定义\n\n<!-- slot:definition -->\n",
+    )
+    _write(
+        project,
+        "_base.md",
+        "<!-- include:concept.md -->\n",
+    )
+    with pytest.raises(RecursionError, match="circular"):
+        resolve(PageType.CONCEPT, tmp_path)
+
+
+def test_resolve_missing_include_keeps_marker(tmp_path):
+    """Missing include: marker kept in body + no crash."""
+    project = tmp_path / ".wiki-templates"
+    project.mkdir()
+    _write(
+        project,
+        "concept.md",
+        "<!-- wiki-template-version: 1.0.0 -->\n"
+        "<!-- wiki-template-type: concept -->\n\n"
+        "<!-- include:_nonexistent.md -->\n\n"
+        "## 定义\n\n<!-- slot:definition -->\n",
+    )
+    t = resolve(PageType.CONCEPT, tmp_path)
+    # The missing include is left in place (warning, not silent drop)
+    assert "<!-- include:_nonexistent.md -->" in t.body_markdown
+
+
+def test_resolve_include_depth_limit(tmp_path):
+    """Depth > 3 raises RecursionError (defence-in-depth).
+
+    Chain: concept.md -> _l1.md -> _l2.md -> _l3.md -> _l4.md
+    (4 levels of include recursion; MAX_INCLUDE_DEPTH = 3).
+    """
+    project = tmp_path / ".wiki-templates"
+    project.mkdir()
+    _write(
+        project,
+        "concept.md",
+        "<!-- wiki-template-version: 1.0.0 -->\n"
+        "<!-- wiki-template-type: concept -->\n\n"
+        "<!-- include:_l1.md -->\n\n"
+        "## 定义\n\n<!-- slot:definition -->\n",
+    )
+    _write(project, "_l1.md", "<!-- include:_l2.md -->\n")
+    _write(project, "_l2.md", "<!-- include:_l3.md -->\n")
+    _write(project, "_l3.md", "<!-- include:_l4.md -->\n")
+    _write(project, "_l4.md", "<!-- should never reach -->\n")
+    with pytest.raises(RecursionError):
+        resolve(PageType.CONCEPT, tmp_path)

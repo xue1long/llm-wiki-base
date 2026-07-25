@@ -5,14 +5,18 @@
 
 <!-- slot:definition -->
 
+## 主要特点
+
+<!-- slot:characteristics -->
+
 ## 例子
 
 <!-- slot:examples -->
 
-## 关键要点
-
-<!-- slot:key_points -->
-
 ## 相关概念
 
 <!-- slot:related_concepts -->
+
+## 参考来源
+
+<!-- slot:references -->

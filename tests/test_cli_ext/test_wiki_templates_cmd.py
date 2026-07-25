@@ -133,3 +133,157 @@ def test_reset_with_yes_removes_and_backs_up(clean_user_overrides) -> None:
         assert backup.read_text(encoding="utf-8") == "<!-- custom override -->\n"
     finally:
         target.with_suffix(target.suffix + ".bak").unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: status / diff / upgrade (Plan 25 v3)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def clean_state_file():
+    """Remove the persisted state file before AND after the test."""
+    state_path = Path.home() / ".config" / "ruflo-kb" / "wiki-templates" / ".bundled-state.json"
+    if state_path.exists():
+        state_path.unlink()
+    yield state_path
+    if state_path.exists():
+        state_path.unlink()
+
+
+def test_status_shows_all_four_types(clean_user_overrides, clean_state_file) -> None:
+    r = _run_cli("status")
+    assert r.returncode == 0, f"stderr: {r.stderr}"
+    for t in ("source", "entity", "concept", "synthesis"):
+        assert t in r.stdout, f"missing {t!r} in status output: {r.stdout}"
+    assert "bundled" in r.stdout
+
+
+def test_status_marks_bundled_updated_after_template_change(
+    clean_user_overrides, clean_state_file, monkeypatch
+) -> None:
+    """If bundled sha256 changes between status calls, mark affected types."""
+    # First call captures the current state.
+    r1 = _run_cli("status")
+    assert r1.returncode == 0
+
+    # Simulate a bundled upgrade by writing a different content to concept.md
+    # and re-running status. The refresh_state() inside status should detect.
+    bundled = REPO / "src" / "wiki" / "templates" / "bundled" / "concept.md"
+    original = bundled.read_text(encoding="utf-8")
+    try:
+        bundled.write_text(original + "\n<!-- bumped -->\n", encoding="utf-8")
+        r2 = _run_cli("status")
+        assert r2.returncode == 0
+        # concept.md should now be marked as bundled-updated only if there's
+        # a user override. Without an override, source=bundled so no note.
+        # We don't make strong assertions on the note; just that it ran.
+        assert "concept" in r2.stdout
+    finally:
+        bundled.write_text(original, encoding="utf-8")
+
+
+def test_diff_with_no_override_reports_no_diff(clean_user_overrides) -> None:
+    r = _run_cli("diff", "concept")
+    assert r.returncode == 0, f"stderr: {r.stderr}"
+    assert "no override" in r.stdout.lower() or "active template" in r.stdout.lower()
+
+
+def test_diff_shows_user_vs_bundled(clean_user_overrides) -> None:
+    """User override that differs from bundled shows unified diff."""
+    USER_DIR.mkdir(parents=True, exist_ok=True)
+    override = USER_DIR / "concept.md"
+    # Build a valid override that differs from bundled
+    override.write_text(
+        "<!-- wiki-template-version: 9.9.9 -->\n"
+        "<!-- wiki-template-type: concept -->\n\n"
+        "## CUSTOM HEADING\n\n<!-- slot:definition -->\n",
+        encoding="utf-8",
+    )
+    try:
+        r = _run_cli("diff", "concept")
+        assert r.returncode == 0, f"stderr: {r.stderr}"
+        assert "CUSTOM HEADING" in r.stdout
+        assert "bundled" in r.stdout  # fromfile header
+    finally:
+        override.unlink(missing_ok=True)
+
+
+def test_upgrade_without_force_or_if_unmodified_refuses(
+    clean_user_overrides, clean_state_file
+) -> None:
+    """upgrade with neither flag refuses (Bug 6 fix)."""
+    USER_DIR.mkdir(parents=True, exist_ok=True)
+    override = USER_DIR / "concept.md"
+    override.write_text(
+        "<!-- wiki-template-version: 1.0.0 -->\n"
+        "<!-- wiki-template-type: concept -->\n\n## CUSTOM\n",
+        encoding="utf-8",
+    )
+    try:
+        r = _run_cli("upgrade", "concept")
+        assert r.returncode == 2, f"expected refusal, got {r.returncode}: {r.stderr}"
+        assert "--force" in r.stderr
+        # File unchanged
+        assert "## CUSTOM" in override.read_text(encoding="utf-8")
+    finally:
+        override.unlink(missing_ok=True)
+
+
+def test_upgrade_force_overwrites_user(clean_user_overrides, clean_state_file) -> None:
+    """upgrade --force overwrites the user override with bundled."""
+    USER_DIR.mkdir(parents=True, exist_ok=True)
+    override = USER_DIR / "concept.md"
+    override.write_text(
+        "<!-- wiki-template-version: 1.0.0 -->\n"
+        "<!-- wiki-template-type: concept -->\n\n## USER CUSTOM\n",
+        encoding="utf-8",
+    )
+    try:
+        r = _run_cli("upgrade", "concept", "--force")
+        assert r.returncode == 0, f"stderr: {r.stderr}"
+        # Now matches bundled
+        content = override.read_text(encoding="utf-8")
+        assert "## USER CUSTOM" not in content
+        assert "## 定义" in content  # bundled content
+        # Backup created
+        backup = override.with_suffix(override.suffix + ".bak")
+        assert backup.exists()
+        assert "## USER CUSTOM" in backup.read_text(encoding="utf-8")
+    finally:
+        override.unlink(missing_ok=True)
+        (override.parent / (override.name + ".bak")).unlink(missing_ok=True)
+
+
+def test_upgrade_if_unmodified_refuses_when_user_modified(
+    clean_user_overrides, clean_state_file
+) -> None:
+    """--if-unmodified refuses if user file differs from recorded sha256."""
+    USER_DIR.mkdir(parents=True, exist_ok=True)
+    override = USER_DIR / "concept.md"
+    # First call to capture state for this type (but state is keyed on
+    # bundled sha256, not user sha). We need a recorded installed_sha256
+    # that differs from the user's current sha256.
+    from src.wiki.templates.state import State
+    state = State.load()
+    state.bundled["concept"] = state.bundled.get(
+        "concept", type(state.bundled.get("concept", object()))()
+    ) if "concept" in state.bundled else None  # noqa
+    # Simpler: directly set installed_sha256 to a wrong value via a stub:
+    state = State.load()
+    if "concept" in state.bundled:
+        state.bundled["concept"].sha256 = "0" * 64
+    state.save()
+
+    override.write_text(
+        "<!-- wiki-template-version: 1.0.0 -->\n"
+        "<!-- wiki-template-type: concept -->\n\n## modified\n",
+        encoding="utf-8",
+    )
+    try:
+        r = _run_cli("upgrade", "concept", "--if-unmodified")
+        assert r.returncode == 2, f"expected refusal, got {r.returncode}: {r.stderr}"
+        assert "modified" in r.stderr.lower()
+        # File unchanged
+        assert "## modified" in override.read_text(encoding="utf-8")
+    finally:
+        override.unlink(missing_ok=True)

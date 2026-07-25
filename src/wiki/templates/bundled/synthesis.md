@@ -5,14 +5,18 @@
 
 <!-- slot:comparison_dimensions -->
 
-## 对比分析
+## 综述
+
+<!-- slot:overview -->
+
+## 涉及的概念
+
+<!-- slot:involved_concepts -->
+
+## 对比表
 
 <!-- slot:comparison -->
 
-## 综合结论
+## 结论
 
 <!-- slot:conclusion -->
-
-## 参考来源
-
-<!-- slot:references -->
