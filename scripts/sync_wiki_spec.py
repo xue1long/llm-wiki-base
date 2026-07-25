@@ -98,9 +98,20 @@ def main() -> int:
         return 0  # No change, nothing to do
 
     spec_text = SPEC_PATH.read_text(encoding="utf-8")
-    data = _parse_frontmatter(spec_text)
-    body_text = _parse_body(spec_text)
-    content = _generate_prompt_module(data, body_text)
+    try:
+        data = _parse_frontmatter(spec_text)
+        body_text = _parse_body(spec_text)
+        content = _generate_prompt_module(data, body_text)
+    except yaml.YAMLError as e:
+        # Malformed spec YAML should NOT block unrelated commits.
+        # Print a warning and exit 0 so the pre-commit hook passes
+        # (the next sync attempt will retry when the spec is fixed).
+        print(
+            f"WARN: spec YAML parse error in {SPEC_PATH}: {e}; "
+            "skipping sync. Fix the spec and the next commit will regenerate.",
+            file=sys.stderr,
+        )
+        return 0
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(content, encoding="utf-8")
