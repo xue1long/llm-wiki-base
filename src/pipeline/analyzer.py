@@ -1,8 +1,10 @@
 """Step 1: LLM extracts AnalysisResult from source text."""
 import json
 import logging
+import re
 
 from ..lib.budgeted import BudgetedLLM
+from ._pipeline_common import parse_llm_json
 from .schemas import AnalysisResult, ConceptMention, EntityMention, PageSpec
 
 
@@ -10,6 +12,12 @@ _logger = logging.getLogger(__name__)
 
 
 ANALYZER_PROMPT = """You are analyzing a source document for a knowledge base.
+
+## Language
+默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
+summary、key_facts、entities/concepts 的 name 和 context、
+suggested_pages 的 title/reasoning/tags。Slugs 始终用 ASCII(中文
+术语用拼音或英文翻译)。
 
 ## Context
 - Source: {source_path}
@@ -100,17 +108,8 @@ async def analyze(
 def _parse_llm_response(llm_resp) -> dict:
     """Parse ``LLMResponse.content`` (or a raw dict/str from mocks/tests) as JSON.
 
-    Mocks used by the test suite (ScriptedLLMProvider, budgeted tests) return
-    dicts directly. Real providers return LLMResponse whose ``.content`` is
-    the model output (string). This helper normalises both into a dict.
-    Raises ``json.JSONDecodeError`` on bad JSON — never falls through silently.
+    Delegates to ``_pipeline_common.parse_llm_json`` — kept as a thin
+    wrapper so existing test imports continue to work and the analyzer
+    can be located quickly by callers searching for ``_parse_llm_response``.
     """
-    # Raw dict (legacy mock / legacy test): use as-is.
-    if isinstance(llm_resp, dict):
-        return llm_resp
-    # LLMResponse / any object exposing .content
-    content = getattr(llm_resp, "content", llm_resp)
-    if not isinstance(content, str):
-        # Last-ditch: stringify and parse (covers invalid mocks returning bytes/None).
-        content = str(content)
-    return json.loads(content)
+    return parse_llm_json(llm_resp)
