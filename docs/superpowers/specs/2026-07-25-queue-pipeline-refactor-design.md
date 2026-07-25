@@ -74,13 +74,16 @@ Split `src/queue/queue.py` (350+ lines) and `src/pipeline/pipeline.py` (110+ lin
         │
         ▼
 ┌────────────────────────────────────────────────────────────┐
-│                  Domain Layer (pure functions)              │
-│   src/queue/state.py        can_transition                  │
-│   src/queue/persistence.py  JsonFileBackend IO              │
-│   src/queue/in_flight.py    InMemoryTracker                 │
-│   src/queue/retry.py        DefaultRetryPolicy              │
+│         Adapters (default implementations) + Domain         │
+│   src/queue/state.py        can_transition (pure)           │
 │   src/queue/scheduler.py    select_next_task (pure)         │
 │   src/queue/events.py       EventName + payload dataclass   │
+│   src/queue/persistence.py  JsonFileBackend (IO adapter)    │
+│   src/queue/in_flight.py    InMemoryInFlightTracker (adapter) │
+│   src/queue/retry.py        DefaultRetryPolicy (adapter)    │
+│                                                              │
+│   Note: "pure" = no IO side effects (testable without fs).  │
+│   "adapter" = default concrete impl; swappable via Protocol. │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -109,7 +112,7 @@ Split `src/queue/queue.py` (350+ lines) and `src/pipeline/pipeline.py` (110+ lin
 |---|---|---|---|
 | `__init__.py` | `enqueue_task`, `update_task_status`, `release_in_flight`, `_process_next`, `generate_task_id`, `get_default_queue_service` | — | re-export from `service` + `state` |
 | `ports.py` | `QueueBackend`, `InFlightTracker`, `EventEmitter`, `RetryPolicy` (Protocol) | — | `typing`, `dataclass` only |
-| `events.py` | `EventName` constants, `TaskCreatedPayload`, `TaskStatusChangedPayload`, `TaskDeadLetterPayload` | — | `dataclass` only |
+| `events.py` | **Re-export** `EventName` constants and queue-related payload dataclasses from `src/events/events.py` (NOT redefine — only centralize imports) | — | `src/events/events.py` |
 | `state.py` | `can_transition`, `InvalidTransition` | — | `src/types.py::TaskStatus` |
 | `persistence.py` | `JsonFileBackend` (implements `QueueBackend`) | `_acquire_file_lock`, `_release_file_lock` | `state`, `events` |
 | `in_flight.py` | `InMemoryInFlightTracker` (implements `InFlightTracker`) | — | — |
@@ -124,7 +127,7 @@ Split `src/queue/queue.py` (350+ lines) and `src/pipeline/pipeline.py` (110+ lin
 |---|---|---|---|
 | `__init__.py` | re-exports `run_ingest`, `PipelineService`, `get_default_pipeline_service`; **compat layer** aliases `src.pipeline.pipeline`, `src.pipeline.collector`, `src.pipeline.analyzer`, `src.pipeline.generator` via `sys.modules` | — | all submodules |
 | `ports.py` | `PipelineStage` (Protocol), `StageResult` (dataclass), `PipelineContext` (dataclass) | — | — |
-| `events.py` | `EventName` constants, `CollectorStartPayload`, `CollectorDonePayload` | — | `queue.events` constants |
+| `events.py` | **Re-export** pipeline-related payloads (`CollectorStartPayload`, `CollectorDonePayload`) from `src/events/events.py` (NOT redefine — only centralize imports) | — | `src/events/events.py` |
 | `dispatcher.py` | `dispatch_collector_start` (sync→async bridge) | — | `ports`, `events` |
 | `runner.py` | `PipelineRunner`, `run_stages` (pure function) | — | `ports` |
 | `stages/collector.py` | `CollectorStage` (implements `PipelineStage`) | — | `wiki`, `queue.ports` |
@@ -615,8 +618,9 @@ def test_enqueue_emits_task_created_and_advances(queue_service, fake_emitter):
     assert queue_service.tracker.is_in_flight(task_id)
 
 def test_update_status_failed_resets_to_pending_under_retry_limit(queue_service):
-    queue_service.enqueue(source="x", source_type=SourceType.URL, task_hash="h1")
-    task_id = ...  # get the just-enqueued task
+    task_id = queue_service.enqueue(
+        source="x", source_type=SourceType.URL, task_hash="h1",
+    )
 
     queue_service.update_status(task_id, TaskStatus.FAILED, error="LLM timeout")
 
@@ -625,8 +629,16 @@ def test_update_status_failed_resets_to_pending_under_retry_limit(queue_service)
     assert task.retry_count == 1
 
 def test_update_status_failed_moves_to_dead_letter_after_max_retries(queue_service):
-    # 3 FAILED, 3rd should be DEAD_LETTER
-    ...
+    """After MAX_RETRIES (3) FAILED transitions, task becomes DEAD_LETTER."""
+    task_id = queue_service.enqueue(
+        source="x", source_type=SourceType.URL, task_hash="h2",
+    )
+    for i in range(MAX_RETRIES):
+        queue_service.update_status(task_id, TaskStatus.FAILED, error=f"attempt {i}")
+
+    task = queue_service.backend.find(task_id)
+    assert task.status == TaskStatus.DEAD_LETTER
+    assert task.retry_count == MAX_RETRIES
 ```
 
 **C. Pipeline test** (`test_runner.py`):
@@ -649,7 +661,7 @@ async def test_runner_marks_task_failed_on_stage_exception(queue_service):
         FakeStage("analyzer", raises=RuntimeError("LLM blew up")),
         FakeStage("generator"),
     ]
-    ctx = PipelineContext(task_id="t1", ...)
+    ctx = PipelineContext(task_id="t1", source="x", source_type=SourceType.URL)
 
     await runner.run_stages(stages, ctx)
 
@@ -711,7 +723,7 @@ curl http://127.0.0.1:18888/health
 
 ## Open questions
 
-(None remaining — all design decisions approved through 5 design sections.)
+None remaining. All design decisions (architecture, module boundaries, data flow, error handling, testing strategy) were approved section-by-section in the brainstorming session before this spec was written.
 
 ## References
 
