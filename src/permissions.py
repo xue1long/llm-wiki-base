@@ -2,19 +2,14 @@
 """
 目录权限边界校验
 
-Agent 读写权限定义（双布局 back-compat）：
+Agent 读写权限定义（wiki-v2 布局，per CLAUDE.md）：
 
-wiki-v2 布局（当前，per CLAUDE.md）：
-- Collector:   读写 raw/sources (legacy Inbox/Processing 仍保留)
+- Collector:    读写 raw/sources（用户输入区）
 - Orchestrator: 读写所有目录
 
-wiki-v1 / legacy 布局（历史保留，已无 active caller）：
-- Processor/Librarian 的 Notes/Knowledge 条目已从 ALLOWED_PATHS 删除
-  （refactor pipeline: remove dead processor.process — 2026-07）。
-- Inbox/Pending、Inbox/Processing 仍保留给 Collector 的 read 路径，
-  以兼容旧项目布局。
-
-Searcher 已从 ALLOWED_PATHS 移除（legacy Knowledge/.index 无 caller）。
+wiki-v1 的 Inbox/{Pending,Processing,Error} 布局已于 2026-07 清理
+（删除了 InboxManager 和 staged-copy 流程，摄取直接读 raw/sources）。
+Inbox/Pending、Inbox/Processing 不再是允许的边界。
 
 边界检查使用 PurePath 语义 (is_relative_to / posix-prefix 比对)，不使用
 Path.resolve() —— 因此结果与 os.getcwd() 无关。C-13 修复。
@@ -41,19 +36,17 @@ class PermissionDenied(PermissionError):
     """Raised when an agent is denied access to a resource."""
 
 # 权限白名单
+#
+# Orchestrator 短路返回 True(见下),所以它的条目不在这里;
+# AgentType.COLLECTOR 是当前唯一受边界限制的 agent。
 ALLOWED_PATHS = {
     AgentType.COLLECTOR: {
-        # Legacy Inbox/ layout (kept for back-compat) + new wiki-v2
-        # layout (per CLAUDE.md: <project>/raw/sources/). Callers
-        # resolve an absolute project root via src/lib/project.py:resolve_project()
-        # (used by src/services/ingest.py) and pass paths relative to
-        # it so the boundary check above can match.
-        Permission.READ: ["Inbox/Pending", "Inbox/Processing", "raw/sources"],
-        Permission.WRITE: ["Inbox/Processing", "raw/sources"],
-    },
-    AgentType.ORCHESTRATOR: {
-        Permission.READ: ["Inbox", "Notes", "Knowledge"],
-        Permission.WRITE: ["Inbox", "Notes", "Knowledge"],
+        # The wiki-v2 input directory (per CLAUDE.md). Callers resolve
+        # an absolute project root via src/lib/project.py:resolve_project()
+        # (used by src/services/ingest.py) and pass paths relative to it
+        # so the boundary check below can match.
+        Permission.READ: ["raw/sources"],
+        Permission.WRITE: ["raw/sources"],
     },
 }
 

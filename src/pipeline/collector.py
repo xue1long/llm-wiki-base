@@ -1,4 +1,22 @@
 # ruflo-kb/src/pipeline/collector.py
+"""Collect raw source content for downstream LLM stages.
+
+Two source kinds:
+
+- **URL**: HTTP fetch with SSRF / private-IP guard (T4 `_check_url_allowlisted`).
+- **Local file**: read directly from the project's ``raw/sources/<file>``.
+  The collector does NOT stage a copy in any staging directory; the
+  original file path (project-relative, e.g. ``raw/sources/foo.md``) is
+  passed through to the pipeline as ``source_path`` so wiki pages record
+  a stable reference to the user-owned artefact.
+
+The collector used to copy content to ``Inbox/Processing/<task_id>.<ext>``
+and the pipeline moved the original file there after success — this
+two-step dance was redundant with the idempotency cache (md5-of-source,
+7-day TTL, see ``src/utils/idempotency.py``) and made the wiki page's
+``sources:`` field point to an obscure internal path instead of the
+user-visible file. The Inbox subdir is gone.
+"""
 import ipaddress
 import logging
 import socket
@@ -8,8 +26,6 @@ from pathlib import Path
 
 from ..events.event_bus import event_bus
 from ..events.events import EventName, CollectorDonePayload
-from ..inbox.manager import get_inbox_manager
-from ..lib.write_hooks import safe_write
 from ..utils.extract.pdf import extract_pdf_text
 from ..utils.extract.office import extract_office_text
 from ..types import SourceType
@@ -34,16 +50,24 @@ def _check_url_allowlisted(url: str) -> None:
         )
 
 
-async def collect(task_id: str, source: str, source_type: SourceType) -> CollectorDonePayload:
-    """采集内容
+async def collect(
+    task_id: str,
+    source: str,
+    source_type: SourceType,
+    project_id: str | None = None,
+) -> CollectorDonePayload:
+    """Read the source and return its content + the project-relative path.
 
-    Reads the source and writes a staged copy under ``inbox.processing_path``
-    so the downstream Analyzer/Generator has a stable raw_path. The source
-    itself is NOT moved — that is deferred to ``pipeline._on_collector_done``
-    (post-pipeline-success) so queue retries with the original source path
-    can re-read it after a transient LLM failure.
+    For URLs we use ``source`` as both the read target and the
+    ``raw_path`` carried into the pipeline (the URL itself is recorded in
+    the wiki page's ``sources:`` list).
+
+    For local files we receive a project-relative path (e.g.
+    ``raw/sources/foo.md``) from the ingest service. We resolve it
+    against the project's ``WikiPaths.root`` so the reader sees the
+    absolute filesystem path while permission checks and the recorded
+    ``sources:`` stay project-relative.
     """
-    inbox = get_inbox_manager()
     content = ""
 
     if source_type == SourceType.URL:
@@ -65,43 +89,49 @@ async def collect(task_id: str, source: str, source_type: SourceType) -> Collect
         else:
             raise PermissionDenied(f"Too many redirects (>{MAX_REDIRECT_HOPS}) from {source}")
         content = response.text
-        ext = ".html"
-        raw_path = inbox.processing_path / f"{task_id}{ext}"
+        raw_path = source  # URLs are recorded verbatim in sources:
     else:
+        # Resolve project-relative paths against the project's WikiPaths.root
+        # when we have a project_id. The ingest service normalises absolute
+        # paths down to project-relative form (see
+        # services.ingest._normalize_absolute_path), so by the time we get
+        # here the path is e.g. ``raw/sources/foo.md`` — meaningless without
+        # anchoring it to the project root.
         file_path = Path(source)
+        if not file_path.is_absolute() and project_id is not None:
+            try:
+                from ..project.registry import GlobalRegistryStore
+                entry = GlobalRegistryStore.by_id(project_id)
+                if entry is not None:
+                    project_root = Path(entry.path)
+                    candidate = (project_root / source).resolve()
+                    if candidate.exists():
+                        file_path = candidate
+            except Exception:
+                pass
         ext = file_path.suffix.lower()
 
-        # 权限检查: Collector 只允许读本地文件
+        # Permission check uses the project-relative form (``raw/sources/...``)
+        # so ``_is_within(..., "raw/sources")`` matches the allowlist.
         enforce_permission(AgentType.COLLECTOR, source, Permission.READ)
 
         if ext == ".pdf":
-            content = extract_pdf_text(source)
+            content = extract_pdf_text(str(file_path))
         elif ext in [".docx", ".doc", ".xlsx", ".xls"]:
-            content = extract_office_text(source)
+            content = extract_office_text(str(file_path))
         elif ext in [".md", ".txt"]:
             content = file_path.read_text(encoding="utf-8")
         else:
-            raise ValueError(f"Unsupported file type: {source}")
+            raise ValueError(f"Unsupported file type: {file_path}")
 
-        # Note: previously ``inbox.move_to_processing(source)`` ran here,
-        # BEFORE the LLM stage. That caused all 3 queue retries to fail
-        # with FileNotFoundError because the file had already been moved.
-        # The move is now deferred to pipeline._on_collector_done — see
-        # tests/test_pipeline/test_collector_retry_path.py.
-        raw_path = inbox.processing_path / f"{task_id}{ext}"
-
-    # 权限检查: Collector 只允许写 Inbox/Processing
-    enforce_permission(AgentType.COLLECTOR, str(raw_path), Permission.WRITE)
-
-    # Audit I6: route through safe_write so writes honour AtomicContext
-    # (when called from inside one) and use the atomic-write pattern
-    # outside one. The previous raw `write_text` could produce torn files
-    # on a crash mid-write.
-    safe_write(raw_path, content)
+        # raw_path stays project-relative so the wiki page's ``sources:``
+        # is a stable, user-visible reference (e.g. ``raw/sources/foo.md``)
+        # rather than an internal staging path.
+        raw_path = source
 
     payload = CollectorDonePayload(
         task_id=task_id,
-        raw_path=str(raw_path),
+        raw_path=raw_path,
         content=content,
         source=source,
     )

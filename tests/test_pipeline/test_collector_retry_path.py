@@ -1,117 +1,99 @@
-"""Regression test for collector retry path: collector.py must not move the
-source file BEFORE the LLM stage succeeds, because queue retries use the
-original source path and would otherwise hit FileNotFoundError.
+"""Regression tests for the collector's read-and-don't-move contract.
 
-Audit finding: with the legacy flow, collector calls
-``inbox.move_to_processing(source)`` immediately after reading. If the
-downstream Analyzer/Generator fails, the queue retries with the same source
-path — but the file is now in Inbox/Processing/. All 3 retries fail with
-FileNotFoundError → DEAD_LETTER, masking the real LLM error.
-
-Fix: defer the move until the pipeline succeeds. Read the source, run the
-pipeline, and only move on success.
+After the 2026-07 Inbox-cleanup, the collector reads from
+``raw/sources/<file>`` and **never** moves the source file. The pipeline
+still relies on the file being at its original location for retries —
+the previous ``move_to_processing`` flow would move the file before the
+LLM stage and turn every transient LLM failure into a DEAD_LETTER.
 """
 import asyncio
 from pathlib import Path
 
 import pytest
 
-from src.inbox.manager import InboxManager
 
-
-@pytest.fixture
-def isolated_inbox(tmp_path, monkeypatch):
-    """Replace the global InboxManager singleton with one rooted at tmp_path
-    so the test exercises the real InboxManager.move_to_processing() against
-    a controlled directory tree."""
-    inbox = InboxManager(base_path=str(tmp_path / "Inbox"))
-    inbox.ensure_dirs()
-
-    from src.inbox import manager as manager_module
-    monkeypatch.setattr(manager_module, "_inbox_manager", inbox)
-    return inbox
-
-
-def test_collector_does_not_move_source_on_pipeline_failure(tmp_path, isolated_inbox, monkeypatch):
-    """Drive collector.collect() with a forced pipeline failure, then
+def test_collector_does_not_move_source_on_pipeline_failure(tmp_path, monkeypatch):
+    """Drive collector.collect() through a downstream failure path and
     assert the source file is STILL at its original location.
 
-    With the legacy bug, ``collect()`` moves the source to
-    isolated_inbox.processing_path BEFORE calling the LLM; if the LLM
-    raises, the source has been moved and the next queue retry cannot
-    re-read it (FileNotFoundError → DEAD_LETTER).
-
-    With the fix, the source stays put until run_ingest() succeeds.
+    With the legacy Inbox-staged-copy flow, ``collect()`` used to call
+    ``inbox.move_to_processing(source)`` synchronously after reading,
+    which meant queue retries couldn't re-read the source (it had been
+    moved). The fix is to never move the source from the collector —
+    idempotency is handled by the md5 cache in
+    ``src/utils/idempotency.py``.
     """
-    # Stub the permission check so the test exercises the move path
-    # regardless of how the source path is spelled (absolute vs relative).
     from src.permissions import enforce_permission
     monkeypatch.setattr(
         "src.pipeline.collector.enforce_permission",
         lambda *a, **kw: None,
     )
 
-    pending = isolated_inbox.pending_path / "doc.md"
-    pending.write_text("hello world", encoding="utf-8")
+    source = tmp_path / "raw" / "sources" / "doc.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text("hello world", encoding="utf-8")
 
     from src.pipeline.collector import collect
     from src.types import SourceType
 
     async def drive_and_fail():
         try:
+            # Pass project-relative path; collector resolves against
+            # project_root = tmp_path via the project_id branch — but we
+            # didn't register a project here, so just use absolute path.
             await collect(
                 task_id="test-task",
-                source=str(pending),
+                source=str(source),
                 source_type=SourceType.FILE,
             )
         except Exception:
-            pass  # LLM will fail since we didn't wire one
+            pass  # downstream stages will fail (no LLM wired)
 
     asyncio.run(drive_and_fail())
 
-    assert pending.exists(), (
-        f"Source file at {pending} was moved before pipeline completed. "
-        "Collector.move_to_processing() must run AFTER run_ingest() "
-        "succeeds — not synchronously after reading. Otherwise queue "
-        "retries hit FileNotFoundError because the source is no longer "
-        "at the original path."
+    assert source.exists(), (
+        f"Source file at {source} was moved/deleted by collector. "
+        "After the 2026-07 cleanup, collector must read and leave the "
+        "source file in place. Idempotency is handled by the md5 cache, "
+        "not by moving the file."
     )
 
 
-def test_collector_moves_source_after_pipeline_success(tmp_path, isolated_inbox, monkeypatch):
-    """Drive collector.collect() through to success (no LLM needed because
-    we stub analyze/generate) and assert the source HAS been moved to
-    processing_path. This documents the intended post-fix contract."""
-    pending = isolated_inbox.pending_path / "doc.md"
-    pending.write_text("hello world", encoding="utf-8")
+def test_collector_does_not_write_staged_copy(tmp_path, monkeypatch):
+    """The collector should NOT create any Inbox/Processing/<task_id>.md
+    copy. The legacy flow staged a copy there; the cleanup removes that.
+    """
+    from src.permissions import enforce_permission
+    monkeypatch.setattr(
+        "src.pipeline.collector.enforce_permission",
+        lambda *a, **kw: None,
+    )
 
-    # Stub the LLM-dependent stages so collect() can complete synchronously
-    # without a real Ollama/OpenAI call.
-    from src.pipeline import collector as collector_module
+    source = tmp_path / "raw" / "sources" / "doc.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text("hello world", encoding="utf-8")
 
-    async def fake_collect(task_id, source, source_type):
-        # Replicate the relevant side effects without the LLM stages:
-        from src.lib.write_hooks import safe_write
-        from src.wiki.core.types import WikiPage, PageType
-        from src.events.events import CollectorDonePayload
-
-        inbox = collector_module.get_inbox_manager()
-        inbox.move_to_processing(source)
-        raw_path = inbox.processing_path / f"{task_id}.md"
-        safe_write(raw_path, "hello world")
-        return CollectorDonePayload(task_id=task_id, raw_path=str(raw_path), content="hello world")
-
-    monkeypatch.setattr(collector_module, "collect", fake_collect)
-
-    pending = isolated_inbox.pending_path / "doc.md"
-    pending.write_text("hello world", encoding="utf-8")
+    from src.pipeline.collector import collect
+    from src.types import SourceType
 
     async def drive():
-        return await collector_module.collect("task-x", str(pending), None)
+        return await collect(
+            task_id="kb-test123",
+            source=str(source),
+            source_type=SourceType.FILE,
+        )
 
     payload = asyncio.run(drive())
 
-    # Post-success: source should be moved, staged file should exist.
-    assert not pending.exists(), "source should have been moved"
-    assert (isolated_inbox.processing_path / "doc.md").exists(), "source landed in Processing"
-    assert Path(payload.raw_path).exists()
+    # raw_path should be the source path itself, NOT a staging copy.
+    assert payload.raw_path == str(source), (
+        f"collector raw_path should be the source itself; got {payload.raw_path!r}. "
+        "After cleanup, no Inbox/Processing/<task_id>.md copy should exist."
+    )
+
+    # No inbox subdir should have been created under tmp_path
+    inbox_dirs = list(tmp_path.glob("**/Inbox"))
+    assert not inbox_dirs, (
+        f"collector created Inbox/ subdirs: {inbox_dirs}. "
+        "The 2026-07 cleanup should remove all Inbox-staged-copy code."
+    )

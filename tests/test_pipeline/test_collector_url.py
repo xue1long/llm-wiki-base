@@ -10,15 +10,15 @@ from src.pipeline.collector import collect
 
 
 @pytest.mark.asyncio
-async def test_collect_url_does_not_move_to_processing(tmp_path, monkeypatch):
-    """URL sources are fetched directly into processing storage."""
-    inbox = MagicMock()
-    inbox.processing_path = tmp_path
+async def test_collect_url_returns_content_in_payload(monkeypatch):
+    """URL sources: collector fetches and returns content in the payload.
+    No Inbox/Processing/<task_id>.html copy is written after the
+    2026-07 cleanup — the URL itself is recorded in ``raw_path``.
+    """
     response = MagicMock(text="<html>hi</html>", is_redirect=False, headers={})
     response.raise_for_status = MagicMock()
 
     with (
-        patch("src.pipeline.collector.get_inbox_manager", return_value=inbox),
         patch("src.pipeline.collector.enforce_permission") as permission,
         patch("src.pipeline.collector.socket.gethostbyname", return_value="93.184.216.34"),
         patch("src.pipeline.collector.httpx.get", return_value=response) as get,
@@ -28,9 +28,9 @@ async def test_collect_url_does_not_move_to_processing(tmp_path, monkeypatch):
 
     permission.assert_any_call(AgentType.COLLECTOR, "https://example.com/a", Permission.READ)
     get.assert_called_once_with("https://example.com/a", timeout=30, follow_redirects=False)
-    inbox.move_to_processing.assert_not_called()
-    assert (tmp_path / "t1.html").read_text(encoding="utf-8")
-    assert payload.raw_path == str(tmp_path / "t1.html")
+    # raw_path is the URL itself (not a staged file path)
+    assert payload.raw_path == "https://example.com/a"
+    assert payload.content == "<html>hi</html>"
     emit.assert_called_once()
 
 
@@ -62,11 +62,8 @@ async def test_collect_url_rejects_dns_failure():
 
 
 @pytest.mark.asyncio
-async def test_url_redirect_to_loopback_blocked(tmp_path, monkeypatch):
+async def test_url_redirect_to_loopback_blocked():
     """Redirect targets must be re-validated against the SSRF ACL."""
-    inbox = MagicMock()
-    inbox.processing_path = tmp_path
-
     # First request is to a public host and returns 302 -> 127.0.0.1
     redirect_headers = {"Location": "http://127.0.0.1/secret"}
     redirect_resp = MagicMock(is_redirect=True, headers=redirect_headers)
@@ -93,7 +90,6 @@ async def test_url_redirect_to_loopback_blocked(tmp_path, monkeypatch):
         return orig_gethostbyname(host)
 
     with (
-        patch("src.pipeline.collector.get_inbox_manager", return_value=inbox),
         patch("src.pipeline.collector.enforce_permission") as permission,
         patch("src.pipeline.collector.socket.gethostbyname", side_effect=stub_gethostbyname),
         patch("src.pipeline.collector.httpx.get", side_effect=fake_get) as get,
@@ -103,46 +99,38 @@ async def test_url_redirect_to_loopback_blocked(tmp_path, monkeypatch):
 
     # The follow-up GET to the loopback target must not have been performed
     assert get.call_count == 1
-    inbox.move_to_processing.assert_not_called()
-    assert not (tmp_path / "t1.html").exists()
+    permission.assert_any_call(AgentType.COLLECTOR, "https://example.com/a", Permission.READ)
 
 
 @pytest.mark.asyncio
-async def test_collect_file_source_still_works(tmp_path, monkeypatch):
-    """FILE source path: collector writes the staged copy under processing_path
-    and emits the done payload. The source itself is NOT moved by collect()
-    — that deferral is exercised by tests/test_pipeline/test_collector_retry_path.py
-    and the move happens later in pipeline._on_collector_done after run_ingest
-    succeeds. (Audit fix C-7 follow-up.)
+async def test_collect_file_source_returns_source_path_as_raw_path(tmp_path, monkeypatch):
+    """FILE source: collector reads content and returns the source path
+    itself as ``raw_path``. No staged copy is written. (2026-07 cleanup.)
     """
-    src_path = tmp_path / "Inbox"
-    src_path.mkdir()
-    foo = src_path / "foo.md"
-    foo.write_text("# Hello\nworld\n", encoding="utf-8")
-
-    inbox = MagicMock()
-    inbox.processing_path = tmp_path / "Processing"
-    inbox.processing_path.mkdir()
-
-    monkeypatch.setattr("src.pipeline.collector.Path", Path)  # real Path
+    source = tmp_path / "doc.md"
+    source.write_text("# Hello\nworld\n", encoding="utf-8")
 
     with (
-        patch("src.pipeline.collector.get_inbox_manager", return_value=inbox),
         patch("src.pipeline.collector.enforce_permission"),
         patch("src.pipeline.collector.event_bus.emit") as emit,
     ):
-        payload = await collect("t1", str(foo), SourceType.FILE)
+        payload = await collect("t1", str(source), SourceType.FILE)
 
-    # collect() must NOT move the source — that would break queue retries.
-    inbox.move_to_processing.assert_not_called()
-    assert foo.exists(), "source must remain at original path after collect()"
-    # Staged copy is written under processing_path keyed by task_id.
-    assert (inbox.processing_path / "t1.md").exists()
-    assert payload.raw_path == str(inbox.processing_path / "t1.md")
+    # raw_path is the source itself, not a staged copy
+    assert payload.raw_path == str(source)
+    assert payload.content == "# Hello\nworld\n"
+
+    # The source must remain at its original location — collect() does
+    # not move/delete the file.
+    assert source.exists(), "source must remain at original path after collect()"
+
+    # No Inbox/Processing/<task_id>.md should exist
+    assert not (tmp_path / "Inbox").exists(), (
+        "No Inbox/ directory should be created by the collector after the "
+        "2026-07 cleanup."
+    )
+
     emit.assert_called_once()
-    # emit was called with CollectorDonePayload; check via public attributes
     args, _ = emit.call_args
     assert args[1].task_id == "t1"
-    # Original source is threaded through so the post-success move in
-    # pipeline._on_collector_done knows where to move from.
-    assert args[1].source == str(foo)
+    assert args[1].source == str(source)
