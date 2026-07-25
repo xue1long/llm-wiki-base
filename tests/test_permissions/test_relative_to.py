@@ -79,15 +79,28 @@ def test_default_allowed_paths_still_apply_when_not_provided():
     """Backwards-compat: with no `allowed_paths` arg, falls back to the
     module-level ALLOWED_PATHS map.
 
-    The default Collector WRITE allowlist is `['Inbox/Processing']`, so
-    the check still resolves correctly.
+    The default Collector WRITE allowlist is ``['raw/sources']`` after
+    the 2026-07 cleanup; ``Inbox/Processing`` is no longer permitted
+    by default (back-compat was dropped intentionally).
     """
+    # Default whitelist: raw/sources is allowed
+    res = check_permission(
+        AgentType.COLLECTOR,
+        "raw/sources/foo.txt",
+        Permission.WRITE,
+    )
+    assert res.allowed
+
+    # Legacy Inbox/Processing is no longer in the default whitelist
     res = check_permission(
         AgentType.COLLECTOR,
         "Inbox/Processing/foo.txt",
         Permission.WRITE,
     )
-    assert res.allowed
+    assert not res.allowed, (
+        "Inbox/Processing should not be in the default collector whitelist "
+        "after the 2026-07 cleanup."
+    )
 
 
 def test_url_path_returns_allowed_for_collector_read():
