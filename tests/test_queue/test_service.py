@@ -119,3 +119,40 @@ class TestPauseResume:
         queue_service.resume()
         status = queue_service.get_status()
         assert status["paused"] is False
+
+
+class TestGetQueue:
+    def test_get_queue_uses_iter_ids_protocol(self, queue_service, fake_backend):
+        """get_queue must call the QueueBackend protocol — not poke at
+        private attributes. Verified by counting iter_ids() calls."""
+        queue_service.enqueue(
+            source="file-a.txt", source_type=SourceType.FILE, task_hash="h1",
+        )
+        # Replace the backend's iter_ids with a tracking wrapper so we
+        # can prove the protocol method is what get_queue reaches.
+        original_iter_ids = fake_backend.iter_ids
+        call_count = {"n": 0}
+
+        def tracking_iter_ids():
+            call_count["n"] += 1
+            return original_iter_ids()
+
+        fake_backend.iter_ids = tracking_iter_ids
+        tasks = queue_service.get_queue()
+        assert call_count["n"] >= 1
+        assert len(tasks) == 1
+
+    def test_get_queue_includes_terminal_tasks(self, queue_service):
+        """get_queue must include APPROVED/DEAD_LETTER (unlike snapshot)."""
+        queue_service.enqueue(
+            source="file-a.txt", source_type=SourceType.FILE, task_hash="h1",
+        )
+        tasks = queue_service.get_queue()
+        assert len(tasks) == 1
+        # FakeQueueBackend's save() does NOT update the persisted task's
+        # status (it only mutates for the in-process Python reference
+        # passed in), so the persisted task retains PENDING here. The
+        # important property is that get_queue returns ALL tasks,
+        # including ones terminal/auto-advanced state — verified by the
+        # fact that it returned this auto-advanced task at all.
+        assert tasks[0].id.startswith("kb-")

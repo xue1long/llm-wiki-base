@@ -123,6 +123,10 @@ class JsonFileBackend:
                 logger.warning(f"[JsonFileBackend] task row malformed ({e}); skipping")
                 return None
 
+    def iter_ids(self) -> list[str]:
+        with self._lock:
+            return list(self._tasks.keys())
+
     def snapshot(self) -> list[KnowledgeTask]:
         with self._lock:
             result: list[KnowledgeTask] = []

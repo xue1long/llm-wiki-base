@@ -73,6 +73,25 @@ class TestJsonFileBackend:
         assert found is not None
         assert found.id == "t1"
 
+    def test_iter_ids_returns_all_tracked_ids(self, tmp_path):
+        backend = JsonFileBackend(tmp_path / "queue.json")
+        assert backend.iter_ids() == []
+        backend.enqueue(_mk_task("t1", "file-a"))
+        backend.enqueue(_mk_task("t2", "file-b"))
+        ids = backend.iter_ids()
+        assert sorted(ids) == ["t1", "t2"]
+
+    def test_iter_ids_returns_independent_snapshot(self, tmp_path):
+        """iter_ids returns a list copy — mutating the result must not
+        affect the backend's internal state."""
+        backend = JsonFileBackend(tmp_path / "queue.json")
+        backend.enqueue(_mk_task("t1", "file-a"))
+        ids = backend.iter_ids()
+        ids.clear()
+        # Internal state is unaffected
+        assert backend.iter_ids() == ["t1"]
+        assert backend.find("t1") is not None
+
     def test_uses_safe_write_atomic_rename(self, tmp_path):
         """safe_write uses *.tmp + os.replace; verify a .tmp file does NOT
         linger after enqueue."""

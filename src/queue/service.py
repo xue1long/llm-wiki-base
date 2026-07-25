@@ -253,9 +253,9 @@ class QueueService:
         # ``backend.snapshot()`` directly or ``select_next_task``.)
         with self._service_lock:
             return [
-                self.backend.find(tid)
-                for tid in list(self.backend._tasks.keys())
-                if self.backend.find(tid) is not None
+                task
+                for task in (self.backend.find(tid) for tid in self.backend.iter_ids())
+                if task is not None
             ]
 
     def get_status(self) -> dict:

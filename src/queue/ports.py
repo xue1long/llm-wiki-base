@@ -30,6 +30,12 @@ class QueueBackend(Protocol):
 
     def find(self, task_id: str) -> KnowledgeTask | None: ...
 
+    def iter_ids(self) -> list[str]:
+        """Return a snapshot of all currently tracked task ids. Used by
+        callers (e.g. QueueService.get_queue) that want to enumerate the
+        full set without constructing a full object per row."""
+        ...
+
     def snapshot(self) -> list[KnowledgeTask]:
         """Return a copy of all currently tracked tasks. Implementations
         may filter out terminal states (e.g. APPROVED) — see the

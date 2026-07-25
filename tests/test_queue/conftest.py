@@ -33,6 +33,9 @@ class FakeQueueBackend:
     def find(self, task_id: str):
         return self._tasks.get(task_id)
 
+    def iter_ids(self):
+        return list(self._tasks.keys())
+
     def snapshot(self):
         return list(self._tasks.values())
 
