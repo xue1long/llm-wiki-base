@@ -94,4 +94,11 @@ def create_app() -> FastAPI:
                    ingest.router, reviews.router, chat.router, schema.router]:
         app.include_router(router)
 
+    # Mount /metrics endpoint (Plan 7 fix; previously dead code).
+    # get_router() is idempotent — caches the router at module level so
+    # the DB path is locked to the first call's project. Multi-project
+    # server deployments would need per-project routers (out of scope here).
+    from .metrics_route import get_router as _get_metrics_router
+    app.include_router(_get_metrics_router())
+
     return app
