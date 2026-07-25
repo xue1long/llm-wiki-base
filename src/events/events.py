@@ -37,9 +37,11 @@ class CollectorDonePayload:
     task_id: str
     raw_path: str
     content: str
-    # Original (pre-move) source path. Carried through so
-    # ``pipeline._on_collector_done`` can move the source into
-    # Inbox/Processing AFTER run_ingest succeeds (audit fix C-7 follow-up).
+    # Original source path as it was supplied by the ingest caller —
+    # typically a project-relative ``raw/sources/<file>`` for files or a
+    # URL string for web sources. Carried through for log/audit and
+    # tests; the pipeline does NOT modify the source artefact (the
+    # file stays at its original location after ingest).
     source: str | None = None
 
 @dataclass
