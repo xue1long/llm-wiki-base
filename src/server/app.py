@@ -33,6 +33,11 @@ def create_app() -> FastAPI:
             from ..llm.embedding_runtime import set_embedding_provider
             from ..vector.store import init_vector_store_for_paths
             from ..wiki.storage.ensure import ensure_knowledge_base
+            from .ingest_tracker import init_tracker  # FRONTEND_DESIGN §14.1
+
+            # Subscribe to ingest task lifecycle events so the web frontend
+            # can poll status. Must run before any ingest happens.
+            init_tracker()
 
             # Initialise embedding provider from the default registry entry.
             try:
