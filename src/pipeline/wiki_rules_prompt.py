@@ -59,6 +59,12 @@ Tags 使用受控命名空间前缀，格式为 `prefix/name`。可用前缀：
 | `scene_phase/` | 何时用 (When) |
 | `status/` | 生命周期 |
 
+## Body 规则
+
+- 不得为空（空 body → LINT-EMPTY-BODY INFO 告警）
+- 支持 Markdown：`**bold**`、`*italic*`、`## 标题`、`### 子标题`、`- 列表`
+- 跨页引用使用 `[[slug]]` 语法，如 `[[shuang-dian]]`
+
 ## PageType 语义（4 种 page type 的判定标准）
 
 正确分类是知识库图谱可用的前提。每条 `suggested_pages` 必须落到下面 4 类之一：
@@ -81,10 +87,4 @@ Tags 使用受控命名空间前缀，格式为 `prefix/name`。可用前缀：
 - `李白`(历史人物) ❌ concept → ✅ entity
 - `网络文学`(题材大类) ❌ entity → ✅ concept
 - `画面感`(抽象技巧) ✓ concept
-
-## Body 规则
-
-- 不得为空（空 body → LINT-EMPTY-BODY INFO 告警）
-- 支持 Markdown：`**bold**`、`*italic*`、`## 标题`、`### 子标题`、`- 列表`
-- 跨页引用使用 `[[slug]]` 语法，如 `[[shuang-dian]]`
 '''
