@@ -13,6 +13,11 @@ from ..lib.write_hooks import safe_write
 from ..types import KnowledgeTask, TaskStatus, SourceType
 from ..utils.idempotency import check_duplicate
 from ..circuit_breaker import get_circuit_breaker, CircuitState
+# Soft-migrated (Task 1): state machine now lives in src/queue/state.py.
+# Re-export InvalidTransition so existing `from src.queue.queue import
+# InvalidTransition` callers (e.g. tests/test_queue/test_update_task_status_transitions.py)
+# keep working without changes.
+from .state import InvalidTransition, can_transition
 
 logger = logging.getLogger(__name__)
 
@@ -35,16 +40,6 @@ def _default_state() -> dict:
             "running": len([t for t in _queue if t.status == TaskStatus.RUNNING]),
             "failed": len([t for t in _queue if t.status == TaskStatus.FAILED]),
         }
-
-
-class InvalidTransition(Exception):
-    """Raised when a task status change violates the state machine."""
-
-    def __init__(self, task_id: str, prev_status: str, next_status: str):
-        super().__init__(task_id, prev_status, next_status)
-        self.task_id = task_id
-        self.prev_status = prev_status
-        self.next_status = next_status
 
 
 def generate_task_id() -> str:
@@ -99,8 +94,6 @@ def update_task_status(task_id: str, status: TaskStatus, error: Optional[str] = 
         task = next((t for t in _queue if t.id == task_id), None)
         if task is None:
             raise KeyError(task_id)
-
-        from ..orchestrator.state_machine import can_transition
 
         prev_status = TaskStatus(task.status)
         if not can_transition(prev_status, status):
