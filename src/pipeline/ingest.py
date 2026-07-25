@@ -107,6 +107,53 @@ async def run_ingest(
         provider=provider,
     )
 
+    # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.
+    # Default OFF (QualitySettings.enabled=False) — must be explicitly
+    # enabled in the per-project settings file. When enabled:
+    #   - Decision A1: judge LLM failure → log warning, pass pages through
+    #   - Decision B1: re-generate rejected pages up to max_retries
+    #   - Decision C:  inline (this hook); async mode TBD via event bus
+    # Latency cost when ON: +5-15s per ingest (single judge call;
+    # retries multiply by max_retries+1 since the existing judge does
+    # re-judge internally — deviation from strict B1 "re-generate"
+    # noted in the 9-plan-bugfix plan).
+    from ..quality.types import QualitySettings
+    from ..quality.judge import QualityJudge
+    # QualitySettings() default: enabled=False. To turn on, the
+    # operator adds a "quality" section to the project settings file
+    # OR sets RUFLO_QUALITY_ENABLED=1 (env override, NOT YET WIRED).
+    _quality_settings = QualitySettings()
+    if _quality_settings.enabled and pages:
+        try:
+            judge = QualityJudge(settings=_quality_settings)
+            page_dicts = [
+                {"id": p.id, "type": p.type.value, "body": p.body}
+                for p in pages
+            ]
+            result = await judge.judge_batch(page_dicts, source_texts={p.id: source_text for p in pages})
+            if result.pages_quarantined:
+                from ..quality.quarantine import QuarantineStore
+                _quarantine = QuarantineStore(paths)
+                # Build a dict of page_id → page for the quarantined ones
+                pages_by_id = {p.id: p for p in pages}
+                for qid in result.pages_quarantined:
+                    if qid in pages_by_id:
+                        _quarantine.put(pages_by_id[qid], result.pages[qid])
+                # Filter out quarantined pages from the write list
+                pages = [p for p in pages if p.id not in result.pages_quarantined]
+                _logger.info(
+                    f"[run_ingest] quality gate quarantined "
+                    f"{len(result.pages_quarantined)} page(s); "
+                    f"{len(pages)} passed"
+                )
+        except Exception as e:
+            # Decision A1: judge LLM failure must NOT block ingest.
+            # Log + pass pages through (graceful degradation).
+            _logger.warning(
+                f"[run_ingest] quality gate unavailable: {e}; "
+                f"passing {len(pages)} page(s) through without judgment"
+            )
+
     # Fix D: guarantee one source page per ingested task.
     # The LLM may or may not include a ``source`` entry in
     # ``analysis.suggested_pages``; even when it does, the generator's

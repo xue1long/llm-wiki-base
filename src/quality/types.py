@@ -63,7 +63,12 @@ class BatchJudgmentResult:
 
 @dataclass
 class QualitySettings:
-    enabled: bool = True
+    # Default OFF (P1 fix): the inline judge in run_ingest costs 5-15s
+    # per ingest. Opt-in via the per-project settings file or a future
+    # RUFLO_QUALITY_ENABLED env var. Aligns with Plan 19/20/21 audit
+    # principle that quality gates must not silently change the main
+    # flow's behaviour.
+    enabled: bool = False
     weights: dict = field(default_factory=lambda: {
         "source_type_appropriateness": 0.15,
         "factuality": 0.30,
