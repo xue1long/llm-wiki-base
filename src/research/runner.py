@@ -154,7 +154,7 @@ async def run_deep_research(
     # Step 5: Auto-ingest (MVP: disabled by default)
     ingest_task_ids = []
     if not no_ingest and sources:
-        from ..queue.queue import enqueue_task
+        from ..queue import enqueue_task
         from ..types import SourceType
         for s in sources[:DEFAULT_TOP_N_INGEST]:
             task_hash = f"research-{slug}-{s['url']}"

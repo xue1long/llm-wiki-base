@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Union
 
 from ..lib.project import resolve_project
-from ..queue.queue import enqueue_task
+from ..queue import enqueue_task
 from ..types import SourceType
 from ..utils.idempotency import generate_task_hash
 
