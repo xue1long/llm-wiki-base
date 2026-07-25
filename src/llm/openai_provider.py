@@ -106,7 +106,19 @@ class OpenAIProvider(LLMProvider):
         if kwargs.get("max_tokens") is not None:
             body["max_tokens"] = kwargs["max_tokens"]
         if response_format:
-            body["response_format"] = response_format
+            # Many OpenAI-compatible APIs (MiniMax, DeepSeek, Kimi, GLM,
+            # etc.) reject any ``response_format`` parameter — both the
+            # legacy ``{"type": "json_object"}`` form and the newer
+            # ``{"type": "object", "properties": ...}`` JSON-Schema form
+            # — with HTTP 400 "unknown response_format type". The
+            # structured-outputs API is OpenAI-specific and not generally
+            # replicated by OpenAI-compatible providers.
+            #
+            # Drop the parameter entirely for non-OpenAI endpoints so the
+            # LLM is still expected to return JSON in its content (the
+            # system prompt instructs it to) without breaking the request.
+            if self.base_url.startswith("https://api.openai.com"):
+                body["response_format"] = response_format
 
         # Two code paths:
         #   - SDK present:  self._sdk.chat.completions.create(...)
