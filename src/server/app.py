@@ -4,12 +4,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-# Importing the pipeline module registers the ``collector:start`` handler on
-# the singleton ``event_bus`` at module load time. Without this, the HTTP
-# server enqueues ingest tasks via POST /api/v1/projects/{id}/ingest but no
-# listener ever picks them up — audit finding C-7. Regression covered by
-# tests/test_server/test_app_registers_pipeline.py.
-import src.pipeline.pipeline  # noqa: F401  (registers event_bus handler)
+# Importing the pipeline package triggers ``src.pipeline.__init__``,
+# which (a) registers the ``collector:start`` handler on the singleton
+# ``event_bus`` via ``_register_event_handlers_if_needed`` and (b)
+# installs the compat shim at ``sys.modules['src.pipeline.pipeline']``
+# for legacy imports / monkey-patching. Without this, the HTTP server
+# enqueues ingest tasks via POST /api/v1/projects/{id}/ingest but no
+# listener ever picks them up — audit finding C-7. Regression covered
+# by tests/test_server/test_app_registers_pipeline.py.
+import src.pipeline  # noqa: F401  (registers event_bus handler + shim)
 
 
 _logger = logging.getLogger(__name__)

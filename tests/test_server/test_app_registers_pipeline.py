@@ -14,19 +14,23 @@ def test_server_app_imports_pipeline():
     Otherwise POST /api/v1/projects/{id}/ingest enqueues tasks onto
     .kb-queue.json that are never processed — the event is emitted to
     a bus with no listeners.
+
+    After the queue/pipeline refactor (Task 10), src.pipeline.pipeline no
+    longer exists as a real file — it's a compat shim registered by
+    src.pipeline.__init__. We drop the package AND the shim so the
+    re-import re-runs __init__ and re-registers the shim.
     """
-    # Drop both modules so the re-import has clean side effects regardless
-    # of test ordering (other tests in this session may have imported
-    # either module first).
-    for mod in ("src.pipeline.pipeline", "src.server.app"):
+    # Drop the pipeline package AND its shim so the re-import re-runs
+    # __init__.py (which registers the shim under sys.modules).
+    for mod in ("src.pipeline", "src.pipeline.pipeline", "src.server.app"):
         sys.modules.pop(mod, None)
 
     import src.server.app  # noqa: F401
 
     assert "src.pipeline.pipeline" in sys.modules, (
-        "src/server/app.py does not import src.pipeline.pipeline. "
-        "Queued ingest tasks will never be processed — the collector:start "
-        "event has no listener. Add `import src.pipeline.pipeline` to "
+        "src/server/app.py does not import src.pipeline (which registers the "
+        "compat shim). Queued ingest tasks will never be processed — the "
+        "collector:start event has no listener. Add `import src.pipeline` to "
         "src/server/app.py (e.g. inside create_app() or at module top)."
     )
 
