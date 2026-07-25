@@ -2146,20 +2146,16 @@ Create `src/pipeline/events.py`:
 This is a thin shim that lets pipeline code import from
 `src.pipeline.events` without taking a direct dependency on
 `src.events.events` (which would create a circular import).
-
-For now, it just re-exports the same symbols. If a future change wants
-to move payloads here, that work belongs in a follow-up spec.
 """
 from ..events.events import (
     EventName,
-    CollectorStartPayload,
     CollectorDonePayload,
 )
 
-__all__ = ["EventName", "CollectorStartPayload", "CollectorDonePayload"]
+__all__ = ["EventName", "CollectorDonePayload"]
 ```
 
-**Note:** `CollectorStartPayload` and `CollectorDonePayload` may not exist as such — the current code uses dicts and the `CollectorDonePayload` dataclass. Check `src/events/events.py:36-45` and adjust re-exports to whatever exists. If only `CollectorDonePayload` exists, re-export that.
+**Note:** `CollectorStartPayload` does NOT exist in `src/events/events.py` — the current code uses dicts for the start payload (e.g. `{"task_id": ..., "source": ..., "source_type": ...}`). Only `CollectorDonePayload` is a dataclass (see `src/events/events.py:36-45`). Re-export only what exists.
 
 - [ ] **Step 5: Write `src/pipeline/stages/collector.py`**
 
@@ -2692,11 +2688,11 @@ import logging
 from typing import Sequence
 
 from ..queue.service import get_default_queue_service
+from ..types import SourceType, TaskStatus
 from .ingest import _get_provider, _resolve_wiki_paths, run_ingest
 from .ports import PipelineContext, PipelineStage
 from .runner import PipelineRunner
 from .stages import AnalyzerStage, CollectorStage, GeneratorStage
-from ..types import SourceType
 
 _logger = logging.getLogger(__name__)
 
@@ -2731,7 +2727,7 @@ class PipelineService:
             result = await stage.run(ctx, prev_result=None)
             if not result.success:
                 self.queue_service.update_status(
-                    task_id, status=__import__("src.types", fromlist=["TaskStatus"]).TaskStatus.FAILED,
+                    task_id, status=TaskStatus.FAILED,
                     error=f"collector stage failed: {result.payload}",
                 )
                 self.queue_service.release_in_flight(task_id)
@@ -2750,12 +2746,12 @@ class PipelineService:
                 provider=provider,
                 task_id=task_id,
             )
-            self.queue_service.update_status(task_id, status=__import__("src.types", fromlist=["TaskStatus"]).TaskStatus.APPROVED)
+            self.queue_service.update_status(task_id, status=TaskStatus.APPROVED)
         except Exception as exc:
             _logger.exception("ingest failed for %s", task_id)
             self.queue_service.update_status(
                 task_id,
-                status=__import__("src.types", fromlist=["TaskStatus"]).TaskStatus.FAILED,
+                status=TaskStatus.FAILED,
                 error=str(exc),
             )
         finally:
