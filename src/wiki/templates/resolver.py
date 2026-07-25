@@ -81,8 +81,15 @@ def list_available(project_root: Path) -> list[Template]:
     """List all PageTypes that have at least one resolvable template.
 
     Bundled should always provide all 4; the project/user layers only
-    override. We iterate PageType to surface every type's template,
-    skipping any where resolution raises FileNotFoundError.
+    override. We iterate PageType to surface every type's template.
+
+    Skips on two error classes:
+    - FileNotFoundError: bundled file deleted (operator issue, not a
+      template problem)
+    - ValueError: a project/user override file has a malformed
+      wiki-template-type header. The CLI surfaces this as INVALID; we
+      still want a Template back so the row can be marked, so we
+      attempt to construct one from the file directly.
     """
     out: list[Template] = []
     for pt in PageType:
@@ -90,4 +97,19 @@ def list_available(project_root: Path) -> list[Template]:
             out.append(resolve(pt, project_root))
         except FileNotFoundError:
             continue
+        except ValueError as e:
+            # Surface the invalid override as a Template so list can mark INVALID.
+            # Try to read the file that caused the error (project > user).
+            from .resolver import _validate_type, _parse_version, BUNDLED_DIR, USER_TEMPLATE_DIR, PROJECT_TEMPLATE_DIR
+            for cand in (project_root / PROJECT_TEMPLATE_DIR / f"{pt.value}.md", USER_TEMPLATE_DIR / f"{pt.value}.md"):
+                if cand.is_file():
+                    raw = cand.read_text(encoding="utf-8")
+                    out.append(Template(
+                        type=pt,
+                        body_markdown=raw,
+                        version=_parse_version(raw),
+                        source="project" if cand.parent.name == PROJECT_TEMPLATE_DIR else "user",
+                        path=cand,
+                    ))
+                    break
     return out

@@ -279,6 +279,10 @@ def main():
     p_vextract.add_argument("--model", default=None)
     p_vextract.set_defaults(func=cmd_vision_extract)
 
+    # Wiki page templates (Plan 25 v1 follow-up)
+    from .cli_ext.wiki_templates_cmd import add_wiki_templates_parser
+    add_wiki_templates_parser(subparsers)
+
     # Serve (HTTP API server)
     p_serve = subparsers.add_parser("serve", help="Start HTTP API server")
     p_serve.add_argument("--host", default="127.0.0.1")
