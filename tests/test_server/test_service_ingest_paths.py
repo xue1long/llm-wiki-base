@@ -5,29 +5,28 @@ was passed through verbatim, and Collector's permission check (which only
 matches relative paths like `raw/sources`) raised PermissionError.
 After this fix, the service anchors absolute paths to the project root
 and rejects paths outside the project.
+
+After the queue refactor (Tasks 1-7), persistence is handled by
+JsonFileBackend via QueueService. The test redirects the backend's path
+and clears the singleton between tests via __reset_for_testing().
 """
 import pytest
 
 from src.services import ingest as ingest_service
-from src.queue import queue as queue_module
+from src.queue import __reset_for_testing, get_default_queue_service
 
 
 @pytest.fixture(autouse=True)
 def _isolate_queue(tmp_path, monkeypatch):
-    """Redirect the queue's on-disk persistence to a per-test tmp path
-    AND clear in-flight tracking so tasks this test enqueues cannot
-    leak into later tests (e.g. tests/test_e2e/test_ingest_happy_path.py
-    which drives _process_next on whatever is at the head of the queue).
+    """Reset the singleton and redirect the backend's persistence path.
 
-    Without this, the global _queue persists between tests via
+    Without this, the global queue persists between tests via
     .kb-queue.json and the first call to __reset_for_testing() reloads
     any tasks other tests had saved.
     """
-    # Fresh file per test so any persistence stays in this test only.
-    monkeypatch.setattr(queue_module, "QUEUE_FILE", tmp_path / "queue.json")
-    queue_module.__reset_for_testing()
+    __reset_for_testing()
     yield
-    queue_module.__reset_for_testing()
+    __reset_for_testing()
 
 
 @pytest.fixture
@@ -54,6 +53,15 @@ def project(tmp_path, monkeypatch):
     return project_root
 
 
+def _last_task(project_id=None):
+    """Find the most recently enqueued task in the default service's backend."""
+    service = get_default_queue_service()
+    snap = service.backend.snapshot()
+    if not snap:
+        return None
+    return snap[-1]
+
+
 def test_absolute_path_inside_project_is_anchored(project):
     """`/abs/path/to/kb/raw/sources/x.md` becomes `raw/sources/x.md`."""
     target = project / "raw" / "sources" / "x.md"
@@ -62,7 +70,7 @@ def test_absolute_path_inside_project_is_anchored(project):
         source=str(target),
     )
     assert result["status"] == "queued"
-    last = list(queue_module._queue)[-1]
+    last = _last_task()
     assert last.source == "raw/sources/x.md"
     assert last.source_type.value == "file"
 
@@ -83,7 +91,7 @@ def test_relative_path_passes_through(project):
         source="raw/sources/y.md",
     )
     assert result["status"] == "queued"
-    last = list(queue_module._queue)[-1]
+    last = _last_task()
     assert last.source == "raw/sources/y.md"
 
 
@@ -94,7 +102,7 @@ def test_url_passes_through(project):
         source="https://example.com/paper.pdf",
     )
     assert result["status"] == "queued"
-    last = list(queue_module._queue)[-1]
+    last = _last_task()
     assert last.source == "https://example.com/paper.pdf"
 
 
@@ -141,9 +149,8 @@ def test_absolute_path_via_symlink_anchors(tmp_path, monkeypatch):
         source=str(target),
     )
     assert result["status"] == "queued"
-    last = list(queue_module._queue)[-1]
+    last = _last_task()
     assert last.source == "raw/sources/symlink_x.md", (
         f"absolute path through real dir should still anchor via symlink "
         f"resolution; got source={last.source!r}"
     )
-

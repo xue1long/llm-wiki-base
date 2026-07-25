@@ -33,17 +33,22 @@ from src.circuit_breaker import get_circuit_breaker, CircuitState
 from src.events.event_bus import event_bus
 from src.events.events import CollectorDonePayload, EventName
 from src.pipeline import pipeline as pipeline_mod
-from src.queue import queue as queue_mod
-from src.queue.queue import enqueue_task, get_queue
+from src.queue import (
+    __reset_for_testing,
+    enqueue_task,
+    get_default_queue_service,
+    get_queue,
+)
+from src.queue.retry import MAX_RETRIES
 from src.types import SourceType, TaskStatus
 from src.utils.idempotency import get_idempotency_cache
 
 
 def setup_function(_):
     get_idempotency_cache().clear()
-    queue_mod._queue.clear()
-    queue_mod._paused = True
-    queue_mod._in_flight.clear()
+    __reset_for_testing()
+    service = get_default_queue_service()
+    service.pause()
     # Reset the queue circuit breaker so this test cannot leak an OPEN state
     # into downstream tests (test_queue_retry_liveness is sensitive to it).
     breaker = get_circuit_breaker("task_queue")
@@ -112,7 +117,7 @@ def test_sync_enqueue_full_chain_runs_to_completion_no_running_loop(
         ingested.append(kwargs)
         return []
 
-    async def stub_collect(task_id, source, source_type):
+    async def stub_collect(task_id, source, source_type, project_id=None):
         from src.events.events import CollectorDonePayload
         collected.append(task_id)
         return CollectorDonePayload(
@@ -127,7 +132,7 @@ def test_sync_enqueue_full_chain_runs_to_completion_no_running_loop(
     monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: object())
 
     # Unpause so the synchronous enqueue actually triggers the chain.
-    queue_mod._paused = False
+    get_default_queue_service().resume()
 
     # Capture coroutine warnings — the previous bug fired this exact warning.
     with warnings.catch_warnings(record=True) as caught:
@@ -144,7 +149,7 @@ def test_sync_enqueue_full_chain_runs_to_completion_no_running_loop(
         "expected APPROVED after synchronous enqueue; got "
         f"{task.status!r}. run_ingest calls seen: {len(ingested)}"
     )
-    assert task_id not in queue_mod._in_flight, (
+    assert task_id not in get_default_queue_service().tracker.snapshot(), (
         "_in_flight must be released after the chain completes"
     )
 
@@ -163,7 +168,7 @@ def test_sync_enqueue_full_chain_when_run_ingest_raises(tmp_path, monkeypatch):
     async def failed_ingest(**kwargs):
         raise RuntimeError("ingest blew up")
 
-    async def stub_collect(task_id, source, source_type):
+    async def stub_collect(task_id, source, source_type, project_id=None):
         from src.events.events import CollectorDonePayload
         return CollectorDonePayload(
             task_id=task_id,
@@ -176,7 +181,7 @@ def test_sync_enqueue_full_chain_when_run_ingest_raises(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda project_id=None: tmp_path)
     monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: object())
 
-    queue_mod._paused = False
+    get_default_queue_service().resume()
 
     # First pass: raises, retry path runs — counter goes to MAX_RETRIES (was
     # 0 → 1 after first FAILED update). Second pass: clears in-flight and
@@ -186,9 +191,12 @@ def test_sync_enqueue_full_chain_when_run_ingest_raises(tmp_path, monkeypatch):
     assert task_id
 
     # The retry counter is now 1; force the second (terminal) failed pass.
-    queue_mod._in_flight.discard(task_id)
-    queue_mod._queue[0].retry_count = queue_mod.MAX_RETRIES - 1
-    queue_mod._queue[0].status = TaskStatus.PENDING
+    service = get_default_queue_service()
+    service.tracker.release(task_id)
+    task = service.backend.find(task_id)
+    task.retry_count = MAX_RETRIES - 1
+    task.status = TaskStatus.PENDING
+    service.backend.save(task)
     event_bus.emit(
         "collector:start",
         {
@@ -202,4 +210,4 @@ def test_sync_enqueue_full_chain_when_run_ingest_raises(tmp_path, monkeypatch):
     assert task.status is TaskStatus.DEAD_LETTER, (
         f"expected DEAD_LETTER after retry exhaustion; got {task.status!r}"
     )
-    assert task_id not in queue_mod._in_flight
+    assert task_id not in service.tracker.snapshot()

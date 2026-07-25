@@ -21,7 +21,10 @@ logger = logging.getLogger(__name__)
 
 class JsonFileBackend:
     def __init__(self, path: Path) -> None:
-        self.path = Path(path)
+        # Store the raw string so re-resolving on each write picks up
+        # CWD changes (the legacy queue.py used a module-level constant
+        # that safe_write resolved relative to CWD at write time).
+        self._path = Path(path) if isinstance(path, Path) else path
         # Internal lock protects the in-memory snapshot during
         # enqueue/save. The QueueService holds a service-level lock
         # that covers multi-step orchestration; this lock only guards
@@ -31,6 +34,21 @@ class JsonFileBackend:
         self._lock = threading.Lock()
         self._tasks: dict[str, dict] = {}
         self._load_unlocked()
+
+    @property
+    def path(self) -> Path:
+        """Return the absolute, CWD-resolved path used for IO.
+
+        Re-resolves the stored path on every access so that a
+        monkeypatch.chdir() between construction and write picks up
+        the new CWD (the legacy queue.py relied on safe_write
+        resolving the relative constant at write time).
+        """
+        p = Path(self._path)
+        if not p.is_absolute():
+            import os
+            p = p.resolve() if p.exists() else Path(os.path.abspath(str(p)))
+        return p
 
     # --- internal helpers (called only while holding self._lock) ---
 
@@ -52,6 +70,25 @@ class JsonFileBackend:
         result: dict[str, dict] = {}
         for row in data:
             if isinstance(row, dict) and "id" in row:
+                # Coerce JSON-string enums back to their enum objects.
+                # json.dumps serialises enum values to their .value (a str),
+                # so the on-disk shape has "status": "pending", not the
+                # enum object. Without this coercion, KnowledgeTask(**row)
+                # stores raw strings in fields typed as enums, breaking
+                # equality checks like `task.status is TaskStatus.APPROVED`
+                # and comparisons against TaskStatus.PENDING in
+                # select_next_task.
+                if "status" in row and isinstance(row["status"], str):
+                    try:
+                        row["status"] = TaskStatus(row["status"])
+                    except ValueError:
+                        pass  # leave as-is; downstream will surface the error
+                if "source_type" in row and isinstance(row["source_type"], str):
+                    from ..types import SourceType
+                    try:
+                        row["source_type"] = SourceType(row["source_type"])
+                    except ValueError:
+                        pass
                 result[row["id"]] = row
         self._tasks = result
 

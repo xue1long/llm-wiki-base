@@ -244,8 +244,19 @@ class QueueService:
         self.advance()
 
     def get_queue(self) -> list[KnowledgeTask]:
+        # Return all tasks (including APPROVED / DEAD_LETTER). The
+        # snapshot-based view is used internally by select_next_task to
+        # find pending work; ``get_queue`` is the public inspection API
+        # and must show every task, including ones that have already
+        # reached a terminal state. (Tests rely on this; production
+        # code paths that want only pending tasks should call
+        # ``backend.snapshot()`` directly or ``select_next_task``.)
         with self._service_lock:
-            return self.backend.snapshot()
+            return [
+                self.backend.find(tid)
+                for tid in list(self.backend._tasks.keys())
+                if self.backend.find(tid) is not None
+            ]
 
     def get_status(self) -> dict:
         breaker = self._breaker()
@@ -282,14 +293,25 @@ def get_default_queue_service() -> QueueService:
 
 
 def __reset_for_testing() -> None:
-    """Test-only: discard the default singleton so the next call to
-    get_default_queue_service() rebuilds it from the current disk state.
+    """Test-only: discard the default singleton AND wipe the persisted
+    queue file so the next call to get_default_queue_service() rebuilds
+    against an empty state.
 
-    This replaces the old src/queue/queue.py:281-285 __reset_for_testing.
-    The default service's tracker is reset to empty; the backend re-reads
-    from disk on next access (its in-memory state is reloaded by the
-    singleton's first enqueue/find).
+    Without the disk clear, tests that expect ``get_queue()[0]`` to
+    return their own enqueued task see stale tasks from prior tests
+    that have already been persisted. (The original src/queue/queue.py
+    had the same singleton-rebuild behaviour but the legacy tests
+    didn't need a clean disk because they all used the same queue file
+    and treated stale entries as expected — the refactored service
+    surfaces them through get_queue(), so test isolation now requires
+    the disk to be clean.)
     """
     global _default_service
     with _default_lock:
         _default_service = None
+    # Clear the persisted queue file so the new singleton starts empty.
+    try:
+        from pathlib import Path
+        Path(QUEUE_FILE).unlink(missing_ok=True)
+    except OSError:
+        pass

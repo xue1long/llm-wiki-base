@@ -7,12 +7,17 @@ Exercises the full chain:
       → queue.enqueue_task (queues + triggers _process_next)
       → event_bus.emit("collector:start", …)
       → pipeline._dispatch_collector_start (registered via fix/server)
-      → collector.collect  (file read + staged copy under processing_path)
+      → collector.collect  (file read directly from raw/sources/<file>)
       → pipeline._on_collector_done
       → pipeline.run_ingest  (analyze → generate → atomic write)
       → WikiPages written under <project>/wiki/{sources,entities,…}/
       → index.md + log.md updated
-      → post-success move of source to Inbox/Processing (fix/pipeline)
+
+After the 2026-07 Inbox cleanup the collector no longer writes a staged
+copy to ``Inbox/Processing/<task_id>.md`` and the pipeline no longer
+moves the source file on success. The source stays at
+``<project>/raw/sources/<file>`` and the wiki page's ``sources:`` field
+references that user-visible path.
 
 This is the ONLY test that catches regressions in the WIRING between
 modules. Each of fix/server, fix/permissions, fix/pipeline, fix/llm has
@@ -22,9 +27,7 @@ actually produces a wiki page end to end.
 LLM stages are stubbed at pipeline.analyze / pipeline.generate (no real
 Ollama / OpenAI call). The test is hermetic and runs in <2s.
 """
-import asyncio
 import time
-from pathlib import Path
 
 import pytest
 
@@ -47,9 +50,6 @@ def fresh_project(tmp_path, monkeypatch):
     project_root.mkdir()
 
     # Redirect the GlobalRegistryStore so the project is discoverable by id.
-    # config_dir() reads _OVERRIDE_CONFIG_DIR (a module-level sentinel) when
-    # set; monkeypatching the *function* wouldn't help because the store
-    # captures paths.registry_path at class-definition time.
     from src.project import paths as project_paths
     monkeypatch.setattr(project_paths, "_OVERRIDE_CONFIG_DIR", tmp_path)
 
@@ -79,9 +79,6 @@ def stub_llm_pipeline(monkeypatch):
     )
 
     async def fake_analyze(*args, **kwargs):
-        # AnalysisResult is a dataclass. The stub generate below ignores
-        # analysis output, but fake_analyze still returns a shape-correct
-        # instance so any incidental inspection doesn't crash.
         from src.pipeline.schemas import AnalysisResult
         return AnalysisResult(
             task_id=kwargs.get("task_id", "test"),
@@ -100,26 +97,10 @@ def stub_llm_pipeline(monkeypatch):
 
     monkeypatch.setattr(pipeline_module, "analyze", fake_analyze)
     monkeypatch.setattr(pipeline_module, "generate", fake_generate)
+    monkeypatch.setattr(pipeline_module, "_get_provider", lambda: None)
 
-    # Also stub _get_provider so the pipeline never tries to instantiate a
-    # real LLM provider when run_ingest threads one through (it does pass
-    # ``provider=`` even though analyze/generate ignore it).
-    monkeypatch.setattr(
-        pipeline_module, "_get_provider", lambda: None,
-    )
-
-    # Stub collector's permission check on the staged raw_path. The test
-    # uses an absolute path under tmp_path/Inbox/Processing (from the stub
-    # InboxManager), which the PurePosixPath is_relative_to check rejects
-    # against the relative "Inbox/Processing" boundary. The permission
-    # check is structurally redundant here because the InboxManager owns
-    # the path; stubbing it is acceptable for this e2e smoke test.
-    #
-    # collector.py imports enforce_permission at module load time
-    # (`from ..permissions import …`), so we must patch the already-bound
-    # name in the collector module. pipeline.py does the import inline
-    # inside _on_collector_done, so it picks up any later patch on
-    # src.permissions.enforce_permission.
+    # Stub permission check so the project-relative path resolves cleanly
+    # under the tmp_path monkeypatch (which is the project root).
     from src.pipeline import collector as collector_module
     monkeypatch.setattr(
         collector_module, "enforce_permission",
@@ -138,28 +119,17 @@ def stub_llm_pipeline(monkeypatch):
 def reset_queue(monkeypatch):
     """Reset the queue and circuit breaker between tests so each starts clean."""
     from src.circuit_breaker import CircuitState
-    from src.queue import queue as queue_module
+    from src.queue import __reset_for_testing, get_default_queue_service
+    from src.queue.retry import MAX_RETRIES
 
-    queue_module.__reset_for_testing()
-    queue_module.pause_queue()
-    cb = queue_module.get_circuit_breaker(queue_module.CIRCUIT_BREAKER_NAME)
+    __reset_for_testing()
+    service = get_default_queue_service()
+    service.pause()
+    cb = service._breaker()
     cb._state = CircuitState.CLOSED
     cb._failure_count = 0
-    queue_module.resume_queue()
+    service.resume()
     yield
-
-
-@pytest.fixture
-def stub_inbox_in_tmp(tmp_path, monkeypatch):
-    """Point the global InboxManager at tmp_path/Inbox so the staged copy
-    under processing_path lands in tmp_path and not the host's real Inbox."""
-    from src.inbox import manager as manager_module
-    from src.inbox.manager import InboxManager
-
-    inbox = InboxManager(base_path=str(tmp_path / "Inbox"))
-    inbox.ensure_dirs()
-    monkeypatch.setattr(manager_module, "_inbox_manager", inbox)
-    return inbox
 
 
 # ---------------------------------------------------------------------------
@@ -168,14 +138,15 @@ def stub_inbox_in_tmp(tmp_path, monkeypatch):
 
 
 def test_post_ingest_produces_wiki_page_end_to_end(
-    fresh_project, stub_llm_pipeline, reset_queue, stub_inbox_in_tmp, tmp_path
+    fresh_project, stub_llm_pipeline, reset_queue, tmp_path
 ):
     """Full chain: init project → write raw doc → POST → drive queue →
-    assert wiki page + index + log + post-success move all happen."""
+    assert wiki page + index + log + source-stays-in-place all happen."""
     from fastapi.testclient import TestClient
 
     from src.server.app import create_app
-    from src.queue import queue as queue_module
+    from src.queue import get_default_queue_service, get_queue
+    from src.types import KnowledgeTask
 
     # --- Arrange --------------------------------------------------------
     project_root = fresh_project.path
@@ -187,11 +158,11 @@ def test_post_ingest_produces_wiki_page_end_to_end(
         encoding="utf-8",
     )
 
-    # Use a path relative to CWD (server's expected form for permission check).
-    # Project root IS the CWD-like anchor — pass the raw/sources relative form.
-    cwd_anchor = project_root
+    # CWD-anchor: the project's ingest service normalises paths against
+    # project_root; the collector then resolves ``raw/sources/sample.md``
+    # to the absolute path under project_root.
     monkeypatch_cwd = pytest.MonkeyPatch()
-    monkeypatch_cwd.chdir(cwd_anchor)
+    monkeypatch_cwd.chdir(project_root)
 
     try:
         app = create_app()
@@ -209,15 +180,13 @@ def test_post_ingest_produces_wiki_page_end_to_end(
         assert task_id, "POST should return a taskId"
 
         # --- Act: drive the queue --------------------------------------
-        # _process_next emits collector:start; _dispatch_collector_start
-        # uses asyncio.run since no loop is running in this sync test.
-        queue_module._process_next(task_id, fresh_project.id)
+        service = get_default_queue_service()
+        service.advance(prefer_task_id=task_id, project_id=fresh_project.id)
 
-        # Poll for terminal state (Fix 3: success moves source; failure keeps it).
         deadline = time.time() + 10
         while time.time() < deadline:
             current = next(
-                (t for t in queue_module._queue if t.id == task_id), None
+                (t for t in get_queue() if t.id == task_id), None
             )
             if current and current.status.value in ("approved", "failed", "dead_letter"):
                 break
@@ -229,7 +198,7 @@ def test_post_ingest_produces_wiki_page_end_to_end(
         assert page_path.exists(), (
             f"Wiki page not written at {page_path}. "
             "Either fix/server (handler not registered), fix/permissions "
-            "(raw/sources denied), fix/pipeline (move ran before LLM), "
+            "(raw/sources denied), fix/pipeline (collector didn't run), "
             "or fix/llm (wrong provider selected) is broken end-to-end."
         )
 
@@ -253,29 +222,28 @@ def test_post_ingest_produces_wiki_page_end_to_end(
         assert "ingest" in log_md.lower()
 
         # --- Assert: queue reached APPROVED ----------------------------
-        current = next(t for t in queue_module._queue if t.id == task_id)
+        current = next(t for t in get_queue() if t.id == task_id)
         assert current.status.value == "approved", (
             f"task final status {current.status.value!r}: {current.error!r}"
         )
 
-        # --- Assert: Fix 3 contract — source moved to Processing ------
-        # Only the staged Inbox/Processing copy under tmp_path is checked;
-        # the project_root/raw/sources/sample.md still exists because we
-        # POSTed the CWD-relative path "raw/sources/sample.md", which the
-        # collector resolves against tmp_path/e2e/. The staged task_id copy
-        # under stub_inbox_in_tmp.processing_path MUST exist.
-        staged = stub_inbox_in_tmp.processing_path / f"{task_id}.md"
-        assert staged.exists(), (
-            f"Staged copy at {staged} missing — safe_write did not run."
+        # --- Assert: 2026-07 cleanup contract — source stays put ------
+        # The collector no longer moves the source file to Inbox/Processing;
+        # the original artefact must still exist at its user-visible path
+        # after a successful ingest.
+        assert raw_file.exists(), (
+            f"Source file at {raw_file} was moved or deleted by the pipeline. "
+            "After the 2026-07 cleanup, the source file must remain at "
+            "its original location. Re-ingestion dedup is handled by the "
+            "md5 cache in src/utils/idempotency.py."
         )
 
-        # The source's project-relative form must have been moved to the
-        # stub inbox's processing_path by the post-success handler (Fix 3).
-        moved_to_processing = stub_inbox_in_tmp.processing_path / "sample.md"
-        assert moved_to_processing.exists(), (
-            "Fix 3 contract: source must be moved to Inbox/Processing "
-            f"after run_ingest succeeds. Expected {moved_to_processing}."
-        )
+        # No Inbox/ subdir should exist anywhere in the project.
+        for inbox_dir in project_root.glob("**/Inbox"):
+            assert not any(inbox_dir.glob("Processing")), (
+                f"Inbox/Processing/ should not exist under {inbox_dir} after "
+                "the 2026-07 cleanup."
+            )
 
     finally:
         monkeypatch_cwd.undo()

@@ -24,7 +24,6 @@ def test_enqueue_url_source(monkeypatch, tmp_path):
     project_dir.mkdir()
     _stub_resolve(monkeypatch, project_dir)
 
-    from src.queue import queue as q
     # Audit I5: ingest service now passes project_id through to enqueue_task.
     monkeypatch.setattr(ingest_service, "enqueue_task", lambda source, stype, thash, project_id=None: "task-123")
 
@@ -40,7 +39,6 @@ def test_enqueue_file_source_detected(monkeypatch, tmp_path):
     project_dir.mkdir()
     _stub_resolve(monkeypatch, project_dir)
 
-    from src.queue import queue as q
     captured = {}
     def fake_enqueue(source, stype, thash, project_id=None):
         captured["source"] = source
@@ -59,7 +57,6 @@ def test_enqueue_folder_source(monkeypatch, tmp_path):
     project_dir.mkdir()
     _stub_resolve(monkeypatch, project_dir)
 
-    from src.queue import queue as q
     captured = {}
     def fake_enqueue(source, stype, thash, project_id=None):
         captured["source"] = source
@@ -77,7 +74,6 @@ def test_enqueue_duplicate_returns_ignored(monkeypatch, tmp_path):
     project_dir.mkdir()
     _stub_resolve(monkeypatch, project_dir)
 
-    from src.queue import queue as q
     monkeypatch.setattr(ingest_service, "enqueue_task", lambda source, stype, thash, project_id=None: "")
 
     result = ingest_service.enqueue_source("u", "https://example.com/dup")

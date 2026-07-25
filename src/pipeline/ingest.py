@@ -39,47 +39,35 @@ from ..lib.write_hooks import flush_pending_writes
 from ..wiki.features.indexer import append_to_index
 from ..wiki.features.logger import log_event
 from ..wiki.storage.page_writer import write_page
+# Resolve analyze/generate via the pipeline package namespace so
+# monkey-patches on `src.pipeline.pipeline.analyze` /
+# `src.pipeline.pipeline.generate` (set by tests like
+# test_e2e/test_ingest_happy_path.py) propagate into run_ingest.
+# The package namespace ``src.pipeline`` always contains the compat
+# shim's staticmethod-wrapped functions; ``getattr`` looks them up
+# at call time, after the test patch has run.
 from . import analyzer as _analyzer_module
 from . import generator as _generator_module
+
+
+def _analyze(**kwargs):
+    import sys
+    return getattr(sys.modules["src.pipeline.pipeline"], "analyze")(**kwargs)
+
+
+def _generate(**kwargs):
+    import sys
+    return getattr(sys.modules["src.pipeline.pipeline"], "generate")(**kwargs)
 
 _logger = logging.getLogger(__name__)
 
 
-def _get_provider():
-    """Resolve the configured default LLM provider.
-
-    Falls back to OpenAI when the registry is empty / corrupt (so import-time
-    tests still work). Identical to src/pipeline/pipeline.py:_get_provider —
-    this is the extraction of that function.
-    """
-    from ..llm.provider_factory import create_llm_provider
-    from ..llm.registry import ProviderRegistry, RegistryCorruptError, ProviderNotFoundError
-    try:
-        cfg = ProviderRegistry.get_default()
-        return create_llm_provider(cfg.name)
-    except (RegistryCorruptError, ProviderNotFoundError, ValueError):
-        # No default available (e.g. tests with empty registry): fall back
-        # to OpenAI so the pipeline still functions.
-        return create_llm_provider("openai")
-
-
-def _resolve_wiki_paths(project_id: str | None = None):
-    """Resolve WikiPaths for the active project.
-
-    When project_id is provided, look up in the global registry. Otherwise
-    fall back to CWD (treated as project root). Identical to
-    src/pipeline/pipeline.py:_resolve_wiki_paths.
-    """
-    from ..wiki.core.paths import WikiPaths as _WikiPaths
-    from ..project.registry import GlobalRegistryStore
-    if project_id is not None:
-        try:
-            entry = GlobalRegistryStore.by_id(project_id)
-            if entry is not None:
-                return _WikiPaths(Path(entry.path))
-        except Exception:
-            pass
-    return _WikiPaths(Path.cwd())
+# Note: this file used to define _resolve_wiki_paths and _get_provider as
+# local helpers. They were moved to src.pipeline.__init__ as the canonical
+# location so that the compat-shim mechanism in __init__.py can re-export
+# them as class attributes on sys.modules['src.pipeline.pipeline']. Tests
+# monkey-patch those attributes; service.py looks them up late through the
+# src.pipeline package namespace, which is what propagates the patch.
 
 
 async def run_ingest(
@@ -101,7 +89,6 @@ async def run_ingest(
     _ = paths  # keep the parameter for callers
 
     # Step 1: Analyze
-    _analyze = getattr(_analyzer_module, "analyze")
     analysis = await _analyze(
         source_text=source_text,
         source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
@@ -113,7 +100,6 @@ async def run_ingest(
     )
 
     # Step 2: Generate
-    _generate = getattr(_generator_module, "generate")
     pages = await _generate(
         paths=paths,
         analysis=analysis,

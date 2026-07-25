@@ -4,16 +4,23 @@
 Per I-queue-11 (full audit): once a task exhausts MAX_RETRIES, the queue must
 emit a `task:dead_letter` event with {task_id, retry_count, last_error} and
 transition the task to TaskStatus.DEAD_LETTER (not just FAILED).
+
+After the queue refactor (Tasks 1-7), the production code path goes through
+QueueService.update_status, which delegates the retry/dead-letter decision
+to DefaultRetryPolicy. The dead-letter event is emitted from update_status
+when the policy returns new_status == TaskStatus.DEAD_LETTER.
 """
 import threading
 
-from src.queue import queue as q
-from src.queue.queue import (
+from src.events.event_bus import event_bus
+from src.queue import (
     __reset_for_testing,
     enqueue_task,
+    get_default_queue_service,
     get_queue,
     update_task_status,
 )
+from src.queue.retry import MAX_RETRIES
 from src.types import SourceType, TaskStatus
 from src.utils.idempotency import get_idempotency_cache
 
@@ -27,11 +34,12 @@ def _on_dead_letter(payload):
 
 
 def _subscribe():
-    q.event_bus._handlers.setdefault("task:dead_letter", set()).add(_on_dead_letter)
+    bus_handlers = event_bus._handlers.setdefault("task:dead_letter", set())
+    bus_handlers.add(_on_dead_letter)
 
 
 def _unsubscribe():
-    handlers = q.event_bus._handlers.get("task:dead_letter", set())
+    handlers = event_bus._handlers.get("task:dead_letter", set())
     handlers.discard(_on_dead_letter)
 
 
@@ -46,12 +54,15 @@ def _reset_circuit_breaker():
 
 
 def setup_function(_):
-    """Test isolation: clear queue, in-flight, idempotency cache, event capture,
-    and re-register the dead-letter subscriber on the singleton event bus."""
+    """Test isolation: clear idempotency cache, event capture,
+    and re-register the dead-letter subscriber on the singleton event bus.
+
+    Pauses the queue so the pipeline service's collector:start handler does
+    not auto-dispatch a freshly-enqueued task and drive it to FAILED/DEAD_LETTER
+    before the test can mutate the status explicitly."""
     get_idempotency_cache().clear()
-    q._queue.clear()
-    q._paused = True
-    q._in_flight.clear()
+    __reset_for_testing()
+    get_default_queue_service().pause()
     DEAD_LETTER_CAPTURE.clear()
     _reset_circuit_breaker()
     _unsubscribe()
@@ -70,10 +81,12 @@ def _drive_to_running(task_id: str) -> None:
     update_task_status(task_id, TaskStatus.RUNNING)
 
 
-def _reset_to_running(task_id: str) -> None:
+def _reset_to_running(task_id: str, queue=None) -> None:
     """After a FAILED→PENDING auto-retry, force the task back to RUNNING so
     the next FAILED transition is valid."""
-    task = next((t for t in q._queue if t.id == task_id), None)
+    if queue is None:
+        queue = get_queue()
+    task = next((t for t in queue if t.id == task_id), None)
     assert task is not None
     task.status = TaskStatus.RUNNING
 
@@ -96,7 +109,7 @@ def test_dead_letter_emitted_on_retry_exhaustion(tmp_path, monkeypatch):
     assert DEAD_LETTER_CAPTURE, "task:dead_letter event was never emitted"
     payload = DEAD_LETTER_CAPTURE[-1]
     assert payload["task_id"] == task_id
-    assert payload["retry_count"] >= q.MAX_RETRIES
+    assert payload["retry_count"] >= MAX_RETRIES
     assert payload["last_error"] == last_error
 
 
@@ -108,12 +121,12 @@ def test_dead_letter_status_assigned(tmp_path, monkeypatch):
     _drive_to_running(task_id)
     # Drive retries to (but not past) the exhaustion threshold; on the final
     # FAILED transition the queue flips the status to DEAD_LETTER.
-    for _ in range(q.MAX_RETRIES):
+    for _ in range(MAX_RETRIES):
         update_task_status(task_id, TaskStatus.FAILED, error="boom")
         # If we've been dead-lettered, stop — additional FAILED transitions
         # would be invalid (DEAD_LETTER has no outgoing edge to FAILED).
-        task = next((t for t in q._queue if t.id == task_id), None)
-        if task is not None and task.status == TaskStatus.DEAD_LETTER:
+        tasks = [t for t in get_queue() if t.id == task_id]
+        if tasks and tasks[0].status == TaskStatus.DEAD_LETTER:
             break
         _reset_to_running(task_id)
 
@@ -154,8 +167,8 @@ def test_dead_letter_concurrent_retries(tmp_path, monkeypatch):
         for _ in range(5):
             # Bail early if the task has already been dead-lettered by
             # another thread — no further FAILED transitions are valid.
-            task = next((t for t in q._queue if t.id == task_id), None)
-            if task is None or task.status == TaskStatus.DEAD_LETTER:
+            tasks = [t for t in get_queue() if t.id == task_id]
+            if not tasks or tasks[0].status == TaskStatus.DEAD_LETTER:
                 return
             try:
                 update_task_status(task_id, TaskStatus.FAILED, error="race")
@@ -164,8 +177,8 @@ def test_dead_letter_concurrent_retries(tmp_path, monkeypatch):
             # Skip the reset-to-RUNNING if the FAILED transition already
             # flipped us into DEAD_LETTER — keeping it RUNNING would mask
             # the final dead-letter state for the assertion below.
-            task = next((t for t in q._queue if t.id == task_id), None)
-            if task is not None and task.status == TaskStatus.DEAD_LETTER:
+            tasks = [t for t in get_queue() if t.id == task_id]
+            if tasks and tasks[0].status == TaskStatus.DEAD_LETTER:
                 return
             _reset_to_running(task_id)
 

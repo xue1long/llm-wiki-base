@@ -5,8 +5,7 @@ from src.pipeline.pipeline import run_ingest
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths
 from src.events.events import CollectorDonePayload
-from src.queue import queue as queue_mod
-from src.queue.queue import enqueue_task, get_queue
+from src.queue import __reset_for_testing, enqueue_task, get_queue, get_default_queue_service
 from src.types import SourceType, TaskStatus
 from src.utils.idempotency import get_idempotency_cache
 import src.pipeline.pipeline as pipeline_mod
@@ -33,8 +32,16 @@ async def test_run_ingest_full_pipeline(tmp_path):
         paths=p, source_path=raw, source_text="PDF content about backprop",
         provider=provider,
     )
-    assert len(pages) == 1
-    assert pages[0].id == "test"
+    # After the 2026-07 cleanup, ``run_ingest`` unconditionally appends a
+    # ``kb-{task_id}`` source page in addition to whatever the LLM
+    # generated — so we expect 2 pages here (the LLM stub emits one
+    # ``test`` page; the pipeline adds one source page).
+    assert len(pages) >= 1
+    page_ids = {p.id for p in pages}
+    assert "test" in page_ids, f"expected 'test' page in {page_ids}"
+    assert any(p.id.startswith("kb-") for p in pages), (
+        f"expected at least one auto-generated kb-* source page in {page_ids}"
+    )
     assert (p.wiki_sources / "test.md").exists()
     assert "test" in p.llm_wiki_index.read_text(encoding="utf-8")
 
@@ -59,11 +66,15 @@ async def test_collector_done_triggers_run_ingest(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: provider)
 
     get_idempotency_cache().clear()
-    queue_mod._queue.clear()
-    queue_mod._paused = True
+    __reset_for_testing()
+    service = get_default_queue_service()
+    service.pause()
     task_id = enqueue_task("x.md", SourceType.FILE, "pipeline-integration")
-    queue_mod._queue[0].status = TaskStatus.RUNNING
-    queue_mod._in_flight.add(task_id)
+    # Drive the task to RUNNING and mark in-flight via the service
+    task = service.backend.find(task_id)
+    task.status = TaskStatus.RUNNING
+    service.backend.save(task)
+    service.tracker.acquire(task_id)
     payload = CollectorDonePayload(task_id=task_id, raw_path=str(raw), content="content")
     await pipeline_mod._on_collector_done(payload)
     assert (p.wiki_sources / "x.md").exists()

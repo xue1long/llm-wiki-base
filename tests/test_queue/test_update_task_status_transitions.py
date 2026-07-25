@@ -1,22 +1,31 @@
+"""Tests for update_task_status state-machine validation.
+
+After the queue refactor (Tasks 1-7), the production code path goes
+through QueueService.update_status, which uses src.queue.state.can_transition.
+This test exercises the public API directly (no internal queue state).
+"""
 import pytest
 
-from src.queue import queue as queue_module
-from src.queue.queue import (
-    InvalidTransition,
+from src.queue import (
     __reset_for_testing,
     enqueue_task,
+    get_default_queue_service,
     get_queue,
     update_task_status,
 )
+from src.queue.state import InvalidTransition
 from src.types import SourceType, TaskStatus
 from src.utils.idempotency import get_idempotency_cache
 
 
 def setup_function(_):
+    """Test isolation: clear idempotency cache, reset queue singleton,
+    and pause the queue so the pipeline service's collector:start handler
+    does not auto-dispatch a freshly-enqueued task and drive it to
+    FAILED before the test can mutate the status explicitly."""
     get_idempotency_cache().clear()
-    queue_module._queue.clear()
-    queue_module._paused = True
-    queue_module._in_flight.clear()
+    __reset_for_testing()
+    get_default_queue_service().pause()
 
 
 def test_pending_to_running_allowed(tmp_path, monkeypatch):
@@ -35,7 +44,14 @@ def test_running_to_approved_allowed_for_terminal_pipeline(tmp_path, monkeypatch
 
     update_task_status(task_id, TaskStatus.APPROVED)
 
-    assert get_queue()[0].status is TaskStatus.APPROVED
+    # After Tasks 1-7: APPROVED tasks are filtered out of snapshot() (the
+    # production invariant from spec). Verify the transition succeeded by
+    # reading directly from the backend.
+    from src.queue import get_default_queue_service
+    service = get_default_queue_service()
+    task = service.backend.find(task_id)
+    assert task is not None
+    assert task.status is TaskStatus.APPROVED
 
 
 def test_pending_to_approved_blocked(tmp_path, monkeypatch):
