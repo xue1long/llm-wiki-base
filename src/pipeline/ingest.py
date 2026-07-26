@@ -31,11 +31,12 @@ getattr(_generator_module, "generate")). The compat shim that re-exports
 from __future__ import annotations
 import hashlib
 import logging
+import re
 import unicodedata
 from pathlib import Path
 
 from ..wiki.core.paths import WikiPaths
-from ..wiki.core.types import WikiPage
+from ..wiki.core.types import PageType, WikiPage
 from ..lib.atomic_ctx import AtomicContext
 from ..lib.write_hooks import flush_pending_writes
 from ..wiki.features.indexer import append_to_index
@@ -50,6 +51,130 @@ from ..wiki.storage.page_writer import write_page
 # at call time, after the test patch has run.
 from . import analyzer as _analyzer_module
 from . import generator as _generator_module
+
+
+# ---------------------------------------------------------------------------
+# Existing-wiki index helpers (B9 / B11).
+# ---------------------------------------------------------------------------
+# Correct attribute names per typed wiki dir (matches WikiPaths and
+# page_writer._TYPE_TO_DIR). Do NOT build these via f"wiki_{pt.value}s":
+# PageType values are singular (source/entity/concept/synthesis), so that
+# yields wiki_entitys / wiki_synthesiss which do not exist on WikiPaths and
+# raise AttributeError (silently swallowed in Fix E's old loop).
+_EXISTING_WIKI_DIRS = [
+    (PageType.SOURCE, "wiki_sources"),
+    (PageType.ENTITY, "wiki_entities"),
+    (PageType.CONCEPT, "wiki_concepts"),
+    (PageType.SYNTHESIS, "wiki_synthesis"),
+]
+
+
+def _collect_existing_wiki(paths: WikiPaths) -> dict:
+    """Scan the 4 typed wiki directories; return ``{slug: PageType}`` for
+    every page currently on disk.
+
+    Reused for both the analyzer/generator ``existing_wiki_index`` prompt
+    text (slug reuse — B9) and Fix E's stub de-duplication set (B11).
+    """
+    index = {}
+    for pt, attr in _EXISTING_WIKI_DIRS:
+        d = getattr(paths, attr, None)
+        if d is None or not d.exists():
+            continue
+        for f in d.glob("*.md"):
+            index[f.stem] = pt
+    return index
+
+
+def _format_wiki_index(index: dict) -> str:
+    """Render the index as prompt text for the analyzer/generator."""
+    if not index:
+        return "(empty)"
+    return "\n".join(
+        f"- {pt.value}: {slug}" for slug, pt in sorted(index.items())
+    )
+
+
+# B10: extract every [[wikilink]] target from a page body. A wikilink may
+# carry an `|alias` and/or a `#section` suffix; both are stripped so the
+# resulting target matches the slugified page id (which the generator also
+# slugifies). Kept as a module-level pure helper so it is unit-testable
+# against the real code (not a copy).
+_WIKILINK_RE = re.compile(r"\[\[(.*?)\]\]")
+
+
+def _extract_wikilink_targets(body: str) -> list[str]:
+    """Return the de-suffixed target of each ``[[wikilink]]`` in *body*."""
+    out: list[str] = []
+    for _raw in _WIKILINK_RE.findall(body or ""):
+        _tgt = _raw.split("|")[0].split("#")[0].strip()
+        if _tgt:
+            out.append(_tgt)
+    return out
+
+
+def _compute_reverse_relations(paths, pages):
+    """Add inverse edges so the relation graph is bidirectional on disk.
+
+    New pages (in ``pages``) are mutated in-place. Pre-existing target
+    pages referenced by a new relation (but not created this run) are
+    loaded from disk, merged with the new inverse edge, and returned so the
+    caller writes them in the same atomic batch. Only pre-existing pages are
+    returned; the caller must still append ``pages`` to the index (the
+    returned pages are already indexed).
+
+    Uses in-memory computation (not ``RelationSync.sync_page``) because
+    sync_page resets a page's own relations to the passed list and would
+    clobber an inverse edge that a prior page's sync just wrote.
+    """
+    from ..wiki.features.relations import Relation, SYMMETRIC_RELATIONS
+    from ..wiki.storage.page_writer import read_page, page_path_for
+
+    def _infer_type(slug):
+        for t, prop in (
+            (PageType.ENTITY, "wiki_entities"),
+            (PageType.CONCEPT, "wiki_concepts"),
+            (PageType.SOURCE, "wiki_sources"),
+            (PageType.SYNTHESIS, "wiki_synthesis"),
+        ):
+            if (getattr(paths, prop) / f"{slug}.md").exists():
+                return t
+        return PageType.SOURCE
+
+    by_id = {p.id: p for p in pages}
+    extra = {}
+
+    def _target_page(target_id):
+        if target_id in by_id:
+            return by_id[target_id]
+        if target_id in extra:
+            return extra[target_id]
+        f = page_path_for(paths, _infer_type(target_id), target_id)
+        if not f.exists():
+            return None
+        try:
+            pg = read_page(f)
+        except Exception:
+            return None
+        extra[target_id] = pg
+        return pg
+
+    for page in pages:
+        for rel in list(page.relations or []):
+            inv = rel.inverse()
+            if inv is None or rel.type in SYMMETRIC_RELATIONS:
+                continue
+            inv.target_id = page.id
+            target = _target_page(rel.target_id)
+            if target is None:
+                continue
+            rels = list(target.relations or [])
+            if any(r.target_id == inv.target_id and r.type == inv.type for r in rels):
+                continue
+            rels.append(inv)
+            target.relations = rels
+
+    return list(extra.values())
 
 
 def _analyze(**kwargs):
@@ -90,11 +215,16 @@ async def run_ingest(
     # project-relative path.
     _ = paths  # keep the parameter for callers
 
+    # B9/B11: scan the existing wiki once and reuse it for both the
+    # analyzer/generator prompt (slug reuse) and Fix E's stub de-dup.
+    _existing_wiki = _collect_existing_wiki(paths)
+    _existing_wiki_index = _format_wiki_index(_existing_wiki)
+
     # Step 1: Analyze
     analysis = await _analyze(
         source_text=source_text,
         source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
-        existing_wiki_index="",
+        existing_wiki_index=_existing_wiki_index,
         folder_context=folder_context,
         provider=provider,
         task_id=task_id,
@@ -105,7 +235,7 @@ async def run_ingest(
     pages = await _generate(
         paths=paths,
         analysis=analysis,
-        existing_wiki_index="",
+        existing_wiki_index=_existing_wiki_index,
         provider=provider,
     )
 
@@ -318,17 +448,23 @@ async def run_ingest(
     for link in (analysis.links_to_existing or []):
         referenced_slugs.add(_slugify(link) or link)
 
+    # B10: scan each generated page's body for [[wikilinks]] that are not
+    # captured by the structured `relations` list above. `_extract_wikilink_targets`
+    # strips any `|alias` / `#section` suffix; slugify then makes the stub id
+    # match the page id (which is also slugified). Bodies may reference pages
+    # that exist or will be produced this run; Fix E subtracts both sets below.
+    for page in pages:
+        for _tgt in _extract_wikilink_targets(page.body):
+            referenced_slugs.add(_slugify(_tgt) or _tgt)
+
     produced_slugs = {p.id for p in pages}
-    # Existing wiki pages (across all four type directories).
-    from ..wiki.storage.page_writer import page_path_for
-    existing_slugs: set[str] = set()
-    for pt in PageType:
-        try:
-            existing_slugs.update(
-                p.stem for p in getattr(paths, f"wiki_{pt.value}s").glob("*.md")
-            )
-        except Exception:
-            pass
+    # Existing wiki pages (across all four type directories) — reuse the
+    # index scanned at the top of run_ingest (_existing_wiki). The previous
+    # implementation built attribute names via f"wiki_{pt.value}s", which
+    # yields wiki_entitys / wiki_synthesiss (PageType values are singular)
+    # and raised AttributeError, silently swallowed, so ENTITY/SYNTHESIS
+    # slugs were never counted (B11).
+    existing_slugs: set[str] = set(_existing_wiki.keys())
 
     missing = referenced_slugs - produced_slugs - existing_slugs
     if missing:
@@ -366,9 +502,17 @@ async def run_ingest(
             updated_at=int(_time.time() * 1000),
         ))
 
+    # B13: compute reverse (inverse) edges in-memory so the relation graph
+    # is bidirectional on disk. New pages are mutated in-place; pre-existing
+    # target pages (referenced by a new relation but not themselves created
+    # this run) are loaded, merged, and written in the same atomic batch.
+    extra_pages = _compute_reverse_relations(paths, pages)
+
     # Atomic write all pages + index update + log
     with AtomicContext(flush_callback=flush_pending_writes):
         for page in pages:
+            write_page(paths, page)
+        for page in extra_pages:
             write_page(paths, page)
         append_to_index(
             paths,

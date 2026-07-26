@@ -62,8 +62,14 @@ class Relation:
 
     @classmethod
     def from_dict(cls, d: dict) -> "Relation":
+        # B12: normalise the target to the same slug form used for page ids
+        # (the generator slugifies page ids via utils.slugify). Without this,
+        # a relation target emitted as a raw/human string and a page id
+        # derived from the same string diverge, producing dangling
+        # relations. Idempotent when the target is already slugified.
+        from ...utils.slugify import slugify as _slugify
         return cls(
-            target_id=d["target"], type=d["type"],
+            target_id=_slugify(d["target"]) or d["target"], type=d["type"],
             weight=d.get("weight", 1.0), context=d.get("context", ""),
         )
 
