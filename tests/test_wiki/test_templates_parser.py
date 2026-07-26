@@ -2,7 +2,11 @@
 import pytest
 
 from src.wiki.core.types import PageType
-from src.wiki.templates.parser import parse, TemplateParseError
+from src.wiki.templates.parser import (
+    parse,
+    TemplateParseError,
+    validate_type_header,
+)
 
 
 def _concept_template() -> str:
@@ -185,3 +189,70 @@ def test_parse_includes_are_tracked_in_ast():
     # them). Just verify the body has the include marker preserved.
     ast = parse(src, expected_type=PageType.CONCEPT)
     assert "<!-- include:_base.md -->" in ast.raw
+
+
+# ---------------------------------------------------------------------------
+# O-1: shared validate_type_header() helper — used by parser, resolver, CLI
+# ---------------------------------------------------------------------------
+
+def test_validate_type_header_accepts_matching_type():
+    src = (
+        "<!-- wiki-template-version: 1.0.0 -->\n"
+        "<!-- wiki-template-type: concept -->\n"
+    )
+    matched = validate_type_header(src, PageType.CONCEPT)
+    assert matched == "concept"
+
+
+def test_validate_type_header_rejects_missing_header():
+    src = "<!-- wiki-template-version: 1.0.0 -->\n"
+    with pytest.raises(TemplateParseError, match="wiki-template-type"):
+        validate_type_header(src, PageType.CONCEPT)
+
+
+def test_validate_type_header_rejects_mismatch():
+    src = (
+        "<!-- wiki-template-version: 1.0.0 -->\n"
+        "<!-- wiki-template-type: entity -->\n"
+    )
+    with pytest.raises(TemplateParseError, match="type mismatch"):
+        validate_type_header(src, PageType.CONCEPT)
+
+
+def test_validate_type_header_ignores_non_first_match():
+    """Only the FIRST wiki-template-type header is authoritative.
+
+    A user may legitimately mention the type name in a comment block
+    later in the file. The header must be the very first one.
+    """
+    src = (
+        "<!-- wiki-template-version: 1.0.0 -->\n"
+        "<!-- wiki-template-type: concept -->\n\n"
+        "<!-- wiki-template-type: entity -->\n"
+    )
+    matched = validate_type_header(src, PageType.CONCEPT)
+    assert matched == "concept"
+    with pytest.raises(TemplateParseError, match="type mismatch"):
+        validate_type_header(src, PageType.ENTITY)
+
+
+def test_parse_and_validate_type_header_share_semantics():
+    """parse() and validate_type_header() must agree on type checking.
+
+    Same input → same error message (modulo prefix).
+    """
+    bad = "<!-- wiki-template-version: 1.0.0 -->\n<!-- wiki-template-type: entity -->\n"
+    parse_err = None
+    val_err = None
+    try:
+        parse(bad, expected_type=PageType.CONCEPT)
+    except TemplateParseError as e:
+        parse_err = str(e)
+    try:
+        validate_type_header(bad, PageType.CONCEPT)
+    except TemplateParseError as e:
+        val_err = str(e)
+    assert parse_err is not None and val_err is not None
+    # Both errors mention 'type mismatch' (same root issue)
+    assert "type mismatch" in parse_err
+    assert "type mismatch" in val_err

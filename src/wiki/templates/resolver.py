@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 from src.wiki.core.types import PageType
 
+from .parser import validate_type_header
 from .types import (
     Template,
     PROJECT_TEMPLATE_DIRNAME,
@@ -50,7 +51,7 @@ def resolve(page_type: PageType, project_root: Path) -> Template:
     for path, source in candidates:
         if path.is_file():
             raw = path.read_text(encoding="utf-8")
-            _validate_type(raw, page_type)  # raises ValueError on mismatch
+            validate_type_header(raw, page_type)  # raises TemplateParseError on mismatch
             version = _extract_version(raw)
             body = _expand_includes(raw, base_dir=path.parent)
             return Template(
@@ -83,27 +84,14 @@ def _extract_version(raw: str) -> str | None:
     return m.group(1) if m else None
 
 
-_TYPE_HEADER_RE = re.compile(
-    r"^<!--\s*wiki-template-type:\s*([a-z]+)\s*-->\s*$",
-    re.MULTILINE,
-)
-
-
 def _validate_type(raw: str, expected: PageType) -> None:
-    """Raise ValueError if the template's type header doesn't match.
+    """Deprecated thin wrapper — delegates to ``validate_type_header``.
 
-    Mirrors the parser's strict check so user-level templates (which
-    don't go through parser.py) are also validated. Tests rely on this.
+    Kept for any external callers that historically relied on this name.
+    Raises ``TemplateParseError`` (a ``ValueError`` subclass) on failure,
+    matching the parser's behaviour exactly.
     """
-    m = _TYPE_HEADER_RE.search(raw)
-    if not m:
-        raise ValueError(
-            f"Template missing wiki-template-type header (expected {expected.value})"
-        )
-    if m.group(1) != expected.value:
-        raise ValueError(
-            f"Template type mismatch: file says {m.group(1)!r}, expected {expected.value!r}"
-        )
+    validate_type_header(raw, expected)
 
 
 def _safe_include_path(inc_path: str, base_dir: Path) -> Path:
@@ -178,20 +166,21 @@ def list_resolved(project_root: Path) -> list[Template]:
     Skips types where resolve() raises FileNotFoundError (which should
     only happen if bundled files are missing).
 
-    For ValueError raised by an INVALID user/project override (missing or
-    mismatched type header), still returns a Template so the CLI can mark
-    it INVALID — the operator can then fix it.
+    For ``TemplateParseError`` raised by an INVALID user/project override
+    (missing or mismatched type header), still returns a Template so the
+    CLI can mark it INVALID — the operator can then fix it. Other
+    ValueErrors (e.g. unsafe include path) propagate to the caller.
     """
+    from .parser import TemplateParseError
+
     out: list[Template] = []
     for pt in PageType:
         try:
             out.append(resolve(pt, project_root))
         except FileNotFoundError:
             continue
-        except ValueError:
+        except TemplateParseError:
             # Surface the invalid override as a Template so list can mark INVALID.
-            from .types import PROJECT_TEMPLATE_DIRNAME
-            from .resolver import BUNDLED_DIR, USER_TEMPLATE_DIR
             for cand in (
                 project_root / PROJECT_TEMPLATE_DIRNAME / f"{pt.value}.md",
                 USER_TEMPLATE_DIR / f"{pt.value}.md",

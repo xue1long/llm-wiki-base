@@ -63,6 +63,33 @@ class TemplateParseError(ValueError):
     """Raised when a template's markdown is malformed or mismatched."""
 
 
+def validate_type_header(markdown: str, expected_type: "PageType") -> str:
+    """Validate the ``<!-- wiki-template-type: X -->`` header.
+
+    Used by both ``parse()`` and external callers (resolver, CLI) so all
+    three share the same regex and error wording. Only the FIRST type
+    header is authoritative — subsequent mentions are ignored.
+
+    Returns:
+        The matched type name (== ``expected_type.value``).
+
+    Raises:
+        TemplateParseError: header missing, or mismatched against
+            ``expected_type``.
+    """
+    type_match = _TYPE_RE.search(markdown)
+    if not type_match:
+        raise TemplateParseError(
+            f"Template is missing `<!-- wiki-template-type: {expected_type.value} -->` header"
+        )
+    if type_match.group(1) != expected_type.value:
+        raise TemplateParseError(
+            f"Template type mismatch: header says '{type_match.group(1)}', "
+            f"expected '{expected_type.value}'"
+        )
+    return type_match.group(1)
+
+
 def parse(markdown: str, expected_type: "PageType") -> "TemplateAST":
     """Parse template markdown into a TemplateAST.
 
@@ -93,17 +120,9 @@ def parse(markdown: str, expected_type: "PageType") -> "TemplateAST":
         )
     version = version_match.group(1)
 
-    # 2. Type header — must match expected_type
-    type_match = _TYPE_RE.search(markdown)
-    if not type_match:
-        raise TemplateParseError(
-            f"Template is missing `<!-- wiki-template-type: {expected_type.value} -->` header"
-        )
-    if type_match.group(1) != expected_type.value:
-        raise TemplateParseError(
-            f"Template type mismatch: header says '{type_match.group(1)}', "
-            f"expected '{expected_type.value}'"
-        )
+    # 2. Type header — must match expected_type (delegated to helper so
+    #    resolver/CLI share the same validation rules).
+    validate_type_header(markdown, expected_type)
 
     # 3. Strip headers from body so they don't interfere with section parsing
     body = markdown
