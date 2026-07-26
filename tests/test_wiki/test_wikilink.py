@@ -54,3 +54,63 @@ def test_create_stub_does_not_clobber_real_page(tmp_path):
     # Alpha still in entities, not in stubs.
     assert (p.wiki_entities / "alpha.md").exists()
     assert not (p.wiki_stubs / "alpha.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# P1 follow-up: resolve_wikilink falls back through the slug alias registry.
+# Production evidence (novel-wiki 2026-07-26): ``qi-dai-gan`` should
+# resolve to canonical ``qi-dai-gan-chuangzuo`` via the alias table.
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_wikilink_via_alias_registered(tmp_path):
+    """When the canonical page exists AND an alias maps the lookup
+    target to it, resolve_wikilink returns True (alias chain hit).
+    """
+    from src.wiki.features.slug_aliases import SlugAliasRegistry
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    write_page(p, WikiPage(id="qi-dai-gan-chuangzuo",
+                            title="期待感创作", type=PageType.CONCEPT))
+    # Pre-register the alias
+    reg = SlugAliasRegistry(tmp_path)
+    reg.add("qi-dai-gan", "qi-dai-gan-chuangzuo")
+    reg.save()
+
+    # Exact target miss; alias chain should still find the page.
+    assert resolve_wikilink(tmp_path, "qi-dai-gan") is True
+
+
+def test_resolve_wikilink_alias_chains_to_missing_target(tmp_path):
+    """If alias maps to a slug that has no on-disk page, resolution
+    is False. (Alias chain only helps when canonical exists.)
+    """
+    from src.wiki.features.slug_aliases import SlugAliasRegistry
+    ensure_knowledge_base(tmp_path)
+    reg = SlugAliasRegistry(tmp_path)
+    reg.add("orphan-alias", "no-such-page")
+    reg.save()
+    assert resolve_wikilink(tmp_path, "orphan-alias") is False
+
+
+def test_resolve_wikilink_no_alias_no_page(tmp_path):
+    """Without an alias mapping and without an on-disk page,
+    resolution is False — backwards compatible with original behavior.
+    """
+    ensure_knowledge_base(tmp_path)
+    assert resolve_wikilink(tmp_path, "completely-unknown") is False
+
+
+def test_resolve_wikilink_exact_match_takes_priority_over_alias(tmp_path):
+    """If a real page exists at the exact name AND there's an unrelated
+    alias elsewhere, the exact-match wins (no regression vs. original
+    exact-match semantics).
+    """
+    from src.wiki.features.slug_aliases import SlugAliasRegistry
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    write_page(p, WikiPage(id="real-target", title="R", type=PageType.ENTITY))
+    reg = SlugAliasRegistry(tmp_path)
+    reg.add("real-target", "different-canonical")  # contradictory
+    reg.save()
+    assert resolve_wikilink(tmp_path, "real-target") is True

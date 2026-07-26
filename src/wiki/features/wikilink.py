@@ -21,15 +21,45 @@ def extract_wikilinks(text: str) -> list[str]:
 
 
 def resolve_wikilink(project_root: Path, target: str) -> bool:
-    """Return True if a wiki page with id == ``target`` exists in the project."""
+    """Return True if a wiki page with id == ``target`` exists in the project.
+
+    Resolution chain:
+      1. Exact filename match in any of the typed wiki directories.
+      2. Fallback through ``SlugAliasRegistry`` — if ``target`` is a
+         registered alias of a canonical slug AND that canonical page
+         exists on disk, return True. Closes the LLM slug-drift gap
+         observed on novel-wiki 2026-07-26 (e.g. ``qi-dai-gan`` →
+         ``qi-dai-gan-chuangzuo``).
+    """
     if not project_root.exists():
         return False
     paths = WikiPaths(project_root)
-    for dir_prop in (
-        "wiki_sources", "wiki_entities", "wiki_concepts", "wiki_synthesis", "wiki_stubs",
-    ):
+    type_dirs = (
+        "wiki_sources", "wiki_entities", "wiki_concepts",
+        "wiki_synthesis", "wiki_stubs",
+    )
+    # Step 1: exact match (existing behavior).
+    for dir_prop in type_dirs:
         d = getattr(paths, dir_prop)
         if (d / f"{target}.md").exists():
+            return True
+    # Step 2: alias chain.  Lazy-import to avoid a heavy module load
+    # when no aliases exist (the common case).
+    try:
+        from .slug_aliases import SlugAliasRegistry
+    except ImportError:
+        return False
+    try:
+        reg = SlugAliasRegistry(project_root)
+        canonical = reg.get_canonical(target)
+    except Exception:
+        return False
+    if not canonical:
+        return False
+    # Step 2b: verify the canonical slug actually resolves to a file.
+    for dir_prop in type_dirs:
+        d = getattr(paths, dir_prop)
+        if (d / f"{canonical}.md").exists():
             return True
     return False
 
