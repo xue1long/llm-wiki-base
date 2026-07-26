@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 from ..wiki.core.types import PageType
-from ..wiki.templates import Template, list_available, resolve
+from ..wiki.templates import Template, list_resolved, resolve
 from ..wiki.templates.parser import TemplateParseError, validate_type_header
 
 
@@ -58,7 +58,7 @@ def _validate_template_file(path: Path, expected_type: PageType) -> tuple[bool, 
 
 def cmd_wiki_templates_list(_args: argparse.Namespace) -> None:
     """Show all 4 PageTypes with version + source + validity."""
-    templates = list_available(Path.cwd())
+    templates = list_resolved(Path.cwd())
     if not templates:
         print("No templates available", file=sys.stderr)
         sys.exit(1)
@@ -310,7 +310,7 @@ def cmd_wiki_templates_status(_args: argparse.Namespace) -> None:
     # - source (bundled / user / project)
     # - version
     # - bundled-updated (since last refresh_state() — usually "" unless a deploy)
-    templates = list_available(Path.cwd())
+    templates = list_resolved(Path.cwd())
     print(f"{'TYPE':<10}  {'VERSION':<8}  {'SOURCE':<10}  NOTES")
     print(f"{'----':<10}  {'-------':<8}  {'------':<10}  -----")
     for t in templates:

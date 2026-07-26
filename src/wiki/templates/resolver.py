@@ -206,5 +206,6 @@ def list_resolved(project_root: Path) -> list[Template]:
     return out
 
 
-# Backwards-compat alias (existing tests import this name).
-list_available = list_resolved
+# Backwards-compat alias removed in O-3 cleanup — callers should use
+# list_resolved directly. (No remaining external callers after the
+# generator.py and cli_ext/wiki_templates_cmd.py migrations.)

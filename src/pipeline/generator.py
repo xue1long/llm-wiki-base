@@ -216,9 +216,10 @@ def _render_template_section(project_root) -> str:
     should not silently lose this section — but it also should not crash
     the pipeline if the templates dir is missing.
     """
-    from ..wiki.templates import list_available
+    from ..wiki.templates import list_resolved
+
     try:
-        templates = list_available(project_root)
+        templates = list_resolved(project_root)
     except Exception as e:  # pragma: no cover
         _logger.warning("Could not load wiki page templates: %s", e)
         return "(no templates available)"
