@@ -46,3 +46,9 @@ metrics.db
 
 # Backups of wiki/ contents left from earlier rounds
 .wiki-*-backup
+
+# Ingest logs (per-run artifacts, not source)
+scripts/ingest_*.log
+
+# novel-wiki per-project server logs
+knowledge/**/.server.log*

@@ -4,8 +4,8 @@ title: Gong Fa Ti Xi
 type: entity
 sources:
 - raw\sources\必备资料20个签约条件新人必看2.md
-created_at: 1785035205192
-updated_at: 1785035205192
+created_at: 1785070551358
+updated_at: 1785070551358
 relations: []
 grade: B
 processing_depth: concept
@@ -20,6 +20,6 @@ tags: []
 
 此页面被其他页面引用(例如 `[[gong-fa-ti-xi]]`),但尚未独立撰写。
 
-来源摄取: `raw\sources\必备资料20个签约条件新人必看2.md` (task `kb-20260726110502-aa3f38f6`)。
+来源摄取: `raw\sources\必备资料20个签约条件新人必看2.md` (task `kb-20260726205420-16df3470`)。
 
 下次摄取如果包含此实体,系统会自动用真实内容替换本占位页。

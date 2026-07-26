@@ -1,24 +1,36 @@
 ---
 id: fo-ben-shi-dao
-title: 佛本是道
+title: 《佛本是道》
 type: entity
 sources:
 - raw\sources\必备资料20仙侠类题材作品的创作要点及卖点.md
-created_at: 1785035227487
-updated_at: 1785035227487
+created_at: 1785068868008
+updated_at: 1785068868008
 relations:
-- target: honghuang-fengshen-stream
+- target: meng-ru-shen-ji
+  type: created_by
+  weight: 1.0
+  context: 梦入神机是《佛本是道》的作者
+- target: hong-huang-feng-shen-liu
   type: is_part_of
   weight: 0.95
-  context: 《佛本是道》是洪荒封神流的代表作
-- target: xianxia-novel
-  type: references
-  weight: 0.9
-  context: 作品属于仙侠小说题材
-- target: xianxia-subgenres
+  context: 作品是洪荒封神流的开创性代表
+- target: xianxia-20-yao-dian
+  type: referenced_by
+  weight: 0.95
+  context: 作为洪荒封神流的代表作被引用
+- target: xianxia-lei-xing
+  type: referenced_by
+  weight: 0.95
+  context: 洪荒封神流的代表作
+- target: 必备资料-20-仙侠类题材作品的创作要点及卖点-d1f6f9dd
+  type: referenced_by
+  weight: 0.95
+  context: 洪荒封神流代表作
+- target: xianxia-chuang-zuo-yao-dian
   type: referenced_by
   weight: 0.85
-  context: 作品是仙侠五大流派之一的具体例证
+  context: 具体作品参考
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -30,25 +42,18 @@ tags: []
 
 ## 基本信息
 
-- **作品名称**：佛本是道
-- **作品类型**：网络小说
-- **所属流派**：洪荒封神流
-- **题材分类**：仙侠小说
+作品类型：网络小说 | 作者：梦入神机 | 流派生：洪荒封神流
 
 ## 简介
 
-《佛本是道》是仙侠小说中洪荒封神流的代表作品，开创了将封神演义体系融入仙侠创作的先河。这部作品对后续的仙侠小说创作产生了深远影响，尤其是对于洪荒流和封神类题材的发展具有重要的开创意义。
+《佛本是道》是梦入神机创作的仙侠小说，被认为是洪荒封神流的开创性代表作。该作品融合了中国古典神话《封神演义》与现代洪荒流设定，构建了完整的仙侠世界体系，对后续仙侠网络文学产生了深远影响。
 
-作品以中国传统神话体系为基础，将道教、佛教以及封神演义中的各种神仙人物和典故进行整合创新，构建了一个宏大的仙侠世界观。在这个世界观中，修仙者们追求长生不老、得道成仙，同时参与各种神魔大战和天机之争。
+## 别名
 
-《佛本是道》的成功在于其对中国传统神话资源的深度挖掘和创新运用，将原本分散的神话元素有机融合，形成了一套完整的洪荒修仙体系。这种创作模式后来被众多仙侠作者效仿和发扬。
+- 佛本
 
-## 相关概念
+## 相关引用
 
-- [[honghuang-fengshen-stream]]：所属流派
-- [[xianxia-novel]]：所属题材
-- [[xianxia-subgenres]]：仙侠流派分类
-
-## 参考来源
-
-本文档内容来源于仙侠类小说创作要点分析中对洪荒封神流的介绍。
+- [[meng-ru-shen-ji]]
+- [[hong-huang-feng-shen-liu]]
+- [[xianxia]]

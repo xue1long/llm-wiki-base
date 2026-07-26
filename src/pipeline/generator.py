@@ -331,6 +331,14 @@ async def generate(
                 _logger.warning(f"Unknown page type: {p.get('type')}")
                 continue
 
+        # Enforce deterministic source-page slug: the source_slug_map is
+        # guaranteed correct ({stem}-{md5[:8]}), while the LLM may emit
+        # pinyin or hallucinate a slug from a different source (2026-07-26).
+        if source_slug_map and page_type == PageType.SOURCE:
+            map_slug = source_slug_map.get(analysis.source_path)
+            if map_slug:
+                slug = map_slug
+
         template = resolved_templates.get(page_type)
         if template is None:
             # No template for this page type — accept whatever body the
