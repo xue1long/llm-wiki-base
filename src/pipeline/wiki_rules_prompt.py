@@ -224,4 +224,52 @@ Generator 的 JSON schema 把 `body_markdown: string` 替换成 `slots: object`�
 - `page_writer.write_page` / `read_page` 不动 — 行为完全向后兼容。
 - features (relations / heat / indexer / review / dedup / 等) 不动 — 它们对 body 内容不敏感。
 - 任意项目级 / 用户级模板 (`<project>/.wiki-templates/`, `~/.config/ruflo-kb/wiki-templates/`) 都可以独立 bump 到 2.0.0 享受新校验。
+
+## v2.4 Source Page 文件名（2026-07-26）
+
+v2.4 起，`wiki/sources/*.md` 文件名不再是队列任务 ID（`kb-{time}-{8hex}.md`），而是**源文件的中文 stem + 短路径 hash**。这是 ingest pipeline 的 `source_slug` 生成方式变更，不影响 `WikiPage` 数据模型。
+
+### 例子
+
+| 源文件 | 旧 wiki 文件名 | 新 wiki 文件名 |
+|---|---|---|
+| `必备资料15顺眼谈文章的画面感.md` | `kb-20260726173322-4c1dd21e.md` | `必备资料15顺眼谈文章的画面感-43c5df10.md` |
+
+### 实现 (`src/pipeline/ingest.py:174-180`)
+
+```python
+stem = Path(str(source_path)).stem
+norm_stem = unicodedata.normalize("NFC", stem)
+path_hash = hashlib.md5(str(source_path).encode("utf-8")).hexdigest()[:8]
+source_slug = f"{norm_stem}-{path_hash}"
+source_title = norm_stem   # 去掉 .md 后缀
+```
+
+- **不拼音化**：源文件 stem 直接作为 slug 的一部分（CJK 原字保留）。
+- **NFC 标准化**避免 macOS HFS+ NFD 文件名导致不同 hash。
+- **8hex 短 hash** (32-bit 熵)：吸收 race condition（两个并发摄取同源文件不会撞）；跨 platform 跨 server 稳定。
+- **`title`** 也修了：之前是 `必备资料15顺眼谈文章的画面感.md`（带扩展名），现在是 `必备资料15顺眼谈文章的画面感`。
+- **`task_id`** 仅写到 source-meta slot 的 `任务 ID` 字段（审计追溯），不再做文件名。
+
+### 迁移现有 wiki
+
+```bash
+# Dry-run: 列出现有 kb-*.md 的迁移方案
+python -m src.cli wiki-migrate-source-slugs --project <project_id>
+
+# 实际 rename + rewrite index.md / log.md
+python -m src.cli wiki-migrate-source-slugs --project <project_id> --apply
+```
+
+行为：
+- 默认 `--dry-run` 列映射；`--apply` 实际重命名 + 改 index/log 引用
+- 跳过已经迁移的文件（id 与 filename 不一致）
+- 跳过无法找到 raw path 的文件（提示重新摄取）
+
+### 不影响的部分
+
+- `WikiPage.id` 现在存中文 — 已支持（2026-07-26 CJK cut-over）
+- `[[wikilink]]` 解析、`relations[].target` 字段、index.md 引用都能用中文 slug
+- `page_writer.write_page` / `read_page` 不动
+- 队列幂等性 (`md5(source + folder_context)`) 完全独立 — 跨次摄取仍能去重
 '''
