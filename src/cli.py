@@ -287,6 +287,10 @@ def main():
     from .cli_ext.migrate_source_slugs_cmd import add_wiki_migrate_source_slugs_parser
     add_wiki_migrate_source_slugs_parser(subparsers)
 
+    # v2.5 strict-scope cleanup
+    from .cli_ext.wiki_cleanup_v1_cmd import add_wiki_cleanup_v1_parser
+    add_wiki_cleanup_v1_parser(subparsers)
+
     # Serve (HTTP API server)
     p_serve = subparsers.add_parser("serve", help="Start HTTP API server")
     p_serve.add_argument("--host", default="127.0.0.1")
