@@ -736,3 +736,67 @@ async def test_generate_schema_has_min_properties_and_additional_properties_fals
     page_required = schema["properties"]["pages"]["items"]["required"]
     assert "slots" in page_required
     assert "body_markdown" not in page_required
+
+
+@pytest.mark.asyncio
+async def test_generate_prompt_includes_source_slug_map(tmp_path):
+    """Fix B: source_slug_map is interpolated into the prompt so the LLM
+    uses the exact on-disk slug (not a guess) when emitting
+    ``[[wikilinks]]`` to source pages."""
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    from src.pipeline.generator import generate
+
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.md", summary="S",
+        suggested_pages=[
+            PageSpec(type="source", slug="kb-1", title="T", reasoning="r"),
+        ],
+    )
+    provider = ScriptedLLMProvider([{"pages": []}])
+    src_map = {
+        "E:/raw/sources/foo.md": "foo-{8hex}",
+        "E:/raw/sources/bar.md": "bar-{8hex}",
+    }
+    await generate(
+        paths=paths,
+        analysis=analysis,
+        existing_wiki_index="",
+        provider=provider,
+        source_slug_map=src_map,
+    )
+    prompt = provider.calls[0]["messages"][0]["content"]
+    # Both raw and slug of the map must be present.
+    assert "foo-{8hex}" in prompt, "slug 'foo-{8hex}' not in prompt"
+    assert "bar-{8hex}" in prompt, "slug 'bar-{8hex}' not in prompt"
+    # Header section must precede the listing.
+    assert "## Source page ids for this run" in prompt
+    # Source-page instruction must be explicit so the LLM doesn't guess.
+    assert "EXACT slugs" in prompt
+
+
+@pytest.mark.asyncio
+async def test_generate_prompt_handles_empty_source_slug_map(tmp_path):
+    """If source_slug_map is None/empty, prompt contains an
+    'no source pages' placeholder rather than crashing."""
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    from src.pipeline.generator import generate
+
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.md", summary="S",
+        suggested_pages=[PageSpec(type="source", slug="kb-1", title="T", reasoning="r")],
+    )
+    provider = ScriptedLLMProvider([{"pages": []}])
+    await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="",
+        provider=provider, source_slug_map=None,
+    )
+    prompt = provider.calls[0]["messages"][0]["content"]
+    assert "no source pages produced by this run" in prompt

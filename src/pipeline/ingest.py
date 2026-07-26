@@ -220,6 +220,26 @@ async def run_ingest(
     _existing_wiki = _collect_existing_wiki(paths)
     _existing_wiki_index = _format_wiki_index(_existing_wiki)
 
+    # B-Fix (Plan v2.5): compute the deterministic source-page slug
+    # BEFORE the Generator call so we can hand it to the prompt
+    # (LLM should not have to guess the slug when emitting
+    # ``[[wikilinks]]`` to source pages). The same value is reused
+    # later when we actually write the source page file.
+    _raw_stem_for_slug = (
+        Path(str(source_path)).stem
+        if hasattr(source_path, "stem") else str(source_path)
+    )
+    _norm_stem_for_slug = unicodedata.normalize("NFC", _raw_stem_for_slug)
+    _path_hash_for_slug = hashlib.md5(
+        str(source_path).encode("utf-8")
+    ).hexdigest()[:8]
+    _source_slug_for_map = (
+        f"{_norm_stem_for_slug}-{_path_hash_for_slug}"
+        if _norm_stem_for_slug else
+        task_id if task_id.startswith("kb-") else f"kb-{task_id}"
+    )
+    _source_slug_map = {str(source_path): _source_slug_for_map}
+
     # Step 1: Analyze
     analysis = await _analyze(
         source_text=source_text,
@@ -237,6 +257,7 @@ async def run_ingest(
         analysis=analysis,
         existing_wiki_index=_existing_wiki_index,
         provider=provider,
+        source_slug_map=_source_slug_map,
     )
 
     # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.

@@ -71,6 +71,16 @@ relations[].target) 可直接使用中文 (CJK),也可使用 ASCII kebab-case �
 ## Existing wiki index
 {existing_wiki_index}
 
+## Source page ids for this run (Fix B — deterministic source-page slugs)
+Source-page ids are derived deterministically from the raw file path
+(NFC-normalised stem + 8-hex md5 hash of the full path). They are NOT
+chosen by you. Use the EXACT slugs below whenever a ``[[wikilink]]``
+references the corresponding source page; do NOT invent variants like
+dropping interior hyphens or collapsing segments — every variantion
+produces a broken link that no on-disk file satisfies.
+
+{SOURCE_SLUG_MAP}
+
 ## Slug Reuse (CRITICAL — prevent wikilink drift across ingests)
 The `## Existing wiki index` above lists every page currently in the
 wiki by its exact `id` slug. Whenever your body_markdown refers to a
@@ -168,6 +178,7 @@ async def generate(
     existing_wiki_index: str,
     provider,
     model: str = "gpt-4o-mini",
+    source_slug_map: Optional["dict[str, str]"] = None,
 ) -> list[WikiPage]:
     """Step 2: LLM call → list of WikiPage objects.
 
@@ -178,6 +189,14 @@ async def generate(
     schemas don't uniformly support ``oneOf``). A retry loop nudges the
     LLM once when required slots are missing; persistent gaps are filled
     with a placeholder and logged as WARN.
+
+    ``source_slug_map``: ``{raw_path_str: source_page_slug}``. Each
+    value is what ingest.py computed for the ``source`` page this run
+    using ``{NFC stem}-{md5(path)[:8]}`` (Fix B). When provided, the
+    slug map is rendered into the prompt so the LLM does NOT have to
+    guess source-page ids when emitting ``[[wikilinks]]``. Source pages
+    ingested in earlier runs already appear in the wiki index and
+    don't need to be listed here.
     """
     import json, time
 
@@ -257,6 +276,7 @@ async def generate(
         existing_wiki_index=existing_wiki_index or "(empty)",
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
         PAGE_TEMPLATES=_render_template_section(paths.root),
+        SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
     )
 
     response_dict = await _call_with_slot_retry(
@@ -485,3 +505,30 @@ def _render_template_section(project_root: Path) -> str:
             parts.append(tpl.body_markdown.strip())
         parts.append("")
     return "\n".join(parts).rstrip()
+
+
+def _format_source_slug_map(
+    source_slug_map: Optional[dict],
+) -> str:
+    """Render the ``{SOURCE_SLUG_MAP}`` prompt section.
+
+    Lists every source-page slug created by THIS ingest run. Source
+    pages from earlier runs are already visible in the wiki index
+    included earlier in the prompt — only newly-produced slugs need
+    to be listed explicitly.
+
+    Without this section the LLM has to guess what slug a freshly-
+    produced source page will have on disk. Plan 27 + Plan v2.4
+    made the slug deterministic (``{NFC stem}-{md5(path)[:8]}``),
+    but the LLM doesn't redo that math; if its guess diverges from
+    the on-disk name, every [[wikilink]] to that source page is
+    broken. This listing eliminates the guess.
+    """
+    if not source_slug_map:
+        return "(no source pages produced by this run)"
+    lines = ["```"]
+    for raw_path, slug in source_slug_map.items():
+        raw_name = Path(raw_path).name if raw_path else "?"
+        lines.append(f"  - raw:  {raw_name}\n    slug: {slug}")
+    lines.append("```")
+    return "\n".join(lines)
