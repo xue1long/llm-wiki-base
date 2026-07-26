@@ -13,10 +13,16 @@ Three-level priority (Bug 3 fix):
 
 The resolved `Template.body_markdown` keeps `<!-- slot:NAME -->` markers
 intact — the generator prompt is told to fill those slots.
+
+Caching (O-4): ``resolve()`` is mtime-keyed via an in-process LRU. The
+``Generator`` calls it for every generated wiki page, so re-reading the
+4 bundled files + expanding includes on every call was wasteful.
+``clear_cache()`` is exposed for tests and for explicit invalidation.
 """
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -51,13 +57,41 @@ def _iter_candidates(
     ]
 
 
-def resolve(page_type: PageType, project_root: Path) -> Template:
-    """Load the highest-priority template for the given PageType.
+def _candidate_mtime_signature(
+    page_type: PageType, project_root: Path
+) -> tuple[int, ...]:
+    """Compute a tuple of file mtimes (ns) over the candidate paths.
 
-    Raises FileNotFoundError if no template exists at any priority
-    level. (Bundled ships with all 4 PageTypes; a missing file here
-    indicates the bundled dir has been tampered with.)
+    Returns an empty tuple when no candidate file exists — this matches
+    the FileNotFoundError path and ensures exceptions are never cached.
     """
+    sig: list[int] = []
+    for path, _source in _iter_candidates(page_type, project_root):
+        if path.is_file():
+            try:
+                sig.append(path.stat().st_mtime_ns)
+            except OSError:
+                # Permission denied / file vanished — treat as missing
+                sig.append(-1)
+    return tuple(sig)
+
+
+@lru_cache(maxsize=64)
+def _resolve_cached(
+    page_type_value: str, project_root_str: str, mtime_sig: tuple
+) -> Template:
+    """LRU-cached inner resolve. Keys: (page_type, project_root, mtime_sig).
+
+    The mtime signature auto-invalidates when any candidate file is
+    edited (mtime_ns changes). Exceptions are NOT cached because
+    ``@lru_cache`` only stores successful return values.
+    """
+    return _resolve_uncached(
+        PageType(page_type_value), Path(project_root_str)
+    )
+
+
+def _resolve_uncached(page_type: PageType, project_root: Path) -> Template:
     for path, source in _iter_candidates(page_type, project_root):
         if path.is_file():
             raw = path.read_text(encoding="utf-8")
@@ -76,6 +110,37 @@ def resolve(page_type: PageType, project_root: Path) -> Template:
         f"No wiki template for PageType.{page_type.value!r} "
         f"(searched project, user, bundled)"
     )
+
+
+def resolve(page_type: PageType, project_root: Path) -> Template:
+    """Load the highest-priority template for the given PageType.
+
+    Cached in-process via an mtime-keyed LRU. The cache invalidates
+    automatically when any candidate file's mtime changes; call
+    ``clear_cache()`` to force a flush (tests, after manual file ops
+    that don't bump mtime, after deploy).
+
+    Raises FileNotFoundError if no template exists at any priority
+    level. (Bundled ships with all 4 PageTypes; a missing file here
+    indicates the bundled dir has been tampered with.)
+    """
+    mtime_sig = _candidate_mtime_signature(page_type, project_root)
+    return _resolve_cached(
+        page_type.value,
+        str(project_root),
+        mtime_sig,
+    )
+
+
+def clear_cache() -> None:
+    """Drop all cached resolve() results.
+
+    Intended for tests and for callers that have just performed a
+    file operation that didn't bump mtime (e.g. os.replace, atomic
+    rename). Normal usage does not need this — the mtime signature
+    auto-invalidates.
+    """
+    _resolve_cached.cache_clear()
 
 
 # ---------------------------------------------------------------------------
