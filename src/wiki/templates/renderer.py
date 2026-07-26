@@ -97,6 +97,7 @@ def render_body(
     page_type: PageType,
     optional: Sequence[str] = (),
     missing_placeholder: str = "（待补充）",
+    template_version: str = "",
 ) -> str:
     """Render slot content into ``template_body`` and return body markdown.
 
@@ -115,15 +116,37 @@ def render_body(
         missing_placeholder: Text inserted under a required heading when
             the LLM left the slot empty (after the retry budget was
             exhausted).
+        template_version: Version string of the bundled/user/project
+            template that produced this page. When non-empty, the
+            output is prefixed with the
+            ``<!-- wiki-template-version: ... -->`` /
+            ``<!-- wiki-template-type: ... -->`` marker pair so the
+            ``LINT-MISSING-SECTION`` rule can gate structural checks
+            on freshly generated pages.
+
+            Plan 27 v2.3 originally relied on the markers being
+            preserved by the parser. The parser intentionally strips
+            them (so the rendered body has no template comments);
+            re-injecting here keeps the lint mechanism working
+            without polluting the markdown the user reads.
 
     Returns:
-        Body markdown with all slot markers replaced and whitespace
-        tidied. Ready to drop into ``WikiPage.body``.
+        Body markdown with all slot markers replaced, the template
+        header re-injected (if template_version was supplied), and
+        whitespace tidied. Ready to drop into ``WikiPage.body``.
     """
     optional_set = set(optional)
     ast = template_parser.parse(template_body, expected_type=page_type)
 
     out: list[str] = []
+    if template_version:
+        # Re-inject the two header comments that ``parser.parse``
+        # stripped in step 3. Without these, the page body has no
+        # version marker and the LINT-MISSING-SECTION rule never
+        # triggers on freshly generated pages.
+        out.append(f"<!-- wiki-template-version: {template_version} -->")
+        out.append(f"<!-- wiki-template-type: {page_type.value} -->")
+        out.append("")
     for section in ast.sections:
         # Every slot in the section optional AND empty → drop the section.
         if section.slots and all(

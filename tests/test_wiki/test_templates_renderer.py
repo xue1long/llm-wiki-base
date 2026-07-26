@@ -198,3 +198,54 @@ def test_render_drops_section_when_only_optional_and_all_empty():
     assert "## 抽取的概念" in out
     # key_points was optional + empty, so its section (heading + slot) is dropped.
     assert "## 关键观点" not in out
+
+
+# ---------------------------------------------------------------------------
+# Fix A — render_body preserves template-version / template-type markers.
+# Without this injection, every freshly generated page body misses the
+# `<!-- wiki-template-version: ... -->` header that LINT-MISSING-SECTION
+# reads raw. Verify render_body prepends when template_version is supplied
+# and stays clean when it isn't (backward-compatible for tests that don't
+# care about the marker).
+# ---------------------------------------------------------------------------
+
+
+_CONCEPT_BODY = (
+    "<!-- wiki-template-version: 2.0.0 -->\n"
+    "<!-- wiki-template-type: concept -->\n\n"
+    "## 定义\n\n<!-- slot:definition -->\n\n"
+    "## 参考来源\n\n<!-- slot:references -->\n"
+)
+
+
+def test_render_body_prepends_template_header_when_version_supplied():
+    """Pass template_version='2.0.0' → first line of output is the version marker."""
+    out = render_body(
+        template_body=_CONCEPT_BODY,
+        slots={"definition": "d", "references": "r"},
+        page_type=PageType.CONCEPT,
+        template_version="2.0.0",
+    )
+    lines = out.splitlines()
+    assert lines[0] == "<!-- wiki-template-version: 2.0.0 -->", (
+        f"first line should be template-version marker, got:\n{out[:200]}"
+    )
+    assert lines[1] == "<!-- wiki-template-type: concept -->", (
+        f"second line should be template-type marker, got:\n{out[:200]}"
+    )
+    # Section heading comes after the marker block (with a blank line between).
+    assert lines[3] == "## 定义"
+
+
+def test_render_body_omits_template_header_when_version_blank():
+    """Empty / unset template_version → no marker injection (backward compat)."""
+    out = render_body(
+        template_body=_CONCEPT_BODY,
+        slots={"definition": "d", "references": "r"},
+        page_type=PageType.CONCEPT,
+        template_version="",
+    )
+    # First line is still the section heading, not a marker.
+    assert out.splitlines()[0] == "## 定义", (
+        f"without version, body should start with heading, got:\n{out[:200]}"
+    )

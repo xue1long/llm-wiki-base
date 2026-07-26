@@ -321,6 +321,7 @@ async def generate(
                 template_body=template.body_markdown,
                 slots=p.get("slots", {}) or {},
                 page_type=page_type,
+                template_version=template.version or "",
             )
 
         pages.append(WikiPage(

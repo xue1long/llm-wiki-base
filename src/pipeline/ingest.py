@@ -358,6 +358,7 @@ async def run_ingest(
                 "extracted_concepts": extracted_concepts_value,
             },
             page_type=PageType.SOURCE,
+            template_version=source_tpl.version or "",
         )
     except FileNotFoundError:
         # Fallback: hardcoded legacy body (matches the previous
