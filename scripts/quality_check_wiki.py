@@ -28,7 +28,12 @@ PROJECT_ROOT = ROOT.parent
 
 VALID_TYPES = {"source", "entity", "concept", "synthesis"}
 RESERVED_IDS = {"index", "log"}
-ID_PATTERN = re.compile(r"^(?:card_[0-9a-f]{13}_[0-9a-f]{8}_[a-z0-9-]+|[a-z0-9-]+)$")
+# CJK cut-over (2026-07-26): allow CJK Unified Ideographs in slugs.
+# Alt-2 (pure slug) excludes ``_`` so a malformed UUIDv7 string that
+# fails hex check isn't silently accepted via the kebab-case path.
+ID_PATTERN = re.compile(
+    r"^(?:card_[0-9a-f]{13}_[0-9a-f]{8}_[a-z0-9-一-鿿]+|[a-z0-9-一-鿿]+)$"
+)
 WIKILINK_PATTERN = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
 VALID_TAG_PREFIXES = {
     "genre", "func", "char", "event", "mood", "entity", "scene_phase", "status",
