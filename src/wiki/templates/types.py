@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
 from pathlib import Path
 from typing import Literal
+
+from src.wiki.core.types import PageType
 
 
 # ---------------------------------------------------------------------------
@@ -49,7 +50,7 @@ class TemplateAST:
     `## Heading` and the slots that belong to it (until the next
     heading).
     """
-    page_type: "PageType"   # forward-ref to avoid circular import
+    page_type: PageType
     version: str | None
     sections: list["TemplateSection"] = field(default_factory=list)
     raw: str = ""           # original markdown (for round-trip)
@@ -82,7 +83,7 @@ class TemplateSection:
 @dataclass(frozen=True)
 class Template:
     """A resolved wiki page template ready for prompt injection."""
-    type: "PageType"
+    type: PageType
     body_markdown: str   # Include directives expanded, slot markers preserved
     version: str | None
     source: TemplateSource
@@ -92,10 +93,6 @@ class Template:
     def source_label(self) -> str:
         return f"{self.source}@{self.version or '?'}"
 
-
-# Avoid circular import: import PageType at module bottom (it's lightweight).
-from src.wiki.core.types import PageType as _PageType  # noqa: E402  (alias for type hints)
-PageType = _PageType
 
 # ---------------------------------------------------------------------------
 # Constants used by resolver
