@@ -22,6 +22,39 @@ def test_is_valid_id():
     assert not is_valid_id("")
 
 
+def test_is_valid_id_cjk_basic_block():
+    """CJK Unified Ideographs (U+4E00–U+9FFF) are now valid id
+    characters after the 2026-07-26 CJK cut-over. The ID_PATTERN
+    accepts:
+
+    - pure CJK
+    - CJK + ASCII mixes (after slugify normalizes to kebab-case)
+    - card_..._UUIDv7 with CJK suffix
+    """
+    # Pure CJK (basic block)
+    assert is_valid_id("网络文学")
+    assert is_valid_id("仙侠小说")
+    # After slugify, mixed "混Test合" → "混-test-合" (T → t + hyphen
+    # at run boundary). Slugified form must be valid.
+    assert is_valid_id("混-test-合")
+    # CJK + ASCII mixes (already kebab-case)
+    assert is_valid_id("ai-写作")
+    assert is_valid_id("网络-文学")
+    assert is_valid_id("写作-ai-网络")
+    # UUIDv7 with CJK suffix
+    assert is_valid_id("card_0123456789abc_01234567_网络文学")
+    # Pure ASCII kebab-case still works (backwards compat)
+    assert is_valid_id("foo-bar")
+    # Uppercase ASCII rejected (kebab-case is lowercase only)
+    assert not is_valid_id("Test")
+    # Multi-line still rejected
+    assert not is_valid_id("foo\nbar")
+    # Latin extended (é etc.) NOT in CJK cut-over scope; would need
+    # a follow-up commit to extend the regex.
+    assert not is_valid_id("café")
+    # Uppercase CJK is non-existent in Unicode — no need to test.
+
+
 def test_wiki_page_v22_fields():
     """WikiPage has grade/processing_depth/is_immutable fields with defaults."""
     page = WikiPage(id="foo", title="F", type=PageType.ENTITY)

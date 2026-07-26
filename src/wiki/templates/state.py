@@ -16,12 +16,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .types import PageType
+
+
+_log = logging.getLogger(__name__)
 
 
 STATE_PATH = Path.home() / ".config" / "ruflo-kb" / "wiki-templates" / ".bundled-state.json"
@@ -46,10 +50,40 @@ class State:
         if not path.is_file():
             return cls()
         try:
-            raw = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            # Corrupt state file — start fresh rather than crash. The
-            # next status call will rebuild from current bundled.
+            raw_text = path.read_text(encoding="utf-8")
+            raw = json.loads(raw_text)
+        except json.JSONDecodeError as e:
+            # O-5: corrupt JSON — back the file up for post-mortem, log
+            # a warning naming the path + reason, and return a fresh
+            # state so the next status call rebuilds from current
+            # bundled. Without the backup, users lose all upgrade
+            # history with no diagnostic trail.
+            backup = path.with_suffix(path.suffix + ".corrupt")
+            try:
+                backup.write_text(raw_text, encoding="utf-8")
+            except OSError as backup_err:
+                _log.warning(
+                    "wiki-templates state file at %s is corrupt (%s); "
+                    "also failed to back up to %s: %s",
+                    path, e, backup, backup_err,
+                )
+                return cls()
+            _log.warning(
+                "wiki-templates state file at %s is corrupt (%s); "
+                "backed up to %s and starting fresh. The next "
+                "`wiki-templates status` will rebuild from current bundled.",
+                path, e, backup,
+            )
+            return cls()
+        except OSError as e:
+            # Unreadable file (permission denied, path is a directory,
+            # etc). No backup possible since we couldn't read it.
+            # Don't crash — return fresh state and let next write fix it.
+            _log.warning(
+                "wiki-templates state file at %s is unreadable (%s); "
+                "starting fresh. Next save() will rewrite it.",
+                path, e,
+            )
             return cls()
         return cls(
             schema_version=raw.get("schema_version", 1),
@@ -86,6 +120,14 @@ def capture_current_bundled(bundled_dir: Path) -> dict[str, BundledEntry]:
     Skips files without a `wiki-template-version` header (they would
     fail the resolver anyway). Used to populate / refresh the state
     file.
+
+    Malformed bundled files (e.g. type header wrong, missing version
+    header) are logged as ERROR rather than silently skipped — the
+    operator needs to know that a shipped template is broken before
+    the next `wiki-templates status` call otherwise shows a missing
+    PageType with no diagnostic trail. The malformed file is excluded
+    from the returned dict so `status` can still report the rest of
+    the bundled templates correctly.
     """
     from .parser import parse, TemplateParseError
     from .types import PageType
@@ -99,8 +141,20 @@ def capture_current_bundled(bundled_dir: Path) -> dict[str, BundledEntry]:
         raw = f.read_text(encoding="utf-8")
         try:
             ast = parse(raw, expected_type=PageType(slug))
-        except TemplateParseError:
-            # Malformed bundled file — skip; will surface elsewhere.
+        except TemplateParseError as e:
+            # F-5: bundled file shipped in this repo is malformed — log
+            # loudly so the operator notices on the next status call.
+            # Without this, a broken bundled file would silently vanish
+            # and look like "type missing from bundled" — which is the
+            # wrong diagnostic.
+            _log.error(
+                "bundled template %s failed to parse: %s. "
+                "It will be excluded from `wiki-templates status` "
+                "until fixed. Re-install the bundled templates or "
+                "patch the file to restore the wiki-template-version "
+                "and wiki-template-type headers.",
+                f, e,
+            )
             continue
         out[slug] = BundledEntry(
             version=ast.version or "0.0.0",

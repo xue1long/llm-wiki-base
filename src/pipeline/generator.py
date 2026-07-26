@@ -1,5 +1,6 @@
 """Step 2: LLM renders wiki pages from AnalysisResult."""
 import logging
+from pathlib import Path
 from typing import Optional
 
 from ..lib.budgeted import BudgetedLLM
@@ -30,10 +31,15 @@ _logger = logging.getLogger(__name__)
 
 GENERATOR_PROMPT = """You are rendering wiki pages for a knowledge base.
 
+Do NOT output chain-of-thought, hidden reasoning, or a thinking
+transcript. Reason internally and emit only the requested JSON.
+
 ## Language
 默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
 title、body_markdown、relations[].context。Slugs (id、
-relations[].target) 始终用 ASCII(中文术语用拼音或英文翻译)。
+relations[].target) 可直接使用中文 (CJK),也可使用 ASCII kebab-case —
+保留概念的自然字面,无需拼音转写;专有名词/英文术语在 ASCII 段仍
+保持原始写法 (e.g. OpenAI, GPT-5, Transformer)。
 
 ## Analysis result (from Step 1)
 {analysis_json}
@@ -41,16 +47,46 @@ relations[].target) 始终用 ASCII(中文术语用拼音或英文翻译)。
 ## Existing wiki index
 {existing_wiki_index}
 
+## Slug Reuse (CRITICAL — prevent wikilink drift across ingests)
+The `## Existing wiki index` above lists every page currently in the
+wiki by its exact `id` slug. Whenever your body_markdown refers to a
+concept via `[[wikilinks]]`, or `relations[].target` references a
+slugs, you MUST reuse the EXISTING slug verbatim — copy it character-
+for-character. Do not invent new pinyin transliterations, do not
+shorten or lengthen, do not switch between English and pinyin
+renderings, do not introduce new slug variants. If a concept already
+has a page (e.g. `qi-dai-gan-chuangzuo`), use that exact slug even
+when your analysis would naturally shorten it (e.g. to `qi-dai-gan`).
+Reusing keeps cross-references resolvable across multiple ingests;
+inventing creates broken `[[...]]` links the reader cannot follow.
+
 ## Page Templates (use these to structure body_markdown)
 Match the section headings exactly. Fill each `<!-- slot:NAME -->` with
 substantive content from the source. For `<!-- slot:NAME? -->` or
 `<!-- if:X -->...<!-- /if:X -->` (optional sections), OMIT the entire
 heading + slot if you have nothing to put in the slot — don't write
 empty sections. Do NOT add new `##` sections not in the template.
-Do NOT omit `##` sections present in the template (unless they are
-optional and empty).
+
+In body_markdown: NEVER use '...' / '（空）' / '（待补充）' /
+'placeholder' / 'TBD' / similar filler strings — never use '...' as
+placeholder content. You MAY OMIT any `##` section (even non-optional
+looking ones) when you have no substantive content for it; that is
+always preferable to filler. If a page has only 1-2 sections of real
+content, that page is still valid. Each body_markdown should be ≥ 80
+characters of substantive prose; if you cannot reach that, OMIT
+headings rather than filler.
 
 {PAGE_TEMPLATES}
+
+## Subject boundary (do not transfer claims across entities)
+When the source discusses multiple entities / models / products /
+methods / works / characters, keep each claim, evaluation, limitation,
+benchmark result, and recommendation attached to the exact subject it
+describes. Do NOT transfer a claim about one subject onto another
+subject's page just because they share terms (names, features,
+keywords, time periods, or the same source). If a page must reference
+another subject for comparison, write it explicitly as a comparison
+and cite the source that supports it.
 
 ## Task
 For each suggested page, render Markdown content. Output strict JSON:
@@ -78,6 +114,12 @@ You may also use `x-<name>` for any user-registered type. Do not invent
 relation type names outside this set.
 
 {WIKI_RULES_SUMMARY}
+
+## Language (re-asserted — applies to ALL output below)
+默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
+title、body_markdown、relations[].context。Slugs (id、
+relations[].target) 可直接使用中文 (CJK),也可使用 ASCII kebab-case —
+保留概念的自然字面,无需拼音转写。
 """
 
 
@@ -208,17 +250,26 @@ async def generate(
     return pages
 
 
-def _render_template_section(project_root) -> str:
+def _render_template_section(project_root: Path) -> str:
     """Render the bundled templates as a prompt section.
 
     Falls back to a brief hint if no templates are available (e.g. running
     from a checkout where the bundled dir was pruned). The Generator
     should not silently lose this section — but it also should not crash
     the pipeline if the templates dir is missing.
+
+    Re-parses each template's body_markdown into an AST and uses
+    ``render_for_prompt`` to produce a compact, LLM-facing skeleton
+    (headings + slot markers, optional slots annotated). The previous
+    implementation dumped raw ``tpl.body_markdown`` directly into the
+    prompt, which kept every blank line and added no hint about which
+    sections were optional.
     """
-    from ..wiki.templates import list_available
+    from ..wiki.templates import list_resolved
+    from ..wiki.templates.parser import parse, render_for_prompt, TemplateParseError
+
     try:
-        templates = list_available(project_root)
+        templates = list_resolved(project_root)
     except Exception as e:  # pragma: no cover
         _logger.warning("Could not load wiki page templates: %s", e)
         return "(no templates available)"
@@ -229,6 +280,17 @@ def _render_template_section(project_root) -> str:
     parts: list[str] = []
     for tpl in templates:
         parts.append(f"### {tpl.type.value}")
-        parts.append(tpl.body_markdown.strip())
+        try:
+            ast = parse(tpl.body_markdown, expected_type=tpl.type)
+            parts.append(render_for_prompt(ast))
+        except TemplateParseError as e:
+            # If we can't parse the resolved template (shouldn't happen
+            # since resolve() already validated the type header), fall
+            # back to the raw body rather than dropping the section.
+            _logger.warning(
+                "Could not re-parse template %s for prompt injection: %s",
+                tpl.path, e,
+            )
+            parts.append(tpl.body_markdown.strip())
         parts.append("")
     return "\n".join(parts).rstrip()

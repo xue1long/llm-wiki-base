@@ -13,15 +13,22 @@ Three-level priority (Bug 3 fix):
 
 The resolved `Template.body_markdown` keeps `<!-- slot:NAME -->` markers
 intact — the generator prompt is told to fill those slots.
+
+Caching (O-4): ``resolve()`` is mtime-keyed via an in-process LRU. The
+``Generator`` calls it for every generated wiki page, so re-reading the
+4 bundled files + expanding includes on every call was wasteful.
+``clear_cache()`` is exposed for tests and for explicit invalidation.
 """
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from src.wiki.core.types import PageType
 
+from .parser import validate_type_header
 from .types import (
     Template,
     PROJECT_TEMPLATE_DIRNAME,
@@ -34,23 +41,61 @@ if TYPE_CHECKING:
     pass
 
 
-def resolve(page_type: PageType, project_root: Path) -> Template:
-    """Load the highest-priority template for the given PageType.
+def _iter_candidates(
+    page_type: PageType, project_root: Path
+) -> "list[tuple[Path, str]]":
+    """Yield (path, source) candidates in priority order.
 
-    Raises FileNotFoundError if no template exists at any priority
-    level. (Bundled ships with all 4 PageTypes; a missing file here
-    indicates the bundled dir has been tampered with.)
+    Centralised so resolve() and list_resolved() share one source of truth
+    for the candidate ordering. Add a new priority level here and both
+    call sites pick it up.
     """
-    candidates: list[tuple[Path, str]] = [
+    return [
         (project_root / PROJECT_TEMPLATE_DIRNAME / f"{page_type.value}.md", "project"),
         (USER_TEMPLATE_DIR / f"{page_type.value}.md", "user"),
         (BUNDLED_DIR / f"{page_type.value}.md", "bundled"),
     ]
 
-    for path, source in candidates:
+
+def _candidate_mtime_signature(
+    page_type: PageType, project_root: Path
+) -> tuple[int, ...]:
+    """Compute a tuple of file mtimes (ns) over the candidate paths.
+
+    Returns an empty tuple when no candidate file exists — this matches
+    the FileNotFoundError path and ensures exceptions are never cached.
+    """
+    sig: list[int] = []
+    for path, _source in _iter_candidates(page_type, project_root):
+        if path.is_file():
+            try:
+                sig.append(path.stat().st_mtime_ns)
+            except OSError:
+                # Permission denied / file vanished — treat as missing
+                sig.append(-1)
+    return tuple(sig)
+
+
+@lru_cache(maxsize=64)
+def _resolve_cached(
+    page_type_value: str, project_root_str: str, mtime_sig: tuple
+) -> Template:
+    """LRU-cached inner resolve. Keys: (page_type, project_root, mtime_sig).
+
+    The mtime signature auto-invalidates when any candidate file is
+    edited (mtime_ns changes). Exceptions are NOT cached because
+    ``@lru_cache`` only stores successful return values.
+    """
+    return _resolve_uncached(
+        PageType(page_type_value), Path(project_root_str)
+    )
+
+
+def _resolve_uncached(page_type: PageType, project_root: Path) -> Template:
+    for path, source in _iter_candidates(page_type, project_root):
         if path.is_file():
             raw = path.read_text(encoding="utf-8")
-            _validate_type(raw, page_type)  # raises ValueError on mismatch
+            validate_type_header(raw, page_type)  # raises TemplateParseError on mismatch
             version = _extract_version(raw)
             body = _expand_includes(raw, base_dir=path.parent)
             return Template(
@@ -65,6 +110,44 @@ def resolve(page_type: PageType, project_root: Path) -> Template:
         f"No wiki template for PageType.{page_type.value!r} "
         f"(searched project, user, bundled)"
     )
+
+
+def resolve(page_type: PageType, project_root: Path) -> Template:
+    """Load the highest-priority template for the given PageType.
+
+    Cached in-process via an mtime-keyed LRU. The cache invalidates
+    automatically when any candidate file's mtime changes; call
+    ``clear_cache()`` to force a flush (tests, after manual file ops
+    that don't bump mtime, after deploy).
+
+    Raises FileNotFoundError if no template exists at any priority
+    level. (Bundled ships with all 4 PageTypes; a missing file here
+    indicates the bundled dir has been tampered with.)
+    """
+    mtime_sig = _candidate_mtime_signature(page_type, project_root)
+    return _resolve_cached(
+        page_type.value,
+        str(project_root),
+        mtime_sig,
+    )
+
+
+def clear_cache() -> None:
+    """Drop all cached resolve() results.
+
+    Intended for tests and for callers that have just performed a
+    file operation that didn't bump mtime (e.g. os.replace, atomic
+    rename). Normal usage does not need this — the mtime signature
+    auto-invalidates on file edits.
+
+    Cache key limitation: keys do NOT include the global
+    ``USER_TEMPLATE_DIR`` / ``BUNDLED_DIR`` paths (they're treated as
+    module-level constants). In production these are immutable after
+    import, so this is fine. In tests that monkeypatch these
+    constants, you **must** call ``clear_cache()`` first or the cached
+    result will point at the original (pre-patch) directory.
+    """
+    _resolve_cached.cache_clear()
 
 
 # ---------------------------------------------------------------------------
@@ -83,27 +166,14 @@ def _extract_version(raw: str) -> str | None:
     return m.group(1) if m else None
 
 
-_TYPE_HEADER_RE = re.compile(
-    r"^<!--\s*wiki-template-type:\s*([a-z]+)\s*-->\s*$",
-    re.MULTILINE,
-)
-
-
 def _validate_type(raw: str, expected: PageType) -> None:
-    """Raise ValueError if the template's type header doesn't match.
+    """Deprecated thin wrapper — delegates to ``validate_type_header``.
 
-    Mirrors the parser's strict check so user-level templates (which
-    don't go through parser.py) are also validated. Tests rely on this.
+    Kept for any external callers that historically relied on this name.
+    Raises ``TemplateParseError`` (a ``ValueError`` subclass) on failure,
+    matching the parser's behaviour exactly.
     """
-    m = _TYPE_HEADER_RE.search(raw)
-    if not m:
-        raise ValueError(
-            f"Template missing wiki-template-type header (expected {expected.value})"
-        )
-    if m.group(1) != expected.value:
-        raise ValueError(
-            f"Template type mismatch: file says {m.group(1)!r}, expected {expected.value!r}"
-        )
+    validate_type_header(raw, expected)
 
 
 def _safe_include_path(inc_path: str, base_dir: Path) -> Path:
@@ -178,36 +248,36 @@ def list_resolved(project_root: Path) -> list[Template]:
     Skips types where resolve() raises FileNotFoundError (which should
     only happen if bundled files are missing).
 
-    For ValueError raised by an INVALID user/project override (missing or
-    mismatched type header), still returns a Template so the CLI can mark
-    it INVALID — the operator can then fix it.
+    For ``TemplateParseError`` raised by an INVALID user/project override
+    (missing or mismatched type header), still returns a Template so the
+    CLI can mark it INVALID — the operator can then fix it. Other
+    ValueErrors (e.g. unsafe include path) propagate to the caller.
     """
+    from .parser import TemplateParseError
+
     out: list[Template] = []
     for pt in PageType:
         try:
             out.append(resolve(pt, project_root))
         except FileNotFoundError:
             continue
-        except ValueError:
+        except TemplateParseError:
             # Surface the invalid override as a Template so list can mark INVALID.
-            from .types import PROJECT_TEMPLATE_DIRNAME
-            from .resolver import BUNDLED_DIR, USER_TEMPLATE_DIR
-            for cand in (
-                project_root / PROJECT_TEMPLATE_DIRNAME / f"{pt.value}.md",
-                USER_TEMPLATE_DIR / f"{pt.value}.md",
-            ):
+            # Walk candidates in priority order — first hit is the invalid file.
+            for cand, source in _iter_candidates(pt, project_root):
                 if cand.is_file():
                     raw = cand.read_text(encoding="utf-8")
                     out.append(Template(
                         type=pt,
                         body_markdown=raw,
                         version=_extract_version(raw),
-                        source="project" if cand.parent.name == PROJECT_TEMPLATE_DIRNAME else "user",
+                        source=source,  # type: ignore[arg-type]
                         path=cand,
                     ))
                     break
     return out
 
 
-# Backwards-compat alias (existing tests import this name).
-list_available = list_resolved
+# Backwards-compat alias removed in O-3 cleanup — callers should use
+# list_resolved directly. (No remaining external callers after the
+# generator.py and cli_ext/wiki_templates_cmd.py migrations.)

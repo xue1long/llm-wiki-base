@@ -5,7 +5,16 @@ from ..health_check import Check, CheckIssue, CheckResult, CheckSeverity
 
 
 # Accepts both UUID v7 (card_<13hex>_<8hex>_<slug>) and legacy pure slug
-ID_PATTERN = re.compile(r"^(?:card_[0-9a-f]{13}_[0-9a-f]{8}_[a-z0-9-]+|[a-z0-9-]+)$")
+# CJK cut-over (2026-07-26): allow U+4E00–U+9FFF in slugs as well.
+# See wiki-spec.md §"ID 命名规则".
+#
+# Note: alt-1 (UUIDv7 format) allows ``_`` literals because they
+# appear as separators in the format; alt-2 (pure-slug form)
+# deliberately excludes ``_`` so a malformed UUIDv7 string that
+# fails the hex check still rejects over the alt-2 path.
+ID_PATTERN = re.compile(
+    r"^(?:card_[0-9a-f]{13}_[0-9a-f]{8}_[a-z0-9-一-鿿]+|[a-z0-9-一-鿿]+)$"
+)
 
 
 class H4IdFormatCheck(Check):

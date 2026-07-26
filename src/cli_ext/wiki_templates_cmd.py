@@ -15,7 +15,8 @@ import sys
 from pathlib import Path
 
 from ..wiki.core.types import PageType
-from ..wiki.templates import Template, list_available, resolve
+from ..wiki.templates import Template, list_resolved, resolve
+from ..wiki.templates.parser import TemplateParseError, validate_type_header
 
 
 # User-level override directory
@@ -39,6 +40,8 @@ def _validate_template_file(path: Path, expected_type: PageType) -> tuple[bool, 
     """Check that a user/project override file has the required headers.
 
     Returns (is_valid, reason). If invalid, reason explains what's wrong.
+    Delegates to parser.validate_type_header for the actual check so the
+    CLI shares the parser's regex / error wording.
     """
     if not path.is_file():
         return False, "file does not exist"
@@ -46,16 +49,16 @@ def _validate_template_file(path: Path, expected_type: PageType) -> tuple[bool, 
         content = path.read_text(encoding="utf-8")
     except OSError as e:
         return False, f"unreadable: {e}"
-    if "<!-- wiki-template-type:" not in content:
-        return False, "missing wiki-template-type header"
-    if expected_type.value not in content.split("wiki-template-type:", 1)[1].split("-->", 1)[0]:
-        return False, f"wiki-template-type does not match {expected_type.value!r}"
+    try:
+        validate_type_header(content, expected_type)
+    except TemplateParseError as e:
+        return False, str(e)
     return True, "ok"
 
 
 def cmd_wiki_templates_list(_args: argparse.Namespace) -> None:
     """Show all 4 PageTypes with version + source + validity."""
-    templates = list_available(Path.cwd())
+    templates = list_resolved(Path.cwd())
     if not templates:
         print("No templates available", file=sys.stderr)
         sys.exit(1)
@@ -307,7 +310,7 @@ def cmd_wiki_templates_status(_args: argparse.Namespace) -> None:
     # - source (bundled / user / project)
     # - version
     # - bundled-updated (since last refresh_state() — usually "" unless a deploy)
-    templates = list_available(Path.cwd())
+    templates = list_resolved(Path.cwd())
     print(f"{'TYPE':<10}  {'VERSION':<8}  {'SOURCE':<10}  NOTES")
     print(f"{'----':<10}  {'-------':<8}  {'------':<10}  -----")
     for t in templates:

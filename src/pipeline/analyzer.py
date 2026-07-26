@@ -13,6 +13,9 @@ _logger = logging.getLogger(__name__)
 
 ANALYZER_PROMPT = """You are analyzing a source document for a knowledge base.
 
+Do NOT output chain-of-thought, hidden reasoning, or a thinking
+transcript. Reason internally and emit only the requested JSON.
+
 ## Language
 默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
 summary、key_facts、entities/concepts 的 name 和 context、
@@ -97,7 +100,19 @@ async def analyze(
         source_path=source_path,
         summary=response.get("summary", ""),
         key_facts=response.get("key_facts", []),
-        entities=[EntityMention(**e) for e in response.get("entities", [])],
+        entities=[
+            EntityMention(
+                name=e.get("name", ""),
+                slug=e.get("slug", ""),
+                # Default to "concept" when LLM omits 'type' — observed in
+                # production (api.minimax.chat occasionally drops it), and
+                # not worth crashing the whole ingest.
+                type=e.get("type", "concept"),
+                context=e.get("context", ""),
+                confidence=e.get("confidence", 0.0),
+            )
+            for e in response.get("entities", [])
+        ],
         concepts=[ConceptMention(**c) for c in response.get("concepts", [])],
         suggested_pages=[PageSpec(**p) for p in response.get("suggested_pages", [])],
         links_to_existing=response.get("links_to_existing", []),
