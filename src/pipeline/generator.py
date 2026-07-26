@@ -1,5 +1,6 @@
 """Step 2: LLM renders wiki pages from AnalysisResult."""
 import logging
+from pathlib import Path
 from typing import Optional
 
 from ..lib.budgeted import BudgetedLLM
@@ -208,7 +209,7 @@ async def generate(
     return pages
 
 
-def _render_template_section(project_root) -> str:
+def _render_template_section(project_root: Path) -> str:
     """Render the bundled templates as a prompt section.
 
     Falls back to a brief hint if no templates are available (e.g. running

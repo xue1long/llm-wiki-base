@@ -138,7 +138,14 @@ def clear_cache() -> None:
     Intended for tests and for callers that have just performed a
     file operation that didn't bump mtime (e.g. os.replace, atomic
     rename). Normal usage does not need this — the mtime signature
-    auto-invalidates.
+    auto-invalidates on file edits.
+
+    Cache key limitation: keys do NOT include the global
+    ``USER_TEMPLATE_DIR`` / ``BUNDLED_DIR`` paths (they're treated as
+    module-level constants). In production these are immutable after
+    import, so this is fine. In tests that monkeypatch these
+    constants, you **must** call ``clear_cache()`` first or the cached
+    result will point at the original (pre-patch) directory.
     """
     _resolve_cached.cache_clear()
 

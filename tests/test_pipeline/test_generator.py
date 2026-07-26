@@ -155,8 +155,7 @@ def test_render_template_section_compact_with_optional_annotations(tmp_path):
     assert "<!-- slot:definition -->" in out
     # The render-for-prompt path is compact: no blank line between
     # heading and its slot markers.
-    assert "## 定义\n<!-- slot:definition -->" in out or \
-           "## 定义\n<!-- slot:definition -->" in out  # Chinese heading variant
+    assert "## 定义\n<!-- slot:definition -->" in out
 
 
 def test_render_template_section_falls_back_when_no_bundled(tmp_path, monkeypatch):
