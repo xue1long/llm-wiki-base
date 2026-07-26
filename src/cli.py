@@ -283,6 +283,10 @@ def main():
     from .cli_ext.wiki_templates_cmd import add_wiki_templates_parser
     add_wiki_templates_parser(subparsers)
 
+    # v2.4 migration: rename kb-*.md source pages to {stem}-{8hex}.md
+    from .cli_ext.migrate_source_slugs_cmd import add_wiki_migrate_source_slugs_parser
+    add_wiki_migrate_source_slugs_parser(subparsers)
+
     # Serve (HTTP API server)
     p_serve = subparsers.add_parser("serve", help="Start HTTP API server")
     p_serve.add_argument("--host", default="127.0.0.1")
