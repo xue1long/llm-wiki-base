@@ -16,12 +16,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .types import PageType
+
+
+_log = logging.getLogger(__name__)
 
 
 STATE_PATH = Path.home() / ".config" / "ruflo-kb" / "wiki-templates" / ".bundled-state.json"
@@ -46,10 +50,40 @@ class State:
         if not path.is_file():
             return cls()
         try:
-            raw = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            # Corrupt state file — start fresh rather than crash. The
-            # next status call will rebuild from current bundled.
+            raw_text = path.read_text(encoding="utf-8")
+            raw = json.loads(raw_text)
+        except json.JSONDecodeError as e:
+            # O-5: corrupt JSON — back the file up for post-mortem, log
+            # a warning naming the path + reason, and return a fresh
+            # state so the next status call rebuilds from current
+            # bundled. Without the backup, users lose all upgrade
+            # history with no diagnostic trail.
+            backup = path.with_suffix(path.suffix + ".corrupt")
+            try:
+                backup.write_text(raw_text, encoding="utf-8")
+            except OSError as backup_err:
+                _log.warning(
+                    "wiki-templates state file at %s is corrupt (%s); "
+                    "also failed to back up to %s: %s",
+                    path, e, backup, backup_err,
+                )
+                return cls()
+            _log.warning(
+                "wiki-templates state file at %s is corrupt (%s); "
+                "backed up to %s and starting fresh. The next "
+                "`wiki-templates status` will rebuild from current bundled.",
+                path, e, backup,
+            )
+            return cls()
+        except OSError as e:
+            # Unreadable file (permission denied, path is a directory,
+            # etc). No backup possible since we couldn't read it.
+            # Don't crash — return fresh state and let next write fix it.
+            _log.warning(
+                "wiki-templates state file at %s is unreadable (%s); "
+                "starting fresh. Next save() will rewrite it.",
+                path, e,
+            )
             return cls()
         return cls(
             schema_version=raw.get("schema_version", 1),
