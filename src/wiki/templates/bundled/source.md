@@ -1,4 +1,4 @@
-<!-- wiki-template-version: 1.0.0 -->
+<!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 
 ## 来源元数据

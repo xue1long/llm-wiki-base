@@ -1,4 +1,4 @@
-<!-- wiki-template-version: 1.0.0 -->
+<!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
 ## 定义
