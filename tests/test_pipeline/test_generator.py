@@ -403,3 +403,85 @@ async def test_generator_prompt_repeats_language_directive_at_end(tmp_path):
         "GENERATOR_PROMPT must re-assert the language directive near the "
         "end (last ~800 chars) to prevent LLM drift on multi-page output."
     )
+
+
+@pytest.mark.asyncio
+async def test_generator_prompt_directs_slug_reuse(tmp_path):
+    """GENERATOR_PROMPT must tell the LLM to reuse existing slugs
+    verbatim when emitting `[[wikilinks]]` and `relations[].target`,
+    rather than inventing new pinyin transliterations.
+
+    Production evidence (novel-wiki 2026-07-26): 10 broken wikilinks
+    of which 6 stemmed from LLM emitting different slug variants
+    in different ingests (e.g. ``qi-dai-gan`` vs
+    ``qi-dai-gan-chuangzuo``, ``urban-xianxia-stream`` vs
+    ``dushi-xianxia-liu``).
+
+    The test requires the prompt to (a) instruct slug reuse AND
+    (b) forbid invention of new variants, in a slug/wikilink/relation
+    *context* — not just anywhere in the prompt. This guards against
+    false positives from unrelated directives (e.g. the existing
+    "Do not invent relation type names" line about the 17 built-in
+    relation *types*, which is about something else entirely).
+    """
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="concept", slug="kb-1", title="T", reasoning="r"),
+        ],
+    )
+    provider = ScriptedLLMProvider([{
+        "pages": [{"id": "kb-1", "type": "concept", "title": "T",
+                    "body_markdown": "B"}]
+    }])
+    await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="",
+        provider=provider,
+    )
+
+    prompt = provider.calls[0]["messages"][0]["content"]
+    p_lower = prompt.lower()
+
+    # Strict phrases — none of these appear in the original prompt:
+    REUSE_PHRASES = (
+        "reuse existing", "reuse the existing", "reuse the same",
+        "verbatim", "copy the slug", "use the existing slug",
+        "复用", "字面", "原样复用", "使用现有",
+    )
+    NOINVENT_PHRASES = (
+        "do not invent new", "don't invent new",
+        "do not introduce new", "must not invent",
+        "must not introduce", "no new variant", "no new slug",
+        "不要重新", "不要发明", "不要新建", "不要缩写", "不要拼新",
+    )
+
+    # Collect windows around slug/wikilink/relation context (400-char wide)
+    # so we can assert the directive lives in a slug-relevant place.
+    windows = []
+    for kw in ("slug", "wikilink", "wikilinks", "relations", "[["):
+        idx = 0
+        while True:
+            i = p_lower.find(kw, idx)
+            if i < 0:
+                break
+            windows.append(p_lower[max(0, i - 200):i + 300])
+            idx = i + 1
+
+    has_reuse_in_ctx = any(p in w for w in windows for p in REUSE_PHRASES)
+    has_noinv_in_ctx = any(p in w for w in windows for p in NOINVENT_PHRASES)
+
+    assert has_reuse_in_ctx, (
+        "GENERATOR_PROMPT must include a slug/wikilink/relation-context "
+        f"directive to reuse existing slugs verbatim. Looked for any of "
+        f"{REUSE_PHRASES} in windows around 'slug' / 'wikilink' / 'relations'."
+    )
+    assert has_noinv_in_ctx, (
+        "GENERATOR_PROMPT must include a slug/wikilink/relation-context "
+        f"directive to forbid inventing new slug variants. Looked for any "
+        f"of {NOINVENT_PHRASES} in windows around 'slug' / 'wikilink' / 'relations'."
+    )

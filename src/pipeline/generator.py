@@ -45,6 +45,19 @@ relations[].target) 始终用 ASCII(中文术语用拼音或英文翻译)。
 ## Existing wiki index
 {existing_wiki_index}
 
+## Slug Reuse (CRITICAL — prevent wikilink drift across ingests)
+The `## Existing wiki index` above lists every page currently in the
+wiki by its exact `id` slug. Whenever your body_markdown refers to a
+concept via `[[wikilinks]]`, or `relations[].target` references a
+slugs, you MUST reuse the EXISTING slug verbatim — copy it character-
+for-character. Do not invent new pinyin transliterations, do not
+shorten or lengthen, do not switch between English and pinyin
+renderings, do not introduce new slug variants. If a concept already
+has a page (e.g. `qi-dai-gan-chuangzuo`), use that exact slug even
+when your analysis would naturally shorten it (e.g. to `qi-dai-gan`).
+Reusing keeps cross-references resolvable across multiple ingests;
+inventing creates broken `[[...]]` links the reader cannot follow.
+
 ## Page Templates (use these to structure body_markdown)
 Match the section headings exactly. Fill each `<!-- slot:NAME -->` with
 substantive content from the source. For `<!-- slot:NAME? -->` or
