@@ -332,3 +332,24 @@ def render_for_prompt(ast: "TemplateAST") -> str:
                     label += "  _(optional)_"
             out.append(label)
     return "\n".join(out).rstrip()
+
+
+def required_slot_names(template: "Template") -> list[str]:
+    """Return slot names that MUST appear in a rendered body.
+
+    Optional slots (``<!-- slot:NAME? -->`` or wrapped in
+    ``<!-- if:X -->...<!-- /if:X -->``) are excluded. Output order
+    follows the slot's document order in the template, which is also
+    the heading order in the rendered body.
+
+    Args:
+        template: The resolved template to introspect. Use the result of
+            ``resolver.resolve(page_type, project_root)`` (or one of the
+            templates returned by ``list_resolved``).
+
+    Returns:
+        Names of the required slots, in document order. Empty list if
+        the template has no slot markers at all.
+    """
+    ast = parse(template.body_markdown, expected_type=template.type)
+    return [s.name for s in ast.all_slots if not s.is_optional]  # type: ignore[attr-defined]  # TemplateAST.all_slots declared in .types

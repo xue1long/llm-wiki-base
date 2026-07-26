@@ -6,6 +6,7 @@ from src.wiki.templates.parser import (
     parse,
     render,
     render_for_prompt,
+    required_slot_names,
     TemplateParseError,
     validate_type_header,
 )
@@ -362,3 +363,102 @@ def test_render_for_prompt_distinct_from_render():
     # render() re-emits headers; render_for_prompt() doesn't
     assert "<!-- wiki-template-version:" in r1
     assert "<!-- wiki-template-version:" not in r2
+
+
+# ---------------------------------------------------------------------------
+# required_slot_names — Plan 27 (wiki template v2.3 schema enforcement).
+# ---------------------------------------------------------------------------
+
+from src.wiki.templates.types import Template
+
+
+def _wrap_template(markdown: str, page_type: PageType) -> Template:
+    """Build a Template from raw markdown body (resolver-style fields)."""
+    return Template(
+        type=page_type,
+        body_markdown=markdown,
+        version="2.0.0",
+        source="bundled",
+        path=None,
+    )
+
+
+def _bundle_source(name: str) -> str:
+    """Read the bundled template file as raw markdown body."""
+    from pathlib import Path
+    return (Path(__file__).resolve().parents[2] / "src" / "wiki" / "templates" / "bundled" / name).read_text(encoding="utf-8")
+
+
+def test_required_slot_names_excludes_optional():
+    """entity template's aliases slot is optional and must be excluded."""
+    body = (
+        "<!-- wiki-template-version: 2.0.0 -->\n"
+        "<!-- wiki-template-type: entity -->\n\n"
+        "## 基本信息\n\n<!-- slot:basic_info -->\n\n"
+        "## 简介\n\n<!-- slot:summary -->\n\n"
+        "## 别名\n\n<!-- slot:aliases? -->\n\n"
+        "## 相关引用\n\n<!-- slot:related -->\n"
+    )
+    template = _wrap_template(body, PageType.ENTITY)
+    required = required_slot_names(template)
+    assert required == ["basic_info", "summary", "related"]
+    assert "aliases" not in required
+
+
+def test_required_slot_names_per_page_type():
+    """Each bundled template's required slots match expected names + order."""
+    expected = {
+        PageType.SOURCE: ["source_meta", "summary", "key_points", "extracted_concepts"],
+        PageType.ENTITY: ["basic_info", "summary", "related"],          # aliases optional
+        PageType.CONCEPT: ["definition", "characteristics", "examples", "related_concepts", "references"],
+        PageType.SYNTHESIS: ["comparison_dimensions", "overview", "involved_concepts", "comparison", "conclusion"],
+    }
+    file_for_type = {
+        PageType.SOURCE: "source.md",
+        PageType.ENTITY: "entity.md",
+        PageType.CONCEPT: "concept.md",
+        PageType.SYNTHESIS: "synthesis.md",
+    }
+    for ptype, want in expected.items():
+        template = _wrap_template(_bundle_source(file_for_type[ptype]), ptype)
+        got = required_slot_names(template)
+        assert got == want, f"{ptype.value}: expected {want}, got {got}"
+
+
+def test_required_slot_names_preserves_document_order():
+    """Slots are returned in template order, not alphabetical."""
+    body = (
+        "<!-- wiki-template-version: 2.0.0 -->\n"
+        "<!-- wiki-template-type: concept -->\n\n"
+        "## 定义\n\n<!-- slot:definition -->\n\n"
+        "## 主要特点\n\n<!-- slot:characteristics -->\n\n"
+        "## 例子\n\n<!-- slot:examples -->\n"
+    )
+    template = _wrap_template(body, PageType.CONCEPT)
+    assert required_slot_names(template) == ["definition", "characteristics", "examples"]
+
+
+def test_required_slot_names_empty_when_no_slots():
+    """Template with zero slot markers yields empty list (edge case)."""
+    body = (
+        "<!-- wiki-template-version: 2.0.0 -->\n"
+        "<!-- wiki-template-type: concept -->\n\n"
+        "## 定义\n\n这是一个没有 slot 的模板。\n"
+    )
+    template = _wrap_template(body, PageType.CONCEPT)
+    assert required_slot_names(template) == []
+
+
+def test_required_slot_names_if_block_treated_as_optional():
+    """<!-- if:X -->...<!-- /if:X --> wraps make the inner slot optional."""
+    body = (
+        "<!-- wiki-template-version: 2.0.0 -->\n"
+        "<!-- wiki-template-type: entity -->\n\n"
+        "## 简介\n\n<!-- slot:summary -->\n\n"
+        "## 别名\n\n<!-- if:has_aliases -->\n\n"
+        "<!-- slot:aliases -->\n\n<!-- /if:has_aliases -->\n\n"
+        "## 相关\n\n<!-- slot:related -->\n"
+    )
+    template = _wrap_template(body, PageType.ENTITY)
+    assert required_slot_names(template) == ["summary", "related"]
+    assert "aliases" not in required_slot_names(template)
