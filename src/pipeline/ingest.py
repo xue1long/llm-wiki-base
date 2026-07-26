@@ -226,7 +226,30 @@ async def run_ingest(
         created_at=int(_time.time() * 1000),
         updated_at=int(_time.time() * 1000),
     )
-    pages.append(source_page)
+
+    # Fix A (2026-07-26): dedup before unconditional append.
+    # If the LLM already produced a source-type page for this same source
+    # (e.g. via a proper-slug summary in addition to the kb-{task_id}
+    # fallback), the kb-* version is redundant — both files would carry the
+    # same `sources: [<raw>]` field, doubling the wiki's source attachments
+    # and breaking cascade_delete cleanup. Keep the LLM's page, drop ours.
+    def _norm_source(s: object) -> str:
+        """Compare raw paths case-/separator-insensitively."""
+        return str(s).strip().lower().replace("/", "\\")
+
+    target_source_norm = _norm_source(source_path)
+    llm_already_has_source = any(
+        p.type == PageType.SOURCE
+        and any(_norm_source(s) == target_source_norm for s in (p.sources or []))
+        for p in pages
+    )
+    if llm_already_has_source:
+        _logger.debug(
+            f"[run_ingest] source page already produced by LLM for "
+            f"{source_path}; skipping task-id fallback (id={source_slug!r})"
+        )
+    else:
+        pages.append(source_page)
 
     # Fix E: scan every relation target across all generated pages
     # and create a stub entity page for any slug that has no matching

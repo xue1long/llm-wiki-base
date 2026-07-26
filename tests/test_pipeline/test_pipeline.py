@@ -32,15 +32,16 @@ async def test_run_ingest_full_pipeline(tmp_path):
         paths=p, source_path=raw, source_text="PDF content about backprop",
         provider=provider,
     )
-    # After the 2026-07 cleanup, ``run_ingest`` unconditionally appends a
-    # ``kb-{task_id}`` source page in addition to whatever the LLM
-    # generated — so we expect 2 pages here (the LLM stub emits one
-    # ``test`` page; the pipeline adds one source page).
-    assert len(pages) >= 1
+    # When the LLM emits a source-type page (slug="test"), the pipeline's
+    # task-id fallback (kb-{task_id}) is redundant and would create a
+    # duplicate source page. After dedup fix, only the LLM's page remains.
+    assert len(pages) == 1, (
+        f"expected exactly 1 page (LLM's source page); got {[(p.id, p.type) for p in pages]}"
+    )
     page_ids = {p.id for p in pages}
-    assert "test" in page_ids, f"expected 'test' page in {page_ids}"
-    assert any(p.id.startswith("kb-") for p in pages), (
-        f"expected at least one auto-generated kb-* source page in {page_ids}"
+    assert page_ids == {"test"}, f"expected only 'test' in {page_ids}"
+    assert not any(p.id.startswith("kb-") for p in pages), (
+        f"kb-* fallback must NOT be added when LLM already produced a source page"
     )
     assert (p.wiki_sources / "test.md").exists()
     assert "test" in p.llm_wiki_index.read_text(encoding="utf-8")
@@ -79,3 +80,45 @@ async def test_collector_done_triggers_run_ingest(tmp_path, monkeypatch):
     await pipeline_mod._on_collector_done(payload)
     assert (p.wiki_sources / "x.md").exists()
     assert "x" in p.llm_wiki_index.read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
+async def test_run_ingest_kb_task_id_fallback_when_llm_omits_source_page(tmp_path):
+    """Inverse guard: when the LLM does NOT emit any source-type page,
+    the kb-{task_id} fallback must still be added so the wiki always
+    has a stable attachment point. (Pairs with the dedup test above.)
+    """
+    import uuid as _uuid
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    raw = p.raw_sources / "nope.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text("content", encoding="utf-8")
+
+    # LLM only generates concept pages, NO source-type page emitted.
+    provider = ScriptedLLMProvider([
+        {"summary": "x", "key_facts": [], "entities": [], "concepts": [],
+         "suggested_pages": [
+             {"type": "concept", "slug": "only-concept", "title": "Only",
+              "reasoning": "r"},
+         ],
+         "links_to_existing": []},
+        {"pages": [
+            {"id": "only-concept", "type": "concept", "title": "Only",
+             "frontmatter_extra": {}, "body_markdown": "concept body"},
+        ]},
+    ])
+
+    # Pass a stable task_id we can check for.
+    test_task_id = f"kb-test-{_uuid.uuid4().hex[:8]}"
+    pages = await run_ingest(
+        paths=p, source_path=raw, source_text="content",
+        provider=provider, task_id=test_task_id,
+    )
+    page_ids = {p.id for p in pages}
+    assert "only-concept" in page_ids
+    # task-id fallback present (no LLM-emitted source page to dedup against)
+    assert test_task_id in page_ids, (
+        f"kb-* fallback should exist when no source page emitted; got {page_ids}"
+    )
+    assert (p.wiki_sources / f"{test_task_id}.md").exists()
