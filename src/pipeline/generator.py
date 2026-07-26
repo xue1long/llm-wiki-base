@@ -31,6 +31,9 @@ _logger = logging.getLogger(__name__)
 
 GENERATOR_PROMPT = """You are rendering wiki pages for a knowledge base.
 
+Do NOT output chain-of-thought, hidden reasoning, or a thinking
+transcript. Reason internally and emit only the requested JSON.
+
 ## Language
 默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
 title、body_markdown、relations[].context。Slugs (id、
@@ -60,6 +63,16 @@ headings rather than filler.
 
 {PAGE_TEMPLATES}
 
+## Subject boundary (do not transfer claims across entities)
+When the source discusses multiple entities / models / products /
+methods / works / characters, keep each claim, evaluation, limitation,
+benchmark result, and recommendation attached to the exact subject it
+describes. Do NOT transfer a claim about one subject onto another
+subject's page just because they share terms (names, features,
+keywords, time periods, or the same source). If a page must reference
+another subject for comparison, write it explicitly as a comparison
+and cite the source that supports it.
+
 ## Task
 For each suggested page, render Markdown content. Output strict JSON:
 {{
@@ -86,6 +99,11 @@ You may also use `x-<name>` for any user-registered type. Do not invent
 relation type names outside this set.
 
 {WIKI_RULES_SUMMARY}
+
+## Language (re-asserted — applies to ALL output below)
+默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
+title、body_markdown、relations[].context。Slugs (id、
+relations[].target) 始终用 ASCII(中文术语用拼音或英文翻译)。
 """
 
 

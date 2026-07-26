@@ -258,3 +258,148 @@ async def test_generator_prompt_prohibits_ellipsis_filler(tmp_path):
         "GENERATOR_PROMPT must pair the OMIT permission with a "
         "no-content / no-substantive condition."
     )
+
+
+# ---------------------------------------------------------------------------
+# Borrowed from llm_wiki-main's buildGenerationPrompt:
+#   - Anti-CoT directive (avoid `` leak into body)
+#   - Subject-boundary guard (do NOT transfer claims between entities)
+#   - Re-asserted language directive at the END of the prompt
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_generator_prompt_prohibits_chain_of_thought(tmp_path):
+    """GENERATOR_PROMPT must explicitly forbid chain-of-thought /
+    hidden reasoning. Defense against DeepSeek-style `` blocks leaking
+    into wiki bodies and contravariant reasoning traces in markdown.
+    """
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="concept", slug="kb-1", title="T", reasoning="r"),
+        ],
+    )
+    provider = ScriptedLLMProvider([{
+        "pages": [
+            {"id": "kb-1", "type": "concept", "title": "T",
+             "body_markdown": "B"},
+        ]
+    }])
+    await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="",
+        provider=provider,
+    )
+
+    prompt = provider.calls[0]["messages"][0]["content"]
+    p_lower = prompt.lower()
+    forbid_found = False
+    for kw in ("chain-of-thought", "chain of thought", "hidden reasoning",
+               "thinking transcript", "thinking", "reasoning trace"):
+        if kw in p_lower:
+            line_idx = p_lower.find(kw)
+            start = max(0, line_idx - 80)
+            ctx = p_lower[start:line_idx + len(kw) + 80]
+            if any(p in ctx for p in (
+                "do not", "don't", "never", "no ", "avoid", "禁止", "不要",
+            )):
+                forbid_found = True
+                break
+    assert forbid_found, (
+        "GENERATOR_PROMPT must forbid chain-of-thought / hidden reasoning."
+    )
+
+
+@pytest.mark.asyncio
+async def test_generator_prompt_has_subject_boundary_guard(tmp_path):
+    """GENERATOR_PROMPT must tell the LLM not to transfer claims,
+    evaluations, or recommendations between subjects simply because
+    they share keywords. Borrowed from llm_wiki-main's
+    `buildGenerationPrompt` (subject-boundary guard).
+    """
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="concept", slug="kb-1", title="T", reasoning="r"),
+        ],
+    )
+    provider = ScriptedLLMProvider([{
+        "pages": [{"id": "kb-1", "type": "concept", "title": "T",
+                    "body_markdown": "B"}]
+    }])
+    await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="",
+        provider=provider,
+    )
+
+    prompt = provider.calls[0]["messages"][0]["content"]
+    p_lower = prompt.lower()
+    # Must mention keeping claims bounded to subjects AND not transferring them.
+    has_subject = any(
+        term in p_lower for term in ("subject", "boundary", "boundaries")
+    )
+    has_claim_term = "claim" in p_lower or "evaluation" in p_lower
+    has_no_transfer = any(
+        phrase in p_lower for phrase in (
+            "do not transfer", "don't transfer", "not transfer",
+            "not be transferred", "do not merge", "don't merge",
+            "do not generalize", "don't generalize",
+            "不串", "不要把", "不要将",
+        )
+    )
+    assert has_subject and has_claim_term and has_no_transfer, (
+        "GENERATOR_PROMPT must include a subject-boundary guard: "
+        "(1) mention subjects/boundaries, (2) talk about claims / evaluations, "
+        "(3) forbid transferring them across subjects."
+    )
+
+
+@pytest.mark.asyncio
+async def test_generator_prompt_repeats_language_directive_at_end(tmp_path):
+    """The language directive must be re-asserted near the END of
+    GENERATOR_PROMPT (not only the beginning) so it wins the
+    'most-recent-instruction' tie-breaker for multi-page generation —
+    borrowed from llm_wiki-main.
+    """
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="concept", slug="kb-1", title="T", reasoning="r"),
+        ],
+    )
+    provider = ScriptedLLMProvider([{
+        "pages": [{"id": "kb-1", "type": "concept", "title": "T",
+                    "body_markdown": "B"}]
+    }])
+    await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="",
+        provider=provider,
+    )
+
+    prompt = provider.calls[0]["messages"][0]["content"]
+    # Take the last 800 characters and look for a language-style directive.
+    tail = prompt[-800:].lower()
+    # Expect "language" near the end AND one of (中文 / chinese / cjk / pinyin).
+    has_lang_keyword = "language" in tail
+    has_lang_detail = any(
+        term in tail for term in ("中文", "chinese", "cjk", "pinyin", "simplified")
+    )
+    assert has_lang_keyword and has_lang_detail, (
+        "GENERATOR_PROMPT must re-assert the language directive near the "
+        "end (last ~800 chars) to prevent LLM drift on multi-page output."
+    )
