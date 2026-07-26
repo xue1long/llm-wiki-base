@@ -120,6 +120,14 @@ def capture_current_bundled(bundled_dir: Path) -> dict[str, BundledEntry]:
     Skips files without a `wiki-template-version` header (they would
     fail the resolver anyway). Used to populate / refresh the state
     file.
+
+    Malformed bundled files (e.g. type header wrong, missing version
+    header) are logged as ERROR rather than silently skipped — the
+    operator needs to know that a shipped template is broken before
+    the next `wiki-templates status` call otherwise shows a missing
+    PageType with no diagnostic trail. The malformed file is excluded
+    from the returned dict so `status` can still report the rest of
+    the bundled templates correctly.
     """
     from .parser import parse, TemplateParseError
     from .types import PageType
@@ -133,8 +141,20 @@ def capture_current_bundled(bundled_dir: Path) -> dict[str, BundledEntry]:
         raw = f.read_text(encoding="utf-8")
         try:
             ast = parse(raw, expected_type=PageType(slug))
-        except TemplateParseError:
-            # Malformed bundled file — skip; will surface elsewhere.
+        except TemplateParseError as e:
+            # F-5: bundled file shipped in this repo is malformed — log
+            # loudly so the operator notices on the next status call.
+            # Without this, a broken bundled file would silently vanish
+            # and look like "type missing from bundled" — which is the
+            # wrong diagnostic.
+            _log.error(
+                "bundled template %s failed to parse: %s. "
+                "It will be excluded from `wiki-templates status` "
+                "until fixed. Re-install the bundled templates or "
+                "patch the file to restore the wiki-template-version "
+                "and wiki-template-type headers.",
+                f, e,
+            )
             continue
         out[slug] = BundledEntry(
             version=ast.version or "0.0.0",

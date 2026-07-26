@@ -85,3 +85,44 @@ def test_state_load_missing_file_returns_fresh(tmp_path):
     assert s.bundled == {}
     backup = state_path.with_suffix(".json.corrupt")
     assert not backup.exists()
+
+
+# ---------------------------------------------------------------------------
+# F-5: capture_current_bundled logs ERROR on malformed bundled files
+# ---------------------------------------------------------------------------
+
+def test_capture_current_bundled_logs_error_on_malformed(tmp_path, caplog):
+    """A malformed bundled file is logged at ERROR, not silently skipped.
+
+    Without F-5, the file would vanish from the result dict and the
+    operator would see a 'type missing from bundled' with no clue.
+    After F-5 the log makes the cause explicit.
+    """
+    from src.wiki.templates.state import capture_current_bundled
+
+    bundled_dir = tmp_path / "bundled"
+    bundled_dir.mkdir()
+    # concept.md has NO version header → parser will reject
+    (bundled_dir / "concept.md").write_text(
+        "<!-- wiki-template-type: concept -->\n\n## 定义\n",
+        encoding="utf-8",
+    )
+    # entity.md is well-formed — should appear in result
+    (bundled_dir / "entity.md").write_text(
+        "<!-- wiki-template-version: 1.0.0 -->\n"
+        "<!-- wiki-template-type: entity -->\n\n## 基本信息\n",
+        encoding="utf-8",
+    )
+
+    with caplog.at_level("ERROR", logger="src.wiki.templates.state"):
+        result = capture_current_bundled(bundled_dir)
+
+    # Malformed file excluded from result
+    assert "concept" not in result
+    # Well-formed file still captured
+    assert "entity" in result
+    # ERROR log mentions the broken file
+    errors = [r for r in caplog.records if r.levelname == "ERROR"]
+    assert any("concept.md" in r.getMessage() for r in errors), (
+        f"no ERROR mentioning concept.md; got {[r.getMessage() for r in errors]}"
+    )
