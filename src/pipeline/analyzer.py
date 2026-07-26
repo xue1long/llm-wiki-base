@@ -13,6 +13,9 @@ _logger = logging.getLogger(__name__)
 
 ANALYZER_PROMPT = """You are analyzing a source document for a knowledge base.
 
+Do NOT output chain-of-thought, hidden reasoning, or a thinking
+transcript. Reason internally and emit only the requested JSON.
+
 ## Language
 默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
 summary、key_facts、entities/concepts 的 name 和 context、
