@@ -35,6 +35,22 @@ if TYPE_CHECKING:
     pass
 
 
+def _iter_candidates(
+    page_type: PageType, project_root: Path
+) -> "list[tuple[Path, str]]":
+    """Yield (path, source) candidates in priority order.
+
+    Centralised so resolve() and list_resolved() share one source of truth
+    for the candidate ordering. Add a new priority level here and both
+    call sites pick it up.
+    """
+    return [
+        (project_root / PROJECT_TEMPLATE_DIRNAME / f"{page_type.value}.md", "project"),
+        (USER_TEMPLATE_DIR / f"{page_type.value}.md", "user"),
+        (BUNDLED_DIR / f"{page_type.value}.md", "bundled"),
+    ]
+
+
 def resolve(page_type: PageType, project_root: Path) -> Template:
     """Load the highest-priority template for the given PageType.
 
@@ -42,13 +58,7 @@ def resolve(page_type: PageType, project_root: Path) -> Template:
     level. (Bundled ships with all 4 PageTypes; a missing file here
     indicates the bundled dir has been tampered with.)
     """
-    candidates: list[tuple[Path, str]] = [
-        (project_root / PROJECT_TEMPLATE_DIRNAME / f"{page_type.value}.md", "project"),
-        (USER_TEMPLATE_DIR / f"{page_type.value}.md", "user"),
-        (BUNDLED_DIR / f"{page_type.value}.md", "bundled"),
-    ]
-
-    for path, source in candidates:
+    for path, source in _iter_candidates(page_type, project_root):
         if path.is_file():
             raw = path.read_text(encoding="utf-8")
             validate_type_header(raw, page_type)  # raises TemplateParseError on mismatch
@@ -181,17 +191,15 @@ def list_resolved(project_root: Path) -> list[Template]:
             continue
         except TemplateParseError:
             # Surface the invalid override as a Template so list can mark INVALID.
-            for cand in (
-                project_root / PROJECT_TEMPLATE_DIRNAME / f"{pt.value}.md",
-                USER_TEMPLATE_DIR / f"{pt.value}.md",
-            ):
+            # Walk candidates in priority order — first hit is the invalid file.
+            for cand, source in _iter_candidates(pt, project_root):
                 if cand.is_file():
                     raw = cand.read_text(encoding="utf-8")
                     out.append(Template(
                         type=pt,
                         body_markdown=raw,
                         version=_extract_version(raw),
-                        source="project" if cand.parent.name == PROJECT_TEMPLATE_DIRNAME else "user",
+                        source=source,  # type: ignore[arg-type]
                         path=cand,
                     ))
                     break
