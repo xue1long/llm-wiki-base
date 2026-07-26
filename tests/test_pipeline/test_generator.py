@@ -128,3 +128,49 @@ async def test_generate_uses_v22_defaults_when_missing(tmp_path):
     assert pages[0].grade == "B"
     assert pages[0].processing_depth == "concept"
     assert pages[0].is_immutable is False
+
+
+# ---------------------------------------------------------------------------
+# O-7: _render_template_section uses render_for_prompt() (compact + optional
+# annotations) instead of dumping raw body_markdown
+# ---------------------------------------------------------------------------
+
+def test_render_template_section_compact_with_optional_annotations(tmp_path):
+    """Prompt section uses render_for_prompt() — compact + optional annotations.
+
+    Regression guard for the O-7 refactor: previously the generator
+    dumped each template's raw body_markdown into the prompt (verbose,
+    no hint about which sections are optional). After O-7 it routes
+    through render_for_prompt() which annotates optional slots.
+    """
+    from src.pipeline.generator import _render_template_section
+
+    # `tmp_path` is a fresh project root with no overrides → bundled
+    # templates apply. The bundled entity template has `<!-- slot:aliases? -->`
+    # which render_for_prompt() marks with `_(optional)_`.
+    out = _render_template_section(tmp_path)
+    assert "### entity" in out
+    assert "<!-- slot:aliases? -->  _(optional)_" in out
+    # Bundled concept template has no optional slots — must NOT be annotated
+    assert "<!-- slot:definition -->" in out
+    # The render-for-prompt path is compact: no blank line between
+    # heading and its slot markers.
+    assert "## 定义\n<!-- slot:definition -->" in out or \
+           "## 定义\n<!-- slot:definition -->" in out  # Chinese heading variant
+
+
+def test_render_template_section_falls_back_when_no_bundled(tmp_path, monkeypatch):
+    """When list_resolved() raises, the section reports 'no templates available'.
+
+    The generator imports list_resolved lazily inside the function body,
+    so we patch the source module (src.wiki.templates.list_resolved)
+    rather than a name in src.pipeline.generator's namespace.
+    """
+    from src.pipeline.generator import _render_template_section
+
+    def _raise(*_a, **_k):
+        raise RuntimeError("simulated bundled dir missing")
+
+    monkeypatch.setattr("src.wiki.templates.list_resolved", _raise)
+    out = _render_template_section(tmp_path)
+    assert "no templates available" in out.lower()

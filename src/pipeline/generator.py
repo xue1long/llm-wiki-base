@@ -215,8 +215,16 @@ def _render_template_section(project_root) -> str:
     from a checkout where the bundled dir was pruned). The Generator
     should not silently lose this section — but it also should not crash
     the pipeline if the templates dir is missing.
+
+    Re-parses each template's body_markdown into an AST and uses
+    ``render_for_prompt`` to produce a compact, LLM-facing skeleton
+    (headings + slot markers, optional slots annotated). The previous
+    implementation dumped raw ``tpl.body_markdown`` directly into the
+    prompt, which kept every blank line and added no hint about which
+    sections were optional.
     """
     from ..wiki.templates import list_resolved
+    from ..wiki.templates.parser import parse, render_for_prompt, TemplateParseError
 
     try:
         templates = list_resolved(project_root)
@@ -230,6 +238,17 @@ def _render_template_section(project_root) -> str:
     parts: list[str] = []
     for tpl in templates:
         parts.append(f"### {tpl.type.value}")
-        parts.append(tpl.body_markdown.strip())
+        try:
+            ast = parse(tpl.body_markdown, expected_type=tpl.type)
+            parts.append(render_for_prompt(ast))
+        except TemplateParseError as e:
+            # If we can't parse the resolved template (shouldn't happen
+            # since resolve() already validated the type header), fall
+            # back to the raw body rather than dropping the section.
+            _logger.warning(
+                "Could not re-parse template %s for prompt injection: %s",
+                tpl.path, e,
+            )
+            parts.append(tpl.body_markdown.strip())
         parts.append("")
     return "\n".join(parts).rstrip()

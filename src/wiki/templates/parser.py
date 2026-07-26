@@ -30,7 +30,7 @@ import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .types import PageType, TemplateAST
+    from .types import PageType, TemplateAST, TemplateSection
 
 # Pattern constants (compiled once for reuse).
 _VERSION_RE = re.compile(
@@ -277,3 +277,58 @@ def render(ast: "TemplateAST") -> str:
         out.append("")
 
     return "\n".join(out).rstrip() + "\n"
+
+
+def render_for_prompt(ast: "TemplateAST") -> str:
+    """Render the AST into a compact, prompt-ready template skeleton.
+
+    Differences from ``render()``:
+    - Compact: headings and slots on consecutive lines (no blank lines
+      between them), no trailing newline.
+    - Optional slots are annotated inline so the LLM knows which
+      sections may be omitted entirely.
+    - Prose in section bodies (rare) is preserved before the slots.
+
+    Used by the generator to inject a per-PageType template scaffold
+    into the GENERATOR_PROMPT. **Not** round-trippable — this is a
+    one-way LLM-facing projection, distinct from the round-trip-safe
+    ``render()`` used by ``wiki-templates diff``.
+    """
+    if not ast.sections:
+        return ""
+
+    out: list[str] = []
+    for sec in ast.sections:
+        out.append(sec.heading)
+        # Detect whether the section body is purely slot markers (the
+        # common case). If so, omit the body entirely and emit slots
+        # inline. Otherwise preserve any prose before the slots.
+        slots_in_body = list(_SLOT_RE.finditer(sec.body_template))
+        non_slot_body = _SLOT_RE.sub("", sec.body_template).strip()
+        if non_slot_body:
+            out.append(non_slot_body)
+        for m in slots_in_body:
+            name = m.group(1)
+            is_opt = (m.group(2) == "?")
+            # Match this raw marker back to a parsed Slot so we get
+            # the condition_label (set only for if-block slots).
+            matching_slot = next(
+                (s for s in sec.slots
+                 if s.name == name and s.raw_marker == m.group(0)),
+                None,
+            )
+            optional_flag = is_opt or (
+                matching_slot is not None and matching_slot.is_optional
+            )
+            label = f"<!-- slot:{name}{'?' if optional_flag else ''} -->"
+            if optional_flag:
+                cond = (
+                    matching_slot.condition_label
+                    if matching_slot is not None else None
+                )
+                if cond:
+                    label += f"  _(optional, condition: {cond})_"
+                else:
+                    label += "  _(optional)_"
+            out.append(label)
+    return "\n".join(out).rstrip()
