@@ -11,7 +11,7 @@ docs/environment/wheels/
 
 # --- tool runtime artifacts ---
 .claude/worktrees/
-.claude/sdd/          # task briefs/reports (ephemeral)
+.claude/sdd/
 .workbuddy/
 codebase-index-report.md
 registry.json
@@ -29,13 +29,20 @@ registry.json
 # The following are generated when the server runs or when ingest
 # happens; they belong to a specific project + machine and should not
 # be committed.
-.index                    # vector index dir
-.llm-wiki                 # LLM cache dir
-.obsidian                 # Obsidian vault (when this repo is opened in Obsidian)
-.kb-queue.json           # queue persistence (in-memory state is canonical)
-.kb-queue.json.bak*      # rotated queue backups
-.server-pid              # server daemon pidfile
-metrics.db               # metrics sqlite db
+# vector index dir
+.index
+# LLM cache dir
+.llm-wiki
+# Obsidian vault (when this repo is opened in Obsidian)
+.obsidian
+# queue persistence (in-memory state is canonical)
+.kb-queue.json
+# rotated queue backups
+.kb-queue.json.bak*
+# server daemon pidfile
+.server-pid
+# metrics sqlite db
+metrics.db
 
 # Backups of wiki/ contents left from earlier rounds
 .wiki-*-backup

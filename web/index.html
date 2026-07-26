@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ruflo-kb</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="brand-title">ruflo-kb</div>
+      <div class="brand-sub" id="projectName">加载中...</div>
+      <div class="health"><span id="healthDot" class="dot"></span><span id="healthText">未连接</span></div>
+    </div>
+    <nav id="nav">
+      <button data-view="search" class="nav-btn active">搜索</button>
+      <button data-view="browse" class="nav-btn">浏览</button>
+      <button data-view="ingest" class="nav-btn">摄取</button>
+      <button data-view="chat" class="nav-btn">对话</button>
+      <button data-view="graph" class="nav-btn">图谱</button>
+      <button data-view="status" class="nav-btn">状态</button>
+    </nav>
+  </aside>
+  <main id="main">
+    <div id="banner"></div>
+    <div id="content"></div>
+  </main>
+  <aside id="agentPanel">
+    <div class="agent-header">
+      <div class="agent-title-row">
+        <span class="agent-title">本地 Agent</span>
+        <span id="agentStatusDot" class="dot"></span>
+        <span id="agentStatusText" class="agent-status">检测中...</span>
+      </div>
+      <div class="agent-actions">
+        <button id="agentNewBtn" title="新会话">新会话</button>
+        <button id="agentToggleBtn" title="折叠/展开">⇆</button>
+      </div>
+    </div>
+    <div id="agentInstallHint" class="agent-hint" style="display:none;"></div>
+    <div id="agentList" class="agent-list"></div>
+    <div class="agent-input">
+      <textarea id="agentInput" placeholder="问 claude… (Enter 发送，Shift+Enter 换行)" disabled></textarea>
+      <button id="agentSendBtn" disabled>发送</button>
+    </div>
+  </aside>
+  <!-- marked via CDN; offline fallback handled in app.js -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

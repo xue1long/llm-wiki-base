@@ -1,0 +1,8 @@
+Provider: minimax Model: MiniMax-M3 Timeout: 180s
+Found 5 files
+
+[23:50:57] START 必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md (1082 chars)
+[23:52:10] FAIL 必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md (73.5s): AttributeError: 'list' object has no attribute 'get'
+[23:52:10] START 必备资料15顺眼谈文章的画面感.md (1290 chars)
+[23:52:49] FAIL 必备资料15顺眼谈文章的画面感.md (39.1s): JSONDecodeError: no JSON object/array found in LLM response (10888 chars): line 1 column 1 (char 0)
+[23:52:49] START 必备资料20个签约条件新人必看2.md (3880 chars)

@@ -1,0 +1,22 @@
+Provider: minimax Model: MiniMax-M3 URL: https://api.minimax.chat/v1
+Found 5 files
+
+[23:28:29] START 必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md (1082 chars)
+[23:30:51] FAIL 必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md (142.6s): RuntimeError: OpenAI complete failed: 
+[23:30:51] START 必备资料15顺眼谈文章的画面感.md (1290 chars)
+[23:33:11] FAIL 必备资料15顺眼谈文章的画面感.md (139.5s): RuntimeError: OpenAI complete failed: 
+[23:33:11] START 必备资料20个签约条件新人必看2.md (3880 chars)
+[23:35:30] FAIL 必备资料20个签约条件新人必看2.md (138.8s): RuntimeError: OpenAI complete failed: 
+[23:35:30] START 必备资料20仙侠类题材作品的创作要点及卖点.md (978 chars)
+[23:37:44] FAIL 必备资料20仙侠类题材作品的创作要点及卖点.md (134.7s): RuntimeError: OpenAI complete failed: 
+[23:37:44] START 必备资料22期待感让你的作品能够引人入胜1.md (3015 chars)
+[23:38:10] FAIL 必备资料22期待感让你的作品能够引人入胜1.md (25.3s): TypeError: ConceptMention.__init__() got an unexpected keyword argument 'type'
+
+==================================================
+  FAIL   0p  必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md
+  FAIL   0p  必备资料15顺眼谈文章的画面感.md
+  FAIL   0p  必备资料20个签约条件新人必看2.md
+  FAIL   0p  必备资料20仙侠类题材作品的创作要点及卖点.md
+  FAIL   0p  必备资料22期待感让你的作品能够引人入胜1.md
+
+0/5 succeeded

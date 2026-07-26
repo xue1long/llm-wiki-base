@@ -1,0 +1,24 @@
+Provider: minimax Model: MiniMax-M2.7 Timeout: 180s
+Found 5 files
+
+[23:56:08] START 必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md (1082 chars)
+[23:56:47] FAIL 必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md (38.8s): JSONDecodeError: no JSON object/array found in LLM response (4035 chars): line 1 column 1 (char 0)
+[23:56:47] START 必备资料15顺眼谈文章的画面感.md (1290 chars)
+[23:57:57] OK  必备资料15顺眼谈文章的画面感.md (7 pages, 70.7s)
+[23:57:57] START 必备资料20个签约条件新人必看2.md (3880 chars)
+[23:59:31] FAIL 必备资料20个签约条件新人必看2.md (93.6s): JSONDecodeError: no JSON object/array found in LLM response (9846 chars): line 1 column 1 (char 0)
+[23:59:31] START 必备资料20仙侠类题材作品的创作要点及卖点.md (978 chars)
+[23:59:32] FAIL 必备资料20仙侠类题材作品的创作要点及卖点.md (0.8s): RuntimeError: OpenAI complete failed: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+[23:59:32] START 必备资料22期待感让你的作品能够引人入胜1.md (3015 chars)
+[23:59:33] FAIL 必备资料22期待感让你的作品能够引人入胜1.md (0.7s): RuntimeError: OpenAI complete failed: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+
+==================================================
+  FAIL   0p  必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md
+  OK     7p  必备资料15顺眼谈文章的画面感.md
+  FAIL   0p  必备资料20个签约条件新人必看2.md
+  FAIL   0p  必备资料20仙侠类题材作品的创作要点及卖点.md
+  FAIL   0p  必备资料22期待感让你的作品能够引人入胜1.md
+
+1/5 succeeded
