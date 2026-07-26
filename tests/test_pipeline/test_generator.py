@@ -485,3 +485,71 @@ async def test_generator_prompt_directs_slug_reuse(tmp_path):
         f"directive to forbid inventing new slug variants. Looked for any "
         f"of {NOINVENT_PHRASES} in windows around 'slug' / 'wikilink' / 'relations'."
     )
+
+
+# ---------------------------------------------------------------------------
+# CJK cut-over (2026-07-26): slugs may now include Chinese characters
+# directly. The original prompt forced pinyin transliteration on every
+# Chinese concept, which caused slug drift + broken wikilinks. After
+# the cut-over, the prompt must explicitly tell the LLM that CJK
+# characters are first-class slug material.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_generator_prompt_allows_cjk_in_slugs(tmp_path):
+    """After the CJK cut-over, the language section that constrains
+    slugs must explicitly allow CJK characters and stop forcing
+    pinyin transliteration. The directive must appear in BOTH the
+    opening `## Language` block AND the closing re-asserted block
+    so it wins the 'most-recent-instruction' tie-breaker.
+    """
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="concept", slug="kb-1", title="T", reasoning="r"),
+        ],
+    )
+    provider = ScriptedLLMProvider([{
+        "pages": [{"id": "kb-1", "type": "concept", "title": "T",
+                    "body_markdown": "B"}]
+    }])
+    await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="",
+        provider=provider,
+    )
+
+    prompt = provider.calls[0]["messages"][0]["content"]
+
+    # 1) Must NOT carry over the old rule that forces pinyin. The
+    # original was: "Slugs (id、relations[].target) 始终用 ASCII
+    # (中文术语用拼音或英文翻译)".  We assert it is gone.
+    assert "始终用 ASCII" not in prompt, (
+        "GENERATOR_PROMPT still carries the pre-CJK-cut-over rule that "
+        "forces slugs to ASCII pinyin. Update the language directives."
+    )
+
+    # 2) Must contain a slug-context phrase that explicitly allows
+    # CJK characters in slugs, in AT LEAST one of the language blocks.
+    ACCEPT_PHRASES = (
+        # English variants
+        "cjk in slug", "cjk characters in slug", "allow cjk",
+        "may use cjk", "include cjk", "preserve the natural",
+        "preserve the original chinese", "no need to transliterate",
+        "use the natural chinese",
+        # Chinese variants
+        "可直接使用中文", "可以使用中文", "slug 可包含中文",
+        "保留中文", "无需拼音转写", "不需要拼音", "中文术语可直接",
+    )
+
+    has_accept = any(phrase in prompt for phrase in ACCEPT_PHRASES)
+    assert has_accept, (
+        "GENERATOR_PROMPT must include a phrase that explicitly allows "
+        f"CJK characters in slugs (CJK cut-over). Looked for any of "
+        f"{ACCEPT_PHRASES}."
+    )

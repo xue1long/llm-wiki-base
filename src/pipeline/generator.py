@@ -37,7 +37,9 @@ transcript. Reason internally and emit only the requested JSON.
 ## Language
 默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
 title、body_markdown、relations[].context。Slugs (id、
-relations[].target) 始终用 ASCII(中文术语用拼音或英文翻译)。
+relations[].target) 可直接使用中文 (CJK),也可使用 ASCII kebab-case —
+保留概念的自然字面,无需拼音转写;专有名词/英文术语在 ASCII 段仍
+保持原始写法 (e.g. OpenAI, GPT-5, Transformer)。
 
 ## Analysis result (from Step 1)
 {analysis_json}
@@ -116,7 +118,8 @@ relation type names outside this set.
 ## Language (re-asserted — applies to ALL output below)
 默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
 title、body_markdown、relations[].context。Slugs (id、
-relations[].target) 始终用 ASCII(中文术语用拼音或英文翻译)。
+relations[].target) 可直接使用中文 (CJK),也可使用 ASCII kebab-case —
+保留概念的自然字面,无需拼音转写。
 """
 
 
