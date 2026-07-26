@@ -48,8 +48,15 @@ substantive content from the source. For `<!-- slot:NAME? -->` or
 `<!-- if:X -->...<!-- /if:X -->` (optional sections), OMIT the entire
 heading + slot if you have nothing to put in the slot — don't write
 empty sections. Do NOT add new `##` sections not in the template.
-Do NOT omit `##` sections present in the template (unless they are
-optional and empty).
+
+In body_markdown: NEVER use '...' / '（空）' / '（待补充）' /
+'placeholder' / 'TBD' / similar filler strings — never use '...' as
+placeholder content. You MAY OMIT any `##` section (even non-optional
+looking ones) when you have no substantive content for it; that is
+always preferable to filler. If a page has only 1-2 sections of real
+content, that page is still valid. Each body_markdown should be ≥ 80
+characters of substantive prose; if you cannot reach that, OMIT
+headings rather than filler.
 
 {PAGE_TEMPLATES}
 

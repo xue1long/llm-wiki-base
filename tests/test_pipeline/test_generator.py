@@ -173,3 +173,88 @@ def test_render_template_section_falls_back_when_no_bundled(tmp_path, monkeypatc
     monkeypatch.setattr("src.wiki.templates.list_resolved", _raise)
     out = _render_template_section(tmp_path)
     assert "no templates available" in out.lower()
+
+
+# ---------------------------------------------------------------------------
+# Regression: GENERATOR_PROMPT must forbid placeholder fillers like "..."
+# that were observed in production when the LLM had no content for a
+# required template slot (novel-wiki kb-20260726100503, 7 pages with
+# body = "..."). The prompt previously said "Do NOT omit sections" with
+# no exception for "no content" — pushing the LLM into a must-emit
+# dead end where it produced the smallest possible filler.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_generator_prompt_prohibits_ellipsis_filler(tmp_path):
+    """GENERATOR_PROMPT must (a) explicitly forbid '...' as a body filler
+    and (b) allow OMITting a section when there's no substantive content
+    for it.
+    """
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="concept", slug="kb-1", title="T", reasoning="r"),
+        ],
+    )
+    provider = ScriptedLLMProvider([{
+        "pages": [
+            {"id": "kb-1", "type": "concept", "title": "T",
+             "body_markdown": "B"},
+        ]
+    }])
+    await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="",
+        provider=provider,
+    )
+
+    # Generator calls provider.complete(messages=[...]) — content is the
+    # full prompt string assembled from GENERATOR_PROMPT + analysis_json.
+    assert provider.calls, "expected at least one LLM call"
+    call = provider.calls[0]
+    msgs = call.get("messages") or []
+    assert msgs and msgs[0].get("role") == "user"
+    prompt = msgs[0]["content"]
+
+    # (a) some kind of prohibition on '...' as a filler.
+    # Accept any directive language; require prohibition keyword near '...'
+    found_ellipsis_forbid = False
+    for line in prompt.splitlines():
+        if "..." not in line:
+            continue
+        line_lower = line.lower()
+        if any(kw in line_lower for kw in (
+            "never", "don't", "do not", "forbid", "禁止", "不要",
+            "avoid", "never use",
+        )):
+            found_ellipsis_forbid = True
+            break
+    assert found_ellipsis_forbid, (
+        "GENERATOR_PROMPT must include a directive forbidding '...' as "
+        "a filler (production regression on novel-wiki 2026-07-26: 7 pages "
+        "shipped with body=\"...\")."
+    )
+
+    # (b) OMIT sections is permitted when content is insufficient.
+    # Long prompt paragraphs may wrap across many lines, so check the
+    # whole prompt for both the OMIT permission AND a content-conditional
+    # ("no content", "no substantive", "insufficient", "have nothing", "lacks").
+    prompt_lower = prompt.lower()
+    has_omit_permission = "omit" in prompt_lower
+    has_content_condition = any(
+        cond in prompt_lower for cond in (
+            "no substantive", "no content", "insufficient",
+            "have nothing", "lacks", "缺", "不写",
+        )
+    )
+    assert has_omit_permission, (
+        "GENERATOR_PROMPT must mention OMIT permission for sections."
+    )
+    assert has_content_condition, (
+        "GENERATOR_PROMPT must pair the OMIT permission with a "
+        "no-content / no-substantive condition."
+    )
