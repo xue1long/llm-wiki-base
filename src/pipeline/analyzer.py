@@ -97,7 +97,19 @@ async def analyze(
         source_path=source_path,
         summary=response.get("summary", ""),
         key_facts=response.get("key_facts", []),
-        entities=[EntityMention(**e) for e in response.get("entities", [])],
+        entities=[
+            EntityMention(
+                name=e.get("name", ""),
+                slug=e.get("slug", ""),
+                # Default to "concept" when LLM omits 'type' — observed in
+                # production (api.minimax.chat occasionally drops it), and
+                # not worth crashing the whole ingest.
+                type=e.get("type", "concept"),
+                context=e.get("context", ""),
+                confidence=e.get("confidence", 0.0),
+            )
+            for e in response.get("entities", [])
+        ],
         concepts=[ConceptMention(**c) for c in response.get("concepts", [])],
         suggested_pages=[PageSpec(**p) for p in response.get("suggested_pages", [])],
         links_to_existing=response.get("links_to_existing", []),
