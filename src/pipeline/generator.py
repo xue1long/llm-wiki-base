@@ -1,4 +1,21 @@
-"""Step 2: LLM renders wiki pages from AnalysisResult."""
+"""Step 2: LLM renders wiki pages from AnalysisResult.
+
+Plan 27 (2026-07-26 wiki v2.3 schema) changes:
+
+- The JSON response is a structured ``slots`` object (slot name → content)
+  rather than an opaque ``body_markdown`` string.
+- The schema enforces ``slots`` presence and minLength on each slot value;
+  the per-PageType required slots are validated in code (because provider
+  JSON-schema implementations don't uniformly support ``oneOf``).
+- The prompt no longer tells the LLM it can OMIT sections.
+- A retry loop nudges the LLM once when required slots are missing; if it
+  still fails after one retry, the Generator fills them with a clearly
+  marked placeholder and emits a WARN log line so operators can spot the
+  fallback at a glance.
+
+This module is the single source of truth for wiki template enforcement.
+See docs/superpowers/plans/2026-07-26-wiki-schema-v23.md.
+"""
 import logging
 from pathlib import Path
 from typing import Optional
@@ -8,6 +25,13 @@ from ..utils.slugify import slugify as _slugify
 from ..wiki.core.paths import WikiPaths
 from ..wiki.features.relations import parse_relations_from_response
 from ..wiki.core.types import PageType, WikiPage
+from ..wiki.templates import (
+    Template,
+    compute_slot_fill_status,
+    list_resolved,
+    render_body,
+    required_slot_names,
+)
 from ._pipeline_common import parse_llm_json
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
@@ -60,21 +84,33 @@ when your analysis would naturally shorten it (e.g. to `qi-dai-gan`).
 Reusing keeps cross-references resolvable across multiple ingests;
 inventing creates broken `[[...]]` links the reader cannot follow.
 
-## Page Templates (use these to structure body_markdown)
-Match the section headings exactly. Fill each `<!-- slot:NAME -->` with
-substantive content from the source. For `<!-- slot:NAME? -->` or
-`<!-- if:X -->...<!-- /if:X -->` (optional sections), OMIT the entire
-heading + slot if you have nothing to put in the slot — don't write
-empty sections. Do NOT add new `##` sections not in the template.
+## Page Templates (use these to structure `slots`)
+Each page type has a fixed set of `slots` you must fill. Templates are
+listed below under `{PAGE_TEMPLATES}`. For every `<!-- slot:NAME -->`
+slot, return a substantive string (or list of strings) named `slots.NAME`.
+Required slots are unmarked; slots marked `_(optional)_` may be omitted
+or returned as an empty list when the source has no relevant content —
+**only for those**, not for unmarked required ones.
 
-In body_markdown: NEVER use '...' / '（空）' / '（待补充）' /
-'placeholder' / 'TBD' / similar filler strings — never use '...' as
-placeholder content. You MAY OMIT any `##` section (even non-optional
-looking ones) when you have no substantive content for it; that is
-always preferable to filler. If a page has only 1-2 sections of real
-content, that page is still valid. Each body_markdown should be ≥ 80
-characters of substantive prose; if you cannot reach that, OMIT
-headings rather than filler.
+Strict rules — schema is enforced:
+- Every `<!-- slot:NAME -->` (no `?`) is required. NEVER use "..." /
+  "（空）" / "（待补充）" / "placeholder" / "TBD" or similar filler as a
+  body or slot value — the validator will REJECT the response and a
+  retry is triggered. Provide substantive content, or write a short
+  note explaining what the source did/n't say (e.g. "无相关引用").
+- Do NOT add new slot names not in the template. The schema rejects
+  extra keys under `slots`.
+- Optional slots (`<!-- slot:NAME? -->` / `<!-- if:X -->`): only OMIT
+  when you have nothing to put; either omit the property entirely or
+  return `[]`. The whole section is dropped from the rendered body when
+  the slot is empty.
+- Each slot value must be ≥ 1 character after trim. For lists, at least
+  one item with substantive content.
+
+Good slot content:
+- 1-3 sentences or a list of 1-3 short bullets summarising what the
+  source says about that aspect of the topic.
+- May include `[[wikilinks]]` to other slugs in the existing index.
 
 {PAGE_TEMPLATES}
 
@@ -89,15 +125,18 @@ another subject for comparison, write it explicitly as a comparison
 and cite the source that supports it.
 
 ## Task
-For each suggested page, render Markdown content. Output strict JSON:
+For each suggested page, fill its slots. Output strict JSON:
 {{
   "pages": [
     {{
       "id": "<slug>",
       "type": "source|entity|concept|synthesis",
       "title": "<title>",
-      "body_markdown": "<markdown body, may use [[wikilinks]]>",
-      "relations": [                      // optional cross-page relations
+      "slots": {{
+        "<slot_name>": "<content>",            // or a list of strings
+        "...": "..."
+      }},
+      "relations": [                          // optional cross-page relations
         {{"target": "<other-slug>", "type": "<one of the 17 built-in relation types below>",
           "weight": 0.0-1.0, "context": "<why>"}}
       ]
@@ -117,7 +156,7 @@ relation type names outside this set.
 
 ## Language (re-asserted — applies to ALL output below)
 默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
-title、body_markdown、relations[].context。Slugs (id、
+title、slots[*]、relations[].context。Slugs (id、
 relations[].target) 可直接使用中文 (CJK),也可使用 ASCII kebab-case —
 保留概念的自然字面,无需拼音转写。
 """
@@ -130,8 +169,28 @@ async def generate(
     provider,
     model: str = "gpt-4o-mini",
 ) -> list[WikiPage]:
-    """Step 2: LLM call → list of WikiPage objects."""
-    import json
+    """Step 2: LLM call → list of WikiPage objects.
+
+    Plan 27 (2026-07-26 wiki v2.3 schema): the LLM now returns a
+    structured ``slots`` object per page. The schema enforces that
+    ``slots`` exists and each value is a non-empty string; per-PageType
+    required slot names are validated in code (because provider JSON
+    schemas don't uniformly support ``oneOf``). A retry loop nudges the
+    LLM once when required slots are missing; persistent gaps are filled
+    with a placeholder and logged as WARN.
+    """
+    import json, time
+
+    # 0. Resolve the 4 active templates for this project (bundled /
+    #    user-global / project-local in priority order). Mapping needed
+    #    both for the schema-required check and for rendering.
+    resolved_templates = {t.type: t for t in list_resolved(paths.root)}
+    required_slots_by_type: dict[PageType, list[str]] = {
+        pt: required_slot_names(resolved_templates[pt])
+        for pt in PageType
+        if pt in resolved_templates
+    }
+
     analysis_json = json.dumps({
         "summary": analysis.summary,
         "key_facts": analysis.key_facts,
@@ -141,82 +200,99 @@ async def generate(
         "links_to_existing": analysis.links_to_existing,
     }, ensure_ascii=False, indent=2)
 
-    prompt = GENERATOR_PROMPT.format(
+    # JSON schema for the LLM response. The hard enum on `type` already
+    # forces a valid PageType. The `slots` constraint is generic — we
+    # only check minLength on each value at the provider level; the
+    # per-PageType required slot names are checked below in code.
+    response_format = {
+        "type": "object",
+        "properties": {
+            "pages": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "type": {
+                            "type": "string",
+                            "enum": ["source", "entity", "concept", "synthesis"],
+                        },
+                        "title": {"type": "string"},
+                        "slots": {
+                            "type": "object",
+                            "additionalProperties": {
+                                # Each slot value: non-empty string, OR a list
+                                # where every element is a non-empty string.
+                                # Providers commonly accept {"type": "string", "minLength": 1}
+                                # uniformly; list-shape is normalised in code.
+                                "type": "string",
+                                "minLength": 1,
+                            },
+                            "minProperties": 1,
+                        },
+                        "relations": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "target": {"type": "string"},
+                                    "type": {"type": "string"},
+                                    "weight": {"type": "number"},
+                                    "context": {"type": "string"},
+                                },
+                                "required": ["target", "type"],
+                            },
+                        },
+                    },
+                    "required": ["id", "type", "title", "slots"],
+                },
+            },
+        },
+        "required": ["pages"],
+    }
+
+    # 1. Initial LLM call + parse.
+    base_prompt = GENERATOR_PROMPT.format(
         analysis_json=analysis_json,
         existing_wiki_index=existing_wiki_index or "(empty)",
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
         PAGE_TEMPLATES=_render_template_section(paths.root),
     )
 
-    response = await provider.complete(
-        messages=[{"role": "user", "content": prompt}],
-        response_format={
-            "type": "object",
-            "properties": {
-                "pages": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "id": {"type": "string"},
-                            # Hard-enum constraint: invalid page types fail
-                            # the schema (rather than silently slipping
-                            # through ``PageType(p["type"])`` and being
-                            # logged+dropped). Forces the LLM to pick one
-                            # of the four documented types.
-                            "type": {
-                                "type": "string",
-                                "enum": ["source", "entity", "concept", "synthesis"],
-                            },
-                            "title": {"type": "string"},
-                            "body_markdown": {"type": "string"},
-                            "relations": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "target": {"type": "string"},
-                                        "type": {"type": "string"},
-                                        "weight": {"type": "number"},
-                                        "context": {"type": "string"},
-                                    },
-                                    "required": ["target", "type"],
-                                },
-                            },
-                        },
-                        "required": ["id", "type", "title", "body_markdown"],
-                    },
-                },
-            },
-            "required": ["pages"],
-        },
+    response_dict = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt=base_prompt,
+        response_format=response_format,
+        required_slots_by_type=required_slots_by_type,
     )
-    response = _parse_llm_response(response)
 
-    # Fix C: preserve the analyzer's page-type classification.
-    # The analyzer prompt asks the LLM to pick one of {source, entity,
-    # concept, synthesis} per suggested_page, and the generator should
-    # render Markdown for those — not reclassify. Building a slug → type
-    # map from the analyzer's suggested_pages means we can override the
-    # LLM's re-decision (which it currently tends to bias toward
-    # ``concept`` for everything abstract).
+    # 2. If after retry some required slots are still missing, fill them
+    #    with a clearly marked placeholder so every rendered page is
+    #    structurally complete (every required heading has at least the
+    #    placeholder line). Operators will see the WARN in the log.
+    filled_pages, missing_summary = _ensure_required_slots_filled(
+        response_dict.get("pages", []),
+        required_slots_by_type=required_slots_by_type,
+    )
+    if missing_summary:
+        _logger.warning(
+            "[generator] required slots still missing after retry, "
+            "filled with placeholder: %s",
+            missing_summary,
+        )
+
+    # 3. Build WikiPage objects. Use the resolved templates to render
+    #    body markdown from slots via the section-aware renderer.
     type_from_analyzer: dict[str, str] = {
         p.slug: p.type.value if hasattr(p.type, "value") else str(p.type)
         for p in analysis.suggested_pages
     }
 
-    import time
     now = int(time.time() * 1000)
-    pages = []
-    for p in response.get("pages", []):
+    pages: list[WikiPage] = []
+    for p in filled_pages:
         raw_slug = p.get("id")
-        # Normalize the LLM's slug through pypinyin so 创酷中文网 always
-        # becomes the same canonical form regardless of how the LLM
-        # happened to transliterate it on this run.
         slug = _slugify(raw_slug) or raw_slug
-        # Prefer the analyzer's classification when we have a matching slug.
-        # The analyzer's map is keyed by the LLM's *original* slug, so look
-        # up by the raw value too (in case analyzer's slug was different).
         raw_type = (
             type_from_analyzer.get(raw_slug)
             or type_from_analyzer.get(slug)
@@ -234,6 +310,19 @@ async def generate(
             except ValueError:
                 _logger.warning(f"Unknown page type: {p.get('type')}")
                 continue
+
+        template = resolved_templates.get(page_type)
+        if template is None:
+            # No template for this page type — accept whatever body the
+            # LLM returned (rare; should not occur for normal ingests).
+            body_md = ""
+        else:
+            body_md = render_body(
+                template_body=template.body_markdown,
+                slots=p.get("slots", {}) or {},
+                page_type=page_type,
+            )
+
         pages.append(WikiPage(
             id=slug,
             title=p["title"],
@@ -241,13 +330,114 @@ async def generate(
             sources=[analysis.source_path],
             created_at=now,
             updated_at=now,
-            body=p["body_markdown"],
+            body=body_md,
             grade=p.get("grade", "B"),
             processing_depth=p.get("processing_depth", "concept"),
             is_immutable=p.get("is_immutable", False),
             relations=parse_relations_from_response(p.get("relations", [])),
         ))
     return pages
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers for v2.3 slot enforcement.
+# ---------------------------------------------------------------------------
+
+
+async def _call_with_slot_retry(
+    *,
+    provider,
+    base_prompt: str,
+    response_format: dict,
+    required_slots_by_type: dict[PageType, list[str]],
+) -> dict:
+    """Call the LLM, retry once if any required slot is missing.
+
+    Returns the parsed response dict (with ``pages`` key).
+    """
+    MAX_GEN_ATTEMPTS = 2  # initial + 1 retry
+    last_missing: dict[str, list[str]] = {}
+    last_response: dict = {}
+
+    for attempt in range(MAX_GEN_ATTEMPTS):
+        extra = ""
+        if attempt > 0 and last_missing:
+            lines = [
+                "## Retry — your previous response was missing these required slots:",
+            ]
+            for ptype_name, names in last_missing.items():
+                lines.append(f"- {ptype_name}: {', '.join(names)}")
+            lines.append(
+                "Please provide substantive content for each one. "
+                "Empty strings, '...', '（空）', '（待补充）', 'placeholder', "
+                "'TBD' etc. all FAIL the validator again."
+            )
+            extra = "\n\n" + "\n".join(lines) + "\n"
+
+        response = await provider.complete(
+            messages=[{"role": "user", "content": base_prompt + extra}],
+            response_format=response_format,
+        )
+        response_dict = _parse_llm_response(response)
+        last_response = response_dict
+
+        last_missing = _find_missing_required_slots(
+            response_dict.get("pages", []),
+            required_slots_by_type=required_slots_by_type,
+        )
+        if not last_missing:
+            return response_dict
+
+    return last_response
+
+
+def _find_missing_required_slots(
+    pages: list[dict],
+    *,
+    required_slots_by_type: dict[PageType, list[str]],
+) -> dict[str, list[str]]:
+    """Return ``{PageType.value: [slot_name, ...]}`` for missing required slots."""
+    missing_by_type: dict[str, list[str]] = {}
+    for p in pages:
+        try:
+            ptype = PageType(p.get("type"))
+        except (ValueError, TypeError):
+            continue
+        required = required_slots_by_type.get(ptype, [])
+        if not required:
+            continue
+        status = compute_slot_fill_status(p.get("slots", {}) or {}, required)
+        if status.missing:
+            missing_by_type[ptype.value] = status.missing
+    return missing_by_type
+
+
+def _ensure_required_slots_filled(
+    pages: list[dict],
+    *,
+    required_slots_by_type: dict[PageType, list[str]],
+    placeholder: str = "（系统占位：此项由系统补齐，请人工补充）",
+) -> tuple[list[dict], dict[str, list[str]]]:
+    """Fill any still-missing required slots with a placeholder.
+
+    Returns (mutated pages, summary of what was filled).
+    """
+    summary: dict[str, list[str]] = {}
+    for p in pages:
+        try:
+            ptype = PageType(p.get("type"))
+        except (ValueError, TypeError):
+            continue
+        required = required_slots_by_type.get(ptype, [])
+        if not required:
+            continue
+        slots = p.setdefault("slots", {})
+        for name in required:
+            value = slots.get(name)
+            if value is None or (isinstance(value, str) and not value.strip()):
+                slots[name] = placeholder
+                summary.setdefault(ptype.value, []).append(name)
+    return pages, summary
 
 
 def _render_template_section(project_root: Path) -> str:

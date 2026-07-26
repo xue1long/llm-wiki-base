@@ -43,12 +43,18 @@ async def test_materialize_one(tmp_path):
         encoding="utf-8",
     )
 
-    # Use a ScriptedLLMProvider that returns a page dict
+    # Use a ScriptedLLMProvider that returns a page dict (v2.3 schema
+    # uses `slots` instead of `body_markdown`).
     from src.shared.test_helpers import ScriptedLLMProvider
     provider = ScriptedLLMProvider([
         {"pages": [
             {"id": "foo-target", "type": "concept", "title": "Foo Target Real",
-             "frontmatter_extra": {}, "body_markdown": "Real body about foo-target."},
+             "frontmatter_extra": {},
+             "slots": {"definition": "Real body about foo-target.",
+                       "characteristics": ["c"],
+                       "examples": ["e"],
+                       "related_concepts": ["rc"],
+                       "references": ["r"]}},
         ]}
     ])
 

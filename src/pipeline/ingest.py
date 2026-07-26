@@ -183,20 +183,37 @@ async def run_ingest(
     # legacy inline body if the template is missing (operator deleted
     # bundled file).
     try:
+        from ..wiki.templates import render_body
         source_tpl = resolve_template(PageType.SOURCE, paths.root)
-        source_body = (
-            source_tpl.body_markdown
-            .replace("<!-- slot:source_meta -->", (
-                f"- 路径: `{source_path}`\n"
-                f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                f"- 任务 ID: `{task_id}`\n"
-            ))
-            .replace("<!-- slot:summary -->", (analysis.summary or "(无摘要)").strip() or "(无摘要)")
-            .replace("<!-- slot:key_points -->", "(见下游概念页)")
-            .replace("<!-- slot:extracted_concepts -->", (
-                f"本次摄取共生成 **{len(pages)}** 个下游页面"
-                f"{('（共 '+ str(len(analysis.suggested_pages)) + ' 个建议页）') if analysis.suggested_pages else ''}。"
-            ))
+        # Build key_points from the analyzer's extracted key_facts when
+        # available; fall back to one bullet per generated downstream
+        # page so the section is never blank. (Plan 27: required
+        # slots must contain substantive content per the v2.3 schema.)
+        key_facts = list(analysis.key_facts or [])
+        if key_facts:
+            key_points_value: list[str] | str = [
+                kf if isinstance(kf, str) else str(kf) for kf in key_facts
+            ]
+        else:
+            key_points_value = [
+                f"→ [[{p.id}]]" for p in pages if getattr(p, "id", None)
+            ] or ["(无可抽取的要点，详见抽取的概念)"]
+        extracted_concepts_value: list[str] = [
+            f"→ [[{p.id}]]" for p in pages if getattr(p, "id", None)
+        ] or ["(本摄取无下游页面)"]
+        source_body = render_body(
+            template_body=source_tpl.body_markdown,
+            slots={
+                "source_meta": (
+                    f"- 路径: `{source_path}`\n"
+                    f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"- 任务 ID: `{task_id}`\n"
+                ),
+                "summary": (analysis.summary or "(无摘要)").strip() or "(无摘要)",
+                "key_points": key_points_value,
+                "extracted_concepts": extracted_concepts_value,
+            },
+            page_type=PageType.SOURCE,
         )
     except FileNotFoundError:
         # Fallback: hardcoded legacy body (matches the previous

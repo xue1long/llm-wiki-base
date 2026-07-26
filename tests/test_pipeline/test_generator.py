@@ -27,10 +27,13 @@ async def test_generate_returns_pages(tmp_path):
         {"pages": [
             {"id": "kb-1", "type": "source", "title": "Article",
              "frontmatter_extra": {"tags": ["concept"]},
-             "body_markdown": "Article body"},
+             "slots": {"source_meta": "sm", "summary": "Article body",
+                       "key_points": ["kp"], "extracted_concepts": ["c"]}},
             {"id": "backprop", "type": "concept", "title": "Backprop",
              "frontmatter_extra": {"tags": []},
-             "body_markdown": "Backprop body"},
+             "slots": {"definition": "Backprop body",
+                       "characteristics": ["c1"], "examples": ["e1"],
+                       "related_concepts": ["rc"], "references": ["r"]}},
         ]}
     ])
 
@@ -63,7 +66,8 @@ async def test_generate_emits_relations(tmp_path):
         {"pages": [
             {"id": "kb-1", "type": "source", "title": "T",
              "frontmatter_extra": {},
-             "body_markdown": "B",
+             "slots": {"source_meta": "sm", "summary": "B",
+                       "key_points": ["B"], "extracted_concepts": ["B"]},
              "relations": [{"target": "other", "type": "references", "weight": 0.8}]},
         ]}
     ])
@@ -94,7 +98,8 @@ async def test_generate_forwards_v22_fields_from_suggested_pages(tmp_path):
         {"pages": [
             {"id": "kb-1", "type": "source", "title": "Article",
              "grade": "A", "processing_depth": "memory", "is_immutable": True,
-             "body_markdown": "B"},
+             "slots": {"source_meta": "sm", "summary": "B",
+                       "key_points": ["B"], "extracted_concepts": ["B"]}},
         ]}
     ])
     pages = await generate(paths=paths, analysis=analysis, existing_wiki_index="", provider=provider)
@@ -120,7 +125,9 @@ async def test_generate_uses_v22_defaults_when_missing(tmp_path):
     )
     provider = ScriptedLLMProvider([
         {"pages": [
-            {"id": "kb-1", "type": "source", "title": "T", "body_markdown": "B"},
+            {"id": "kb-1", "type": "source", "title": "T",
+             "slots": {"source_meta": "sm", "summary": "B",
+                       "key_points": ["B"], "extracted_concepts": ["B"]}},
         ]}
     ])
     pages = await generate(paths=paths, analysis=analysis, existing_wiki_index="", provider=provider)
@@ -204,7 +211,9 @@ async def test_generator_prompt_prohibits_ellipsis_filler(tmp_path):
     provider = ScriptedLLMProvider([{
         "pages": [
             {"id": "kb-1", "type": "concept", "title": "T",
-             "body_markdown": "B"},
+             "slots": {"definition": "B",
+                       "characteristics": ["B"], "examples": ["B"],
+                       "related_concepts": ["B"], "references": ["B"]}},
         ]
     }])
     await generate(
@@ -288,7 +297,9 @@ async def test_generator_prompt_prohibits_chain_of_thought(tmp_path):
     provider = ScriptedLLMProvider([{
         "pages": [
             {"id": "kb-1", "type": "concept", "title": "T",
-             "body_markdown": "B"},
+             "slots": {"definition": "B",
+                       "characteristics": ["B"], "examples": ["B"],
+                       "related_concepts": ["B"], "references": ["B"]}},
         ]
     }])
     await generate(
@@ -335,7 +346,8 @@ async def test_generator_prompt_has_subject_boundary_guard(tmp_path):
     )
     provider = ScriptedLLMProvider([{
         "pages": [{"id": "kb-1", "type": "concept", "title": "T",
-                    "body_markdown": "B"}]
+                    "slots": {"source_meta": "sm", "summary": "B",
+                       "key_points": ["B"], "extracted_concepts": ["B"]}}]
     }])
     await generate(
         paths=paths, analysis=analysis, existing_wiki_index="",
@@ -384,7 +396,8 @@ async def test_generator_prompt_repeats_language_directive_at_end(tmp_path):
     )
     provider = ScriptedLLMProvider([{
         "pages": [{"id": "kb-1", "type": "concept", "title": "T",
-                    "body_markdown": "B"}]
+                    "slots": {"source_meta": "sm", "summary": "B",
+                       "key_points": ["B"], "extracted_concepts": ["B"]}}]
     }])
     await generate(
         paths=paths, analysis=analysis, existing_wiki_index="",
@@ -437,7 +450,8 @@ async def test_generator_prompt_directs_slug_reuse(tmp_path):
     )
     provider = ScriptedLLMProvider([{
         "pages": [{"id": "kb-1", "type": "concept", "title": "T",
-                    "body_markdown": "B"}]
+                    "slots": {"source_meta": "sm", "summary": "B",
+                       "key_points": ["B"], "extracted_concepts": ["B"]}}]
     }])
     await generate(
         paths=paths, analysis=analysis, existing_wiki_index="",
@@ -517,7 +531,8 @@ async def test_generator_prompt_allows_cjk_in_slugs(tmp_path):
     )
     provider = ScriptedLLMProvider([{
         "pages": [{"id": "kb-1", "type": "concept", "title": "T",
-                    "body_markdown": "B"}]
+                    "slots": {"source_meta": "sm", "summary": "B",
+                       "key_points": ["B"], "extracted_concepts": ["B"]}}]
     }])
     await generate(
         paths=paths, analysis=analysis, existing_wiki_index="",
@@ -553,3 +568,171 @@ async def test_generator_prompt_allows_cjk_in_slugs(tmp_path):
         f"CJK characters in slugs (CJK cut-over). Looked for any of "
         f"{ACCEPT_PHRASES}."
     )
+
+
+# ---------------------------------------------------------------------------
+# Plan 27 (wiki v2.3 schema) — slot-based body generation + retry + fallback.
+# ---------------------------------------------------------------------------
+
+
+def _concept_slots():
+    return {
+        "definition": "d",
+        "characteristics": ["c1"],
+        "examples": ["e1"],
+        "related_concepts": ["rc"],
+        "references": ["r"],
+    }
+
+
+def _source_slots():
+    return {
+        "source_meta": "sm",
+        "summary": "s",
+        "key_points": ["kp"],
+        "extracted_concepts": ["c"],
+    }
+
+
+@pytest.mark.asyncio
+async def test_generate_retry_fills_missing_slots(tmp_path, caplog):
+    """First call is missing required slots → retry directive + 2nd call fills them."""
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="concept", slug="kb-1", title="T", reasoning="r"),
+        ],
+    )
+    # First call missing 'characteristics' and 'examples'; retry fills them.
+    provider = ScriptedLLMProvider([
+        {"pages": [{"id": "kb-1", "type": "concept", "title": "T",
+                    "slots": {"definition": "d",
+                              "related_concepts": ["rc"], "references": ["r"]}}]},
+        {"pages": [{"id": "kb-1", "type": "concept", "title": "T",
+                    "slots": _concept_slots()}]},
+    ])
+    pages = await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="", provider=provider,
+    )
+    assert len(pages) == 1
+    page = pages[0]
+    # Body must include all required headings now.
+    import re
+    headings = re.findall(r"^## (.+)$", page.body, re.MULTILINE)
+    for h in ["定义", "主要特点", "例子", "相关概念", "参考来源"]:
+        assert h in headings, f"missing heading '{h}' in body:\n{page.body}"
+    # The retry prompt is recognisable by the directive line.
+    assert len(provider.calls) >= 2
+    second_prompt = provider.calls[1]["messages"][0]["content"]
+    assert "Retry" in second_prompt or "retry" in second_prompt
+    assert "characteristics" in second_prompt
+    assert "examples" in second_prompt
+
+
+@pytest.mark.asyncio
+async def test_generate_persistent_missing_uses_placeholder_and_warns(tmp_path, caplog):
+    """Required slots still missing after retry → placeholder fills them + WARN log."""
+    import logging
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="concept", slug="kb-1", title="T", reasoning="r"),
+        ],
+    )
+    # Both responses missing 'characteristics' and 'examples' — fallback triggers.
+    incomplete = {"pages": [{"id": "kb-1", "type": "concept", "title": "T",
+                             "slots": {"definition": "d",
+                                       "related_concepts": ["rc"], "references": ["r"]}}]}
+    provider = ScriptedLLMProvider([incomplete, incomplete])
+
+    caplog.set_level(logging.WARNING, logger="src.pipeline.generator")
+    pages = await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="", provider=provider,
+    )
+    assert len(pages) == 1
+    body = pages[0].body
+    # Placeholder text should appear under each missing heading.
+    assert "（系统占位" in body
+    # All headings still present.
+    import re
+    headings = re.findall(r"^## (.+)$", body, re.MULTILINE)
+    for h in ["定义", "主要特点", "例子", "相关概念", "参考来源"]:
+        assert h in headings, f"missing heading '{h}' in body:\n{body}"
+    # Operator sees a WARN log naming the missing slots.
+    warns = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert any("filled with placeholder" in r.getMessage() for r in warns), \
+        [r.getMessage() for r in warns]
+
+
+@pytest.mark.asyncio
+async def test_generate_renders_body_from_slots_through_template(tmp_path):
+    """generate() uses render_body on slots → produced body contains all template headings."""
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="source", slug="kb-1", title="T", reasoning="r"),
+        ],
+    )
+    provider = ScriptedLLMProvider([{
+        "pages": [{"id": "kb-1", "type": "source", "title": "T",
+                    "slots": _source_slots()}],
+    }])
+    pages = await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="", provider=provider,
+    )
+    body = pages[0].body
+    import re
+    headings = set(re.findall(r"^## (.+)$", body, re.MULTILINE))
+    assert {"来源元数据", "摘要", "关键观点", "抽取的概念"}.issubset(headings)
+    # Slot content is in the body.
+    assert "sm" in body      # source_meta
+    assert "s" in body       # summary
+    # No leftover markers.
+    assert "<!-- slot:" not in body
+
+
+@pytest.mark.asyncio
+async def test_generate_schema_has_min_properties_and_additional_properties_false(tmp_path):
+    """JSON schema enforces `slots` object (minProperties=1) with primitive value types."""
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="concept", slug="kb-1", title="T", reasoning="r"),
+        ],
+    )
+    provider = ScriptedLLMProvider([{
+        "pages": [{"id": "kb-1", "type": "concept", "title": "T",
+                    "slots": _concept_slots()}],
+    }])
+    await generate(paths=paths, analysis=analysis, existing_wiki_index="",
+                   provider=provider)
+    schema = provider.calls[0]["schema"]
+    slots_schema = schema["properties"]["pages"]["items"]["properties"]["slots"]
+    assert slots_schema.get("minProperties") == 1
+    # Schema is permissive about which keys appear (`additionalProperties`),
+    # but each value is constrained to non-empty string at provider level.
+    assert slots_schema.get("additionalProperties", {}).get("minLength") == 1
+    # Required fields at the page level no longer include body_markdown.
+    page_required = schema["properties"]["pages"]["items"]["required"]
+    assert "slots" in page_required
+    assert "body_markdown" not in page_required

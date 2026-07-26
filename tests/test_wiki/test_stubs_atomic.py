@@ -35,7 +35,10 @@ def test_stub_unlink_uses_sentinel(tmp_path):
     provider = ScriptedLLMProvider([
         {"pages": [
             {"id": "foo", "type": "concept", "title": "Foo Real",
-             "frontmatter_extra": {}, "body_markdown": "Real body."},
+             "frontmatter_extra": {},
+             "slots": {"definition": "Real body.",
+                       "characteristics": ["c"], "examples": ["e"],
+                       "related_concepts": ["rc"], "references": ["r"]}},
         ]}
     ])
 

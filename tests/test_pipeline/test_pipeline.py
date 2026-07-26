@@ -25,7 +25,9 @@ async def test_run_ingest_full_pipeline(tmp_path):
          "suggested_pages": [{"type": "source", "slug": "test", "title": "Test", "reasoning": "..."}],
          "links_to_existing": []},
         {"pages": [{"id": "test", "type": "source", "title": "Test",
-                    "frontmatter_extra": {}, "body_markdown": "Body content"}]},
+                    "frontmatter_extra": {},
+                    "slots": {"source_meta": "sm", "summary": "Body content",
+                              "key_points": ["kp"], "extracted_concepts": ["c"]}}]},
     ])
 
     pages = await run_ingest(
@@ -61,7 +63,9 @@ async def test_collector_done_triggers_run_ingest(tmp_path, monkeypatch):
          "suggested_pages": [{"type": "source", "slug": "x", "title": "X", "reasoning": "r"}],
          "links_to_existing": []},
         {"pages": [{"id": "x", "type": "source", "title": "X",
-                    "frontmatter_extra": {}, "body_markdown": "b"}]},
+                    "frontmatter_extra": {},
+                    "slots": {"source_meta": "sm", "summary": "b",
+                              "key_points": ["kp"], "extracted_concepts": ["c"]}}]},
     ])
     monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda project_id=None: p)
     monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: provider)
@@ -105,7 +109,10 @@ async def test_run_ingest_kb_task_id_fallback_when_llm_omits_source_page(tmp_pat
          "links_to_existing": []},
         {"pages": [
             {"id": "only-concept", "type": "concept", "title": "Only",
-             "frontmatter_extra": {}, "body_markdown": "concept body"},
+             "frontmatter_extra": {},
+             "slots": {"definition": "concept body",
+                       "characteristics": ["c"], "examples": ["e"],
+                       "related_concepts": ["rc"], "references": ["r"]}},
         ]},
     ])
 
