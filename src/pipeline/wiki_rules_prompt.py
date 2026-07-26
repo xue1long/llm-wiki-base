@@ -178,4 +178,50 @@ python -m src.cli wiki-templates edit concept # 复制 bundled → user/,打开�
 python -m src.cli wiki-templates edit concept --project novel-wiki  # 复制到项目
 python -m src.cli wiki-templates reset concept # 删除 user/ 覆盖,回落到 bundled
 ```
+
+## v2.3 Schema (Plan 27, 2026-07-26) — 模板驱动的 body 生成
+
+自 v2.3 起,wiki 页面的 body **不再**是 LLM 自由发挥的字符串,而是由 Generator 强制按模板 slot 填充后渲染的产物。bundled 模板版本号从 `1.0.0` 升到 `2.0.0`,以此把"v1 自由发挥"和"v2 结构化"区分开。
+
+### 新的 LLM 响应结构
+
+Generator 的 JSON schema 把 `body_markdown: string` 替换成 `slots: object`。LLM 必须为每个 PageType 的所有 required slot 提供非空内容;可选 slot (`<!-- slot:NAME? -->` 或 `<!-- if:X -->` 包裹) 允许省略或返回空列表,被省略时其整个 heading 也被丢弃。
+
+```jsonc
+{
+  "pages": [
+    {
+      "id": "<slug>",
+      "type": "concept",
+      "title": "<title>",
+      "slots": {
+        "definition": "...",
+        "characteristics": ["特性 1", "特性 2"],
+        "examples": ["例 1"],
+        "related_concepts": ["[[other-slug]]"],
+        "references": ["来源"]
+      }
+    }
+  ]
+}
+```
+
+### 三道防线(防回归)
+
+1. **Schema 防护**:Provider 用 JSON schema 拒绝 `slots` 缺失或每个 slot 值为空字符串的情况。
+2. **代码校验 + 一次 retry**:Generator 在 retry 一次仍未填补所有 required slot 时,以 server-side 占位字符 (`（系统占位：此项由系统补齐，请人工补充）`) 填充,并 `WARN` 到 `log.md`。
+3. **Lint 兜底**:`cli lint` 新增 `LINT-MISSING-SECTION` WARNING。**仅**对版本 `>= 2.0.0` 的页面触发,旧版页面不受影响。
+
+### v2.3 升级路径
+
+- **新摄入的内容**自动按 v2.3 schema 渲染。每个 wiki 文件首行的 `<!-- wiki-template-version: 2.0.0 -->` 注释让 lint 能识别并校验。
+- **已有的 v1 wiki 页面** (`wiki-template-version: 1.0.0`) 保持原样,不被 lint 强制重写。如要让旧页面也通过结构性检查,简单做法是重新摄取对应的源文件。
+- **升级占位字符到有意义内容**:对带 `(见下游概念页)` / `(待补充)` 等占位的页面,运行对应 raw 文件的 `POST /api/v1/projects/<id>/ingest` 让 Generator 重新生成;占位会被真实抽取内容替换。
+
+### 不变的部分
+
+- `WikiPage` 数据模型的 `body: str` 字段保持不变 — 仍是单一 markdown 字符串落地。
+- `page_writer.write_page` / `read_page` 不动 — 行为完全向后兼容。
+- features (relations / heat / indexer / review / dedup / 等) 不动 — 它们对 body 内容不敏感。
+- 任意项目级 / 用户级模板 (`<project>/.wiki-templates/`, `~/.config/ruflo-kb/wiki-templates/`) 都可以独立 bump 到 2.0.0 享受新校验。
 '''
