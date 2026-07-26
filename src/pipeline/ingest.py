@@ -29,7 +29,9 @@ getattr(_generator_module, "generate")). The compat shim that re-exports
 ``src.pipeline.pipeline`` is added in Task 10.
 """
 from __future__ import annotations
+import hashlib
 import logging
+import unicodedata
 from pathlib import Path
 
 from ..wiki.core.paths import WikiPaths
@@ -171,13 +173,25 @@ async def run_ingest(
     from ..wiki.core.types import PageType, WikiPage
     from ..wiki.templates import resolve as resolve_template
 
-    # task_id already starts with "kb-" (queue.generate_task_id()), so
-    # don't prepend another ``kb-`` prefix.
-    source_slug = task_id if task_id.startswith("kb-") else f"kb-{task_id}"
-    source_title = (
-        Path(str(source_path)).name
-        if hasattr(source_path, "name") else str(source_path)
+    # source page id and title:
+    # - id is the source file's Chinese stem (no pinyin) with a short
+    #   path-hash suffix to absorb race conditions and ensure uniqueness
+    #   even when two raw files have identical stems. NFC normalisation
+    #   keeps the hash stable across platforms (macOS HFS+ tends to
+    #   produce NFD-decomposed filenames).
+    # - title is the stem without the .md suffix.
+    # - task_id is still recorded in the source-meta slot for audit
+    #   traceability — the wiki filename no longer depends on it.
+    raw_stem = (
+        Path(str(source_path)).stem
+        if hasattr(source_path, "stem") else str(source_path)
     )
+    norm_stem = unicodedata.normalize("NFC", raw_stem)
+    path_hash = hashlib.md5(str(source_path).encode("utf-8")).hexdigest()[:8]
+    source_slug = f"{norm_stem}-{path_hash}" if norm_stem else (
+        task_id if task_id.startswith("kb-") else f"kb-{task_id}"
+    )
+    source_title = norm_stem
 
     # Render via the bundled source.md template. Falls back to the
     # legacy inline body if the template is missing (operator deleted
