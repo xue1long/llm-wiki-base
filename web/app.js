@@ -505,19 +505,44 @@
       btn.addEventListener("click", async (e) => {
         e.stopPropagation();
         const path = btn.dataset.path;
-        btn.disabled = true; btn.textContent = "摄取中...";
+        const row = btn.closest(".raw-file-row");
+        const action = row.querySelector(".raw-file-actions");
+        const progId = "prog-" + Math.random().toString(36).slice(2, 8);
+        action.innerHTML = \`
+          <div id="\${progId}" class="ingest-progress" style="margin-top:0; min-width:160px;">
+            <div class="progress-row" style="align-items:center;">
+              <div class="progress-bar" style="flex:1; height:6px; border-radius:3px;">
+                <div class="progress-fill" style="height:6px; border-radius:3px; width:5%; transition:width 0.3s;"></div>
+              </div>
+              <span class="progress-status" style="font-size:11px; margin-left:8px; white-space:nowrap;">queued</span>
+            </div>
+          </div>\`;
+        const prog = document.getElementById(progId);
+        const fill = prog.querySelector(".progress-fill");
+        const statusEl = prog.querySelector(".progress-status");
+
         await ingestOneRaw(path, () => {
-          // update row on finish
-          const row = btn.closest(".raw-file-row");
-          const action = row.querySelector(".raw-file-actions");
-          action.innerHTML = `<span class="badge badge-ingested">已摄取</span>`;
+          action.innerHTML = \`<span class="badge badge-ingested">已摄取</span>\`;
         }, (err) => {
-          btn.disabled = false; btn.textContent = "重试";
-          setBanner(`摄取失败: ${err}`, "err");
+          prog.innerHTML = \`<span class="badge badge-err" title="\${err}">失败</span>\`;
+          setTimeout(() => {
+            action.innerHTML = \`<button class="btn-ingest-one" data-path="\${escapeHtml(path)}">重试</button>\`;
+            action.querySelector(".btn-ingest-one").onclick = arguments.callee;
+          }, 2500);
+        }, (rec) => {
+          const stages = Array.isArray(rec.stages) ? rec.stages : [];
+          const stageName = stages.length ? stages[stages.length - 1].name : rec.status;
+          statusEl.textContent = stageName || rec.status;
+          const pct = ({
+            queued: 5, running: 30, finished: 100,
+            succeeded: 100, failed: 100, ignored: 100,
+          }[rec.status]) ?? (stages.length >= 3 ? 95 : stages.length === 2 ? 70 : stages.length === 1 ? 40 : 30);
+          fill.style.width = pct + "%";
         });
       });
     });
 
+    // Batch ingest
     // Batch ingest all
     const ingestAllBtn = document.getElementById("ingestAllRawBtn");
     ingestAllBtn.addEventListener("click", async () => {
@@ -543,7 +568,7 @@
     });
   }
 
-  async function ingestOneRaw(path, onDone, onError) {
+  async function ingestOneRaw(path, onDone, onError, onProgress) {
     try {
       const r = await api(`/api/v1/projects/${state.projectId}/ingest`, {
         method: "POST",
@@ -557,6 +582,7 @@
         let rec;
         try { rec = await api(`/api/v1/projects/${state.projectId}/ingest/status/${encodeURIComponent(r.taskId)}`); }
         catch { break; }
+        if (onProgress) { onProgress(rec); }
         if (rec.status === "succeeded") { onDone(); return; }
         if (rec.status === "failed") { onError(rec.error || "failed"); return; }
       }
