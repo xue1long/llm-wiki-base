@@ -505,3 +505,19 @@ body {
   font-weight: 600;
 }
 #newProjectBtn:hover { background: #e5e7eb; }
+
+/* ---------- Settings view ---------- */
+.settings-card { max-width: 700px; margin: 0 auto; }
+.settings-section { margin-bottom: 28px; }
+.settings-section h3 { font-size: 14px; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+.provider-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 6px; background: #f9fafb; }
+.provider-info { display: flex; align-items: center; gap: 8px; }
+.provider-name { font-weight: 600; font-size: 14px; }
+.provider-type { font-size: 12px; color: #6b7280; background: #e5e7eb; padding: 1px 6px; border-radius: 4px; }
+.provider-actions { display: flex; gap: 6px; }
+.add-provider-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.add-provider-form input { padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+.btn-sm { padding: 4px 10px; font-size: 12px; border-radius: 6px; border: 1px solid #d1d5db; background: white; cursor: pointer; }
+.btn-sm:hover { background: #f3f4f6; }
+.btn-danger { color: #991b1b; border-color: #fecaca; background: #fef2f2; }
+.btn-danger:hover { background: #fee2e2; }

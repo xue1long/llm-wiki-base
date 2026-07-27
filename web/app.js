@@ -267,7 +267,7 @@
       content.innerHTML = `<div class="card">需要先注册项目。</div>`;
       return;
     }
-    const fn = { search: renderSearch, browse: renderBrowse, ingest: renderIngest, chat: renderChat, graph: renderGraph, status: renderStatus }[name];
+    const fn = { search: renderSearch, browse: renderBrowse, ingest: renderIngest, chat: renderChat, graph: renderGraph, status: renderStatus, settings: renderSettings }[name];
     if (fn) fn(content);
   }
 
@@ -1102,6 +1102,134 @@
   // The panel is mounted once on boot and survives view switches. Status is
   // probed at boot; chat uses fetch + ReadableStream to consume SSE.
   setupAgentPanel();
+
+
+  // ---------- Settings ----------
+  function renderSettings(root) {
+    root.innerHTML = '<div class="settings-card" id="settingsCard"><h2>LLM 提供商设置</h2><div id="settingsContent">加载中...</div></div>';
+    loadSettings();
+
+    async function loadSettings() {
+      const out = document.getElementById('settingsContent');
+      try {
+        const data = await api('/api/v1/providers');
+        renderProviderList(data.providers || []);
+      } catch(e) {
+        out.innerHTML = '<div class="banner-err">加载失败: ' + escapeHtml(e.message) + '</div>';
+      }
+    }
+
+    function renderProviderList(providers) {
+      const out = document.getElementById('settingsContent');
+      const hasDefault = providers.some(p => p.is_default);
+
+      let html = '<div class="settings-section"><h3>已配置</h3>';
+      if (!providers.length) {
+        html += '<p style="color:#6b7280">暂无提供商，请添加。</p>';
+      }
+      for (const p of providers) {
+        const typeLabel = {openai:'OpenAI', anthropic:'Anthropic', ollama:'Ollama'}[p.type] || p.type;
+        html += '<div class="provider-row">'
+          + '<div class="provider-info">'
+          + '<span class="provider-name">' + escapeHtml(p.name) + '</span>'
+          + '<span class="provider-type">' + escapeHtml(typeLabel) + '</span>'
+          + (p.is_default ? ' <span class="badge badge-ingested" style="margin-left:6px;">默认</span>' : '')
+          + '</div>'
+          + '<div class="provider-actions">'
+          + (!p.is_default ? '<button class="btn-sm" data-action="set-default" data-name="' + escapeHtml(p.name) + '">设为默认</button>' : '')
+          + '<button class="btn-sm btn-danger" data-action="remove" data-name="' + escapeHtml(p.name) + '">删除</button>'
+          + '</div></div>';
+      }
+      html += '</div>';
+
+      html += '<div class="settings-section"><h3>添加提供商</h3>'
+        + '<div class="add-provider-form">'
+        + '<input id="provName" placeholder="名称（如 openrouter）" style="width:140px"/>'
+        + '<select id="provType"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="ollama">Ollama</option></select>'
+        + '<input id="provKey" type="password" placeholder="API Key" style="width:200px"/>'
+        + '<input id="provModel" placeholder="模型（如 gpt-4o）" style="width:140px"/>'
+        + '<button class="btn-primary" id="addProvBtn">添加</button>'
+        + '<div id="addProvResult" style="margin-top:6px"></div>'
+        + '</div></div>';
+
+      html += '<div class="settings-section"><h3>测试连接</h3>'
+        + '<div style="display:flex;gap:8px;align-items:center;">'
+        + '<select id="testProvName"><option value="">选择提供商...</option>'
+        + providers.map(p => '<option value="' + escapeHtml(p.name) + '">' + escapeHtml(p.name) + '</option>').join('')
+        + '</select>'
+        + '<button class="btn-sm" id="testProvBtn">测试</button>'
+        + '<span id="testProvResult" style="margin-left:8px;font-size:13px;"></span>'
+        + '</div></div>';
+
+      out.innerHTML = html;
+
+      // Add provider
+      out.querySelector('#addProvBtn').addEventListener('click', async () => {
+        const name = document.getElementById('provName').value.trim();
+        const type = document.getElementById('provType').value;
+        const api_key = document.getElementById('provKey').value;
+        const model = document.getElementById('provModel').value.trim();
+        const result = document.getElementById('addProvResult');
+        if (!name) { result.innerHTML = '<span class="banner-warn">请输入名称</span>'; return; }
+        result.innerHTML = '添加中...';
+        try {
+          const r = await api('/api/v1/providers', {
+            method: 'POST',
+            body: { name, type, api_key, chat_model: model, embedding_model: model }
+          });
+          result.innerHTML = '<span class="banner-ok">添加成功</span>';
+          loadSettings();
+        } catch(e) {
+          result.innerHTML = '<span class="banner-err">失败: ' + escapeHtml(e.message) + '</span>';
+        }
+      });
+
+      // Set default
+      out.querySelectorAll('[data-action="set-default"]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const name = btn.dataset.name;
+          try {
+            await api('/api/v1/providers/set-default', { method:'POST', body:{ name } });
+            loadSettings();
+          } catch(e) {
+            alert('设置默认失败: ' + e.message);
+          }
+        });
+      });
+
+      // Remove
+      out.querySelectorAll('[data-action="remove"]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const name = btn.dataset.name;
+          if (!confirm('确认删除提供商 ' + name + '？')) return;
+          try {
+            await api('/api/v1/providers/' + encodeURIComponent(name), { method:'DELETE' });
+            loadSettings();
+          } catch(e) {
+            alert('删除失败: ' + e.message);
+          }
+        });
+      });
+
+      // Test connection
+      const testBtn = out.querySelector('#testProvBtn');
+      const testResult = out.querySelector('#testProvResult');
+      testBtn.addEventListener('click', async () => {
+        const name = document.getElementById('testProvName').value;
+        if (!name) { testResult.textContent = '请选择提供商'; return; }
+        testResult.textContent = '测试中...';
+        try {
+          const r = await api('/api/v1/providers/test?name=' + encodeURIComponent(name), { method:'POST' });
+          testResult.textContent = r.ok ? '✓ ' + (r.detail || '正常') : '✗ ' + (r.error || '失败');
+          testResult.style.color = r.ok ? '#166534' : '#991b1b';
+        } catch(e) {
+          testResult.textContent = '✗ ' + e.message;
+          testResult.style.color = '#991b1b';
+        }
+      });
+    }
+  }
+
 
   function setupAgentPanel() {
     const panel   = document.getElementById("agentPanel");
