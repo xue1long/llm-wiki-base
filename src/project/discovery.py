@@ -22,6 +22,7 @@ DEFAULT_SEARCH_PATHS: list[Path] = [
     Path.home() / "Notes",
     Path.home() / "Knowledge",
     Path.home() / "wiki",
+    Path.cwd() / "knowledge",        # repo-relative knowledge/ (novel-wiki etc.)
 ]
 
 
@@ -73,29 +74,28 @@ def discover_existing_kbs() -> list[Path]:
 
 
 def auto_register_on_first_run() -> list[ProjectContext]:
-    """If registry.json doesn't exist, discover + register KBs.
+    """Discover KBs in DEFAULT_SEARCH_PATHS and register any not yet in the registry.
 
-    Idempotent: if registry.json exists, no-op.
+    Idempotent: already-registered projects are skipped (by_id returns existing entry).
+    When registry.json doesn't exist, performs full discovery + registration.
+    When registry.json exists, registers any new projects found in search paths.
 
-    Returns list of newly registered ProjectContexts.
+    Returns list of newly registered ProjectContexts (may be empty).
     """
     from .paths import registry_path as _registry_path
     from .registry import registry_path as _default_registry_path
-
-    if _default_registry_path().exists():
-        return []  # not first run
 
     kb_paths = discover_existing_kbs()
     contexts: list[ProjectContext] = []
     for kb_path in kb_paths:
         try:
-            ctx = ProjectContext.from_path(kb_path)
+            ctx = ProjectContext.from_path(kb_path)  # from_path is idempotent (skips if exists)
             contexts.append(ctx)
         except Exception as e:
             _logger.warning(f"[discovery] failed to register {kb_path}: {e}")
 
-    if contexts:
-        # Set last_project to most recently modified
+    # Set last_project to most recently modified if registry was freshly created
+    if not _default_registry_path().exists() and contexts:
         contexts.sort(key=lambda c: c.path.stat().st_mtime, reverse=True)
         GlobalRegistryStore.save_last_project(
             id=contexts[0].id,

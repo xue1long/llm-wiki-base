@@ -41,6 +41,15 @@ def create_app() -> FastAPI:
             # can poll status. Must run before any ingest happens.
             init_tracker()
 
+            # Auto-discover and register KB projects found in DEFAULT_SEARCH_PATHS
+            # (including knowledge/ under CWD). Skips already-registered projects.
+            # Runs on every startup so newly cloned repos are picked up immediately.
+            from ..project.discovery import auto_register_on_first_run
+            discovered = auto_register_on_first_run()
+            if discovered:
+                _logger.info("[startup] discovered %d new project(s): %s",
+                              len(discovered), [c.name for c in discovered])
+
             # Initialise embedding provider from the default registry entry.
             try:
                 default = ProviderRegistry.get_default()
