@@ -1,141 +1,20 @@
-# Wiki Index
-
-- **nvpin-xianyan-leixing** (concept) — 女频现言类型分析
-- **wuxian-wangwen-shichang** (concept) — 无线网文市场趋势
-- **ye-fei-ye** (entity) — 叶非夜
-- **xinshou-ticai-xuanze** (synthesis) — 新人题材选择指南
-- **必备资料11月28号创酷中文网女频现言讲课记录_8c363e-6472b13d** (source) — 必备资料11月28号创酷中文网女频现言讲课记录_8c363e
-- **hunlian-wen** (entity) — Hunlian Wen
+---
+- **zong-cai-wen** (concept) — 总裁文
+- **ling-yi-wen** (concept) — 灵异文
+- **chuang-kuo-zhong-wen-wang** (entity) — 创酷中文网
+- **必备资料11月28号创酷中文网女频现言讲课记录_8c363e-5b4221b9** (source) — 必备资料11月28号创酷中文网女频现言讲课记录_8c363e
+- **genre-horror** (entity) — Genre Horror
+- **hun-lian-wen** (entity) — Hun Lian Wen
 - **meng-bao** (entity) — Meng Bao
-- **nvpin-lingyi-wen** (entity) — Nvpin Lingyi Wen
-- **qianqi-wen** (entity) — Qianqi Wen
-- **wuxian-qudao** (entity) — Wuxian Qudao
-- **xiao-nue-da-chong** (entity) — Xiao Nue Da Chong
-- **zongcai-wen** (entity) — Zongcai Wen
-- **hua-mian-gan-wang-luo-xiao-shuo** (concept) — 网络小说画面感
-- **shun-yan-yuan-ze** (concept) — 顺眼原则
-- **xin-shou-xie-zuo-chang-jian-wen-ti** (synthesis) — 新手写作常见问题
-- **shun-yan-pei-xun-zi-liao-15** (source) — 【必备资料】15、顺眼——谈文章的画面感
-- **20-ge-qianyue-tiaojian-xinren-bikan** (source) — 20个签约条件（新人必看）
-- **wangluo-xiaoshuo-jqgl** (concept) — 网络小说情节管理
-- **wangluo-xiaoshuo-bjzgl** (concept) — 网络小说章节管理
-- **xiaoshuo-zhurengou** (concept) — 小说主角构建
-- **xinren-xiaoshuo-jia** (synthesis) — 新人小说写作进阶指南
-- **da-qingjie** (entity) — Da Qingjie
-- **dairugan** (entity) — Dairugan
-- **dajiangyou** (entity) — Dajiangyou
-- **gaochao** (entity) — Gaochao
-- **maodun-chongtu** (entity) — Maodun Chongtu
-- **pudian** (entity) — Pudian
-- **zhanlipin** (entity) — Zhanlipin
-- **zhixian** (entity) — Zhixian
-- **xianxia-creation-guide-feishu** (source) — 仙侠类题材作品的创作要点及卖点（飞书文档）
-- **xianxia-novel-guide** (concept) — 仙侠小说创作指南
-- **xianxia-five-subgenres** (concept) — 仙侠小说五大流派
-- **xianxia-writing-goals** (concept) — 仙侠小说目标设定技巧
-- **xianxia-vs-xuanhuan** (concept) — 仙侠与玄幻的区别
-- **dushi-xianxia-liu** (entity) — Dushi Xianxia Liu
-- **honghuang-fengshen-liu** (entity) — Honghuang Fengshen Liu
-- **huilu-xianxia** (entity) — Huilu Xianxia
-- **lishi-xianxia** (entity) — Lishi Xianxia
-- **long-term-goal** (entity) — Long Term Goal
-- **short-term-goal** (entity) — Short Term Goal
-- **xianxia-novel** (entity) — Xianxia Novel
-- **xingji-xunbao-liu** (entity) — Xingji Xunbao Liu
-- **xuanhuan-novel** (entity) — Xuanhuan Novel
-- **qi-dai-gan-chuang-zuo** (concept) — 期待感创作技巧
-- **fu-bi-she-ji** (concept) — 伏笔设计
-- **lian-huan-fu-bi** (concept) — 连环伏笔技法
-- **yang-shen** (entity) — 阳神
-- **qing-li-zhi-zhong-yi-liao-zhi-wai** (concept) — 情理之中意料之外
-- **必备资料22期待感让你的作品能够引人入胜1-ade4b6ef** (source) — 必备资料22期待感让你的作品能够引人入胜1
-- **fu-ben-she-ding** (entity) — Fu Ben She Ding
-- **wu-dao-you-dao** (entity) — Wu Dao You Dao
-- **yin-ren-ru-sheng** (entity) — Yin Ren Ru Sheng
-- **dai-qi-gan** (concept) — 期待感
-- **fu-bi** (concept) — 伏笔
-- **bei-bei-zi-liao-22-dai-qi-gan** (source) — 必备资料22：期待感让你的作品能够引人入胜
-- **fan-ren-liu** (entity) — Fan Ren Liu
-- **lian-huan-ren-wu** (entity) — Lian Huan Ren Wu
-- **画面感** (concept) — 画面感：网络文学的视觉呈现
-- **顺眼** (concept) — 顺眼：写作的第一印象法则
-- **长段长句** (concept) — 长段长句的危害与改进
-- **网络文学特性** (concept) — 网络文学与传统文学的差异
-- **必备资料15顺眼谈文章的画面感-43c5df10** (source) — 必备资料15顺眼谈文章的画面感
-- **段落控制** (entity) — 段落控制
-- **chuangku-nvping-xianyan-jiangzuo** (concept) — 创酷中文网女频现言讲课资料
-- **nvping-wenxue-leixing** (concept) — 女频文学类型解析
-- **chuangku-zhongwenwang** (entity) — 创酷中文网
-- **必备资料11月28号创酷中文网女频现言讲课记录_8c363e-00cfc60b** (source) — 必备资料11月28号创酷中文网女频现言讲课记录_8c363e
-- **nvping-lingyi-wen** (entity) — Nvping Lingyi Wen
-- **rudao** (entity) — Rudao
-- **xiao-nve-da-chong** (entity) — Xiao Nve Da Chong
-- **yefeiye** (entity) — Yefeiye
-- **网文写作签约条件-20-条-43c5df10** (source) — 网文写作签约条件20条
-- **wangwen-qianyue-tiaojian** (concept) — 网文签约条件20条
-- **wangwen-juka-zhangjie-guifan** (concept) — 网文开局与章节规范
-- **qingjie-gaochao-jiezou** (concept) — 网文节奏与高潮设计
-- **wangwen-renwu-sheji** (concept) — 网文人物塑造要点
-- **daqingjie-sanduanshi** (concept) — 大情节三段式
-- **qifen-pudian-sanfen-dadou** (concept) — 七分铺垫三分打斗
-- **dairugan-yingzao** (concept) — 代入感营造
-- **xianxia-20-yao-dian** (source) — 必备资料：仙侠类题材作品的创作要点及卖点
-- **xianxia-chuang-zuo-yao-dian** (concept) — 仙侠类题材创作要点
-- **xianxia-lei-xing** (concept) — 仙侠小说类型流派
-- **fo-ben-shi-dao** (entity) — 《佛本是道》
-- **piao-miao-zhi-lu** (entity) — 《飘渺之旅》
-- **chang-qi-mu-biao** (entity) — Chang Qi Mu Biao
-- **du-shi-xianxia-liu** (entity) — Du Shi Xianxia Liu
-- **duan-qi-mu-biao** (entity) — Duan Qi Mu Biao
-- **hong-huang-feng-shen-liu** (entity) — Hong Huang Feng Shen Liu
-- **hou-gong-miao-xie** (entity) — Hou Gong Miao Xie
-- **hui-lu-xianxia** (entity) — Hui Lu Xianxia
-- **li-shi-xianxia** (entity) — Li Shi Xianxia
-- **meng-ru-shen-ji** (entity) — Meng Ru Shen Ji
-- **shou-ji-pi** (entity) — Shou Ji Pi
-- **xianxia** (entity) — Xianxia
-- **xiao-ding** (entity) — Xiao Ding
-- **xing-ji-xun-bao-liu** (entity) — Xing Ji Xun Bao Liu
-- **xuan-huan** (entity) — Xuan Huan
-- **nv-zhu-dai-qiu-pao** (entity) — Nv Zhu Dai Qiu Pao
-- **必备资料-20-个签约条件新人必看-2-b7b4ef23** (source) — 必备资料20个签约条件新人必看2
-- **mao-dun-chong-tu-guan-li** (concept) — 网文矛盾冲突管理
-- **chang-jie-jie-zou-kong-zhi** (concept) — 长章节节奏控制
-- **wangwen-xie-zuo-gui-fan-zong-jie** (synthesis) — 网文写作规范总结
-- **chang-jing-kong-zhi** (entity) — Chang Jing Kong Zhi
-- **da-qing-jie** (entity) — Da Qing Jie
-- **gao-chao** (entity) — Gao Chao
-- **gong-fa-ti-xi** (entity) — Gong Fa Ti Xi
-- **mao-dun-chong-tu** (entity) — Mao Dun Chong Tu
-- **qi-fen-pu-dian-san-fen-da-dou** (entity) — Qi Fen Pu Dian San Fen Da Dou
-- **shi-jiao-qie-huan** (entity) — Shi Jiao Qie Huan
-- **zhan-li-pin-fen-pei** (entity) — Zhan Li Pin Fen Pei
-- **zhi-xian-ju-qing** (entity) — Zhi Xian Ju Qing
-- **zhu-jue-da-jiang-you** (entity) — Zhu Jue Da Jiang You
-- **必备资料-20-仙侠类题材作品的创作要点及卖点-d1f6f9dd** (source) — 必备资料20仙侠类题材作品的创作要点及卖点
-- **bei-bei-zi-liao-22-dai-qi-gan-3deff6a3** (source) — 必备资料22：期待感让你的作品能够引人入胜
-- **keng** (entity) — Keng
-- **必备资料-15-顺眼谈文章的画面感-43c5df10** (source) — 必备资料15顺眼谈文章的画面感
-- **网文排版技巧** (concept) — 网文排版技巧
-- **xuan-nian** (entity) — Xuan Nian
-- **yan-dang-yin-zhi** (entity) — Yan Dang Yin Zhi
-- **补充教程写穿越小说角色前要注意的十个问题-329925c0** (source) — 补充教程写穿越小说角色前要注意的十个问题
-- **zhu-jue** (entity) — 主角设定指南
-- **liang-liang-zeng-zhang-qu-xian** (entity) — Liang Liang Zeng Zhang Qu Xian
-- **补充教程小说写作大纲的模版共享-97abf536** (source) — 小说写作大纲的模版共享
-- **bei-bei-zi-liao-20-qian-yue-tiao-jian-xin-ren-bi-kan-2-b7b4ef23** (source) — 必备资料 -20-个签约条件新人必看
-- **bei-jing-sheng-dong-fang-guo-xin-ke-ji-you-xian-gong-si** (entity) — Bei Jing Sheng Dong Fang Guo Xin Ke Ji You Xian Gong Si
-- **du-zhe-xin-tai-yan-jiu** (entity) — Du Zhe Xin Tai Yan Jiu
-- **wangwen-vip-shou-zhu-wei-zhi** (entity) — Wangwen Vip Shou Zhu Wei Zhi
-- **zuo-zhe-chuang-zuo-xin-tai** (entity) — Zuo Zhe Chuang Zuo Xin Tai
-- **补充教程小说写作新人网络小说的成神宝典精装版-704f905d** (entity) — 补充教程小说写作新人网络小说的成神宝典精装版 704f905d
-- **补充教程小说结局的十三种方式精-33ac0db4** (source) — 补充教程小说结局的十三种方式（精）
-- **bei-ji-mei-xue** (entity) — Bei Ji Mei Xue
-- **da-tuan-yuan** (entity) — Da Tuan Yuan
-- **xiao-shuo-jie-zhou** (entity) — Xiao Shuo Jie Zhou
-- **xu-wu** (entity) — Xu Wu
-- **du-shi-shang-ban-zhu** (entity) — Du Shi Shang Ban Zhu
-- **xue-sheng-yi-zu** (entity) — Xue Sheng Yi Zu
-- **cun-zai-zhu-yi** (entity) — Cun Zai Zhu Yi
-- **shu-xie-jie-gou** (entity) — Shu Xie Jie Gou
-- **xiandai-zhu-yi-wen-xue** (entity) — Xiandai Zhu Yi Wen Xue
+- **必备资料15顺眼谈文章的画面感-1cb23d07** (source) — 顺眼谈文章的画面感
+- **shun-yan** (concept) — 顺眼
+- **hua-mian-gan** (concept) — 画面感
+- **wang-luo-wen-xue-zuo-pin-de-zuo-zhe-jian-yi** (synthesis) — 网络文学作品作者建议
+- **wang-luo-wen-xue** (entity) — Wang Luo Wen Xue
+- **必备资料20个签约条件新人必看2-b4a4e2e0** (source) — 20个签约条件新人必看
+- **chong-tu-yu-gao-chao** (entity) — Chong Tu Yu Gao Chao
+- **zhu-jiao-suo-zao** (entity) — Zhu Jiao Suo Zao
+- **qian-qi-wen** (entity) — Qian Qi Wen
+- **必备资料-11-月-28-号创酷中文网女频现言讲课记录-8c363e-5b4221b9** (entity) — 必备资料 11 月 28 号创酷中文网女频现言讲课记录 8c363e 5b4221b9
+- **必备资料-15-顺眼谈文章的画面感-1cb23d07** (entity) — 必备资料 15 顺眼谈文章的画面感 1cb23d07
+- **qi-dai-gan** (entity) — Qi Dai Gan

@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from dataclasses import replace
+from typing import Optional
 from pathlib import Path
 
 from ..lib.write_hooks import safe_write

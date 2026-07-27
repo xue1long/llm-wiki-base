@@ -3,10 +3,14 @@ id: meng-bao
 title: Meng Bao
 type: entity
 sources:
-- raw\sources\必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md
-created_at: 1785070538292
-updated_at: 1785070538292
-relations: []
+- D:\5-Project\2026-7-27\ruflo-kb\knowledge\novel-wiki\raw\sources\必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md
+created_at: 1785131861176
+updated_at: 1785131861176
+relations:
+- target: zong-cai-wen
+  type: referenced_by
+  weight: 0.6
+  context: 萌宝元素在部分总裁文中作为男女主关系发展的纽带。
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -20,6 +24,6 @@ tags: []
 
 此页面被其他页面引用(例如 `[[meng-bao]]`),但尚未独立撰写。
 
-来源摄取: `raw\sources\必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md` (task `kb-20260726205419-53b299b2`)。
+来源摄取: `D:\5-Project\2026-7-27\ruflo-kb\knowledge\novel-wiki\raw\sources\必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md` (task `manual-d-1-1785131799`)。
 
 下次摄取如果包含此实体,系统会自动用真实内容替换本占位页。

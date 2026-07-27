@@ -82,3 +82,17 @@ def resolve_review(paths, item_id: str, action: str = "skip") -> None:
     resolved = load_reviews(paths, resolved=True)
     resolved.append(target)
     save_reviews(paths, resolved, resolved=True)
+
+
+def unresolve_review(paths, item_id: str) -> None:
+    """Move item from resolved → open."""
+    resolved = load_reviews(paths, resolved=True)
+    target = next((i for i in resolved if i.id == item_id), None)
+    if target is None:
+        return
+    resolved = [i for i in resolved if i.id != item_id]
+    save_reviews(paths, resolved, resolved=True)
+    target.status = "open"
+    items = load_reviews(paths)
+    items.append(target)
+    save_reviews(paths, items)

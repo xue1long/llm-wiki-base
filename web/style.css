@@ -394,3 +394,105 @@ body {
   height: calc(100vh - 180px); overflow: hidden;
 }
 .graph-canvas { width: 100%; height: 100%; display: block; }
+
+/* ---------- Browse sub-tabs ---------- */
+.browse-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.browse-tab-btn {
+  padding: 6px 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  color: #6b7280;
+}
+.browse-tab-btn.active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+  font-weight: 500;
+}
+.browse-tab-btn:hover:not(.active) { background: #f5f6f8; }
+
+.btn-primary {
+  padding: 6px 14px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+}
+.btn-primary:hover { background: #1d4ed8; }
+.btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
+
+/* ---------- Raw file list ---------- */
+.raw-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.raw-file-row:last-child { border-bottom: none; }
+.raw-file-info { flex: 1; min-width: 0; }
+.raw-file-name { font-size: 13px; font-weight: 500; word-break: break-all; }
+.raw-file-meta { font-size: 11px; color: #6b7280; margin-top: 2px; font-family: ui-monospace, Consolas, monospace; }
+.raw-file-actions { flex-shrink: 0; margin-left: 12px; }
+.btn-ingest-one {
+  padding: 4px 12px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+}
+.btn-ingest-one:hover { background: #1d4ed8; }
+.btn-ingest-one:disabled { background: #9ca3af; cursor: not-allowed; }
+.badge-ingested {
+  display: inline-block;
+  padding: 2px 10px;
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* ---------- Project selector ---------- */
+.project-selector-wrap {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+#projectSelect {
+  flex: 1;
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #ffffff;
+  font-family: inherit;
+  min-width: 0;
+}
+#newProjectBtn {
+  padding: 3px 8px;
+  font-size: 13px;
+  background: #f5f6f8;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  color: #2563eb;
+  font-weight: 600;
+}
+#newProjectBtn:hover { background: #e5e7eb; }

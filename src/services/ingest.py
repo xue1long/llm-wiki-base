@@ -110,7 +110,7 @@ def enqueue_source(
         source_str = source.get("folder", "")
         source_type = SourceType.FILE
 
-    task_hash = generate_task_hash(source_type, source_str, folder_context or "")
+    task_hash = generate_task_hash(source_type, source_str, folder_context or "", project_id=resolved_id)
     task_id = enqueue_task(source_str, source_type, task_hash, project_id=resolved_id)
     if not task_id:
         return {"status": "ignored", "taskId": None, "reason": "Duplicate"}

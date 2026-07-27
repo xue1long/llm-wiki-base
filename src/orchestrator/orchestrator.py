@@ -28,7 +28,8 @@ class Orchestrator:
         task_hash = generate_task_hash(
             SourceType(source_type),
             source,
-            ""
+            "",
+            project_id="",  # orchestrator is project-less; empty string ensures hash dimension
         )
         task_id = enqueue_task(source, SourceType(source_type), task_hash)
 

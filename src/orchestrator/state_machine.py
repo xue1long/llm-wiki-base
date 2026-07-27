@@ -25,7 +25,7 @@ def can_transition(from_status: TaskStatus, to_status: TaskStatus) -> bool:
 EVENT_TO_STATUS = {
     "collector:done": TaskStatus.RUNNING,
     "processor:done": TaskStatus.WAITING_REVIEW,
-    "librarian:done": TaskStatus.APPROVED,
+    "librarian:done": TaskStatus.ARCHIVED,
     "audit:pass": TaskStatus.APPROVED,
     "audit:fail": TaskStatus.REJECTED,
 }

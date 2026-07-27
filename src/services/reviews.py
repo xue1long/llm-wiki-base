@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Optional
 
 from ..lib.project import resolve_project
-from ..wiki.features.review import load_reviews, resolve_review as _wiki_resolve
+from ..wiki.features.review import load_reviews, resolve_review as _wiki_resolve, unresolve_review as _wiki_unresolve
 
 
 def list_reviews(
@@ -56,3 +56,9 @@ def resolve_review(project_id: str, review_id: str, action: str = "skip") -> Non
     """Mark a review as resolved (moved to resolved queue with action label)."""
     _ctx, paths = resolve_project(project_id, by_id_only=True)
     _wiki_resolve(paths, review_id, action)
+
+
+def unresolve_review(project_id: str, review_id: str) -> None:
+    """Move a resolved review back to the open queue."""
+    _ctx, paths = resolve_project(project_id, by_id_only=True)
+    _wiki_unresolve(paths, review_id)

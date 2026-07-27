@@ -14,14 +14,16 @@ class IdempotencyCache:
         self,
         source_type: SourceType,
         identifier: str,
-        content_prefix: str = ""
+        content_prefix: str = "",
+        project_id: str = "",
     ) -> str:
         """
         生成幂等键
-        算法: md5(source_type + identifier + content_prefix)
+        算法: md5(source_type + identifier + content_prefix + project_id)
+        project_id 为空时对单项目场景向后兼容
         """
         prefix = source_type.value
-        data = f"{prefix}:{identifier}:{content_prefix[:1024]}"
+        data = f"{prefix}:{identifier}:{content_prefix[:1024]}:{project_id}"
         return hashlib.md5(data.encode()).hexdigest()
 
     def check_and_mark(self, task_hash: str) -> bool:
@@ -56,11 +58,12 @@ def get_idempotency_cache() -> IdempotencyCache:
 def generate_task_hash(
     source_type: SourceType,
     source: str,
-    content_prefix: str = ""
+    content_prefix: str = "",
+    project_id: str = "",
 ) -> str:
     """便捷函数"""
     cache = get_idempotency_cache()
-    return cache.generate_hash(source_type, source, content_prefix)
+    return cache.generate_hash(source_type, source, content_prefix, project_id)
 
 def check_duplicate(task_hash: str) -> bool:
     """检查是否重复提交"""

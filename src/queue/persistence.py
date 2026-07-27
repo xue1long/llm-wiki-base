@@ -59,7 +59,7 @@ class JsonFileBackend:
             return
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError) as e:
+        except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
             logger.warning(f"[JsonFileBackend] queue file corrupt ({e}); starting empty")
             self._tasks = {}
             return
@@ -82,13 +82,15 @@ class JsonFileBackend:
                     try:
                         row["status"] = TaskStatus(row["status"])
                     except ValueError:
-                        pass  # leave as-is; downstream will surface the error
+                        logger.warning("[JsonFileBackend] invalid status %r for task %r; skipping", row.get("status"), row.get("id"))
+                        continue  # skip malformed row entirely
                 if "source_type" in row and isinstance(row["source_type"], str):
                     from ..types import SourceType
                     try:
                         row["source_type"] = SourceType(row["source_type"])
                     except ValueError:
-                        pass
+                        logger.warning("[JsonFileBackend] invalid source_type %r for task %r; skipping", row.get("source_type"), row.get("id"))
+                        continue
                 result[row["id"]] = row
         self._tasks = result
 

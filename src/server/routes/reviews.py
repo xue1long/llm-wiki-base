@@ -28,6 +28,8 @@ async def patch_review(project_id: str, review_id: str, body: PatchReviewBody):
     try:
         if body.resolved:
             reviews_service.resolve_review(project_id, review_id, body.action)
+        else:
+            reviews_service.unresolve_review(project_id, review_id)
         return {"ok": True}
     except ProjectNotFoundError as e:
         raise HTTPException(404, str(e))

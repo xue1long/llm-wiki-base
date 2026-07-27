@@ -77,7 +77,7 @@ async def archive(
                 embeddings = list(embedding_results)
 
             # 使用第一个 chunk 的 embedding 检索相似内容
-            results = vector_search_chunks(embeddings[0], top_k=1)
+            results = vector_search_chunks(embeddings[0], top_k=1, project_paths=paths)
             if results and results[0].score > SIMILARITY_THRESHOLD:
                 similar_result = results[0]
         except Exception as e:

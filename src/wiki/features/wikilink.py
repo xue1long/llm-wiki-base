@@ -47,12 +47,15 @@ def resolve_wikilink(project_root: Path, target: str) -> bool:
     # when no aliases exist (the common case).
     try:
         from .slug_aliases import SlugAliasRegistry
-    except ImportError:
-        return False
+    except ModuleNotFoundError:
+        return False  # module absent — aliases not available, not an error
     try:
         reg = SlugAliasRegistry(project_root)
         canonical = reg.get_canonical(target)
-    except Exception:
+    except Exception as e:
+        import logging
+        _logger = logging.getLogger(__name__)
+        _logger.warning("[wikilink] SlugAliasRegistry lookup failed for %r: %s", target, e)
         return False
     if not canonical:
         return False

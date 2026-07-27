@@ -104,10 +104,20 @@ def cmd_project_forget(args: argparse.Namespace) -> None:
             for e in same_path:
                 print(f"  - {e.id} ({e.name})", file=sys.stderr)
             sys.exit(3)
+        # Safety checks before deletion
+        resolved = kb_path.resolve()
+        try:
+            resolved.relative_to(Path.cwd().resolve())
+        except ValueError:
+            print(f"Refusing --delete-data: path {kb_path} is outside CWD", file=sys.stderr)
+            sys.exit(3)
+        if resolved == resolved.parent or str(resolved) in (str(Path.home()), ""):
+            print(f"Refusing --delete-data: would delete root or home directory", file=sys.stderr)
+            sys.exit(3)
         # Actually delete
         import shutil
-        shutil.rmtree(kb_path)
-        print(f"Deleted {kb_path}")
+        shutil.rmtree(resolved)
+        print(f"Deleted {resolved}")
 
     GlobalRegistryStore.remove(entry.id)
     print(f"Project '{entry.name}' removed from registry")

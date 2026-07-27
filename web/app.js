@@ -25,6 +25,8 @@
     agentSessionId: null,   // persisted across panel reloads
     agentAvailable: false,  // last probed status
     agentBusy: false,       // a stream is in flight
+    // All registered projects (cached after boot)
+    projects: [],
   };
 
   // ---------- Path normalization ----------
@@ -171,27 +173,39 @@
   // ---------- Boot ----------
   async function boot() {
     try {
-      // First try the "current" project endpoint (matches server's CWD). This
-      // avoids the legacy pitfall of picking whatever project happens to be
-      // first in the registry, which is often a stale test fixture.
-      let chosen = null;
-      try {
-        chosen = await api("/api/v1/projects/current");
-      } catch { /* fall through to list-based selection */ }
-      if (!chosen) {
-        const data = await api("/api/v1/projects");
-        const list = data.projects || [];
-        if (!list.length) {
-          setBanner("未找到已注册项目，请先 python -m src.cli project init", "err");
-          document.getElementById("projectName").textContent = "(无项目)";
-          return;
-        }
-        const sorted = [...list].sort((a, b) => (b.last_opened || 0) - (a.last_opened || 0));
-        chosen = sorted[0] || list[0];
+      // Fetch all projects, sorted by last_opened desc.
+      const data = await api("/api/v1/projects");
+      const list = data.projects || [];
+      state.projects = list;
+      if (!list.length) {
+        setBanner("未找到已注册项目，请先新建项目", "err");
+        document.getElementById("projectName").textContent = "(无项目)";
+        return;
       }
+      // Pick the first one (already sorted by last_opened desc).
+      const chosen = list[0];
       state.projectId = chosen.id;
       state.projectName = chosen.name;
       document.getElementById("projectName").textContent = state.projectName;
+
+      // Populate project selector and show it.
+      const sel = document.getElementById("projectSelect");
+      sel.innerHTML = list.map(p =>
+        `<option value="${escapeHtml(p.id)}" ${p.id === chosen.id ? "selected" : ""}>${escapeHtml(p.name)}</option>`
+      ).join("");
+      sel.style.display = "block";
+      document.getElementById("newProjectBtn").style.display = "inline-block";
+      sel.addEventListener("change", () => switchProject(sel.value));
+      document.getElementById("newProjectBtn").addEventListener("click", async () => {
+        const name = window.prompt("输入项目名称：");
+        if (!name || !name.trim()) return;
+        try {
+          await createProject(name.trim());
+        } catch (e) {
+          setBanner("创建失败: " + e.message, "err");
+        }
+      });
+
       // health
       try {
         const h = await api("/health");
@@ -204,6 +218,40 @@
     } catch (e) {
       setBanner("启动失败: " + e.message, "err");
     }
+  }
+
+  // ---------- Project switch ----------
+  async function switchProject(id) {
+    const chosen = state.projects.find(p => p.id === id);
+    if (!chosen) return;
+    state.projectId = chosen.id;
+    state.projectName = chosen.name;
+    document.getElementById("projectName").textContent = state.projectName;
+    state.sessionId = null;
+    state.pendingBrowseTarget = null;
+    try {
+      await api(`/api/v1/projects/${id}/select`, { method: "POST" });
+    } catch (e) {
+      // non-fatal: the switch still works client-side
+    }
+    showView(state.currentView);
+  }
+
+  // ---------- New project ----------
+  async function createProject(name) {
+    const result = await api("/api/v1/projects", {
+      method: "POST",
+      body: { name },
+    });
+    const newProject = { id: result.id, name: result.name, path: result.path, last_opened: Date.now() };
+    state.projects.unshift(newProject);
+    const sel = document.getElementById("projectSelect");
+    sel.insertBefore(
+      Object.assign(document.createElement("option"), { value: newProject.id, textContent: newProject.name, selected: true }),
+      sel.firstChild
+    );
+    sel.value = newProject.id;
+    await switchProject(newProject.id);
   }
 
   // ---------- View router ----------
@@ -313,13 +361,30 @@
   }
 
   // ---------- B. Browse ----------
+  // Sub-view state: "wiki" or "raw"
+  let _browseSub = "wiki";
+
   function renderBrowse(root) {
     root.innerHTML = `
+      <div class="browse-tabs">
+        <button class="browse-tab-btn active" data-sub="wiki">Wiki 文件</button>
+        <button class="browse-tab-btn" data-sub="raw">Raw 文件</button>
+        <button id="ingestAllRawBtn" style="display:none;margin-left:auto;" class="btn-primary">全部摄取</button>
+      </div>
       <div class="browse-grid">
         <div class="browse-tree" id="tree"><div class="card">加载中...</div></div>
         <div class="browse-reader" id="reader"><div style="color:#6b7280;">从左侧选择一个文件。</div></div>
       </div>
     `;
+    document.querySelectorAll(".browse-tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        _browseSub = btn.dataset.sub;
+        document.querySelectorAll(".browse-tab-btn").forEach(b => b.classList.toggle("active", b === btn));
+        document.getElementById("ingestAllRawBtn").style.display = _browseSub === "raw" ? "inline-block" : "none";
+        if (_browseSub === "wiki") loadTree();
+        else renderBrowseRaw();
+      });
+    });
     loadTree();
 
     async function loadTree() {
@@ -333,20 +398,15 @@
     }
 
     function renderTree(files) {
-      // Group: system (index.md/log.md) + first-level subdir under wiki/.
-      // Normalize absolute paths to wiki-relative first.
       const groups = new Map();
       for (const f of files) {
         const rel = normalizeWikiPath(f.path || "");
         if (!rel.endsWith(".md")) continue;
         const parts = rel.split("/");
-        let groupKey;
-        if (parts.length === 1) groupKey = "系统";          // index.md, log.md
-        else groupKey = parts[0];                            // concepts / sources / ...
+        const groupKey = parts.length === 1 ? "系统" : parts[0];
         if (!groups.has(groupKey)) groups.set(groupKey, []);
         groups.get(groupKey).push({ path: rel, name: parts[parts.length - 1] });
       }
-      // sort groups: 系统 first, then others alphabetically
       const sortedKeys = Array.from(groups.keys()).sort((a, b) => {
         if (a === "系统") return -1; if (b === "系统") return 1;
         return a.localeCompare(b);
@@ -363,11 +423,9 @@
           </div>
         </div>
       `).join("");
-      // group toggle
       tree.querySelectorAll(".tree-group-title").forEach(t => {
         t.addEventListener("click", () => t.parentElement.classList.toggle("collapsed"));
       });
-      // file click
       tree.querySelectorAll(".tree-file").forEach(el => {
         el.addEventListener("click", () => {
           tree.querySelectorAll(".tree-file").forEach(x => x.classList.remove("active"));
@@ -375,15 +433,11 @@
           loadReader(el.dataset.path);
         });
       });
-
-      // If we navigated here with a pending target (e.g., from a chat ref),
-      // pre-select that file once the tree is built.
       const target = state.pendingBrowseTarget;
       if (target) {
         state.pendingBrowseTarget = null;
         const node = tree.querySelector(`.tree-file[data-path="${CSS.escape(target)}"]`);
         if (node) {
-          // ensure the group is expanded
           let p = node.parentElement;
           while (p && !p.classList.contains("tree-group")) p = p.parentElement;
           if (p) p.classList.remove("collapsed");
@@ -404,6 +458,118 @@
         reader.innerHTML = `<div class="banner-err">读取失败: ${escapeHtml(e.message)}</div>`;
       }
     }
+  }
+
+  // ---------- B2. Raw Files ----------
+  async function renderBrowseRaw() {
+    const tree = document.getElementById("tree");
+    const reader = document.getElementById("reader");
+    reader.innerHTML = `<div style="color:#6b7280;">从左侧选择要摄取的文件。</div>`;
+    tree.innerHTML = `<div class="card">加载中...</div>`;
+
+    let rawFiles = [];
+    try {
+      const data = await api(`/api/v1/projects/${state.projectId}/raw-files`);
+      rawFiles = data.files || [];
+    } catch (e) {
+      tree.innerHTML = `<div class="banner-err">加载失败: ${escapeHtml(e.message)}</div>`;
+      return;
+    }
+
+    if (!rawFiles.length) {
+      tree.innerHTML = `<div class="card">raw/sources 目录为空。</div>`;
+      return;
+    }
+
+    tree.innerHTML = `
+      <div id="rawFileList">
+        ${rawFiles.map((f, i) => `
+          <div class="raw-file-row" data-idx="${i}">
+            <div class="raw-file-info">
+              <div class="raw-file-name">${escapeHtml(f.name)}</div>
+              <div class="raw-file-meta">${escapeHtml(f.ext)} · ${formatSize(f.size)}</div>
+            </div>
+            <div class="raw-file-actions" id="rawAction-${i}">
+              ${f.ingested
+                ? `<span class="badge badge-ingested">已摄取</span>`
+                : `<button class="btn-ingest-one" data-path="${escapeHtml(f.path)}">摄取</button>`
+              }
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+
+    // Single file ingest
+    tree.querySelectorAll(".btn-ingest-one").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const path = btn.dataset.path;
+        btn.disabled = true; btn.textContent = "摄取中...";
+        await ingestOneRaw(path, () => {
+          // update row on finish
+          const row = btn.closest(".raw-file-row");
+          const action = row.querySelector(".raw-file-actions");
+          action.innerHTML = `<span class="badge badge-ingested">已摄取</span>`;
+        }, (err) => {
+          btn.disabled = false; btn.textContent = "重试";
+          setBanner(`摄取失败: ${err}`, "err");
+        });
+      });
+    });
+
+    // Batch ingest all
+    const ingestAllBtn = document.getElementById("ingestAllRawBtn");
+    ingestAllBtn.addEventListener("click", async () => {
+      const toIngest = rawFiles.filter(f => !f.ingested);
+      if (!toIngest.length) { setBanner("没有需要摄取的文件", "warn"); return; }
+      ingestAllBtn.disabled = true; ingestAllBtn.textContent = `摄取中 (0/${toIngest.length})...`;
+      let done = 0;
+      for (const f of toIngest) {
+        await ingestOneRaw(f.path, () => {
+          done++;
+          ingestAllBtn.textContent = `摄取中 (${done}/${toIngest.length})...`;
+          // update row
+          const row = tree.querySelector(`.raw-file-row[data-idx="${rawFiles.indexOf(f)}"]`);
+          if (row) {
+            const action = row.querySelector(".raw-file-actions");
+            action.innerHTML = `<span class="badge badge-ingested">已摄取</span>`;
+          }
+        }, (err) => {
+          setBanner(`${f.name} 失败: ${err}`, "err");
+        });
+      }
+      ingestAllBtn.disabled = false; ingestAllBtn.textContent = "全部摄取";
+    });
+  }
+
+  async function ingestOneRaw(path, onDone, onError) {
+    try {
+      const r = await api(`/api/v1/projects/${state.projectId}/ingest`, {
+        method: "POST",
+        body: { source: path, folderContext: null },
+      });
+      if (r.status === "ignored") { onDone(); return; }
+      if (r.status !== "queued" || !r.taskId) { onError("未识别状态"); return; }
+      const POLL_MS = 1500;
+      for (let i = 0; i < 240; i++) {
+        await new Promise(res => setTimeout(res, POLL_MS));
+        let rec;
+        try { rec = await api(`/api/v1/projects/${state.projectId}/ingest/status/${encodeURIComponent(r.taskId)}`); }
+        catch { break; }
+        if (rec.status === "succeeded") { onDone(); return; }
+        if (rec.status === "failed") { onError(rec.error || "failed"); return; }
+      }
+      onError("超时");
+    } catch (e) {
+      onError(e.message);
+    }
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   }
 
   // ---------- C. Ingest ----------

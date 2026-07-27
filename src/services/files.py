@@ -34,9 +34,9 @@ class FileTooLargeError(Exception):
 def _resolve_root(paths, root: str) -> Path:
     """Map an API `root` string to a concrete directory under the project.
 
-    - ``root == "wiki"``    -> ``paths.wiki``
-    - ``root == "sources"`` -> ``paths.sources``
-    - anything else         -> subdirectory under ``paths.wiki``
+    - ``root == "wiki"``       -> ``paths.wiki``
+    - ``root == "sources"``    -> ``paths.wiki_sources``
+    - anything else            -> subdirectory under ``paths.wiki``
 
     Prevents the previous ``getattr(paths, f"wiki_{root.rstrip('s')}...")``
     bug that produced ``wiki_wiki`` for ``root="wiki"``.
@@ -44,7 +44,7 @@ def _resolve_root(paths, root: str) -> Path:
     if root == "wiki":
         return paths.wiki
     if root == "sources":
-        return paths.sources
+        return paths.wiki_sources
     return paths.wiki / root
 
 
@@ -122,3 +122,53 @@ def read_file_content(project_id: str, path: str) -> dict:
         "truncated": False,
         "size": size,
     }
+
+
+# Extensions considered "raw source" files for the raw file browser.
+_RAW_EXTS = {".pdf", ".docx", ".xlsx", ".xls", ".pptx", ".txt", ".md", ".html", ".xml", ".json"}
+
+
+def _load_batch_state(paths) -> dict:
+    """Load .index/batch_build_state.json if it exists."""
+    state_file = paths.root / ".index" / "batch_build_state.json"
+    if state_file.exists():
+        import json
+        try:
+            return json.loads(state_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+
+def list_raw_files(project_id: str) -> dict:
+    """List files under raw/sources/ for the project.
+
+    Returns a dict:
+        {"files": [{"path": ..., "name": ..., "ext": ..., "size": ..., "ingested": bool}, ...]}
+    """
+    ctx, paths = resolve_project(project_id, by_id_only=True)
+    raw_dir = paths.root / "raw" / "sources"
+    if not raw_dir.exists():
+        return {"files": []}
+
+    state = _load_batch_state(paths)
+    ingested_set = set(state.get("ingested", {}).keys())
+
+    files = []
+    for f in raw_dir.rglob("*"):
+        if not f.is_file():
+            continue
+        ext = f.suffix.lower()
+        if ext not in _RAW_EXTS:
+            continue
+        rel = f.relative_to(paths.root).as_posix()
+        files.append({
+            "path": rel,
+            "name": f.name,
+            "ext": ext,
+            "size": f.stat().st_size,
+            "ingested": rel in ingested_set or str(f.resolve()) in ingested_set,
+        })
+
+    files.sort(key=lambda f: f["name"])
+    return {"files": files}

@@ -140,8 +140,10 @@ def graph(project_id: str) -> dict:
     ctx, paths = resolve_project(project_id, by_id_only=True)
     wiki_root = paths.wiki
 
+    # Pass 1: collect all nodes (must finish before resolving any links,
+    # so that forward-links to later-sorted files are also resolved).
     nodes: dict[str, dict] = {}
-    edges: list[dict] = []
+    file_bodies: dict[str, tuple[str, str, dict]] = {}  # node_id -> (body, base_dir, fm)
 
     for md_path in sorted(wiki_root.rglob("*.md")):
         if "_stubs" in md_path.parts:
@@ -153,17 +155,22 @@ def graph(project_id: str) -> dict:
         except (OSError, UnicodeDecodeError):
             continue
         fm = _parse_frontmatter(body)
-        node_id = fm.get("id") or wiki_rel.replace("/", "__").replace(".md", "")
+        node_id = fm.get("id") or wiki_rel.replace("/", "__").removesuffix(".md")
         nodes[node_id] = {
             "id": node_id,
-            "title": fm.get("title") or wiki_rel.replace(".md", ""),
+            "title": fm.get("title") or wiki_rel.removesuffix(".md"),
             "type": fm.get("type", ""),
             "path": wiki_rel,
             "api_path": rel_path,
         }
         base_dir = "/".join(wiki_rel.split("/")[:-1])
+        file_bodies[node_id] = (body, base_dir, fm)
+
+    # Pass 2: resolve links using the complete nodes dict.
+    edges: list[dict] = []
+    for node_id, (body, base_dir, fm) in file_bodies.items():
+        seen: set[tuple[str, str]] = set()
         # edges from relations
-        seen = set()
         for rel in fm.get("relations", []):
             tgt = rel.get("target")
             if not tgt:
@@ -181,9 +188,7 @@ def graph(project_id: str) -> dict:
             })
         # edges from markdown links
         for link in _md_links(body, base_dir):
-            # link is wiki-relative; try to find target node by id
             target_node_id = None
-            # exact filename match (most common pattern)
             for nid, n in nodes.items():
                 if n["path"].endswith("/" + link) or n["path"] == link:
                     target_node_id = nid

@@ -84,7 +84,7 @@ class WikiPage:
             created_at=d.get("created_at", 0),
             updated_at=d.get("updated_at", 0),
             body=body,
-            relations=[Relation.from_dict(r) for r in d.get("relations", [])],
+            relations=[Relation.from_dict(r) for r in d.get("relations", []) if isinstance(r, dict)],
             grade=d.get("grade", "B"),
             processing_depth=d.get("processing_depth", "concept"),
             is_immutable=d.get("is_immutable", False),

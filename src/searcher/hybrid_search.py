@@ -118,7 +118,7 @@ async def hybrid_search(
         # Normalise: accept either list[list[float]] or list[EmbeddingResponse].
         first = embedding_result[0]
         query_embedding = first.embedding if hasattr(first, "embedding") else first
-        vector_results: list["ChunkSearchResult"] = vector_search_chunks(query_embedding, top_k)
+        vector_results: list["ChunkSearchResult"] = vector_search_chunks(query_embedding, top_k, paths)
 
         for r in vector_results:
             semantic_results.append(SearchResult(
