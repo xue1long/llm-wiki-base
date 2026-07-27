@@ -3,6 +3,8 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 # Importing the pipeline package triggers ``src.pipeline.__init__``,
 # which (a) registers the ``collector:start`` handler on the singleton
@@ -94,9 +96,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    from .routes import health, projects, files, search, ingest, reviews, chat, schema
+    from .routes import health, projects, files, search, ingest, reviews, chat, schema, agent_cli, analysis
     for router in [health.router, projects.router, files.router, search.router,
-                   ingest.router, reviews.router, chat.router, schema.router]:
+                   ingest.router, reviews.router, chat.router, schema.router, agent_cli.router,
+                   analysis.router]:
         app.include_router(router)
 
     # Mount /metrics endpoint (Plan 7 fix; previously dead code).
@@ -105,5 +108,10 @@ def create_app() -> FastAPI:
     # server deployments would need per-project routers (out of scope here).
     from .metrics_route import get_router as _get_metrics_router
     app.include_router(_get_metrics_router())
+
+    # Mount web UI static files
+    web_dir = Path(__file__).parent.parent.parent / "web"
+    if web_dir.exists():
+        app.mount("/", StaticFiles(directory=str(web_dir), html=True), name="web")
 
     return app
