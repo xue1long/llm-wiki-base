@@ -255,7 +255,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             try:
                 result = self._sdk.embeddings.create(**body)
             except Exception as e:
-                raise RuntimeError(f"OpenAI embedding failed: {e}")
+                raise RuntimeError(f"OpenAI embedding failed: {e}") from e
             if hasattr(result, "model_dump"):
                 data = result.model_dump()
             elif isinstance(result, dict):
