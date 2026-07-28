@@ -95,6 +95,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
     try:
         resolved_templates = {t.type: t for t in list_resolved(paths.root)}
     except Exception:
+        logger.warning("Failed to resolve templates for lint; using empty set", exc_info=True)
         resolved_templates = {}
 
     for sub in (

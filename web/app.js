@@ -369,7 +369,10 @@
       <div class="browse-tabs">
         <button class="browse-tab-btn active" data-sub="wiki">Wiki 文件</button>
         <button class="browse-tab-btn" data-sub="raw">Raw 文件</button>
-        <button id="ingestAllRawBtn" style="display:none;margin-left:auto;" class="btn-primary">全部摄取</button>
+        <div style="margin-left:auto;display:flex;gap:6px;">
+          <button id="refreshRawBtn" style="display:none;" class="btn-sm">刷新</button>
+          <button id="ingestAllRawBtn" style="display:none;" class="btn-primary">全部摄取</button>
+        </div>
       </div>
       <div class="browse-grid">
         <div class="browse-tree" id="tree"><div class="card">加载中...</div></div>
@@ -380,11 +383,19 @@
       btn.addEventListener("click", () => {
         _browseSub = btn.dataset.sub;
         document.querySelectorAll(".browse-tab-btn").forEach(b => b.classList.toggle("active", b === btn));
-        document.getElementById("ingestAllRawBtn").style.display = _browseSub === "raw" ? "inline-block" : "none";
+        const isRaw = _browseSub === "raw";
+        document.getElementById("ingestAllRawBtn").style.display = isRaw ? "inline-block" : "none";
+        document.getElementById("refreshRawBtn").style.display = isRaw ? "inline-block" : "none";
         if (_browseSub === "wiki") loadTree();
         else renderBrowseRaw();
       });
     });
+
+    // Refresh raw files list
+    document.getElementById("refreshRawBtn").addEventListener("click", () => {
+      if (_browseSub === "raw") renderBrowseRaw();
+    });
+
     loadTree();
 
     async function loadTree() {
@@ -508,25 +519,25 @@
         const row = btn.closest(".raw-file-row");
         const action = row.querySelector(".raw-file-actions");
         const progId = "prog-" + Math.random().toString(36).slice(2, 8);
-        action.innerHTML = \`
-          <div id="\${progId}" class="ingest-progress" style="margin-top:0; min-width:160px;">
+        action.innerHTML = `
+          <div id="${progId}" class="ingest-progress" style="margin-top:0; min-width:160px;">
             <div class="progress-row" style="align-items:center;">
               <div class="progress-bar" style="flex:1; height:6px; border-radius:3px;">
                 <div class="progress-fill" style="height:6px; border-radius:3px; width:5%; transition:width 0.3s;"></div>
               </div>
               <span class="progress-status" style="font-size:11px; margin-left:8px; white-space:nowrap;">queued</span>
             </div>
-          </div>\`;
+          </div>`;
         const prog = document.getElementById(progId);
         const fill = prog.querySelector(".progress-fill");
         const statusEl = prog.querySelector(".progress-status");
 
         await ingestOneRaw(path, () => {
-          action.innerHTML = \`<span class="badge badge-ingested">已摄取</span>\`;
+          action.innerHTML = `<span class="badge badge-ingested">已摄取</span>`;
         }, (err) => {
-          prog.innerHTML = \`<span class="badge badge-err" title="\${err}">失败</span>\`;
+          prog.innerHTML = `<span class="badge badge-err" title="\${err}">失败</span>`;
           setTimeout(() => {
-            action.innerHTML = \`<button class="btn-ingest-one" data-path="\${escapeHtml(path)}">重试</button>\`;
+            action.innerHTML = `<button class="btn-ingest-one" data-path="\${escapeHtml(path)}">重试</button>`;
             action.querySelector(".btn-ingest-one").onclick = arguments.callee;
           }, 2500);
         }, (rec) => {
@@ -577,7 +588,7 @@
       if (r.status === "ignored") { onDone(); return; }
       if (r.status !== "queued" || !r.taskId) { onError("未识别状态"); return; }
       const POLL_MS = 1500;
-      for (let i = 0; i < 240; i++) {
+      for (let i = 0; i < 600; i++) {
         await new Promise(res => setTimeout(res, POLL_MS));
         let rec;
         try { rec = await api(`/api/v1/projects/${state.projectId}/ingest/status/${encodeURIComponent(r.taskId)}`); }
@@ -585,6 +596,7 @@
         if (onProgress) { onProgress(rec); }
         if (rec.status === "succeeded") { onDone(); return; }
         if (rec.status === "failed") { onError(rec.error || "failed"); return; }
+        if (i === 239 && rec.status === "running") { i--; continue; }
       }
       onError("超时");
     } catch (e) {
@@ -1129,10 +1141,14 @@
       }
       for (const p of providers) {
         const typeLabel = {openai:'OpenAI', anthropic:'Anthropic', ollama:'Ollama'}[p.type] || p.type;
+        const model = p.default_chat_model || p.default_embedding_model || '';
+        const baseUrl = p.base_url || '';
         html += '<div class="provider-row">'
           + '<div class="provider-info">'
           + '<span class="provider-name">' + escapeHtml(p.name) + '</span>'
           + '<span class="provider-type">' + escapeHtml(typeLabel) + '</span>'
+          + (model ? '<span class="provider-model">' + escapeHtml(model) + '</span>' : '')
+          + (baseUrl ? '<span class="provider-base-url">' + escapeHtml(baseUrl) + '</span>' : '')
           + (p.is_default ? ' <span class="badge badge-ingested" style="margin-left:6px;">默认</span>' : '')
           + '</div>'
           + '<div class="provider-actions">'
@@ -1142,12 +1158,32 @@
       }
       html += '</div>';
 
+      // Presets for OpenAI-compatible Chinese providers
+      const PROVIDER_PRESETS = {
+        '': { base_url: '', model: '', label: '（自定义）' },
+        'minimax': { base_url: 'https://api.minimax.chat/v1', model: 'MiniMax-Text-01', label: 'MiniMax' },
+        'kimi': { base_url: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k', label: 'Kimi / Moonshot' },
+        'deepseek': { base_url: 'https://api.deepseek.com/v1', model: 'deepseek-chat', label: 'DeepSeek' },
+        'glm': { base_url: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-plus', label: 'GLM / 智谱' },
+        'openai': { base_url: 'https://api.openai.com/v1', model: 'gpt-4o', label: 'OpenAI（官方）' },
+        'anthropic': { base_url: '', model: '', label: 'Anthropic' },
+        'ollama': { base_url: 'http://127.0.0.1:11434', model: '', label: 'Ollama（本地）' },
+      };
+
       html += '<div class="settings-section"><h3>添加提供商</h3>'
         + '<div class="add-provider-form">'
-        + '<input id="provName" placeholder="名称（如 openrouter）" style="width:140px"/>'
-        + '<select id="provType"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="ollama">Ollama</option></select>'
-        + '<input id="provKey" type="password" placeholder="API Key" style="width:200px"/>'
-        + '<input id="provModel" placeholder="模型（如 gpt-4o）" style="width:140px"/>'
+        + '<input id="provName" placeholder="名称" style="width:120px"/>'
+        + '<select id="provPreset"><option value="">（选择预设）</option>'
+        + Object.entries(PROVIDER_PRESETS).filter(([k]) => k !== '').map(([k, v]) =>
+          '<option value="' + k + '">' + v.label + '</option>'
+        ).join('')
+        + '</select>'
+        + '<select id="provType"><option value="openai">OpenAI 兼容</option><option value="anthropic">Anthropic</option><option value="ollama">Ollama</option></select>'
+        + '</div>'
+        + '<div class="add-provider-form" style="margin-top:6px;">'
+        + '<input id="provBaseUrl" placeholder="Base URL（如 https://api.minimax.chat/v1）" style="width:280px"/>'
+        + '<input id="provKey" type="password" placeholder="API Key（可留空，从环境变量读取）" style="width:220px"/>'
+        + '<input id="provModel" placeholder="模型（如 MiniMax-Text-01）" style="width:160px"/>'
         + '<button class="btn-primary" id="addProvBtn">添加</button>'
         + '<div id="addProvResult" style="margin-top:6px"></div>'
         + '</div></div>';
@@ -1164,10 +1200,29 @@
       out.innerHTML = html;
 
       // Add provider
+      // Preset auto-fill
+      out.querySelector('#provPreset').addEventListener('change', () => {
+        const preset = PROVIDER_PRESETS[out.querySelector('#provPreset').value];
+        if (!preset) return;
+        const nameEl = document.getElementById('provName');
+        if (!nameEl.value.trim()) nameEl.value = out.querySelector('#provPreset').value;
+        document.getElementById('provBaseUrl').value = preset.base_url || '';
+        document.getElementById('provModel').value = preset.model || '';
+        if (preset.label.includes('Anthropic')) {
+          document.getElementById('provType').value = 'anthropic';
+        } else if (preset.label.includes('Ollama')) {
+          document.getElementById('provType').value = 'ollama';
+        } else {
+          document.getElementById('provType').value = 'openai';
+        }
+      });
+
+      // Add provider
       out.querySelector('#addProvBtn').addEventListener('click', async () => {
         const name = document.getElementById('provName').value.trim();
         const type = document.getElementById('provType').value;
         const api_key = document.getElementById('provKey').value;
+        const base_url = document.getElementById('provBaseUrl').value.trim();
         const model = document.getElementById('provModel').value.trim();
         const result = document.getElementById('addProvResult');
         if (!name) { result.innerHTML = '<span class="banner-warn">请输入名称</span>'; return; }
@@ -1175,7 +1230,7 @@
         try {
           const r = await api('/api/v1/providers', {
             method: 'POST',
-            body: { name, type, api_key, chat_model: model, embedding_model: model }
+            body: { name, type, api_key, base_url, chat_model: model, embedding_model: model }
           });
           result.innerHTML = '<span class="banner-ok">添加成功</span>';
           loadSettings();

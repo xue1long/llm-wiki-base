@@ -14,11 +14,11 @@ if exist ".venv\Scripts\activate.bat" (
 )
 
 REM Start the HTTP API server (foreground)
-python -m src.cli serve --host 127.0.0.1 --port 8765
+python -m src.cli serve --host 127.0.0.1 --port 19828
 
 REM ---- Alternatives (uncomment to use) ----
 REM Daemon mode (runs in the background):
-REM python -m src.cli serve --host 127.0.0.1 --port 8765 --daemon
+REM python -m src.cli serve --host 127.0.0.1 --port 19828 --daemon
 REM Stop a daemon:
 REM python -m src.cli serve-stop
 REM

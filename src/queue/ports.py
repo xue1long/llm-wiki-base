@@ -28,7 +28,13 @@ class QueueBackend(Protocol):
 
     def save(self, task: KnowledgeTask) -> None: ...
 
+    def remove(self, task_id: str) -> None:
+        """Remove a task from the backend. Used when re-enqueueing a failed task."""
+
     def find(self, task_id: str) -> KnowledgeTask | None: ...
+
+    def find_by_hash(self, task_hash: str) -> list[KnowledgeTask]:
+        """Return all tasks with the given task_hash. Used to detect duplicates."""
 
     def iter_ids(self) -> list[str]:
         """Return a snapshot of all currently tracked task ids. Used by

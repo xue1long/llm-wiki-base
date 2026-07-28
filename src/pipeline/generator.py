@@ -24,6 +24,7 @@ from ..lib.budgeted import BudgetedLLM
 from ..utils.slugify import slugify as _slugify
 from ..wiki.core.paths import WikiPaths
 from ..wiki.features.relations import parse_relations_from_response
+from ..wiki.features.tag_namespace import is_valid as is_valid_tag
 from ..wiki.core.types import PageType, WikiPage
 from ..wiki.templates import (
     Template,
@@ -134,6 +135,20 @@ keywords, time periods, or the same source). If a page must reference
 another subject for comparison, write it explicitly as a comparison
 and cite the source that supports it.
 
+## Tags guidance (受控命名空间)
+每个输出页可带 0-N 个 `tags` (分类检索用). 每个 tag 必须是 `前缀/名称` 形式, 前缀
+只能是以下 8 个受控值之一 (名称用中文或英文, 不要含空格):
+- genre/       题材类型   (如 genre/现言, genre/玄幻)
+- func/        功能类型   (如 func/教程, func/案例)
+- char/        角色类型   (如 char/总裁, char/女主)
+- event/       事件类型   (如 event/签约, event/冲突)
+- mood/        情绪氛围   (如 mood/甜宠, mood/悬疑)
+- entity/      是什么(What) (如 entity/创酷中文网, entity/起点)
+- scene_phase/ 何时用(When) (如 scene_phase/开篇, scene_phase/高潮)
+- status/      生命周期   (如 status/草稿, status/完结)
+不要使用这 8 个以外的前缀, 也不要写裸标签(无 `/`). 来源/概念页至少给 1-2 个最贴切的 tag.
+(若本页在分析阶段已给出 tags 建议, 你可直接沿用或按其内容调整.)
+
 ## Task
 For each suggested page, fill its slots. Output strict JSON:
 {{
@@ -149,7 +164,8 @@ For each suggested page, fill its slots. Output strict JSON:
       "relations": [                          // optional cross-page relations
         {{"target": "<other-slug>", "type": "<one of the 17 built-in relation types below>",
           "weight": 0.0-1.0, "context": "<why>"}}
-      ]
+      ],
+      "tags": ["genre/现言", "func/教程"]     // optional; 受控命名空间前缀 (见 Tags guidance)
     }}
   ]
 }}
@@ -262,6 +278,11 @@ async def generate(
                                 "required": ["target", "type"],
                             },
                         },
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string", "minLength": 1},
+                            "description": "controlled-namespace tags, each 'prefix/name' with prefix in {genre,func,char,event,mood,entity,scene_phase,status}",
+                        },
                     },
                     "required": ["id", "type", "title", "slots"],
                 },
@@ -284,6 +305,7 @@ async def generate(
         base_prompt=base_prompt,
         response_format=response_format,
         required_slots_by_type=required_slots_by_type,
+        timeout=300.0,
     )
 
     # 2. If after retry some required slots are still missing, fill them
@@ -306,6 +328,12 @@ async def generate(
     type_from_analyzer: dict[str, str] = {
         p.slug: p.type.value if hasattr(p.type, "value") else str(p.type)
         for p in analysis.suggested_pages
+    }
+    # Carry analyzer-suggested tags as a fallback so generated pages keep
+    # their classification even when the generator omits `tags`. Keyed by
+    # slugified slug (matches the slug the generator emits).
+    analyzer_tags: dict[str, list[str]] = {
+        (_slugify(p.slug) or p.slug): list(p.tags) for p in analysis.suggested_pages
     }
 
     now = int(time.time() * 1000)
@@ -364,8 +392,30 @@ async def generate(
             processing_depth=p.get("processing_depth", "concept"),
             is_immutable=p.get("is_immutable", False),
             relations=parse_relations_from_response(p.get("relations", [])),
+            tags=_resolve_page_tags(p, slug, raw_slug, analyzer_tags),
         ))
     return pages
+
+
+def _resolve_page_tags(
+    page: dict,
+    slug: str,
+    raw_slug: str,
+    analyzer_tags: dict[str, list[str]],
+) -> list[str]:
+    """Resolve controlled-namespace tags for a generated page.
+
+    Priority: generator-emitted ``tags`` -> analyzer-suggested tags for this
+    slug -> empty. Every returned tag is validated against the 8 controlled
+    prefixes (``tag_namespace.is_valid``); invalid tags are dropped so the
+    result always passes ``validate_tags``.
+    """
+    raw = page.get("tags") or analyzer_tags.get(slug) or analyzer_tags.get(raw_slug) or []
+    if isinstance(raw, str):
+        raw = [raw]
+    if not isinstance(raw, (list, tuple)):
+        return []
+    return [t for t in raw if isinstance(t, str) and is_valid_tag(t)]
 
 
 # ---------------------------------------------------------------------------
@@ -379,11 +429,14 @@ async def _call_with_slot_retry(
     base_prompt: str,
     response_format: dict,
     required_slots_by_type: dict[PageType, list[str]],
+    timeout: float = 300.0,
 ) -> dict:
-    """Call the LLM, retry once if any required slot is missing.
+    """Call the LLM, retry once if any required slot is missing or the call times out.
 
     Returns the parsed response dict (with ``pages`` key).
     """
+    import httpx
+
     MAX_GEN_ATTEMPTS = 2  # initial + 1 retry
     last_missing: dict[str, list[str]] = {}
     last_response: dict = {}
@@ -403,11 +456,46 @@ async def _call_with_slot_retry(
             )
             extra = "\n\n" + "\n".join(lines) + "\n"
 
-        response = await provider.complete(
-            messages=[{"role": "user", "content": base_prompt + extra}],
-            response_format=response_format,
-        )
-        response_dict = _parse_llm_response(response)
+        try:
+            response = await provider.complete(
+                messages=[{"role": "user", "content": base_prompt + extra}],
+                response_format=response_format,
+                timeout=timeout,
+            )
+        except (httpx.ReadTimeout, httpx.ConnectError) as exc:
+            _logger.warning(
+                "[Generator] LLM call timed out on attempt %d/%d: %s",
+                attempt + 1, MAX_GEN_ATTEMPTS, exc,
+            )
+            if attempt == MAX_GEN_ATTEMPTS - 1:
+                raise RuntimeError(
+                    f"Generator LLM timed out after {MAX_GEN_ATTEMPTS} attempts: {exc}"
+                ) from exc
+            continue
+
+        try:
+            response_dict = _parse_llm_response(response)
+        except (ValueError, Exception) as exc:
+            _logger.warning(
+                "[Generator] LLM JSON parse failed on attempt %d/%d: %s",
+                attempt + 1, MAX_GEN_ATTEMPTS, exc,
+            )
+            if attempt == MAX_GEN_ATTEMPTS - 1:
+                raise RuntimeError(
+                    f"Generator LLM JSON parse failed after {MAX_GEN_ATTEMPTS} attempts: {exc}"
+                ) from exc
+            continue
+        if not isinstance(response_dict, dict):
+            _logger.warning(
+                "[Generator] LLM returned non-dict on attempt %d/%d: %s",
+                attempt + 1, MAX_GEN_ATTEMPTS, type(response_dict).__name__,
+            )
+            if attempt == MAX_GEN_ATTEMPTS - 1:
+                raise RuntimeError(
+                    f"Generator LLM returned {type(response_dict).__name__}, expected dict "
+                    f"(first 200 chars: {str(response)[:200]!r})"
+                )
+            continue
         last_response = response_dict
 
         last_missing = _find_missing_required_slots(

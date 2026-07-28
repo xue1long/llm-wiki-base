@@ -112,33 +112,34 @@ async def hybrid_search(
 
     # 1. 语义检索 (需要 embedding 服务)
     semantic_results: list[SearchResult] = []
-    try:
-        provider = get_embedding_provider()
-        embedding_result = await provider.embed([query])
-        # Normalise: accept either list[list[float]] or list[EmbeddingResponse].
-        first = embedding_result[0]
-        query_embedding = first.embedding if hasattr(first, "embedding") else first
-        vector_results: list["ChunkSearchResult"] = vector_search_chunks(query_embedding, top_k, paths)
+    provider = get_embedding_provider()
+    if provider is None:
+        logger.warning("hybrid_search: no embedding provider configured; keyword-only")
+    else:
+        try:
+            embedding_result = await provider.embed([query])
+            # Normalise: accept either list[list[float]] or list[EmbeddingResponse].
+            first = embedding_result[0]
+            query_embedding = first.embedding if hasattr(first, "embedding") else first
+            vector_results: list["ChunkSearchResult"] = vector_search_chunks(query_embedding, top_k, paths)
 
-        for r in vector_results:
-            semantic_results.append(SearchResult(
-                path=r.path,
-                title=Path(r.path).stem,
-                content=r.content[:300],
-                score=r.score,
-                source="semantic",
-            ))
-    except Exception as e:
-        # Provider not configured, embed call failed, or vector search
-        # unavailable. Fall through to keyword-only results. The runtime
-        # raises RuntimeError when nothing has been configured; we log
-        # the failure mode (class + reason, truncated to 200 chars) and
-        # degrade gracefully to keyword-only.
-        logger.warning(
-            "hybrid_search: semantic retrieval failed (%s: %s); falling back to keyword-only",
-            type(e).__name__,
-            str(e)[:200],
-        )
+            for r in vector_results:
+                semantic_results.append(SearchResult(
+                    path=r.path,
+                    title=Path(r.path).stem,
+                    content=r.content[:300],
+                    score=r.score,
+                    source="semantic",
+                ))
+        except Exception as e:
+            # Embed call failed or vector search unavailable. Fall through
+            # to keyword-only results. Log the failure mode (class + reason,
+            # truncated to 200 chars) and degrade gracefully.
+            logger.warning(
+                "hybrid_search: semantic retrieval failed (%s: %s); falling back to keyword-only",
+                type(e).__name__,
+                str(e)[:200],
+            )
 
     # 2. 关键词检索
     keyword_results = await _keyword_search(query, top_k, paths=paths)

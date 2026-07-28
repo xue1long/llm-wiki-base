@@ -15,6 +15,10 @@ relations:
   type: related_to
   weight: 0.85
   context: 网络文学创作中，画面感对作品的吸引力和可读性至关重要。
+- target: shi-kong-jiao-cuo
+  type: supported_by
+  weight: 0.6
+  context: 时空交错配合画面感可放大张力。
 grade: B
 processing_depth: concept
 is_immutable: false

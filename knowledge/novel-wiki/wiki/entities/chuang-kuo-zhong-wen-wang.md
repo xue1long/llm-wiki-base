@@ -19,7 +19,7 @@ relations:
   type: teaches_about
   weight: 0.85
   context: 平台提供关于提升画面感的实用建议。
-- target: 必备资料20个签约条件新人必看2-b4a4e2e0
+- target: 必备资料-20-个签约条件新人必看-2-b4a4e2e0
   type: referenced_by
   weight: 0.9
   context: 本文提到创酷中文网作为信息来源。
@@ -31,6 +31,10 @@ relations:
   type: referenced_by
   weight: 0.9
   context: 本文提到创酷中文网作为信息来源。
+- target: 补充教程写作经验如何加强书的情节-ae9637b6
+  type: referenced_by
+  weight: 0.9
+  context: 本教程归属于创酷中文网的系列写作讲座。
 grade: B
 processing_depth: concept
 is_immutable: false

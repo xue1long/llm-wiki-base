@@ -34,3 +34,12 @@ async def file_content(project_id: str, path: str):
         raise HTTPException(400, str(e))
     except files_service.FileTooLargeError as e:
         raise HTTPException(413, str(e))
+
+
+@router.get("/projects/{project_id}/raw-files")
+async def raw_files(project_id: str):
+    """List raw source files (PDF, DOCX, XLSX, etc.) under raw/sources/."""
+    try:
+        return files_service.list_raw_files(project_id)
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))

@@ -37,12 +37,16 @@ class EntityMention:
 
 @dataclass
 class ConceptMention:
-    name: str
-    slug: str
-    context: str
-    confidence: float
+    name: str = ""
+    slug: str = ""
+    context: str = ""
+    confidence: float = 0.0
+    # LLM may return "concept" instead of "name" — accept it as an alias.
+    concept: str = ""
 
     def __post_init__(self) -> None:
+        if self.concept and not self.name:
+            self.name = self.concept
         self.slug = _normalize_slug(self.slug)
 
 

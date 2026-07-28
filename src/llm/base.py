@@ -36,6 +36,7 @@ class LLMProvider(ABC):
         *,
         response_format: Optional[dict] = None,
         system: Optional[str] = None,
+        timeout: Optional[float] = None,
         **kwargs,
     ) -> LLMResponse:
         """Generate a chat completion.
@@ -47,6 +48,9 @@ class LLMProvider(ABC):
             response_format: optional schema dict for JSON-typed outputs.
             system: optional top-level system prompt. Some providers prefer
                 this over a system-role message; see concrete impls.
+            timeout: optional per-call timeout in seconds. If None, uses
+                the provider's default timeout. Falls back to 300s when
+                the caller's timeout would exceed the provider default.
             **kwargs: provider-specific passthrough (model, temperature, etc.).
 
         Returns:
@@ -61,6 +65,7 @@ class LLMProvider(ABC):
         *,
         response_format: Optional[dict] = None,
         system: Optional[str] = None,
+        timeout: Optional[float] = None,
         **kwargs,
     ) -> LLMResponse:
         """Alias for :meth:`complete`."""
@@ -68,6 +73,7 @@ class LLMProvider(ABC):
             messages,
             response_format=response_format,
             system=system,
+            timeout=timeout,
             **kwargs,
         )
 

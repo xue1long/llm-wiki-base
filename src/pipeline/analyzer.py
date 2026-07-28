@@ -31,6 +31,19 @@ suggested_pages 的 title/reasoning/tags。Slugs 始终用 ASCII(中文
 ## Source text
 {source_text}
 
+## Tags guidance (受控命名空间)
+每个建议页可带 0-N 个 tags (分类检索用). 每个 tag 必须是 `前缀/名称` 形式, 前缀
+只能是以下 8 个受控值之一 (名称用中文或英文, 不要含空格):
+- genre/       题材类型   (如 genre/现言, genre/玄幻)
+- func/        功能类型   (如 func/教程, func/案例)
+- char/        角色类型   (如 char/总裁, char/女主)
+- event/       事件类型   (如 event/签约, event/冲突)
+- mood/        情绪氛围   (如 mood/甜宠, mood/悬疑)
+- entity/      是什么(What) (如 entity/创酷中文网, entity/起点)
+- scene_phase/ 何时用(When) (如 scene_phase/开篇, scene_phase/高潮)
+- status/      生命周期   (如 status/草稿, status/完结)
+不要使用这 8 个以外的前缀, 也不要写裸标签(无 `/`). 来源/概念页至少给 1-2 个最贴切的 tag.
+
 ## Task
 Extract structured analysis. Output strict JSON:
 {{
@@ -51,7 +64,9 @@ Extract structured analysis. Output strict JSON:
       "grade": "A|B|C",                    // optional; default B
       "processing_depth": "concept|memory", // optional; default concept
       "is_immutable": false,               // optional; default false
-      "tags": ["genre/x", "func/y"]        // optional; default []
+      "tags": ["genre/现言", "func/教程"]      // optional; default []
+      // 受控命名空间: 前缀只能是 genre/ func/ char/ event/ mood/ entity/ scene_phase/ status/ 之一,
+      // 形式为 "前缀/名称" (名称用中文/英文, 不要含空格). 不要使用其它前缀或裸标签(无 /).
     }}
   ],
   "links_to_existing": ["<slug>"]          // existing wiki pages this references
@@ -93,7 +108,18 @@ async def analyze(
             },
         )
 
-    response = _parse_llm_response(llm_resp)
+    try:
+        response = _parse_llm_response(llm_resp)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise RuntimeError(
+            f"Analyzer LLM response was not valid JSON ({len(str(llm_resp))} chars): {exc}"
+        ) from exc
+
+    if not isinstance(response, dict):
+        raise RuntimeError(
+            f"Analyzer LLM response was a {type(response).__name__}, expected dict "
+            f"(first 200 chars: {str(llm_resp)[:200]!r})"
+        )
 
     return AnalysisResult(
         task_id=task_id,

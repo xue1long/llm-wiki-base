@@ -25,7 +25,7 @@ class CircuitState(str, Enum):
 
 @dataclass
 class CircuitBreakerConfig:
-    failure_threshold: int = 3      # 失败次数达到此值则熔断
+    failure_threshold: int = 10     # 失败次数达到此值则熔断（3太敏感，LLM 偶尔超时/解析失败不应全队列阻塞）
     recovery_timeout: int = 60     # 60秒后尝试恢复
     success_threshold: int = 2      # 半开状态下成功次数达到此值则恢复
 

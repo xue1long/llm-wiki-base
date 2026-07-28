@@ -70,7 +70,10 @@ class PipelineService:
             self.queue_service.update_status(task_id, status=TaskStatus.RUNNING)
         except Exception:
             _logger.exception("failed to mark %s RUNNING", task_id)
-            self.queue_service.release_in_flight(task_id)
+            try:
+                self.queue_service.release_in_flight(task_id)
+            except Exception:
+                _logger.exception("failed to release_in_flight %s", task_id)
             return
 
         # Step 1: Collector (read source)
@@ -111,13 +114,19 @@ class PipelineService:
             self.queue_service.update_status(task_id, status=TaskStatus.APPROVED)
         except Exception as exc:
             _logger.exception("ingest failed for %s", task_id)
-            self.queue_service.update_status(
-                task_id,
-                status=TaskStatus.FAILED,
-                error=str(exc),
-            )
+            try:
+                self.queue_service.update_status(
+                    task_id,
+                    status=TaskStatus.FAILED,
+                    error=str(exc),
+                )
+            except Exception:
+                _logger.exception("failed to update_status to FAILED for %s", task_id)
         finally:
-            self.queue_service.release_in_flight(task_id)
+            try:
+                self.queue_service.release_in_flight(task_id)
+            except Exception:
+                _logger.exception("failed to release_in_flight %s", task_id)
 
 
 # --- module-level default singleton ---
@@ -150,5 +159,6 @@ def _register_event_handlers() -> None:
     if _registered:
         return
     _registered = True
-    service = get_default_pipeline_service()
-    event_bus.on("collector:start", lambda payload: dispatch_collector_start(service, payload))
+    # Lazily resolve PipelineService so tests that call __reset_for_testing
+    # see the new singleton rather than a stale closure reference.
+    event_bus.on("collector:start", lambda payload: dispatch_collector_start(get_default_pipeline_service(), payload))

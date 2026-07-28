@@ -43,6 +43,8 @@ class OllamaProvider(LLMProvider):
 
         # Reuse one cached AsyncClient per base_url. If a key exists, share
         # it; otherwise create and cache a fresh one.
+        # GIL-safe: dict.get + set are atomic; worst case is duplicate client
+        # creation (no data corruption).
         cached = _CLIENT_CACHE.get(self.base_url)
         if cached is None:
             headers = dict(self.extra_headers)

@@ -264,7 +264,7 @@ def test_load_resolves_env_key_at_runtime(monkeypatch, tmp_path):
 
     observed = {}
 
-    async def fake_post_json(provider, url, payload):
+    async def fake_post_json(provider, url, payload, **kwargs):
         observed["authorization"] = provider._headers()["Authorization"]
         return {
             "choices": [{"message": {"content": "ok"}}],

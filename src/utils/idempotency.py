@@ -46,6 +46,10 @@ class IdempotencyCache:
     def clear(self) -> None:
         self._cache.clear()
 
+    def remove(self, task_hash: str) -> None:
+        """Remove a hash from the cache, e.g. when a task fails and can be retried."""
+        self._cache.pop(task_hash, None)
+
 # 全局单例
 _idempotency_cache: Optional[IdempotencyCache] = None
 
@@ -69,3 +73,9 @@ def check_duplicate(task_hash: str) -> bool:
     """检查是否重复提交"""
     cache = get_idempotency_cache()
     return cache.check_and_mark(task_hash)
+
+
+def remove_hash(task_hash: str) -> None:
+    """Remove a hash from the idempotency cache, allowing the task to be re-enqueued."""
+    cache = get_idempotency_cache()
+    cache.remove(task_hash)

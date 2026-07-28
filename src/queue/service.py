@@ -27,15 +27,16 @@ from datetime import datetime
 from ..circuit_breaker import get_circuit_breaker
 from ..events.event_bus import event_bus
 from ..types import KnowledgeTask, SourceType, TaskStatus
-from ..utils.idempotency import check_duplicate
+from ..utils.idempotency import check_duplicate, remove_hash
 from .in_flight import InMemoryInFlightTracker
 from .persistence import JsonFileBackend
 from .ports import EventEmitter, InFlightTracker, QueueBackend, RetryPolicy
-from .retry import DefaultRetryPolicy
+from .retry import MAX_RETRIES, DefaultRetryPolicy
 from .scheduler import select_next_task
 from .state import can_transition, InvalidTransition
 from ..events.events import (
     EventName, TaskCreatedPayload, TaskStatusChangedPayload,
+    TaskDeadLetterPayload,
 )
 
 logger = logging.getLogger(__name__)
@@ -81,9 +82,18 @@ class QueueService:
         task_hash: str,
         project_id: str | None = None,
     ) -> str:
-        if check_duplicate(task_hash):
-            logger.info(f"[Queue] Duplicate task_hash: {task_hash}")
+        # Check persistent backend for existing tasks with the same hash.
+        # Only treat as duplicate if there's a PENDING or RUNNING task.
+        # FAILED/DEAD_LETTER tasks with the same hash can be re-enqueued.
+        existing = self.backend.find_by_hash(task_hash)
+        active = [t for t in existing if t.status in (TaskStatus.PENDING, TaskStatus.RUNNING)]
+        if active:
+            logger.info(f"[Queue] Duplicate task_hash (active task exists): {task_hash}")
             return ""
+
+        # Remove any terminal-state tasks with the same hash before enqueueing new one.
+        for t in existing:
+            self.backend.remove(t.id)
 
         task = KnowledgeTask(
             id=generate_task_id(),
@@ -152,14 +162,20 @@ class QueueService:
                 logger.warning("[Queue] Queue paused due to repeated failures")
 
             if decision.new_status == TaskStatus.DEAD_LETTER:
-                dead_letter_payload = {
-                    "task_id": task_id,
-                    "retry_count": task.retry_count,
-                    "last_error": task.error or error or "",
-                }
+                dead_letter_payload = TaskDeadLetterPayload(
+                    task_id=task_id,
+                    retry_count=task.retry_count,
+                    error=task.error or error or "",
+                )
                 logger.warning(
                     f"[Queue] Task {task_id} exceeded max retries, moving to dead letter"
                 )
+                # Allow re-enqueue of the same source after dead-letter.
+                remove_hash(task.task_hash)
+
+            if decision.new_status == TaskStatus.FAILED:
+                # Allow re-enqueue of the same source after failure.
+                remove_hash(task.task_hash)
 
             if decision.new_status == TaskStatus.PENDING:
                 retry_will_resume = True
@@ -238,9 +254,36 @@ class QueueService:
         self.advance()
 
     def release_in_flight(self, task_id: str) -> None:
-        """Release a task after its pipeline reaches a terminal state."""
+        """Release a task after its pipeline reaches a terminal state.
+
+        If the task is still in RUNNING state (pipeline crashed without calling
+        update_status), move it to PENDING so the scheduler can retry it.
+        This handles the case where a pipeline run raises an exception after
+        the collector starts but before the generator completes.
+        """
         with self._service_lock:
             self.tracker.release(task_id)
+            task = self.backend.find(task_id)
+            if task is not None and task.status == TaskStatus.RUNNING:
+                # Pipeline exited abnormally (crashed / timed out) without
+                # calling update_status — put it back to PENDING for retry.
+                # Only retry if attempts remain; otherwise leave RUNNING
+                # so the caller can mark DEAD_LETTER.
+                if task.retry_count < MAX_RETRIES:
+                    task.status = TaskStatus.PENDING
+                    task.updated_at = int(datetime.now().timestamp())
+                    self.backend.save(task)
+                    logger.info(
+                        "[Queue] Task %s released in-flight but still RUNNING — "
+                        "reset to PENDING for retry (%d/%d attempts)",
+                        task_id, task.retry_count, MAX_RETRIES,
+                    )
+                else:
+                    logger.warning(
+                        "[Queue] Task %s released in-flight with max retries "
+                        "exhausted, leaving RUNNING for caller to mark DEAD_LETTER",
+                        task_id,
+                    )
         self.advance()
 
     def get_queue(self) -> list[KnowledgeTask]:

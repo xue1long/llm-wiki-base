@@ -163,12 +163,30 @@ Layout (created by `python -m src.cli project init <path>`):
 ├── wiki/
 │   ├── sources/   entities/   concepts/   synthesis/   _stubs/
 │   ├── _archive/                      # heat CLI archive target
+│   ├── media/                         # extracted images (vision)
 │   ├── index.md                      # catalog (id, type, title)
 │   └── log.md                        # audit trail
 ├── raw/sources/
-├── .llm-wiki/   project.json   settings.json   chats/   analysis_cache/
-└── .index/   heat_events.log   lint_cache/   staging/   dedup_history/
+├── .llm-wiki/                         # project metadata (NOT cache)
+│   ├── project.json                   # identity (UUID, name, schema version)
+│   ├── slug_aliases.json              # CJK slug → canonical alias registry
+│   └── .backup/                       # schema-migration safety backups
+└── .index/                            # operational data (vectors, caches, staging)
+    ├── lancedb/                       # production data — vector embeddings
+    ├── lint_cache/                    # cache — LLM lint results (TTL 24h)
+    ├── heat_events.log                # log — heat change audit trail
+    ├── reviews.json / reviews_resolved.json
+    ├── staging/                       # temp — zombie page drafts
+    ├── quarantine/                    # temp — rejected pages + judgments
+    ├── dedup_history/                 # temp — merged entity archives
+    ├── quality_settings.json          # config — quality gate thresholds
+    └── batch_build_state.json         # config — batch ingest progress
 ```
+
+**Cache cleanup:** run `python -m src.cli cache cleanup [--dry-run] --project <id>`
+to delete stale entries. All cache/log/staging directories can be cleaned
+safely — wiki pages are the source of truth. The server also runs cleanup
+hourly in the background.
 
 ### Pipeline (Analyzer → Generator → Writer)
 
@@ -327,3 +345,69 @@ In a single cleanup pass, the following changes landed on `feat/continue-impleme
 - **Old module paths are NOT aliased.** `from src.wiki.ensure import X` is broken — there is no `sys.modules` shim for `src.wiki.<old_module>`. All production code must use the layered paths (`src.wiki.core.paths`, `src.wiki.storage.ensure`, `src.wiki.features.relations`, ...). A grep for `from (\.\.|src\.)wiki\.(ensure|page_writer|types|paths|...)` should return zero matches outside `tests/` and `docs/superpowers/{specs,plans}/`.
 
 **`src/cli.py` slimmed** (511 → 407 lines): 7 legacy `cmd_*` deleted (`init`/`status`/`pause`/`resume`/`ingest`/`search`/`configure`), each superseded by `src/cli_ext/*` modules.
+
+# CLAUDE.md
+
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

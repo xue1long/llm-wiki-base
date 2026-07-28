@@ -8,9 +8,10 @@ from ..maintenance.health_check import HealthCheckRunner
 from ..maintenance.checks.h1_file_existence import H1FileExistenceCheck
 from ..maintenance.checks.h2_break_links import H2BreakLinksCheck
 from ..maintenance.checks.h4_id_format import H4IdFormatCheck
+from ..maintenance.checks.h5_cache_health import H5CacheHealthCheck
 
 
-CHECKS_AVAILABLE = {"H1", "H2", "H4"}  # MVP scope
+CHECKS_AVAILABLE = {"H1", "H2", "H4", "H5"}
 
 
 def cmd_health(args: argparse.Namespace) -> None:
@@ -27,6 +28,7 @@ def cmd_health(args: argparse.Namespace) -> None:
     runner.register("H1", H1FileExistenceCheck(project_path))
     runner.register("H2", H2BreakLinksCheck(project_path))
     runner.register("H4", H4IdFormatCheck(project_path))
+    runner.register("H5", H5CacheHealthCheck(project_path))
 
     report = runner.run(selected=selected, skipped=skipped)
 

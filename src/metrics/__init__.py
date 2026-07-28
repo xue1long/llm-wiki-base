@@ -7,9 +7,8 @@ from . import prometheus_format
 
 
 # Default histogram buckets — Prometheus convention.
-DEFAULT_BUCKETS = Histogram.buckets if hasattr(Histogram, 'buckets') else None
-if DEFAULT_BUCKETS is None:
-    from .histogram import DEFAULT_BUCKETS as DEFAULT_BUCKETS  # noqa: F401
+# Histogram.buckets is an instance attr, not a class attr, so import directly.
+from .histogram import DEFAULT_BUCKETS as DEFAULT_BUCKETS  # noqa: F401 (re-export)
 
 
 # Pre-register 5 core metrics

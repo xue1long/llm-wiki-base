@@ -11,10 +11,34 @@ relations:
   type: referenced_by
   weight: 0.9
   context: 本文详细讨论了冲突与高潮在小说中的重要性。
-- target: 必备资料20个签约条件新人必看2-b4a4e2e0
+- target: 必备资料-20-个签约条件新人必看-2-b4a4e2e0
   type: referenced_by
   weight: 0.9
   context: 本文强调小说中冲突和高潮的重要性及处理方法。
+- target: xuan-nian
+  type: supported_by
+  weight: 0.9
+  context: 悬念是冲突与高潮的情绪性表达。
+- target: yan-dang
+  type: supported_by
+  weight: 0.8
+  context: 延宕为高潮蓄势。
+- target: tu-zhuan
+  type: contains
+  weight: 0.85
+  context: 突转是高潮的核心动作形式。
+- target: fa-xian
+  type: contains
+  weight: 0.7
+  context: 发现与突转共同构成高潮。
+- target: qiao-he
+  type: supported_by
+  weight: 0.5
+  context: 巧合可加速冲突升级或暂时化解。
+- target: qiang-hua-qing-jie-de-xi-ju-shou-fa-zong-lan
+  type: referenced_by
+  weight: 0.9
+  context: 综述以冲突与高潮为总体框架。
 grade: B
 processing_depth: concept
 is_immutable: false

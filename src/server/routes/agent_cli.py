@@ -210,31 +210,10 @@ async def _stream_claude(proc: asyncio.subprocess.Process) -> AsyncIterator[byte
                 continue
 
             if etype == "assistant":
-                msg = ev.get("message") or {}
-                for block in msg.get("content", []) or []:
-                    btype = block.get("type")
-                    if btype == "text":
-                        text = block.get("text", "")
-                        if text:
-                            full_text_parts.append(text)
-                            yield _sse("text_delta", {"delta": text})
-                    elif btype == "thinking":
-                        thinking = block.get("thinking", "")
-                        if thinking:
-                            yield _sse("thinking_delta", {"delta": thinking})
-                    elif btype == "tool_use":
-                        yield _sse("tool_use", {
-                            "id": block.get("id", ""),
-                            "name": block.get("name", ""),
-                            "input": block.get("input", {}),
-                        })
-                    elif btype == "tool_result":
-                        yield _sse("tool_result", {
-                            "toolUseId": block.get("tool_use_id", ""),
-                            "content": block.get("content", ""),
-                            "isError": bool(block.get("is_error", False)),
-                        })
-                # also forward the assistant event meta (model etc.) for UI use
+                for event_name, data in _extract_assistant_blocks(
+                    ev.get("message") or {}, full_text_parts,
+                ):
+                    yield _sse(event_name, data)
                 yield _sse("agent", ev)
                 continue
 
@@ -285,3 +264,38 @@ def _sse(event: str, data: dict) -> bytes:
     """Encode an SSE frame: event: <name>\ndata: <json>\n\n"""
     payload = json.dumps(data, ensure_ascii=False)
     return f"event: {event}\ndata: {payload}\n\n".encode("utf-8")
+
+
+def _extract_assistant_blocks(
+    msg: dict, full_text_parts: list[str]
+) -> list[tuple[str, dict]]:
+    """Extract SSE frames from an assistant message's content blocks.
+
+    Returns a list of ``(event_name, data_dict)`` tuples ready for ``_sse()``.
+    Modifies ``full_text_parts`` in-place for text blocks.
+    """
+    frames: list[tuple[str, dict]] = []
+    for block in msg.get("content", []) or []:
+        btype = block.get("type")
+        if btype == "text":
+            text = block.get("text", "")
+            if text:
+                full_text_parts.append(text)
+                frames.append(("text_delta", {"delta": text}))
+        elif btype == "thinking":
+            thinking = block.get("thinking", "")
+            if thinking:
+                frames.append(("thinking_delta", {"delta": thinking}))
+        elif btype == "tool_use":
+            frames.append(("tool_use", {
+                "id": block.get("id", ""),
+                "name": block.get("name", ""),
+                "input": block.get("input", {}),
+            }))
+        elif btype == "tool_result":
+            frames.append(("tool_result", {
+                "toolUseId": block.get("tool_use_id", ""),
+                "content": block.get("content", ""),
+                "isError": bool(block.get("is_error", False)),
+            }))
+    return frames

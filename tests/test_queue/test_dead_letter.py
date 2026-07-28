@@ -2,7 +2,7 @@
 """Tests for queue dead-letter surface.
 
 Per I-queue-11 (full audit): once a task exhausts MAX_RETRIES, the queue must
-emit a `task:dead_letter` event with {task_id, retry_count, last_error} and
+emit a `task:dead_letter` event with {task_id, retry_count, error} and
 transition the task to TaskStatus.DEAD_LETTER (not just FAILED).
 
 After the queue refactor (Tasks 1-7), the production code path goes through
@@ -108,9 +108,9 @@ def test_dead_letter_emitted_on_retry_exhaustion(tmp_path, monkeypatch):
 
     assert DEAD_LETTER_CAPTURE, "task:dead_letter event was never emitted"
     payload = DEAD_LETTER_CAPTURE[-1]
-    assert payload["task_id"] == task_id
-    assert payload["retry_count"] >= MAX_RETRIES
-    assert payload["last_error"] == last_error
+    assert payload.task_id == task_id
+    assert payload.retry_count >= MAX_RETRIES
+    assert payload.error == last_error
 
 
 def test_dead_letter_status_assigned(tmp_path, monkeypatch):

@@ -125,16 +125,55 @@ class JsonFileBackend:
                 logger.warning(f"[JsonFileBackend] task row malformed ({e}); skipping")
                 return None
 
+    def find_by_hash(self, task_hash: str) -> list[KnowledgeTask]:
+        with self._lock:
+            result: list[KnowledgeTask] = []
+            for row in self._tasks.values():
+                if row.get("task_hash") != task_hash:
+                    continue
+                try:
+                    result.append(KnowledgeTask(**row))
+                except (TypeError, ValueError) as e:
+                    logger.warning(f"[JsonFileBackend] task row malformed ({e}); skipping")
+            return result
+
+    def remove(self, task_id: str) -> None:
+        with self._lock:
+            if task_id in self._tasks:
+                del self._tasks[task_id]
+                self._save_unlocked()
+
     def iter_ids(self) -> list[str]:
         with self._lock:
             return list(self._tasks.keys())
 
     def snapshot(self) -> list[KnowledgeTask]:
+        import time
         with self._lock:
             result: list[KnowledgeTask] = []
+            now = time.time()
             for row in self._tasks.values():
                 if row.get("status") == TaskStatus.APPROVED.value:
                     continue
+                # Reset stale RUNNING tasks to PENDING so the scheduler can
+                # re-dispatch them. A task is stale if it has been RUNNING for
+                # more than 10 minutes without reaching a terminal state — it
+                # means the pipeline exited abnormally (crashed / was killed)
+                # without calling update_status. The QueueService.retry path
+                # already handles this via release_in_flight, but after a
+                # server restart those in-memory markers are gone; snapshot()
+                # is the only place that can recover them.
+                if row.get("status") == TaskStatus.RUNNING.value:
+                    updated_at = row.get("updated_at", 0)
+                    if now - updated_at > 600:  # 10 minutes
+                        row["status"] = TaskStatus.PENDING
+                        self._tasks[row["id"]] = row
+                        self._save_unlocked()
+                        logger.info(
+                            "[JsonFileBackend] task %s was stale RUNNING, "
+                            "reset to PENDING", row["id"],
+                        )
+                        continue
                 try:
                     result.append(KnowledgeTask(**row))
                 except (TypeError, ValueError) as e:

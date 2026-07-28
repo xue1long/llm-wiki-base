@@ -155,7 +155,6 @@ class RelationQuery:
     def list_relations(paths, page_id: str) -> list[Relation]:
         from ..storage.page_writer import read_page
         from ..storage.page_writer import page_path_for
-        from ..core.types import PageType  # noqa: F401  (kept for symmetry / potential use)
         page_type = _infer_type(paths, page_id)
         page_file = page_path_for(paths, page_type, page_id)
         if not page_file.exists():

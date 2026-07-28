@@ -57,8 +57,9 @@ class OpenAIProvider(LLMProvider):
         h.update(self.extra_headers)
         return h
 
-    async def _post_json(self, url: str, payload: dict) -> dict:
-        async with httpx.AsyncClient(timeout=self.timeout_seconds) as sess:
+    async def _post_json(self, url: str, payload: dict, timeout: Optional[float] = None) -> dict:
+        effective_timeout = timeout if timeout is not None else self.timeout_seconds
+        async with httpx.AsyncClient(timeout=effective_timeout) as sess:
             r = await sess.post(url, headers=self._headers(), json=payload)
             r.raise_for_status()
             return r.json()
@@ -70,6 +71,7 @@ class OpenAIProvider(LLMProvider):
         *,
         response_format: Optional[dict] = None,
         system: Optional[str] = None,
+        timeout: Optional[float] = None,
         **kwargs,
     ) -> LLMResponse:
         """OpenAI chat completion. Sends via /v1/chat/completions.
@@ -79,6 +81,7 @@ class OpenAIProvider(LLMProvider):
           already exists, ``system`` is prepended.
         - ``response_format`` is forwarded verbatim (passed through to the
           API as JSON schema for structured outputs).
+        - ``timeout`` overrides the per-call timeout (default 120s).
         """
         msgs = list(messages)
 
@@ -143,19 +146,19 @@ class OpenAIProvider(LLMProvider):
                         "model": getattr(result, "model", model),
                     }
             except Exception as e:
-                raise RuntimeError(f"OpenAI complete failed: {e}")
+                raise RuntimeError(f"OpenAI complete failed: {e}") from e
         else:
             try:
                 data = await self._post_json(
-                    f"{self.base_url}/chat/completions", body
+                    f"{self.base_url}/chat/completions", body, timeout=timeout,
                 )
             except Exception as e:
-                raise RuntimeError(f"OpenAI complete failed: {e}")
+                raise RuntimeError(f"OpenAI complete failed: {e}") from e
 
         try:
             content = data["choices"][0]["message"]["content"] or ""
         except (KeyError, IndexError, TypeError) as e:
-            raise RuntimeError(f"OpenAI returned malformed response: {e}")
+            raise RuntimeError(f"OpenAI returned malformed response: {e}") from e
 
         return LLMResponse(
             content=content,

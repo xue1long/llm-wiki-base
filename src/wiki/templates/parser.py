@@ -242,9 +242,20 @@ def _split_into_sections(body: str) -> list[tuple[str, str]]:
 def _find_containing_label(
     pos: int, ranges: list[tuple[int, int, str]]
 ) -> str | None:
-    """Return the conditional label covering position ``pos``, or None."""
-    for start, end, label in ranges:
-        if start <= pos <= end:
+    """Return the conditional label covering position ``pos``, or None.
+
+    Uses binary search — *ranges* are sorted by construction (appended in
+    order of appearance in the template body), so O(log N) instead of O(N).
+    """
+    lo, hi = 0, len(ranges) - 1
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        start, end, label = ranges[mid]
+        if pos < start:
+            hi = mid - 1
+        elif pos > end:
+            lo = mid + 1
+        else:
             return label
     return None
 
@@ -352,4 +363,5 @@ def required_slot_names(template: "Template") -> list[str]:
         the template has no slot markers at all.
     """
     ast = parse(template.body_markdown, expected_type=template.type)
-    return [s.name for s in ast.all_slots if not s.is_optional]  # type: ignore[attr-defined]  # TemplateAST.all_slots declared in .types
+    # type checker can't resolve @property all_slots on TYPE_CHECKING-imported TemplateAST
+    return [s.name for s in ast.all_slots if not s.is_optional]  # type: ignore[attr-defined]

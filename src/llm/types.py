@@ -35,7 +35,7 @@ class ProviderConfig:
     models: dict[str, ModelInfo] = field(default_factory=dict)
     default_chat_model: str = ""
     default_embedding_model: str = ""
-    timeout_seconds: int = 60
+    timeout_seconds: int = 120
     extra_headers: dict[str, str] = field(default_factory=dict)
     # Runtime-only hint (NEVER serialised). True when the api_key was
     # materialised from os.environ by _default_providers() rather than
@@ -80,6 +80,6 @@ class ProviderConfig:
             },
             default_chat_model=d.get("default_chat_model", ""),
             default_embedding_model=d.get("default_embedding_model", ""),
-            timeout_seconds=d.get("timeout_seconds", 60),
+            timeout_seconds=d.get("timeout_seconds", 120),
             extra_headers=d.get("extra_headers", {}),
         )

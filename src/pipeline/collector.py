@@ -97,14 +97,19 @@ async def collect(
         # services.ingest._normalize_absolute_path), so by the time we get
         # here the path is e.g. ``raw/sources/foo.md`` — meaningless without
         # anchoring it to the project root.
-        file_path = Path(source)
+        # URL-decode the source: the ingest endpoint receives URL-encoded paths
+        # so spaces/CJK in filenames survive JSON and the wire.
+        from urllib.parse import unquote
+        source_decoded = unquote(source)
+
+        file_path = Path(source_decoded)
         if not file_path.is_absolute() and project_id is not None:
             try:
                 from ..project.registry import GlobalRegistryStore
                 entry = GlobalRegistryStore.by_id(project_id)
                 if entry is not None:
                     project_root = Path(entry.path)
-                    candidate = (project_root / source).resolve()
+                    candidate = (project_root / source_decoded).resolve()
                     if candidate.exists():
                         file_path = candidate
             except Exception:
@@ -127,7 +132,7 @@ async def collect(
         # raw_path stays project-relative so the wiki page's ``sources:``
         # is a stable, user-visible reference (e.g. ``raw/sources/foo.md``)
         # rather than an internal staging path.
-        raw_path = source
+        raw_path = source_decoded
 
     payload = CollectorDonePayload(
         task_id=task_id,

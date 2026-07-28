@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -143,13 +144,13 @@ def cmd_wiki_templates_edit(args: argparse.Namespace) -> None:
             except Exception as e:
                 print(f"click.edit failed: {e}; falling back to $EDITOR", file=sys.stderr)
         if editor:
-            os.system(f'{editor} "{dest_path}"')
+            subprocess.run([editor, str(dest_path)])
         else:
             # Last resort: notepad on Windows, vi elsewhere
             if sys.platform == "win32":
-                os.system(f'notepad "{dest_path}"')
+                subprocess.run(["notepad", str(dest_path)])
             else:
-                os.system(f'vi "{dest_path}"')
+                subprocess.run(["vi", str(dest_path)])
 
 
 def _try_import_click_edit():

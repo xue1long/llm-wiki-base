@@ -1,4 +1,5 @@
 """FastAPI app factory for ruflo-kb HTTP API."""
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -18,6 +19,44 @@ import src.pipeline  # noqa: F401  (registers event_bus handler + shim)
 
 
 _logger = logging.getLogger(__name__)
+
+CLEANUP_INTERVAL_S = 3600  # 1 hour
+
+
+async def _periodic_cache_cleanup():
+    """Background task: run cache cleanup on all registered projects every hour."""
+    # Wait for server to fully start before first cleanup.
+    await asyncio.sleep(60)
+
+    while True:
+        try:
+            from ..maintenance.cache_cleanup import cleanup_all
+            from ..wiki.core.paths import WikiPaths
+            from ..project.registry import GlobalRegistryStore
+
+            reg = GlobalRegistryStore.load()
+            for entry in reg.projects.values():
+                project_path = Path(entry.path)
+                if not project_path.exists():
+                    continue
+                try:
+                    paths = WikiPaths(project_path)
+                    results = cleanup_all(paths)
+                    total = sum(v for v in results.values() if v > 0)
+                    if total > 0:
+                        _logger.info(
+                            "[cache-cleanup] project=%s cleaned=%s",
+                            entry.name, results,
+                        )
+                except Exception:
+                    _logger.debug(
+                        "[cache-cleanup] project=%s failed (see trace)", entry.name,
+                        exc_info=True,
+                    )
+        except Exception:
+            _logger.debug("[cache-cleanup] background sweep failed", exc_info=True)
+
+        await asyncio.sleep(CLEANUP_INTERVAL_S)
 
 
 def create_app() -> FastAPI:
@@ -87,7 +126,17 @@ def create_app() -> FastAPI:
         finally:
             pass
 
+        # Start background cache cleanup task (runs every hour).
+        cleanup_task = asyncio.create_task(_periodic_cache_cleanup())
+
         yield
+
+        # Cancel background cleanup on shutdown.
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
 
         # Shutdown: close any providers auto-registered during request handling.
         # Without this, every OllamaProvider created via create_llm_provider()

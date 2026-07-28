@@ -27,7 +27,7 @@ relations:
   type: referenced_by
   weight: 0.9
   context: 本文涉及网络文学创作的指导内容。
-- target: 必备资料20个签约条件新人必看2-b4a4e2e0
+- target: 必备资料-20-个签约条件新人必看-2-b4a4e2e0
   type: referenced_by
   weight: 0.95
   context: 本文针对网络文学创作提供建议。
@@ -39,6 +39,10 @@ relations:
   type: contains
   weight: 1.0
   context: 总裁文是网络文学的一个分支。
+- target: yan-dang
+  type: supported_by
+  weight: 0.6
+  context: 网络连载的章节机制天然依赖延宕。
 grade: B
 processing_depth: concept
 is_immutable: false

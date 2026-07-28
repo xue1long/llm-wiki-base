@@ -78,6 +78,7 @@ def cmd_completions_print_words(_args: argparse.Namespace) -> None:
         for entry in GlobalRegistryStore.load().projects.values():
             print(f" {entry.name}", end="")
     except Exception:
+        # Registry may be empty, corrupt, or unavailable during completion.
         pass
     print()
 

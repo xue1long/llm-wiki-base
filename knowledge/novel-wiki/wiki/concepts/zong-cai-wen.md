@@ -15,6 +15,10 @@ relations:
   type: references
   weight: 0.9
   context: 本文提到创酷中文网作为信息来源。
+- target: xuan-nian
+  type: supported_by
+  weight: 0.5
+  context: 总裁文类型天然具备身份与权力落差所构成的总悬念。
 grade: B
 processing_depth: concept
 is_immutable: false

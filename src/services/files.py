@@ -6,6 +6,7 @@ FileTooLargeError, PathIsDirectoryError) to HTTP status codes.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from ..lib.project import resolve_project
@@ -162,12 +163,38 @@ def list_raw_files(project_id: str) -> dict:
         if ext not in _RAW_EXTS:
             continue
         rel = f.relative_to(paths.root).as_posix()
+        # Normalize f.resolve() to forward slashes for comparison with ingested_set
+        # (Windows gives backslashes; batch_build_state.json stores forward slashes)
+        resolved_posix = f.resolve().as_posix().replace("\\", "/")
+
+        # ingested = True when wiki/sources page exists AND batch_build_state
+        # does NOT explicitly contradict it (no record or record matches).
+        #
+        # Wiki/sources filenames have a hash suffix (e.g. "内容-ae9637b6.md")
+        # while raw filenames don't. We match by stem prefix: raw "内容.md"
+        # matches wiki "内容-ae9637b6.md".
+        wiki_stem = f.stem  # filename without extension
+        wiki_page_exists = any(
+            w.is_file() and w.stem.startswith(wiki_stem)
+            for w in paths.wiki_sources.iterdir()
+            if w.suffix == ".md"
+        ) if paths.wiki_sources.exists() else False
+        batch_match = (
+            rel in ingested_set
+            or str(f.resolve()) in ingested_set
+            or resolved_posix in ingested_set
+        )
+        ingested = wiki_page_exists and (
+            not ingested_set  # no batch state at all → trust wiki page
+            or batch_match     # batch state exists and confirms this file
+        )
+
         files.append({
             "path": rel,
             "name": f.name,
             "ext": ext,
             "size": f.stat().st_size,
-            "ingested": rel in ingested_set or str(f.resolve()) in ingested_set,
+            "ingested": ingested,
         })
 
     files.sort(key=lambda f: f["name"])

@@ -41,13 +41,15 @@ def _resolve_wiki_paths(project_id: str | None = None):
     """
     from ..wiki.core.paths import WikiPaths as _WikiPaths
     from ..project.registry import GlobalRegistryStore
+    import logging
+    _logger = logging.getLogger(__name__)
     if project_id is not None:
         try:
             entry = GlobalRegistryStore.by_id(project_id)
             if entry is not None:
                 return _WikiPaths(Path(entry.path))
         except Exception:
-            pass
+            _logger.warning("Failed to resolve project %s; falling back to CWD", project_id, exc_info=True)
     return _WikiPaths(Path.cwd())
 
 
@@ -163,7 +165,7 @@ class _PipelineCompatShim:
             update_task_status(task_id, TaskStatus.APPROVED)
         except Exception as exc:
             _logger.exception("ingest failed for %s", task_id)
-            update_task_status(task_id, TaskStatus.FAILED, error=str(exc))
+            update_task_status(task_id, TaskStatus.FAILED, error=f"{type(exc).__name__}: {exc}")
         finally:
             get_default_queue_service().release_in_flight(task_id)
 

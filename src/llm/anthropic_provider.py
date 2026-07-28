@@ -55,8 +55,9 @@ class AnthropicProvider(LLMProvider):
         h.update(self.extra_headers)
         return h
 
-    async def _post_json(self, url: str, payload: dict) -> dict:
-        async with httpx.AsyncClient(timeout=self.timeout_seconds) as sess:
+    async def _post_json(self, url: str, payload: dict, timeout: Optional[float] = None) -> dict:
+        effective_timeout = timeout if timeout is not None else self.timeout_seconds
+        async with httpx.AsyncClient(timeout=effective_timeout) as sess:
             r = await sess.post(url, headers=self._headers(), json=payload)
             r.raise_for_status()
             return r.json()
@@ -67,6 +68,7 @@ class AnthropicProvider(LLMProvider):
         *,
         response_format: Optional[dict] = None,
         system: Optional[str] = None,
+        timeout: Optional[float] = None,
         **kwargs,
     ) -> LLMResponse:
         """Anthropic message completion.
@@ -123,12 +125,12 @@ class AnthropicProvider(LLMProvider):
                         "usage": getattr(result, "usage", None),
                     }
             except Exception as e:
-                raise RuntimeError(f"Anthropic complete failed: {e}")
+                raise RuntimeError(f"Anthropic complete failed: {e}") from e
         else:
             try:
-                data = await self._post_json(f"{self.base_url}/messages", body)
+                data = await self._post_json(f"{self.base_url}/messages", body, timeout=timeout)
             except Exception as e:
-                raise RuntimeError(f"Anthropic complete failed: {e}")
+                raise RuntimeError(f"Anthropic complete failed: {e}") from e
 
         # Anthropic returns ``content`` as a list of blocks. ``text`` blocks carry
         # the message text; concatenate them.

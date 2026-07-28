@@ -116,7 +116,7 @@ class GlobalRegistryStore:
             cls.save(reg)
 
     @classmethod
-    def load_last_project(cls) -> "LastProjectPointer | None":  # type: ignore
+    def load_last_project(cls) -> "LastProjectPointer | None":  # type: ignore[valid-type]  # forward-ref string annotation
         from .paths import last_project_path as _last_path
         path = _last_path()
         if not path.exists():

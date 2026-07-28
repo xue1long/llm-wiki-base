@@ -18,3 +18,29 @@
 - **必备资料-11-月-28-号创酷中文网女频现言讲课记录-8c363e-5b4221b9** (entity) — 必备资料 11 月 28 号创酷中文网女频现言讲课记录 8c363e 5b4221b9
 - **必备资料-15-顺眼谈文章的画面感-1cb23d07** (entity) — 必备资料 15 顺眼谈文章的画面感 1cb23d07
 - **qi-dai-gan** (entity) — Qi Dai Gan
+- **必备资料20仙侠类题材作品的创作要点及卖点-d1f6f9dd** (source) — 必备资料20仙侠类题材作品的创作要点及卖点
+- **补充教程写作经验如何加强书的情节-ae9637b6** (source) — 补充教程写作经验如何加强书的情节
+- **xuan-nian** (concept) — 悬念
+- **yan-dang** (concept) — 延宕
+- **tu-zhuan** (concept) — 突转
+- **fa-xian** (concept) — 发现
+- **shi-kong-jiao-cuo** (concept) — 时空交错
+- **qiao-he** (concept) — 巧合
+- **qiang-hua-qing-jie-de-xi-ju-shou-fa-zong-lan** (synthesis) — 强化情节的戏剧手法综述
+- **a-mi-le** (entity) — A Mi Le
+- **dou-po-cang-qiong** (entity) — Dou Po Cang Qiong
+- **ou-di-pu-si-wang** (entity) — Ou Di Pu Si Wang
+- **suo-fu-ke-le-si** (entity) — Suo Fu Ke Le Si
+- **tui-xiao-yuan-zhi-si** (entity) — Tui Xiao Yuan Zhi Si
+- **wan-liu-wen-xue** (entity) — Wan Liu Wen Xue
+- **yi-shi-liu** (entity) — Yi Shi Liu
+- **补充教程小说写作大纲的模版共享-a56031f5** (source) — 补充教程小说写作大纲的模版共享
+- **必备资料22期待感让你的作品能够引人入胜1-3deff6a3** (source) — 必备资料22期待感让你的作品能够引人入胜1
+- **补充教程写穿越小说角色前要注意的十个问题-2e613087** (source) — 补充教程写穿越小说角色前要注意的十个问题
+- **补充教程小说结局的十三种方式精-a0efec19** (source) — 补充教程小说结局的十三种方式精
+- **叙事策略--歪打正着** (entity) — 叙事策略  歪打正着
+- **叙事策略--走出叙述人视野** (entity) — 叙事策略  走出叙述人视野
+- **叙事策略--迷失** (entity) — 叙事策略  迷失
+- **文学作品--刀锋** (entity) — 文学作品  刀锋
+- **文学作品--总在途中** (entity) — 文学作品  总在途中
+- **文学作品--沙之书** (entity) — 文学作品  沙之书

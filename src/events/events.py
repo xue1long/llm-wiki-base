@@ -33,6 +33,12 @@ class TaskStatusChangedPayload:
     error: Optional[str] = None
 
 @dataclass
+class TaskDeadLetterPayload:
+    task_id: str
+    retry_count: int
+    error: Optional[str] = None
+
+@dataclass
 class CollectorDonePayload:
     task_id: str
     raw_path: str

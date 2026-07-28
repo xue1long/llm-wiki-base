@@ -19,9 +19,13 @@ finding without breaking legacy callers.
 """
 from __future__ import annotations
 
+import logging
+
 from ..lib.project import resolve_project
 from ..searcher.hybrid_search import hybrid_search
 from ..vector.store import get_table as get_vector_table
+
+logger = logging.getLogger(__name__)
 
 
 async def search(
@@ -53,7 +57,7 @@ async def search(
         get_vector_table(paths)
     except Exception:
         # Lazy init failure: still proceed; keyword results will populate.
-        pass
+        logger.warning("Vector table init failed for project %s; keyword-only fallback", project_id, exc_info=True)
 
     results = await hybrid_search(query, top_k=top_k, paths=paths)
     return {

@@ -57,6 +57,7 @@ from .cli_ext.heat_cmd import (
     cmd_heat_show, cmd_heat_top, cmd_heat_cold, cmd_heat_decay,
     cmd_heat_zombies, cmd_heat_restore, cmd_heat_archive,
 )
+from .cli_ext.cache_cmd import cmd_cache_status, cmd_cache_cleanup
 from .cli_ext.wiki_polish_cmd import (
     cmd_stubs_list, cmd_stubs_promote, cmd_dedup_auto,
     cmd_lint_cache_clear, cmd_lint,
@@ -396,6 +397,19 @@ def main():
     p_harchive.add_argument("page_id")
     p_harchive.add_argument("--project")
     p_harchive.set_defaults(func=cmd_heat_archive)
+
+    # Cache management
+    p_cache = subparsers.add_parser("cache", help="Cache management (status + cleanup)")
+    p_cache_sub = p_cache.add_subparsers(dest="cache_command", required=True)
+
+    p_cstatus = p_cache_sub.add_parser("status", help="Show cache sizes and staleness")
+    p_cstatus.add_argument("--project")
+    p_cstatus.set_defaults(func=cmd_cache_status)
+
+    p_ccleanup = p_cache_sub.add_parser("cleanup", help="Clean up stale cache entries")
+    p_ccleanup.add_argument("--project")
+    p_ccleanup.add_argument("--dry-run", action="store_true", help="Show what would be cleaned")
+    p_ccleanup.set_defaults(func=cmd_cache_cleanup)
 
     # Wiki polish commands
     p_stubs = subparsers.add_parser("stubs", help="Manage wiki stub pages")

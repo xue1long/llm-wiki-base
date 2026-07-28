@@ -1,12 +1,15 @@
 """Tests for atomic-write + corrupt-recovery semantics of SnapshotStore.
 
-Verifies I-cross-5 fix: SnapshotStore._save uses tmp+replace; _load
-recovers from JSONDecodeError/OSError instead of raising.
+Verifies I-cross-5 fix: SnapshotStore._save uses safe_write (tmp+replace,
+AtomicContext-aware); _load recovers from JSONDecodeError/OSError instead of
+raising.
 """
 import json
 import os
 from pathlib import Path
 
+from src.lib.atomic_ctx import AtomicContext, is_suspended
+from src.lib.write_hooks import flush_pending_writes, get_pending_count
 from src.sync.snapshot_store import SnapshotStore
 
 
@@ -94,3 +97,35 @@ def test_compute_md5_works(tmp_path):
     f = tmp_path / "f.bin"
     f.write_bytes(b"hello")
     assert SnapshotStore.compute_md5(f) == "5d41402abc4b2a76b9719d911017c592"
+
+
+def test_save_defers_inside_atomic_context(tmp_path):
+    """SnapshotStore._save() suspends writes inside an AtomicContext."""
+    p = tmp_path / "snap.json"
+    store = SnapshotStore(p)
+    store.set("seed", "md5-seed")  # immediate write (no AtomicContext)
+    assert p.exists()
+
+    with AtomicContext(flush_callback=flush_pending_writes):
+        store.set("a", "md5-a")
+        # Inside AtomicContext, safe_write suspends — file should still
+        # have only the pre-context content.
+        assert get_pending_count() >= 1
+        # The file on disk must NOT yet contain "a" (write is suspended).
+        on_disk = json.loads(p.read_text(encoding="utf-8"))
+        assert "a" not in on_disk
+
+    # After context exit, pending writes are flushed — "a" must appear.
+    on_disk = json.loads(p.read_text(encoding="utf-8"))
+    assert on_disk.get("a") == "md5-a"
+    assert on_disk.get("seed") == "md5-seed"
+
+
+def test_save_writes_immediately_outside_atomic_context(tmp_path):
+    """Without AtomicContext, safe_write writes immediately (same as old behavior)."""
+    p = tmp_path / "snap.json"
+    store = SnapshotStore(p)
+    store.set("x", "md5-x")
+    # Must be on disk immediately
+    on_disk = json.loads(p.read_text(encoding="utf-8"))
+    assert on_disk["x"] == "md5-x"

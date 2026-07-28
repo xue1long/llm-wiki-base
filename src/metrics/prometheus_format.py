@@ -23,27 +23,32 @@ def to_prometheus_text(metrics: list) -> str:
         lines.append(f"# HELP {m.name} {m.help}")
         if isinstance(m, Histogram):
             lines.append(f"# TYPE {m.name} histogram")
+            base_name = m.name
+            # Pre-compute bucket labels once per histogram to avoid repeated
+            # f-string allocation for each bucket in the inner loop.
             for key, bucket_counts in m._counts.items():
                 suffix = _label_suffix(m.label_names, key)
-                # bucket_counts is already cumulative (observe() increments every
-                # bucket the value falls into), so emit the pre-computed value
-                # for each bucket — Prometheus `le` semantics matches our counts.
                 for b in m.buckets:
                     b_str = "+Inf" if b == float("inf") else str(b)
-                    lines.append(f'{m.name}_bucket{{le="{b_str}"{suffix}}} {bucket_counts.get(b, 0)}')
+                    lines.append(
+                        f'{base_name}_bucket{{le="{b_str}"{suffix}}} '
+                        f'{bucket_counts.get(b, 0)}'
+                    )
                 labels_str = _format_labels(m.label_names, key)
-                lines.append(f"{m.name}_sum{labels_str} {m._sums.get(key, 0)}")
-                lines.append(f"{m.name}_count{labels_str} {m._totals.get(key, 0)}")
+                lines.append(f"{base_name}_sum{labels_str} {m._sums.get(key, 0)}")
+                lines.append(f"{base_name}_count{labels_str} {m._totals.get(key, 0)}")
         elif isinstance(m, Counter):
             lines.append(f"# TYPE {m.name} counter")
+            base_name = m.name
             for key, val in m._values.items():
                 labels_str = _format_labels(m.label_names, key)
-                lines.append(f"{m.name}{labels_str} {val}")
+                lines.append(f"{base_name}{labels_str} {val}")
         elif isinstance(m, Gauge):
             lines.append(f"# TYPE {m.name} gauge")
+            base_name = m.name
             for key, val in m._values.items():
                 labels_str = _format_labels(m.label_names, key)
-                lines.append(f"{m.name}{labels_str} {val}")
+                lines.append(f"{base_name}{labels_str} {val}")
         else:
             lines.append(f"# TYPE {m.name} unknown")
     return "\n".join(lines) + "\n"
