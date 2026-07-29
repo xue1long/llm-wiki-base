@@ -1,46 +1,76 @@
----
-- **zong-cai-wen** (concept) — 总裁文
-- **ling-yi-wen** (concept) — 灵异文
-- **chuang-kuo-zhong-wen-wang** (entity) — 创酷中文网
-- **必备资料11月28号创酷中文网女频现言讲课记录_8c363e-5b4221b9** (source) — 必备资料11月28号创酷中文网女频现言讲课记录_8c363e
-- **genre-horror** (entity) — Genre Horror
-- **hun-lian-wen** (entity) — Hun Lian Wen
-- **meng-bao** (entity) — Meng Bao
-- **必备资料15顺眼谈文章的画面感-1cb23d07** (source) — 顺眼谈文章的画面感
-- **shun-yan** (concept) — 顺眼
-- **hua-mian-gan** (concept) — 画面感
-- **wang-luo-wen-xue-zuo-pin-de-zuo-zhe-jian-yi** (synthesis) — 网络文学作品作者建议
-- **wang-luo-wen-xue** (entity) — Wang Luo Wen Xue
-- **必备资料20个签约条件新人必看2-b4a4e2e0** (source) — 20个签约条件新人必看
-- **chong-tu-yu-gao-chao** (entity) — Chong Tu Yu Gao Chao
-- **zhu-jiao-suo-zao** (entity) — Zhu Jiao Suo Zao
-- **qian-qi-wen** (entity) — Qian Qi Wen
-- **必备资料-11-月-28-号创酷中文网女频现言讲课记录-8c363e-5b4221b9** (entity) — 必备资料 11 月 28 号创酷中文网女频现言讲课记录 8c363e 5b4221b9
-- **必备资料-15-顺眼谈文章的画面感-1cb23d07** (entity) — 必备资料 15 顺眼谈文章的画面感 1cb23d07
-- **qi-dai-gan** (entity) — Qi Dai Gan
-- **必备资料20仙侠类题材作品的创作要点及卖点-d1f6f9dd** (source) — 必备资料20仙侠类题材作品的创作要点及卖点
-- **补充教程写作经验如何加强书的情节-ae9637b6** (source) — 补充教程写作经验如何加强书的情节
-- **xuan-nian** (concept) — 悬念
-- **yan-dang** (concept) — 延宕
-- **tu-zhuan** (concept) — 突转
-- **fa-xian** (concept) — 发现
-- **shi-kong-jiao-cuo** (concept) — 时空交错
-- **qiao-he** (concept) — 巧合
-- **qiang-hua-qing-jie-de-xi-ju-shou-fa-zong-lan** (synthesis) — 强化情节的戏剧手法综述
-- **a-mi-le** (entity) — A Mi Le
-- **dou-po-cang-qiong** (entity) — Dou Po Cang Qiong
-- **ou-di-pu-si-wang** (entity) — Ou Di Pu Si Wang
-- **suo-fu-ke-le-si** (entity) — Suo Fu Ke Le Si
-- **tui-xiao-yuan-zhi-si** (entity) — Tui Xiao Yuan Zhi Si
-- **wan-liu-wen-xue** (entity) — Wan Liu Wen Xue
-- **yi-shi-liu** (entity) — Yi Shi Liu
-- **补充教程小说写作大纲的模版共享-a56031f5** (source) — 补充教程小说写作大纲的模版共享
+# Wiki Index
+
+- **必备资料11月28号创酷中文网女频现言讲课记录_8c363e-00cfc60b** (source) — 11月28号 创酷中文网女频现言讲课记录
+- **叶非夜** (entity) — 叶非夜
+- **萌物遇上高富帅-101-次抢婚** (entity) — 萌物遇上高富帅：101次抢婚
+- **微微一笑很倾城** (entity) — 微微一笑很倾城
+- **红薯** (entity) — 红薯（无线女频平台）
+- **小虐大宠** (concept) — 小虐大宠
+- **现言题材类型综述** (synthesis) — 2015年创酷讲课：现言题材类型综述
+- **必备资料-11-月-28-号创酷中文网女频现言讲课记录-8c363e-00cfc60b** (entity) — 必备资料 11 月 28 号创酷中文网女频现言讲课记录 8c363e 00cfc60b
+- **必备资料20个签约条件新人必看2-b7b4ef23** (source) — 必备资料20个签约条件新人必看2
+- **必备资料15顺眼谈文章的画面感-43c5df10** (source) — 必备资料15、顺眼——谈文章的画面感
+- **画面感** (concept) — 画面感
+- **顺眼** (concept) — 顺眼
+- **网络文学屏幕载体论** (concept) — 网络文学屏幕载体论
+- **北京圣东方国信科技有限公司** (entity) — 北京圣东方国信科技有限公司
+- **飞书云文档** (entity) — 飞书云文档
+- **必备资料-15-顺眼谈文章的画面感-43c5df10** (entity) — 必备资料 15 顺眼谈文章的画面感 43c5df10
+- **斗破苍穹** (entity) — 斗破苍穹
+- **二十个签约条件** (concept) — 二十个签约条件
+- **大情节三段式结构** (concept) — 大情节三段式结构
+- **章节结构比例** (concept) — 章节结构比例
+- **二十条签约条件分类综述** (synthesis) — 二十条签约条件分类综述
+- **必备资料-20-个签约条件新人必看-2-b7b4ef23** (entity) — 必备资料 20 个签约条件新人必看 2 b7b4ef23
 - **必备资料22期待感让你的作品能够引人入胜1-3deff6a3** (source) — 必备资料22期待感让你的作品能够引人入胜1
-- **补充教程写穿越小说角色前要注意的十个问题-2e613087** (source) — 补充教程写穿越小说角色前要注意的十个问题
+- **期待感** (concept) — 期待感
+- **引人入胜** (concept) — 引人入胜
+- **伏笔** (concept) — 伏笔
+- **连环伏笔** (concept) — 连环伏笔
+- **误导与诱导** (concept) — 误导与诱导
+- **期待感四大手法对比综述** (synthesis) — 期待感四大手法对比综述
+- **必备资料-22-期待感让你的作品能够引人入胜-1-3deff6a3** (entity) — 必备资料 22 期待感让你的作品能够引人入胜 1 3deff6a3
+- **必备资料20仙侠类题材作品的创作要点及卖点-d1f6f9dd** (source) — 必备资料20：仙侠类题材作品的创作要点及卖点
+- **仙侠题材** (concept) — 仙侠题材综述
+- **仙侠长短期目标结合** (concept) — 仙侠创作核心方法：长期目标 + 短期目标
+- **洪荒封神流** (concept) — 仙侠子流派：洪荒封神流
+- **星际寻宝流** (concept) — 仙侠子流派：星际寻宝流
+- **都市仙侠流** (concept) — 仙侠子流派：都市仙侠流
+- **历史仙侠** (concept) — 仙侠子流派：历史仙侠
+- **回炉仙侠** (concept) — 仙侠子流派：回炉仙侠
+- **收集癖** (concept) — 读者心理：收集癖
+- **仙侠题材类型综述** (synthesis) — 仙侠题材类型综述
+- **必备资料-20-仙侠类题材作品的创作要点及卖点-d1f6f9dd** (entity) — 必备资料 20 仙侠类题材作品的创作要点及卖点 d1f6f9dd
+- **补充教程写作经验如何加强书的情节-ae9637b6** (source) — 补充教程写作经验如何加强书的情节
+- **伏笔强化与提醒** (concept) — 伏笔强化与提醒手法
+- **副本设定类比** (concept) — 副本设定类比小说结构
+- **穿越小说角色塑造套路** (concept) — 穿越小说角色塑造十大套路(反讽版)
+- **补充教程写穿越小说角色前要注意的十个问题-2e613087** (source) — 写穿越小说角色前要注意的十个问题
+- **日常技能穿越模板** (concept) — 日常技能穿越模板
+- **穿越题材套路综述** (synthesis) — 穿越题材角色与情节套路综述
+- **补充教程小说写作新人网络小说的成神宝典精装版-f84e457b** (source) — [补充教程]小说写作：新人网络小说的成神宝典（精装版）
+- **网络文学门槛论** (concept) — 网络文学门槛论
+- **网络小说读者心态** (concept) — 网络小说读者心态
+- **兴趣型网文作者** (concept) — 兴趣型网文作者
+- **三类读者心态对比综述** (synthesis) — 三类读者心态对比综述
+- **补充教程小说写作大纲的模版共享-a56031f5** (source) — 补充教程小说写作大纲的模版共享
+- **创酷中文网** (entity) — 创酷中文网
+- **总裁文** (concept) — 总裁文
+- **先婚后爱** (concept) — 先婚后爱
 - **补充教程小说结局的十三种方式精-a0efec19** (source) — 补充教程小说结局的十三种方式精
-- **叙事策略--歪打正着** (entity) — 叙事策略  歪打正着
-- **叙事策略--走出叙述人视野** (entity) — 叙事策略  走出叙述人视野
-- **叙事策略--迷失** (entity) — 叙事策略  迷失
-- **文学作品--刀锋** (entity) — 文学作品  刀锋
-- **文学作品--总在途中** (entity) — 文学作品  总在途中
-- **文学作品--沙之书** (entity) — 文学作品  沙之书
+- **马原** (entity) — 马原
+- **死亡结局** (concept) — 死亡结局
+- **大团圆结局** (concept) — 大团圆结局
+- **诗意结局** (concept) — 诗意结局
+- **解嘲结局** (concept) — 解嘲结局
+- **有去无归** (concept) — 有去无归
+- **梦魇结局** (concept) — 梦魇结局
+- **循环往复结局** (concept) — 循环往复结局
+- **得而复失** (concept) — 得而复失
+- **走出叙事人视野** (concept) — 走出叙事人视野
+- **以死亡中止** (concept) — 以死亡中止
+- **歪打正着** (concept) — 歪打正着
+- **迷失结局** (concept) — 迷失结局
+- **小说结局十三种方式综述** (synthesis) — 小说结局十三种方式综述
+- **揭谜结局** (entity) — 揭谜结局
+- **缺撼美** (entity) — 缺撼美

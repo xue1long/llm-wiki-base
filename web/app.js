@@ -21,6 +21,7 @@
     currentView: "search",
     // When set, browse view auto-selects this wiki-relative path after load.
     pendingBrowseTarget: null,
+    rawFiles: [],            // cached raw-files list for batch-ingest freshness
     // Local agent CLI state
     agentSessionId: null,   // persisted across panel reloads
     agentAvailable: false,  // last probed status
@@ -188,14 +189,17 @@
       state.projectName = chosen.name;
       document.getElementById("projectName").textContent = state.projectName;
 
-      // Populate project selector and show it.
-      const sel = document.getElementById("projectSelect");
-      sel.innerHTML = list.map(p =>
-        `<option value="${escapeHtml(p.id)}" ${p.id === chosen.id ? "selected" : ""}>${escapeHtml(p.name)}</option>`
-      ).join("");
-      sel.style.display = "block";
+      // Populate custom project dropdown and show it.
+      renderDropdown();
+      document.getElementById("projectDropdownBtn").style.display = "flex";
       document.getElementById("newProjectBtn").style.display = "inline-block";
-      sel.addEventListener("change", () => switchProject(sel.value));
+      document.getElementById("projectDropdownBtn").addEventListener("click", toggleDropdown);
+      document.addEventListener("click", (e) => {
+        const wrap = document.querySelector(".project-selector-wrap");
+        if (wrap && !wrap.contains(e.target)) {
+          document.getElementById("projectDropdown").style.display = "none";
+        }
+      });
       document.getElementById("newProjectBtn").addEventListener("click", async () => {
         const name = window.prompt("输入项目名称：");
         if (!name || !name.trim()) return;
@@ -220,6 +224,76 @@
     }
   }
 
+  // ---------- Dropdown ----------
+  function renderDropdown() {
+    const dd = document.getElementById("projectDropdown");
+    const current = state.projects.find(p => p.id === state.projectId);
+    dd.innerHTML = state.projects.map(p => `
+      <div class="project-dropdown-item${p.id === state.projectId ? " active" : ""}" data-id="${escapeHtml(p.id)}">
+        <span class="proj-name" title="${escapeHtml(p.path || "")}">${escapeHtml(p.name)}</span>
+        <button class="proj-del" data-id="${escapeHtml(p.id)}" data-name="${escapeHtml(p.name)}" title="删除记录">&times;</button>
+      </div>
+    `).join("");
+
+    // Click to select
+    dd.querySelectorAll(".proj-name").forEach(el => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const id = el.parentElement.dataset.id;
+        switchProject(id);
+        dd.style.display = "none";
+      });
+    });
+
+    // Click to delete
+    dd.querySelectorAll(".proj-del").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const name = btn.dataset.name;
+        if (!window.confirm(`确定要从列表中删除项目「${name}」吗？\n\n注意：只删除注册记录，不会删除磁盘文件。`)) return;
+        await deleteProject(id);
+        dd.style.display = "none";
+      });
+    });
+
+    // Update toggle label
+    document.getElementById("projectDropdownLabel").textContent = current ? current.name : "选择项目";
+  }
+
+  function toggleDropdown() {
+    const dd = document.getElementById("projectDropdown");
+    dd.style.display = dd.style.display === "none" ? "block" : "none";
+  }
+
+  async function deleteProject(id) {
+    try {
+      await api(`/api/v1/projects/${id}`, { method: "DELETE" });
+      // Remove from local state
+      state.projects = state.projects.filter(p => p.id !== id);
+      if (state.projectId === id) {
+        // Switched to another project
+        if (state.projects.length) {
+          state.projectId = state.projects[0].id;
+          state.projectName = state.projects[0].name;
+        } else {
+          state.projectId = null;
+          state.projectName = null;
+          document.getElementById("projectName").textContent = "(无项目)";
+        }
+      }
+      renderDropdown();
+      if (state.projectId) {
+        switchProject(state.projectId);
+      } else {
+        showView("search");
+      }
+      setBanner("已删除", "info");
+    } catch (e) {
+      setBanner("删除失败: " + e.message, "err");
+    }
+  }
+
   // ---------- Project switch ----------
   async function switchProject(id) {
     const chosen = state.projects.find(p => p.id === id);
@@ -234,6 +308,7 @@
     } catch (e) {
       // non-fatal: the switch still works client-side
     }
+    renderDropdown();
     showView(state.currentView);
   }
 
@@ -245,12 +320,9 @@
     });
     const newProject = { id: result.id, name: result.name, path: result.path, last_opened: Date.now() };
     state.projects.unshift(newProject);
-    const sel = document.getElementById("projectSelect");
-    sel.insertBefore(
-      Object.assign(document.createElement("option"), { value: newProject.id, textContent: newProject.name, selected: true }),
-      sel.firstChild
-    );
-    sel.value = newProject.id;
+    state.projectId = newProject.id;
+    state.projectName = newProject.name;
+    renderDropdown();
     await switchProject(newProject.id);
   }
 
@@ -396,6 +468,31 @@
       if (_browseSub === "raw") renderBrowseRaw();
     });
 
+    // Batch ingest — set up once (NOT in renderBrowseRaw(), which is called
+    // on every refresh — would stack duplicate listeners).
+    document.getElementById("ingestAllRawBtn").addEventListener("click", async () => {
+      const rawFiles = state.rawFiles;
+      const toIngest = rawFiles.filter(f => !f.ingested);
+      if (!toIngest.length) { setBanner("没有需要摄取的文件", "warn"); return; }
+      const btn = document.getElementById("ingestAllRawBtn");
+      btn.disabled = true; btn.textContent = `摄取中 (0/${toIngest.length})...`;
+      let done = 0;
+      for (const f of toIngest) {
+        await ingestOneRaw(f.path, () => {
+          done++;
+          btn.textContent = `摄取中 (${done}/${toIngest.length})...`;
+          f.ingested = true;
+          const row = document.getElementById("tree").querySelector(`.raw-file-row[data-idx="${rawFiles.indexOf(f)}"]`);
+          if (row) {
+            row.querySelector(".raw-file-actions").innerHTML = `<span class="badge badge-ingested">已摄取</span>`;
+          }
+        }, (err) => {
+          setBanner(`${f.name} 失败: ${err}`, "err");
+        });
+      }
+      btn.disabled = false; btn.textContent = "全部摄取";
+    });
+
     loadTree();
 
     async function loadTree() {
@@ -482,12 +579,14 @@
     try {
       const data = await api(`/api/v1/projects/${state.projectId}/raw-files`);
       rawFiles = data.files || [];
+      state.rawFiles = rawFiles;
     } catch (e) {
       tree.innerHTML = `<div class="banner-err">加载失败: ${escapeHtml(e.message)}</div>`;
       return;
     }
 
     if (!rawFiles.length) {
+      state.rawFiles = [];
       tree.innerHTML = `<div class="card">raw/sources 目录为空。</div>`;
       return;
     }
@@ -534,6 +633,9 @@
 
         await ingestOneRaw(path, () => {
           action.innerHTML = `<span class="badge badge-ingested">已摄取</span>`;
+          // Update shared state so batch ingest sees it
+          const f = rawFiles.find(x => x.path === path);
+          if (f) f.ingested = true;
         }, (err) => {
           prog.innerHTML = `<span class="badge badge-err" title="\${err}">失败</span>`;
           setTimeout(() => {
@@ -553,30 +655,8 @@
       });
     });
 
-    // Batch ingest
-    // Batch ingest all
-    const ingestAllBtn = document.getElementById("ingestAllRawBtn");
-    ingestAllBtn.addEventListener("click", async () => {
-      const toIngest = rawFiles.filter(f => !f.ingested);
-      if (!toIngest.length) { setBanner("没有需要摄取的文件", "warn"); return; }
-      ingestAllBtn.disabled = true; ingestAllBtn.textContent = `摄取中 (0/${toIngest.length})...`;
-      let done = 0;
-      for (const f of toIngest) {
-        await ingestOneRaw(f.path, () => {
-          done++;
-          ingestAllBtn.textContent = `摄取中 (${done}/${toIngest.length})...`;
-          // update row
-          const row = tree.querySelector(`.raw-file-row[data-idx="${rawFiles.indexOf(f)}"]`);
-          if (row) {
-            const action = row.querySelector(".raw-file-actions");
-            action.innerHTML = `<span class="badge badge-ingested">已摄取</span>`;
-          }
-        }, (err) => {
-          setBanner(`${f.name} 失败: ${err}`, "err");
-        });
-      }
-      ingestAllBtn.disabled = false; ingestAllBtn.textContent = "全部摄取";
-    });
+    // Batch ingest listener is set up once in renderBrowse() (not here)
+    // to avoid stacking duplicate listeners on every refresh.
   }
 
   async function ingestOneRaw(path, onDone, onError, onProgress) {

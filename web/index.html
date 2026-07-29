@@ -13,7 +13,11 @@
       <div class="brand-sub" id="projectName">加载中...</div>
       <div class="health"><span id="healthDot" class="dot"></span><span id="healthText">未连接</span></div>
       <div class="project-selector-wrap">
-        <select id="projectSelect" style="display:none;"></select>
+        <button id="projectDropdownBtn" class="project-dropdown-btn" style="display:none;">
+          <span id="projectDropdownLabel">选择项目</span>
+          <span class="dropdown-arrow">▾</span>
+        </button>
+        <div id="projectDropdown" class="project-dropdown" style="display:none;"></div>
         <button id="newProjectBtn" title="新建项目" style="display:none;">+</button>
       </div>
     </div>
