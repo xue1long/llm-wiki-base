@@ -153,6 +153,134 @@ def test_read_file_content_raises_not_found(monkeypatch, tmp_path):
         files_service.read_file_content("u", "sources/nonexistent.md")
 
 
+def test_list_raw_files_detects_ingested_via_frontmatter(monkeypatch, tmp_path):
+    """list_raw_files must detect ingestion by reading wiki page frontmatter
+    'sources' field, NOT by filename stem matching.
+
+    Regression: wiki pages use generated IDs as filenames (e.g. kb-2026...-.md),
+    not the raw file name. The old stem-prefix match always failed, reporting
+    every raw file as not-ingested.
+    """
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id": "u", "name": "p", "created_at": 1000, "schema_version": "v2.0"}',
+        encoding="utf-8",
+    )
+
+    # Raw files
+    raw_dir = project_dir / "raw" / "sources"
+    raw_dir.mkdir(parents=True)
+    (raw_dir / "doc1.pdf").write_text("pdf content", encoding="utf-8")
+    (raw_dir / "doc2.docx").write_text("docx content", encoding="utf-8")
+    (raw_dir / "doc3.xlsx").write_text("xlsx content", encoding="utf-8")
+    (raw_dir / "no_wiki_page.pdf").write_text("orphan", encoding="utf-8")
+
+    # Wiki source pages — filenames are generated IDs (not raw file names)
+    wiki_sources = project_dir / "wiki" / "sources"
+    wiki_sources.mkdir(parents=True)
+    (wiki_sources / "kb-20260726154545-e84f1b2b.md").write_text(
+        "---\n"
+        "id: kb-20260726154545-e84f1b2b\n"
+        "title: doc1.pdf\n"
+        "type: source\n"
+        "sources:\n"
+        "- raw/sources/doc1.pdf\n"
+        "---\n"
+        "# Body\n",
+        encoding="utf-8",
+    )
+    (wiki_sources / "kb-20260726154727-87487434.md").write_text(
+        "---\n"
+        "id: kb-20260726154727-87487434\n"
+        "title: doc2.docx\n"
+        "type: source\n"
+        "sources:\n"
+        "- raw\\sources\\doc2.docx\n"  # Windows-style backslash
+        "---\n"
+        "# Body\n",
+        encoding="utf-8",
+    )
+    # doc3: source path written as absolute-style with forward slashes
+    (wiki_sources / "kb-20260726154728-6537763a.md").write_text(
+        "---\n"
+        "id: kb-20260726154728-6537763a\n"
+        "title: doc3.xlsx\n"
+        "type: source\n"
+        "sources:\n"
+        "- raw/sources/doc3.xlsx\n"
+        "---\n"
+        "# Body\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "src.services.files.resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+
+    result = files_service.list_raw_files("u")
+    files_by_name = {f["name"]: f for f in result["files"]}
+
+    # Files referenced by wiki page frontmatter → ingested
+    assert files_by_name["doc1.pdf"]["ingested"] is True
+    assert files_by_name["doc2.docx"]["ingested"] is True
+    assert files_by_name["doc3.xlsx"]["ingested"] is True
+    # No wiki page references this file → not ingested
+    assert files_by_name["no_wiki_page.pdf"]["ingested"] is False
+
+
+def test_list_raw_files_missing_dir_returns_empty(monkeypatch, tmp_path):
+    """If raw/sources doesn't exist, return empty list (not an error)."""
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id": "u", "name": "p", "created_at": 1000, "schema_version": "v2.0"}',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "src.services.files.resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+
+    result = files_service.list_raw_files("u")
+    assert result == {"files": []}
+
+
+def test_list_raw_files_filters_non_raw_extensions(monkeypatch, tmp_path):
+    """Only files with extensions in _RAW_EXTS should appear."""
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id": "u", "name": "p", "created_at": 1000, "schema_version": "v2.0"}',
+        encoding="utf-8",
+    )
+
+    raw_dir = project_dir / "raw" / "sources"
+    raw_dir.mkdir(parents=True)
+    (raw_dir / "a.pdf").write_text("pdf", encoding="utf-8")
+    (raw_dir / "b.exe").write_text("exe", encoding="utf-8")
+    (raw_dir / "c.py").write_text("py", encoding="utf-8")
+    (raw_dir / "d.docx").write_text("docx", encoding="utf-8")
+    (raw_dir / "subdir").mkdir()
+    (raw_dir / "subdir" / "e.txt").write_text("txt", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "src.services.files.resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+
+    result = files_service.list_raw_files("u")
+    names = {f["name"] for f in result["files"]}
+    assert names == {"a.pdf", "d.docx", "e.txt"}
+    assert "b.exe" not in names
+    assert "c.py" not in names
+
+
 def _fake_resolve(project_dir):
     """Build a (ProjectContext, WikiPaths) pair pointing at project_dir."""
     from src.project.context import ProjectContext

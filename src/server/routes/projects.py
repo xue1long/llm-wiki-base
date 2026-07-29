@@ -81,3 +81,13 @@ async def get_project(project_id: str):
         return projects_service.get_project(project_id)
     except projects_service.ProjectNotFound as e:
         raise HTTPException(404, str(e))
+
+
+@router.delete("/projects/{project_id}")
+async def delete_project(project_id: str):
+    """Remove a project from the global registry (does NOT delete files)."""
+    try:
+        projects_service.delete_project(project_id)
+        return {"ok": True}
+    except projects_service.ProjectNotFound as e:
+        raise HTTPException(404, str(e))

@@ -40,14 +40,14 @@ def test_resolve_wiki_paths_falls_back_to_cwd_when_no_id(tmp_path, monkeypatch):
     assert paths.root == tmp_path
 
 
-def test_resolve_wiki_paths_falls_back_when_unknown_project_id(tmp_path, monkeypatch):
-    """Unknown project_id does not raise — falls back to CWD as the wiki root."""
+def test_resolve_wiki_paths_raises_for_unknown_project_id(tmp_path, monkeypatch):
+    """Unknown project_id now raises ValueError instead of silently falling
+    back to CWD — silent fallback wrote wiki pages to the wrong directory."""
     from src.project import paths as project_paths
     cfg_dir = tmp_path / "cfg"
     cfg_dir.mkdir()
     monkeypatch.setattr(project_paths, "_OVERRIDE_CONFIG_DIR", cfg_dir)
     monkeypatch.chdir(tmp_path)
 
-    # No project registered; resolve should still succeed via the fallback.
-    paths = pipeline_mod._resolve_wiki_paths(project_id="does-not-exist")
-    assert paths.root == tmp_path
+    with pytest.raises(ValueError, match="not found in the global registry"):
+        pipeline_mod._resolve_wiki_paths(project_id="does-not-exist")

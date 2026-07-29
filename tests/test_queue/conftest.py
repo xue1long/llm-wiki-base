@@ -33,10 +33,20 @@ class FakeQueueBackend:
     def find(self, task_id: str):
         return self._tasks.get(task_id)
 
+    def find_by_hash(self, task_hash: str) -> list:
+        """Return all tasks with the given task_hash."""
+        return [t for t in self._tasks.values()
+                if getattr(t, 'task_hash', None) == task_hash]
+
+    def remove(self, task_id: str) -> None:
+        """Remove a task from the backend."""
+        self._calls.append(("remove", task_id))
+        self._tasks.pop(task_id, None)
+
     def iter_ids(self):
         return list(self._tasks.keys())
 
-    def snapshot(self):
+    def snapshot(self, *, in_flight_ids=None):
         return list(self._tasks.values())
 
     def calls_matching(self, op: str):

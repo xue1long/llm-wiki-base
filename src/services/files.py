@@ -6,8 +6,9 @@ FileTooLargeError, PathIsDirectoryError) to HTTP status codes.
 """
 from __future__ import annotations
 
-import re
 from pathlib import Path
+
+import yaml
 
 from ..lib.project import resolve_project
 
@@ -141,6 +142,44 @@ def _load_batch_state(paths) -> dict:
     return {}
 
 
+def _collect_referenced_raw_paths(wiki_sources_dir: Path) -> set:
+    """Parse frontmatter of every wiki/sources page and return a set of
+    normalized (forward-slash) raw-source paths referenced by their
+    ``sources`` field.
+
+    Wiki pages use generated IDs as filenames (e.g. ``kb-20260726-xxxx.md``),
+    so filename-stem matching against raw files is unreliable.  We must read
+    the YAML frontmatter to know which raw files were actually ingested.
+    """
+    if not wiki_sources_dir.exists():
+        return set()
+
+    referenced: set = set()
+    for md_file in wiki_sources_dir.iterdir():
+        if not md_file.suffix == ".md" or not md_file.is_file():
+            continue
+        try:
+            text = md_file.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        if not text.startswith("---\n"):
+            continue
+        end = text.find("\n---", 4)
+        if end < 0:
+            continue
+        try:
+            fm = yaml.safe_load(text[4:end]) or {}
+        except yaml.YAMLError:
+            continue
+        sources = fm.get("sources", [])
+        if isinstance(sources, list):
+            for s in sources:
+                # Normalize Windows backslashes to forward slashes so
+                # comparison with Path.as_posix() works cross-platform.
+                referenced.add(str(s).replace("\\", "/"))
+    return referenced
+
+
 def list_raw_files(project_id: str) -> dict:
     """List files under raw/sources/ for the project.
 
@@ -155,6 +194,11 @@ def list_raw_files(project_id: str) -> dict:
     state = _load_batch_state(paths)
     ingested_set = set(state.get("ingested", {}).keys())
 
+    # Resolve ingestion status by reading wiki page frontmatter, NOT by
+    # filename-stem matching.  Wiki pages use generated IDs as filenames
+    # (e.g. kb-20260726-xxxx.md) that never match raw file names.
+    referenced_paths = _collect_referenced_raw_paths(paths.wiki_sources)
+
     files = []
     for f in raw_dir.rglob("*"):
         if not f.is_file():
@@ -167,18 +211,10 @@ def list_raw_files(project_id: str) -> dict:
         # (Windows gives backslashes; batch_build_state.json stores forward slashes)
         resolved_posix = f.resolve().as_posix().replace("\\", "/")
 
-        # ingested = True when wiki/sources page exists AND batch_build_state
-        # does NOT explicitly contradict it (no record or record matches).
-        #
-        # Wiki/sources filenames have a hash suffix (e.g. "内容-ae9637b6.md")
-        # while raw filenames don't. We match by stem prefix: raw "内容.md"
-        # matches wiki "内容-ae9637b6.md".
-        wiki_stem = f.stem  # filename without extension
-        wiki_page_exists = any(
-            w.is_file() and w.stem.startswith(wiki_stem)
-            for w in paths.wiki_sources.iterdir()
-            if w.suffix == ".md"
-        ) if paths.wiki_sources.exists() else False
+        # ingested = True when a wiki/sources page references this raw file
+        # in its frontmatter ``sources`` field AND batch_build_state does
+        # not explicitly contradict it.
+        wiki_page_exists = rel in referenced_paths
         batch_match = (
             rel in ingested_set
             or str(f.resolve()) in ingested_set

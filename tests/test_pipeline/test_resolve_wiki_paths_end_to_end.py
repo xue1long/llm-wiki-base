@@ -5,6 +5,7 @@ CLI mode writes to the canonical <root>/wiki/ shape. This test exercises
 both branches of _resolve_wiki_paths via the full project-init flow so
 the CWD-fallback and the registered-project branches stay coherent.
 """
+import pytest
 from src.project.context import ProjectContext
 from src.wiki.core.paths import WikiPaths
 from src.cli_ext import project_cmd
@@ -45,14 +46,14 @@ def test_resolve_fallback_returns_cwd(tmp_path, monkeypatch):
     assert paths.root == tmp_path
 
 
-def test_resolve_fallback_for_unknown_id(tmp_path, monkeypatch):
-    """Unknown project_id does not raise — falls back to CWD."""
+def test_resolve_raises_for_unknown_id(tmp_path, monkeypatch):
+    """Unknown project_id raises ValueError — silent fallback wrote wiki pages
+    to the wrong directory with no error."""
     from src.project import paths as project_paths
     cfg_dir = tmp_path / "cfg"
     cfg_dir.mkdir()
     monkeypatch.setattr(project_paths, "_OVERRIDE_CONFIG_DIR", cfg_dir)
     monkeypatch.chdir(tmp_path)
 
-    # No project registered; resolve should still succeed via the fallback.
-    paths = _resolve_wiki_paths(project_id="does-not-exist")
-    assert paths.root == tmp_path
+    with pytest.raises(ValueError, match="not found in the global registry"):
+        _resolve_wiki_paths(project_id="does-not-exist")

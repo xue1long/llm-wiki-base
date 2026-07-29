@@ -30,7 +30,7 @@ async def test_archive_raises_when_no_embeddings_produced(tmp_path, monkeypatch)
             return []
 
     monkeypatch.setattr(librarian, "get_embedding_provider", lambda: _EmptyProvider())
-    monkeypatch.setattr(librarian, "vector_search_chunks", lambda emb, top_k: [])
+    monkeypatch.setattr(librarian, "vector_search_chunks", lambda emb, top_k, **kw: [])
 
     # Spy: if the code attempts to upsert zero vectors, fail loudly.
     def _fail(_chunks):
@@ -67,7 +67,7 @@ async def test_archive_proceeds_normally_when_embeddings_present(tmp_path, monke
             return [_E([0.1] * 1536) for _ in texts]
 
     monkeypatch.setattr(librarian, "get_embedding_provider", lambda: _StubProvider())
-    monkeypatch.setattr(librarian, "vector_search_chunks", lambda emb, top_k: [])
+    monkeypatch.setattr(librarian, "vector_search_chunks", lambda emb, top_k, **kw: [])
 
     captured = []
 

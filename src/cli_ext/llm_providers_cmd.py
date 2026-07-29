@@ -116,10 +116,31 @@ def cmd_llm_providers_test(args: argparse.Namespace) -> None:
 
 
 def cmd_llm_providers_set_default(args: argparse.Namespace) -> None:
-    """Write RUFLO_LLM_PROVIDER env var to ~/.config/ruflo-kb/env."""
+    """Persist the default provider name for all callers.
+
+    Two persistence targets:
+
+    1. ``ProviderRegistry.set_default(name)`` — writes the explicit
+       default into the JSON registry so that ``get_default()`` resolves
+       it immediately (slot tier 2: ``get_default_name()``). This covers
+       all current-process callers — no env var or shell restart needed.
+
+    2. ``~/.config/ruflo-kb/env`` — writes ``RUFLO_LLM_PROVIDER=<name>``
+       so future shell sessions pick up the default via env var (slot
+       tier 1). The user should ``source`` this file in their shell rc.
+
+    These two mechanisms are complementary, not redundant. The env file
+    survives registry file deletion / corruption; the JSON persistence
+    works for callers that don't source the env file.
+    """
     from ..llm.registry import ProviderRegistry
 
     ProviderRegistry.get(args.name)  # Validate existence; raises KeyError if missing
+
+    # Persist to JSON registry — takes effect immediately.
+    ProviderRegistry.set_default(args.name)
+
+    # Persist to shell env file — takes effect in future sessions.
     config_dir = Path(os.path.expanduser("~/.config/ruflo-kb"))
     config_dir.mkdir(parents=True, exist_ok=True)
     env_file = config_dir / "env"

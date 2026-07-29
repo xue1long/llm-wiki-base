@@ -27,7 +27,7 @@ from datetime import datetime
 from ..circuit_breaker import get_circuit_breaker
 from ..events.event_bus import event_bus
 from ..types import KnowledgeTask, SourceType, TaskStatus
-from ..utils.idempotency import check_duplicate, remove_hash
+from ..utils.idempotency import remove_hash
 from .in_flight import InMemoryInFlightTracker
 from .persistence import JsonFileBackend
 from .ports import EventEmitter, InFlightTracker, QueueBackend, RetryPolicy
@@ -82,44 +82,51 @@ class QueueService:
         task_hash: str,
         project_id: str | None = None,
     ) -> str:
-        # Check persistent backend for existing tasks with the same hash.
-        # Only treat as duplicate if there's a PENDING or RUNNING task.
-        # FAILED/DEAD_LETTER tasks with the same hash can be re-enqueued.
-        existing = self.backend.find_by_hash(task_hash)
-        active = [t for t in existing if t.status in (TaskStatus.PENDING, TaskStatus.RUNNING)]
-        if active:
-            logger.info(f"[Queue] Duplicate task_hash (active task exists): {task_hash}")
-            return ""
-
-        # Remove any terminal-state tasks with the same hash before enqueueing new one.
-        for t in existing:
-            self.backend.remove(t.id)
-
-        task = KnowledgeTask(
-            id=generate_task_id(),
-            source=source,
-            source_type=source_type,
-            status=TaskStatus.PENDING,
-            task_hash=task_hash,
-            created_at=int(datetime.now().timestamp()),
-            updated_at=int(datetime.now().timestamp()),
-            retry_count=0,
-            project_id=project_id,
-        )
+        task_id: str = ""   # assigned inside lock; always overwritten before use
 
         with self._service_lock:
+            # Check persistent backend for existing tasks with the same hash.
+            # Only treat as duplicate if there's a PENDING or RUNNING task.
+            # FAILED/DEAD_LETTER tasks with the same hash can be re-enqueued.
+            #
+            # The duplicate check + removal + enqueue are all inside the same
+            # lock so that concurrent callers cannot both see an empty result
+            # and both enqueue (TOCTOU race, surfaced by
+            # test_concurrent_enqueue_preserves_unique_tasks).
+            existing = self.backend.find_by_hash(task_hash)
+            active = [t for t in existing if t.status in (TaskStatus.PENDING, TaskStatus.RUNNING)]
+            if active:
+                logger.info(f"[Queue] Duplicate task_hash (active task exists): {task_hash}")
+                return ""
+
+            # Remove any terminal-state tasks with the same hash before enqueueing new one.
+            for t in existing:
+                self.backend.remove(t.id)
+
+            task = KnowledgeTask(
+                id=generate_task_id(),
+                source=source,
+                source_type=source_type,
+                status=TaskStatus.PENDING,
+                task_hash=task_hash,
+                created_at=int(datetime.now().timestamp()),
+                updated_at=int(datetime.now().timestamp()),
+                retry_count=0,
+                project_id=project_id,
+            )
             self.backend.enqueue(task)
+            task_id = task.id
 
         # Emit AFTER lock release (handler may re-enter the queue)
         self.emitter.emit(EventName.TASK_CREATED, TaskCreatedPayload(
-            task_id=task.id,
-            source=task.source,
-            source_type=task.source_type,
-            task_hash=task.task_hash,
+            task_id=task_id,
+            source=source,
+            source_type=source_type,
+            task_hash=task_hash,
             project_id=project_id,
         ))
-        self.advance(prefer_task_id=task.id, project_id=project_id)
-        return task.id
+        self.advance(prefer_task_id=task_id, project_id=project_id)
+        return task_id
 
     def update_status(
         self,
@@ -260,8 +267,15 @@ class QueueService:
         update_status), move it to PENDING so the scheduler can retry it.
         This handles the case where a pipeline run raises an exception after
         the collector starts but before the generator completes.
+
+        Only calls advance() when the in-flight marker was still held at entry.
+        When update_status already handled a FAILED→PENDING retry (which
+        releases the in-flight marker + calls advance() internally), the marker
+        is already clear — skipping the redundant advance() here prevents a
+        double-dispatch of the same task.
         """
         with self._service_lock:
+            was_in_flight = self.tracker.is_in_flight(task_id)
             self.tracker.release(task_id)
             task = self.backend.find(task_id)
             if task is not None and task.status == TaskStatus.RUNNING:
@@ -284,7 +298,8 @@ class QueueService:
                         "exhausted, leaving RUNNING for caller to mark DEAD_LETTER",
                         task_id,
                     )
-        self.advance()
+        if was_in_flight:
+            self.advance()
 
     def get_queue(self) -> list[KnowledgeTask]:
         # Return all tasks (including APPROVED / DEAD_LETTER). The

@@ -27,7 +27,7 @@ def select_next_task(
     Returns:
         The chosen KnowledgeTask, or None if no candidate matches.
     """
-    candidates = backend.snapshot()
+    candidates = backend.snapshot(in_flight_ids=tracker.snapshot())
     if prefer_task_id is not None:
         return next(
             (t for t in candidates

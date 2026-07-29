@@ -147,8 +147,9 @@ class JsonFileBackend:
         with self._lock:
             return list(self._tasks.keys())
 
-    def snapshot(self) -> list[KnowledgeTask]:
+    def snapshot(self, *, in_flight_ids: set[str] | None = None) -> list[KnowledgeTask]:
         import time
+        _in_flight = in_flight_ids or set()
         with self._lock:
             result: list[KnowledgeTask] = []
             now = time.time()
@@ -163,17 +164,29 @@ class JsonFileBackend:
                 # already handles this via release_in_flight, but after a
                 # server restart those in-memory markers are gone; snapshot()
                 # is the only place that can recover them.
+                #
+                # CRITICAL: skip stale recovery for tasks that are currently
+                # in-flight. The pipeline may still be running (slow LLM call,
+                # large document); resetting RUNNING→PENDING while the task is
+                # still active causes an InvalidTransition when the pipeline
+                # later tries to mark it APPROVED (PENDING→APPROVED is illegal).
                 if row.get("status") == TaskStatus.RUNNING.value:
-                    updated_at = row.get("updated_at", 0)
-                    if now - updated_at > 600:  # 10 minutes
-                        row["status"] = TaskStatus.PENDING
-                        self._tasks[row["id"]] = row
-                        self._save_unlocked()
-                        logger.info(
-                            "[JsonFileBackend] task %s was stale RUNNING, "
-                            "reset to PENDING", row["id"],
-                        )
-                        continue
+                    if row["id"] in _in_flight:
+                        # Task is in-flight — the pipeline is still running.
+                        # Do NOT touch it. The in-flight marker was cleared
+                        # by the stale check guard in release_in_flight already.
+                        pass
+                    else:
+                        updated_at = row.get("updated_at", 0)
+                        if now - updated_at > 600:  # 10 minutes
+                            row["status"] = TaskStatus.PENDING
+                            self._tasks[row["id"]] = row
+                            self._save_unlocked()
+                            logger.info(
+                                "[JsonFileBackend] task %s was stale RUNNING, "
+                                "reset to PENDING", row["id"],
+                            )
+                            continue
                 try:
                     result.append(KnowledgeTask(**row))
                 except (TypeError, ValueError) as e:

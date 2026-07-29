@@ -28,7 +28,7 @@ class FakeBackend:
         self._tasks.append(task)
     def find(self, task_id):
         return next((t for t in self._tasks if t.id == task_id), None)
-    def snapshot(self): return list(self._tasks)
+    def snapshot(self, *, in_flight_ids=None): return list(self._tasks)
 
 
 def _mk_task(task_id: str, status: TaskStatus = TaskStatus.PENDING,

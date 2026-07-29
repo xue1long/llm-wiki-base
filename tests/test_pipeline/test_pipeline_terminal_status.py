@@ -80,5 +80,5 @@ async def test_handler_marks_task_failed_on_exception(tmp_path, monkeypatch):
     # DEAD_LETTER (formerly FAILED).
     assert task.status is TaskStatus.DEAD_LETTER
     assert task.retry_count >= MAX_RETRIES
-    assert task.error == "ingest exploded"
+    assert task.error == "RuntimeError: ingest exploded"
     assert task_id not in service.tracker.snapshot()

@@ -104,7 +104,7 @@ async def test_archive_propagates_permission_error_for_out_of_root_path(tmp_path
     monkeypatch.setattr(
         librarian,
         "vector_search_chunks",
-        lambda emb, top_k: [_FakeResult(path=str(outside), score=0.99)],
+        lambda emb, top_k, **kw: [_FakeResult(path=str(outside), score=0.99)],
     )
 
     with pytest.raises(PermissionError):

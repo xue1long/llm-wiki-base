@@ -25,21 +25,40 @@ def _rel_path(abs_path: str, base: str | None = None) -> str:
 
 
 def list_projects(base: str | None = None) -> dict:
-    """Return {projects: [{id, name, path, last_opened, schema_version}, ...]}."""
+    """Return {projects: [{id, name, path, last_opened, schema_version}, ...]}.
+
+    Entries whose project directory no longer exists on disk are silently
+    dropped (auto-cleaned from the registry) so stale test artifacts and
+    deleted projects don't clutter the UI.
+    """
     reg = GlobalRegistryStore.load()
-    entries = sorted(reg.projects.values(), key=lambda e: e.last_opened or 0, reverse=True)
-    return {
-        "projects": [
-            {
-                "id": e.id,
-                "name": e.name,
-                "path": _rel_path(e.path, base),
-                "last_opened": e.last_opened,
-                "schema_version": e.schema_version,
-            }
-            for e in entries
-        ]
-    }
+    stale_ids: list[str] = []
+    seen_names: set[str] = set()
+    valid: list[dict] = []
+
+    for e in sorted(reg.projects.values(), key=lambda e: e.last_opened or 0, reverse=True):
+        if not Path(e.path).exists():
+            stale_ids.append(e.id)
+            continue
+        # Skip duplicate names — entries are sorted by last_opened desc,
+        # so the first (most recently used) wins.
+        if e.name in seen_names:
+            continue
+        seen_names.add(e.name)
+        valid.append({
+            "id": e.id,
+            "name": e.name,
+            "path": _rel_path(e.path, base),
+            "last_opened": e.last_opened,
+            "schema_version": e.schema_version,
+        })
+
+    # Auto-heal: remove stale entries from registry so they don't accumulate
+    if stale_ids:
+        for pid in stale_ids:
+            GlobalRegistryStore.remove(pid)
+
+    return {"projects": valid}
 
 
 def get_project(project_id: str) -> dict:
@@ -102,3 +121,18 @@ def select_project(project_id: str) -> dict:
     GlobalRegistryStore.upsert(entry)
     GlobalRegistryStore.save_last_project(entry.id, entry.path)
     return entry.to_dict()
+
+
+def delete_project(project_id: str) -> None:
+    """Remove a project entry from the global registry.
+
+    This does NOT delete project files on disk — it only removes the
+    registry record so the project no longer appears in the UI.
+
+    Raises:
+        ProjectNotFound: if project_id doesn't exist.
+    """
+    entry = GlobalRegistryStore.by_id(project_id)
+    if not entry:
+        raise ProjectNotFound(f"Project not found: {project_id}")
+    GlobalRegistryStore.remove(project_id)

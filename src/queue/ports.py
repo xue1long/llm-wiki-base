@@ -42,10 +42,16 @@ class QueueBackend(Protocol):
         full set without constructing a full object per row."""
         ...
 
-    def snapshot(self) -> list[KnowledgeTask]:
+    def snapshot(self, *, in_flight_ids: set[str] | None = None) -> list[KnowledgeTask]:
         """Return a copy of all currently tracked tasks. Implementations
         may filter out terminal states (e.g. APPROVED) — see the
-        APPROVED-filtering invariant in the spec."""
+        APPROVED-filtering invariant in the spec.
+
+        ``in_flight_ids``, when provided, lets the backend skip stale-recovery
+        for tasks that are still actively being processed (the in-flight
+        marker prevents double dispatch on its own; stale RUNNING→PENDING
+        should only apply to genuinely orphaned tasks after a restart).
+        """
         ...
 
 
