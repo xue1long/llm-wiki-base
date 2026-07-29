@@ -241,25 +241,47 @@ async def run_ingest(
     )
     _source_slug_map = {str(source_path): _source_slug_for_map}
 
-    # Step 1: Analyze
-    analysis = await _analyze(
-        source_text=source_text,
-        source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
-        existing_wiki_index=_existing_wiki_index,
-        folder_context=folder_context,
-        provider=provider,
-        task_id=task_id,
-        source_path=str(source_path),
-    )
-
-    # Step 2: Generate
-    pages = await _generate(
-        paths=paths,
-        analysis=analysis,
-        existing_wiki_index=_existing_wiki_index,
-        provider=provider,
-        source_slug_map=_source_slug_map,
-    )
+    # Unified path: single LLM call (Analyzer + Generator merged).
+    # Falls back to two-step on failure.
+    analysis = None  # type: ignore[assignment]
+    pages: list[WikiPage] = []
+    try:
+        from .generator import unified_generate
+        pages = await unified_generate(
+            source_text=source_text,
+            source_path=str(source_path),
+            folder_context=folder_context or "",
+            paths=paths,
+            existing_wiki_index=_existing_wiki_index,
+            provider=provider,
+            source_slug_map=_source_slug_map,
+        )
+        _logger.info(
+            "[run_ingest] unified path produced %d pages for %s",
+            len(pages), source_path,
+        )
+    except Exception as _unified_err:
+        _logger.warning(
+            "[run_ingest] unified path failed (%s), falling back to two-step",
+            _unified_err,
+        )
+        # Fallback: original two-step Analyze → Generate
+        analysis = await _analyze(
+            source_text=source_text,
+            source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
+            existing_wiki_index=_existing_wiki_index,
+            folder_context=folder_context,
+            provider=provider,
+            task_id=task_id,
+            source_path=str(source_path),
+        )
+        pages = await _generate(
+            paths=paths,
+            analysis=analysis,
+            existing_wiki_index=_existing_wiki_index,
+            provider=provider,
+            source_slug_map=_source_slug_map,
+        )
 
     # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.
     # Default OFF (QualitySettings.enabled=False) — must be explicitly
@@ -355,7 +377,11 @@ async def run_ingest(
         # available; fall back to one bullet per generated downstream
         # page so the section is never blank. (Plan 27: required
         # slots must contain substantive content per the v2.3 schema.)
-        key_facts = list(analysis.key_facts or [])
+        #
+        # Unified path (analysis=None): extract summary from the
+        # already-generated source page if the LLM produced one.
+        _has_analysis = analysis is not None
+        key_facts = list(analysis.key_facts or []) if _has_analysis else []
         if key_facts:
             key_points_value: list[str] | str = [
                 kf if isinstance(kf, str) else str(kf) for kf in key_facts
@@ -367,6 +393,17 @@ async def run_ingest(
         extracted_concepts_value: list[str] = [
             f"→ [[{p.id}]]" for p in pages if getattr(p, "id", None)
         ] or ["(本摄取无下游页面)"]
+
+        # Summary: prefer analyzer, then unified-generated source page's summary slot
+        _summary_text = ""
+        if _has_analysis:
+            _summary_text = analysis.summary or ""
+        else:
+            # Unified path: look for source page with summary slot
+            for _p in pages:
+                if _p.type == PageType.SOURCE:
+                    _summary_text = _p.body or ""
+                    break
         source_body = render_body(
             template_body=source_tpl.body_markdown,
             slots={
@@ -375,7 +412,7 @@ async def run_ingest(
                     f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
                     f"- 任务 ID: `{task_id}`\n"
                 ),
-                "summary": (analysis.summary or "(无摘要)").strip() or "(无摘要)",
+                "summary": _summary_text.strip() or "(无摘要)",
                 "key_points": key_points_value,
                 "extracted_concepts": extracted_concepts_value,
             },
@@ -385,17 +422,24 @@ async def run_ingest(
     except FileNotFoundError:
         # Fallback: hardcoded legacy body (matches the previous
         # behaviour pre-template integration).
-        source_summary = (analysis.summary or "").strip() or "(无摘要)"
+        _summary_fb = ""
+        if _has_analysis:
+            _summary_fb = (analysis.summary or "").strip() or "(无摘要)"
+        else:
+            for _p in pages:
+                if _p.type == PageType.SOURCE:
+                    _summary_fb = _p.body or ""
+                    break
         source_body = (
             f"## 来源\n\n"
             f"- 路径: `{source_path}`\n"
             f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"- 任务 ID: `{task_id}`\n\n"
             f"## 摘要\n\n"
-            f"{source_summary}\n\n"
+            f"{_summary_fb}\n\n"
             f"## 抽取的概念\n\n"
             f"本次摄取共生成 **{len(pages)}** 个下游页面"
-            f"{('（共 '+ str(len(analysis.suggested_pages)) + ' 个建议页）') if analysis.suggested_pages else ''}。\n"
+            f"{('（共 '+ str(len(analysis.suggested_pages)) + ' 个建议页）') if _has_analysis and analysis.suggested_pages else ''}。\n"
         )
 
     source_page = WikiPage(
@@ -468,8 +512,9 @@ async def run_ingest(
         for src in (page.sources or []):
             # Skip the source path itself — that's not a wiki slug.
             pass
-    for link in (analysis.links_to_existing or []):
-        referenced_slugs.add(_slugify(link) or link)
+    if _has_analysis:
+        for link in (analysis.links_to_existing or []):
+            referenced_slugs.add(_slugify(link) or link)
 
     # B10: scan each generated page's body for [[wikilinks]] that are not
     # captured by the structured `relations` list above. `_extract_wikilink_targets`
@@ -489,6 +534,25 @@ async def run_ingest(
     # slugs were never counted (B11).
     existing_slugs: set[str] = set(_existing_wiki.keys())
 
+    # Build a lookup from slug → {name, context} so stub titles can use
+    # the original Chinese name from the analyzer rather than a mechanical
+    # slug→title transform (which yields pinyin for CJK terms).
+    _analyzer_name_map: dict[str, str] = {}
+    _analyzer_context_map: dict[str, str] = {}
+    if _has_analysis:
+        for e in (analysis.entities or []):
+            if e.slug:
+                _analyzer_name_map[e.slug] = e.name or ""
+                _analyzer_context_map[e.slug] = e.context or ""
+        for e in (analysis.concepts or []):
+            if e.slug:
+                _analyzer_name_map[e.slug] = e.name or e.concept or ""
+                _analyzer_context_map[e.slug] = e.context or ""
+        for p in (analysis.suggested_pages or []):
+            if p.slug:
+                _analyzer_name_map[p.slug] = p.title or ""
+                _analyzer_context_map[p.slug] = p.reasoning or ""
+
     missing = referenced_slugs - produced_slugs - existing_slugs
     if missing:
         _logger.info(
@@ -496,21 +560,35 @@ async def run_ingest(
             f"{sorted(missing)[:5]}{'...' if len(missing) > 5 else ''}"
         )
     for slug in sorted(missing):
-        # Best-effort title: humanize the slug (replace hyphens with
-        # spaces, title-case ASCII). The slug is already deterministic
-        # via pypinyin so this is consistent.
-        slug_text = slug.replace("-", " ")
-        # If the slug looks like pinyin (mostly lowercase letters), title-case it
-        title = (
-            slug_text.title()
-            if all(c.islower() or c.isdigit() or c.isspace() for c in slug_text)
-            else slug_text
+        # Best-effort title: prefer the analyzer's original Chinese name
+        # (e.g. "总裁文"); fall back to mechanical slug→text transform.
+        analyzer_title = _analyzer_name_map.get(slug, "")
+        if analyzer_title and any('一' <= c <= '鿿' for c in analyzer_title):
+            # Analyzer gave us a real Chinese name — use it verbatim.
+            title = analyzer_title
+        elif analyzer_title:
+            title = analyzer_title
+        else:
+            slug_text = slug.replace("-", " ")
+            title = (
+                slug_text.title()
+                if all(c.islower() or c.isdigit() or c.isspace() for c in slug_text)
+                else slug_text
+            )
+
+        # Stub body: include analyzer context when available so the stub
+        # is at least somewhat informative.
+        analyzer_ctx = _analyzer_context_map.get(slug, "")
+        ctx_line = (
+            f"\n\n**分析器上下文:** {analyzer_ctx}"
+            if analyzer_ctx else ""
         )
         stub_body = (
             f"## 占位条目\n\n"
-            f"此页面被其他页面引用(例如 `[[{slug}]]`),但尚未独立撰写。\n\n"
+            f"此页面被其他页面引用（例如 `[[{slug}]]`），但本此摄取中 Generator 未生成"
+            f"该实体的独立页面。{ctx_line}\n\n"
             f"来源摄取: `{source_path}` (task `{task_id}`)。\n\n"
-            f"下次摄取如果包含此实体,系统会自动用真实内容替换本占位页。\n"
+            f"下次摄取如果包含此实体的详细内容，系统会自动用真实内容替换本占位页。\n"
         )
         pages.append(WikiPage(
             id=slug,
@@ -518,7 +596,7 @@ async def run_ingest(
             type=PageType.ENTITY,
             sources=[str(source_path)],
             body=stub_body,
-            grade="B",
+            grade="C",               # stub → lower grade than generated pages
             processing_depth="concept",
             is_immutable=False,
             created_at=int(_time.time() * 1000),
@@ -530,6 +608,21 @@ async def run_ingest(
     # target pages (referenced by a new relation but not themselves created
     # this run) are loaded, merged, and written in the same atomic batch.
     extra_pages = _compute_reverse_relations(paths, pages)
+
+    # Q1-fix: defensive relation dedup on the final page set. Each page
+    # must have at most one relation per target_id (highest weight wins).
+    # The Generator already deduplicates, but _compute_reverse_relations
+    # may add inverse edges that collide with existing relations.
+    for page in pages + extra_pages:
+        if not page.relations:
+            continue
+        deduped: list = []
+        seen: set = set()
+        for rel in sorted(page.relations, key=lambda r: r.weight or 1.0, reverse=True):
+            if rel.target_id not in seen:
+                seen.add(rel.target_id)
+                deduped.append(rel)
+        page.relations = deduped
 
     # Atomic write all pages + index update + log
     with AtomicContext(flush_callback=flush_pending_writes):
@@ -549,3 +642,56 @@ async def run_ingest(
         )
 
     return pages
+
+
+async def run_batch_ingest(
+    paths: WikiPaths,
+    source_paths: list[Path],
+    provider,
+    folder_context: str = "",
+    concurrency: int = 3,
+) -> list[list[WikiPage]]:
+    """Ingest multiple raw files concurrently.
+
+    Each file is processed independently via ``run_ingest`` (unified path
+    by default, with two-step fallback). A semaphore caps concurrency to
+    avoid overwhelming the LLM provider.
+
+    Returns a list of page-lists, one per input file (same order).
+    """
+    import asyncio
+
+    _logger.info(
+        "[batch_ingest] processing %d files with concurrency=%d",
+        len(source_paths), concurrency,
+    )
+    sem = asyncio.Semaphore(concurrency)
+
+    async def _ingest_one(idx: int, sp: Path) -> tuple[int, list[WikiPage]]:
+        async with sem:
+            _logger.info("[batch_ingest] [%d/%d] %s", idx + 1, len(source_paths), sp.name)
+            source_text = sp.read_text(encoding="utf-8")
+            pages = await run_ingest(
+                paths=paths,
+                source_path=sp,
+                source_text=source_text,
+                provider=provider,
+                folder_context=folder_context,
+            )
+            _logger.info("[batch_ingest] [%d/%d] done — %d pages", idx + 1, len(source_paths), len(pages))
+            return idx, pages
+
+    tasks = [_ingest_one(i, sp) for i, sp in enumerate(source_paths)]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Reconstruct ordered results, logging failures
+    ordered: list[list[WikiPage]] = []
+    for i in range(len(source_paths)):
+        result = results[i]
+        if isinstance(result, Exception):
+            _logger.error("[batch_ingest] [%d/%d] FAILED: %s", i + 1, len(source_paths), result)
+            ordered.append([])
+        else:
+            idx, pages = result
+            ordered.append(pages)
+    return ordered

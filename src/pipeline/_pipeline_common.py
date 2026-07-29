@@ -13,7 +13,7 @@ import re
 from typing import Any
 
 
-_FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*?\}|\[.*?\])\s*```", re.DOTALL)
+_FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*\}|\[.*\])\s*```", re.DOTALL)
 
 
 def parse_llm_json(llm_resp: Any) -> dict:

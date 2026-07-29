@@ -21,12 +21,10 @@ async def test_run_ingest_full_pipeline(tmp_path):
     raw.write_bytes(b"fake pdf content")
 
     provider = ScriptedLLMProvider([
-        {"summary": "About backprop.", "key_facts": [], "entities": [],
-         "concepts": [{"name": "Backprop", "slug": "backprop", "context": "...", "confidence": 0.9}],
-         "suggested_pages": [{"type": "source", "slug": "test", "title": "Test", "reasoning": "..."}],
-         "links_to_existing": []},
+        # Entry 0: unified format (consumed by unified_generate first attempt
+        # if it parses; otherwise triggers retry/fallback). Must have "pages"
+        # key to produce pages.
         {"pages": [{"id": "test", "type": "source", "title": "Test",
-                    "frontmatter_extra": {},
                     "slots": {"source_meta": "sm", "summary": "Body content",
                               "key_points": ["kp"], "extracted_concepts": ["c"]}}]},
     ])
@@ -35,19 +33,20 @@ async def test_run_ingest_full_pipeline(tmp_path):
         paths=p, source_path=raw, source_text="PDF content about backprop",
         provider=provider,
     )
-    # When the LLM emits a source-type page (slug="test"), the pipeline's
-    # task-id fallback (kb-{task_id}) is redundant and would create a
-    # duplicate source page. After dedup fix, only the LLM's page remains.
+    # Deterministic source-page slug rewrites LLM's "test" to "test-<hash>".
     assert len(pages) == 1, (
         f"expected exactly 1 page (LLM's source page); got {[(p.id, p.type) for p in pages]}"
     )
     page_ids = {p.id for p in pages}
-    assert page_ids == {"test"}, f"expected only 'test' in {page_ids}"
+    source_page_id = next(iter(page_ids))
+    assert source_page_id.startswith("test-"), (
+        f"source page id should start with 'test-', got {source_page_id!r}"
+    )
     assert not any(p.id.startswith("kb-") for p in pages), (
         f"kb-* fallback must NOT be added when LLM already produced a source page"
     )
-    assert (p.wiki_sources / "test.md").exists()
-    assert "test" in p.llm_wiki_index.read_text(encoding="utf-8")
+    assert (p.wiki_sources / f"{source_page_id}.md").exists()
+    assert source_page_id in p.llm_wiki_index.read_text(encoding="utf-8")
 
 
 @pytest.mark.asyncio
@@ -60,11 +59,8 @@ async def test_collector_done_triggers_run_ingest(tmp_path, monkeypatch):
     raw.write_text("content", encoding="utf-8")
 
     provider = ScriptedLLMProvider([
-        {"summary": "x", "key_facts": [], "entities": [], "concepts": [],
-         "suggested_pages": [{"type": "source", "slug": "x", "title": "X", "reasoning": "r"}],
-         "links_to_existing": []},
+        # Entry 0: unified format — must have "pages" key.
         {"pages": [{"id": "x", "type": "source", "title": "X",
-                    "frontmatter_extra": {},
                     "slots": {"source_meta": "sm", "summary": "b",
                               "key_points": ["kp"], "extracted_concepts": ["c"]}}]},
     ])
@@ -83,8 +79,13 @@ async def test_collector_done_triggers_run_ingest(tmp_path, monkeypatch):
     service.tracker.acquire(task_id)
     payload = CollectorDonePayload(task_id=task_id, raw_path=str(raw), content="content")
     await pipeline_mod._on_collector_done(payload)
-    assert (p.wiki_sources / "x.md").exists()
-    assert "x" in p.llm_wiki_index.read_text(encoding="utf-8")
+    # Deterministic source-page slug: {stem}-{hash}
+    source_page = next((p.wiki_sources.glob("x-*.md")), None)
+    assert source_page is not None, (
+        f"expected source page x-<hash>.md in {p.wiki_sources}"
+    )
+    source_id = source_page.stem
+    assert source_id in p.llm_wiki_index.read_text(encoding="utf-8")
 
 
 @pytest.mark.asyncio
@@ -102,15 +103,9 @@ async def test_run_ingest_kb_task_id_fallback_when_llm_omits_source_page(tmp_pat
 
     # LLM only generates concept pages, NO source-type page emitted.
     provider = ScriptedLLMProvider([
-        {"summary": "x", "key_facts": [], "entities": [], "concepts": [],
-         "suggested_pages": [
-             {"type": "concept", "slug": "only-concept", "title": "Only",
-              "reasoning": "r"},
-         ],
-         "links_to_existing": []},
+        # Entry 0: unified format — concept page, no source.
         {"pages": [
             {"id": "only-concept", "type": "concept", "title": "Only",
-             "frontmatter_extra": {},
              "slots": {"definition": "concept body",
                        "characteristics": ["c"], "examples": ["e"],
                        "related_concepts": ["rc"], "references": ["r"]}},
@@ -249,3 +244,236 @@ async def test_source_page_id_stable_across_reingest(tmp_path, monkeypatch):
         f"id should start with 'stable-source-', got {source1.id!r}"
     )
     assert len(source1.id) == len("stable-source-") + 8
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 tests: unified_generate
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_unified_generate_produces_pages(tmp_path):
+    """unified_generate should parse source text and return WikiPage list in one call."""
+    from src.pipeline.generator import unified_generate
+    from src.wiki.storage.ensure import ensure_knowledge_base
+
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+
+    provider = ScriptedLLMProvider([
+        {"pages": [
+            {"id": "backprop", "type": "concept", "title": "反向传播",
+             "slots": {"definition": "反向传播是训练神经网络的核心算法。",
+                       "characteristics": ["梯度计算", "链式法则"],
+                       "examples": ["示例1"], "related_concepts": ["[[gradient-descent]]"],
+                       "references": ["test"]}},
+        ]},
+    ])
+
+    pages = await unified_generate(
+        source_text="反向传播（backpropagation）是训练神经网络的核心算法。",
+        source_path="test.pdf",
+        folder_context="",
+        paths=p,
+        existing_wiki_index="",
+        provider=provider,
+    )
+
+    assert len(pages) == 1
+    page = pages[0]
+    assert page.id == "backprop"
+    assert page.type == PageType.CONCEPT
+    assert page.title == "反向传播"
+    assert "反向传播是训练神经网络的核心算法" in page.body
+
+
+@pytest.mark.asyncio
+async def test_unified_generate_truncates_large_source(tmp_path):
+    """Source text > 12000 chars should be truncated to control prompt size."""
+    from src.pipeline.generator import unified_generate
+    from src.wiki.storage.ensure import ensure_knowledge_base
+
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+
+    # Build a source that exceeds the 12000-char truncation limit
+    large_text = "长文本内容。" * 2500  # ~15000 chars, well over 12000 limit
+
+    provider = ScriptedLLMProvider([
+        {"pages": [
+            {"id": "summary", "type": "concept", "title": "摘要",
+             "slots": {"definition": "概括。",
+                       "characteristics": ["特征一"],
+                       "examples": ["例子一"],
+                       "related_concepts": ["[[other]]"],
+                       "references": ["[[test]]"]}},
+        ]},
+    ])
+
+    pages = await unified_generate(
+        source_text=large_text,
+        source_path="large.txt",
+        folder_context="",
+        paths=p,
+        existing_wiki_index="",
+        provider=provider,
+    )
+
+    # Still produces pages despite truncation
+    assert len(pages) == 1
+    # Verify the source was truncated (prompt contains truncation marker)
+    first_call_content = str(provider.calls[0])
+    assert "[... 文本过长，已截断 ...]" in first_call_content, (
+        "truncation marker should appear in prompt for large source"
+    )
+
+
+@pytest.mark.asyncio
+async def test_unified_generate_dedups_relations(tmp_path):
+    """Duplicate relations (same slugified target) should be merged, keeping highest weight."""
+    from src.pipeline.generator import unified_generate
+    from src.wiki.storage.ensure import ensure_knowledge_base
+
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+
+    provider = ScriptedLLMProvider([
+        {"pages": [
+            {"id": "concept-a", "type": "concept", "title": "概念A",
+             "slots": {"definition": "A的定义。",
+                       "characteristics": ["c1"], "examples": ["e1"],
+                       "related_concepts": ["[[concept-b]]"], "references": []},
+             "relations": [
+                 {"target": "concept-b", "type": "references", "weight": 0.9, "context": "first"},
+                 {"target": "concept-b", "type": "references", "weight": 0.5, "context": "second dup"},
+                 {"target": "concept-c", "type": "analogous_to", "weight": 0.7, "context": "unique"},
+             ]},
+        ]},
+    ])
+
+    pages = await unified_generate(
+        source_text="概念A引用概念B。",
+        source_path="test.md",
+        folder_context="",
+        paths=p,
+        existing_wiki_index="",
+        provider=provider,
+    )
+
+    assert len(pages) == 1
+    rels = pages[0].relations
+    # concept-b appears twice but deduped → 2 unique targets (concept-b, concept-c)
+    assert len(rels) == 2, f"expected 2 deduped relations, got {len(rels)}: {rels}"
+    # The kept concept-b relation should have weight 0.9 (highest)
+    b_rel = [r for r in rels if r.target_id == "concept-b"]
+    assert len(b_rel) == 1
+    assert b_rel[0].weight == 0.9
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 tests: run_batch_ingest
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_run_batch_ingest_processes_multiple_files(tmp_path):
+    """run_batch_ingest should process multiple files concurrently."""
+    from src.pipeline.ingest import run_batch_ingest
+    from src.wiki.storage.ensure import ensure_knowledge_base
+
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+
+    # Create 3 raw source files
+    files = []
+    for i in range(3):
+        f = p.raw_sources / f"doc{i}.md"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(f"Content of document {i}", encoding="utf-8")
+        files.append(f)
+
+    # Each file gets one unified response with all required slots filled
+    provider = ScriptedLLMProvider([
+        {"pages": [{"id": f"concept-{i}", "type": "concept", "title": f"概念{i}",
+                    "slots": {"definition": f"内容{i}。",
+                              "characteristics": [f"特征{i}"],
+                              "examples": [f"例子{i}"],
+                              "related_concepts": ["[[other]]"],
+                              "references": ["[[test]]"]}}]}
+        for i in range(3)
+    ])
+
+    results = await run_batch_ingest(
+        paths=p,
+        source_paths=files,
+        provider=provider,
+        concurrency=1,  # serial: avoids race on shared ScriptedLLMProvider
+    )
+
+    assert len(results) == 3
+    for i, pages in enumerate(results):
+        assert len(pages) >= 1, f"file {i} produced no pages"
+        # Each should have at least the concept page + source page
+        page_ids = {pg.id for pg in pages}
+        assert f"concept-{i}" in page_ids
+
+
+@pytest.mark.asyncio
+async def test_run_batch_ingest_exception_isolation(tmp_path):
+    """When one file fails, other files should still succeed."""
+    from src.pipeline.ingest import run_batch_ingest
+    from src.wiki.storage.ensure import ensure_knowledge_base
+
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+
+    files = []
+    for i in range(3):
+        f = p.raw_sources / f"doc{i}.md"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(f"Content {i}", encoding="utf-8")
+        files.append(f)
+
+    # File 1 (doc1.md) will fail — provider raises on EVERY call for it.
+    # Must fail all calls because run_ingest falls back from unified path
+    # to two-step on first failure; the fallback would succeed otherwise.
+    import json as _json
+    from src.llm.base import LLMResponse
+
+    class FailingProvider:
+        """Provider that fails for doc1.md; succeeds for others."""
+        def __init__(self):
+            self.calls = []
+
+        async def complete(self, messages=None, *, response_format=None, system=None, **kwargs):
+            self.calls.append({"messages": messages, "schema": response_format})
+            # Check if this call is for doc1 (the failing file)
+            prompt_text = ""
+            if messages:
+                for m in messages:
+                    prompt_text += str(m.get("content", ""))
+            if "doc1" in prompt_text or "Content 1" in prompt_text:
+                raise RuntimeError("injected failure for doc1")
+            return LLMResponse(content=_json.dumps({
+                "pages": [{"id": "concept-ok", "type": "concept",
+                           "title": "概念OK",
+                           "slots": {"definition": "x", "characteristics": ["c"],
+                                     "examples": ["e"], "related_concepts": [],
+                                     "references": []}}]
+            }), model="mock")
+
+    provider = FailingProvider()
+    results = await run_batch_ingest(
+        paths=p,
+        source_paths=files,
+        provider=provider,
+        concurrency=1,
+    )
+
+    assert len(results) == 3
+    # File 0: success
+    assert len(results[0]) >= 1
+    # File 1: failed → empty list (all attempts including fallback fail)
+    assert results[1] == [], f"expected empty for failed file, got {results[1]}"
+    # File 2: success (isolated from file 1's failure)
+    assert len(results[2]) >= 1

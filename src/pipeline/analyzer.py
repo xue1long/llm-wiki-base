@@ -19,8 +19,8 @@ transcript. Reason internally and emit only the requested JSON.
 ## Language
 默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
 summary、key_facts、entities/concepts 的 name 和 context、
-suggested_pages 的 title/reasoning/tags。Slugs 始终用 ASCII(中文
-术语用拼音或英文翻译)。
+suggested_pages 的 title/reasoning/tags。Slugs 可直接使用中文,
+也可用拼音或英文 — 保留概念的自然字面为佳,无需强制转写。
 
 ## Context
 - Source: {source_path}
@@ -139,8 +139,17 @@ async def analyze(
             )
             for e in response.get("entities", [])
         ],
-        concepts=[ConceptMention(**c) for c in response.get("concepts", [])],
-        suggested_pages=[PageSpec(**p) for p in response.get("suggested_pages", [])],
+        concepts=[
+            ConceptMention(**{k: v for k, v in c.items()
+                              if k in ("name", "slug", "context", "confidence", "concept")})
+            for c in response.get("concepts", [])
+        ],
+        suggested_pages=[
+            PageSpec(**{k: v for k, v in p.items()
+                        if k in ("type", "slug", "title", "reasoning",
+                                 "grade", "processing_depth", "is_immutable", "tags")})
+            for p in response.get("suggested_pages", [])
+        ],
         links_to_existing=response.get("links_to_existing", []),
         folder_context=folder_context,
     )

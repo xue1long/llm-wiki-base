@@ -36,20 +36,24 @@ def _get_provider():
 def _resolve_wiki_paths(project_id: str | None = None):
     """Resolve WikiPaths for the active project (compat shim target).
 
-    When project_id is provided, look up in the global registry. Otherwise
-    fall back to CWD. Identical to src/pipeline/pipeline.py:_resolve_wiki_paths.
+    When project_id is provided, look up in the global registry and raise
+    ValueError if the project is not found — silently falling back to CWD
+    writes wiki pages to the wrong directory with no error.
+
+    When project_id is None, fall back to CWD (legacy single-project mode).
     """
     from ..wiki.core.paths import WikiPaths as _WikiPaths
     from ..project.registry import GlobalRegistryStore
     import logging
     _logger = logging.getLogger(__name__)
     if project_id is not None:
-        try:
-            entry = GlobalRegistryStore.by_id(project_id)
-            if entry is not None:
-                return _WikiPaths(Path(entry.path))
-        except Exception:
-            _logger.warning("Failed to resolve project %s; falling back to CWD", project_id, exc_info=True)
+        entry = GlobalRegistryStore.by_id(project_id)
+        if entry is not None:
+            return _WikiPaths(Path(entry.path))
+        raise ValueError(
+            f"Project {project_id!r} not found in the global registry. "
+            f"Check with: python -m src.cli project list"
+        )
     return _WikiPaths(Path.cwd())
 
 
