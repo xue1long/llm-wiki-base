@@ -55,17 +55,28 @@ def test_enqueue_folder_source(monkeypatch, tmp_path):
     """A dict source {"folder": "..."} is treated as SourceType.FILE."""
     project_dir = tmp_path / "kb"
     project_dir.mkdir()
+    # Create the folder under project root so the existence check passes.
+    docs_dir = project_dir / "data" / "docs"
+    docs_dir.mkdir(parents=True)
+    (docs_dir / "test.md").write_text("# Test", encoding="utf-8")
     _stub_resolve(monkeypatch, project_dir)
 
     captured = {}
-    def fake_enqueue(source, stype, thash, project_id=None):
-        captured["source"] = source
-        return "task-789"
-    monkeypatch.setattr(ingest_service, "enqueue_task", fake_enqueue)
+    def fake_enqueue_batch(items, project_id=None):
+        captured["items"] = items
+        return ["task-789"]
+    monkeypatch.setattr(ingest_service, "enqueue_batch", fake_enqueue_batch)
+    monkeypatch.setattr(ingest_service, "enqueue_task", lambda source, stype, thash, project_id=None: "task-789")
+    # Stub the queue service advance() to avoid triggering pipeline handlers.
+    monkeypatch.setattr(
+        ingest_service, "get_default_queue_service",
+        lambda: type("StubQS", (), {"advance": lambda self, project_id=None: None})(),
+    )
 
-    result = ingest_service.enqueue_source("u", {"folder": "/data/docs"})
-    assert result["status"] == "queued"
-    assert captured["source"] == "/data/docs"
+    result = ingest_service.enqueue_source("u", {"folder": "data/docs"})
+    assert result["status"] == "batch_queued"
+    assert len(captured["items"]) == 1
+    assert captured["items"][0]["source"] == "data/docs/test.md"
 
 
 def test_enqueue_duplicate_returns_ignored(monkeypatch, tmp_path):

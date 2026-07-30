@@ -112,7 +112,10 @@ async def hybrid_search(
 
     # 1. 语义检索 (需要 embedding 服务)
     semantic_results: list[SearchResult] = []
-    provider = get_embedding_provider()
+    try:
+        provider = get_embedding_provider()
+    except RuntimeError:
+        provider = None
     if provider is None:
         logger.warning("hybrid_search: no embedding provider configured; keyword-only")
     else:
