@@ -1,0 +1,115 @@
+---
+id: 仙侠题材
+title: 仙侠题材综述
+type: concept
+sources:
+- raw\sources\必备资料20仙侠类题材作品的创作要点及卖点.md
+created_at: 1785286172843
+updated_at: 1785286172843
+relations:
+- target: 洪荒封神流
+  type: contains
+  weight: 1.0
+  context: 仙侠题材五大子流派之一
+- target: 星际寻宝流
+  type: contains
+  weight: 1.0
+  context: 仙侠题材五大子流派之一
+- target: 都市仙侠流
+  type: contains
+  weight: 1.0
+  context: 仙侠题材五大子流派之一
+- target: 历史仙侠
+  type: contains
+  weight: 1.0
+  context: 仙侠题材五大子流派之一
+- target: 回炉仙侠
+  type: contains
+  weight: 1.0
+  context: 仙侠题材五大子流派之一
+- target: 必备资料-20-仙侠类题材作品的创作要点及卖点-d1f6f9dd
+  type: supported_by
+  weight: 1.0
+  context: 本概念的权威内部讲义来源
+- target: 仙侠题材类型综述
+  type: is_part_of
+  weight: 1.0
+  context: 本综述围绕仙侠题材展开
+- target: 仙侠长短期目标结合
+  type: references
+  weight: 0.95
+  context: 仙侠创作的核心方法论，与题材定义紧密相关
+- target: 收集癖
+  type: references
+  weight: 0.9
+  context: 仙侠短期爽感设计的读者心理基础
+- target: 七界传说
+  type: contains
+  weight: 0.9
+  context: 《七界传说》属于仙侠题材作品
+- target: 洞天福地三级仙境对比
+  type: supported_by
+  weight: 0.85
+  context: 可直接转化为修真小说世界观
+- target: 信昌最新题材要求
+  type: is_part_of
+  weight: 0.8
+  context: 包含仙侠类（要求非修真、新武功体系）
+- target: 穿越题材套路综述
+  type: referenced_by
+  weight: 0.7
+  context: 穿越题材与仙侠题材在力量成长、世界观构建上有重叠套路
+- target: 穿越修真修真取材再发洞天福地完全资料篇-ccbc506b
+  type: supported_by
+  weight: 0.7
+  context: 仙侠修真类小说世界观素材
+- target: 洞天福地
+  type: supported_by
+  weight: 0.7
+  context: 修真小说世界观核心框架之一
+grade: A
+processing_depth: concept
+is_immutable: false
+heat: 50
+last_used_at: 0
+zombie_since: null
+tags:
+- genre/仙侠
+- func/综述
+---
+
+<!-- wiki-template-version: 2.0.0 -->
+<!-- wiki-template-type: concept -->
+
+## 定义
+
+仙侠是中国网络文学中的重要题材大类，以东方修真世界观为背景，突出"仙"字，主旨是长生不死与仗义行侠。与玄幻题材相比，仙侠严格限定在东方文化语境下；若作品中西混杂、出现吸血鬼等西方元素，通常被归入玄幻而非仙侠。
+
+## 主要特点
+
+- 以东方修真/修仙为世界观底色，核心设定包括境界突破、飞升、长生等。
+- 主角动机往往围绕"长生"或"修炼至最高境界"展开，兼具行侠仗义的情节主线。
+- 形成稳定的子流派结构：洪荒封神、星际寻宝、都市仙侠、历史仙侠、回炉仙侠等。
+- 强爽感导向，需用短期阶段性收获（升级、宝物、美女）持续刺激读者追读。
+- 情感描写要求合情合理，后宫线必须依托合理的剧情动机。
+
+## 例子
+
+- 洪荒封神流代表作：《佛本是道》（梦入神机）
+- 星际寻宝流代表作：《飘渺之旅》（萧潜）
+- 历史仙侠典型题材：以李白所在唐朝为背景的剑仙故事；依托吕洞宾传说展开的修仙叙事
+- 都市仙侠流、回炉仙侠：本文未列出具体代表作，但属于已稳定存在的子流派
+
+## 相关概念
+
+- [[仙侠长短期目标结合]]
+- [[洪荒封神流]]
+- [[星际寻宝流]]
+- [[都市仙侠流]]
+- [[历史仙侠]]
+- [[回炉仙侠]]
+- [[收集癖]]
+
+## 参考来源
+
+- [[必备资料20仙侠类题材作品的创作要点及卖点-d1f6f9dd]]
