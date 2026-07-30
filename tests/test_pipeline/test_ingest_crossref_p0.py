@@ -56,8 +56,8 @@ def test_collect_existing_wiki_covers_all_four_types(tmp_path: Path):
 def test_format_wiki_index_empty_and_populated():
     assert _format_wiki_index({}) == "(empty)"
     out = _format_wiki_index({"ent-1": PageType.ENTITY, "con-1": PageType.CONCEPT})
-    assert "- entity: ent-1" in out
-    assert "- concept: con-1" in out
+    assert "- ent-1 (entity)" in out
+    assert "- con-1 (concept)" in out
 
 
 # ---------------------------------------------------------------------------

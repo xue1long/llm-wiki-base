@@ -3,7 +3,7 @@ id: ni-tian-gai-ming-dao-lv
 title: 逆天改命道略 - 择天记概念
 type: concept
 sources:
-- knowledge\novel-wiki\raw\sources\03_大纲创作\大纲示例择天记.md
+  - raw/sources/03_大纲创作/大纲示例择天记.md
 created_at: 1785338238616
 updated_at: 1785338238616
 relations:

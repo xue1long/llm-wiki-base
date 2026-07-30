@@ -27,6 +27,10 @@ relations:
   type: referenced_by
   weight: 0.7
   context: 本文是网文'强字'创作文化的典型讽刺
+- target: 女频男频3纵横编辑引导你成为专业写手的关键-b8298772
+  type: referenced_by
+  weight: 0.7
+  context: 提到YY是网络小说的核心要素
 grade: A
 processing_depth: concept
 is_immutable: false
@@ -36,6 +40,8 @@ zombie_since: null
 tags:
 - func/方法论
 - mood/爽
+category: ''
+taxonomy_sub: ''
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

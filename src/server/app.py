@@ -126,6 +126,33 @@ def create_app() -> FastAPI:
         finally:
             pass
 
+        # Auto-recover pending queue tasks after a server restart.
+        # The queue is persisted to disk; PENDING tasks left from a
+        # previous run are re-dispatched here (up to 6 concurrent workers).
+        # If the queue was paused before the restart (sentinel file exists),
+        # skip recovery — the user explicitly asked for a pause.
+        try:
+            from ..queue.service import get_default_queue_service
+            svc = get_default_queue_service()
+            status = svc.get_status()
+            if status.get("paused"):
+                _logger.info(
+                    "[startup] queue is paused (%d pending, %d running) — skipping auto-recovery",
+                    status["pending_count"], status["running_count"],
+                )
+            else:
+                for _ in range(6):
+                    if not svc.advance():
+                        break
+                status = svc.get_status()
+                if status["pending_count"] or status["running_count"]:
+                    _logger.info(
+                        "[startup] queue recovery: %d pending, %d running",
+                        status["pending_count"], status["running_count"],
+                    )
+        except Exception:
+            _logger.warning("[startup] queue recovery failed", exc_info=True)
+
         # Start background cache cleanup task (runs every hour).
         cleanup_task = asyncio.create_task(_periodic_cache_cleanup())
 
@@ -154,10 +181,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    from .routes import health, projects, files, search, ingest, reviews, chat, schema, agent_cli, analysis, providers
+    from .routes import health, projects, files, search, ingest, reviews, chat, schema, agent_cli, analysis, providers, tags
     for router in [health.router, projects.router, files.router, search.router,
                    ingest.router, reviews.router, chat.router, schema.router, agent_cli.router,
-                   analysis.router, providers.router]:
+                   analysis.router, providers.router, tags.router]:
         app.include_router(router)
 
     # Mount /metrics endpoint (Plan 7 fix; previously dead code).

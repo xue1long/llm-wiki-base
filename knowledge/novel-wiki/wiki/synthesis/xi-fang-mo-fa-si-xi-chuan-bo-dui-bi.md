@@ -3,7 +3,7 @@ id: xi-fang-mo-fa-si-xi-chuan-bo-dui-bi
 title: 西方魔法四系基本体系横向对比综述
 type: synthesis
 sources:
-- knowledge\novel-wiki\raw\sources\04_题材专题\穿越修真西方魔法发展史.md
+  - raw/sources/04_题材专题/穿越修真西方魔法发展史.md
 created_at: 1785336611134
 updated_at: 1785336611134
 relations: []

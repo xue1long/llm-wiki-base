@@ -3,7 +3,7 @@ id: xiao-shuo-zhi-hui
 title: 小说智慧 (Novel Wisdom)
 type: concept
 sources:
-- knowledge\novel-wiki\raw\sources\01_新手入门\新人须知新手上路基本写作教程.md
+  - raw/sources/01_新手入门/新人须知新手上路基本写作教程.md
 created_at: 1785339436484
 updated_at: 1785339436484
 relations: []

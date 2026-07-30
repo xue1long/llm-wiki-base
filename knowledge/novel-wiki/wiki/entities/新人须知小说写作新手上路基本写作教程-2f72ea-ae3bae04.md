@@ -3,7 +3,7 @@ id: 新人须知小说写作新手上路基本写作教程-2f72ea-ae3bae04
 title: 新人须知小说写作新手上路基本写作教程 2f72ea ae3bae04
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\01_新手入门\新人须知小说写作新手上路基本写作教程_2f72ea.md
+  - raw/sources/01_新手入门/新人须知小说写作新手上路基本写作教程_2f72ea.md
 created_at: 1785335706302
 updated_at: 1785335706302
 relations: []

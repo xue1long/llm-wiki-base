@@ -3,7 +3,7 @@ id: clothing-hierarchy-logic-j0k1l2m3
 title: 服饰等级与符号系统逻辑
 type: concept
 sources:
-- knowledge\novel-wiki\raw\sources\04_题材专题\东方玄幻各朝代服饰.md
+  - raw/sources/04_题材专题/东方玄幻各朝代服饰.md
 created_at: 1785347256342
 updated_at: 1785347256342
 relations: []

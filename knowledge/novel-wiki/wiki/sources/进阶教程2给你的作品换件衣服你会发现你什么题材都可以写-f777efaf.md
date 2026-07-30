@@ -3,7 +3,7 @@ id: 进阶教程2给你的作品换件衣服你会发现你什么题材都可以
 title: 进阶教程 2：给你的作品换件衣服，你会发现，你什么题材都可以写
 type: source
 sources:
-- knowledge\novel-wiki\raw\sources\02_进阶技巧\进阶教程2给你的作品换件衣服你会发现你什么题材都可以写.md
+  - raw/sources/02_进阶技巧/进阶教程2给你的作品换件衣服你会发现你什么题材都可以写.md
 created_at: 1785342497383
 updated_at: 1785342497383
 relations: []

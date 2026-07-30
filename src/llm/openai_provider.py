@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Optional
 
 import httpx
@@ -19,6 +20,20 @@ from .types import ProviderConfig
 
 
 _logger = logging.getLogger(__name__)
+
+# Reasoning models (MiniMax-M3, DeepSeek-R1, etc.) wrap their output in
+# <think>...</think> blocks.  Strip these before the content reaches
+# downstream JSON parsers.
+_REASONING_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
+
+
+def _strip_reasoning(content: str) -> str:
+    """Remove ``<think>...</think>`` blocks from a model response."""
+    stripped = _REASONING_RE.sub("", content).strip()
+    if stripped != content:
+        _logger.debug("stripped <think> block from response (%d chars → %d chars)",
+                       len(content), len(stripped))
+    return stripped
 
 
 class OpenAIProvider(LLMProvider):
@@ -61,7 +76,16 @@ class OpenAIProvider(LLMProvider):
         effective_timeout = timeout if timeout is not None else self.timeout_seconds
         async with httpx.AsyncClient(timeout=effective_timeout) as sess:
             r = await sess.post(url, headers=self._headers(), json=payload)
-            r.raise_for_status()
+            try:
+                r.raise_for_status()
+            except Exception as e:
+                # Attach the response body so the error message is
+                # diagnostic even when the provider returns an empty
+                # status reason (seen with MiniMax M3).
+                body_snippet = (r.text or "")[:200]
+                raise RuntimeError(
+                    f"HTTP {r.status_code}: {body_snippet}"
+                ) from e
             return r.json()
 
     # ----- chat completion (canonical chat-style contract) -----------------
@@ -160,6 +184,8 @@ class OpenAIProvider(LLMProvider):
         except (KeyError, IndexError, TypeError) as e:
             raise RuntimeError(f"OpenAI returned malformed response: {e}") from e
 
+        content = _strip_reasoning(content)
+
         return LLMResponse(
             content=content,
             model=data.get("model", model),
@@ -177,20 +203,37 @@ class OpenAIProvider(LLMProvider):
         return out[0]
 
     async def health_check(self) -> dict:
-        """Probe /v1/models and return ``{"ok": bool, "detail": str}``.
+        """Probe the endpoint and return ``{"ok": bool, "detail": str}``."""
+        if self._client_kind == "sdk":
+            try:
+                await self._sdk.models.list()
+                return {"ok": True, "detail": "models.list() OK"}
+            except Exception as e:
+                return {"ok": False, "detail": f"models.list() failed: {e}"}
 
-        Standardised dict contract (audit I2): every provider's
-        ``health_check()`` returns a dict so callers can show the
-        ``detail`` on failure rather than guessing.
-        """
-        if self._client_kind != "sdk":
-            return {"ok": True, "detail": "no SDK client to probe"}
+        # httpx mode — probe /models via GET (OpenAI-compatible endpoints
+        # all support this). Fall back to the base URL if /models 404s.
         try:
-            # openai SDK exposes `models.list()`
-            await self._sdk.models.list()
-            return {"ok": True, "detail": "models.list() OK"}
+            async with httpx.AsyncClient(timeout=10) as sess:
+                r = await sess.get(
+                    f"{self.base_url}/models",
+                    headers={k: v for k, v in self._headers().items()
+                             if k.lower() != "content-type"},
+                )
+                if r.status_code == 200:
+                    return {"ok": True, "detail": "/models OK"}
+                # Some providers don't expose /models; just checking the
+                # base URL is reachable is enough.
+                r2 = await sess.get(
+                    self.base_url,
+                    headers={k: v for k, v in self._headers().items()
+                             if k.lower() != "content-type"},
+                )
+                if r2.status_code < 500:
+                    return {"ok": True, "detail": f"base URL reachable (HTTP {r2.status_code})"}
+                return {"ok": False, "detail": f"HTTP {r2.status_code}"}
         except Exception as e:
-            return {"ok": False, "detail": f"models.list() failed: {e}"}
+            return {"ok": False, "detail": str(e)}
 
     async def close(self) -> None:
         """No-op for OpenAI: per-call httpx clients close themselves; SDK

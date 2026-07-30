@@ -1,0 +1,374 @@
+INFO:     Started server process [24728]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8765 (Press CTRL+C to quit)
+2026-07-26 20:54:43,342 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-26 20:54:45,817 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-26 20:54:48,091 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-26 20:54:51,204 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-26 20:54:52,720 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-26 20:55:25,133 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-26 20:55:25,136 [ERROR] src.pipeline.service: ingest failed for kb-20260726205420-89c2490f
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\service.py", line 104, in run_for_collector_start
+    await _pipeline_mod.run_ingest(
+    ...<5 lines>...
+    )
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\ingest.py", line 255, in run_ingest
+    pages = await _generate(
+            ^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\generator.py", line 282, in generate
+    response_dict = await _call_with_slot_retry(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\generator.py", line 402, in _call_with_slot_retry
+    response_dict = _parse_llm_response(response)
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\generator.py", line 50, in _parse_llm_response
+    return parse_llm_json(llm_resp)
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\_pipeline_common.py", line 76, in parse_llm_json
+    raise json.JSONDecodeError(
+    ...<2 lines>...
+    )
+json.decoder.JSONDecodeError: no JSON object/array found in LLM response (5460 chars): line 1 column 1 (char 0)
+2026-07-26 20:55:25,584 [ERROR] src.pipeline.service: failed to mark kb-20260726205420-89c2490f RUNNING
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\service.py", line 70, in run_for_collector_start
+    self.queue_service.update_status(task_id, status=TaskStatus.RUNNING)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\2026-7-21\ruflo-kb\src\queue\service.py", line 139, in update_status
+    raise InvalidTransition(task_id, prev_status.value, status.value)
+src.queue.state.InvalidTransition: ('kb-20260726205420-89c2490f', 'running', 'running')
+2026-07-26 20:55:38,259 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-26 20:55:38,292 [INFO] src.pipeline.ingest: [run_ingest] creating 2 stub entity page(s): ['meng-bao', 'nv-zhu-dai-qiu-pao']
+2026-07-26 20:55:51,321 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-26 20:55:51,357 [INFO] src.pipeline.ingest: [run_ingest] creating 10 stub entity page(s): ['chang-jing-kong-zhi', 'da-qing-jie', 'gao-chao', 'gong-fa-ti-xi', 'mao-dun-chong-tu']...
+2026-07-26 20:55:55,108 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-26 20:56:01,090 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-26 20:56:04,215 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-26 20:56:04,220 [INFO] src.pipeline.ingest: [run_ingest] creating 1 stub entity page(s): ['keng']
+2026-07-26 20:56:29,098 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-26 21:10:01,607 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-07-26 21:10:01,613 [ERROR] src.pipeline.service: ingest failed for kb-20260726210959-ae477c49
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 149, in complete
+    data = await self._post_json(
+           ^^^^^^^^^^^^^^^^^^^^^^
+        f"{self.base_url}/chat/completions", body
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 63, in _post_json
+    r.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\hp\AppData\Roaming\Python\Python314\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\service.py", line 104, in run_for_collector_start
+    await _pipeline_mod.run_ingest(
+    ...<5 lines>...
+    )
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\ingest.py", line 244, in run_ingest
+    analysis = await _analyze(
+               ^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\analyzer.py", line 80, in analyze
+    llm_resp = await bl.call(
+               ^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\lib\budgeted.py", line 85, in call
+    return await self._single_call(prompt, response_format, system)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\2026-7-21\ruflo-kb\src\lib\budgeted.py", line 101, in _single_call
+    return await self.provider.complete(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 153, in complete
+    raise RuntimeError(f"OpenAI complete failed: {e}")
+RuntimeError: OpenAI complete failed: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+2026-07-26 21:10:02,069 [ERROR] src.pipeline.service: failed to mark kb-20260726210959-ae477c49 RUNNING
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\service.py", line 70, in run_for_collector_start
+    self.queue_service.update_status(task_id, status=TaskStatus.RUNNING)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\2026-7-21\ruflo-kb\src\queue\service.py", line 139, in update_status
+    raise InvalidTransition(task_id, prev_status.value, status.value)
+src.queue.state.InvalidTransition: ('kb-20260726210959-ae477c49', 'running', 'running')
+2026-07-26 21:10:02,073 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-07-26 21:10:02,076 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-07-26 21:10:02,078 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-07-26 21:10:02,081 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-07-26 21:10:02,083 [ERROR] src.pipeline.service: ingest failed for kb-20260726210959-a902fefb
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 149, in complete
+    data = await self._post_json(
+           ^^^^^^^^^^^^^^^^^^^^^^
+        f"{self.base_url}/chat/completions", body
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 63, in _post_json
+    r.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\hp\AppData\Roaming\Python\Python314\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\service.py", line 104, in run_for_collector_start
+    await _pipeline_mod.run_ingest(
+    ...<5 lines>...
+    )
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\ingest.py", line 244, in run_ingest
+    analysis = await _analyze(
+               ^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\analyzer.py", line 80, in analyze
+    llm_resp = await bl.call(
+               ^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\lib\budgeted.py", line 85, in call
+    return await self._single_call(prompt, response_format, system)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\2026-7-21\ruflo-kb\src\lib\budgeted.py", line 101, in _single_call
+    return await self.provider.complete(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 153, in complete
+    raise RuntimeError(f"OpenAI complete failed: {e}")
+RuntimeError: OpenAI complete failed: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+2026-07-26 21:10:02,089 [INFO] src.circuit_breaker: [CircuitBreaker:task_queue] closed -> open
+2026-07-26 21:10:02,095 [WARNING] src.queue.service: [Queue] Circuit breaker is open, skipping
+2026-07-26 21:10:02,096 [WARNING] src.queue.service: [Queue] Circuit breaker is open, skipping
+2026-07-26 21:10:02,097 [ERROR] src.pipeline.service: ingest failed for kb-20260726210959-77c13022
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 149, in complete
+    data = await self._post_json(
+           ^^^^^^^^^^^^^^^^^^^^^^
+        f"{self.base_url}/chat/completions", body
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 63, in _post_json
+    r.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\hp\AppData\Roaming\Python\Python314\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\service.py", line 104, in run_for_collector_start
+    await _pipeline_mod.run_ingest(
+    ...<5 lines>...
+    )
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\ingest.py", line 244, in run_ingest
+    analysis = await _analyze(
+               ^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\analyzer.py", line 80, in analyze
+    llm_resp = await bl.call(
+               ^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\lib\budgeted.py", line 85, in call
+    return await self._single_call(prompt, response_format, system)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\2026-7-21\ruflo-kb\src\lib\budgeted.py", line 101, in _single_call
+    return await self.provider.complete(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 153, in complete
+    raise RuntimeError(f"OpenAI complete failed: {e}")
+RuntimeError: OpenAI complete failed: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+2026-07-26 21:10:02,105 [WARNING] src.queue.service: [Queue] Circuit breaker is open, skipping
+2026-07-26 21:10:02,106 [WARNING] src.queue.service: [Queue] Circuit breaker is open, skipping
+2026-07-26 21:10:02,106 [ERROR] src.pipeline.service: ingest failed for kb-20260726211000-1ecacbec
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 149, in complete
+    data = await self._post_json(
+           ^^^^^^^^^^^^^^^^^^^^^^
+        f"{self.base_url}/chat/completions", body
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 63, in _post_json
+    r.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\hp\AppData\Roaming\Python\Python314\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\service.py", line 104, in run_for_collector_start
+    await _pipeline_mod.run_ingest(
+    ...<5 lines>...
+    )
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\ingest.py", line 244, in run_ingest
+    analysis = await _analyze(
+               ^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\analyzer.py", line 80, in analyze
+    llm_resp = await bl.call(
+               ^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\lib\budgeted.py", line 85, in call
+    return await self._single_call(prompt, response_format, system)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\2026-7-21\ruflo-kb\src\lib\budgeted.py", line 101, in _single_call
+    return await self.provider.complete(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 153, in complete
+    raise RuntimeError(f"OpenAI complete failed: {e}")
+RuntimeError: OpenAI complete failed: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+2026-07-26 21:10:02,119 [WARNING] src.queue.service: [Queue] Circuit breaker is open, skipping
+2026-07-26 21:10:02,119 [WARNING] src.queue.service: [Queue] Circuit breaker is open, skipping
+2026-07-26 21:10:02,120 [ERROR] src.pipeline.service: ingest failed for kb-20260726211000-03428ce8
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 149, in complete
+    data = await self._post_json(
+           ^^^^^^^^^^^^^^^^^^^^^^
+        f"{self.base_url}/chat/completions", body
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 63, in _post_json
+    r.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\hp\AppData\Roaming\Python\Python314\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\service.py", line 104, in run_for_collector_start
+    await _pipeline_mod.run_ingest(
+    ...<5 lines>...
+    )
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\ingest.py", line 244, in run_ingest
+    analysis = await _analyze(
+               ^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\analyzer.py", line 80, in analyze
+    llm_resp = await bl.call(
+               ^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\lib\budgeted.py", line 85, in call
+    return await self._single_call(prompt, response_format, system)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\2026-7-21\ruflo-kb\src\lib\budgeted.py", line 101, in _single_call
+    return await self.provider.complete(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 153, in complete
+    raise RuntimeError(f"OpenAI complete failed: {e}")
+RuntimeError: OpenAI complete failed: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+2026-07-26 21:10:02,123 [INFO] src.circuit_breaker: [CircuitBreaker:task_queue] open -> open
+2026-07-26 21:10:02,126 [WARNING] src.queue.service: [Queue] Circuit breaker is open, skipping
+2026-07-26 21:10:02,127 [WARNING] src.queue.service: [Queue] Circuit breaker is open, skipping
+2026-07-26 21:10:02,398 [INFO] httpx: HTTP Request: POST https://api.minimax.chat/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-07-26 21:10:02,400 [ERROR] src.pipeline.service: ingest failed for kb-20260726210959-ae477c49
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 149, in complete
+    data = await self._post_json(
+           ^^^^^^^^^^^^^^^^^^^^^^
+        f"{self.base_url}/chat/completions", body
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 63, in _post_json
+    r.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\hp\AppData\Roaming\Python\Python314\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\service.py", line 104, in run_for_collector_start
+    await _pipeline_mod.run_ingest(
+    ...<5 lines>...
+    )
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\ingest.py", line 244, in run_ingest
+    analysis = await _analyze(
+               ^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\pipeline\analyzer.py", line 80, in analyze
+    llm_resp = await bl.call(
+               ^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\lib\budgeted.py", line 85, in call
+    return await self._single_call(prompt, response_format, system)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\2026-7-21\ruflo-kb\src\lib\budgeted.py", line 101, in _single_call
+    return await self.provider.complete(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\2026-7-21\ruflo-kb\src\llm\openai_provider.py", line 153, in complete
+    raise RuntimeError(f"OpenAI complete failed: {e}")
+RuntimeError: OpenAI complete failed: Client error '429 Too Many Requests' for url 'https://api.minimax.chat/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+2026-07-26 21:10:02,405 [WARNING] src.queue.service: [Queue] Circuit breaker is open, skipping
+2026-07-26 21:10:02,406 [WARNING] src.queue.service: [Queue] Circuit breaker is open, skipping

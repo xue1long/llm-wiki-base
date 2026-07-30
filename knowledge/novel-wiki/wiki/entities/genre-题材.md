@@ -3,7 +3,7 @@ id: genre-题材
 title: genre 题材
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\02_进阶技巧\进阶教程2给你的作品换件衣服你会发现你什么题材都可以写.md
+  - raw/sources/02_进阶技巧/进阶教程2给你的作品换件衣服你会发现你什么题材都可以写.md
 created_at: 1785342497387
 updated_at: 1785342497387
 relations:
@@ -11,6 +11,10 @@ relations:
   type: required_by
   weight: 0.7
   context: 依赖对题材基本属性的理解
+- target: 书名选取技巧-086db537
+  type: referenced_by
+  weight: 0.6
+  context: 涉及题材选择
 - target: 小说主题十大类
   type: derived_from
   weight: 0.5
@@ -22,6 +26,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags: []
+category: ''
+taxonomy_sub: ''
 ---
 
 ## 占位条目

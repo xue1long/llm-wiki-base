@@ -31,6 +31,10 @@ def enqueue_task(source, source_type, task_hash, project_id=None):
     return _service().enqueue(source, source_type, task_hash, project_id=project_id)
 
 
+def enqueue_batch(items, project_id=None):
+    return _service().enqueue_batch(items, project_id=project_id)
+
+
 def update_task_status(task_id, status, error=None):
     return _service().update_status(task_id, status, error=error)
 

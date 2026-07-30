@@ -30,12 +30,15 @@
       <button data-view="status" class="nav-btn">状态</button>
       <button data-view="settings" class="nav-btn" id="settingsBtn">设置</button>
     </nav>
+    <button id="sidebarToggleBtn" class="sidebar-toggle" title="折叠侧栏">◀</button>
+    <button id="themeToggleBtn" class="sidebar-toggle" title="切换主题">🌙</button>
   </aside>
   <main id="main">
+    <div id="breadcrumb" class="breadcrumb"></div>
     <div id="banner"></div>
     <div id="content"></div>
   </main>
-  <aside id="agentPanel">
+  <aside id="agentPanel" class="collapsed">
     <div class="agent-header">
       <div class="agent-title-row">
         <span class="agent-title">本地 Agent</span>
@@ -54,8 +57,19 @@
       <button id="agentSendBtn" disabled>发送</button>
     </div>
   </aside>
-  <!-- marked via CDN; offline fallback handled in app.js -->
+  <!-- marked via CDN; offline fallback handled in api.js -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="/app.js"></script>
+  <!-- JS split: load in dependency order -->
+  <script src="/js/api.js"></script>
+  <script src="/js/router.js"></script>
+  <script src="/js/views/search.js"></script>
+  <script src="/js/views/browse.js"></script>
+  <script src="/js/views/ingest.js"></script>
+  <script src="/js/views/chat.js"></script>
+  <script src="/js/views/graph.js"></script>
+  <script src="/js/views/status.js"></script>
+  <script src="/js/views/settings.js"></script>
+  <script src="/js/agent-panel.js"></script>
+  <script src="/js/app.js"></script>
 </body>
 </html>

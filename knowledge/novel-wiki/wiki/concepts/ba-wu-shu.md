@@ -3,7 +3,7 @@ id: ba-wu-shu
 title: 十八般武艺 (Ba Wushu)
 type: concept
 sources:
-- knowledge\novel-wiki\raw\sources\04_题材专题\武侠洪荒十八般武器.md
+  - raw/sources/04_题材专题/武侠洪荒十八般武器.md
 created_at: 1785344831606
 updated_at: 1785344831606
 relations:

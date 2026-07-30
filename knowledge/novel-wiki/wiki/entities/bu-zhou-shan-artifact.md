@@ -3,7 +3,7 @@ id: bu-zhou-shan-artifact
 title: 番天印
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\04_题材专题\穿越修真先天之物和法宝.md
+  - raw/sources/04_题材专题/穿越修真先天之物和法宝.md
 created_at: 1785343725687
 updated_at: 1785343725687
 relations:

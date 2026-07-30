@@ -20,16 +20,26 @@ class ProjectIdentity:
         name: human-readable project name (unique within registry)
         created_at: unix ms timestamp
         schema_version: current schema version (e.g., "v2.0")
+        llm_provider: configured LLM provider name (None = use global default)
+        llm_model: configured LLM model name (None = use provider default)
     """
     id: str
     name: str
     created_at: int
     schema_version: str = "v2.0"
+    llm_provider: str | None = None
+    llm_model: str | None = None
 
     PROJECT_JSON_PATH = ".llm-wiki/project.json"
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        # Strip None-valued optional fields so old project.json files
+        # don't grow noise.
+        for key in ("llm_provider", "llm_model"):
+            if d.get(key) is None:
+                del d[key]
+        return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ProjectIdentity":
@@ -38,6 +48,8 @@ class ProjectIdentity:
             name=data["name"],
             created_at=data["created_at"],
             schema_version=data.get("schema_version", "v2.0"),
+            llm_provider=data.get("llm_provider"),
+            llm_model=data.get("llm_model"),
         )
 
 

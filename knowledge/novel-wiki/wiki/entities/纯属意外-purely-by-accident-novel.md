@@ -3,7 +3,7 @@ id: 纯属意外-purely-by-accident-novel
 title: 纯属意外 purely by accident novel
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\02_进阶技巧\进阶教程小说靠什么来吸引读者.md
+  - raw/sources/02_进阶技巧/进阶教程小说靠什么来吸引读者.md
 created_at: 1785341380302
 updated_at: 1785341380302
 relations: []

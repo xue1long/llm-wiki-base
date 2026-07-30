@@ -18,14 +18,43 @@ from pathlib import Path
 # --- compat helpers: defined here so they exist in the package namespace
 # before any submodule import that re-imports them via `from src.pipeline import ...`. ---
 
-def _get_provider():
+def _get_provider(project_id: str | None = None):
     """Resolve the configured default LLM provider (compat shim target).
 
-    Falls back to OpenAI when the registry is empty / corrupt. Identical to
-    src/pipeline/pipeline.py:_get_provider — extracted verbatim.
+    When *project_id* is provided, prefer the project-level LLM config
+    stored in ``.llm-wiki/project.json`` over the global default.  Falls
+    back to OpenAI when the registry is empty / corrupt.
     """
     from ..llm.provider_factory import create_llm_provider
     from ..llm.registry import ProviderRegistry, RegistryCorruptError, ProviderNotFoundError
+
+    # P3: per-project provider override.
+    if project_id is not None:
+        try:
+            from ..project.registry import GlobalRegistryStore
+            entry = GlobalRegistryStore.by_id(project_id)
+            if entry is not None and entry.path:
+                import json
+                from pathlib import Path
+                proj_json = Path(entry.path) / ".llm-wiki" / "project.json"
+                if proj_json.exists():
+                    data = json.loads(proj_json.read_text(encoding="utf-8"))
+                    proj_provider = data.get("llm_provider")
+                    proj_model = data.get("llm_model")
+                    if proj_provider:
+                        import logging
+                        _logger = logging.getLogger(__name__)
+                        _logger.info(
+                            "[_get_provider] using project-level provider %r"
+                            " (model=%r) for %s",
+                            proj_provider, proj_model, project_id,
+                        )
+                        return create_llm_provider(
+                            proj_provider, model_override=proj_model,
+                        )
+        except Exception:
+            pass  # Fall through to global default
+
     try:
         cfg = ProviderRegistry.get_default()
         return create_llm_provider(cfg.name)
@@ -163,7 +192,7 @@ class _PipelineCompatShim:
                 paths=paths,
                 source_path=Path(raw_path_str),
                 source_text=content,
-                provider=self._get_provider(),
+                provider=self._get_provider(project_id=project_id),
                 task_id=task_id,
             )
             update_task_status(task_id, TaskStatus.APPROVED)

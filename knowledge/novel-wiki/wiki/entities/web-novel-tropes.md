@@ -3,7 +3,7 @@ id: web-novel-tropes
 title: Web Novel Tropes
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\01_新手入门\入门教程起点神作的标准提纲.md
+  - raw/sources/01_新手入门/入门教程起点神作的标准提纲.md
 created_at: 1785342771740
 updated_at: 1785342771740
 relations:

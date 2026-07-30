@@ -3,7 +3,7 @@ id: heather-grove-author-a1b2c3d4
 title: 希瑟·格罗夫 (Heather Grove)
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\02_进阶技巧\方法论转载创建角色的365个问题.md
+  - raw/sources/02_进阶技巧/方法论转载创建角色的365个问题.md
 created_at: 1785341106301
 updated_at: 1785341106301
 relations:

@@ -3,7 +3,7 @@ id: zhe-tian-ji-dagang-yuan-wen-zai-feishu-cloud
 title: 择天记大纲原文 (飞书云文档)
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\03_大纲创作\大纲示例择天记.md
+  - raw/sources/03_大纲创作/大纲示例择天记.md
 created_at: 1785336907154
 updated_at: 1785336907154
 relations: []

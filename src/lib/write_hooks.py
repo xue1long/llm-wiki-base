@@ -17,6 +17,7 @@ thread flushes only its own bucket.
 """
 import os
 import threading
+import time
 from pathlib import Path
 from typing import Union
 
@@ -62,7 +63,16 @@ def safe_write(path: Union[str, Path], content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(content, encoding="utf-8")
-    os.replace(tmp, path)
+    # Windows: os.replace may transiently fail with PermissionError under
+    # high contention (antivirus, rapid queue saves). Retry a few times.
+    for attempt in range(5):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if attempt == 4:
+                raise
+            time.sleep(0.05 * (attempt + 1))
 
 
 def flush_pending_writes() -> int:

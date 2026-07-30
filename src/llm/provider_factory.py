@@ -35,7 +35,7 @@ def _create_from_config(config: ProviderConfig, model_override: str | None = Non
     if config.type == "ollama":
         from .ollama_provider import OllamaProvider
         return OllamaProvider(config, model_override=model_override)
-    if config.type == "openai":
+    if config.type in ("openai", "openai-compatible"):
         from .openai_provider import OpenAIProvider
         return OpenAIProvider(config, model_override=model_override)
     if config.type == "anthropic":
@@ -85,6 +85,7 @@ def create_embedding_provider(
 def _env_var_for_provider(name: str) -> str | None:
     return {
         "openai": "OPENAI_API_KEY",
+        "openai-compatible": None,
         "anthropic": "ANTHROPIC_API_KEY",
         "ollama": None,
     }.get(name)

@@ -13,14 +13,22 @@ _logger = logging.getLogger(__name__)
 
 ANALYZER_PROMPT = """You are analyzing a source document for a knowledge base.
 
+## CRITICAL — JSON Format
+1. Output ONLY the raw JSON object — no markdown fences (```), no
+   introductory text, no concluding remarks.
+2. Your response MUST start with `{{` and end with `}}`.
+3. Do NOT wrap the JSON in ```json ... ``` blocks.
+4. All strings must be properly escaped (double quotes, not single quotes).
+
 Do NOT output chain-of-thought, hidden reasoning, or a thinking
 transcript. Reason internally and emit only the requested JSON.
 
 ## Language
 默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
 summary、key_facts、entities/concepts 的 name 和 context、
-suggested_pages 的 title/reasoning/tags。Slugs 可直接使用中文,
-也可用拼音或英文 — 保留概念的自然字面为佳,无需强制转写。
+suggested_pages 的 title/reasoning/tags。Slugs 使用中文 (CJK) 或
+ASCII kebab-case — 保留概念的自然字面，**禁止拼音转写**。专有名词/英文
+术语在 ASCII 段仍保持原始写法 (e.g. OpenAI, GPT-5, Transformer)。
 
 ## Context
 - Source: {source_path}
@@ -84,6 +92,9 @@ async def analyze(
     source_path: str = "raw/sources/test",
 ) -> AnalysisResult:
     """Step 1: LLM call -> AnalysisResult."""
+    import logging as _logging
+    _al = _logging.getLogger(__name__)
+
     prompt = ANALYZER_PROMPT.format(
         source_path=source_path,
         folder_context=folder_context or "(none)",
@@ -91,35 +102,68 @@ async def analyze(
         source_text=source_text,
     )
 
-    async with BudgetedLLM(model="gpt-4o-mini", op="analyzer", provider=provider) as bl:
-        llm_resp = await bl.call(
-            prompt=prompt,
-            response_format={
-                "type": "object",
-                "properties": {
-                    "summary": {"type": "string"},
-                    "key_facts": {"type": "array", "items": {"type": "string"}},
-                    "entities": {"type": "array"},
-                    "concepts": {"type": "array"},
-                    "suggested_pages": {"type": "array"},
-                    "links_to_existing": {"type": "array", "items": {"type": "string"}},
-                },
-                "required": ["summary", "key_facts", "entities", "concepts", "suggested_pages", "links_to_existing"],
-            },
-        )
+    ANALYZER_RESPONSE_FORMAT = {
+        "type": "object",
+        "properties": {
+            "summary": {"type": "string"},
+            "key_facts": {"type": "array", "items": {"type": "string"}},
+            "entities": {"type": "array"},
+            "concepts": {"type": "array"},
+            "suggested_pages": {"type": "array"},
+            "links_to_existing": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["summary", "key_facts", "entities", "concepts", "suggested_pages", "links_to_existing"],
+    }
 
-    try:
-        response = _parse_llm_response(llm_resp)
-    except (json.JSONDecodeError, ValueError) as exc:
-        raise RuntimeError(
-            f"Analyzer LLM response was not valid JSON ({len(str(llm_resp))} chars): {exc}"
-        ) from exc
+    MAX_ATTEMPTS = 2
+    _json_mode = True
+    last_error: str | None = None
+    for attempt in range(MAX_ATTEMPTS):
+        extra = ""
+        if attempt > 0:
+            _json_mode = False
+            extra = (
+                "\n\n## RETRY — JSON PARSE FAILED\n"
+                "Your previous response was NOT valid JSON. Re-read the "
+                "\"CRITICAL — JSON Format\" rules at the top. "
+                "Failure reason: " + (last_error or "unknown") + "\n"
+                "Reply with the raw JSON object now:\n"
+            )
 
-    if not isinstance(response, dict):
-        raise RuntimeError(
-            f"Analyzer LLM response was a {type(response).__name__}, expected dict "
-            f"(first 200 chars: {str(llm_resp)[:200]!r})"
-        )
+        async with BudgetedLLM(model="gpt-4o-mini", op="analyzer", provider=provider) as bl:
+            llm_resp = await bl.call(
+                prompt=prompt + extra,
+                response_format=ANALYZER_RESPONSE_FORMAT if _json_mode else None,
+            )
+
+        try:
+            response = _parse_llm_response(llm_resp)
+        except (json.JSONDecodeError, ValueError) as exc:
+            last_error = str(exc)
+            _al.warning(
+                "[analyzer] JSON parse failed on attempt %d/%d: %s",
+                attempt + 1, MAX_ATTEMPTS, exc,
+            )
+            if attempt == MAX_ATTEMPTS - 1:
+                raise RuntimeError(
+                    f"Analyzer LLM response was not valid JSON ({len(str(llm_resp))} chars): {exc}"
+                ) from exc
+            continue
+
+        if not isinstance(response, dict):
+            last_error = f"Returned {type(response).__name__}, expected dict"
+            _al.warning(
+                "[analyzer] non-dict response on attempt %d/%d: %s",
+                attempt + 1, MAX_ATTEMPTS, last_error,
+            )
+            if attempt == MAX_ATTEMPTS - 1:
+                raise RuntimeError(
+                    f"Analyzer LLM response was a {type(response).__name__}, expected dict "
+                    f"(first 200 chars: {str(llm_resp)[:200]!r})"
+                )
+            continue
+
+        break
 
     return AnalysisResult(
         task_id=task_id,

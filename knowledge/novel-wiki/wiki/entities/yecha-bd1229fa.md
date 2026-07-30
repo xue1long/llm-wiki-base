@@ -3,7 +3,7 @@ id: yecha-bd1229fa
 title: Yecha Bd1229Fa
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\04_题材专题\东方玄幻夜叉.md
+  - raw/sources/04_题材专题/东方玄幻夜叉.md
 created_at: 1785343408928
 updated_at: 1785343408928
 relations: []

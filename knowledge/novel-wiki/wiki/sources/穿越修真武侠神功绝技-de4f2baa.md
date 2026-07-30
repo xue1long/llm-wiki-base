@@ -3,7 +3,7 @@ id: 穿越修真武侠神功绝技-de4f2baa
 title: 穿越修真武侠神功绝技
 type: source
 sources:
-- C:\Users\HP\OneDrive\240 - 项目\LLM-Wiki\knowledge\novel-wiki\raw\sources\04_题材专题\穿越修真武侠神功绝技.md
+  - raw/sources/04_题材专题/穿越修真武侠神功绝技.md
 created_at: 1785377288310
 updated_at: 1785377288310
 relations: []

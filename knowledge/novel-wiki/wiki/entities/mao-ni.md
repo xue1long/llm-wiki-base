@@ -3,7 +3,7 @@ id: mao-ni
 title: 猫腻
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\03_大纲创作\大纲示例择天记.md
+  - raw/sources/03_大纲创作/大纲示例择天记.md
 created_at: 1785338238616
 updated_at: 1785338238616
 relations:

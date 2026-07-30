@@ -21,6 +21,10 @@ _logger = logging.getLogger(__name__)
 
 _FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*\}|\[.*\])\s*```", re.DOTALL)
 
+# Reasoning-model <think> blocks (MiniMax-M3, DeepSeek-R1).  Stripped at the
+# provider layer as well; kept here as defense-in-depth.
+_THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
+
 # Common JSON syntax errors made by LLMs that we can repair.
 _TRAILING_COMMA_RE = re.compile(r",\s*([}\]])")       # ,  → ]  or  , → }
 _SINGLE_QUOTE_KEY_RE = re.compile(r"'([^']+)'(\s*):")  # 'key': → "key":
@@ -178,7 +182,10 @@ def parse_llm_json(llm_resp: Any) -> dict:
     if not s:
         raise json.JSONDecodeError("LLM returned empty content", content, 0)
 
-    # 0. Pre-repair: escape literal control chars inside JSON strings,
+    # 0a. Strip <think> blocks (defense-in-depth; also done at provider level).
+    s = _THINK_RE.sub("", s).strip()
+
+    # 0b. Pre-repair: escape literal control chars inside JSON strings,
     #    then quote bare [[wikilinks]] BEFORE any parse attempt.
     #    If we let a balanced-extraction step succeed first on a tail
     #    fragment, we lose the root object.  Fixing early ensures Step 1

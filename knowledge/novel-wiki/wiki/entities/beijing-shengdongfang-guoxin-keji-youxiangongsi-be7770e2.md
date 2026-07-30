@@ -3,7 +3,7 @@ id: beijing-shengdongfang-guoxin-keji-youxiangongsi-be7770e2
 title: 北京圣东方国信科技有限公司
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\03_大纲创作\大纲示例永生.md
+  - raw/sources/03_大纲创作/大纲示例永生.md
 created_at: 1785346065077
 updated_at: 1785346065077
 relations:

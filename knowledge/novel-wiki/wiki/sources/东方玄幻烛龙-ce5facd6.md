@@ -3,7 +3,7 @@ id: 东方玄幻烛龙-ce5facd6
 title: 东方玄幻_烛龙
 type: source
 sources:
-- knowledge\novel-wiki\raw\sources\04_题材专题\东方玄幻烛龙.md
+  - raw/sources/04_题材专题/东方玄幻烛龙.md
 created_at: 1785338592905
 updated_at: 1785338592905
 relations: []

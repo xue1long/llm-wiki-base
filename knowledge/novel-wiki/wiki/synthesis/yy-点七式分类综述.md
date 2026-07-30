@@ -15,6 +15,10 @@ relations:
   type: referenced_by
   weight: 1.0
   context: 基于该源文档的 7 个 YY 点进行综合
+- target: yy-小说模式
+  type: derives
+  weight: 0.9
+  context: YY点七式是对YY应用的具体分类
 - target: 隐藏身份危机揭露-yy-点
   type: involves
   weight: 0.8
@@ -23,10 +27,6 @@ relations:
   type: involves
   weight: 0.8
   context: 覆盖第 6 式的结构性分析
-- target: 方法论YY点103式-e6b9ec09
-  type: supported_by
-  weight: 0.8
-  context: 本文档是 YY 点七式分类综述的原始依据
 - target: yy-xiao-shuo-mo-shi
   type: supports
   weight: 0.6
@@ -41,6 +41,8 @@ tags:
 - func/方法论
 - func/YY点
 - func/综述
+category: ''
+taxonomy_sub: ''
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

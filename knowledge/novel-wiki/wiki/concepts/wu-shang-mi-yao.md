@@ -3,7 +3,7 @@ id: wu-shang-mi-yao
 title: 无上秘要（道教类书）
 type: concept
 sources:
-- knowledge\novel-wiki\raw\sources\04_题材专题\东方玄幻无上秘要.md
+  - raw/sources/04_题材专题/东方玄幻无上秘要.md
 created_at: 1785340571557
 updated_at: 1785340571557
 relations:

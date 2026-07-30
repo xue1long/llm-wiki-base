@@ -61,7 +61,7 @@ def list_providers() -> dict:
 @router.post("/providers")
 def add_provider(body: AddProviderRequest) -> dict:
     """Add or update a provider."""
-    if body.type not in ("openai", "anthropic", "ollama"):
+    if body.type not in ("openai", "anthropic", "ollama", "openai-compatible"):
         raise HTTPException(400, f"Unknown provider type: {body.type}")
 
     base_url = body.base_url

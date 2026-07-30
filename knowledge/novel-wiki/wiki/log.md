@@ -492,3 +492,221 @@
 - **ingest**: `kb-20260730125804-b7496df8` — generated 6 pages from 简介写作技巧.md
 ## 2026-07-30T13:11:12.651759
 - **ingest**: `kb-20260730125804-700b1f47` — generated 8 pages from 穿越修真修真之金丹玄要篇.md
+## 2026-07-30T16:15:29.752497
+- **ingest**: `test` — generated 13 pages from 入门教程三十六种经典情节模式情节艺术.md
+## 2026-07-30T16:17:03.545769
+- **ingest**: `test` — generated 7 pages from 大纲模板大纲完整模板.md
+## 2026-07-30T16:38:26.482676
+- **ingest**: `kb-20260730163550-b666d723` — generated 6 pages from 帮助新手网文创作3.md
+## 2026-07-30T16:39:15.204167
+- **ingest**: `kb-20260730163554-6101f996` — generated 8 pages from 入门教程三十六种经典情节模式情节艺术.md
+## 2026-07-30T16:39:34.494101
+- **ingest**: `kb-20260730163556-10879521` — generated 9 pages from 方法论YY小说模式.md
+## 2026-07-30T16:40:18.648738
+- **ingest**: `kb-20260730163553-fe369425` — generated 12 pages from 借鉴素材小说主题分类的内容详细.md
+## 2026-07-30T16:41:29.976253
+- **ingest**: `kb-20260730163559-92bfa62a` — generated 4 pages from 大纲模板大纲完整模板.md
+## 2026-07-30T16:42:16.134326
+- **ingest**: `kb-20260730163559-2b19b7a1` — generated 8 pages from 大纲模板大纲模板2.md
+## 2026-07-30T16:42:21.537064
+- **ingest**: `kb-20260730163559-c6645add` — generated 12 pages from 东方玄幻上古十大凶兽.md
+## 2026-07-30T16:42:37.756639
+- **ingest**: `kb-20260730163551-5bd9a153` — generated 15 pages from 借鉴素材20个签约条件新人必看.md
+## 2026-07-30T16:43:43.507870
+- **ingest**: `kb-20260730163559-a9be1609` — generated 12 pages from 东方玄幻上古十大神器.md
+## 2026-07-30T16:44:05.863724
+- **ingest**: `kb-20260730163558-7d449e5f` — generated 7 pages from 方法论YY点103式.md
+## 2026-07-30T16:45:15.205430
+- **ingest**: `kb-20260730163559-31bd0fad` — generated 13 pages from 方法论丰富多彩的人物形象塑造.md
+## 2026-07-30T16:45:54.850451
+- **ingest**: `kb-20260730163559-1e2d645b` — generated 10 pages from 作家耳根揭秘仙逆奇幻绝招.md
+## 2026-07-30T16:45:59.374675
+- **ingest**: `kb-20260730163559-b8388769` — generated 7 pages from 十类软文的写作技巧.md
+## 2026-07-30T16:46:52.063627
+- **ingest**: `kb-20260730163559-d63c786a` — generated 8 pages from 信息库1签约篇.md
+## 2026-07-30T16:47:12.988387
+- **ingest**: `kb-20260730163559-111a03aa` — generated 12 pages from 信息库2买断篇.md
+## 2026-07-30T16:47:32.439958
+- **ingest**: `kb-20260730163559-ad3de15a` — generated 10 pages from 信息库3出版片.md
+## 2026-07-30T16:49:54.915737
+- **ingest**: `kb-20260730163559-b672b7ea` — generated 9 pages from 书名选取技巧.md
+## 2026-07-30T16:51:01.535486
+- **ingest**: `kb-20260730163559-9067e77d` — generated 6 pages from 1写作选材之以小见大第1段.md
+## 2026-07-30T16:52:34.868219
+- **ingest**: `kb-20260730163559-526c171b` — generated 8 pages from 1刻画人物形象之外貌神态描写第1段.md
+## 2026-07-30T16:57:37.322349
+- **ingest**: `kb-20260730163559-7c80f443` — generated 9 pages from 人物形象写作技巧1.md
+## 2026-07-30T20:48:03.655999
+- **ingest**: `kb-20260730203025-083ff14c` — generated 9 pages from 1刻画人物形象之语言动作描写第1段.md
+## 2026-07-30T20:48:24.081963
+- **ingest**: `kb-20260730204623-7c63bf1f` — generated 3 pages from 方法论一个全职写手的心得体会.md
+## 2026-07-30T20:48:46.976365
+- **ingest**: `kb-20260730203025-a5fcd2c6` — generated 7 pages from 1写作选材之以小见大第1段.md
+## 2026-07-30T20:49:03.095926
+- **ingest**: `kb-20260730203025-a3501ad5` — generated 17 pages from 1写作选材之叙述视角第1段.md
+## 2026-07-30T20:49:12.208448
+- **ingest**: `kb-20260730204623-98ce11e6` — generated 3 pages from 东方玄幻刑天.md
+## 2026-07-30T20:49:13.931510
+- **ingest**: `kb-20260730203025-3cbf40c1` — generated 12 pages from 1刻画人物形象之外貌神态描写第1段.md
+## 2026-07-30T20:49:24.687501
+- **ingest**: `kb-20260730203025-35b5166d` — generated 13 pages from 1刻画人物形象之心理描写第1段.md
+## 2026-07-30T20:49:34.281218
+- **ingest**: `kb-20260730204623-b9699c93` — generated 5 pages from 进阶教程剧本经典教材百度云分享写作猫.md
+## 2026-07-30T20:49:44.882468
+- **ingest**: `kb-20260730204623-08b6e2ed` — generated 7 pages from 入门教程新写手全面的指南.md
+## 2026-07-30T20:50:09.456439
+- **ingest**: `kb-20260730204623-77f062c7` — generated 5 pages from 东方玄幻关于宋代物价的历史资料.md
+## 2026-07-30T20:50:58.801510
+- **ingest**: `kb-20260730204623-c29e03e5` — generated 4 pages from 进阶教程悬疑小说素材.md
+## 2026-07-30T20:51:16.425348
+- **ingest**: `kb-20260730204623-cb9cc86c` — generated 6 pages from 大纲示例七界传说大纲.md
+## 2026-07-30T20:51:18.791516
+- **ingest**: `kb-20260730204623-948f10bb` — generated 13 pages from 进阶教程注意倾听.md
+## 2026-07-30T20:52:12.150131
+- **ingest**: `kb-20260730204623-500a3147` — generated 9 pages from 进阶教程人生.md
+## 2026-07-30T20:52:28.275929
+- **ingest**: `kb-20260730204623-1db369ae` — generated 11 pages from 必备资料22期待感让你的作品能够引人入胜1.md
+## 2026-07-30T20:52:56.205080
+- **ingest**: `kb-20260730204623-741c7030` — generated 8 pages from 大纲示例一念永恒.md
+## 2026-07-30T20:52:56.743159
+- **ingest**: `kb-20260730204623-52a7c822` — generated 6 pages from 穿越修真北斗七星.md
+## 2026-07-30T20:53:15.222181
+- **ingest**: `kb-20260730204623-a86d0268` — generated 9 pages from 武侠洪荒长明灯.md
+## 2026-07-30T20:53:17.050795
+- **ingest**: `kb-20260730204623-986ef3d1` — generated 4 pages from 借鉴素材20个签约条件新人必看.md
+## 2026-07-30T20:53:47.856374
+- **ingest**: `kb-20260730204623-ea2b1b25` — generated 13 pages from 大纲示例琴帝.md
+## 2026-07-30T20:54:20.635628
+- **ingest**: `kb-20260730204623-c01f266c` — generated 8 pages from 东方玄幻修真九要.md
+## 2026-07-30T20:54:26.243676
+- **ingest**: `kb-20260730204623-e9bd72bd` — generated 10 pages from 入门教程新人写手必修课如何快速塑造吸引人的开篇抓住读者虎平阳.md
+## 2026-07-30T20:56:54.978163
+- **ingest**: `kb-20260730204623-c78b862c` — generated 7 pages from 武侠洪荒洗髓经.md
+## 2026-07-30T20:56:55.075501
+- **ingest**: `kb-20260730204623-90f17ab6` — generated 15 pages from 进阶教程11从标题党看网络文学创作手法中的诱惑性创作.md
+## 2026-07-30T21:09:49.627633
+- **ingest**: `kb-20260730210711-f9866c8e` — generated 17 pages from 借鉴素材20个签约条件新人必看.md
+## 2026-07-30T21:15:50.580980
+- **ingest**: `kb-20260730211504-578aa5af` — generated 5 pages from 东方玄幻天罡三十六法地煞七十二术.md
+## 2026-07-30T21:16:20.511267
+- **ingest**: `kb-20260730211505-f3752b29` — generated 9 pages from 东方玄幻白虎.md
+## 2026-07-30T21:17:08.681924
+- **ingest**: `kb-20260730211454-24dc5f27` — generated 6 pages from 入门教程12爽点.md
+## 2026-07-30T21:17:33.995995
+- **ingest**: `kb-20260730211454-10bdf126` — generated 7 pages from 入门教程凤头猪肚豹尾.md
+## 2026-07-30T21:18:17.672921
+- **ingest**: `kb-20260730211506-c17b994d` — generated 7 pages from 入门教程网络原创文学写作指南2三江小阵.md
+## 2026-07-30T21:18:54.279360
+- **ingest**: `kb-20260730211505-ee27be29` — generated 18 pages from 大神访谈3.md
+## 2026-07-30T21:19:06.936835
+- **ingest**: `kb-20260730211506-5fad081a` — generated 9 pages from 新人须知5速度网络文学创作的唯一秘诀.md
+## 2026-07-30T21:19:07.806397
+- **ingest**: `kb-20260730211506-7224b214` — generated 14 pages from 大纲示例如何写大纲做有生存能力的作者.md
+## 2026-07-30T21:19:16.821985
+- **ingest**: `kb-20260730211506-c1d0c7f3` — generated 12 pages from 进阶教程大纲详细写法1.md
+## 2026-07-30T21:19:49.271448
+- **ingest**: `kb-20260730211506-750c66ec` — generated 4 pages from 武侠洪荒八卦掌.md
+## 2026-07-30T21:20:13.034736
+- **ingest**: `kb-20260730211506-7ec59dee` — generated 5 pages from 进阶教程小说资料吧写作基础知识如何取个好书名.md
+## 2026-07-30T21:21:05.794056
+- **ingest**: `kb-20260730211506-6ee4cf9a` — generated 6 pages from 武侠洪荒武林知名异兽.md
+## 2026-07-30T21:21:46.369938
+- **ingest**: `kb-20260730211506-4287a217` — generated 15 pages from 进阶教程小说人物的塑造1.md
+## 2026-07-30T21:21:49.133785
+- **ingest**: `kb-20260730211506-63369c44` — generated 8 pages from 新人须知15顺眼谈文章的画面感.md
+## 2026-07-30T21:21:49.637593
+- **ingest**: `kb-20260730211506-4cb8cbae` — generated 7 pages from 入门教程15书评.md
+## 2026-07-30T21:23:06.292367
+- **ingest**: `kb-20260730211506-9b053932` — generated 5 pages from 方法论打斗七公式重要.md
+## 2026-07-30T21:23:54.044497
+- **ingest**: `kb-20260730211506-cf5bfbab` — generated 21 pages from 运营课程21十大小说写作技巧.md
+## 2026-07-30T21:23:55.476544
+- **ingest**: `kb-20260730211506-93a83dca` — generated 25 pages from 东方玄幻古人也作弊考场揭秘.md
+## 2026-07-30T21:24:08.332715
+- **ingest**: `kb-20260730211506-2955268f` — generated 6 pages from 穿越修真魔法1.md
+## 2026-07-30T21:24:35.009048
+- **ingest**: `kb-20260730211506-0eaaed81` — generated 5 pages from 入门教程我有十说转.md
+## 2026-07-30T21:25:14.001875
+- **ingest**: `kb-20260730211506-2a9504fc` — generated 15 pages from 西方奇幻魔法相关.md
+## 2026-07-30T21:33:32.345103
+- **ingest**: `kb-20260730211506-e6f0d27c` — generated 4 pages from 都市言情财经小说的类别模式.md
+## 2026-07-30T22:06:28.969543
+- **ingest**: `kb-20260730220439-b8e09e1b` — generated 13 pages from 大纲示例网络小说大纲写法.md
+## 2026-07-30T22:06:33.020044
+- **ingest**: `kb-20260730220438-d2cfa71b` — generated 9 pages from 新人须知14网络文学实体书出版的那些事儿_c39e43.md
+## 2026-07-30T22:07:07.230545
+- **ingest**: `kb-20260730220440-e54c8975` — generated 12 pages from 大纲示例天神变.md
+## 2026-07-30T22:07:48.631505
+- **ingest**: `kb-20260730220439-638e2407` — generated 9 pages from 新人须知37修真仙侠小说的元素和写法.md
+## 2026-07-30T22:08:01.757172
+- **ingest**: `kb-20260730220441-e3c1eaa8` — generated 15 pages from 穿越修真阴阳术.md
+## 2026-07-30T22:08:08.293491
+- **ingest**: `kb-20260730220440-17ab24b6` — generated 16 pages from 穿越修真游戏中的技能.md
+## 2026-07-30T22:09:03.649806
+- **ingest**: `kb-20260730220441-aeced0b4` — generated 9 pages from 入门教程起点大神读跳舞写给新手的信.md
+## 2026-07-30T22:09:09.300291
+- **ingest**: `kb-20260730220441-1bd66bf9` — generated 14 pages from 进阶教程小说中环境描写的作用.md
+## 2026-07-30T22:09:22.786629
+- **ingest**: `kb-20260730220441-2ad81933` — generated 5 pages from 女频男频3纵横编辑引导你成为专业写手的关键.md
+## 2026-07-30T22:10:06.310162
+- **ingest**: `kb-20260730220442-3ae36279` — generated 9 pages from 审核上架6把握小说更新技巧.md
+## 2026-07-30T22:10:07.243406
+- **ingest**: `kb-20260730220442-62812243` — generated 13 pages from 入门教程文章架构合理性分析_25af8b.md
+## 2026-07-30T22:10:13.588214
+- **ingest**: `kb-20260730220442-01795531` — generated 9 pages from 进阶教程教程15轻松写好打斗场景的几个秘诀.md
+## 2026-07-30T22:11:13.813084
+- **ingest**: `kb-20260730220442-8aee0263` — generated 3 pages from 出版知识第13述怎样让你的小说引人入胜.md
+## 2026-07-30T22:11:14.655823
+- **ingest**: `kb-20260730220441-85bc1ca0` — generated 14 pages from 女频男频1穿越言情文的写法.md
+## 2026-07-30T22:11:47.466296
+- **ingest**: `kb-20260730220442-9e0ad8aa` — generated 7 pages from 入门教程如何加强书的情节.md
+## 2026-07-30T22:12:37.988835
+- **ingest**: `kb-20260730220442-5d38b90f` — generated 21 pages from 东方玄幻玄幻仙侠类神兽妖兽素材.md
+## 2026-07-30T22:13:34.216168
+- **ingest**: `kb-20260730220442-3b6e885a` — generated 10 pages from 大纲示例盘龙.md
+## 2026-07-30T22:15:57.460433
+- **ingest**: `kb-20260730220442-8d80810c` — generated 14 pages from 新人须知13网络文学创作的几个误区.md
+## 2026-07-30T22:16:15.253609
+- **ingest**: `kb-20260730220442-604cff66` — generated 14 pages from 东方玄幻六尘.md
+## 2026-07-30T22:18:48.609530
+- **ingest**: `kb-20260730220442-536545f1` — generated 23 pages from 东方玄幻中国上古洪荒神话四帝舜帝启.md
+## 2026-07-30T23:01:42.354644
+- **ingest**: `kb-20260730230045-a3d1073e` — generated 11 pages from 借鉴素材常用急救小知识.md
+## 2026-07-30T23:02:24.618687
+- **ingest**: `kb-20260730230046-b226c8c1` — generated 10 pages from 借鉴素材古代刺客的暗杀手段.md
+## 2026-07-30T23:02:45.584051
+- **ingest**: `kb-20260730230033-7d5e77bb` — generated 8 pages from 帮助新手网文创作3.md
+## 2026-07-30T23:02:53.382394
+- **ingest**: `kb-20260730230044-210cf4d2` — generated 6 pages from 借鉴素材打斗七公式重要.md
+## 2026-07-30T23:02:56.996012
+- **ingest**: `kb-20260730230047-4a85c1f2` — generated 4 pages from 方法论一个全职写手的心得体会.md
+## 2026-07-30T23:02:58.064467
+- **ingest**: `kb-20260730230045-35431ca7` — generated 6 pages from 借鉴素材玄幻小说创作入门指南.md
+## 2026-07-30T23:03:10.803581
+- **ingest**: `kb-20260730230047-71edc64c` — generated 5 pages from 方法论丰富多彩的人物形象塑造.md
+## 2026-07-30T23:03:36.734075
+- **ingest**: `kb-20260730230048-182c90c0` — generated 9 pages from 大纲示例0小说分集情节大纲辅助设定.md
+## 2026-07-30T23:03:38.912099
+- **ingest**: `kb-20260730230049-5275def0` — generated 3 pages from 东方玄幻三足乌.md
+## 2026-07-30T23:04:02.393395
+- **ingest**: `kb-20260730230046-1e502251` — generated 16 pages from 方法论YY小说模式.md
+## 2026-07-30T23:04:31.211540
+- **ingest**: `kb-20260730230050-a3432379` — generated 6 pages from 信息库1签约篇.md
+## 2026-07-30T23:05:12.789575
+- **ingest**: `kb-20260730230051-41d48181` — generated 12 pages from 出版知识第11述常见小说类型的写作技巧.md
+## 2026-07-30T23:05:52.364754
+- **ingest**: `kb-20260730230048-9f05cad4` — generated 11 pages from 大纲模板大纲完整模板.md
+## 2026-07-30T23:06:34.192787
+- **ingest**: `kb-20260730230049-e24c0573` — generated 22 pages from 东方玄幻上古十大凶兽.md
+## 2026-07-30T23:06:46.053590
+- **ingest**: `kb-20260730230050-7c45e5ed` — generated 15 pages from 东方玄幻上古十大神器.md
+## 2026-07-30T23:06:51.745848
+- **ingest**: `kb-20260730230053-88244cd6` — generated 11 pages from 1刻画人物形象之外貌神态描写第1段.md
+## 2026-07-30T23:07:09.278188
+- **ingest**: `kb-20260730230052-56c07171` — generated 10 pages from 1写作选材之以小见大第1段.md
+## 2026-07-30T23:07:50.874412
+- **ingest**: `kb-20260730230051-c7307ceb` — generated 10 pages from 作家耳根揭秘仙逆奇幻绝招.md
+## 2026-07-30T23:08:00.056733
+- **ingest**: `kb-20260730230052-3c6e6d3e` — generated 9 pages from 大神访谈1.md
+## 2026-07-30T23:09:12.513194
+- **ingest**: `kb-20260730230053-d0aba8e9` — generated 4 pages from 书名选取技巧.md

@@ -3,7 +3,7 @@ id: 罂粟情人-poppy-lover-novel-b1c2d3e4
 title: 《罂粟情人》
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\02_进阶技巧\进阶教程小说靠什么来吸引读者.md
+  - raw/sources/02_进阶技巧/进阶教程小说靠什么来吸引读者.md
 created_at: 1785341380300
 updated_at: 1785341380300
 relations: []

@@ -112,7 +112,7 @@ async def test_generate_forwards_v22_fields_from_suggested_pages(tmp_path):
 @pytest.mark.asyncio
 async def test_generate_uses_v22_defaults_when_missing(tmp_path):
     """When the LLM response omits grade/processing_depth/is_immutable,
-    the constructed WikiPage still gets the v2.2 defaults (B / concept / False).
+    the constructed WikiPage gets defaults inferred from its PageType (B / source / False).
     """
     from src.wiki.storage.ensure import ensure_knowledge_base
     from src.wiki.core.paths import WikiPaths
@@ -133,7 +133,7 @@ async def test_generate_uses_v22_defaults_when_missing(tmp_path):
     pages = await generate(paths=paths, analysis=analysis, existing_wiki_index="", provider=provider)
     assert len(pages) == 1
     assert pages[0].grade == "B"
-    assert pages[0].processing_depth == "concept"
+    assert pages[0].processing_depth == "source"
     assert pages[0].is_immutable is False
 
 

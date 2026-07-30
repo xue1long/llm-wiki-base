@@ -3,7 +3,7 @@ id: wu-xi-hong-huang-ba-wu
 title: 武侠洪荒武器历史 (Martial Arts Honghuang Weaponry History)
 type: concept
 sources:
-- knowledge\novel-wiki\raw\sources\04_题材专题\武侠洪荒十八般武器.md
+  - raw/sources/04_题材专题/武侠洪荒十八般武器.md
 created_at: 1785344831606
 updated_at: 1785344831606
 relations:
@@ -11,6 +11,10 @@ relations:
   type: contains_references_to
   weight: 1.0
   context: 该概念提供了十八般武艺的历史背景知识。
+- target: 东方玄幻上古十大神器-9b44fa41
+  type: supported_by
+  weight: 0.7
+  context: 对洪荒兵器体系的细化设定
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -20,6 +24,8 @@ zombie_since: null
 tags:
 - genre/历史
 - func/考据
+category: ''
+taxonomy_sub: ''
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

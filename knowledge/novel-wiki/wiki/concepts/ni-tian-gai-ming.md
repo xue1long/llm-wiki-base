@@ -3,7 +3,7 @@ id: ni-tian-gai-ming
 title: 逆天改命
 type: concept
 sources:
-- knowledge\novel-wiki\raw\sources\03_大纲创作\大纲示例择天记.md
+  - raw/sources/03_大纲创作/大纲示例择天记.md
 created_at: 1785336907153
 updated_at: 1785336907153
 relations: []

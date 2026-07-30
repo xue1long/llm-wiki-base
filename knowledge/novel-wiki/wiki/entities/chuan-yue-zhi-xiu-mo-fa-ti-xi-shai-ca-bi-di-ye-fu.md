@@ -3,7 +3,7 @@ id: chuan-yue-zhi-xiu-mo-fa-ti-xi-shai-ca-bi-di-ye-fu
 title: 水系魔法发明者撒卡比迪耶夫
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\04_题材专题\穿越修真西方魔法发展史.md
+  - raw/sources/04_题材专题/穿越修真西方魔法发展史.md
 created_at: 1785336611134
 updated_at: 1785336611134
 relations: []

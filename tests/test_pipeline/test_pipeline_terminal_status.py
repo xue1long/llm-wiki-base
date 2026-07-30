@@ -31,7 +31,7 @@ async def test_handler_marks_task_approved_on_success(tmp_path, monkeypatch):
     service.tracker.acquire(task_id)
     # Audit I5: _resolve_wiki_paths now takes project_id kwarg.
     monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda project_id=None: tmp_path)
-    monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: object())
+    monkeypatch.setattr(pipeline_mod, "_get_provider", lambda project_id=None: object())
 
     async def successful_ingest(**kwargs):
         return []
@@ -65,7 +65,7 @@ async def test_handler_marks_task_failed_on_exception(tmp_path, monkeypatch):
     service.backend.save(task)
     # Audit I5: _resolve_wiki_paths now takes project_id kwarg.
     monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda project_id=None: tmp_path)
-    monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: object())
+    monkeypatch.setattr(pipeline_mod, "_get_provider", lambda project_id=None: object())
 
     async def failed_ingest(**kwargs):
         raise RuntimeError("ingest exploded")

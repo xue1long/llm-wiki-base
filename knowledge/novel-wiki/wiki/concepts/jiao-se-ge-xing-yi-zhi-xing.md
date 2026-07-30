@@ -27,6 +27,10 @@ relations:
   type: supported_by
   weight: 0.6
   context: 通过追问恐惧症、信任倾向等帮助维护角色个性一致性
+- target: 方法论丰富多彩的人物形象塑造-a93dd569
+  type: referenced_by
+  weight: 0.5
+  context: 金圣叹'各有性情'思想与此相关
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -36,6 +40,8 @@ zombie_since: null
 tags:
 - func/写作技巧
 - func/人物构建
+category: ''
+taxonomy_sub: ''
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

@@ -3,7 +3,7 @@ id: novel-outline
 title: Novel Outline
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\03_大纲创作\大纲示例网络小说买断大纲以及上架大纲.md
+  - raw/sources/03_大纲创作/大纲示例网络小说买断大纲以及上架大纲.md
 created_at: 1785341961734
 updated_at: 1785341961734
 relations:
@@ -19,6 +19,10 @@ relations:
   type: contains
   weight: 0.9
   context: 十章情感线大纲结构是小说大纲的一种具体结构范式
+- target: 网文连载大纲策略
+  type: derives
+  weight: 0.9
+  context: 网文连载大纲策略是大纲方法在连载场景下的具体实践
 grade: C
 processing_depth: stub
 is_immutable: false
@@ -26,6 +30,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags: []
+category: ''
+taxonomy_sub: ''
 ---
 
 ## 占位条目

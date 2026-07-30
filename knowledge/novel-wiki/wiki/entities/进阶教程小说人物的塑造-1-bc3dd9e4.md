@@ -1,0 +1,27 @@
+---
+id: 进阶教程小说人物的塑造-1-bc3dd9e4
+title: 进阶教程小说人物的塑造 1 bc3dd9e4
+type: entity
+sources:
+- raw\sources\02_进阶技巧\进阶教程小说人物的塑造1.md
+created_at: 1785417706349
+updated_at: 1785417706349
+relations: []
+grade: C
+processing_depth: stub
+is_immutable: false
+heat: 50
+last_used_at: 0
+zombie_since: null
+tags: []
+category: ''
+taxonomy_sub: ''
+---
+
+## 占位条目
+
+此页面被其他页面引用（例如 `[[进阶教程小说人物的塑造-1-bc3dd9e4]]`），但本此摄取中 Generator 未生成该实体的独立页面。
+
+来源摄取: `raw\sources\02_进阶技巧\进阶教程小说人物的塑造1.md` (task `kb-20260730211506-4287a217`)。
+
+下次摄取如果包含此实体的详细内容，系统会自动用真实内容替换本占位页。

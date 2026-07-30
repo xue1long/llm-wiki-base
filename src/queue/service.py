@@ -23,6 +23,7 @@ import logging
 import threading
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 from ..circuit_breaker import get_circuit_breaker
 from ..events.event_bus import event_bus
@@ -43,6 +44,7 @@ logger = logging.getLogger(__name__)
 
 CIRCUIT_BREAKER_NAME = "task_queue"
 QUEUE_FILE = ".kb-queue.json"
+PAUSE_FILE = ".kb-queue-paused"
 
 
 def generate_task_id() -> str:
@@ -66,7 +68,7 @@ class QueueService:
         self.retry_policy = retry_policy
         self._breaker_name = circuit_breaker_name
         self._service_lock = threading.Lock()
-        self._paused = False
+        self._paused = Path(PAUSE_FILE).exists()
 
     def _breaker(self):
         """Resolve the breaker each call — never cache the instance, since
@@ -127,6 +129,52 @@ class QueueService:
         ))
         self.advance(prefer_task_id=task_id, project_id=project_id)
         return task_id
+
+    def enqueue_batch(
+        self,
+        items: list[dict],
+        project_id: str | None = None,
+    ) -> list[str]:
+        """Enqueue multiple sources in a single lock acquisition + single disk write.
+
+        Each item is a dict with keys: source, source_type, task_hash.
+
+        Does NOT emit TASK_CREATED or call advance() per-item. The caller
+        should call advance() a few times afterward to kick off processing.
+        """
+        task_ids: list[str] = []
+        with self._service_lock:
+            tasks_to_add: list[KnowledgeTask] = []
+            for item in items:
+                source = item["source"]
+                source_type = item["source_type"]
+                task_hash = item["task_hash"]
+
+                existing = self.backend.find_by_hash(task_hash)
+                active = [t for t in existing if t.status in (TaskStatus.PENDING, TaskStatus.RUNNING)]
+                if active:
+                    continue
+                for t in existing:
+                    self.backend.remove(t.id)
+
+                task = KnowledgeTask(
+                    id=generate_task_id(),
+                    source=source,
+                    source_type=source_type,
+                    status=TaskStatus.PENDING,
+                    task_hash=task_hash,
+                    created_at=int(datetime.now().timestamp()),
+                    updated_at=int(datetime.now().timestamp()),
+                    retry_count=0,
+                    project_id=project_id,
+                )
+                tasks_to_add.append(task)
+                task_ids.append(task.id)
+
+            if tasks_to_add:
+                self.backend.enqueue_batch(tasks_to_add)
+
+        return task_ids
 
     def update_status(
         self,
@@ -251,13 +299,18 @@ class QueueService:
     def pause(self) -> None:
         with self._service_lock:
             self._paused = True
-            logger.warning("[Queue] Queue paused")
+            Path(PAUSE_FILE).write_text("1")
+            logger.warning("[Queue] Queue paused (persisted)")
 
     def resume(self) -> None:
         with self._service_lock:
             self._paused = False
+            try:
+                Path(PAUSE_FILE).unlink(missing_ok=True)
+            except OSError:
+                pass
             self._breaker().record_success()
-            logger.info("[Queue] Queue resumed")
+            logger.info("[Queue] Queue resumed (persisted)")
         self.advance()
 
     def release_in_flight(self, task_id: str) -> None:

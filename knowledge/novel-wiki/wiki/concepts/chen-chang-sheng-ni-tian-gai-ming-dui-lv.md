@@ -3,7 +3,7 @@ id: chen-chang-sheng-ni-tian-gai-ming-dui-lv
 title: 陈长生逆天改命策略分析
 type: concept
 sources:
-- knowledge\novel-wiki\raw\sources\03_大纲创作\大纲示例择天记.md
+  - raw/sources/03_大纲创作/大纲示例择天记.md
 created_at: 1785336907153
 updated_at: 1785336907153
 relations: []

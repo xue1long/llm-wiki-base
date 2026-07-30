@@ -114,3 +114,33 @@ line2"
         assert result["related"] == ["[[feishu-yunwendang]]", "[[xieren-rumen]]"]
         # After json.loads, \\n is decoded back to actual newline.
         assert "\n" in result["body"]
+
+
+class TestParseLlmJsonWithThinkBlocks:
+    """parse_llm_json strips <think> blocks before parsing."""
+
+    def test_parses_after_think_block(self):
+        content = "<think>reasoning about the document</think>\n\n{\"pages\": [{\"title\": \"Test\"}]}"
+        result = parse_llm_json(content)
+        assert result["pages"][0]["title"] == "Test"
+
+    def test_parses_multiline_think_block(self):
+        content = "<think>\nreasoning line 1\nreasoning line 2\n</think>\n{\"key\": \"value\"}"
+        result = parse_llm_json(content)
+        assert result["key"] == "value"
+
+    def test_parses_json_without_think_block_normally(self):
+        content = '{"pages": [{"title": "Normal"}]}'
+        result = parse_llm_json(content)
+        assert result["pages"][0]["title"] == "Normal"
+
+    def test_parses_fenced_json_after_think_block(self):
+        content = "<think>analysis</think>\n\n```json\n{\"pages\": [{\"title\": \"Fenced\"}]}\n```"
+        result = parse_llm_json(content)
+        assert result["pages"][0]["title"] == "Fenced"
+
+    def test_strips_think_then_repairs(self):
+        """<think> stripped, then trailing comma repaired."""
+        content = "<think>hmm</think>\n{\"items\": [1, 2, ],}"
+        result = parse_llm_json(content)
+        assert result["items"] == [1, 2]

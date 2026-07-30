@@ -3,7 +3,7 @@ id: synthesis-fund-assessment-overview
 title: 创作基金评定综述
 type: synthesis
 sources:
-- knowledge\novel-wiki\raw\sources\01_新手入门\借鉴素材玄幻标签创作基金评定标准详解.md
+  - raw/sources/01_新手入门/借鉴素材玄幻标签创作基金评定标准详解.md
 created_at: 1785345604249
 updated_at: 1785345604249
 relations:

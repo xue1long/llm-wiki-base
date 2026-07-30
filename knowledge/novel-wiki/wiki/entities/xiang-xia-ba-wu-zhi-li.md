@@ -3,7 +3,7 @@ id: xiang-xia-ba-wu-zhi-li
 title: 仙侠武器志 (Xianxia Weaponry Encyclopedia)
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\04_题材专题\武侠洪荒十八般武器.md
+  - raw/sources/04_题材专题/武侠洪荒十八般武器.md
 created_at: 1785344831606
 updated_at: 1785344831606
 relations:

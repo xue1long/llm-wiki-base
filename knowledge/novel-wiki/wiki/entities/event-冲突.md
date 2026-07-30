@@ -3,7 +3,7 @@ id: event-冲突
 title: event 冲突
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\03_大纲创作\大纲示例择天记.md
+  - raw/sources/03_大纲创作/大纲示例择天记.md
 created_at: 1785336907154
 updated_at: 1785336907154
 relations: []

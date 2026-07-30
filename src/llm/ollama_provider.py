@@ -24,6 +24,52 @@ _logger = logging.getLogger(__name__)
 # same base URL. Keyed by base_url so different endpoints stay isolated.
 _CLIENT_CACHE: dict[str, httpx.AsyncClient] = {}
 
+# Track the event-loop id each cached client was created on.  When
+# asyncio.run() creates a fresh loop (common in tests and CLI scripts),
+# a client bound to the old loop is unusable — we detect the mismatch
+# and recreate.
+_CLIENT_LOOP_IDS: dict[str, int] = {}
+
+
+def _get_or_create_client(base_url: str, timeout: float, headers: dict) -> httpx.AsyncClient:
+    """Return a cached AsyncClient, recreating it if the event loop changed.
+
+    When ``asyncio.run()`` is called repeatedly (tests, CLI scripts), each
+    invocation creates a fresh event loop.  An ``httpx.AsyncClient`` created
+    on loop N becomes unusable after loop N closes — subsequent ``await
+    client.post(...)`` calls raise ``RuntimeError("Event loop is closed")``.
+
+    We detect the mismatch by comparing the identity of the current default
+    event loop with the one stored at client-creation time.  On loop change,
+    the old client is closed and a fresh one is created.
+    """
+    import asyncio
+
+    cached = _CLIENT_CACHE.get(base_url)
+    if cached is not None:
+        try:
+            current_loop_id = id(asyncio.get_event_loop())
+        except RuntimeError:
+            current_loop_id = 0
+        cached_loop_id = _CLIENT_LOOP_IDS.get(base_url)
+        if cached_loop_id and cached_loop_id != current_loop_id:
+            # Loop changed — old client is bound to a dead loop.
+            try:
+                asyncio.get_event_loop().run_until_complete(cached.aclose())
+            except Exception:
+                pass
+            cached = None
+
+    if cached is None:
+        cached = httpx.AsyncClient(timeout=timeout, headers=headers)
+        _CLIENT_CACHE[base_url] = cached
+        try:
+            _CLIENT_LOOP_IDS[base_url] = id(asyncio.get_event_loop())
+        except RuntimeError:
+            pass
+
+    return cached
+
 
 class OllamaProvider(LLMProvider):
     """Ollama provider — uses native ``/api/chat`` and ``/api/embeddings``."""
@@ -41,19 +87,14 @@ class OllamaProvider(LLMProvider):
         self.model = model_override or config.default_chat_model
         self.extra_headers = dict(config.extra_headers or {})
 
-        # Reuse one cached AsyncClient per base_url. If a key exists, share
-        # it; otherwise create and cache a fresh one.
-        # GIL-safe: dict.get + set are atomic; worst case is duplicate client
-        # creation (no data corruption).
-        cached = _CLIENT_CACHE.get(self.base_url)
-        if cached is None:
-            headers = dict(self.extra_headers)
-            cached = httpx.AsyncClient(
-                timeout=config.timeout_seconds,
-                headers=headers,
-            )
-            _CLIENT_CACHE[self.base_url] = cached
-        self.client = cached
+        # Reuse one cached AsyncClient per base_url.  When the event loop
+        # changes (asyncio.run() in tests/CLI scripts), the old client is
+        # automatically replaced with a fresh one on the current loop.
+        self.client = _get_or_create_client(
+            self.base_url,
+            timeout=config.timeout_seconds,
+            headers=dict(self.extra_headers or {}),
+        )
 
         # Auto-register for bulk-close on app shutdown (see ProviderRegistry.aclose_all).
         from .registry import ProviderRegistry
@@ -73,7 +114,28 @@ class OllamaProvider(LLMProvider):
         if response_format:
             body["format"] = "json"
 
+        # Respect the configured context window (the Ollama default of 4096
+        # tokens is too small for pipeline prompts which routinely exceed
+        # 8K tokens).  Read from the per-model ModelInfo; fall back to a
+        # safe default of 8192 when nothing is configured.
+        model_info = self.config.models.get(self.model) if self.config.models else None
+        ctx = (
+            model_info.context_window
+            if model_info and model_info.context_window
+            else 8192
+        )
+        # Always send num_ctx when explicitly configured — allows both
+        # increasing (for long prompts) and decreasing (to save VRAM).
+        if ctx:
+            body.setdefault("options", {})["num_ctx"] = ctx
+
         resp = await self.client.post(f"{self.base_url}/api/chat", json=body)
+        if not resp.is_success:
+            _logger.error(
+                "[Ollama] HTTP %d from %s/api/chat (model=%s, body_size=%d): %s",
+                resp.status_code, self.base_url, self.model,
+                len(str(body)), resp.text[:500],
+            )
         resp.raise_for_status()
         data = resp.json()
         return LLMResponse(

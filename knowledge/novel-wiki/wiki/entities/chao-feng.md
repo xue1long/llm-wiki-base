@@ -1,21 +1,34 @@
 ---
 id: chao-feng
-title: 嘲风
+title: 烽火
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\04_题材专题\东方玄幻龙生九子之三嘲风.md
-created_at: 1785336209830
-updated_at: 1785336209830
-relations: []
+- raw\sources\05_运营出版\信息库2买断篇.md
+created_at: 1785401232888
+updated_at: 1785401232888
+relations:
+- target: 信息库-2-买断篇-f40defc4
+  type: referenced_by
+  weight: 0.6
+  context: 落落引用烽火的评论佐证情节要素
+- target: 华山
+  type: references
+  weight: 0.5
+  context: 烽火评论发生于华山上
+- target: 落落
+  type: referenced_by
+  weight: 0.5
+  context: 落落引用烽火在华山上的评论佐证"情节"要素
 grade: B
-processing_depth: entity
+processing_depth: memory
 is_immutable: false
 heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/玄幻
-- entity/东方神话
+- entity/作者
+category: 运营出版
+taxonomy_sub: 评论者
 ---
 
 <!-- wiki-template-version: 2.0.0 -->
@@ -23,12 +36,17 @@ tags:
 
 ## 基本信息
 
-{'name': '嘲风', 'slug': 'chao-feng', 'type': '东方玄幻神话生物'}
+名称: 烽火
+身份: 网文作者/评论者
+代表事件: 在华山上发表评论（与落落对情节的看法不谋而合）
+代表论断: 文字再优美也赶不上一篇情节跌宕起伏的故事
 
 ## 简介
 
-中国神话传说中的龙生九子之一，形似兽，平生喜好险峻高处与远眺。常被塑造成殿台角上的走兽形象。
+烽火，网文作者，曾在华山上发表评论。落落在《如何去买断》第一讲中引用其"文字再优美也赶不上一篇情节跌宕起伏的故事"作为"情节"要素的核心论据。
 
 ## 相关引用
 
-- {'target': 'dongfang-xuanhuan', 'type': 'is_part_of', 'weight': 1.0, 'context': '属于东方玄幻题材分类'}
+- [[信息库2买断篇-f40defc4]]
+- [[华山]]
+- [[情节]]

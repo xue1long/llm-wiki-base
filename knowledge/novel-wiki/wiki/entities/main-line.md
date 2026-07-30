@@ -3,7 +3,7 @@ id: main-line
 title: Main Line
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\02_进阶技巧\进阶教程2给你的作品换件衣服你会发现你什么题材都可以写.md
+  - raw/sources/02_进阶技巧/进阶教程2给你的作品换件衣服你会发现你什么题材都可以写.md
 created_at: 1785342497387
 updated_at: 1785342497387
 relations: []

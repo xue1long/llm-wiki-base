@@ -4,7 +4,7 @@ Background: OpenAIProvider.complete() previously used /v1/completions which
 doesn't support chat-tuned models. It must route to /v1/chat/completions
 (via client.chat.completions.create) and accept a messages list.
 """
-from src.llm.openai_provider import OpenAIProvider
+from src.llm.openai_provider import OpenAIProvider, _strip_reasoning
 from src.llm.types import ProviderConfig, ModelInfo
 from src.llm.base import LLMResponse
 
@@ -74,3 +74,35 @@ def test_complete_accepts_messages_form():
     # We just need the call to take a messages= list:
     r = asyncio.run(p.complete([{"role": "user", "content": "ping"}]))
     assert r is not None
+
+
+class TestStripReasoning:
+    """Unit tests for _strip_reasoning — strips <think> blocks from model output."""
+
+    def test_strips_single_think_block(self):
+        content = "<think>some reasoning here</think>\n\n{\"key\": \"value\"}"
+        result = _strip_reasoning(content)
+        assert result == '{"key": "value"}'
+
+    def test_strips_multiline_think_block(self):
+        content = "<think>\nLet me analyze the document.\nKey points found: 3\n</think>\n\n{\"pages\": []}"
+        result = _strip_reasoning(content)
+        assert result == '{"pages": []}'
+
+    def test_no_think_block_passes_through(self):
+        content = '{"pages": [{"title": "Test"}]}'
+        result = _strip_reasoning(content)
+        assert result == content
+
+    def test_strips_think_block_no_trailing_newlines(self):
+        content = "<think>brief</think>{\"x\": 1}"
+        result = _strip_reasoning(content)
+        assert result == '{"x": 1}'
+
+    def test_empty_content(self):
+        assert _strip_reasoning("") == ""
+
+    def test_only_think_block(self):
+        content = "<think>just reasoning</think>"
+        result = _strip_reasoning(content)
+        assert result == ""

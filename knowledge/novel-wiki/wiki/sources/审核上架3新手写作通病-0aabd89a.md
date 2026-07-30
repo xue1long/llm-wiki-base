@@ -3,7 +3,7 @@ id: 审核上架3新手写作通病-0aabd89a
 title: 审核上架_3_新手写作通病
 type: source
 sources:
-- knowledge\novel-wiki\raw\sources\05_运营出版\审核上架3新手写作通病.md
+  - raw/sources/05_运营出版/审核上架3新手写作通病.md
 created_at: 1785345100646
 updated_at: 1785345100646
 relations: []

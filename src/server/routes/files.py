@@ -7,14 +7,14 @@ router = APIRouter(prefix="/api/v1", tags=["files"])
 
 
 @router.get("/projects/{project_id}/files")
-async def list_files(project_id: str, root: str = "wiki", recursive: bool = True, max_files: int = 2000):
+async def list_files(project_id: str, root: str = "wiki", recursive: bool = True, max_files: int = 2000, include_tags: bool = False):
     """List markdown files in a project's wiki tree.
 
     Business logic lives in src.services.files; this route is a thin
     adapter that translates domain exceptions to HTTP status codes.
     """
     try:
-        return files_service.list_files(project_id, root, recursive, max_files)
+        return files_service.list_files(project_id, root, recursive, max_files, include_tags)
     except ProjectNotFoundError as e:
         raise HTTPException(404, str(e))
 

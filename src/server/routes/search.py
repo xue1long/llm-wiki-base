@@ -13,12 +13,13 @@ class SearchRequest(BaseModel):
     topK: int = 10
     includeContent: bool = False
     mode: Literal["hybrid", "keyword", "vector"] = "hybrid"
+    type: Literal["concept", "entity", "source", "synthesis"] | None = None
 
 
 @router.post("/projects/{project_id}/search")
 async def search(project_id: str, body: SearchRequest):
     """Hybrid (semantic + keyword) search over the project's wiki tree."""
     try:
-        return await search_service.search(project_id, body.query, body.topK, body.mode)
+        return await search_service.search(project_id, body.query, body.topK, body.mode, body.type)
     except ProjectNotFoundError as e:
         raise HTTPException(404, str(e))

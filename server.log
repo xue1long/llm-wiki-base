@@ -1,8 +1,0 @@
-INFO:     Started server process [2376]
-INFO:     Waiting for application startup.
-2026-07-27 12:10:33,335 [WARNING] src.server.app: [startup] provider 'ollama' unreachable: All connection attempts failed
-INFO:     Application startup complete.
-ERROR:    [Errno 10048] error while attempting to bind on address ('127.0.0.1', 8765): [winerror 10048] 通常每个套接字地址(协议/网络地址/端口)只允许使用一次。
-INFO:     Waiting for application shutdown.
-2026-07-27 12:10:33,337 [INFO] src.server.app: [server] shutting down
-INFO:     Application shutdown complete.

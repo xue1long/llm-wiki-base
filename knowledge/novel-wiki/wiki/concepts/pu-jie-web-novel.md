@@ -3,7 +3,7 @@ id: pu-jie-web-novel
 title: 作品仆街
 type: concept
 sources:
-- knowledge\novel-wiki\raw\sources\05_运营出版\审核上架13作品仆街后的出路.md
+  - raw/sources/05_运营出版/审核上架13作品仆街后的出路.md
 created_at: 1785344390591
 updated_at: 1785344390591
 relations: []

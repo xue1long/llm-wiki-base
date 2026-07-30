@@ -13,13 +13,14 @@ router = APIRouter(prefix="/api/v1", tags=["ingest"])
 class IngestRequest(BaseModel):
     source: Union[str, dict]   # URL or {"folder": path}
     folderContext: str | None = None
+    count: int | None = None   # max files to enqueue (folder only)
 
 
 @router.post("/projects/{project_id}/ingest")
 async def ingest(project_id: str, body: IngestRequest):
     """Enqueue a URL or folder path for ingestion."""
     try:
-        return ingest_service.enqueue_source(project_id, body.source, body.folderContext)
+        return ingest_service.enqueue_source(project_id, body.source, body.folderContext, count=body.count)
     except ProjectNotFoundError as e:
         raise HTTPException(404, str(e))
     except IngestPathError as e:
@@ -57,3 +58,34 @@ async def ingest_tasks(project_id: str):
     items = list_tasks(project_id=project_id)
     items.sort(key=lambda t: t.get("started_at") or 0, reverse=True)
     return {"tasks": items}
+
+
+@router.post("/queue/pause")
+async def queue_pause():
+    """Pause the ingestion queue. Running tasks finish; pending tasks wait."""
+    from ...queue.service import get_default_queue_service
+    svc = get_default_queue_service()
+    svc.pause()
+    status = svc.get_status()
+    return {"status": "paused", "pending": status["pending_count"], "running": status["running_count"]}
+
+
+@router.post("/queue/resume")
+async def queue_resume():
+    """Resume the ingestion queue. Pending tasks start processing."""
+    from ...queue.service import get_default_queue_service
+    svc = get_default_queue_service()
+    svc.resume()
+    # Fill worker slots
+    for _ in range(5):
+        if not svc.advance():
+            break
+    status = svc.get_status()
+    return {"status": "resumed", "pending": status["pending_count"], "running": status["running_count"]}
+
+
+@router.get("/queue/status")
+async def queue_status():
+    """Return current queue statistics."""
+    from ...queue.service import get_default_queue_service
+    return get_default_queue_service().get_status()

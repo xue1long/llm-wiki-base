@@ -3,7 +3,7 @@ id: 节奏-concept
 title: 节奏 concept
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\01_新手入门\必备资料如何构架写作悬念1.md
+  - raw/sources/01_新手入门/必备资料如何构架写作悬念1.md
 created_at: 1785344082125
 updated_at: 1785344082125
 relations: []

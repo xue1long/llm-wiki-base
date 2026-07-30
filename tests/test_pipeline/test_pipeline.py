@@ -65,7 +65,7 @@ async def test_collector_done_triggers_run_ingest(tmp_path, monkeypatch):
                               "key_points": ["kp"], "extracted_concepts": ["c"]}}]},
     ])
     monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda project_id=None: p)
-    monkeypatch.setattr(pipeline_mod, "_get_provider", lambda: provider)
+    monkeypatch.setattr(pipeline_mod, "_get_provider", lambda project_id=None: provider)
 
     get_idempotency_cache().clear()
     __reset_for_testing()
@@ -289,15 +289,15 @@ async def test_unified_generate_produces_pages(tmp_path):
 
 @pytest.mark.asyncio
 async def test_unified_generate_truncates_large_source(tmp_path):
-    """Source text > 12000 chars should be truncated to control prompt size."""
+    """Source text > MAX_SOURCE_CHARS should be truncated to control prompt size."""
     from src.pipeline.generator import unified_generate
     from src.wiki.storage.ensure import ensure_knowledge_base
 
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
 
-    # Build a source that exceeds the 12000-char truncation limit
-    large_text = "长文本内容。" * 2500  # ~15000 chars, well over 12000 limit
+    # Build a source that exceeds the 24000-char truncation limit
+    large_text = "长文本内容。" * 5000  # ~30000 chars, well over 24000 limit
 
     provider = ScriptedLLMProvider([
         {"pages": [

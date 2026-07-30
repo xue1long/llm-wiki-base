@@ -3,7 +3,7 @@ id: mao-ni-zu-pin-xiu-shuo-gai-bian-li-cheng-ju
 title: 猫腻作品风格演变历程
 type: entity
 sources:
-- knowledge\novel-wiki\raw\sources\03_大纲创作\大纲示例择天记.md
+  - raw/sources/03_大纲创作/大纲示例择天记.md
 created_at: 1785336907153
 updated_at: 1785336907153
 relations: []

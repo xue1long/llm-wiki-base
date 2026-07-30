@@ -6,7 +6,11 @@ sources:
 - raw\sources\01_新手入门\必备资料第九章关于小说情节设计1.md
 created_at: 1785315836556
 updated_at: 1785315836556
-relations: []
+relations:
+- target: 情节模式--错误判断
+  type: contains
+  weight: 0.7
+  context: 错误判断是情节反转（misdirection / twist）的核心手法之一
 grade: C
 processing_depth: stub
 is_immutable: false
@@ -14,6 +18,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags: []
+category: ''
+taxonomy_sub: ''
 ---
 
 ## 占位条目

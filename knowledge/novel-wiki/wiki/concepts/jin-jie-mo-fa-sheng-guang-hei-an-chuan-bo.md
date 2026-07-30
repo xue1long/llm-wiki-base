@@ -3,7 +3,7 @@ id: jin-jie-mo-fa-sheng-guang-hei-an-chuan-bo
 title: 进阶魔法：圣光黑暗穿越应用指南
 type: concept
 sources:
-- knowledge\novel-wiki\raw\sources\04_题材专题\穿越修真西方魔法发展史.md
+  - raw/sources/04_题材专题/穿越修真西方魔法发展史.md
 created_at: 1785336611134
 updated_at: 1785336611134
 relations: []

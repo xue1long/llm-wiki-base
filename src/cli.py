@@ -24,6 +24,8 @@ from .cli_ext.project_cmd import (
     cmd_project_forget,
     cmd_project_rename,
     cmd_project_discover,
+    cmd_project_set_provider,
+    cmd_project_set_model,
 )
 from .cli_ext.schema_cmd import (
     cmd_schema_list,
@@ -132,6 +134,16 @@ def main():
     p_discover = p_project_sub.add_parser("discover", help="Auto-discover existing KBs")
     p_discover.set_defaults(func=cmd_project_discover)
 
+    p_set_provider = p_project_sub.add_parser("set-provider", help="Set LLM provider for a project")
+    p_set_provider.add_argument("id_or_name", help="Project UUID or name")
+    p_set_provider.add_argument("provider_name", help="LLM provider name (e.g. ollama, minimax)")
+    p_set_provider.set_defaults(func=cmd_project_set_provider)
+
+    p_set_model = p_project_sub.add_parser("set-model", help="Set LLM model for a project")
+    p_set_model.add_argument("id_or_name", help="Project UUID or name")
+    p_set_model.add_argument("model_name", help="LLM model name (e.g. qwen3.5-9b-gemini:latest)")
+    p_set_model.set_defaults(func=cmd_project_set_model)
+
     # Schema subcommand
     p_schema = subparsers.add_parser("schema", help="Schema management")
     p_schema_sub = p_schema.add_subparsers(dest="schema_command")
@@ -225,7 +237,7 @@ def main():
     p_llm_show.set_defaults(func=cmd_llm_providers_show)
     p_llm_add = p_llm_sub.add_parser("add")
     p_llm_add.add_argument("name")
-    p_llm_add.add_argument("type", choices=["openai", "anthropic", "ollama"])
+    p_llm_add.add_argument("type", choices=["openai", "anthropic", "ollama", "openai-compatible"])
     p_llm_add.add_argument("--base-url", default="")
     p_llm_add.add_argument("--api-key", default="")
     p_llm_add.add_argument("--model", default="")

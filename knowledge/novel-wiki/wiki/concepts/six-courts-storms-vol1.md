@@ -3,7 +3,7 @@ id: six-courts-storms-vol1
 title: 六院风云
 type: concept
 sources:
-- knowledge\novel-wiki\raw\sources\03_大纲创作\大纲示例七界传说.md
+  - raw/sources/03_大纲创作/大纲示例七界传说.md
 created_at: 1785338366595
 updated_at: 1785338366595
 relations: []

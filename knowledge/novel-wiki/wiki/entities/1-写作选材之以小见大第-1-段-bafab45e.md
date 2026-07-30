@@ -7,6 +7,22 @@ sources:
 created_at: 1785325264968
 updated_at: 1785325264968
 relations:
+- target: 一声小声的修养
+  type: references
+  weight: 1.0
+  context: 被教程作为示范作文示例
+- target: 以小见大
+  type: references
+  weight: 1.0
+  context: 本概念被该教程详细讲解
+- target: 选材太空泛误区
+  type: references
+  weight: 1.0
+  context: 被该教程明确指出
+- target: 瞬间捕捉写作法
+  type: references
+  weight: 1.0
+  context: 被该教程重点讲解
 - target: 当幸福来敲门
   type: references
   weight: 0.95
@@ -18,6 +34,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags: []
+category: ''
+taxonomy_sub: ''
 ---
 
 ## 占位条目
