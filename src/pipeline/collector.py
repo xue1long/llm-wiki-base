@@ -19,6 +19,7 @@ user-visible file. The Inbox subdir is gone.
 """
 import ipaddress
 import logging
+import os
 import socket
 from urllib.parse import urlparse
 import httpx
@@ -48,6 +49,34 @@ def _check_url_allowlisted(url: str) -> None:
         raise PermissionDenied(
             f"URL {url} resolves to private/loopback/link-local {address}"
         )
+
+
+def _resolve_project_file(source: str, project_id: str | None) -> Path | None:
+    """Resolve a project-relative source path to an absolute filesystem path.
+
+    Uses string-based path manipulation (os.path) to avoid Path.resolve()
+    which can corrupt CJK characters on Windows via low-level API calls.
+
+    Returns the absolute Path if the file exists, or None if the project
+    root cannot be determined or the file does not exist.
+    """
+    if project_id is None:
+        return None
+    try:
+        from ..project.registry import GlobalRegistryStore
+        entry = GlobalRegistryStore.by_id(project_id)
+    except Exception:
+        logger.debug("[collector] GlobalRegistryStore lookup failed for %s", project_id)
+        return None
+    if entry is None:
+        logger.debug("[collector] project %s not found in registry", project_id)
+        return None
+
+    project_root = str(entry.path)
+    candidate = os.path.abspath(os.path.join(project_root, source))
+    if os.path.exists(candidate):
+        return Path(candidate)
+    return None
 
 
 async def collect(
@@ -80,7 +109,6 @@ async def collect(
                 location = response.headers.get("Location") or response.headers.get("location") or ""
                 if not location:
                     response.raise_for_status()
-                # Re-validate the redirect target against the same ACL
                 _check_url_allowlisted(location)
                 current_url = location
                 continue
@@ -89,35 +117,39 @@ async def collect(
         else:
             raise PermissionDenied(f"Too many redirects (>{MAX_REDIRECT_HOPS}) from {source}")
         content = response.text
-        raw_path = source  # URLs are recorded verbatim in sources:
+        raw_path = source
     else:
-        # Resolve project-relative paths against the project's WikiPaths.root
-        # when we have a project_id. The ingest service normalises absolute
-        # paths down to project-relative form (see
-        # services.ingest._normalize_absolute_path), so by the time we get
-        # here the path is e.g. ``raw/sources/foo.md`` — meaningless without
-        # anchoring it to the project root.
-        # URL-decode the source: the ingest endpoint receives URL-encoded paths
-        # so spaces/CJK in filenames survive JSON and the wire.
         from urllib.parse import unquote
         source_decoded = unquote(source)
 
+        # Detect encoding corruption: if the path contains 4+ consecutive
+        # question marks or the Unicode replacement character (U+FFFD),
+        # the CJK characters were corrupted somewhere upstream (e.g.
+        # non-UTF-8 terminal encoding). Fail fast instead of attempting
+        # a doomed file read and wasting retries.
+        _corruption_markers = ("????", "�")
+        for _marker in _corruption_markers:
+            if _marker in source_decoded:
+                raise ValueError(
+                    f"Source path appears to have encoding corruption "
+                    f"(found {_marker!r} in {source_decoded!r}). "
+                    f"Re-submit the path using a UTF-8 capable client."
+                )
+
         file_path = Path(source_decoded)
         if not file_path.is_absolute() and project_id is not None:
-            try:
-                from ..project.registry import GlobalRegistryStore
-                entry = GlobalRegistryStore.by_id(project_id)
-                if entry is not None:
-                    project_root = Path(entry.path)
-                    candidate = (project_root / source_decoded).resolve()
-                    if candidate.exists():
-                        file_path = candidate
-            except Exception:
-                pass
+            resolved = _resolve_project_file(source_decoded, project_id)
+            if resolved is not None:
+                file_path = resolved
+            else:
+                logger.warning(
+                    "[collector] cannot resolve %r for project %s — "
+                    "file does not exist or project root unknown",
+                    source_decoded, project_id,
+                )
+
         ext = file_path.suffix.lower()
 
-        # Permission check uses the project-relative form (``raw/sources/...``)
-        # so ``_is_within(..., "raw/sources")`` matches the allowlist.
         enforce_permission(AgentType.COLLECTOR, source, Permission.READ)
 
         if ext == ".pdf":
@@ -129,9 +161,6 @@ async def collect(
         else:
             raise ValueError(f"Unsupported file type: {file_path}")
 
-        # raw_path stays project-relative so the wiki page's ``sources:``
-        # is a stable, user-visible reference (e.g. ``raw/sources/foo.md``)
-        # rather than an internal staging path.
         raw_path = source_decoded
 
     payload = CollectorDonePayload(
