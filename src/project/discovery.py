@@ -8,6 +8,8 @@ subdir for v1.0).
 import logging
 from pathlib import Path
 
+from ..utils.path import safe_resolve
+
 from .context import ProjectContext
 from .registry import GlobalRegistryStore
 
@@ -56,14 +58,15 @@ def discover_existing_kbs() -> list[Path]:
             continue
         try:
             # base itself
-            if is_kb_root(base) and base.resolve() not in seen:
-                found.append(base.resolve())
-                seen.add(base.resolve())
+            base_resolved = safe_resolve(base)
+            if is_kb_root(base) and base_resolved not in seen:
+                found.append(base_resolved)
+                seen.add(base_resolved)
             # 1 level deeper
             for child in base.iterdir():
                 if not child.is_dir():
                     continue
-                child_resolved = child.resolve()
+                child_resolved = safe_resolve(child)
                 if is_kb_root(child) and child_resolved not in seen:
                     found.append(child_resolved)
                     seen.add(child_resolved)

@@ -13,6 +13,8 @@ arbitrary locations.
 """
 import logging
 from pathlib import Path
+
+from ..utils.path import safe_resolve
 from datetime import datetime
 
 from ..events.event_bus import event_bus
@@ -154,9 +156,9 @@ async def _merge_duplicates(
     arbitrary locations.
     """
     existing_path = similar_result.path
-    existing_resolved = Path(existing_path).resolve()
+    existing_resolved = safe_resolve(existing_path)
 
-    knowledge_resolved = paths.knowledge_dir.resolve()
+    knowledge_resolved = safe_resolve(paths.knowledge_dir)
     # is_relative_to (3.9+) returns True/False; older versions raise
     # ValueError. Accept both shapes via try/except, then check the result.
     try:

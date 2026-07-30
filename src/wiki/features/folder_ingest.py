@@ -2,6 +2,7 @@
 import logging
 from pathlib import Path
 
+from ...utils.path import safe_resolve
 
 _logger = logging.getLogger(__name__)
 
@@ -16,8 +17,8 @@ def collect_files(folder: Path) -> list[Path]:
 
 def folder_context_for(folder: Path, file: Path) -> str:
     """Build folder context hint like 'papers > energy' for LLM."""
-    folder = Path(folder).resolve()
-    file = Path(file).resolve()
+    folder = safe_resolve(folder)
+    file = safe_resolve(file)
     try:
         rel = file.relative_to(folder)
     except ValueError:

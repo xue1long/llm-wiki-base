@@ -33,6 +33,7 @@ from pathlib import Path
 
 from ..lib.project import resolve_project
 from ..project.context import ProjectNotFoundError
+from ..utils.path import safe_resolve
 
 
 # Files we consider "wiki content" — everything we know how to reset.
@@ -253,12 +254,12 @@ def cmd_wiki_rebuild_from_raws(args: argparse.Namespace) -> int:
     if args.delete:
         target = Path(args.delete)
         if not target.is_absolute():
-            target = (paths.root / args.delete).resolve()
+            target = safe_resolve(paths.root / args.delete)
         # Safety rail 1 (most specific): raw/ files. We check this first
         # so the more specific reason gets surfaced instead of a
         # generic "outside wiki tree".
         try:
-            raw_sources_resolved = paths.raw_sources.resolve()
+            raw_sources_resolved = safe_resolve(paths.raw_sources)
         except OSError:
             raw_sources_resolved = paths.raw_sources
         if target.is_relative_to(raw_sources_resolved):
@@ -267,7 +268,7 @@ def cmd_wiki_rebuild_from_raws(args: argparse.Namespace) -> int:
             return 6
         # Safety rail 2: outside the wiki/ tree?
         try:
-            wiki_root_resolved = wiki_root.resolve()
+            wiki_root_resolved = safe_resolve(wiki_root)
         except OSError:
             wiki_root_resolved = wiki_root
         if not str(target).startswith(str(wiki_root_resolved)):
@@ -334,9 +335,9 @@ def cmd_wiki_restore_from_archive(args: argparse.Namespace) -> int:
     _, paths = _resolve(args.project)
     archive_root = paths.wiki / "_archive"
     snap_rel = args.archive
-    snap = (paths.root / snap_rel).resolve() \
-        if not Path(snap_rel).is_absolute() else Path(snap_rel).resolve()
-    if not snap.is_relative_to(archive_root.resolve()):
+    snap = safe_resolve(paths.root / snap_rel) \
+        if not Path(snap_rel).is_absolute() else safe_resolve(snap_rel)
+    if not snap.is_relative_to(safe_resolve(archive_root)):
         print(f"Error: archive path must be under {archive_root}: {snap}",
               file=sys.stderr)
         return 9

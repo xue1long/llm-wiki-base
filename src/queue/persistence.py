@@ -13,6 +13,8 @@ import logging
 from dataclasses import asdict
 from pathlib import Path
 
+from ..utils.path import safe_resolve
+
 from ..lib.write_hooks import safe_write
 from ..types import KnowledgeTask, TaskStatus
 
@@ -46,8 +48,7 @@ class JsonFileBackend:
         """
         p = Path(self._path)
         if not p.is_absolute():
-            import os
-            p = p.resolve() if p.exists() else Path(os.path.abspath(str(p)))
+            p = safe_resolve(p)
         return p
 
     # --- internal helpers (called only while holding self._lock) ---
@@ -107,6 +108,15 @@ class JsonFileBackend:
     def enqueue(self, task: KnowledgeTask) -> None:
         with self._lock:
             self._tasks[task.id] = asdict(task)
+            self._save_unlocked()
+
+    def enqueue_batch(self, tasks: list[KnowledgeTask]) -> None:
+        """Add multiple tasks and persist once. Much faster than per-task enqueue."""
+        if not tasks:
+            return
+        with self._lock:
+            for task in tasks:
+                self._tasks[task.id] = asdict(task)
             self._save_unlocked()
 
     def save(self, task: KnowledgeTask) -> None:

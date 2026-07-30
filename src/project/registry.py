@@ -9,6 +9,7 @@ from typing import Any
 
 from . import paths
 from .paths import registry_path as _default_registry_path
+from ..utils.path import safe_resolve_posix
 
 
 _logger = logging.getLogger(__name__)
@@ -153,8 +154,8 @@ class GlobalRegistryStore:
     def by_path(cls, path: Path | str) -> ProjectRegistryEntry | None:
         """Find entry whose path matches (after canonicalization)."""
         reg = cls.load()
-        canonical = Path(path).resolve().as_posix()
+        canonical = safe_resolve_posix(path)
         for entry in reg.projects.values():
-            if Path(entry.path).resolve().as_posix() == canonical:
+            if safe_resolve_posix(entry.path) == canonical:
                 return entry
         return None

@@ -14,6 +14,8 @@ and pass it to ``init_vector_store_for_paths``.
 from pathlib import Path
 from typing import Any, Optional
 
+from ..utils.path import safe_resolve_str
+
 from ..wiki.core.paths import WikiPaths
 
 import lancedb
@@ -23,7 +25,7 @@ import pyarrow as pa
 # ---------------------------------------------------------------------------
 # Per-project state
 # ---------------------------------------------------------------------------
-# ``_per_project`` maps ``str(paths.root.resolve())`` -> ``(db, table)``.
+# ``_per_project`` maps ``safe_resolve_str(paths.root)`` -> ``(db, table)``.
 # A second project init does not affect the first project's handle.
 _per_project: dict[str, tuple[Any, Any]] = {}
 # ``current_project_key`` is the active project for ``get_table()`` and is
@@ -50,8 +52,8 @@ def _build_schema():
 
 
 def _project_key(paths: WikiPaths) -> str:
-    """Stable identifier for a project root — uses the resolved path string."""
-    return str(paths.root.resolve())
+    """Stable identifier for a project root — safe from CJK corruption."""
+    return safe_resolve_str(paths.root)
 
 
 def init_vector_store_for_paths(paths: WikiPaths) -> None:

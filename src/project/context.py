@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ..utils.path import safe_resolve
+
 from .identity import ProjectIdentity, ensure_project_id
 from .paths import config_dir as _config_dir
 from .paths import last_project_path as _last_project_path
@@ -52,7 +54,7 @@ class ProjectContext:
             project_path: KB root directory
             name: override name (defaults to project_path.name)
         """
-        project_path = Path(project_path).resolve()
+        project_path = safe_resolve(project_path)
         uuid = ensure_project_id(project_path)
 
         # Read back identity to get full data
@@ -165,7 +167,7 @@ class ProjectContext:
         GlobalRegistryStore.upsert(entry)
         return cls(
             identity=identity,
-            path=project_path.resolve(),
+            path=safe_resolve(project_path),
             name=entry.name,
             schema_version=identity.schema_version,
         )

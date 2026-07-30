@@ -8,6 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..project.context import ProjectContext
+from ..utils.path import safe_resolve, safe_resolve_str
 from ..project.registry import GlobalRegistryStore
 
 
@@ -18,8 +19,8 @@ class ProjectNotFound(Exception):
 def _rel_path(abs_path: str, base: str | None = None) -> str:
     """Return abs_path relative to base (default: CWD)."""
     try:
-        base_val = Path(base) if base else Path.cwd()
-        return str(Path(abs_path).resolve().relative_to(base_val.resolve()))
+        base_val = safe_resolve(base) if base else safe_resolve(Path.cwd())
+        return str(safe_resolve(abs_path).relative_to(base_val))
     except ValueError:
         return abs_path
 
@@ -93,8 +94,8 @@ def create_project(name: str) -> dict:
         raise ValueError("Invalid project name")
     if any(c in name for c in "/\\"):
         raise ValueError("Project name must not contain path separators")
-    knowledge_base = (Path.cwd() / "knowledge").resolve()
-    project_root = (knowledge_base / name).resolve()
+    knowledge_base = safe_resolve(Path.cwd() / "knowledge")
+    project_root = safe_resolve(knowledge_base / name)
     if not str(project_root).startswith(str(knowledge_base) + str(knowledge_base._flavour.sep)):
         raise ValueError("Project path escapes knowledge directory")
     ctx = ProjectContext.from_path(project_root, name=name)

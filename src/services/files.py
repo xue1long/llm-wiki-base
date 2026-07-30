@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..utils.path import safe_resolve, safe_resolve_posix, safe_resolve_str
+
 import yaml
 
 from ..lib.project import resolve_project
@@ -55,11 +57,12 @@ def list_files(
     root: str = "wiki",
     recursive: bool = True,
     max_files: int = 2000,
+    include_tags: bool = False,
 ) -> dict:
     """List markdown files under the project's `root` directory.
 
     Returns a dict ready to be returned from an HTTP route:
-        {"files": [{"path": ..., "isDir": False, "size": ...}, ...],
+        {"files": [{"path": ..., "isDir": False, "size": ..., "tags": [...]}, ...],
          "truncated": bool, "totalCount": int}
     """
     ctx, paths = resolve_project(project_id, by_id_only=True)
@@ -71,19 +74,42 @@ def list_files(
     total_count = len(files)
     truncated = total_count > max_files
     files = files[:max_files]
+    result = []
+    for f in files:
+        entry = {
+            "path": f.relative_to(ctx.path).as_posix(),
+            "isDir": False,
+            "size": f.stat().st_size,
+        }
+        if include_tags:
+            entry["tags"] = _extract_tags_from_file(f)
+        result.append(entry)
     return {
-        "files": [
-            {
-                # as_posix() normalises to forward slashes for cross-platform API
-                "path": f.relative_to(ctx.path).as_posix(),
-                "isDir": False,
-                "size": f.stat().st_size,
-            }
-            for f in files
-        ],
+        "files": result,
         "truncated": truncated,
         "totalCount": total_count,
     }
+
+
+def _extract_tags_from_file(filepath: Path) -> list[str]:
+    """Extract tags from a markdown file's YAML frontmatter."""
+    try:
+        text = filepath.read_text(encoding="utf-8")
+    except Exception:
+        return []
+    if not text.startswith("---\n"):
+        return []
+    end = text.find("\n---", 4)
+    if end < 0:
+        return []
+    try:
+        fm = yaml.safe_load(text[4:end]) or {}
+    except yaml.YAMLError:
+        return []
+    tags = fm.get("tags", [])
+    if isinstance(tags, list):
+        return [str(t) for t in tags]
+    return []
 
 
 def read_file_content(project_id: str, path: str) -> dict:
@@ -98,7 +124,7 @@ def read_file_content(project_id: str, path: str) -> dict:
     """
     _ctx, paths = resolve_project(project_id, by_id_only=True)
     base = _resolve_root(paths, "wiki")
-    candidate = (base / path).resolve()
+    candidate = safe_resolve(base / path)
 
     # Path-traversal guard: resolved file must remain under the wiki root.
     try:
@@ -207,9 +233,9 @@ def list_raw_files(project_id: str) -> dict:
         if ext not in _RAW_EXTS:
             continue
         rel = f.relative_to(paths.root).as_posix()
-        # Normalize f.resolve() to forward slashes for comparison with ingested_set
-        # (Windows gives backslashes; batch_build_state.json stores forward slashes)
-        resolved_posix = f.resolve().as_posix().replace("\\", "/")
+        # Use safe_resolve_str (no Win32 CJK corruption) for comparison
+        # with ingested_set (which stores forward slashes).
+        resolved_posix = safe_resolve_posix(f)
 
         # ingested = True when a wiki/sources page references this raw file
         # in its frontmatter ``sources`` field AND batch_build_state does
@@ -217,7 +243,7 @@ def list_raw_files(project_id: str) -> dict:
         wiki_page_exists = rel in referenced_paths
         batch_match = (
             rel in ingested_set
-            or str(f.resolve()) in ingested_set
+            or safe_resolve_str(f) in ingested_set
             or resolved_posix in ingested_set
         )
         ingested = wiki_page_exists and (
@@ -230,6 +256,7 @@ def list_raw_files(project_id: str) -> dict:
             "name": f.name,
             "ext": ext,
             "size": f.stat().st_size,
+            "created_at": int(f.stat().st_ctime * 1000),
             "ingested": ingested,
         })
 
