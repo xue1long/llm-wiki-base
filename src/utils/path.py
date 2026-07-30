@@ -63,3 +63,28 @@ def has_cjk_corruption(path: str) -> bool:
         if marker in path:
             return True
     return False
+
+
+def normalize_source_path(source_path: str, project_root: str | Path) -> str:
+    """Convert *source_path* to canonical ``raw/sources/<relpath>`` form.
+
+    The ingest pipeline receives source paths as absolute strings
+    (e.g. ``D:\\...\\knowledge\\novel-wiki\\raw\\sources\\01_新手入门\\foo.md``).
+    This function converts them to the stable project-relative form::
+
+        raw/sources/01_新手入门/foo.md
+
+    with forward slashes.  Falls back to *source_path* unchanged when the
+    path does not live under *project_root*.
+
+    >>> normalize_source_path(
+    ...     "D:\\\\...\\\\knowledge\\\\novel-wiki\\\\raw\\\\sources\\\\01_新手入门\\\\foo.md",
+    ...     "D:\\\\...\\\\knowledge\\\\novel-wiki",
+    ... )
+    'raw/sources/01_新手入门/foo.md'
+    """
+    try:
+        rel = Path(source_path).relative_to(Path(project_root))
+        return rel.as_posix()
+    except ValueError:
+        return source_path

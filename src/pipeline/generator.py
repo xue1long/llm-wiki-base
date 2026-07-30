@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Optional
 
 from ..lib.budgeted import BudgetedLLM
+from ..utils.path import normalize_source_path
 from ..utils.slugify import slugify as _slugify
 from ..wiki.core.paths import WikiPaths
 from ..wiki.features.relations import parse_relations_from_response
@@ -557,7 +558,7 @@ async def unified_generate(
 
         pages.append(WikiPage(
             id=slug, title=p["title"], type=page_type,
-            sources=[source_path],
+            sources=[normalize_source_path(source_path, paths.root)],
             created_at=now, updated_at=now, body=body_md,
             grade=p.get("grade", "B"),
             processing_depth=p.get("processing_depth") or _DEPTH_BY_TYPE.get(page_type, "concept"),
@@ -832,7 +833,7 @@ async def generate(
             id=slug,
             title=p["title"],
             type=page_type,
-            sources=[analysis.source_path],
+            sources=[normalize_source_path(analysis.source_path, paths.root)],
             created_at=now,
             updated_at=now,
             body=body_md,

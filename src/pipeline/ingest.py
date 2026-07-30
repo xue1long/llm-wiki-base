@@ -36,6 +36,7 @@ import unicodedata
 from pathlib import Path
 
 from ..wiki.core.paths import WikiPaths
+from ..utils.path import normalize_source_path
 from ..wiki.core.types import PageType, WikiPage
 from ..lib.atomic_ctx import AtomicContext
 from ..lib.write_hooks import flush_pending_writes
@@ -51,6 +52,44 @@ from ..wiki.storage.page_writer import write_page
 # at call time, after the test patch has run.
 from . import analyzer as _analyzer_module
 from . import generator as _generator_module
+
+# ---------------------------------------------------------------------------
+# Stub quality gate (P2 optimization — 2026-07-29).
+# ---------------------------------------------------------------------------
+# Maximum number of stub entity pages to create in a single ingest.  When
+# the LLM references more missing slugs than this threshold, stub creation
+# is suppressed to avoid polluting the wiki with placeholder pages for
+# platform names, company names, and other non-domain entities.
+# Set via env var ``RUFLO_MAX_STUBS_PER_INGEST`` (default 10).
+_MAX_STUBS_ENV = "RUFLO_MAX_STUBS_PER_INGEST"
+
+
+def _get_max_stubs_per_ingest() -> int:
+    """Return the current max stubs threshold (re-reads env var at call time)."""
+    return int(__import__("os").environ.get(_MAX_STUBS_ENV, "10"))
+
+
+# Slugs that should never get stub entity pages because they represent
+# platform / organisation / tool names rather than domain concepts.
+# Extended via env var ``RUFLO_STUB_BLOCKLIST`` (comma-separated).
+_DEFAULT_STUB_BLOCKLIST: set[str] = {
+    "feishu-yunwendang",                  # 飞书云文档
+    "beijing-shengdongfang-guoxin-keji-youxiangongsi",  # 北京圣东方国信科技有限公司
+    "feishu",                              # 飞书
+    "yunque",                              # 云雀
+    "lark",                                # Lark (飞书国际版)
+}
+
+
+def _get_stub_blocklist() -> frozenset[str]:
+    """Return the current stub blocklist (re-reads env var at call time)."""
+    extra = __import__("os").environ.get("RUFLO_STUB_BLOCKLIST", "")
+    if extra:
+        return frozenset(
+            _DEFAULT_STUB_BLOCKLIST
+            | {s.strip() for s in extra.split(",") if s.strip()}
+        )
+    return frozenset(_DEFAULT_STUB_BLOCKLIST)
 
 
 # ---------------------------------------------------------------------------
@@ -87,11 +126,17 @@ def _collect_existing_wiki(paths: WikiPaths) -> dict:
 
 
 def _format_wiki_index(index: dict) -> str:
-    """Render the index as prompt text for the analyzer/generator."""
+    """Render the index as prompt text for the analyzer/generator.
+
+    Format: ``- <slug> (<type>)`` — slug first, type in parens.
+    The old ``- type: slug`` format leaked the type label into LLM-emitted
+    wikilink targets (e.g. ``concept-穿越小说角色塑造套路``) because
+    weaker models copied the prefix verbatim.
+    """
     if not index:
         return "(empty)"
     return "\n".join(
-        f"- {pt.value}: {slug}" for slug, pt in sorted(index.items())
+        f"- {slug} ({pt.value})" for slug, pt in sorted(index.items())
     )
 
 
@@ -260,6 +305,8 @@ async def run_ingest(
             "[run_ingest] unified path produced %d pages for %s",
             len(pages), source_path,
         )
+        if not pages:
+            raise RuntimeError("unified path returned 0 pages")
     except Exception as _unified_err:
         _logger.warning(
             "[run_ingest] unified path failed (%s), falling back to two-step",
@@ -442,14 +489,40 @@ async def run_ingest(
             f"{('（共 '+ str(len(analysis.suggested_pages)) + ' 个建议页）') if _has_analysis and analysis.suggested_pages else ''}。\n"
         )
 
+    # Count non-source downstream pages to detect empty extractions.
+    _downstream_count = sum(1 for p in pages if p.type != PageType.SOURCE)
+    if _downstream_count == 0:
+        _source_grade = "C"
+        # Surface the empty extraction in the body so users/LLMs see it.
+        _empty_warning = (
+            "\n\n> ⚠️ **空摄取**: LLM 未从此文档提取到任何实体/概念/综合页面。"
+            "内容可能过于简短、格式化程度低，或与 wiki 主题不相关。"
+            "建议人工审核原始文档，或更换 LLM 模型后重新摄取。"
+        )
+        source_body += _empty_warning
+    else:
+        _source_grade = "A"
+
+    # Warn when source text was truncated before LLM processing.
+    # MAX_SOURCE_CHARS is the generator's truncation threshold; if the
+    # original text exceeds it, downstream pages may miss information.
+    from .generator import MAX_SOURCE_CHARS as _MAX_SOURCE_CHARS
+    if len(source_text) > _MAX_SOURCE_CHARS:
+        _size_kb = len(source_text) / 1024
+        source_body += (
+            f"\n\n> ⚠️ **文档过长**: 原始文档 {_size_kb:.0f} KB, "
+            f"仅前 {_MAX_SOURCE_CHARS} 字符送 LLM 处理。"
+            "下游页面可能缺失后半部分的关键信息，建议拆分文档后重新摄取。"
+        )
+
     source_page = WikiPage(
         id=source_slug,
         title=source_title,
         type=PageType.SOURCE,
-        sources=[str(source_path)],
+        sources=[normalize_source_path(str(source_path), paths.root)],
         body=source_body,
-        grade="A",                       # source is the raw artefact — full fidelity
-        processing_depth="concept",
+        grade=_source_grade,
+        processing_depth="source",
         is_immutable=False,
         created_at=int(_time.time() * 1000),
         updated_at=int(_time.time() * 1000),
@@ -462,8 +535,14 @@ async def run_ingest(
     # same `sources: [<raw>]` field, doubling the wiki's source attachments
     # and breaking cascade_delete cleanup. Keep the LLM's page, drop ours.
     def _norm_source(s: object) -> str:
-        """Compare raw paths case-/separator-insensitively."""
-        return str(s).strip().lower().replace("/", "\\")
+        """Compare raw paths case-/separator-insensitively.
+
+        Both the deterministic source path and the LLM-generated
+        ``sources`` entries are always normalised relative to the
+        project root via ``normalize_source_path``, so comparing
+        the canonical relative forms is safe.
+        """
+        return normalize_source_path(str(s), paths.root).strip().lower()
 
     target_source_norm = _norm_source(source_path)
     llm_already_has_source = any(
@@ -476,6 +555,14 @@ async def run_ingest(
             f"[run_ingest] source page already produced by LLM for "
             f"{source_path}; skipping task-id fallback (id={source_slug!r})"
         )
+        # Adjust the LLM-generated source page's grade to reflect actual
+        # downstream count — the LLM's own grade may be inconsistent.
+        for p in pages:
+            if p.type == PageType.SOURCE and any(
+                _norm_source(s) == target_source_norm for s in (p.sources or [])
+            ):
+                p.grade = _source_grade
+                break
     else:
         pages.append(source_page)
 
@@ -494,12 +581,25 @@ async def run_ingest(
     #   2. Subtract the slugs that already have a page (either written
     #      this run, or pre-existing on disk).
     #   3. Emit a stub entity page for each remaining slug. Stubs are
-    #      marked ``grade=B``, ``processing_depth=concept``, body
+    #      marked ``grade=C``, ``processing_depth=stub``, body
     #      explains that the entity was referenced but not described.
     #   4. Future ingests that include this entity in
     #      ``suggested_pages`` will replace the stub (write_page
     #      overwrites by default).
     from ..utils.slugify import slugify as _slugify
+
+    # The LLM may produce slugs with a type prefix (e.g.
+    # ``concept-穿越小说角色塑造套路``) because ``_format_wiki_index``
+    # renders the existing-wiki list as ``- type: slug``.  Strip those
+    # prefixes before stub-matching so we don't create bogus stubs with
+    # ids like ``concept-some-real-concept``.
+    _KNOWN_TYPE_PREFIXES = tuple(f"{pt.value}-" for pt in PageType)
+
+    def _strip_type_prefix(raw: str) -> str:
+        for _pfx in _KNOWN_TYPE_PREFIXES:
+            if raw.startswith(_pfx) and len(raw) > len(_pfx):
+                return raw[len(_pfx):]
+        return raw
 
     referenced_slugs: set[str] = set()
     for page in pages:
@@ -508,13 +608,13 @@ async def run_ingest(
             # ``target`` after to_dict() — see src/wiki/features/relations.py).
             tgt = getattr(rel, "target_id", None) or getattr(rel, "target", None)
             if tgt:
-                referenced_slugs.add(_slugify(tgt) or tgt)
+                referenced_slugs.add(_strip_type_prefix(_slugify(tgt) or tgt))
         for src in (page.sources or []):
             # Skip the source path itself — that's not a wiki slug.
             pass
     if _has_analysis:
         for link in (analysis.links_to_existing or []):
-            referenced_slugs.add(_slugify(link) or link)
+            referenced_slugs.add(_strip_type_prefix(_slugify(link) or link))
 
     # B10: scan each generated page's body for [[wikilinks]] that are not
     # captured by the structured `relations` list above. `_extract_wikilink_targets`
@@ -523,7 +623,7 @@ async def run_ingest(
     # that exist or will be produced this run; Fix E subtracts both sets below.
     for page in pages:
         for _tgt in _extract_wikilink_targets(page.body):
-            referenced_slugs.add(_slugify(_tgt) or _tgt)
+            referenced_slugs.add(_strip_type_prefix(_slugify(_tgt) or _tgt))
 
     produced_slugs = {p.id for p in pages}
     # Existing wiki pages (across all four type directories) — reuse the
@@ -554,6 +654,29 @@ async def run_ingest(
                 _analyzer_context_map[p.slug] = p.reasoning or ""
 
     missing = referenced_slugs - produced_slugs - existing_slugs
+
+    # P2 quality gate: exclude non-domain slugs (platform names, org names).
+    _blocklist = _get_stub_blocklist()
+    if _blocklist:
+        filtered = missing - _blocklist  # type: ignore[operator]
+        if len(filtered) < len(missing):
+            _logger.info(
+                "[run_ingest] filtered %d blocklisted slug(s) from stubs: %s",
+                len(missing) - len(filtered),
+                ", ".join(sorted(missing & _blocklist)),
+            )
+        missing = filtered
+
+    # P2 quality gate: suppress excessive stub creation to avoid noise.
+    _max_stubs = _get_max_stubs_per_ingest()
+    if len(missing) > _max_stubs:
+        _logger.warning(
+            "[run_ingest] suppressing %d stub(s) (exceeds max %d): %s",
+            len(missing), _max_stubs,
+            ", ".join(sorted(missing)[:20]),
+        )
+        missing = set()
+
     if missing:
         _logger.info(
             f"[run_ingest] creating {len(missing)} stub entity page(s): "
@@ -594,10 +717,10 @@ async def run_ingest(
             id=slug,
             title=title,
             type=PageType.ENTITY,
-            sources=[str(source_path)],
+            sources=[normalize_source_path(str(source_path), paths.root)],
             body=stub_body,
             grade="C",               # stub → lower grade than generated pages
-            processing_depth="concept",
+            processing_depth="stub",
             is_immutable=False,
             created_at=int(_time.time() * 1000),
             updated_at=int(_time.time() * 1000),
@@ -638,7 +761,7 @@ async def run_ingest(
             paths,
             event="ingest",
             task_id=task_id,
-            detail=f"generated {len(pages)} pages from {source_path.name}",
+            detail=f"generated {len(pages)} pages from {Path(str(source_path)).name}",
         )
 
     return pages
