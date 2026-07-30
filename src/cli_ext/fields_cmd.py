@@ -43,7 +43,8 @@ def cmd_fields_validate(args: argparse.Namespace) -> None:
     # L1 (v2.2): grade, processing_depth
     if page.grade not in ("A", "B", "C"):
         errors.append(f"L1: invalid grade: {page.grade}")
-    if page.processing_depth not in ("concept", "memory"):
+    _VALID_DEPTHS = {"memory", "concept", "source", "entity", "synthesis", "stub"}
+    if page.processing_depth not in _VALID_DEPTHS:
         errors.append(f"L1: invalid processing_depth: {page.processing_depth}")
     # L4: id format (backwards-compat warning, non-fatal)
     if page.id and not is_valid_id(page.id):

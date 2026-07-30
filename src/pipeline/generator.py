@@ -41,6 +41,11 @@ from .wiki_rules_prompt import WIKI_RULES_SUMMARY
 
 _logger = logging.getLogger(__name__)
 
+# Truncate very large sources to keep prompt size manageable and
+# prevent page-count explosion (observed: 34K source → 83 pages).
+# Reduced to 8000 for CPU Ollama — larger prompts time out at 180s.
+MAX_SOURCE_CHARS = 8000
+
 
 def _parse_llm_response(llm_resp) -> dict:
     """Normalise provider output to a dict (LLMResponse.content -> JSON).
@@ -50,6 +55,14 @@ def _parse_llm_response(llm_resp) -> dict:
     LLM does not enforce a strict ``response_format``.
     """
     return parse_llm_json(llm_resp)
+
+
+_DEPTH_BY_TYPE: dict[PageType, str] = {
+    PageType.SOURCE: "source",
+    PageType.ENTITY: "entity",
+    PageType.CONCEPT: "concept",
+    PageType.SYNTHESIS: "synthesis",
+}
 
 
 _logger = logging.getLogger(__name__)
@@ -195,6 +208,9 @@ For each suggested page, fill its slots. Output strict JSON:
           "weight": 0.0-1.0, "context": "<why>"}}
       ],
       "tags": ["genre/现言", "func/教程"]     // optional; 受控命名空间前缀 (见 Tags guidance)
+      "category": "",                          // optional; 一级分类
+      "taxonomy_sub": "",                      // optional; 二级分类
+      "processing_depth": "concept"            // optional; concept|memory
     }}
   ]
 }}
@@ -228,7 +244,12 @@ relations[].target) 可直接使用中文 (CJK),也可使用 ASCII kebab-case �
 UNIFIED_PROMPT = """You are a knowledge-base engine. Read the source text,
 extract structured knowledge, and render wiki pages in ONE pass.
 
-Emit ONLY the requested JSON — no chain-of-thought or reasoning.
+## CRITICAL — JSON Format
+1. Output ONLY the raw JSON object — no markdown fences (```), no
+   introductory text, no concluding remarks.
+2. Your response MUST start with `{{` and end with `}}`.
+3. Do NOT wrap the JSON in ```json ... ``` blocks.
+4. All strings must be properly escaped (double quotes, not single quotes).
 
 ## Source
 - Path: {source_path}
@@ -249,9 +270,12 @@ Emit ONLY the requested JSON — no chain-of-thought or reasoning.
 
 **Page budget**: 5-15 pages total. For short sources (<2000 chars), aim for 5-8.
 Focus on the most important entities and concepts — quality over quantity.
-Every page must have substantive content; if you can't fill more than one slot
-for an entity, merge it into a related concept page instead of creating a thin
-stub. A page with only "定义" and nothing else is worse than no page at all.
+Every page must have substantive content.
+**MINIMUM**: Always generate at least 1 source page + 2 entity/concept pages.
+Even if the source is short or seemingly off-topic, extract what you can —
+empty extractions are worse than thin pages.
+**At least one entity page is REQUIRED** for every source document, regardless
+of length. A source with zero downstream pages is a pipeline failure.
 
 **Language**: 简体中文 for all user-visible text (title, slots, relations[].context).
 Slugs may be CJK or ASCII kebab-case — keep the concept's natural form, no forced pinyin.
@@ -276,6 +300,16 @@ exists, write "来源未提供例子".
 **Reference sections**: Use `[[exact-slug]]` wikilinks, not plain text.
 GOOD: `- [[必备资料11月28号创酷中文网女频现言讲课记录_8c363e-a1b2c3d4]]`
 BAD:  `- 《必备资料11月28号创酷中文网女频现言讲课记录》`
+
+**Wikilinks in JSON arrays**: When a slot value is a JSON array (e.g. `"references"`,
+`"related_concepts"`, `"related"`, `"aliases"`, `"examples"`, `"characteristics"`,
+`"key_points"`, `"extracted_concepts"`), every wikilink MUST be wrapped in
+double-quotes so it is a valid JSON string:
+GOOD: `"references": ["[[slug-one]]", "[[slug-two]]"]`
+BAD:  `"references": [[[slug-one]], [[slug-two]]]`   ← broken JSON, will be rejected!
+
+If you forget the quotes around `[[wikilinks]]` in an array, the entire response
+will fail to parse and a slower fallback pipeline runs instead.
 
 **Subject boundary**: Keep claims attached to their exact subject. Do NOT
 transfer a claim about one entity to another just because they share terms.
@@ -303,7 +337,10 @@ knowledge into structured wiki pages. Output strict JSON:
       "slots": {{"<slot_name>": "<content or list of strings>"}},
       "relations": [{{"target": "<slug>", "type": "<relation_type>", "weight": 0.0-1.0, "context": "<why>"}}],
       "tags": ["genre/现言", "func/教程"],
-      "grade": "A|B|C"
+      "grade": "A|B|C",
+      "category": "",
+      "taxonomy_sub": "",
+      "processing_depth": "concept|memory"
     }}
   ]
 }}
@@ -332,9 +369,6 @@ async def unified_generate(
     import time as _time
     import re as _re
 
-    # Truncate very large sources to keep prompt size manageable and
-    # prevent page-count explosion (observed: 34K source → 83 pages).
-    MAX_SOURCE_CHARS = 12000
     _truncated = False
     if len(source_text) > MAX_SOURCE_CHARS:
         source_text = source_text[:MAX_SOURCE_CHARS] + "\n\n[... 文本过长，已截断 ...]"
@@ -383,6 +417,9 @@ async def unified_generate(
                         },
                         "tags": {"type": "array", "items": {"type": "string", "minLength": 1}},
                         "grade": {"type": "string", "enum": ["A", "B", "C"]},
+                        "category": {"type": "string"},
+                        "taxonomy_sub": {"type": "string"},
+                        "processing_depth": {"type": "string", "enum": ["concept", "memory"]},
                     },
                     "required": ["id", "type", "title", "slots"],
                 },
@@ -406,7 +443,7 @@ async def unified_generate(
         base_prompt=base_prompt,
         response_format=response_format,
         required_slots_by_type=required_slots_by_type,
-        timeout=300.0,
+        timeout=600.0,
     )
 
     filled_pages, missing_summary = _ensure_required_slots_filled(
@@ -485,10 +522,12 @@ async def unified_generate(
             sources=[source_path],
             created_at=now, updated_at=now, body=body_md,
             grade=p.get("grade", "B"),
-            processing_depth=p.get("processing_depth", "concept"),
+            processing_depth=p.get("processing_depth") or _DEPTH_BY_TYPE.get(page_type, "concept"),
             is_immutable=p.get("is_immutable", False),
             relations=parse_relations_from_response(deduped_relations),
             tags=_resolve_page_tags_unified(p),
+            category=p.get("category", ""),
+            taxonomy_sub=p.get("taxonomy_sub", ""),
         ))
     return pages
 
@@ -598,6 +637,9 @@ async def generate(
                             "items": {"type": "string", "minLength": 1},
                             "description": "controlled-namespace tags, each 'prefix/name' with prefix in {genre,func,char,event,mood,entity,scene_phase,status}",
                         },
+                        "category": {"type": "string"},
+                        "taxonomy_sub": {"type": "string"},
+                        "processing_depth": {"type": "string", "enum": ["concept", "memory"]},
                     },
                     "required": ["id", "type", "title", "slots"],
                 },
@@ -620,7 +662,7 @@ async def generate(
         base_prompt=base_prompt,
         response_format=response_format,
         required_slots_by_type=required_slots_by_type,
-        timeout=300.0,
+        timeout=600.0,
     )
 
     # 2. If after retry some required slots are still missing, fill them
@@ -747,10 +789,12 @@ async def generate(
             updated_at=now,
             body=body_md,
             grade=p.get("grade", "B"),
-            processing_depth=p.get("processing_depth", "concept"),
+            processing_depth=p.get("processing_depth") or _DEPTH_BY_TYPE.get(page_type, "concept"),
             is_immutable=p.get("is_immutable", False),
             relations=parse_relations_from_response(deduped_relations),
             tags=_resolve_page_tags(p, slug, raw_slug, analyzer_tags),
+            category=p.get("category", ""),
+            taxonomy_sub=p.get("taxonomy_sub", ""),
         ))
     return pages
 
@@ -787,7 +831,7 @@ async def _call_with_slot_retry(
     base_prompt: str,
     response_format: dict,
     required_slots_by_type: dict[PageType, list[str]],
-    timeout: float = 300.0,
+    timeout: float = 180.0,
 ) -> dict:
     """Call the LLM, retry once if any required slot is missing or the call times out.
 
@@ -798,6 +842,7 @@ async def _call_with_slot_retry(
     MAX_GEN_ATTEMPTS = 2  # initial + 1 retry
     last_missing: dict[str, list[str]] = {}
     last_response: dict = {}
+    _json_mode = True  # first attempt uses response_format
 
     for attempt in range(MAX_GEN_ATTEMPTS):
         extra = ""
@@ -816,23 +861,20 @@ async def _call_with_slot_retry(
                 extra = "\n\n" + "\n".join(lines) + "\n"
             else:
                 # JSON parse failed — the model returned something that isn't
-                # valid JSON. Add a stronger directive to emit ONLY raw JSON
-                # with no markdown fences, no preamble, no postscript.
+                # valid JSON despite the format instructions in the base
+                # prompt. Drop ``response_format`` and re-emphasise.
+                _json_mode = False
                 extra = (
-                    "\n\n## RETRY — CRITICAL JSON FORMAT INSTRUCTION\n"
-                    "Your previous response was NOT valid JSON. You MUST:\n"
-                    "1. Output ONLY the JSON object — no markdown fences (```), "
-                    "no introductory text, no concluding remarks.\n"
-                    "2. Start your response with `{` and end with `}`.\n"
-                    "3. Do NOT wrap the JSON in ```json ... ``` blocks.\n"
-                    "4. Ensure all strings are properly escaped.\n"
-                    "Reply with the raw JSON object now:\n"
+                    "\n\n## RETRY — JSON PARSE FAILED\n"
+                    "Your previous response was NOT valid JSON. Re-read the "
+                    "\"CRITICAL — JSON Format\" rules at the top. Output ONLY "
+                    "the raw JSON object now:\n"
                 )
 
         try:
             response = await provider.complete(
                 messages=[{"role": "user", "content": base_prompt + extra}],
-                response_format=response_format,
+                response_format=response_format if _json_mode else None,
                 timeout=timeout,
             )
         except (httpx.ReadTimeout, httpx.ConnectError) as exc:
@@ -870,6 +912,34 @@ async def _call_with_slot_retry(
                 )
             continue
         last_response = response_dict
+
+        # Detect empty extraction — LLM returned zero pages.
+        # Trigger a retry with a stronger directive so the pipeline never
+        # silently produces a source page with "(无摘要)".
+        if not response_dict.get("pages"):
+            _logger.warning(
+                "[Generator] LLM returned empty pages list on attempt %d/%d",
+                attempt + 1, MAX_GEN_ATTEMPTS,
+            )
+            if attempt == MAX_GEN_ATTEMPTS - 1:
+                _logger.error(
+                    "Generator LLM returned empty pages after %d attempts",
+                    MAX_GEN_ATTEMPTS,
+                )
+                return {"pages": []}
+            extra = (
+                "\n\n## RETRY — EMPTY PAGES DETECTED\n"
+                "Your previous response had NO pages at all (empty pages list). "
+                "This is a pipeline error. You MUST extract at least:\n"
+                "- 1 source page (type=source) with summary and metadata\n"
+                "- 2+ entity or concept pages from the source content\n"
+                "Even if the text seems short or unrelated, find SOMETHING "
+                "to extract — names, terms, techniques, concepts, anything "
+                "mentioned in the text. An empty extraction is worse than "
+                "thin pages.\n"
+            )
+            _json_mode = False  # drop response_format on retry
+            continue
 
         last_missing = _find_missing_required_slots(
             response_dict.get("pages", []),

@@ -54,6 +54,9 @@ class WikiPage:
     zombie_since: int | None = None
     # Tags: controlled namespace prefixes (e.g. char/女主角, genre/都市)
     tags: list[str] = field(default_factory=list)
+    # Taxonomy (v3.1): LLM-assigned classification, "" = unclassified
+    category: str = ""
+    taxonomy_sub: str = ""
 
     def to_frontmatter_dict(self) -> dict:
         return {
@@ -71,6 +74,8 @@ class WikiPage:
             "last_used_at": self.last_used_at,
             "zombie_since": self.zombie_since,
             "tags": list(self.tags),
+            "category": self.category,
+            "taxonomy_sub": self.taxonomy_sub,
         }
 
     @classmethod
@@ -92,6 +97,8 @@ class WikiPage:
             last_used_at=d.get("last_used_at", 0),
             zombie_since=d.get("zombie_since"),
             tags=list(d.get("tags", [])),
+            category=d.get("category", ""),
+            taxonomy_sub=d.get("taxonomy_sub", ""),
         )
 
 

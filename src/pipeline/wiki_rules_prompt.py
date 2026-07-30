@@ -8,7 +8,7 @@ ID_RULES = {
 
 FRONTMATTER_RULES = {
     "required": ['id', 'title', 'type'],
-    "optional": ['sources', 'relations', 'grade', 'processing_depth', 'is_immutable', 'heat', 'last_used_at', 'zombie_since', 'tags'],
+    "optional": ['sources', 'relations', 'grade', 'processing_depth', 'is_immutable', 'heat', 'last_used_at', 'zombie_since', 'tags', 'category', 'taxonomy_sub'],
 }
 
 BODY_RULES = {
@@ -79,7 +79,9 @@ python scripts/migrate_pinyin_to_cjk_aliases.py --apply
 
 ### 可选字段
 
-`sources`、`relations`、`grade`、`processing_depth`、`is_immutable`、`heat`、`last_used_at`、`zombie_since`、`tags`
+`sources`、`relations`、`grade`、`processing_depth`、`is_immutable`、`heat`、`last_used_at`、`zombie_since`、`tags`、`category`、`taxonomy_sub`
+
+`processing_depth` 有 6 个合法值: `memory` | `concept` (LLM 可选输出), `source` | `entity` | `synthesis` | `stub` (系统自动赋值, 不经过 LLM)。
 
 ### Tags 规则
 
