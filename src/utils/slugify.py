@@ -135,7 +135,7 @@ def slugify(text) -> str:
             out += _ascii_to_slug(seg)
         else:
             out += _preserve(seg)
-    return out
+    return out.strip("-")
 
 
 def ensure_unique_slug(slug: str, existing: Iterable[str]) -> str:

@@ -90,6 +90,19 @@ def test_slugify_handles_punctuation_between_cjk():
     assert "/" not in out
 
 
+def test_slugify_cjk_leading_trailing_hyphens_are_stripped():
+    """Leading/trailing hyphens from empty ASCII runs around CJK terms
+    are stripped so that slugify('-家庭烧伤处理-') matches
+    slugify('家庭烧伤处理'). Prevents duplicate entity stubs for
+    concepts that already have pages (Fix E dedup).
+    """
+    assert slugify("-家庭烧伤处理-") == slugify("家庭烧伤处理")
+    assert slugify("家庭烧伤处理") == "家庭烧伤处理"
+    # Existing behavior must be preserved
+    assert slugify("hello-world") == "hello-world"
+    assert slugify("混Test合") == "混-test-合"
+
+
 def test_slugify_brackets_and_quotes_safe_for_wikilinks():
     """Slug output must not contain [[ ]] which would break the
     wikilink ``[[...]]`` parser. Apostrophes, quotes, brackets

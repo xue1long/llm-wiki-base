@@ -573,6 +573,11 @@ async def run_ingest(
     # referenced page, the search index doesn't include the entity,
     # and Obsidian / downstream tools show broken links.
     #
+    # Slug normalisation: slugify() strips leading/trailing hyphens
+    # (2026-07-30 fix), so ``[[-家庭烧伤处理-]]`` and a concept page
+    # with id ``家庭烧伤处理`` now share the same canonical slug and no
+    # longer produce duplicate entity stubs.
+    #
     # Strategy:
     #   1. Collect every slug referenced by any ``relations[].target``,
     #      plus the source page slug, plus the analyzer's
