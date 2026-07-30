@@ -37,6 +37,8 @@ registry.json
 .obsidian
 # queue persistence (in-memory state is canonical)
 .kb-queue.json
+.kb-queue.json.failed
+.kb-queue-paused
 # rotated queue backups
 .kb-queue.json.bak*
 # server daemon pidfile
@@ -47,8 +49,5 @@ metrics.db
 # Backups of wiki/ contents left from earlier rounds
 .wiki-*-backup
 
-# Ingest logs (per-run artifacts, not source)
-scripts/ingest_*.log
-
-# novel-wiki per-project server logs
-knowledge/**/.server.log*
+# Log files (runtime artifacts)
+*.log
