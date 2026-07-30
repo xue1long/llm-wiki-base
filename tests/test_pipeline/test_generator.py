@@ -44,7 +44,7 @@ async def test_generate_returns_pages(tmp_path):
         provider=provider,
     )
     assert len(pages) == 2
-    assert pages[0].id == "kb-1"
+    assert pages[0].id == "article"  # slug from title, not LLM's id
     assert pages[0].type == PageType.SOURCE
     assert pages[1].id == "backprop"
     assert pages[1].type == PageType.CONCEPT

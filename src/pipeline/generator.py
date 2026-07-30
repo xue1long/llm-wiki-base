@@ -505,8 +505,8 @@ async def unified_generate(
                 _source_title_to_slug[_stem] = sl
 
     for p in filled_pages:
-        raw_slug = p.get("id")
-        slug = _slugify(raw_slug) or raw_slug
+        title = p.get("title", "")
+        slug = _slugify(title) or p.get("id", "")
         try:
             page_type = PageType(p.get("type"))
         except ValueError:
@@ -758,11 +758,10 @@ async def generate(
     now = int(time.time() * 1000)
     pages: list[WikiPage] = []
     for p in filled_pages:
-        raw_slug = p.get("id")
-        slug = _slugify(raw_slug) or raw_slug
+        title = p.get("title", "")
+        slug = _slugify(title) or p.get("id", "")
         raw_type = (
-            type_from_analyzer.get(raw_slug)
-            or type_from_analyzer.get(slug)
+            type_from_analyzer.get(slug)
             or p.get("type")
         )
         try:
@@ -841,7 +840,7 @@ async def generate(
             processing_depth=p.get("processing_depth") or _DEPTH_BY_TYPE.get(page_type, "concept"),
             is_immutable=p.get("is_immutable", False),
             relations=parse_relations_from_response(deduped_relations),
-            tags=_resolve_page_tags(p, slug, raw_slug, analyzer_tags),
+            tags=_resolve_page_tags(p, slug, analyzer_tags),
             category=p.get("category", ""),
             taxonomy_sub=p.get("taxonomy_sub", ""),
         ))
@@ -851,7 +850,6 @@ async def generate(
 def _resolve_page_tags(
     page: dict,
     slug: str,
-    raw_slug: str,
     analyzer_tags: dict[str, list[str]],
 ) -> list[str]:
     """Resolve controlled-namespace tags for a generated page.
@@ -861,7 +859,7 @@ def _resolve_page_tags(
     prefixes (``tag_namespace.is_valid``); invalid tags are dropped so the
     result always passes ``validate_tags``.
     """
-    raw = page.get("tags") or analyzer_tags.get(slug) or analyzer_tags.get(raw_slug) or []
+    raw = page.get("tags") or analyzer_tags.get(slug) or []
     if isinstance(raw, str):
         raw = [raw]
     if not isinstance(raw, (list, tuple)):
@@ -1066,7 +1064,8 @@ def _auto_fill_deterministic_slots(
     batch_slugs: list[str] = []
     for p in pages:
         ptype = p.get("type", "")
-        slug = p.get("id", "")
+        title = p.get("title", "")
+        slug = _slugify(title) or p.get("id", "")
         if slug and ptype in ("concept", "entity"):
             batch_slugs.append(slug)
 
@@ -1116,7 +1115,8 @@ def _auto_fill_deterministic_slots(
                 slots["references"] = f"- [[{source_slug}]]"
             # related_concepts: fill from batch peers
             if _slot_is_empty(slots.get("related_concepts")) and batch_slugs:
-                my_slug = p.get("id", "")
+                my_title = p.get("title", "")
+                my_slug = _slugify(my_title) or p.get("id", "")
                 peers = [s for s in batch_slugs if s != my_slug][:5]
                 if peers:
                     slots["related_concepts"] = "\n".join(f"- [[{s}]]" for s in peers)

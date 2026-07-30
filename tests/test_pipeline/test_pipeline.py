@@ -121,9 +121,9 @@ async def test_run_ingest_kb_task_id_fallback_when_llm_omits_source_page(tmp_pat
         provider=provider, task_id=test_task_id,
     )
     page_ids = {p.id for p in pages}
-    assert "only-concept" in page_ids
+    assert "only" in page_ids  # slug from title, not LLM's id
     # Source page still created (always, when a source path exists)
-    source_pages = [pid for pid in page_ids if pid != "only-concept"]
+    source_pages = [pid for pid in page_ids if pid != "only"]
     assert len(source_pages) == 1, f"expected 1 source page, got {source_pages}"
     source_pid = source_pages[0]
     # Source page id is {stem}-{8hex}; stem is 'nope' since raw is 'nope.md'
@@ -281,7 +281,7 @@ async def test_unified_generate_produces_pages(tmp_path):
 
     assert len(pages) == 1
     page = pages[0]
-    assert page.id == "backprop"
+    assert page.id == "反向传播"  # slug from CJK title, not LLM's id
     assert page.type == PageType.CONCEPT
     assert page.title == "反向传播"
     assert "反向传播是训练神经网络的核心算法" in page.body
@@ -415,7 +415,7 @@ async def test_run_batch_ingest_processes_multiple_files(tmp_path):
         assert len(pages) >= 1, f"file {i} produced no pages"
         # Each should have at least the concept page + source page
         page_ids = {pg.id for pg in pages}
-        assert f"concept-{i}" in page_ids
+        assert f"概念-{i}" in page_ids  # slug from CJK title; CJK/ASCII boundary adds hyphen
 
 
 @pytest.mark.asyncio
