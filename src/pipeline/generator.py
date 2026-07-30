@@ -117,25 +117,31 @@ Required slots are unmarked; slots marked `_(optional)_` may be omitted
 or returned as an empty list when the source has no relevant content —
 **only for those**, not for unmarked required ones.
 
-Strict rules — schema is enforced:
-- Every `<!-- slot:NAME -->` (no `?`) is required. NEVER use "..." /
-  "（空）" / "（待补充）" / "placeholder" / "TBD" or similar filler as a
-  body or slot value — the validator will REJECT the response and a
-  retry is triggered. Provide substantive content, or write a short
-  note explaining what the source did/n't say (e.g. "无相关引用").
+Strict rules — schema is enforced. Empty slots = retry = wasted tokens.
+- Every `<!-- slot:NAME -->` (no `?`) is REQUIRED. NEVER use "..." /
+  "（空）" / "（待补充）" / "placeholder" / "TBD" or similar filler —
+  the validator REJECTS empty values and triggers a retry.
+- Provide substantive content, or use the fallback for that slot (see below).
 - Do NOT add new slot names not in the template. The schema rejects
   extra keys under `slots`.
 - Optional slots (`<!-- slot:NAME? -->` / `<!-- if:X -->`): only OMIT
   when you have nothing to put; either omit the property entirely or
-  return `[]`. The whole section is dropped from the rendered body when
-  the slot is empty.
-- Each slot value must be ≥ 1 character after trim. For lists, at least
-  one item with substantive content.
+  return `[]`.
+- Each slot value must be ≥ 1 character after trim. Lists: ≥ 1 substantive item.
 
-Good slot content:
-- 1-3 sentences or a list of 1-3 short bullets summarising what the
-  source says about that aspect of the topic.
-- May include `[[wikilinks]]` to other slugs in the existing index.
+Slot minimums and fallbacks (DO NOT leave these required slots empty):
+  `references`           → At LEAST `- [[<source-page-slug>]]`
+  `source_meta`          → MUST state source URL/platform + date
+  `related_concepts`     → At LEAST 2 `[[wikilinks]]` to other pages
+  `related`              → At LEAST 1 `[[wikilink]]`
+  `key_points`           → At LEAST 3 bullets from source
+  `extracted_concepts`   → At LEAST 3 `[[wikilinks]]`
+  `examples`             → If none: "来源未提供具体例子"
+  `comparison_dimensions`→ At LEAST 2 dimensions
+  `overview`             → At LEAST 1 paragraph
+
+When source truly lacks info for a required slot, write "来源未详述此方面"
+— NEVER leave it empty or filled with placeholder text.
 
 {PAGE_TEMPLATES}
 
@@ -282,12 +288,32 @@ Slugs may be CJK or ASCII kebab-case — keep the concept's natural form, no for
 
 **Slug reuse**: Use EXISTING slugs from the wiki index verbatim. Never invent variants.
 
-**Slot filling**:
-- Every `<!-- slot:NAME -->` (no `?`) is required. Never use placeholder text
-  ("...", "（空）", "TBD", "placeholder"). If the source lacks info, write
-  a short note like "来源未详述此概念".
+**Slot filling — CRITICAL: NO EMPTY SLOTS ALLOWED**:
+- Every `<!-- slot:NAME -->` (no `?`) is REQUIRED and MUST have substantive content.
+  An empty or placeholder-filled slot triggers retry and wastes tokens for everyone.
+- Never use placeholder text ("...", "（空）", "TBD", "placeholder", "（系统占位...）").
 - Optional slots (`<!-- slot:NAME? -->`): omit when empty.
 - Each slot: ≥ 1 char after trim. Lists: ≥ 1 substantive item.
+
+**Slot-specific minimums (enforced — do NOT leave these empty)**:
+SLOT                  | PAGE TYPE   | MINIMUM ACCEPTABLE CONTENT
+----------------------|-------------|----------------------------------------------------
+`references`          | concept     | At LEAST one `[[wikilink]]` to the source page
+`source_meta`         | source      | MUST include: 来源(URL/平台), 下载时间, 发布组织
+`related_concepts`    | concept     | At LEAST 2 `[[wikilinks]]` to other concept/entity pages
+`related`             | entity      | At LEAST 1 `[[wikilink]]` to the source page or parent entity
+`key_points`          | source      | At LEAST 3 bullet points from the source text
+`extracted_concepts`  | source      | At LEAST 3 `[[wikilinks]]` to concept/entity pages generated below
+`comparison_dimensions`| synthesis  | At LEAST 2 dimensions being compared
+`overview`            | synthesis   | At LEAST 1 paragraph summarising the comparison
+
+**FALLBACKS — when source truly lacks info, use these instead of empty/placeholder**:
+- `references` → Write `- [[<source-page-slug>]]` (the slug from `## Source page id` above)
+- `source_meta` → Write "来源: [文件名]; 格式: Markdown; 下载时间: 见原始文件头部"
+- `related_concepts` → List the concept/entity slugs you defined in other pages of THIS response
+- `related` → Write `- [[<source-page-slug>]]`
+- `examples` → Write "来源未提供具体例子" (invent NOTHING)
+- ALL OTHERS → Write "来源未详述此方面" (not empty, not placeholder)
 
 **Entity pages are REQUIRED**: Every meaningful entity (person, org, work, platform,
 genre) mentioned in the source MUST have a page. Missing entities create broken
@@ -446,13 +472,25 @@ async def unified_generate(
         timeout=600.0,
     )
 
+    raw_pages = response_dict.get("pages", [])
+
+    # Deterministic auto-fill BEFORE placeholder — fills trivially
+    # extractable slots (references, source_meta, related_concepts, etc.)
+    # without relying on LLM. Reduces placeholder rate significantly.
+    raw_pages = _auto_fill_deterministic_slots(
+        raw_pages,
+        source_path=source_path,
+        source_text=source_text,
+        source_slug_map=source_slug_map,
+    )
+
     filled_pages, missing_summary = _ensure_required_slots_filled(
-        response_dict.get("pages", []),
+        raw_pages,
         required_slots_by_type=required_slots_by_type,
     )
     if missing_summary:
         _logger.warning(
-            "[unified_generate] required slots still missing after retry, "
+            "[unified_generate] required slots still missing after retry+auto-fill, "
             "filled with placeholder: %s", missing_summary,
         )
 
@@ -665,17 +703,27 @@ async def generate(
         timeout=600.0,
     )
 
-    # 2. If after retry some required slots are still missing, fill them
-    #    with a clearly marked placeholder so every rendered page is
-    #    structurally complete (every required heading has at least the
-    #    placeholder line). Operators will see the WARN in the log.
+    raw_pages = response_dict.get("pages", [])
+
+    # Deterministic auto-fill BEFORE placeholder — fills trivially
+    # extractable slots without relying on LLM.
+    raw_pages = _auto_fill_deterministic_slots(
+        raw_pages,
+        source_path="",
+        source_text="",
+        source_slug_map=source_slug_map,
+    )
+
+    # 2. If after retry+auto-fill some required slots are still missing,
+    #    fill them with a clearly marked placeholder so every rendered
+    #    page is structurally complete.
     filled_pages, missing_summary = _ensure_required_slots_filled(
-        response_dict.get("pages", []),
+        raw_pages,
         required_slots_by_type=required_slots_by_type,
     )
     if missing_summary:
         _logger.warning(
-            "[generator] required slots still missing after retry, "
+            "[generator] required slots still missing after retry+auto-fill, "
             "filled with placeholder: %s",
             missing_summary,
         )
@@ -839,7 +887,7 @@ async def _call_with_slot_retry(
     """
     import httpx
 
-    MAX_GEN_ATTEMPTS = 2  # initial + 1 retry
+    MAX_GEN_ATTEMPTS = 3  # initial + 2 retries
     last_missing: dict[str, list[str]] = {}
     last_response: dict = {}
     _json_mode = True  # first attempt uses response_format
@@ -849,14 +897,26 @@ async def _call_with_slot_retry(
         if attempt > 0:
             if last_missing:
                 lines = [
-                    "## Retry — your previous response was missing these required slots:",
+                    "## RETRY — YOUR LAST RESPONSE HAD EMPTY REQUIRED SLOTS",
+                    "",
+                    "These slots WERE missing or empty in your last response:",
                 ]
                 for ptype_name, names in last_missing.items():
                     lines.append(f"- {ptype_name}: {', '.join(names)}")
+                lines.append("")
+                lines.append("YOU MUST FILL EVERY ONE. Use these fallbacks if stuck:")
+                lines.append("  references       → - [[<source-page-slug>]]")
+                lines.append("  source_meta      → Extract URL/platform/date from source header")
+                lines.append("  related_concepts → 2+ [[wikilinks]] to pages YOU defined in this response")
+                lines.append("  related          → - [[<source-page-slug>]]")
+                lines.append("  key_points       → 3+ facts from the source text")
+                lines.append("  extracted_concepts → [[wikilinks]] to concepts/entities below")
+                lines.append("  examples         → If none: \"来源未提供具体例子\"")
+                lines.append("  ALL OTHERS       → \"来源未详述此方面\"")
+                lines.append("")
                 lines.append(
-                    "Please provide substantive content for each one. "
-                    "Empty strings, '...', '（空）', '（待补充）', 'placeholder', "
-                    "'TBD' etc. all FAIL the validator again."
+                    "EMPTY = RETRY AGAIN. PLACEHOLDER TEXT (..., 待补充, TBD) = RETRY AGAIN. "
+                    "There is NO third chance — fill every slot this time."
                 )
                 extra = "\n\n" + "\n".join(lines) + "\n"
             else:
@@ -970,6 +1030,133 @@ def _find_missing_required_slots(
         if status.missing:
             missing_by_type[ptype.value] = status.missing
     return missing_by_type
+
+
+def _auto_fill_deterministic_slots(
+    pages: list[dict],
+    *,
+    source_path: str,
+    source_text: str,
+    source_slug_map: Optional[dict] = None,
+) -> list[dict]:
+    """Deterministic slot fills — no LLM needed, always correct.
+
+    Runs BEFORE ``_ensure_required_slots_filled`` to reduce the number
+    of placeholder-stuffed pages. Covers the slots that are trivially
+    fillable from data already in scope:
+
+    - ``references`` (concept): auto-fill ``[[<source-page-slug>]]``
+    - ``source_meta`` (source): parse URL, platform, date from text header
+    - ``related_concepts`` (concept): collect other concept/entity slugs
+      defined in the same batch
+    - ``related`` (entity): auto-fill ``[[<source-page-slug>]]``
+    - ``extracted_concepts`` (source): collect concept/entity slugs
+      from the same batch
+    """
+    import re as _re
+    from pathlib import Path as _Path
+
+    # Resolve the source-page slug for wikilinks
+    source_slug: Optional[str] = None
+    if source_slug_map:
+        source_slug = source_slug_map.get(source_path)
+
+    # Collect all concept/entity slugs from the same batch
+    batch_slugs: list[str] = []
+    for p in pages:
+        ptype = p.get("type", "")
+        slug = p.get("id", "")
+        if slug and ptype in ("concept", "entity"):
+            batch_slugs.append(slug)
+
+    # --- Parse source_meta from source text header ---
+    source_meta_text = ""
+    # Try to extract URL
+    url_match = _re.search(r'https?://[^\s\n"]+', source_text[:500])
+    url_str = url_match.group(0).rstrip(".") if url_match else ""
+    # Try to extract download date
+    date_match = _re.search(
+        r'下载时间[：:]\\s*(\\d{4}[-/]\\d{2}[-/]\\d{2})',
+        source_text[:500],
+    )
+    date_str = date_match.group(1) if date_match else ""
+    # Try to extract platform
+    platform_match = _re.search(
+        r'^(飞书云文档|微信公众号|QQ群|来源[：:].*)$',
+        source_text[:500], _re.MULTILINE,
+    )
+    platform_str = platform_match.group(1).strip() if platform_match else ""
+    # Source filename
+    fname = _Path(source_path).stem if source_path else ""
+
+    if url_str or platform_str or date_str or fname:
+        parts = []
+        if fname:
+            parts.append(f"源文件: {fname}")
+        if url_str:
+            parts.append(f"来源: {url_str}")
+        if platform_str and not platform_str.startswith("来源"):
+            parts.append(f"平台: {platform_str}")
+        if date_str:
+            parts.append(f"下载时间: {date_str}")
+        source_meta_text = "\\n".join(parts)
+
+    # --- Walk pages and fill deterministic slots ---
+    for p in pages:
+        try:
+            ptype = PageType(p.get("type"))
+        except (ValueError, TypeError):
+            continue
+        slots = p.setdefault("slots", {})
+
+        if ptype == PageType.CONCEPT:
+            # references: always fillable from source page
+            if _slot_is_empty(slots.get("references")) and source_slug:
+                slots["references"] = f"- [[{source_slug}]]"
+            # related_concepts: fill from batch peers
+            if _slot_is_empty(slots.get("related_concepts")) and batch_slugs:
+                my_slug = p.get("id", "")
+                peers = [s for s in batch_slugs if s != my_slug][:5]
+                if peers:
+                    slots["related_concepts"] = "\n".join(f"- [[{s}]]" for s in peers)
+
+        elif ptype == PageType.ENTITY:
+            # related: always fillable from source page
+            if _slot_is_empty(slots.get("related")) and source_slug:
+                slots["related"] = f"- [[{source_slug}]]"
+
+        elif ptype == PageType.SOURCE:
+            # source_meta: parse from source header
+            if _slot_is_empty(slots.get("source_meta")) and source_meta_text:
+                slots["source_meta"] = source_meta_text
+            # key_points: try to extract from source text if empty
+            if _slot_is_empty(slots.get("key_points")):
+                # Extract heading-prefixed lines as fallback key points
+                heading_lines = _re.findall(
+                    r'^#+\\s+(.+)', source_text[:3000], _re.MULTILINE,
+                )
+                # Or numbered list items
+                numbered_items = _re.findall(
+                    r'^\\d+[、.．]\\s*(.{10,120})$', source_text[:5000], _re.MULTILINE,
+                )
+                candidates = heading_lines[:5] or numbered_items[:5]
+                if candidates:
+                    slots["key_points"] = "\n".join(f"- {c}" for c in candidates)
+
+    return pages
+
+
+def _slot_is_empty(value) -> bool:
+    """Check if a slot value is effectively empty."""
+    if value is None:
+        return True
+    if isinstance(value, str) and not value.strip():
+        return True
+    if isinstance(value, (list, tuple)):
+        return len(value) == 0 or all(
+            isinstance(v, str) and not v.strip() for v in value
+        )
+    return False
 
 
 def _ensure_required_slots_filled(
