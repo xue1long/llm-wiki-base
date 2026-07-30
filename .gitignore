@@ -51,3 +51,4 @@ metrics.db
 
 # Log files (runtime artifacts)
 *.log
+.server.log.*
