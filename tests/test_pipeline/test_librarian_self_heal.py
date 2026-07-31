@@ -59,6 +59,40 @@ async def test_archive_merges_relative_existing_path(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_archive_skips_self_merge(tmp_path, monkeypatch):
+    """A note whose vector search returns ITS OWN path must not self-merge.
+
+    Self-match is degenerate dedup (a page "merging into itself"). Appending
+    provenance on self-match made merged-target notes change content every
+    archive run -> digest drift -> re-embedded forever, growing endless
+    ``**合并来源**`` blocks (284 files polluted, one with 14 blocks).
+    """
+    project_root = tmp_path / "proj"
+    project_root.mkdir()
+    paths = WikiPaths(root=project_root)
+    paths.wiki_sources.mkdir(parents=True, exist_ok=True)
+
+    note = paths.wiki_sources / "note.md"
+    note.write_text("# Note\n\nbody content", encoding="utf-8")
+
+    monkeypatch.setattr(librarian, "get_embedding_provider", lambda: _stub_provider())
+    monkeypatch.setattr(
+        librarian,
+        "vector_search_chunks",
+        lambda emb, top_k, **kw: [_FakeResult(path="wiki/sources/note.md", score=0.99)],
+    )
+
+    captured = []
+    monkeypatch.setattr(librarian, "vector_upsert_chunks", lambda chunks: captured.extend(chunks))
+
+    payload = await librarian.archive(task_id="t-self", note_path=str(note), paths=paths)
+
+    assert type(payload).__name__ == "LibrarianDonePayload"
+    assert captured, "self-match should archive normally (upsert) instead of merging"
+    assert "合并来源" not in note.read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
 async def test_archive_stores_relative_chunk_paths(tmp_path, monkeypatch):
     """Normal archive (no similar hit) upserts VectorChunks whose path is
     root-relative."""

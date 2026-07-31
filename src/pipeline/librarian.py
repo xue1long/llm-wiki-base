@@ -166,6 +166,16 @@ async def _merge_duplicates(
             existing_path,
         )
         return None
+    if existing_resolved == safe_resolve(new_path):
+        # Self-match is degenerate dedup (a page "merging into itself").
+        # Skipping it keeps merged-target notes' digests stable so they are not
+        # re-embedded forever (appending self-provenance changed content each
+        # run -> 284 files accumulated endless **合并来源** blocks).
+        logger.warning(
+            "[Librarian] Skipping merge: existing_path %r is the note itself (self-match)",
+            existing_path,
+        )
+        return None
 
     knowledge_resolved = safe_resolve(paths.knowledge_dir)
     # is_relative_to (3.9+) returns True/False; older versions raise
