@@ -35,7 +35,7 @@ from ..wiki.templates import (
     render_body,
     required_slot_names,
 )
-from ._pipeline_common import clean_source_text, parse_llm_json
+from ._pipeline_common import clean_source_text, denoise_source_text, parse_llm_json
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
 
@@ -129,9 +129,9 @@ Strict rules — schema is enforced. Empty slots = retry = wasted tokens.
   when you have nothing to put; either omit the property entirely or
   return `[]`.
 - Each slot value must be ≥ 1 character after trim. Lists: ≥ 1 substantive item.
-- **System-filled slot**: `main_content` on SOURCE pages is filled by the
-  pipeline with the raw source text. Do NOT fill it — omit it or leave it
-  empty. The retry loop skips optional slots, so there is no penalty.
+- **main_content (SOURCE 正文)**: 由你整理后填写 —— 不是摘要（摘要是 `summary`
+  slot 的职责），而是把源文档整理为去噪、修格式、信息等量的完整正文。缺失时
+  系统会以原文兜底，但请务必提供整理结果（规则见下方 main_content 段）。
 
 Slot minimums and fallbacks (DO NOT leave these required slots empty):
   `references`           → At LEAST `- [[<source-page-slug>]]`
@@ -298,11 +298,16 @@ Slugs may be CJK or ASCII kebab-case — keep the concept's natural form, no for
 - Never use placeholder text ("...", "（空）", "TBD", "placeholder", "（系统占位...）").
 - Optional slots (`<!-- slot:NAME? -->`): omit when empty.
 - Each slot: ≥ 1 char after trim. Lists: ≥ 1 substantive item.
-- **System-filled slots**: The `main_content` slot on SOURCE-type pages is
-  pre-filled by the system with the raw source text. Do NOT fill it — omit
-  `main_content` from your slots for source pages, or leave it empty.
-  The system always overwrites it anyway. The retry loop ignores optional slots,
-  so empty `main_content` does not trigger a retry.
+**main_content（SOURCE 页正文 — 整理后完整正文, 不是摘要）**:
+- 把源文档整理为「完整正文」: 保留全部实质性内容(列表/表格/定义/数字逐条保留),
+  不压缩、不提炼要点 —— 摘要是 `summary` slot 的职责。
+- 删除平台噪音: 登录/注册、评论(0)、帮助中心、效率指南、上传日志、联系客服、
+  功能更新、下载元数据(来源/下载时间)、平台名(飞书云文档) 等与内容无关的行。
+- 修复格式: 合并被断行的段落、恢复列表/编号/表格结构、去除多余空行与行尾空白。
+- 保真: 不添加、不改写事实; 专有名词/数字/人名/作品名逐字保留。
+- 长度: 输出应与源文档实质性内容相当; 明显变短 = 你在做摘要, 禁止。
+- 素材类文档(列表/表格)必须逐条完整保留。
+- 缺失时系统会用原文兜底, 但请务必主动提供整理结果。
 
 **Slot-specific minimums (enforced — do NOT leave these empty)**:
 SLOT                  | PAGE TYPE   | MINIMUM ACCEPTABLE CONTENT
@@ -1152,11 +1157,16 @@ def _auto_fill_deterministic_slots(
                 candidates = heading_lines[:5] or numbered_items[:5]
                 if candidates:
                     slots["key_points"] = "\n".join(f"- {c}" for c in candidates)
-            # main_content: always overwrite with full source text.
-            # This slot is system-filled — the LLM may have incorrectly
-            # filled it with a summary; the summary slot handles that.
-            if source_text:
-                slots["main_content"] = clean_source_text(source_text)
+            # main_content: LLM-organized body is preferred; fall back to the
+            # denoised raw source ONLY when the LLM left it empty or wrote a
+            # placeholder (so the material is never lost and no placeholder
+            # lands in the body). The summary slot is the LLM's abstraction.
+            _mc = slots.get("main_content")
+            _mc_empty = _slot_is_empty(_mc) or (
+                isinstance(_mc, str) and "系统占位" in _mc
+            )
+            if _mc_empty and source_text:
+                slots["main_content"] = denoise_source_text(source_text)
 
     return pages
 

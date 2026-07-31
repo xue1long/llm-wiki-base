@@ -801,3 +801,56 @@ async def test_generate_prompt_handles_empty_source_slug_map(tmp_path):
     )
     prompt = provider.calls[0]["messages"][0]["content"]
     assert "no source pages produced by this run" in prompt
+
+
+# ---------------------------------------------------------------------------
+# _auto_fill_deterministic_slots — main_content: LLM body preferred,
+# denoised raw text only as fallback (empty / placeholder)
+# ---------------------------------------------------------------------------
+
+
+def test_auto_fill_preserves_llm_main_content():
+    """LLM-organized main_content must NOT be overwritten by raw source text."""
+    from src.pipeline.generator import _auto_fill_deterministic_slots
+    organized = "LLM整理后的正文\n- 去噪\n- 保留列表"
+    pages = [{"type": "source", "title": "测试", "slots": {"main_content": organized}}]
+    _auto_fill_deterministic_slots(
+        pages,
+        source_path="raw/sources/测试.md",
+        source_text="原始文本\n登录/注册\n评论（0）",
+    )
+    assert pages[0]["slots"]["main_content"] == organized
+
+
+def test_auto_fill_falls_back_to_denoised_when_main_content_empty():
+    """Empty main_content → denoised raw source so the body is never blank."""
+    from src.pipeline.generator import _auto_fill_deterministic_slots
+    pages = [{"type": "source", "title": "测试", "slots": {}}]
+    _auto_fill_deterministic_slots(
+        pages,
+        source_path="raw/sources/测试.md",
+        source_text="正文开始\n登录/注册\n评论（0）\n正文结束",
+    )
+    out = pages[0]["slots"]["main_content"]
+    assert "登录/注册" not in out
+    assert "评论（0）" not in out
+    assert "正文开始" in out
+    assert "正文结束" in out
+
+
+def test_auto_fill_replaces_placeholder_main_content():
+    """Placeholder-filled main_content → denoised raw source (never keep
+    the system placeholder in the body)."""
+    from src.pipeline.generator import _auto_fill_deterministic_slots
+    pages = [{
+        "type": "source", "title": "测试",
+        "slots": {"main_content": "（系统占位：此项由系统补齐，请人工补充）"},
+    }]
+    _auto_fill_deterministic_slots(
+        pages,
+        source_path="raw/sources/测试.md",
+        source_text="真实内容\n正文",
+    )
+    out = pages[0]["slots"]["main_content"]
+    assert "系统占位" not in out
+    assert "真实内容" in out

@@ -478,3 +478,41 @@ async def test_run_batch_ingest_exception_isolation(tmp_path):
     assert results[1] == [], f"expected empty for failed file, got {results[1]}"
     # File 2: success (isolated from file 1's failure)
     assert len(results[2]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_normalize_generated_pages_canonicalizes_relation_target_id(tmp_path):
+    """Regression: _normalize_generated_pages must use Relation.target_id, not .target.
+
+    Relation is a dataclass fielded ``target_id`` (YAML key ``target`` after
+    to_dict()). Accessing ``rel.target`` raises AttributeError whenever the
+    slug-alias registry loads and any generated page carries a relation —
+    which breaks every ingest whose LLM response includes relations.
+    """
+    from src.wiki.core.types import WikiPage
+    from src.wiki.features.relations import Relation
+    from src.wiki.features.slug_aliases import SlugAliasRegistry
+    from src.pipeline.ingest import _normalize_generated_pages
+
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+
+    # Pre-populate the alias registry on disk so the function's internal
+    # SlugAliasRegistry(str(paths.root)) picks it up.
+    reg = SlugAliasRegistry(str(tmp_path))
+    reg.add("qi-dai-gan", "qi-dai-gan-chuangzuo")
+    reg.save()
+
+    page = WikiPage(
+        id="page-a",
+        title="页面A",
+        type=PageType.ENTITY,
+        sources=[],
+        body="",
+        relations=[Relation(target_id="qi-dai-gan", type="is_part_of",
+                            weight=1.0, context="")],
+    )
+
+    _normalize_generated_pages([page], p)
+
+    assert page.relations[0].target_id == "qi-dai-gan-chuangzuo"

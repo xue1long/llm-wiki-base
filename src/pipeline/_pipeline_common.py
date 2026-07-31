@@ -49,6 +49,83 @@ def clean_source_text(text: str) -> str:
     return cleaned.strip() + "\n"
 
 
+# ---------------------------------------------------------------------------
+# Source text denoising — rule-based, lossless platform-chrome removal
+# ---------------------------------------------------------------------------
+
+# Whole-line platform chrome (feishu exports etc.). Exact match ONLY — a line
+# equal to one of these is structural UI chrome, never document content. The
+# tradeoff (an exact-match string that IS the content of some hypothetical doc
+# is also removed) is documented and accepted; operators can extend this set.
+# ``编辑``/``分享`` are borderline (a tutorial COULD contain such a bare line)
+# but in feishu exports they are always button labels — kept here deliberately.
+_CHROME_LINES = {
+    "登录/注册",
+    "评论（0）",
+    "评论(0)",
+    "帮助中心",
+    "效率指南",
+    "上传日志",
+    "联系客服",
+    "功能更新",
+    "飞书云文档",
+    "分享",
+    "编辑",
+    "外部",
+    "添加图标",
+    "添加封面",
+    "展示文档信息",
+    "*此文档由 GPU 加速转录生成*",
+}
+
+# Structural metadata lines — regexes are anchored and specific enough to never
+# match prose. These values are already captured by the 来源元数据 slot, so
+# they are redundant in the body.
+_META_LINE_RES = (
+    re.compile(r"^来源[:：]\s*https?://"),    # feishu source URL
+    re.compile(r"^下载时间[:：].*\d{4}"),     # download timestamp
+    re.compile(r"^最新修改时间为.*[月日]"),   # feishu chrome (old export)
+    re.compile(r"^最近修改[:：]"),            # feishu chrome (new export)
+)
+
+# feishu-export H1 title artifact: ``# <title> -`` (trailing " -").
+_FEISHU_H1_RE = re.compile(r"^#\s+.+ -\s*$")
+
+# Leading YAML frontmatter block (``---\n...\n---\n``).
+_FRONTMATTER_RE = re.compile(r"^---\r?\n.*?\r?\n---\r?\n", re.DOTALL)
+
+
+def denoise_source_text(text: str) -> str:
+    """Rule-based denoising for source-page ``main_content``.
+
+    Removes ONLY structural platform chrome:
+      1. leading YAML frontmatter block,
+      2. metadata lines (来源/下载时间/最新修改/最近修改 — already captured
+         by the 来源元数据 slot),
+      3. feishu H1 title artifacts (``# Title -``),
+      4. whole-line chrome from :data:`_CHROME_LINES`.
+    Then delegates to :func:`clean_source_text` for whitespace normalisation.
+
+    Lossless by construction: content lines are preserved verbatim (only
+    exact-match chrome / specific anchored metadata regexes are dropped).
+    Never does semantic or context-aware removal.
+    """
+    if not text or not text.strip():
+        return ""
+    text = _FRONTMATTER_RE.sub("", text, count=1)
+    kept: list[str] = []
+    for ln in text.splitlines():
+        s = ln.rstrip()
+        if s in _CHROME_LINES:
+            continue
+        if any(rx.match(s) for rx in _META_LINE_RES):
+            continue
+        if _FEISHU_H1_RE.match(s):
+            continue
+        kept.append(ln)
+    return clean_source_text("\n".join(kept))
+
+
 _FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*\}|\[.*\])\s*```", re.DOTALL)
 
 # Reasoning-model <think> blocks (MiniMax-M3, DeepSeek-R1).  Stripped at the
