@@ -411,3 +411,12 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+## Git workflow (auto-commit)
+
+After code changes are verified (dry-run, smoke test, or user says "OK"):
+1. `git status` and `git diff --stat` — show what changed
+2. `git add <specific files>` (never `git add .`)
+3. Generate a commit message matching the repo style: `type(scope): 中文描述` or `type: English summary` — use the existing `git log --oneline -5` pattern
+4. `git commit`
+5. Ask: "要 push 吗?" — never push without explicit confirmation
