@@ -25,7 +25,14 @@ class H4IdFormatCheck(Check):
         issues: list[CheckIssue] = []
         stats = {"pages_checked": 0, "invalid_ids": 0}
 
+        wiki_root = self.project_path / "wiki"
         for md_file in self._all_wiki_pages():
+            # Skip non-content files at wiki root (index, log, and their machine twins)
+            if md_file.parent == wiki_root and (
+                md_file.stem == "index" or md_file.stem.startswith("index-")
+                or md_file.stem == "log" or md_file.stem.startswith("log-")
+            ):
+                continue
             fm, _ = self._load_frontmatter(md_file)
             page_id = fm.get("id")
             stats["pages_checked"] += 1
