@@ -88,3 +88,8 @@ YY小说模式（YY Novel Pattern）是网络文学中以读者'意淫'（wish-f
 ## 参考来源
 
 - [[方法论YY小说模式-942f4f92]]
+
+
+---
+**合并来源**: C:\Users\HP\OneDrive\240 - 项目\LLM-Wiki\knowledge\novel-wiki\wiki\concepts\yy-小说模式.md
+**合并时间**: 2026-07-31T13:03:03.874886

@@ -65,3 +65,8 @@ tags:
 - [[因果报应]]
 - [[恐怖小说刑罚描写]]
 - [[六道轮回]]
+
+
+---
+**合并来源**: C:\Users\HP\OneDrive\240 - 项目\LLM-Wiki\knowledge\novel-wiki\wiki\concepts\佛教地狱观.md
+**合并时间**: 2026-07-31T13:05:23.512550

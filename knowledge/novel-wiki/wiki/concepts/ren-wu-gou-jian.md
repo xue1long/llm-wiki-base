@@ -74,3 +74,8 @@ tags:
 ## 参考来源
 
 - [[方法论创造你的角色时该考虑的20个问题-8216da77]]
+
+
+---
+**合并来源**: C:\Users\HP\OneDrive\240 - 项目\LLM-Wiki\knowledge\novel-wiki\wiki\concepts\人物塑造难点.md
+**合并时间**: 2026-07-31T13:04:33.199902

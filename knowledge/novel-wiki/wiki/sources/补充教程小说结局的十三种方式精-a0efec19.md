@@ -115,3 +115,8 @@ tags:
 - [[歪打正着]]
 - [[迷失结局]]
 - [[小说结局十三种方式综述]]
+
+
+---
+**合并来源**: C:\Users\HP\OneDrive\240 - 项目\LLM-Wiki\knowledge\novel-wiki\wiki\concepts\小说结局十三种方式.md
+**合并时间**: 2026-07-31T13:09:54.181744

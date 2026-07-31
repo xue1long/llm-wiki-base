@@ -55,3 +55,8 @@ taxonomy_sub: 听觉描写
 ## 参考来源
 
 - [[东方玄幻六尘-1af6e8ae]]
+
+
+---
+**合并来源**: C:\Users\HP\OneDrive\240 - 项目\LLM-Wiki\knowledge\novel-wiki\wiki\concepts\you-zhi-shou-da-zhong-yin-zhi-sheng.md
+**合并时间**: 2026-07-31T13:03:00.138251

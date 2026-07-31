@@ -86,7 +86,6 @@
 - **情节加强六大技法对比综述** (synthesis) — 情节加强六大技法对比综述
 - **情节加强** (entity) — 情节加强
 - **source-补充教程小说写作大纲的模版共享-a56031f5** (entity) — 补充教程:小说写作大纲的模版共享
-- **knowledge/novel-wiki/raw/sources/08_音频教程/书名选取技巧.md-e88a03ba** (source) — 书名选取技巧（音频教程，源文档为空）
 - **1写作选材之以小见大第1段-bafab45e** (source) — 1写作选材之以小见大第1段
 - **入门教程一个新手的五个阶段-3c14d493** (source) — [入门教程]一个新手的五个阶段
 - **新手作者五个阶段** (concept) — 新手作者五个阶段
@@ -148,10 +147,6 @@
 - **异域文与穿越文架空文边界综述** (synthesis) — 异域文与穿越文、架空文边界综述
 - **民族意识形态大纲体现法** (concept) — 民族意识形态大纲体现法
 - **花生大大** (entity) — 花生大大
-- **concept-穿越小说角色塑造套路** (entity) — concept 穿越小说角色塑造套路
-- **concept-章节结构比例** (entity) — concept 章节结构比例
-- **concept-网络文学屏幕载体论** (entity) — concept 网络文学屏幕载体论
-- **entity-创酷中文网** (entity) — entity 创酷中文网
 - **古言文写作技巧-2-39df6199** (entity) — 古言文写作技巧 2 39df6199
 - **异域文穿越处理** (entity) — 异域文穿越处理
 - **异域文篇幅分配** (entity) — 异域文篇幅分配
@@ -635,7 +630,6 @@
 - **三清** (concept) — 三清
 - **入门教程创建角色示例-b4332649** (source) — 入门教程创建角色示例
 - **角色特征一致性原理-b4332649** (concept) — 角色特征一致性原理
-- **-入门教程创建角色示例-b4332649** (entity) —  入门教程创建角色示例 b4332649
 - **入门教程0小说人物辅助设定-61861b33** (source) — [入门教程]0 小说人物辅助设定
 - **ren-wu-fu-zhu-xiao-shi-ti-x** (concept) — 小说人物辅助设定框架
 - **chuang-zuo-biao-ge-hua-shi-xing-ren-wu** (entity) — Chuang Zuo Biao Ge Hua Shi Xing Ren Wu
@@ -644,12 +638,11 @@
 - **信昌出版社-e64f7c1a** (entity) — 信昌出版社
 - **出版审核标准-e64f7c1b** (concept) — 出版审核标准（写作规范）
 - **情节奖惩机制-e64f7c1c** (concept) — 情节奖惩机制（爽点设计）
-- **-进阶教程-18-创作会经常遇到的问题-e64f7c19** (entity) —  进阶教程 18 创作会经常遇到的问题 e64f7c19
+- **进阶教程-18-创作会经常遇到的问题-e64f7c19** (entity) — 进阶教程 18 创作会经常遇到的问题 e64f7c19
 - **进阶教程-18-创作会经常遇到的问题-e64f7c19** (entity) — 进阶教程 18 创作会经常遇到的问题 e64f7c19
 - **新人须知小说写作新手上路基本写作教程_2f72ea-ae3bae04** (source) — [新人须知]小说写作新手上路(基本写作教程)
 - **小说节奏写作原理-2f72ea** (concept) — 小说节奏与语感解析
 - **语感与通感应用** (concept) — 汉语语感与通感修辞
-- **-五感描写与对比法** (entity) —  五感描写与对比法
 - **新人须知小说写作新手上路基本写作教程-2f72ea-ae3bae04** (entity) — 新人须知小说写作新手上路基本写作教程 2f72ea ae3bae04
 - **进阶教程39文章的开头你想让读者记住什么-ae85893b** (source) — 进阶教程 39：文章的开头你想让读者记住什么
 - **开头记忆点设置核心法则-48fdc94d** (concept) — 小说开头记忆点设置核心法则
@@ -666,7 +659,7 @@
 - **xi-fang-mo-fa-si-xi-chuan-bo-dui-bi** (synthesis) — 西方魔法四系基本体系横向对比综述
 - **穿越修真西方魔法发展史-51eaa769** (source) — 魔法穿越体系资料再发：洞天福地完全资料篇补充
 - **jin-jie-mo-fa-sheng-guang-hei-an-chuan-bo** (concept) — 进阶魔法：圣光黑暗穿越应用指南
-- **-穿越修真阵法大全** (entity) —  穿越修真阵法大全
+- **穿越修真阵法大全** (entity) — 穿越修真阵法大全
 - **穿越修真阵法大全** (entity) — 穿越修真阵法大全
 - **西方奇幻完整的魔法分类资料和各系魔法** (entity) — 西方奇幻完整的魔法分类资料和各系魔法
 - **西方魔法体系** (entity) — 西方魔法体系
@@ -765,7 +758,6 @@
 - **西方奇幻** (entity) — 西方奇幻
 - **进阶教程-2-给你的作品换件衣服你会发现你什么题材都可以写-f777efaf** (entity) — 进阶教程 2 给你的作品换件衣服你会发现你什么题材都可以写 f777efaf
 - **入门教程起点神作的标准提纲-976cd1cb** (source) — [入门教程]起点神作的标准提纲
-- **-入门教程起点神作的标准提纲-976cd1cb** (entity) —  入门教程起点神作的标准提纲 976cd1cb
 - **web-novel-tropes** (entity) — Web Novel Tropes
 - **穿越修真** (entity) — 穿越修真
 - **东方玄幻中国上古洪荒神话九拾遗之五-f3e48d82** (source) — 东方玄幻中国上古洪荒神话九拾遗之五
@@ -775,8 +767,8 @@
 - **仙侠** (entity) — 仙侠
 - **修真** (entity) — 修真
 - **穿越修真先天之物和法宝-54e06bce** (source) — 穿越修真_先天之物和法宝 -
-- **-不周山巨漠** (entity) — 不周山巨漠
-- **-法宝** (concept) — 法宝 (概念复用)
+- **不周山巨漠** (entity) — 不周山巨漠
+- **法宝** (concept) — 法宝 (概念复用)
 - **bu-zhou-shan-artifact** (entity) — 番天印
 - **tian-shang-wu-zhong-concept** (concept) — 先天之物 (概念)
 - **synthesis-honghuang-weaponry** (synthesis) — 洪荒神话法宝体系综述
@@ -1332,7 +1324,6 @@
 - **内丹诗词传统** (concept) — 内丹诗词传统
 - **阴阳五行与坎离金丹** (concept) — 阴阳五行与坎离金丹
 - **钟离权** (entity) — 钟离权
-- **raw/sources/01_新手入门/入门教程三十六种经典情节模式情节艺术.md-9163987c** (source) — 入门教程：三十六种经典情节模式（情节艺术）
 - **三十六种经典情节模式** (concept) — 三十六种经典情节模式
 - **三十六种经典情节模式分类综述** (synthesis) — 三十六种经典情节模式分类综述
 - **三十六式之牺牲类情节对比** (synthesis) — 三十六式之牺牲类情节对比
@@ -1345,7 +1336,6 @@
 - **情节模式--丧失所爱的人** (entity) — 丧失所爱的人
 - **情节模式--牺牲** (entity) — 牺牲
 - **情节模式--骨肉仇恨** (entity) — 骨肉仇恨
-- **raw/sources/03_大纲创作/大纲模板大纲完整模板.md-65a394fa** (source) — 大纲模板_大纲完整模板
 - **大纲模板大纲完整模板-65a394fa** (entity) — 大纲模板大纲完整模板 65a394fa
 - **文笔阶段性论** (concept) — 文笔阶段性论
 - **网文首章定调论** (concept) — 网文首章定调论
@@ -2011,11 +2001,6 @@
 - **触电急救** (concept) — 触电急救
 - **家庭急救误区** (concept) — 家庭急救误区
 - **心肺复苏术** (concept) — 心肺复苏术
-- **-借鉴素材常用急救小知识-292676c2** (entity) —  借鉴素材常用急救小知识 292676c2
-- **-家庭急救误区-** (entity) —  家庭急救误区 
-- **-烧烫伤急救-** (entity) —  烧烫伤急救 
-- **-脑溢血急救-** (entity) —  脑溢血急救 
-- **-触电急救-** (entity) —  触电急救 
 - **借鉴素材古代刺客的暗杀手段-6281311b** (source) — 借鉴素材古代刺客的暗杀手段
 - **刺客暗杀手段分类** (concept) — 刺客暗杀手段分类
 - **剑刺** (concept) — 剑刺
@@ -2409,3 +2394,172 @@
 - **意识流** (entity) — 意识流
 - **推理小说** (entity) — 推理小说
 - **总裁文设定雷区** (concept) — 总裁文设定雷区
+- **信昌七条出版要求** (concept) — 信昌七条出版要求
+- **信昌最新题材要求** (concept) — 信昌最新题材出版要求
+- **叶天士** (entity) — 叶天士
+- **对话描写比例警戒线** (concept) — 对话描写比例警戒线（60%对话 / 50%引号开头）
+- **小小说** (entity) — 小小说
+- **小小说写作技巧** (concept) — 小小说写作技巧
+- **小小说写作技巧-12-讲-cbc5d287** (entity) — 小小说写作技巧 12 讲 cbc5d287
+- **小小说创作要点综述** (synthesis) — 小小说创作要点综述
+- **小小说历史起源** (concept) — 小小说历史起源
+- **庄子** (entity) — 庄子
+- **开篇快速导入** (concept) — 开篇快速导入
+- **武侠题材** (entity) — 武侠题材
+- **许行** (entity) — 许行
+- **鲁迅文学奖** (entity) — 鲁迅文学奖
+- **EX技能** (entity) — EX技能
+- **河图洛书** (concept) — 河图洛书
+- **出版知识第4述_出版上架的小说目录审核规则-5f15dee5** (concept) — 出版知识第4述_出版上架的小说目录审核规则-5f15dee5
+- **古言文写作技巧1** (concept) — 古言文写作技巧1
+- **武当一剑** (concept) — 武当一剑
+- **梁羽生** (entity) — 梁羽生
+- **拉威尔·斯潘塞** (entity) — 拉威尔·斯潘塞
+- **女频男频_架空类小说恶俗桥段盘点-8a5397b6** (concept) — 女频男频_架空类小说恶俗桥段盘点-8a5397b6
+- **鬼剑士-技能** (entity) — 鬼剑士-技能
+- **林雷·巴鲁克** (entity) — 林雷·巴鲁克
+- **du-zhe-ping-lun-can-kao-lun** (concept) — du-zhe-ping-lun-can-kao-lun
+- **xiu-gai-wu-qu** (concept) — xiu-gai-wu-qu
+- **导引吐纳** (concept) — 导引吐纳
+- **忍耐-通往成功的唯一道路** (concept) — 忍耐-通往成功的唯一道路
+- **市场共赢-作者与平台关系** (concept) — 市场共赢-作者与平台关系
+- **武林三凤** (entity) — 武林三凤
+- **飞燕惊龙** (entity) — 飞燕惊龙
+- **YY点103式** (concept) — YY点103式
+- **卧龙生** (entity) — 卧龙生
+- **诸葛青云** (concept) — 诸葛青云
+- **魔法师-技能** (entity) — 魔法师-技能
+- **补充教程描写人物品的成语-92f41764** (concept) — 补充教程描写人物品的成语-92f41764
+- **阿修罗-技能** (entity) — 阿修罗-技能
+- **剑魂-技能** (entity) — 剑魂-技能
+- **狂战士-技能** (entity) — 狂战士-技能
+- **散打-技能** (entity) — 散打-技能
+- **bao-zheng-zhi-liang-de-qing-jie** (concept) — bao-zheng-zhi-liang-de-qing-jie
+- **出卖你性格的16个小动作** (concept) — 出卖你性格的16个小动作
+- **阳仪** (concept) — 阳仪
+- **阴仪** (concept) — 阴仪
+- **瓦尔特·佩特** (entity) — 瓦尔特·佩特
+- **欧·亨利** (entity) — 欧·亨利
+- **YY点七式分类综述** (concept) — YY点七式分类综述
+- **新人须知6写作核心-x1y2z3** (concept) — 新人须知6写作核心-x1y2z3
+- **小说节奏写作原理_2f72ea** (concept) — 小说节奏写作原理_2f72ea
+- **……以后** (concept) — ……以后
+- **穆罕默德·达乌德·汗** (entity) — 穆罕默德·达乌德·汗
+- **穆罕默德·查希尔·沙阿** (entity) — 穆罕默德·查希尔·沙阿
+- **史天浩** (concept) — 史天浩
+- **赵海萍** (concept) — 赵海萍
+- **赵小蝶** (concept) — 赵小蝶
+- **秦如梦** (concept) — 秦如梦
+- **邵一狂** (concept) — 邵一狂
+- **四海神龙** (entity) — 四海神龙
+- **燕公来** (concept) — 燕公来
+- **花鸟山** (entity) — 花鸟山
+- **伏羲** (concept) — 伏羲
+- **武器技系技能** (entity) — 武器技系技能
+- **召唤系技能** (entity) — 召唤系技能
+- **启示系技能** (entity) — 启示系技能
+- **齐铁恨** (concept) — 齐铁恨
+- **女娲** (concept) — 女娲
+- **《孔乙己》** (entity) — 《孔乙己》
+- **xiaoyuan-wen** (concept) — xiaoyuan-wen
+- **zongcai-wen** (concept) — zongcai-wen
+- **血气系技能** (entity) — 血气系技能
+- **神农** (concept) — 神农
+- **wuxian-qudao-nüpin** (concept) — wuxian-qudao-nüpin
+- **nüpin-lingyi-wen** (concept) — nüpin-lingyi-wen
+- **chuangku-zhongwenwang** (concept) — chuangku-zhongwenwang
+- **肃王府** (entity) — 肃王府
+- **司马-起点作者** (concept) — 司马-起点作者
+- **波动系技能** (entity) — 波动系技能
+- **鬼神系技能** (entity) — 鬼神系技能
+- **仙侠灵感素材-耳根访谈视角** (concept) — 仙侠灵感素材-耳根访谈视角
+- **补天石** (concept) — 补天石
+- **1vs1公平对决公式** (concept) — 1vs1公平对决公式
+- **A类作者心态** (concept) — A类作者心态
+- **YY-小说强字定律** (concept) — YY-小说强字定律
+- **geng-xin-pin-lv-guan-li** (concept) — geng-xin-pin-lv-guan-li
+- **geng-xin-su-du** (concept) — geng-xin-su-du
+- **hao-gang-yong-zai-dao-ren-shang** (concept) — hao-gang-yong-zai-dao-ren-shang
+- **scene_phase** (concept) — scene_phase
+- **wan-ben-yi-yi** (concept) — wan-ben-yi-yi
+- **wang-wen-tai-jian** (concept) — wang-wen-tai-jian
+- **wen-bi-ji-chu** (concept) — wen-bi-ji-chu
+- **wen-bi-jie-duan-xing-lun** (concept) — wen-bi-jie-duan-xing-lun
+- **xi-jie-dong-zuo-miao-xie** (concept) — xi-jie-dong-zuo-miao-xie
+- **xie-zuo-ji-chu-gong** (concept) — xie-zuo-ji-chu-gong
+- **xiu-gai-ji-qiao** (concept) — xiu-gai-ji-qiao
+- **zuo-zhe-xin-tai-tiao-zheng** (concept) — zuo-zhe-xin-tai-tiao-zheng
+- **《故乡》** (entity) — 《故乡》
+- **临危不惧** (entity) — 临危不惧
+- **九华山** (entity) — 九华山
+- **乾坤袋** (entity) — 乾坤袋
+- **五w-大纲设计法** (concept) — 五w-大纲设计法
+- **亨利·斯莱萨** (entity) — 亨利·斯莱萨
+- **人物弧光构建法** (concept) — 人物弧光构建法
+- **元素师-技能** (entity) — 元素师-技能
+- **元素系技能** (entity) — 元素系技能
+- **克里斯·加德纳** (entity) — 克里斯·加德纳
+- **冲突构建方法** (concept) — 冲突构建方法
+- **凤凰琴** (entity) — 凤凰琴
+- **利欲熏心** (entity) — 利欲熏心
+- **勇往直前** (entity) — 勇往直前
+- **华山派** (entity) — 华山派
+- **单换掌** (entity) — 单换掌
+- **双换掌** (entity) — 双换掌
+- **双撞掌** (entity) — 双撞掌
+- **召唤师-技能** (entity) — 召唤师-技能
+- **后宫yy流** (concept) — 后宫yy流
+- **圣职者-技能** (entity) — 圣职者-技能
+- **圣骑士-技能** (entity) — 圣骑士-技能
+- **天龙帮** (entity) — 天龙帮
+- **威尔·史密斯** (entity) — 威尔·史密斯
+- **封天印** (entity) — 封天印
+- **射日弓** (entity) — 射日弓
+- **峨眉山** (entity) — 峨眉山
+- **开天斧** (entity) — 开天斧
+- **异兽设定** (concept) — 异兽设定
+- **得寸进尺** (entity) — 得寸进尺
+- **必备资料22期待感让你的作品能够引人入胜-1-3deff6a3** (concept) — 必备资料22期待感让你的作品能够引人入胜-1-3deff6a3
+- **忠贞不渝** (entity) — 忠贞不渝
+- **战斗法师-技能** (entity) — 战斗法师-技能
+- **战斗魔法系技能** (entity) — 战斗魔法系技能
+- **挑掌** (entity) — 挑掌
+- **摇身掌** (entity) — 摇身掌
+- **散打系技能** (entity) — 散打系技能
+- **斯丹·巴斯托** (entity) — 斯丹·巴斯托
+- **昆仑山** (entity) — 昆仑山
+- **柔道--技能** (entity) — 柔道--技能
+- **柔道-技能** (entity) — 柔道-技能
+- **格斗家-技能** (entity) — 格斗家-技能
+- **气功--技能** (entity) — 气功--技能
+- **气功-技能** (entity) — 气功-技能
+- **玲珑塔** (entity) — 玲珑塔
+- **神机妙算** (entity) — 神机妙算
+- **穿掌** (entity) — 穿掌
+- **穿越修真游戏技能设定** (entity) — 穿越修真游戏技能设定
+- **绑架救友YY点** (concept) — 绑架救友YY点
+- **网游小说魔法体系** (concept) — 网游小说魔法体系
+- **翻身掌** (entity) — 翻身掌
+- **街霸--技能** (entity) — 街霸--技能
+- **街霸-技能** (entity) — 街霸-技能
+- **西藏** (entity) — 西藏
+- **诡计多端** (entity) — 诡计多端
+- **误入歧途** (entity) — 误入歧途
+- **赤胆忠心** (entity) — 赤胆忠心
+- **走投无路** (entity) — 走投无路
+- **足智多谋** (entity) — 足智多谋
+- **跟我玩-阴死你** (concept) — 跟我玩-阴死你
+- **转身掌** (entity) — 转身掌
+- **追日靴** (entity) — 追日靴
+- **送菜流（伏笔触发后续奖励的套路）** (concept) — 送菜流（伏笔触发后续奖励的套路）
+- **阴险** (entity) — 阴险
+- **隐藏身份危机揭露YY点** (concept) — 隐藏身份危机揭露YY点
+- **雪山派** (entity) — 雪山派
+- **驱魔师--技能** (entity) — 驱魔师--技能
+- **驱魔师-技能** (entity) — 驱魔师-技能
+- **鬼泣-技能** (entity) — 鬼泣-技能
+- **魔道--技能** (entity) — 魔道--技能
+- **魔道-技能** (entity) — 魔道-技能
+- **新人须知18创作会经常遇到的问题-e64f7c19** (entity) — 新人须知18创作会经常遇到的问题-e64f7c19
+- **素材-进阶教程18创作会经常遇到的问题-e64f7c19** (entity) — 素材-进阶教程18创作会经常遇到的问题-e64f7c19
+- **题材** (concept) — 题材

@@ -53,3 +53,8 @@ taxonomy_sub: 人物塑造
 - [[行动描写]]
 - [[心理描写]]
 - [[语言描写]]
+
+
+---
+**合并来源**: C:\Users\HP\OneDrive\240 - 项目\LLM-Wiki\knowledge\novel-wiki\wiki\concepts\典型人物.md
+**合并时间**: 2026-07-31T13:06:01.790306

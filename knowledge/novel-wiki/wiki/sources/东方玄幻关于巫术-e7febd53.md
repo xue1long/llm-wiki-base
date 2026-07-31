@@ -76,3 +76,8 @@ tags:
 - [[降神仪式]]
 - [[咒语]]
 - [[巫咸国]]
+
+
+---
+**合并来源**: C:\Users\HP\OneDrive\240 - 项目\LLM-Wiki\knowledge\novel-wiki\wiki\concepts\wu-shu.md
+**合并时间**: 2026-07-31T13:02:48.408384

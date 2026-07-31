@@ -79,3 +79,13 @@ Slug：新人须知6如何抓住读者心理-5c3afad1
 - [[矛盾]]
 - [[上架作品更新秘诀]]
 - [[固定写作时段]]
+
+
+---
+**合并来源**: C:\Users\HP\OneDrive\240 - 项目\LLM-Wiki\knowledge\novel-wiki\wiki\sources\新人须知6如何抓住读者心理_562918-4a4dc1b4.md
+**合并时间**: 2026-07-31T13:00:04.836884
+
+
+---
+**合并来源**: C:\Users\HP\OneDrive\240 - 项目\LLM-Wiki\knowledge\novel-wiki\wiki\sources\新人须知6如何抓住读者心理_562918-b9383c6f.md
+**合并时间**: 2026-07-31T13:00:05.424083
