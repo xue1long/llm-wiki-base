@@ -274,20 +274,17 @@ async def phase_archive(root: Path, state: dict, args) -> dict:
                 log.info("  (dry) WOULD archive: %s", n.name)
         return stats
 
-    # Reuse the same embedding provider across all notes (shared httpx client)
-    # and process concurrently to amortise API latency.
+    # Reuse the same embedding provider across all notes (shared httpx client).
     embed_provider = init_embedding()
-    sem = asyncio.Semaphore(6)  # concurrent MiniMax embedding calls
-
-    async def _archive_one(n: Path) -> None:
-        nkey = n.resolve().as_posix()
-        digest = sha256_file(n)
-        if nkey in state["archived"] and state["archived"][nkey] == digest and not args.force:
-            stats["skip"] += 1
-            return
-        task_id = "kb-arch-" + digest[:12]
-        t0 = time.time()
-        async with sem:
+    try:
+        for n in notes:
+            nkey = n.resolve().as_posix()
+            digest = sha256_file(n)
+            if nkey in state["archived"] and state["archived"][nkey] == digest and not args.force:
+                stats["skip"] += 1
+                continue
+            task_id = "kb-arch-" + digest[:12]
+            t0 = time.time()
             try:
                 payload = await archive(task_id, str(n), paths)
                 state["archived"][nkey] = digest
@@ -299,10 +296,6 @@ async def phase_archive(root: Path, state: dict, args) -> dict:
                 stats["fail"] += 1
                 state["failed"][nkey] = str(e)[:300]
                 log.error("  ✗ archive 失败 %s: %s", n.name, e)
-
-    try:
-        tasks = [_archive_one(n) for n in notes]
-        await asyncio.gather(*tasks)
     finally:
         if hasattr(embed_provider, "close"):
             await embed_provider.close()
