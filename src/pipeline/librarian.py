@@ -93,21 +93,9 @@ async def archive(
             task_id, note_path, note_content, similar_result, paths
         )
 
-    # 3. 移动到 <root>/wiki (paths.knowledge_dir — the v2 archive target).
-    knowledge_dir = paths.knowledge_dir
-    knowledge_dir.mkdir(parents=True, exist_ok=True)
-
-    file_name = Path(note_path).name
-    knowledge_path = knowledge_dir / file_name
-
-    # 读取原始 note 并写入 knowledge (保留原有内容)
-    # Audit I6: route through safe_write (atomic + AtomicContext-aware).
-    safe_write(knowledge_path, note_content)
-
-    # 4. 写入向量 — Audit M2: if the embedding provider is missing or the
-    # embed call failed, DO NOT write zero vectors (they poison the index).
-    # Raise so the caller can surface a clear error rather than silently
-    # corrupting the vector store with all-zero embeddings.
+    # 3. 写入向量 — 直接引用原始笔记路径，不再复制到 knowledge_dir。
+    # Audit I6 / M2: if the embedding provider is missing or the embed call
+    # failed, DO NOT write zero vectors (they poison the index).
     if not embeddings:
         raise RuntimeError(
             f"[Librarian] No embeddings produced for {task_id}: "
@@ -121,7 +109,7 @@ async def archive(
             task_id=task_id,
             content=chunk,
             embedding=embeddings[i] if i < len(embeddings) else [0.0] * 1536,
-            path=str(knowledge_path),
+            path=str(note_path),
             updated_at=int(datetime.now().timestamp()),
         )
         for i, chunk in enumerate(chunks)
@@ -130,7 +118,7 @@ async def archive(
 
     payload = LibrarianDonePayload(
         task_id=task_id,
-        knowledge_path=str(knowledge_path),
+        knowledge_path=str(note_path),
         chunk_count=len(chunks),
     )
 
