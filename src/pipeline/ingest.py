@@ -233,6 +233,50 @@ def _generate(**kwargs):
     import sys
     return getattr(sys.modules["src.pipeline.pipeline"], "generate")(**kwargs)
 
+
+async def _write_rejected_source_page(
+    paths: WikiPaths,
+    source_path,
+    source_text: str,
+    result: "SanitizerResult",
+    task_id: str,
+) -> list[WikiPage]:
+    """Write a grade=C source page when source quality is too low for LLM."""
+    import time as _time
+
+    _t = _time.localtime()
+    _stem = Path(str(source_path)).stem if hasattr(source_path, "stem") else str(source_path)
+    _norm = unicodedata.normalize("NFC", _stem)
+    _hash = hashlib.md5(str(source_path).encode("utf-8")).hexdigest()[:8]
+    _slug = f"{_norm}-{_hash}"
+
+    body = (
+        f"## 来源\n\n"
+        f"- 路径: `{source_path}`\n"
+        f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S', _t)}\n"
+        f"- 任务 ID: `{task_id}`\n\n"
+        f"> ⚠️ **已跳过处理**: 源文本质量过低，未进行 LLM 分析。\n"
+        f"> 质量评分: {result.quality_score:.0%}\n"
+        f"> 原因: {'; '.join(result.warnings)}\n"
+    )
+
+    page = WikiPage(
+        id=_slug,
+        title=_stem[:120],
+        type=PageType.SOURCE,
+        sources=[str(source_path)],
+        body=body,
+        grade="C",
+    )
+
+    async with AtomicContext() as ctx:
+        write_page(paths, page, ctx)
+        append_to_index(paths, page, ctx)
+        log_event(paths, "rejected", page.id, {"reason": result.warnings}, ctx)
+
+    return [page]
+
+
 _logger = logging.getLogger(__name__)
 
 
@@ -261,6 +305,28 @@ async def run_ingest(
     # and the wiki page's ``sources:`` field references that same
     # project-relative path.
     _ = paths  # keep the parameter for callers
+
+    from .sanitizer import sanitize
+
+    _result = sanitize(source_text)
+
+    if _result.warnings:
+        _logger.warning(
+            "[run_ingest] sanitizer: %s score=%.2f source=%s",
+            _result.warnings, _result.quality_score, source_path,
+        )
+
+    _sanitized_source_text = _result.text
+
+    # Hard-reject: skip LLM entirely for degraded sources (opt-in via
+    # RUFLO_SANITIZER_SKIP_LLM=1; off by default).
+    if _result.should_skip_llm and __import__("os").environ.get("RUFLO_SANITIZER_SKIP_LLM", "0") == "1":
+        _logger.warning("[run_ingest] skipping LLM for %s", source_path)
+        return await _write_rejected_source_page(
+            paths, source_path, source_text, _result, task_id
+        )
+
+    _ = source_text  # keep the parameter — body writes reference source_text directly
 
     # B9/B11: scan the existing wiki once and reuse it for both the
     # analyzer/generator prompt (slug reuse) and Fix E's stub de-dup.
@@ -294,7 +360,7 @@ async def run_ingest(
     try:
         from .generator import unified_generate
         pages = await unified_generate(
-            source_text=source_text,
+            source_text=_sanitized_source_text,
             source_path=str(source_path),
             folder_context=folder_context or "",
             paths=paths,
@@ -315,7 +381,7 @@ async def run_ingest(
         )
         # Fallback: original two-step Analyze → Generate
         analysis = await _analyze(
-            source_text=source_text,
+            source_text=_sanitized_source_text,
             source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
             existing_wiki_index=_existing_wiki_index,
             folder_context=folder_context,
@@ -329,7 +395,7 @@ async def run_ingest(
             existing_wiki_index=_existing_wiki_index,
             provider=provider,
             source_slug_map=_source_slug_map,
-            source_text=source_text,
+            source_text=_sanitized_source_text,
         )
 
     # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.

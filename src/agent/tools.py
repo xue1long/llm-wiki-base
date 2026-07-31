@@ -72,7 +72,9 @@ class SourceSearchTool:
         query_lower = query.lower()
         for src_file in paths.raw_sources.glob("*"):
             if src_file.suffix in (".md", ".txt"):
-                content = src_file.read_text(encoding="utf-8", errors="ignore")
+                raw_bytes = src_file.read_bytes()
+                from ..pipeline.collector import _decode_text_file
+                content = _decode_text_file(raw_bytes, str(src_file))
                 if query_lower in content.lower():
                     results.append({"path": str(src_file.relative_to(paths.root))})
                     if len(results) >= top_k:

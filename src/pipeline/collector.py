@@ -36,6 +36,137 @@ logger = logging.getLogger(__name__)
 
 MAX_REDIRECT_HOPS = 5
 
+# Encodings for double-encoding detection and fallback decode.
+# GBK/Big5 cover all Chinese content (Simplified + Traditional).
+_DOUBLE_ENCODE_CANDIDATES = ("gbk", "big5")
+_FALLBACK_ENCODINGS = ("gbk", "gb2312", "big5")
+
+
+def _repair_double_encoding(text: str) -> str | None:
+    """If text looks double-encoded, try to repair it. Returns repaired text or None.
+
+    Detects CJK text where original GBK/Big5 bytes were misinterpreted as
+    Latin-1 and then encoded as UTF-8.  Tries both GBK and Big5 round-trips,
+    picks the one with the highest CJK character yield.
+
+    Three preconditions (avoid false positives on French/German/normal CJK):
+    1. High Latin-1 Supplement density (U+0080–U+00FF ≥ 35%)
+    2. Low ASCII density (< 20%) — rules out European languages
+    3. Low existing CJK density (< 2%) — already-valid CJK shouldn't be "repaired"
+    """
+    total = len(text)
+    if total < 15:
+        return None
+
+    # Precondition 1: Latin-1 Supplement density
+    latin1_supp = sum(1 for c in text if '\x80' <= c <= '\xff')
+    if latin1_supp / total < 0.35:
+        return None
+
+    # Precondition 2: ASCII density must be LOW (rules out French/German/etc.)
+    if sum(1 for c in text if ' ' <= c <= '~') / total > 0.20:
+        return None
+
+    # Precondition 3: Existing CJK density must be LOW
+    if sum(1 for c in text if '一' <= c <= '鿿') / total > 0.02:
+        return None
+
+    # Try candidate encodings — pick highest CJK yield.
+    best_score = 0.0
+    best_text = None
+
+    for enc in _DOUBLE_ENCODE_CANDIDATES:
+        try:
+            roundtripped = text.encode("latin-1").decode(enc)
+        except (UnicodeDecodeError, UnicodeEncodeError, LookupError):
+            continue
+        rt_cjk = sum(1 for c in roundtripped if '一' <= c <= '鿿')
+        if rt_cjk == 0:
+            continue
+        score = rt_cjk / max(len(roundtripped), 1)
+        if score > best_score:
+            best_score = score
+            best_text = roundtripped
+
+    if best_score > 0.12 and best_text:
+        return best_text
+    return None
+
+
+def _cjk_ideograph_density(text: str) -> float:
+    """Fraction of characters in the CJK Unified Ideographs block (U+4E00–U+9FFF)."""
+    total = len(text)
+    if total == 0:
+        return 0.0
+    return sum(1 for c in text if '一' <= c <= '鿿') / total
+
+
+def _decode_text_file(raw_bytes: bytes, source_path: str) -> str:
+    """Try UTF-8, fall back to CJK encodings, then check for double-encoding.
+
+    Returns the decoded text str (always valid Unicode).
+    Raises ValueError if all decoding attempts fail.
+    """
+    utf8_text: str | None = None
+    utf8_density: float = 0.0
+    cjk_candidates: list[tuple[str, float]] = []  # (text, cjk_density)
+
+    # 1. UTF-8
+    try:
+        text = raw_bytes.decode("utf-8")
+        repaired = _repair_double_encoding(text)
+        if repaired is not None:
+            return repaired.replace("\r\n", "\n").replace("\r", "\n")
+        utf8_text = text
+        utf8_density = _cjk_ideograph_density(text)
+    except UnicodeDecodeError:
+        pass
+
+    # 2. charset-normalizer (optional dependency)
+    try:
+        from charset_normalizer import from_bytes
+        result = from_bytes(raw_bytes).best()
+        if result:
+            cjk_candidates.append((str(result), _cjk_ideograph_density(str(result))))
+    except ImportError:
+        pass
+
+    # 3. Manual CJK encoding trial
+    for enc in _FALLBACK_ENCODINGS:
+        try:
+            alt = raw_bytes.decode(enc)
+            cjk_candidates.append((alt, _cjk_ideograph_density(alt)))
+        except (UnicodeDecodeError, LookupError):
+            continue
+
+    # --- Selection ---
+    # When UTF-8 succeeded with low CJK (< 0.1), the source is likely a
+    # Western language.  Only override with a CJK fallback when it has a
+    # very strong CJK signal (> 0.4) — rules out accidental CJK byte
+    # pairs in French/German UTF-8 text.
+    if utf8_text is not None and utf8_density < 0.1:
+        for text, d in cjk_candidates:
+            if d > 0.4:
+                return text.replace("\r\n", "\n").replace("\r", "\n")
+        return utf8_text.replace("\r\n", "\n").replace("\r", "\n")
+
+    # UTF-8 succeeded with CJK content or failed entirely.
+    # Collect all successful candidates and pick the one with the
+    # highest CJK ideograph density (handles mojibake where GBK/Big5
+    # bytes are accidentally valid UTF-8 or charset-normalizer guesses
+    # the wrong encoding).
+    all_candidates: list[tuple[str, float]] = []
+    if utf8_text is not None:
+        all_candidates.append((utf8_text, utf8_density))
+    all_candidates.extend(cjk_candidates)
+
+    if not all_candidates:
+        raise ValueError(f"Cannot decode {source_path}: not UTF-8 or common CJK encoding")
+
+    best = max(all_candidates, key=lambda x: x[1])
+    # Normalise Windows line endings (read_bytes preserves \r\n).
+    return best[0].replace("\r\n", "\n").replace("\r", "\n")
+
 
 def _check_url_allowlisted(url: str) -> None:
     """Reject URLs whose hostname resolves to a non-public address."""
@@ -157,7 +288,8 @@ async def collect(
         elif ext in [".docx", ".doc", ".xlsx", ".xls"]:
             content = extract_office_text(str(file_path))
         elif ext in [".md", ".txt"]:
-            content = file_path.read_text(encoding="utf-8")
+            raw_bytes = file_path.read_bytes()
+            content = _decode_text_file(raw_bytes, str(file_path))
         else:
             raise ValueError(f"Unsupported file type: {file_path}")
 

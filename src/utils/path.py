@@ -48,23 +48,6 @@ def safe_resolve_posix(path: str | Path) -> str:
     return safe_resolve_str(path).replace("\\", "/")
 
 
-# ---- CJK corruption detection ----
-_CORRUPTION_MARKERS = ("????", "�")  # 4+ question marks, U+FFFD replacement char
-
-
-def has_cjk_corruption(path: str) -> bool:
-    """Return True if *path* looks like it has CJK encoding corruption.
-
-    Detects the common signature: four or more consecutive ``?`` (the
-    placeholder a non-UTF-8 terminal substitutes for multi-byte CJK
-    characters) or the Unicode replacement character ``�`` (U+FFFD).
-    """
-    for marker in _CORRUPTION_MARKERS:
-        if marker in path:
-            return True
-    return False
-
-
 def normalize_source_path(source_path: str, project_root: str | Path) -> str:
     """Convert *source_path* to canonical ``raw/sources/<relpath>`` form.
 
