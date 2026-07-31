@@ -114,7 +114,8 @@ def _bundled(name: str) -> str:
          {"source_meta": "路径: foo.md\n时间: 2026-01-01",
           "summary": "一句话摘要",
           "key_points": ["要点 1", "要点 2"],
-          "extracted_concepts": ["概念 A", "概念 B"]}),
+          "extracted_concepts": ["概念 A", "概念 B"],
+          "main_content": "原始文档完整正文内容。"}),
         (PageType.ENTITY, "entity.md",
          {"basic_info": "人物：X", "summary": "简介", "related": ["→ Y"], "aliases": ["昵称 1"]}),
         (PageType.CONCEPT, "concept.md",
@@ -198,6 +199,43 @@ def test_render_drops_section_when_only_optional_and_all_empty():
     assert "## 抽取的概念" in out
     # key_points was optional + empty, so its section (heading + slot) is dropped.
     assert "## 关键观点" not in out
+
+
+def test_render_source_drops_main_content_when_empty():
+    """The ## 正文内容 section (optional main_content slot) is dropped when
+    the slot value is empty, since all slots in that section are optional."""
+    body = _bundled("source.md")
+    out = render_body(
+        template_body=body,
+        slots={
+            "source_meta": "meta", "summary": "s",
+            "key_points": ["kp"], "extracted_concepts": ["ec"],
+            "main_content": "",
+        },
+        page_type=PageType.SOURCE,
+    )
+    assert "## 正文内容" not in out
+    # Required sections still present
+    assert "## 来源元数据" in out
+    assert "## 摘要" in out
+
+
+def test_render_source_main_content_preserves_full_text():
+    """The ## 正文内容 section renders when main_content slot has content."""
+    out = render_body(
+        template_body=_bundled("source.md"),
+        slots={
+            "source_meta": "来源: test.md",
+            "summary": "一句话摘要",
+            "key_points": ["要点 1"],
+            "extracted_concepts": ["c1"],
+            "main_content": "# Title\n\nFull text content here.\n",
+        },
+        page_type=PageType.SOURCE,
+    )
+    assert "## 正文内容" in out
+    assert "Full text content here." in out
+    assert "<!-- slot:" not in out
 
 
 # ---------------------------------------------------------------------------

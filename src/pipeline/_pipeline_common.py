@@ -18,6 +18,36 @@ from typing import Any
 
 _logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Source text cleaning for deterministic injection into wiki source pages
+# ---------------------------------------------------------------------------
+
+# Characters stripped from source text before injection: zero-width space
+# (U+200B), zero-width non-joiner (U+200C), zero-width joiner (U+200D),
+# byte-order mark (U+FEFF).
+_ZERO_WIDTH_RE = re.compile(r'[​‌‍﻿]')
+
+# 3+ consecutive blank lines collapsed to 2 (matches render_body convention).
+_MULTI_BLANK_RE = re.compile(r'\n[ \t]*\n[ \t]*\n+')
+
+
+def clean_source_text(text: str) -> str:
+    """Clean raw source text for injection into wiki source page body.
+
+    Rules (deliberately minimal — preserve ALL actual content):
+    1. Strip zero-width characters (ZWSP, ZWNJ, ZWJ, BOM).
+    2. Collapse 3+ consecutive blank lines to 2.
+    3. Strip leading/trailing whitespace; append a single trailing newline.
+
+    Returns empty string when the input is empty or whitespace-only
+    (so the optional ``main_content`` slot drops gracefully).
+    """
+    if not text or not text.strip():
+        return ""
+    cleaned = _ZERO_WIDTH_RE.sub("", text)
+    cleaned = _MULTI_BLANK_RE.sub("\n\n", cleaned)
+    return cleaned.strip() + "\n"
+
 
 _FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*\}|\[.*\])\s*```", re.DOTALL)
 

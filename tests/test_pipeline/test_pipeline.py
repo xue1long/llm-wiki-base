@@ -26,7 +26,8 @@ async def test_run_ingest_full_pipeline(tmp_path):
         # key to produce pages.
         {"pages": [{"id": "test", "type": "source", "title": "Test",
                     "slots": {"source_meta": "sm", "summary": "Body content",
-                              "key_points": ["kp"], "extracted_concepts": ["c"]}}]},
+                              "key_points": ["kp"], "extracted_concepts": ["c"],
+                              "main_content": ""}}]},
     ])
 
     pages = await run_ingest(

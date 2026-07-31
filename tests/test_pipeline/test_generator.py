@@ -591,6 +591,7 @@ def _source_slots():
         "summary": "s",
         "key_points": ["kp"],
         "extracted_concepts": ["c"],
+        "main_content": "",   # system-filled, LLM leaves empty
     }
 
 

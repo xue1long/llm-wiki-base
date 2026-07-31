@@ -52,6 +52,7 @@ from ..wiki.storage.page_writer import write_page
 # at call time, after the test patch has run.
 from . import analyzer as _analyzer_module
 from . import generator as _generator_module
+from ._pipeline_common import clean_source_text
 
 # ---------------------------------------------------------------------------
 # Stub quality gate (P2 optimization — 2026-07-29).
@@ -328,6 +329,7 @@ async def run_ingest(
             existing_wiki_index=_existing_wiki_index,
             provider=provider,
             source_slug_map=_source_slug_map,
+            source_text=source_text,
         )
 
     # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.
@@ -462,6 +464,7 @@ async def run_ingest(
                 "summary": _summary_text.strip() or "(无摘要)",
                 "key_points": key_points_value,
                 "extracted_concepts": extracted_concepts_value,
+                "main_content": clean_source_text(source_text),
             },
             page_type=PageType.SOURCE,
             template_version=source_tpl.version or "",
@@ -486,7 +489,9 @@ async def run_ingest(
             f"{_summary_fb}\n\n"
             f"## 抽取的概念\n\n"
             f"本次摄取共生成 **{len(pages)}** 个下游页面"
-            f"{('（共 '+ str(len(analysis.suggested_pages)) + ' 个建议页）') if _has_analysis and analysis.suggested_pages else ''}。\n"
+            f"{('（共 '+ str(len(analysis.suggested_pages)) + ' 个建议页）') if _has_analysis and analysis.suggested_pages else ''}。\n\n"
+            f"## 正文内容\n\n"
+            f"{clean_source_text(source_text)}\n"
         )
 
     # Count non-source downstream pages to detect empty extractions.

@@ -239,6 +239,7 @@ _SLOT_TO_HEADING = {
     # source.md
     "source_meta": "来源元数据",
     "summary": "摘要",
+    "main_content": "正文内容",
     "key_points": "关键观点",
     "extracted_concepts": "抽取的概念",
     # entity.md

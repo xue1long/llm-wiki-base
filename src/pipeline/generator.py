@@ -35,7 +35,7 @@ from ..wiki.templates import (
     render_body,
     required_slot_names,
 )
-from ._pipeline_common import parse_llm_json
+from ._pipeline_common import clean_source_text, parse_llm_json
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
 
@@ -129,6 +129,9 @@ Strict rules — schema is enforced. Empty slots = retry = wasted tokens.
   when you have nothing to put; either omit the property entirely or
   return `[]`.
 - Each slot value must be ≥ 1 character after trim. Lists: ≥ 1 substantive item.
+- **System-filled slot**: `main_content` on SOURCE pages is filled by the
+  pipeline with the raw source text. Do NOT fill it — omit it or leave it
+  empty. The retry loop skips optional slots, so there is no penalty.
 
 Slot minimums and fallbacks (DO NOT leave these required slots empty):
   `references`           → At LEAST `- [[<source-page-slug>]]`
@@ -295,6 +298,11 @@ Slugs may be CJK or ASCII kebab-case — keep the concept's natural form, no for
 - Never use placeholder text ("...", "（空）", "TBD", "placeholder", "（系统占位...）").
 - Optional slots (`<!-- slot:NAME? -->`): omit when empty.
 - Each slot: ≥ 1 char after trim. Lists: ≥ 1 substantive item.
+- **System-filled slots**: The `main_content` slot on SOURCE-type pages is
+  pre-filled by the system with the raw source text. Do NOT fill it — omit
+  `main_content` from your slots for source pages, or leave it empty.
+  The system always overwrites it anyway. The retry loop ignores optional slots,
+  so empty `main_content` does not trigger a retry.
 
 **Slot-specific minimums (enforced — do NOT leave these empty)**:
 SLOT                  | PAGE TYPE   | MINIMUM ACCEPTABLE CONTENT
@@ -588,6 +596,7 @@ async def generate(
     provider,
     model: str = "gpt-4o-mini",
     source_slug_map: Optional["dict[str, str]"] = None,
+    source_text: str = "",
 ) -> list[WikiPage]:
     """Step 2: LLM call → list of WikiPage objects.
 
@@ -710,8 +719,8 @@ async def generate(
     # extractable slots without relying on LLM.
     raw_pages = _auto_fill_deterministic_slots(
         raw_pages,
-        source_path="",
-        source_text="",
+        source_path=str(analysis.source_path),
+        source_text=source_text,
         source_slug_map=source_slug_map,
     )
 
@@ -1143,6 +1152,11 @@ def _auto_fill_deterministic_slots(
                 candidates = heading_lines[:5] or numbered_items[:5]
                 if candidates:
                     slots["key_points"] = "\n".join(f"- {c}" for c in candidates)
+            # main_content: always overwrite with full source text.
+            # This slot is system-filled — the LLM may have incorrectly
+            # filled it with a summary; the summary slot handles that.
+            if source_text:
+                slots["main_content"] = clean_source_text(source_text)
 
     return pages
 
