@@ -295,15 +295,15 @@ async def _write_rejected_source_page(
         id=_slug,
         title=_stem[:120],
         type=PageType.SOURCE,
-        sources=[str(source_path)],
+        sources=[normalize_source_path(str(source_path), paths.root)],
         body=body,
         grade="C",
     )
 
-    async with AtomicContext() as ctx:
-        write_page(paths, page, ctx)
-        append_to_index(paths, page, ctx)
-        log_event(paths, "rejected", page.id, {"reason": result.warnings}, ctx)
+    with AtomicContext() as ctx:
+        write_page(paths, page)
+        append_to_index(paths, [(page.id, page.type, page.title)])
+        log_event(paths, "rejected", page.id, ", ".join(result.warnings))
 
     return [page]
 
