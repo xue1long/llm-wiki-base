@@ -710,3 +710,130 @@
 - **ingest**: `kb-20260730230052-3c6e6d3e` — generated 9 pages from 大神访谈1.md
 ## 2026-07-30T23:09:12.513194
 - **ingest**: `kb-20260730230053-d0aba8e9` — generated 4 pages from 书名选取技巧.md
+
+## 2026-07-30T23:24:01
+- **cleanup**: deleted 29 duplicate entity stubs (matching concept/source/synthesis pages already exist)
+## 2026-07-30T23:31:10.544708
+- **ingest**: `kb-20260730233019-55a1db32` — generated 6 pages from 借鉴素材常用急救小知识.md
+## 2026-07-31T08:09:47.639817
+- **ingest**: `kb-20260731080754-59fd2775` — generated 12 pages from 入门教程如何写一个好的开头.md
+## 2026-07-31T08:15:25.847033
+- **ingest**: `kb-20260731081438-a30dc40d` — generated 10 pages from 借鉴素材书籍如何商业化_8111d1.md
+## 2026-07-31T08:15:53.939423
+- **ingest**: `kb-20260731081439-59f8b664` — generated 7 pages from 借鉴素材人物描写必读.md
+## 2026-07-31T08:16:07.517796
+- **ingest**: `kb-20260731081440-f8e09ec6` — generated 6 pages from 借鉴素材写作套路征文类别与主线设定.md
+## 2026-07-31T08:16:08.005188
+- **ingest**: `kb-20260731081440-3a66b4b8` — generated 2 pages from 借鉴素材写作大纲经典都市写作大纲二十二条主线.md
+## 2026-07-31T08:16:59.564472
+- **ingest**: `kb-20260731081440-b54c4536` — generated 10 pages from 借鉴素材古代刺客的暗杀手段.md
+## 2026-07-31T08:17:43.527520
+- **ingest**: `kb-20260731081440-43412957` — generated 5 pages from 借鉴素材大纲的重要性新文开篇.md
+## 2026-07-31T08:17:44.137514
+- **ingest**: `kb-20260731081438-f7f1a39c` — generated 16 pages from 借鉴素材书籍如何商业化.md
+## 2026-07-31T08:18:01.490352
+- **ingest**: `kb-20260731081440-34e9a1a7` — generated 9 pages from 借鉴素材小白系列之对对子诗词精选片段第二期.md
+## 2026-07-31T08:18:20.213388
+- **ingest**: `kb-20260731081437-06c4aaa0` — generated 8 pages from 帮助新手网文创作3.md
+## 2026-07-31T08:18:27.824516
+- **ingest**: `kb-20260731081441-cfea3074` — generated 8 pages from 借鉴素材小说主题分类的内容详细_89e8d6.md
+## 2026-07-31T08:18:29.956875
+- **ingest**: `kb-20260731081441-599c2340` — generated 9 pages from 借鉴素材小说写作.md
+## 2026-07-31T08:19:17.100351
+- **ingest**: `kb-20260731081440-f3c55178` — generated 10 pages from 借鉴素材套路.md
+## 2026-07-31T08:19:40.768606
+- **ingest**: `kb-20260731081441-bab29b3a` — generated 5 pages from 借鉴素材小说速成大纲.md
+## 2026-07-31T08:19:51.537421
+- **ingest**: `kb-20260731081437-51245234` — generated 18 pages from 借鉴素材20个签约条件新人必看.md
+## 2026-07-31T08:20:07.367536
+- **ingest**: `kb-20260731081441-a45f44f0` — generated 6 pages from 借鉴素材常用急救小知识.md
+## 2026-07-31T08:20:09.402685
+- **ingest**: `kb-20260731081441-1b5d3c91` — generated 8 pages from 借鉴素材小说大纲模版.md
+## 2026-07-31T08:20:56.682780
+- **ingest**: `kb-20260731081441-6f97509e` — generated 8 pages from 借鉴素材必备华夏天空作家福利.md
+## 2026-07-31T08:21:05.902862
+- **ingest**: `kb-20260731081441-194827c2` — generated 6 pages from 借鉴素材打斗七公式重要.md
+## 2026-07-31T08:21:19.621639
+- **ingest**: `kb-20260731081441-70b5af20` — generated 10 pages from 借鉴素材浅子小四素樱贱圣对对子精选片段.md
+## 2026-07-31T08:21:57.461828
+- **ingest**: `kb-20260731081441-c31fef29` — generated 7 pages from 借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6.md
+## 2026-07-31T08:22:04.902403
+- **ingest**: `kb-20260731081440-fd88ae01` — generated 13 pages from 借鉴素材小说主题分类的内容详细.md
+## 2026-07-31T08:22:23.526035
+- **ingest**: `kb-20260731081441-2bf168db` — generated 8 pages from 借鉴素材玄幻与仙侠.md
+## 2026-07-31T08:22:28.399046
+- **ingest**: `kb-20260731081441-500fc314` — generated 5 pages from 借鉴素材玄幻小说创作入门指南.md
+## 2026-07-31T08:22:42.936692
+- **ingest**: `kb-20260731081441-feb99776` — generated 7 pages from 借鉴素材玄幻小说大纲表格.md
+## 2026-07-31T08:22:59.169767
+- **ingest**: `kb-20260731081441-ae6c682d` — generated 9 pages from 借鉴素材执梦文学社.md
+## 2026-07-31T08:23:37.754368
+- **ingest**: `kb-20260731081441-94b7fc2e` — generated 17 pages from 借鉴素材网文中的九线.md
+## 2026-07-31T08:23:59.401105
+- **ingest**: `kb-20260731081441-aaf481f1` — generated 11 pages from 借鉴素材玄幻与仙侠的区别.md
+## 2026-07-31T08:24:09.211527
+- **ingest**: `kb-20260731081441-bd93978b` — generated 15 pages from 借鉴素材编辑眼中的好文1.md
+## 2026-07-31T08:24:09.724803
+- **ingest**: `kb-20260731081441-7317e287` — generated 8 pages from 借鉴素材玄幻标签创作基金评定标准详解.md
+## 2026-07-31T08:24:12.683202
+- **ingest**: `kb-20260731081441-b17871ac` — generated 13 pages from 借鉴素材详解新作者常见困难和瓶颈.md
+## 2026-07-31T08:24:17.599793
+- **ingest**: `kb-20260731081441-8f2b73f0` — generated 7 pages from 借鉴素材网文中的九线_2b7fc4.md
+## 2026-07-31T08:24:18.252655
+- **ingest**: `kb-20260731081441-9a7db6af` — generated 6 pages from 借鉴素材金手指把很多不合理的事情变成合理.md
+## 2026-07-31T08:24:45.251398
+- **ingest**: `kb-20260731081442-088bc905` — generated 6 pages from 入门教程11情节.md
+## 2026-07-31T08:24:48.455840
+- **ingest**: `kb-20260731081441-d47f4af6` — generated 5 pages from 入门教程0小说取名.md
+## 2026-07-31T08:25:01.637559
+- **ingest**: `kb-20260731081441-61ebe3bd` — generated 8 pages from 入门教程0小说开头自查辅助工具.md
+## 2026-07-31T08:25:04.068547
+- **ingest**: `kb-20260731081442-2ec71691` — generated 9 pages from 入门教程0网络写手新人经常犯的错误.md
+## 2026-07-31T08:25:07.479482
+- **ingest**: `kb-20260731081441-9fba1fbb` — generated 6 pages from 入门教程0小说人物辅助设定.md
+## 2026-07-31T08:25:15.320166
+- **ingest**: `kb-20260731081442-ac4fec84` — generated 7 pages from 入门教程0暗黑类装备前缀.md
+## 2026-07-31T08:25:23.293142
+- **ingest**: `kb-20260731081442-3a21a983` — generated 5 pages from 入门教程12爽点.md
+## 2026-07-31T08:25:41.476334
+- **ingest**: `kb-20260731081442-2daafff3` — generated 3 pages from 入门教程1书名.md
+## 2026-07-31T08:25:51.664790
+- **ingest**: `kb-20260731081442-54aae77f` — generated 8 pages from 入门教程2简介.md
+## 2026-07-31T08:26:00.052748
+- **ingest**: `kb-20260731081442-1593dcfe` — generated 4 pages from 入门教程15书评.md
+## 2026-07-31T08:26:03.439201
+- **ingest**: `kb-20260731081442-270bfafa` — generated 7 pages from 入门教程17上架.md
+## 2026-07-31T08:26:09.232502
+- **ingest**: `kb-20260731081442-aa28297d` — generated 6 pages from 入门教程4人称.md
+## 2026-07-31T08:26:13.551670
+- **ingest**: `kb-20260731081442-31f2f9d5` — generated 7 pages from 入门教程3开篇.md
+## 2026-07-31T08:26:29.861450
+- **ingest**: `kb-20260731081442-1ffe1ed9` — generated 6 pages from 入门教程5角色.md
+## 2026-07-31T08:26:34.341659
+- **ingest**: `kb-20260731081442-cb4667f3` — generated 7 pages from 入门教程7人物.md
+## 2026-07-31T08:27:08.829104
+- **ingest**: `kb-20260731081442-18fabe7e` — generated 7 pages from 入门教程75新人作者快速成神攻略.md
+## 2026-07-31T08:28:34.051854
+- **ingest**: `kb-20260731081442-f0912dce` — generated 6 pages from 入门教程6对白.md
+## 2026-07-31T08:28:40.062242
+- **ingest**: `kb-20260731081442-59319cf3` — generated 10 pages from 入门教程8文笔.md
+## 2026-07-31T09:01:59.606929
+- **ingest**: `kb-20260731090120-498a2426` — generated 5 pages from 入门教程0小说人物辅助设定.md
+## 2026-07-31T09:02:00.920396
+- **ingest**: `kb-20260731090112-82eabe1d` — generated 5 pages from 入门教程0暗黑类装备前缀.md
+## 2026-07-31T09:02:05.355917
+- **ingest**: `kb-20260731090119-11296426` — generated 5 pages from 借鉴素材打斗七公式重要.md
+## 2026-07-31T09:05:09.653466
+- **ingest**: `kb-20260731090116-8a154fa4` — generated 9 pages from 入门教程2简介.md
+## 2026-07-31T09:05:19.289000
+- **ingest**: `kb-20260731090433-1ec54b17` — generated 4 pages from 入门教程12爽点.md
+## 2026-07-31T09:05:48.965545
+- **ingest**: `kb-20260731090512-a7b57fc4` — generated 8 pages from 入门教程9语境.md
+## 2026-07-31T09:06:30.339340
+- **ingest**: `kb-20260731090117-3dac9117` — generated 19 pages from 借鉴素材古代刺客的暗杀手段.md
+## 2026-07-31T09:07:55.872003
+- **ingest**: `kb-20260731090621-d25350c0` — generated 19 pages from 方法论小说结构.md
+## 2026-07-31T09:21:57.472113
+- **ingest**: `kb-20260731091911-af03559c` — generated 15 pages from 方法论小说结构.md
+## 2026-07-31T11:15:31.094257
+- **ingest**: `kb-20260731110736-4f4e48a3` — generated 7 pages from 借鉴素材套路.md

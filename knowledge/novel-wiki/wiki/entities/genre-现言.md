@@ -7,10 +7,18 @@ sources:
 created_at: 1785381453107
 updated_at: 1785381453107
 relations:
+- target: 现言宠文类
+  type: contains
+  weight: 0.9
+  context: 现言宠文类属于现言题材大类的子类
 - target: 十章情感线大纲结构
   type: referenced_by
   weight: 0.8
   context: 该结构专为现言类（爱情题材）小说设计
+- target: 借鉴素材套路-81291264
+  type: referenced_by
+  weight: 0.8
+  context: 现言宠文类属于现代言情题材大类
 grade: C
 processing_depth: stub
 is_immutable: false
@@ -18,6 +26,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags: []
+category: ''
+taxonomy_sub: ''
 ---
 
 ## 占位条目

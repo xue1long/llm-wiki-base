@@ -1,41 +1,31 @@
 ---
 id: 借鉴素材人物描写必读-e5eca6fd
-title: '[借鉴素材]人物描写（必读）'
+title: 借鉴素材人物描写必读
 type: source
 sources:
 - raw\sources\01_新手入门\借鉴素材人物描写必读.md
-created_at: 1785386464689
-updated_at: 1785386464689
+created_at: 1785456953911
+updated_at: 1785456953911
 relations:
-- target: 外貌描写
-  type: derives
-  weight: 1.0
-  context: 素材的核心内容即为外貌描写词汇汇编
-- target: 人物描写
-  type: derives
-  weight: 1.0
-  context: 素材主题为人物描写的外貌分支
-- target: 文字功底
-  type: derives
+- target: 人物外貌描写
+  type: contains
   weight: 0.9
-  context: 素材文末直接论述文字功底的提升方法
-- target: feishu-yunwendang
-  type: references
-  weight: 0.8
-  context: 文档原始托管平台为飞书云文档
-- target: beijing-shengdongfang-guoxin-keji-youxiangongsi
-  type: references
+  context: 本文档系统性整理了人物外貌描写的各类词汇资源
+- target: 北京圣东方国信科技有限公司
+  type: published_by
   weight: 0.7
-  context: 文档所属公司为北京圣东方国信科技有限公司
+  context: 文档来源组织
 grade: A
-processing_depth: source
+processing_depth: concept
 is_immutable: false
 heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- entity/参考资料
+- func/素材
+- genre/通用
+category: 写作素材
+taxonomy_sub: 词汇积累
 ---
 
 <!-- wiki-template-version: 2.0.0 -->
@@ -43,28 +33,25 @@ tags:
 
 ## 来源元数据
 
-原始路径：raw\sources\01_新手入门\借鉴素材人物描写必读.md
-来源URL：https://www.feishu.cn/docx/YNN5d4SWWoTOMmxlF3ZcEjOxnIc
-下载时间：2026-04-14 12:58:24
-发布平台：飞书云文档
-所属公司：北京圣东方国信科技有限公司
-最新修改时间：04月13日
-编辑后记署名：墨止谚
+来源: https://www.feishu.cn/docx/YNN5d4SWWoTOMmxlF3ZcEjOxnIc; 平台: 飞书云文档; 下载时间: 2026-04-14 12:58:24; 发布组织: 北京圣东方国信科技有限公司
 
 ## 摘要
 
-一份面向网络小说作者的人物外貌描写词汇参考素材，按头发、眼睛、鼻子、嘴牙、面容五大类整理了大量四字成语与白话短语，便于作者快速调用。文末附署名'墨止谚'的编辑后记，建议作者下载到手机每日朗读几十分钟、坚持一个月以提升文字功底，并提倡在写小说的同时阅读小说、留意生活细节。
+本素材收集了网络小说创作中常用的人物外貌描写词汇，按头发、眼睛、鼻子、嘴牙、面容五大类别进行系统整理，帮助写作者扩充描写词汇量，提升人物形象的文字表现力。
 
 ## 关键观点
 
-- 按部位系统分类：头发、眼睛、鼻子、嘴牙、面容五大类
-- 词汇风格多元：褒义（明眸皓齿）、贬义（尖嘴猴腮、蓬头垢面）、中性描写兼顾
-- 成语与白话短语并存，便于塑造不同类型的角色形象
-- 编辑建议：每日朗读素材、坚持一个月可显著提升文字功底
-- 提倡'写小说的同时看小说'、观察生活点滴的积累方法
+- 头发描写涵盖白发苍苍、满头银发、两鬓染霜、头发乌润、蓬松的短发、披肩长发、齐眉的刘海、蓬头垢面等四十余个词汇
+- 眼睛描写涵盖丹凤眼、三角眼、斗鸡眼、细眯眼、眉青目秀、明眸皓齿、火眼金睛、炯炯有神、会说话的眼睛等六十余个词汇
+- 鼻子描写涵盖高鼻梁、蒜头鼻、鹰钩鼻、酒糟鼻、朝天鼻、塌鼻梁、挺鼻如峰、鼻梁挺直等四十余个词汇
+- 嘴牙描写涵盖樱桃小嘴、血盆大口、尖嘴猴腮、厚嘴唇、唇如胭脂、齿白唇红、满口银牙等四十余个词汇
+- 面容描写涵盖苹果脸、瓜子脸、鹅蛋脸、娃娃脸、满脸憔悴、面黄肌瘦、满脸雀斑等四十余个词汇
 
 ## 抽取的概念
 
-- [[外貌描写]]
-- [[人物描写]]
-- [[文字功底]]
+- [[人物外貌描写]]
+- [[头发描写]]
+- [[眼睛描写]]
+- [[鼻子描写]]
+- [[嘴牙描写]]
+- [[面容描写]]

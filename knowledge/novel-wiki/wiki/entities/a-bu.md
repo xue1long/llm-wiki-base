@@ -11,10 +11,6 @@ relations:
   type: referenced_by
   weight: 1.0
   context: 阿布主讲的第三讲转录即本档
-- target: 帮助新手网文创作3-ee985b9a
-  type: referenced_by
-  weight: 1.0
-  context: 本档由阿布主讲, 内容是其网文文笔与开篇论述体系的完整呈现
 - target: 文笔阶段性论
   type: references
   weight: 0.9
@@ -31,6 +27,10 @@ relations:
   type: referenced_by
   weight: 0.9
   context: 阿布是本综述涉及的所有概念的源头讲者
+- target: 帮助新手网文创作3-ee985b9a
+  type: referenced_by
+  weight: 0.9
+  context: 教程由阿布讲解，分享网文写作技巧
 grade: A
 processing_depth: concept
 is_immutable: false
