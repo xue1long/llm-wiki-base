@@ -70,7 +70,10 @@ def create_app() -> FastAPI:
         # ``None`` and silently fell back to zero-vector / keyword-only.
         try:
             from ..llm.registry import ProviderRegistry
-            from ..llm.provider_factory import create_embedding_provider
+            from ..llm.provider_factory import (
+                create_embedding_provider,
+                resolve_embedding_provider_type,
+            )
             from ..llm.embedding_runtime import set_embedding_provider
             from ..vector.store import init_vector_store_for_paths
             from ..wiki.storage.ensure import ensure_knowledge_base
@@ -93,7 +96,7 @@ def create_app() -> FastAPI:
             try:
                 default = ProviderRegistry.get_default()
                 provider = create_embedding_provider(
-                    provider=default.type,
+                    provider=resolve_embedding_provider_type(default.name, default.type),
                     api_key=default.api_key or None,
                     endpoint=default.base_url or None,
                     model=default.default_embedding_model or None,
