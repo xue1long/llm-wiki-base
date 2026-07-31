@@ -63,8 +63,25 @@ def _normalize_absolute_path(
         try:
             rel = os.path.relpath(raw_abs, root_abs)
         except ValueError:
-            return raw_posix
+            # Different drives on Windows — relpath cannot compute.
+            # Still try the raw/sources fallback (below) before giving up.
+            rel = raw_posix
+            # Ensure we enter the fallback below.
+            if not rel.startswith(".."):
+                rel = ".." + rel
         if rel.startswith(".."):
+            # The path resolved outside the project root. The user may have
+            # omitted the "raw/sources/" prefix — ingest paths always resolve
+            # relative to that directory per the Collector permission boundary
+            # defined in src/permissions.py. Try to find the file under the
+            # project's raw/sources/ directory as a fallback.
+            sources_root = os.path.join(root_abs, "raw", "sources")
+            candidate = os.path.abspath(os.path.join(sources_root, raw_posix))
+            if os.path.exists(candidate):
+                candidate_rel = os.path.relpath(candidate, root_abs)
+                if not candidate_rel.startswith(".."):
+                    # The candidate is within the project tree — prefix is correct.
+                    return candidate_rel.replace("\\", "/")
             return raw_posix
         return rel.replace("\\", "/")
 

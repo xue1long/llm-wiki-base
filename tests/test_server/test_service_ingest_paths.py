@@ -154,3 +154,75 @@ def test_absolute_path_via_symlink_anchors(tmp_path, monkeypatch):
         f"absolute path through real dir should still anchor via symlink "
         f"resolution; got source={last.source!r}"
     )
+
+
+# --- auto-prefix raw/sources/ (Bug 1 fix) ---
+
+def test_relative_path_without_prefix_auto_resolves_when_file_exists(project):
+    """A relative path like '01_newbie/xxx.md' (omitting raw/sources/)
+    should auto-resolve to 'raw/sources/01_newbie/xxx.md' when the file
+    exists under that directory."""
+    target = project / "raw" / "sources" / "01_newbie" / "xxx.md"
+    target.parent.mkdir(parents=True)
+    target.write_text("content", encoding="utf-8")
+    result = ingest_service.enqueue_source(
+        project_id="u",
+        source="01_newbie/xxx.md",
+    )
+    assert result["status"] == "queued"
+    last = _last_task()
+    assert last.source == "raw/sources/01_newbie/xxx.md"
+
+
+def test_relative_path_without_prefix_passes_through_when_file_not_exists(project):
+    """When the file doesn't exist under raw/sources/, the path is returned
+    as-is so the Collector can produce a clear PermissionDenied error."""
+    result = ingest_service.enqueue_source(
+        project_id="u",
+        source="nonexistent.md",
+    )
+    assert result["status"] == "queued"
+    last = _last_task()
+    assert last.source == "nonexistent.md"
+
+
+def test_correctly_prefixed_path_still_works(project):
+    """Non-regression: a path with 'raw/sources/' prefix already present
+    must still be accepted and passed through unchanged."""
+    target = project / "raw" / "sources" / "exists.md"
+    target.parent.mkdir(parents=True)
+    target.write_text("content", encoding="utf-8")
+    result = ingest_service.enqueue_source(
+        project_id="u",
+        source="raw/sources/exists.md",
+    )
+    assert result["status"] == "queued"
+    last = _last_task()
+    assert last.source == "raw/sources/exists.md"
+
+
+def test_path_traversal_under_raw_sources_is_rejected(project):
+    """'../../outside.md' should not fabricate a raw/sources/ prefix;
+    it must be returned unchanged so the Collector rejects it."""
+    result = ingest_service.enqueue_source(
+        project_id="u",
+        source="../../outside.md",
+    )
+    assert result["status"] == "queued"
+    last = _last_task()
+    # Should NOT be auto-prefixed — the file is outside raw/sources/
+    assert last.source == "../../outside.md"
+
+
+def test_nested_subdirectory_is_auto_prefixed(project):
+    """A deeply nested relative path under raw/sources/ is auto-prefixed."""
+    target = project / "raw" / "sources" / "chapter1" / "section2" / "doc.md"
+    target.parent.mkdir(parents=True)
+    target.write_text("content", encoding="utf-8")
+    result = ingest_service.enqueue_source(
+        project_id="u",
+        source="chapter1/section2/doc.md",
+    )
+    assert result["status"] == "queued"
+    last = _last_task()
+    assert last.source == "raw/sources/chapter1/section2/doc.md"

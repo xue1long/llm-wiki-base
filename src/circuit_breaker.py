@@ -66,7 +66,7 @@ class CircuitBreaker:
 
         if self.state == CircuitState.HALF_OPEN:
             self._transition_to(CircuitState.OPEN)
-        elif self.failure_count >= self.config.failure_threshold:
+        elif self.state != CircuitState.OPEN and self.failure_count >= self.config.failure_threshold:
             self._transition_to(CircuitState.OPEN)
 
     def can_execute(self) -> bool:

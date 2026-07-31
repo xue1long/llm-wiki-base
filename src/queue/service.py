@@ -25,7 +25,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from ..circuit_breaker import get_circuit_breaker
+from ..circuit_breaker import CircuitState, get_circuit_breaker
 from ..events.event_bus import event_bus
 from ..types import KnowledgeTask, SourceType, TaskStatus
 from ..utils.idempotency import remove_hash
@@ -69,6 +69,7 @@ class QueueService:
         self._breaker_name = circuit_breaker_name
         self._service_lock = threading.Lock()
         self._paused = Path(PAUSE_FILE).exists()
+        self._recovery_timer: threading.Timer | None = None
 
     def _breaker(self):
         """Resolve the breaker each call — never cache the instance, since
@@ -212,10 +213,6 @@ class QueueService:
             if decision.should_record_breaker_failure:
                 breaker.record_failure()
 
-            if decision.should_pause_queue:
-                self._paused = True
-                logger.warning("[Queue] Queue paused due to repeated failures")
-
             if decision.new_status == TaskStatus.DEAD_LETTER:
                 dead_letter_payload = TaskDeadLetterPayload(
                     task_id=task_id,
@@ -270,10 +267,20 @@ class QueueService:
             if self._paused:
                 return False
             if not self._breaker().can_execute():
+                # When the breaker is OPEN, schedule a one-shot recovery
+                # attempt. This prevents the deadlock where advance() is
+                # never called again after all in-flight tasks settle and
+                # no external event triggers another dispatch.
+                breaker = self._breaker()
+                if breaker.state == CircuitState.OPEN:
+                    self._schedule_recovery_advance()
                 logger.warning(
-                    f"[Queue] Circuit breaker is {self._breaker().state.value}, skipping"
+                    f"[Queue] Circuit breaker is {breaker.state.value}, skipping"
                 )
                 return False
+
+            # Cancel any pending recovery timer since we can dispatch now.
+            self._cancel_recovery_timer()
 
             task = select_next_task(
                 self.backend, self.tracker, prefer_task_id=prefer_task_id,
@@ -382,6 +389,35 @@ class QueueService:
                 "failed_count": len([t for t in tasks if t.status == TaskStatus.FAILED]),
             }
 
+    # --- recovery timer ---
+
+    def _schedule_recovery_advance(self) -> None:
+        """Schedule a one-shot advance() call after the breaker's recovery timeout.
+
+        Called when advance() finds the breaker OPEN. Guards against the
+        deadlock where no external event calls advance() after the breaker
+        opens and all in-flight tasks have completed or dead-lettered.
+        """
+        self._cancel_recovery_timer()
+        delay = self._breaker().config.recovery_timeout + 5
+        self._recovery_timer = threading.Timer(delay, self._recovery_advance_fired)
+        self._recovery_timer.daemon = True
+        self._recovery_timer.start()
+        logger.info(
+            "[Queue] Scheduled recovery advance in %ds (breaker is OPEN)", delay
+        )
+
+    def _cancel_recovery_timer(self) -> None:
+        """Cancel any pending recovery timer."""
+        if self._recovery_timer is not None:
+            self._recovery_timer.cancel()
+            self._recovery_timer = None
+
+    def _recovery_advance_fired(self) -> None:
+        """Callback when the recovery timer fires — attempts to dispatch a task."""
+        logger.info("[Queue] Recovery timer fired, attempting advance")
+        self.advance()
+
 
 # --- module-level default service singleton ---
 
@@ -418,6 +454,8 @@ def __reset_for_testing() -> None:
     the disk to be clean.)
     """
     global _default_service
+    if _default_service is not None:
+        _default_service._cancel_recovery_timer()
     with _default_lock:
         _default_service = None
     # Clear the persisted queue file so the new singleton starts empty.

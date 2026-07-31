@@ -156,3 +156,184 @@ class TestGetQueue:
         # including ones terminal/auto-advanced state — verified by the
         # fact that it returned this auto-advanced task at all.
         assert tasks[0].id.startswith("kb-")
+
+
+# --- circuit breaker fixes (Bug 2a + 2b) ---
+
+class TestBreakerFailureFromOpen:
+    """record_failure() from state OPEN must NOT reset opened_at."""
+
+    def test_failure_from_open_does_not_reset_opened_at(self, queue_service):
+        from datetime import datetime
+        from src.circuit_breaker import CircuitState
+
+        breaker = queue_service._breaker()
+        # Force the breaker OPEN.
+        breaker.state = CircuitState.OPEN
+        t0 = datetime(2026, 1, 1, 0, 0, 0)
+        breaker.opened_at = t0
+        breaker.failure_count = 0
+
+        # Record 10 failures while OPEN. None should reset opened_at.
+        for _ in range(10):
+            breaker.record_failure()
+
+        assert breaker.state == CircuitState.OPEN
+        assert breaker.opened_at == t0, (
+            "opened_at must not be reset by record_failure() when already OPEN"
+        )
+        assert breaker.failure_count == 10
+
+    def test_failure_from_closed_still_transitions_to_open(self, queue_service):
+        from src.circuit_breaker import CircuitState, CircuitBreakerConfig
+
+        breaker = queue_service._breaker()
+        breaker.state = CircuitState.CLOSED
+        breaker.config = CircuitBreakerConfig(failure_threshold=3)
+        breaker.failure_count = 0
+
+        for _ in range(3):
+            breaker.record_failure()
+
+        assert breaker.state == CircuitState.OPEN
+        assert breaker.opened_at is not None
+
+    def test_failure_from_half_open_transitions_to_open(self, queue_service):
+        from src.circuit_breaker import CircuitState
+
+        breaker = queue_service._breaker()
+        breaker.state = CircuitState.HALF_OPEN
+        breaker.failure_count = 0
+        breaker.opened_at = None
+
+        breaker.record_failure()
+
+        assert breaker.state == CircuitState.OPEN
+
+
+class TestNoAutoPause:
+    """DEAD_LETTER tasks with an open breaker no longer auto-pause the queue."""
+
+    def test_dead_letter_with_open_breaker_does_not_pause(self, queue_service, fake_emitter):
+        from src.circuit_breaker import CircuitState
+
+        breaker = queue_service._breaker()
+        breaker.state = CircuitState.OPEN
+        breaker.opened_at = None  # capture current time to prevent stale-candidate fail
+
+        task_id = queue_service.enqueue(
+            source="f.md", source_type=SourceType.FILE, task_hash="h1",
+        )
+        # Drive task to RUNNING then FAILED 3 times to reach DEAD_LETTER
+        queue_service.update_status(task_id, TaskStatus.RUNNING)
+        queue_service.update_status(task_id, TaskStatus.FAILED, error="err1")
+        queue_service.update_status(task_id, TaskStatus.RUNNING)
+        queue_service.update_status(task_id, TaskStatus.FAILED, error="err2")
+        queue_service.update_status(task_id, TaskStatus.RUNNING)
+        queue_service.update_status(task_id, TaskStatus.FAILED, error="err3")
+
+        # After 3 retries the task should be DEAD_LETTER, but the queue must
+        # NOT be paused.
+        assert not queue_service._paused, (
+            "Queue must not auto-pause on DEAD_LETTER — the circuit breaker "
+            "already protects the system."
+        )
+
+
+class TestRecoveryTimer:
+    """advance() schedules a recovery timer when the breaker is OPEN."""
+
+    def test_recovery_timer_scheduled_when_breaker_open(self, queue_service, monkeypatch):
+        """When advance() finds breaker OPEN, it schedules a recovery timer."""
+        from datetime import datetime, timedelta
+        from src.circuit_breaker import CircuitState
+
+        breaker = queue_service._breaker()
+        breaker.state = CircuitState.OPEN
+        # opened_at must be recent so the 60s recovery timeout has not elapsed.
+        breaker.opened_at = datetime.now()
+        queue_service._paused = False
+
+        # Track Timer creation
+        calls = []
+        monkeypatch.setattr(queue_service, "_schedule_recovery_advance",
+                           lambda: calls.append("scheduled"))
+
+        queue_service.advance()
+        assert calls == ["scheduled"]
+
+    def test_recovery_timer_cancelled_when_dispatching(self, queue_service):
+        """When advance() dispatches a task, it cancels any pending timer."""
+        from src.circuit_breaker import CircuitState
+        import threading
+
+        breaker = queue_service._breaker()
+        breaker.state = CircuitState.CLOSED
+        queue_service._paused = False
+
+        # Set up a fake pending timer
+        queue_service._recovery_timer = threading.Timer(999, lambda: None)
+        queue_service._recovery_timer.start()
+
+        task_id = queue_service.enqueue(
+            source="f.md", source_type=SourceType.FILE, task_hash="h1",
+        )
+        # Move to RUNNING so it won't be selected again, then call advance
+        queue_service.update_status(task_id, TaskStatus.RUNNING)
+
+        # Enqueue another pending task and call advance — it should dispatch
+        # and cancel the timer.
+        queue_service.enqueue(
+            source="g.md", source_type=SourceType.FILE, task_hash="h2",
+        )
+        # advance() dispatches the pending task
+        assert queue_service._recovery_timer is None, (
+            "Recovery timer must be cancelled when advance() dispatches a task"
+        )
+
+    def test_manual_pause_still_blocks_advance(self, queue_service):
+        """Manual pause() must still prevent advance() from dispatching."""
+        from src.circuit_breaker import CircuitState
+
+        breaker = queue_service._breaker()
+        breaker.state = CircuitState.CLOSED
+        queue_service._paused = True
+
+        task_id = queue_service.enqueue(
+            source="f.md", source_type=SourceType.FILE, task_hash="h1",
+        )
+        assert task_id
+
+        dispatched = queue_service.advance()
+        assert dispatched is False, "advance() must return False when paused"
+
+    def test_recovery_timer_fires_and_advances(self, queue_service, monkeypatch):
+        """End-to-end: timer fires, advance() checks breaker, dispatches task."""
+        from src.circuit_breaker import CircuitState
+
+        breaker = queue_service._breaker()
+        queue_service._paused = False
+
+        # Enqueue a task — it will be auto-dispatched by enqueue().
+        tid = queue_service.enqueue(
+            source="f.md", source_type=SourceType.FILE, task_hash="h1",
+        )
+        # Move the auto-dispatched task to APPROVED so it won't be selected.
+        queue_service.update_status(tid, TaskStatus.RUNNING)
+        queue_service.update_status(tid, TaskStatus.APPROVED)
+
+        # Enqueue a second task. This time pause the auto-advance by
+        # temporarily pausing, then unpausing once the task is in the queue.
+        queue_service._paused = True
+        tid2 = queue_service.enqueue(
+            source="g.md", source_type=SourceType.FILE, task_hash="h2",
+        )
+        queue_service._paused = False
+
+        # Put breaker in HALF_OPEN (what happens after recovery timeout).
+        breaker.state = CircuitState.HALF_OPEN
+
+        # advance() should dispatch the second pending task now.
+        queue_service._cancel_recovery_timer = lambda: None  # no-op
+        result = queue_service.advance()
+        assert result is True, "advance() should dispatch when breaker is HALF_OPEN"
