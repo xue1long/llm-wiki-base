@@ -79,3 +79,14 @@ tags:
 ---
 **合并来源**: C:\Users\HP\OneDrive\240 - 项目\LLM-Wiki\knowledge\novel-wiki\wiki\concepts\人物塑造难点.md
 **合并时间**: 2026-07-31T13:04:33.199902
+
+
+---
+**合并来源**: wiki/concepts/人物塑造难点.md
+**合并时间**: 2026-07-31T21:31:36.186536
+
+
+---
+**合并来源**: wiki/entities/人物构建.md
+**合并时间**: 2026-07-31T21:39:18.012068
+

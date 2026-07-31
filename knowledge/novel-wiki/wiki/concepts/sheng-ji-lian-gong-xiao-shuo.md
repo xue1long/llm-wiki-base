@@ -75,3 +75,9 @@ taxonomy_sub: 网文题材
 ---
 **合并来源**: C:\Users\HP\OneDrive\240 - 项目\LLM-Wiki\knowledge\novel-wiki\wiki\concepts\sheng-ji-lian-gong-xiao-suo.md
 **合并时间**: 2026-07-31T13:02:38.094452
+
+
+---
+**合并来源**: wiki/concepts/sheng-ji-lian-gong-xiao-suo.md
+**合并时间**: 2026-07-31T21:31:07.753842
+
