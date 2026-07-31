@@ -141,8 +141,10 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
                     )
                 )
 
-            content_hash = hashlib.md5(page.body.encode("utf-8")).hexdigest()
-            body_hashes.setdefault(content_hash, []).append(page.id)
+            # Skip duplicate detection for empty-body pages
+            if page.body.strip():
+                content_hash = hashlib.md5(page.body.encode("utf-8")).hexdigest()
+                body_hashes.setdefault(content_hash, []).append(page.id)
 
             # LINT-MISSING-SECTION: v2+ template pages must include every
             # required heading. The parser strips the leading comment from
@@ -153,6 +155,8 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
                 raw = ""
             vm = _TEMPLATE_VERSION_RE.search(raw)
             if vm and _parse_version(vm.group(1)) >= (2, 0, 0):
+                if page.processing_depth == "stub":
+                    continue
                 template = resolved_templates.get(page.type)
                 if template is not None:
                     try:
@@ -164,7 +168,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
                         # label is the slot name as written in the bundled
                         # template. We compare by literal heading text.
                         template_headings = {
-                            _heading_label(name) for name in required
+                            _heading_label(name, page.type) for name in required
                         }
                         body_headings = set(_BODY_HEADING_RE.findall(page.body))
                         missing = sorted(
@@ -220,7 +224,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
     )
 
 
-def _heading_label(slot_name: str) -> str:
+def _heading_label(slot_name: str, page_type: str = "") -> str:
     """Map a slot name to the template heading it's rendered under.
 
     The bundled templates use the slot name as the heading label (e.g.
@@ -229,6 +233,8 @@ def _heading_label(slot_name: str) -> str:
     defaults and will need extension if a project or user template
     diverges.
     """
+    if page_type == "entity" and slot_name == "summary":
+        return "简介"
     return _SLOT_TO_HEADING.get(slot_name, slot_name)
 
 

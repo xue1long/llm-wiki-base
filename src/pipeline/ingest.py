@@ -224,6 +224,37 @@ def _compute_reverse_relations(paths, pages):
     return list(extra.values())
 
 
+def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[WikiPage]:
+    """Post-process LLM-generated pages: enforce valid enums, canonicalize relation targets."""
+    import time
+    try:
+        from src.wiki.features.slug_aliases import SlugAliasRegistry
+        reg = SlugAliasRegistry(str(paths.root))
+    except Exception:
+        reg = None
+
+    now_ms = int(time.time() * 1000)
+    for page in pages:
+        if page.grade not in ("A", "B", "C"):
+            page.grade = "B"
+        if page.processing_depth not in ("concept", "memory", "stub"):
+            page.processing_depth = "concept"
+        if page.id:
+            page.id = page.id.strip()
+        if page.title:
+            page.title = page.title.strip()
+        if not page.created_at:
+            page.created_at = now_ms
+        if not page.updated_at:
+            page.updated_at = now_ms
+        if reg is not None:
+            for rel in page.relations:
+                canonical = reg.get_canonical(rel.target)
+                if canonical and canonical != rel.target:
+                    rel.target = canonical
+    return pages
+
+
 def _analyze(**kwargs):
     import sys
     return getattr(sys.modules["src.pipeline.pipeline"], "analyze")(**kwargs)
@@ -444,6 +475,9 @@ async def run_ingest(
                 f"[run_ingest] quality gate unavailable: {e}; "
                 f"passing {len(pages)} page(s) through without judgment"
             )
+
+    # Normalize LLM-generated fields before writing to disk.
+    pages = _normalize_generated_pages(pages, paths)
 
     # Fix D: guarantee one source page per ingested task.
     # The LLM may or may not include a ``source`` entry in
