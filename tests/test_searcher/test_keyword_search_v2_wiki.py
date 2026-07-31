@@ -75,6 +75,18 @@ async def test_keyword_search_finds_nested_pages(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_keyword_search_returns_project_relative_paths(tmp_path):
+    """Keyword result paths must be project-relative (posix) so they share the
+    same RRF fusion key as semantic results."""
+    page = tmp_path / "wiki" / "sources" / "sub" / "nested.md"
+    page.parent.mkdir(parents=True)
+    page.write_text("# Nested\n\nmagic term here\n", encoding="utf-8")
+    paths = WikiPaths(tmp_path)
+    results = await _keyword_search("magic term", top_k=10, paths=paths)
+    assert results[0]["path"] == "wiki/sources/sub/nested.md"
+
+
+@pytest.mark.asyncio
 async def test_keyword_search_skips_archive_and_stubs(tmp_path):
     """Pages in wiki/_archive/ (heat archive target) and wiki/_stubs/
     (placeholders) must not be returned by keyword search, even though
