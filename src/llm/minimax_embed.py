@@ -34,6 +34,20 @@ class MiniMaxEmbeddingProvider:
         self.endpoint = (endpoint or "https://api.minimax.chat/v1").rstrip("/")
         self.model = model or "embo-01"
         self.timeout_seconds = timeout_seconds
+        self._client: httpx.AsyncClient | None = None
+
+    def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None:
+            _timeout = self.timeout_seconds or 0
+            if _timeout < 180:
+                _timeout = 180
+            self._client = httpx.AsyncClient(timeout=_timeout)
+        return self._client
+
+    async def close(self) -> None:
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
 
     async def embed(self, texts) -> List[EmbeddingResponse]:
         """Embed a list of strings; returns ``list[EmbeddingResponse]``."""
@@ -45,18 +59,10 @@ class MiniMaxEmbeddingProvider:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        # `type`: "db" for document/passage embedding, "query" for queries.
-        # We default to "db" since the KB embeds stored note chunks.
         body = {"model": self.model, "texts": texts, "type": "db"}
-        # Floor the timeout so batch embedding of many chunks doesn't trip
-        # httpx's ReadTimeout on slower responses.
-        _timeout = self.timeout_seconds or 0
-        if _timeout < 180:
-            _timeout = 180
-        async with httpx.AsyncClient(timeout=_timeout) as sess:
-            r = await sess.post(url, headers=headers, json=body)
-            r.raise_for_status()
-            data = r.json()
+        r = await self._get_client().post(url, headers=headers, json=body)
+        r.raise_for_status()
+        data = r.json()
         base = data.get("base_resp") or {}
         if base.get("status_code", 0) != 0:
             raise RuntimeError(

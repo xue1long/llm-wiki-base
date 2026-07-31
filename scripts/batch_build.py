@@ -252,8 +252,7 @@ async def phase_archive(root: Path, state: dict, args) -> dict:
     from src.wiki.core.paths import WikiPaths
 
     paths = WikiPaths(root)
-    init_embedding()
-    init_vector_store_for_paths(paths)  # 与 app.py 启动一致：初始化向量库句柄
+    init_vector_store_for_paths(paths)
 
     notes = []
     for sub in NOTE_DIRS:
@@ -275,25 +274,38 @@ async def phase_archive(root: Path, state: dict, args) -> dict:
                 log.info("  (dry) WOULD archive: %s", n.name)
         return stats
 
-    for n in notes:
+    # Reuse the same embedding provider across all notes (shared httpx client)
+    # and process concurrently to amortise API latency.
+    embed_provider = init_embedding()
+    sem = asyncio.Semaphore(6)  # concurrent MiniMax embedding calls
+
+    async def _archive_one(n: Path) -> None:
         nkey = n.resolve().as_posix()
         digest = sha256_file(n)
         if nkey in state["archived"] and state["archived"][nkey] == digest and not args.force:
             stats["skip"] += 1
-            continue
+            return
         task_id = "kb-arch-" + digest[:12]
         t0 = time.time()
-        try:
-            payload = await archive(task_id, str(n), paths)
-            state["archived"][nkey] = digest
-            state["failed"].pop(nkey, None)
-            stats["ok"] += 1
-            kind = type(payload).__name__
-            log.info("  ✓ archived %s (%s, %.1fs)", n.name, kind, time.time() - t0)
-        except Exception as e:  # noqa: BLE001
-            stats["fail"] += 1
-            state["failed"][nkey] = str(e)[:300]
-            log.error("  ✗ archive 失败 %s: %s", n.name, e)
+        async with sem:
+            try:
+                payload = await archive(task_id, str(n), paths)
+                state["archived"][nkey] = digest
+                state["failed"].pop(nkey, None)
+                stats["ok"] += 1
+                kind = type(payload).__name__
+                log.info("  ✓ archived %s (%s, %.1fs)", n.name, kind, time.time() - t0)
+            except Exception as e:  # noqa: BLE001
+                stats["fail"] += 1
+                state["failed"][nkey] = str(e)[:300]
+                log.error("  ✗ archive 失败 %s: %s", n.name, e)
+
+    try:
+        tasks = [_archive_one(n) for n in notes]
+        await asyncio.gather(*tasks)
+    finally:
+        if hasattr(embed_provider, "close"):
+            await embed_provider.close()
     return stats
 
 
