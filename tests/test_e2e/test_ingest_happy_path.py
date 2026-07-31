@@ -97,7 +97,7 @@ def stub_llm_pipeline(monkeypatch):
 
     monkeypatch.setattr(pipeline_module, "analyze", fake_analyze)
     monkeypatch.setattr(pipeline_module, "generate", fake_generate)
-    monkeypatch.setattr(pipeline_module, "_get_provider", lambda: None)
+    monkeypatch.setattr(pipeline_module, "_get_provider", lambda **kw: None)
 
     # Stub permission check so the project-relative path resolves cleanly
     # under the tmp_path monkeypatch (which is the project root).
