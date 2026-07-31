@@ -49,6 +49,8 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from src.utils.path import migrate_state_paths, normalize_source_path, safe_resolve
+
 # 尽早加载 .env（含 MINIMAX_API_KEY 等）；src/__init__ 也会再加载一次 ~/.config/ruflo-kb/env
 try:
     from dotenv import load_dotenv
@@ -73,6 +75,13 @@ SUPPORTED_EXT = {".md", ".txt", ".pdf", ".docx", ".doc", ".xlsx", ".xls"}
 # wiki 下需要归档的笔记子目录（排除 wiki 根目录的 index.md/log.md 以及 archive 落地的副本）
 NOTE_DIRS = ["sources", "concepts", "entities", "synthesis"]
 META_FILES = {"index.md", "log.md"}
+
+
+def rel_state_key(p: Path, root: Path) -> str:
+    """Project-relative posix key for state files — location-independent, so
+    the batch_build_state survives device moves (the old ``f.resolve().as_posix()``
+    absolute keys went stale whenever the project lived at a new path)."""
+    return normalize_source_path(str(p), root)
 
 
 def sha256_file(p: Path) -> str:
@@ -209,14 +218,14 @@ async def phase_ingest(root: Path, raw_dir: Path, state: dict, args) -> dict:
     if args.dry_run:
         for f in files:
             digest = sha256_file(f)
-            if f.resolve().as_posix() in state["ingested"] and state["ingested"][f.resolve().as_posix()] == digest:
+            if rel_state_key(f, root) in state["ingested"] and state["ingested"][rel_state_key(f, root)] == digest:
                 log.info("  (dry) skip (已存在且未改动): %s", f.name)
             else:
                 log.info("  (dry) WOULD ingest: %s", f.name)
         return stats
 
     for f in files:
-        fkey = f.resolve().as_posix()
+        fkey = rel_state_key(f, root)
         digest = sha256_file(f)
         if fkey in state["ingested"] and state["ingested"][fkey] == digest and not args.force:
             stats["skip"] += 1
@@ -268,7 +277,7 @@ async def phase_archive(root: Path, state: dict, args) -> dict:
     if args.dry_run:
         for n in notes:
             digest = sha256_file(n)
-            if n.resolve().as_posix() in state["archived"] and state["archived"][n.resolve().as_posix()] == digest:
+            if rel_state_key(n, root) in state["archived"] and state["archived"][rel_state_key(n, root)] == digest:
                 log.info("  (dry) skip (已归档且未改动): %s", n.name)
             else:
                 log.info("  (dry) WOULD archive: %s", n.name)
@@ -278,7 +287,7 @@ async def phase_archive(root: Path, state: dict, args) -> dict:
     embed_provider = init_embedding()
     try:
         for n in notes:
-            nkey = n.resolve().as_posix()
+            nkey = rel_state_key(n, root)
             digest = sha256_file(n)
             if nkey in state["archived"] and state["archived"][nkey] == digest and not args.force:
                 stats["skip"] += 1
@@ -304,14 +313,15 @@ async def phase_archive(root: Path, state: dict, args) -> dict:
 
 async def run(args: argparse.Namespace) -> int:
     if args.root:
-        root = Path(args.root).resolve()
+        root = safe_resolve(args.root)
     else:
         if not args.project_id:
             sys.exit("必须提供 --project-id 或 --root 之一")
-        root = resolve_root(args.project_id)
-    raw_dir = Path(args.raw_dir).resolve() if args.raw_dir else (root / "raw" / "sources")
+        root = safe_resolve(resolve_root(args.project_id))
+    raw_dir = safe_resolve(args.raw_dir) if args.raw_dir else (root / "raw" / "sources")
     state_path = root / ".index" / "batch_build_state.json"
-    state = load_state(state_path)
+    # 迁移历史绝对路径键 -> 项目相对键(换设备后旧绝对键会 stale)
+    state = migrate_state_paths(load_state(state_path), root)
 
     log.info("项目根: %s", root)
     log.info("raw 目录: %s", raw_dir)
