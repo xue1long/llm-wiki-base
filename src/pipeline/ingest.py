@@ -857,6 +857,19 @@ async def run_ingest(
                 deduped.append(rel)
         page.relations = deduped
 
+    # Rule-based quality gate — catches ghost pages, empty bodies, intra-batch dupes.
+    # Zero LLM cost; stub pages (processing_depth="stub") are exempt from
+    # empty-body and duplicate checks.
+    # check_pages modifies page objects in-place (grade=C for degraded pages)
+    # and returns a filtered list (duplicates removed).
+    from .quality_gate import check_pages
+    _gate = check_pages(pages + extra_pages)
+    for _pid, _reason in _gate.degraded.items():
+        _logger.warning("[run_ingest] quality gate: %s degraded — %s", _pid, _reason)
+    _keep_ids = {p.id for p in _gate.pages}
+    pages = [p for p in pages if p.id in _keep_ids]
+    extra_pages = [p for p in extra_pages if p.id in _keep_ids]
+
     # Atomic write all pages + index update + log
     with AtomicContext(flush_callback=flush_pending_writes):
         for page in pages:
