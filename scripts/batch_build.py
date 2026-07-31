@@ -163,7 +163,8 @@ def init_embedding():
         model = cfg.default_embedding_model or (
             "embo-01" if cfg.name == "minimax" else "text-embedding-3-small"
         )
-        provider = _build(cfg.type, key, cfg.base_url or None, model)
+        provider_type = "minimax" if cfg.name == "minimax" else cfg.type
+        provider = _build(provider_type, key, cfg.base_url or None, model)
     else:
         # 回落：minimax + 环境变量
         provider = _build(

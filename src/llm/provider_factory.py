@@ -60,6 +60,13 @@ def create_embedding_provider(
             model=model or "text-embedding-3-small",
             dimension=dimension,
         )
+    if provider == "minimax":
+        from .minimax_embed import MiniMaxEmbeddingProvider
+        return MiniMaxEmbeddingProvider(
+            api_key=api_key or "",
+            endpoint=endpoint or "https://api.minimax.chat/v1",
+            model=model or "embo-01",
+        )
     if provider == "ollama":
         from .ollama_provider import OllamaProvider
         from .types import ProviderConfig

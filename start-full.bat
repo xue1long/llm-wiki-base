@@ -16,7 +16,7 @@ if exist ".venv\Scripts\activate.bat" (
 )
 
 echo [1/2] Archiving wiki notes into the vector store (already-archived, unchanged notes are skipped)...
-python scripts/batch_build.py --root . --only archive
+python scripts/batch_build.py --root knowledge/novel-wiki --only archive
 if errorlevel 1 (
     echo [WARN] archive stage reported failures; the server will still start, but some content may be missing from the vector store.
 )
@@ -36,6 +36,6 @@ REM    init_vector_store_for_paths() itself, so it does NOT need
 REM    the server running. Already-archived, unchanged notes are
 REM    skipped automatically (state in .index/batch_build_state.json).
 REM  * To force a full rebuild of the vector store, change the
-REM    archive line to:  python scripts/batch_build.py --root . --only archive --force
+REM    archive line to:  python scripts/batch_build.py --root knowledge/novel-wiki --only archive --force
 REM  * After this script exits (or after Ctrl+C), the vector store
 REM    remains on disk under .index/lancedb and is reused next launch.
