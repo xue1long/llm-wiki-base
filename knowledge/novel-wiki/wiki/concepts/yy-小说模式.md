@@ -7,6 +7,10 @@ sources:
 created_at: 1785423842346
 updated_at: 1785423842346
 relations:
+- target: yy-点-103-式
+  type: contains
+  weight: 0.95
+  context: YY点103式是YY小说模式的核心子概念
 - target: 方法论-yy-小说模式-942f4f92
   type: references
   weight: 0.9
@@ -15,10 +19,10 @@ relations:
   type: required_by
   weight: 0.9
   context: 金手指是YY小说的标配元素
-- target: 方法论YY小说模式-942f4f92
+- target: 入门教程6对白-7ce1f254
   type: referenced_by
   weight: 0.9
-  context: 源文档核心主题，定义了YY小说模式的16条规则
+  context: 本教程介绍的103个经典桥段属于YY小说模式的核心组成部分
 - target: ban-zhu-chi-hu-lao-hu
   type: analogous_to
   weight: 0.8
@@ -27,6 +31,10 @@ relations:
   type: supported_by
   weight: 0.8
   context: 升级练功与YY模式结合是最受欢迎的形式
+- target: 代入感
+  type: supported_by
+  weight: 0.6
+  context: YY模式常与代入感配合使用增强读者满足
 grade: A
 processing_depth: concept
 is_immutable: false
