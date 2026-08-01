@@ -301,19 +301,36 @@ def test_run_ndg_gate_with_batch_violation():
     assert "P6" in codes
 
 
-def test_run_ndg_gate_no_longer_blocks_p1_p4():
-    """Per-page checks P1-P4 are the lint's job now: run_ndg_gate no longer
-    reports them (a page with empty id/body/sources passes the gate — those
-    are surfaced by ``cli lint`` instead)."""
+def test_run_ndg_gate_p1_p4_warnings_not_blockers():
+    """P1–P4 issues are surfaced as warnings (is_blocker=False) so page
+    quality is visible at write time, without changing block semantics."""
     pages = [
         WikiPage(id="", title="", type=PageType.ENTITY,
                   body="", sources=[]),
     ]
     report = run_ndg_gate(pages)
     codes = {i.code for i in report.issues}
-    assert not (codes & {"P1", "P2", "P3", "P4"}), (
-        f"gate must not enforce P1-P4, got {sorted(codes)}"
+    assert codes & {"P1", "P3"}, (
+        f"expected P1-P4 warnings in report, got {sorted(codes)}"
     )
+    p14 = [i for i in report.issues if i.code in {"P1", "P2", "P3", "P4"}]
+    assert p14, "P1-P4 issues must be present in the report"
+    assert all(not i.is_blocker for i in p14), "P1-P4 must be warnings"
+    assert report.passed, "P1-P4 warnings must not block the batch"
+    assert report.blocker_count == 0
+
+def test_run_ndg_gate_empty_body_p1_warning():
+    """Empty-body page → P1 warning in the report, batch still passes."""
+    pages = [
+        WikiPage(id="ent-1", title="Entity", type=PageType.ENTITY,
+                  body="", sources=["raw/a.txt"]),
+    ]
+    report = run_ndg_gate(pages)
+    p1 = [i for i in report.issues if i.code == "P1"]
+    assert len(p1) == 1
+    assert not p1[0].is_blocker
+    assert report.passed
+    assert report.blocker_count == 0
 
 def test_run_ndg_gate_p5_is_warning_not_blocker():
     """P5 fires but doesn't block the batch."""

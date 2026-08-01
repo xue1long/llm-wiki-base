@@ -15,11 +15,12 @@ P7  EXTRA-PAGES        extra_pages that would overwrite existing non-stub
                        pages → flag (unless ``--allow-overwrite``)
 
 Per-page quality checks (P1 readability, P2 raw-paste, P3 missing-sources,
-P4 ugc-cred) are **not** part of the gate — ``cli lint`` (via
-:mod:`src.wiki.features.lint`) surfaces them, so low-quality pages are
-written and then cleaned up rather than blocked at write time.  The
-``check_page`` helper remains exported for callers that want the P1–P4
-predicates directly; it shares its decision logic with lint.
+P4 ugc-cred) share their decision logic with ``cli lint`` (via
+:mod:`src.wiki.features.lint`).  ``run_ndg_gate`` surfaces them as
+**warnings** (``is_blocker=False``) so page quality is visible at write
+time, but they never block the batch — ``cli lint`` remains the
+authoritative quality gate.  The ``check_page`` helper is exported for
+callers that want the P1–P4 predicates directly.
 
 Usage (library)
 ---------------
@@ -34,7 +35,7 @@ Usage (CLI)
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -374,15 +375,16 @@ def run_ndg_gate(
 ) -> GateReport:
     """Run the NDG gate on a batch.
 
-    The gate now enforces only the batch-level structural checks
-    (P5 input→source pairing, P6 slug-conflict, P7 extra-page overwrite
-    protection).  Per-page quality checks (P1 readability, P2 raw-paste,
-    P3 missing-sources, P4 ugc-cred) are the job of ``cli lint`` (via
-    :mod:`src.wiki.features.lint`), so a batch with low-quality pages can
-    be written and then cleaned up rather than blocked at write time.
+    Batch-level structural checks (P5 input→source pairing, P6
+    slug-conflict, P7 extra-page overwrite protection) keep their existing
+    block semantics.  Per-page quality checks (P1 readability, P2
+    raw-paste, P3 missing-sources, P4 ugc-cred) are additionally surfaced
+    as **warnings** (``is_blocker=False``) so page quality is visible at
+    write time — they never block the batch (``cli lint`` remains the
+    authoritative quality gate).
 
-    ``T_source`` / ``T_non`` are accepted for backward compatibility but
-    are no longer used by this function (RAW-PASTE is lint's concern).
+    ``T_source`` / ``T_non`` tune the P2 RAW-PASTE threshold and fall back
+    to the module defaults (:data:`_DEFAULT_T_SOURCE` / :data:`_DEFAULT_T_NON`).
 
     Returns a :class:`GateReport` whose ``passed`` attribute is ``True``
     only when zero blocker issues were found.
@@ -393,5 +395,11 @@ def run_ndg_gate(
         check_batch(pages, raw_headers, extra_pages, paths,
                     allow_overwrite=allow_overwrite)
     )
+
+    # R5-2 / F9: surface per-page P1–P4 as warnings — write-time
+    # visibility into page quality without changing block semantics.
+    for page in pages:
+        for issue in check_page(page, T_source=T_source, T_non=T_non):
+            all_issues.append(replace(issue, is_blocker=False))
 
     return _build_report(all_issues, len(pages))
