@@ -16,6 +16,7 @@ report shape. Public entry point is ``lint_wiki``.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -46,8 +47,19 @@ _FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
 _LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+•]\s|\d+[.)]\s)")
 
 # A plain-text run longer than this many characters is treated as a raw
-# paste rather than curated wiki prose.
+# paste rather than curated wiki prose (non-source pages).
 _RAW_PASTE_THRESHOLD = 300
+# Source pages are allowed a longer prose run (their bodies may carry a
+# substantial but still distilled summary), but a run past this length is
+# treated as the verbatim source text pasted in whole.
+_RAW_PASTE_SOURCE_THRESHOLD = 1000
+
+# Headings that mark a page as carrying the verbatim source text rather
+# than a distilled summary. Used by LINT-RAW-PASTE for source pages.
+_FULLTEXT_SECTION_RE = re.compile(
+    r"^#{1,6}\s*(?:正文内容|转录内容|原文|全文|完整文本)\s*$",
+    re.MULTILINE,
+)
 
 
 class LintSeverity(str, Enum):
@@ -118,6 +130,52 @@ def _long_raw_text_run(body: str) -> int:
     return longest
 
 
+def _has_fulltext_section(body: str) -> bool:
+    """True if ``body`` contains a fulltext/transcript heading line.
+
+    Fence-aware, mirroring ``_long_raw_text_run``: a heading inside a
+    fenced code block (```` ``` ````) is not treated as a real section
+    heading.
+    """
+    in_fence = False
+    for line in body.split("\n"):
+        stripped = line.strip()
+        if _FENCE_RE.match(stripped):
+            in_fence = not in_fence
+            continue
+        if not in_fence and _FULLTEXT_SECTION_RE.match(stripped):
+            return True
+    return False
+
+
+def _raw_paste_thresholds(paths: WikiPaths) -> tuple[int, int]:
+    """Load (source_threshold, non_source_threshold) for LINT-RAW-PASTE.
+
+    Reads ``.index/quality_settings.json`` → ``raw_paste`` section if
+    present, falling back per-key to the module-level constants. Phase 0
+    writes the real calibrated thresholds; until then the constants act as
+    provisional defaults.
+    """
+    cfg_path = paths.index / "quality_settings.json"
+    data: dict = {}
+    try:
+        loaded = json.loads(cfg_path.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            data = loaded
+    except (OSError, ValueError):
+        data = {}
+    raw_paste = data.get("raw_paste")
+    if not isinstance(raw_paste, dict):
+        raw_paste = {}
+    source_thr = _RAW_PASTE_SOURCE_THRESHOLD
+    non_source_thr = _RAW_PASTE_THRESHOLD
+    if isinstance(raw_paste.get("source_threshold"), (int, float)):
+        source_thr = int(raw_paste["source_threshold"])
+    if isinstance(raw_paste.get("non_source_threshold"), (int, float)):
+        non_source_thr = int(raw_paste["non_source_threshold"])
+    return source_thr, non_source_thr
+
+
 def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
     """Run all 9 lint checks against the wiki at ``paths``.
 
@@ -125,6 +183,8 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
     stubs). Returns a LintReport with the collected issues and the page count.
     """
     ensure_knowledge_base(paths.root)
+
+    source_thr, non_source_thr = _raw_paste_thresholds(paths)
 
     issues: list[LintIssue] = []
     body_hashes: dict[str, list[str]] = {}
@@ -187,14 +247,36 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
                 content_hash = hashlib.md5(page.body.encode("utf-8")).hexdigest()
                 body_hashes.setdefault(content_hash, []).append(page.id)
 
-            # LINT-RAW-PASTE: source pages carry the full source text as
-            # their main_content, so they are exempt. For every other page
-            # type, a long run of plain text with no markdown structure
-            # (no blockquote / list item / code fence) indicates
-            # unprocessed raw text was pasted straight into the body.
-            if page.type != PageType.SOURCE:
+            # LINT-RAW-PASTE: a long run of plain text with no markdown
+            # structure (no blockquote / list item / code fence), or a
+            # fulltext/transcript section heading, indicates raw source text
+            # was pasted straight into the body instead of a distilled form.
+            # Source pages are checked too (their bodies should be distilled
+            # summaries, not the verbatim source text) but get a higher run
+            # threshold; every other page type uses the lower threshold.
+            if page.type == PageType.SOURCE:
                 raw_run = _long_raw_text_run(page.body)
-                if raw_run > _RAW_PASTE_THRESHOLD:
+                if _has_fulltext_section(page.body) or raw_run > source_thr:
+                    issues.append(
+                        LintIssue(
+                            code="LINT-RAW-PASTE",
+                            severity=LintSeverity.WARNING,
+                            message=(
+                                "Source page body contains a fulltext/transcript "
+                                f"section or a {raw_run}-char plain-text run "
+                                "(possible raw paste)"
+                            ),
+                            page_id=page.id,
+                            suggestion=(
+                                "Distill the page into a short summary with "
+                                "structured sections, list items, or blockquotes; "
+                                "the verbatim text belongs in the raw source file."
+                            ),
+                        )
+                    )
+            else:
+                raw_run = _long_raw_text_run(page.body)
+                if raw_run > non_source_thr:
                     issues.append(
                         LintIssue(
                             code="LINT-RAW-PASTE",

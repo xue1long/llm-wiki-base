@@ -1,4 +1,6 @@
 # tests/test_wiki/test_lint.py
+import json
+
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.features.lint import lint_wiki, LintSeverity
 from src.wiki.storage.ensure import ensure_knowledge_base
@@ -200,8 +202,8 @@ def test_lint_raw_paste_detects_long_plain_paragraph(tmp_path):
     assert raw[0].page_id == "raw"
 
 
-def test_lint_raw_paste_exempts_source_pages(tmp_path):
-    """Source pages carry full main_content legitimately → no LINT-RAW-PASTE."""
+def test_lint_raw_paste_flags_source_page_with_fulltext_section(tmp_path):
+    """Source page with a ## 正文内容 fulltext section → LINT-RAW-PASTE."""
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
     paragraph = "\n".join(
@@ -209,18 +211,173 @@ def test_lint_raw_paste_exempts_source_pages(tmp_path):
         "没有任何 markdown 标记结构。".format(i)
         for i in range(10)
     )
+    body = "## 正文内容\n\n" + paragraph
     write_page(
         p,
         WikiPage(
-            id="src", title="Src", type=PageType.SOURCE,
-            body=paragraph, sources=["raw.md"],
+            id="src-full", title="SrcFull", type=PageType.SOURCE,
+            body=body, sources=["raw.md"],
         ),
     )
-    append_to_index(p, [("src", PageType.SOURCE, "Src")])
+    append_to_index(p, [("src-full", PageType.SOURCE, "SrcFull")])
+
+    report = lint_wiki(p)
+    raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
+    assert len(raw) == 1
+    assert raw[0].page_id == "src-full"
+
+
+def test_lint_raw_paste_allows_distilled_source_page(tmp_path):
+    """Source page in distilled form (summary / bullets / blockquote) → clean."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    body = (
+        "## 摘要\n\n"
+        "这是一段简短的摘要，说明文档的核心观点。\n\n"
+        "## 关键观点\n\n"
+        "- 观点一：结构化列表项。\n"
+        "- 观点二：仍然是列表项。\n"
+        "> 一段引用作为补充。\n"
+    )
+    write_page(
+        p,
+        WikiPage(
+            id="src-dist", title="SrcDist", type=PageType.SOURCE,
+            body=body, sources=["raw.md"],
+        ),
+    )
+    append_to_index(p, [("src-dist", PageType.SOURCE, "SrcDist")])
 
     report = lint_wiki(p)
     raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
     assert raw == []
+
+
+def test_lint_raw_paste_ignores_fulltext_heading_inside_code_fence(tmp_path):
+    """A ## 转录内容 heading inside a ``` fence → not flagged."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    body = "```\n## 转录内容\n整段转录文本都在代码块里。\n```\n\n摘要正文。"
+    write_page(
+        p,
+        WikiPage(
+            id="src-fence", title="SrcFence", type=PageType.SOURCE,
+            body=body, sources=["raw.md"],
+        ),
+    )
+    append_to_index(p, [("src-fence", PageType.SOURCE, "SrcFence")])
+
+    report = lint_wiki(p)
+    raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
+    assert raw == []
+
+
+def test_lint_raw_paste_flags_source_h3_transcript_heading(tmp_path):
+    """### 转录内容 (h3 variant) also counts as a fulltext section heading."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    body = "### 转录内容\n\n整段转录文字。"
+    write_page(
+        p,
+        WikiPage(
+            id="src-h3", title="SrcH3", type=PageType.SOURCE,
+            body=body, sources=["raw.md"],
+        ),
+    )
+    append_to_index(p, [("src-h3", PageType.SOURCE, "SrcH3")])
+
+    report = lint_wiki(p)
+    raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
+    assert len(raw) == 1
+    assert raw[0].page_id == "src-h3"
+
+
+def test_lint_raw_paste_allows_500_char_source_summary(tmp_path):
+    """Source page with a ~500-char prose summary (no fulltext heading) → clean.
+
+    A 500-char run would flag a non-source page (T_non=300) but is under
+    the source threshold (T_source=1000).
+    """
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    para = (
+        "这是一段精心撰写的文档摘要，概括了原始素材的主题、背景、研究方法"
+        "与关键结论，以简洁的段落呈现而非完整转录正文。"
+    )
+    body = para * 7
+    assert 300 < len(body) < 1000, len(body)
+    write_page(
+        p,
+        WikiPage(
+            id="src-500", title="Src500", type=PageType.SOURCE,
+            body=body, sources=["raw.md"],
+        ),
+    )
+    append_to_index(p, [("src-500", PageType.SOURCE, "Src500")])
+
+    report = lint_wiki(p)
+    raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
+    assert raw == []
+
+
+def test_lint_raw_paste_flags_source_page_with_2000_char_run(tmp_path):
+    """Source page with a >1000-char continuous prose run → LINT-RAW-PASTE."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    segment = (
+        "这是一整段未经加工的连续长文，没有任何 markdown 结构，直接粘贴进正文，"
+        "长度远超 source 页的摘要阈值，属于典型的原始文本污染。"
+    )
+    body = segment * 70
+    assert len(body) > 2000, len(body)
+    write_page(
+        p,
+        WikiPage(
+            id="src-long", title="SrcLong", type=PageType.SOURCE,
+            body=body, sources=["raw.md"],
+        ),
+    )
+    append_to_index(p, [("src-long", PageType.SOURCE, "SrcLong")])
+
+    report = lint_wiki(p)
+    raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
+    assert len(raw) == 1
+    assert raw[0].page_id == "src-long"
+
+
+def test_lint_raw_paste_uses_configured_thresholds(tmp_path):
+    """Thresholds come from .index/quality_settings.json raw_paste when present."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    cfg = p.index / "quality_settings.json"
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    cfg.write_text(
+        json.dumps(
+            {
+                "raw_paste": {
+                    "source_threshold": 50,
+                    "non_source_threshold": 10,
+                }
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    # A 100-char run exceeds the configured source threshold (50) but not the
+    # default (1000) — proves the config is actually consulted.
+    write_page(
+        p,
+        WikiPage(
+            id="cfg-src", title="CfgSrc", type=PageType.SOURCE,
+            body="x" * 100, sources=["raw.md"],
+        ),
+    )
+    append_to_index(p, [("cfg-src", PageType.SOURCE, "CfgSrc")])
+
+    report = lint_wiki(p)
+    raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
+    assert len(raw) == 1
+    assert raw[0].page_id == "cfg-src"
 
 
 def test_lint_raw_paste_ignores_blockquotes_and_list_items(tmp_path):
