@@ -35,9 +35,6 @@ MANIFEST = ROOT / ".index" / "reingest_backlog.json"
 BATCH_STATE = ROOT / ".index" / "batch_build_state.json"
 REPORT = Path("scripts/_batch_report.txt")
 
-_TYPE_DIR = {"source": "sources", "entity": "entities",
-             "concept": "concepts", "synthesis": "synthesis"}
-
 # NDG Phase 4: max retries for a single file before marking it failed.
 MAX_RETRIES = 1
 # NDG Phase 5.2: concurrent generate calls (LLM-bound, read-only — safe).
@@ -46,6 +43,8 @@ DEFAULT_CONCURRENCY = 3
 # timeout; this is an outer guard so a file that stalls anywhere (sanitize,
 # reconcile, disk I/O) fails the file rather than hanging the batch.
 FILE_TIMEOUT = 900
+# C7: warn when a single batch exceeds this wall-clock budget.
+BATCH_WARN_SECONDS = 60 * 60
 
 
 def _log(msg: str) -> None:
@@ -147,7 +146,9 @@ def _check_overwrite_protection(
     - Non-stub overwrite → blocked unless ``--allow-overwrite``.
     """
     from src.wiki.features.indexer import read_index
-    from src.wiki.storage.page_writer import read_page, page_path_for
+    from src.wiki.storage.page_writer import (
+        PageNotFoundError, read_page, page_path_for,
+    )
 
     # Build {slug: type} for the existing wiki on disk
     existing: dict[str, str] = {}
@@ -179,11 +180,18 @@ def _check_overwrite_protection(
                     continue
                 # Same-type stub → real upgrade (by design)
                 continue
-        except FileNotFoundError:
+        except PageNotFoundError:
             # Listed in index but missing on disk → stale index, treat as free
             continue
-        except Exception:
-            pass
+        except Exception as exc:
+            # C3: any other read failure is a real problem — log it and treat
+            # as a blocker instead of silently swallowing it.
+            _log(f"  WARN overwrite check: read_page failed for {p.id!r}: {exc}")
+            blockers.append(
+                f"Page {p.id!r}: on-disk read failed ({exc}) — "
+                f"cannot confirm stub status."
+            )
+            continue
 
         msg = (
             f"Page {p.id!r} ({ptype}) already exists on disk as "
@@ -533,6 +541,8 @@ async def main() -> int:
                     help="comma-separated raw_rel list to exclude from this batch")
     args = ap.parse_args()
 
+    t_batch = time.monotonic()  # C7: batch-level wall-clock guard
+
     if not Path(args.manifest).exists():
         _log(f"manifest missing: {args.manifest}")
         return 1
@@ -682,6 +692,10 @@ async def main() -> int:
     else:
         _log(f"BATCH DONE WITH ERRORS ok={gen['ok']} err={gen['err']} "
              f"pages={len(result.pages)} → POSTCHECK FAILED (exit {rc})")
+
+    elapsed = time.monotonic() - t_batch
+    if elapsed > BATCH_WARN_SECONDS:
+        _log(f"WARN: batch took {elapsed:.0f}s (>60min)")
     return rc
 
 

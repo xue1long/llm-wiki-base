@@ -403,3 +403,26 @@ def test_b6_blocker_lists_collision_page(tmp_path, monkeypatch):
     blockers = _check_overwrite_protection([new_page], paths, allow_overwrite=False)
     assert len(blockers) == 1
     assert "dup" in blockers[0]
+
+
+def test_b6_read_failure_logs_warning_and_blocks(tmp_path, monkeypatch, capsys):
+    """C3: a non-PageNotFoundError read failure is logged as WARN and treated
+    as a blocker — not silently swallowed."""
+    root = tmp_path
+    paths = ensure_knowledge_base(root)
+    from src.wiki.features.indexer import append_to_index
+    append_to_index(paths, [("dup", PageType.ENTITY, "dup")])
+
+    def _boom(path):
+        raise OSError("disk error")
+
+    monkeypatch.setattr("src.wiki.storage.page_writer.read_page", _boom)
+    monkeypatch.setattr("scripts.phase4_batch.REPORT", tmp_path / "report.txt")
+
+    new_page = _wiki_page("dup", sources=["raw/sources/new.md"])
+    blockers = _check_overwrite_protection([new_page], paths, allow_overwrite=False)
+    assert len(blockers) == 1
+    assert "on-disk read failed" in blockers[0]
+    assert "dup" in blockers[0]
+    out = capsys.readouterr().out
+    assert "WARN overwrite check" in out
