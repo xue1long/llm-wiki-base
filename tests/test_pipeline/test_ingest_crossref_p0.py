@@ -12,6 +12,7 @@ src/wiki/features/relations.py:
         bidirectional on disk (no RelationSync clobber).
 """
 from pathlib import Path
+from unittest.mock import patch
 
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.core.paths import WikiPaths
@@ -178,6 +179,35 @@ def test_compute_reverse_relations_symmetric_skipped(tmp_path: Path):
     extra = _compute_reverse_relations(p, [A])
     b = next((pg for pg in extra if pg.id == "B-old"), None)
     assert b is None or all(r.type != "contradicts" for r in b.relations)
+
+
+def test_compute_reverse_relations_read_error_logs_warning_not_nameerror(
+    tmp_path: Path, caplog,
+):
+    """R0-1 regression: when read_page raises (OSError), the error path must
+    NOT NameError on an undefined ``logger`` — it should log a warning via
+    ``_logger`` and continue (gracefully returning no extra page)."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    write_page(p, WikiPage(id="B-old", title="B", type=PageType.ENTITY, body="",
+                           relations=[]))
+
+    A = WikiPage(id="A", title="A", type=PageType.SOURCE, body="",
+                 relations=[Relation(target_id="B-old", type="references")])
+
+    with patch(
+        "src.wiki.storage.page_writer.read_page",
+        side_effect=OSError("boom"),
+    ):
+        # Must NOT raise NameError from the except branch.
+        extra = _compute_reverse_relations(p, [A])
+
+    assert extra == []  # failed read -> target skipped, no extra page
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert warnings, "a warning must be logged for the failed read"
+    assert any(
+        "Failed to read page" in r.getMessage() for r in warnings
+    ), "warning message must name the failed read"
 
 
 # ---------------------------------------------------------------------------
