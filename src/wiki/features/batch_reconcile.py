@@ -21,6 +21,10 @@ conflicts that arise from concurrent generation (V13/V15/V17):
    survivors are returned separately in ``ReconcileResult.extras``, never
    mixed into ``pages``.
 
+5. **Batch-level reverse-edge recompute (R2-1, B1)** — after merge + extras
+   folding, every relation whose target resolves inside the final page set
+   gains its inverse on the target page, so in-batch graphs are bidirectional.
+
 All operations are in-memory; nothing is written to disk.
 """
 from __future__ import annotations
@@ -28,6 +32,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from src.wiki.core.types import WikiPage
+from src.wiki.features.relations import SYMMETRIC_RELATIONS
 
 # Grade precedence for reconcile adjudication: A > B > C.
 _GRADE_ORDER = {"A": 0, "B": 1, "C": 2}
@@ -97,6 +102,34 @@ def _fold_extras(group: list[WikiPage]) -> WikiPage:
     for other in group[1:]:
         _fold_relations(rep, other)
     return rep
+
+
+def _recompute_reverse_relations(pages: list[WikiPage]) -> None:
+    """Add inverse (backward) edges within the final page set (B1).
+
+    For every relation whose target is another page in *pages*, the inverse
+    relation is appended to the target, deduped by (target_id, type).
+    Symmetric relation types and types without an inverse are skipped.
+    Mutates *pages* in place; pure (no I/O)."""
+    by_id: dict[str, WikiPage] = {}
+    for p in pages:
+        if p.id:
+            by_id.setdefault(p.id, p)
+
+    for src in pages:
+        if not src.relations:
+            continue
+        for rel in src.relations:
+            inv = rel.inverse()
+            if inv is None or rel.type in SYMMETRIC_RELATIONS:
+                continue
+            target = by_id.get(rel.target_id)
+            if target is None or target is src:
+                continue
+            inv.target_id = src.id
+            existing = {(r.target_id, r.type) for r in (target.relations or [])}
+            if (inv.target_id, inv.type) not in existing:
+                target.relations = list(target.relations or []) + [inv]
 
 
 def reconcile_batch(
@@ -329,6 +362,12 @@ def reconcile_batch(
                 dropped=batch_page.id,
                 reason="existing higher grade",
             ))
+
+    # ── Step 4: batch-level reverse-edge recompute (B1) ──────────
+    # Make the in-batch relation graph bidirectional: every relation whose
+    # target resolves to another page in the final set gains its inverse on
+    # the target page (deduped, symmetric/unknown types skipped).
+    _recompute_reverse_relations(deduped + extras_out)
 
     return ReconcileResult(
         pages=deduped,

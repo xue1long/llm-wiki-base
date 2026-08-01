@@ -2,7 +2,7 @@
 import pytest
 
 from src.wiki.core.types import PageType, WikiPage
-from src.wiki.features.relations import Relation
+from src.wiki.features.relations import Relation, RelationType, SYMMETRIC_RELATIONS
 from src.wiki.features.batch_reconcile import (
     reconcile_batch,
     ReconcileResult,
@@ -343,3 +343,60 @@ def test_extra_collision_extra_higher_grade_wins():
     assert result.merged[0].kept == "ent-1"
     assert result.merged[0].dropped == "ent-1"
     assert "higher grade" in result.merged[0].reason
+
+
+# ---------------------------------------------------------------------------
+# Batch-level reverse-edge recompute (R2-1, B1)
+# ---------------------------------------------------------------------------
+
+def test_reverse_relations_created_within_batch():
+    """Batch page A references batch page B → B gains referenced_by → A (B1)."""
+    pages = [
+        WikiPage(id="A", title="A", type=PageType.ENTITY, body="a",
+                 relations=[Relation(target_id="B", type="references")]),
+        WikiPage(id="B", title="B", type=PageType.ENTITY, body="b"),
+    ]
+    result = reconcile_batch(pages)
+    by_id = {p.id: p for p in result.pages}
+    b_edges = {(r.type, r.target_id) for r in (by_id["B"].relations or [])}
+    assert ("referenced_by", "A") in b_edges
+
+
+def test_reverse_relations_skip_symmetric():
+    """Symmetric relations (contradicts) do not produce an inverse edge."""
+    pages = [
+        WikiPage(id="A", title="A", type=PageType.ENTITY, body="a",
+                 relations=[Relation(target_id="B", type="contradicts")]),
+        WikiPage(id="B", title="B", type=PageType.ENTITY, body="b"),
+    ]
+    result = reconcile_batch(pages)
+    by_id = {p.id: p for p in result.pages}
+    assert (by_id["B"].relations or []) == []
+
+
+def test_reverse_relations_to_extra_not_duplicated():
+    """Batch page A references existing page X (passed as extra); if X already
+    holds the reverse edge it is not added a second time."""
+    pages = [
+        WikiPage(id="A", title="A", type=PageType.ENTITY, body="a",
+                 relations=[Relation(target_id="X", type="references")]),
+    ]
+    extras = [
+        WikiPage(id="X", title="X", type=PageType.ENTITY, body="x",
+                 relations=[Relation(target_id="A", type="referenced_by")]),
+    ]
+    result = reconcile_batch(pages, extra_pages=extras)
+    by_id = {p.id: p for p in result.pages}
+    by_id.update({p.id: p for p in result.extras})
+    x_edges = [(r.type, r.target_id) for r in (by_id["X"].relations or [])]
+    assert x_edges.count(("referenced_by", "A")) == 1
+
+
+def test_relation_inverse_defined_for_all_non_symmetric_types():
+    """Every non-symmetric RelationType has a defined inverse (safety net for
+    the batch reverse-edge recompute)."""
+    for rt in RelationType:
+        if rt.value in SYMMETRIC_RELATIONS:
+            continue
+        rel = Relation(target_id="other", type=rt.value)
+        assert rel.inverse() is not None, f"{rt.value} should have an inverse"
