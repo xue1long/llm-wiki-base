@@ -1,73 +1,87 @@
-"""batch_gate_check.py — Phase 4 #12: per-batch quality gate for re-ingestion.
+"""batch_gate_check.py — NDG per-batch quality gate CLI (Phase 3).
 
-Checks a batch's NEW/updated wiki pages for gate violations. Phase 4 runs this
-after each ≤20-file batch so raw-paste pollution never re-enters the wiki layer
-(RAG optimization: the full source text lives in raw/, the wiki body must be
-distilled, not a raw echo).
+Runs the full NDG gate (P1–P7 + P4b) against a batch's wiki pages.
+All check logic lives in :mod:`src.wiki.features.ndg_gate` so the
+CLI and the programmatic API stay in lock-step.
 
-Checks (deterministic, no LLM):
-  - LINT-RAW-PASTE: non-SOURCE page whose body has a >300-char run of plain
-    text with no blockquote/list/code-fence structure. SOURCE pages are exempt
-    (their 正文内容 slot, when present, may legitimately carry content).
+Usage:
+    env PYTHONIOENCODING=utf-8 PYTHONPATH=. python scripts/batch_gate_check.py \\
+      <wiki_root> <page1.md> [page2.md ...]
 
-Reuses the exact lint logic (`src.wiki.features.lint._long_raw_text_run`,
-`_RAW_PASTE_THRESHOLD`) so the gate and `cli lint` never disagree.
+    # Also accepts --raw-header <raw_path>:<header> for P4b UGC detection:
+    env PYTHONIOENCODING=utf-8 PYTHONPATH=. python scripts/batch_gate_check.py \\
+      <wiki_root> page.md --raw-header raw/sources/a.txt:"feishu.cn document"
 
-Usage (called by the Phase 4 batch runner with the batch's page files):
-    env PYTHONIOENCODING=utf-8 PYTHONPATH=. python scripts/batch_gate_check.py \
-      <wiki_root> <page1.md> <page2.md> ...
-Exit code: 0 = pass, 1 = violations found (batch must not proceed).
-
-Historic-debt note: only the pages passed to this script are checked. Existing
-pages that already carry RAW-PASTE are NOT re-flagged — they are a separate
-cleanup backlog (Phase 3.1 lint already lists them).
+Exit code: 0 = gate passed, 1 = blockers found, 2 = usage error.
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-from src.wiki.core.types import PageType
+from src.wiki.core.paths import WikiPaths
 from src.wiki.storage.page_writer import read_page
-from src.wiki.features.lint import _long_raw_text_run, _RAW_PASTE_THRESHOLD
+from src.wiki.features.ndg_gate import run_ndg_gate, GateReport
 
 
-def check_page(path: Path) -> list[str]:
-    """Return gate violations for one page file (empty list = pass)."""
-    try:
-        page = read_page(path)
-    except Exception as exc:  # unparseable page → treat as a violation
-        return [f"UNREADABLE: {path.name}: {type(exc).__name__}: {exc}"]
-    out: list[str] = []
-    if page.type != PageType.SOURCE:
-        run = _long_raw_text_run(page.body)
-        if run > _RAW_PASTE_THRESHOLD:
-            out.append(
-                f"LINT-RAW-PASTE: {page.id} ({run}-char unstructured run in "
-                f"body — distill or move verbatim text to raw/)"
-            )
-    return out
+def _parse_raw_headers(args: list[str]) -> dict[str, str]:
+    """Parse ``--raw-header path:value`` pairs from positional-style args."""
+    headers: dict[str, str] = {}
+    for a in args:
+        if a.startswith("--raw-header="):
+            _, val = a.split("=", 1)
+            if ":" in val:
+                path, header = val.split(":", 1)
+                headers[path] = header
+    return headers
 
 
 def main(argv: list[str] | None = None) -> int:
     args = list(argv if argv is not None else sys.argv[1:])
-    if len(args) < 2:
-        print("usage: batch_gate_check.py <wiki_root> <page1.md> [page2.md ...]")
+
+    # Separate page paths from --raw-header flags
+    page_args = [a for a in args if not a.startswith("--")]
+    raw_headers = _parse_raw_headers(args)
+
+    if len(page_args) < 2:
+        print("usage: batch_gate_check.py <wiki_root> <page1.md> [page2.md ...] "
+              "[--raw-header=raw/sources/x.txt:header_text]")
         return 2
-    wiki_root = Path(args[0])
-    pages = [Path(wiki_root) / p for p in args[1:]]
 
-    violations: list[str] = []
-    for p in pages:
+    wiki_root = Path(page_args[0])
+    page_paths = [wiki_root / p for p in page_args[1:]]
+    paths = WikiPaths(wiki_root)
+
+    pages = []
+    for p in page_paths:
         if not p.is_file():
-            violations.append(f"MISSING: {p}")
-            continue
-        violations.extend(check_page(p))
+            print(f"[gate] MISSING: {p}", file=sys.stderr)
+            # Missing file is a blocker
+            pages.clear()
+            break
+        try:
+            pages.append(read_page(p))
+        except Exception as exc:
+            print(f"[gate] UNREADABLE: {p.name}: {type(exc).__name__}: {exc}",
+                  file=sys.stderr)
+            pages.clear()
+            break
 
-    print(f"[gate] checked {len(pages)} batch page(s): {len(violations)} violation(s)")
-    for v in violations:
-        print(f"  {v}")
-    return 1 if violations else 0
+    if not pages:
+        return 1  # missing or unreadable file → block
+
+    report = run_ndg_gate(pages, raw_headers=raw_headers or None, paths=paths)
+
+    print(f"[gate] {len(pages)} page(s): "
+          f"{'PASS' if report.passed else 'FAIL'} "
+          f"({len(report.issues)} issue(s), "
+          f"{report.blocker_count} blocker(s))")
+    for issue in report.issues:
+        tag = "BLOCK" if issue.is_blocker else "WARN"
+        pid = issue.page_id or "-"
+        print(f"  [{tag}] {issue.code} {pid}: {issue.message}")
+
+    return 0 if report.passed else 1
 
 
 if __name__ == "__main__":

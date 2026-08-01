@@ -143,7 +143,15 @@ def normalize_source_path(source_path: str, project_root: str | Path) -> str:
     'raw/sources/01_新手入门/foo.md'
     """
     try:
-        rel = Path(source_path).relative_to(Path(project_root))
+        source = Path(source_path)
+        root = Path(project_root)
+        # Resolve relative paths against project_root so the
+        # relativization always succeeds regardless of whether
+        # source_path is absolute or relative.  This also ensures
+        # the output is canonical (forward slashes) on Windows.
+        if not source.is_absolute():
+            source = root / source
+        rel = source.relative_to(root)
         return rel.as_posix()
     except ValueError:
         return source_path

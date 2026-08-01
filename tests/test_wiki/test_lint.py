@@ -1,6 +1,4 @@
 # tests/test_wiki/test_lint.py
-import json
-
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.features.lint import lint_wiki, LintSeverity
 from src.wiki.storage.ensure import ensure_knowledge_base
@@ -202,16 +200,11 @@ def test_lint_raw_paste_detects_long_plain_paragraph(tmp_path):
     assert raw[0].page_id == "raw"
 
 
-def test_lint_raw_paste_flags_source_page_with_fulltext_section(tmp_path):
-    """Source page with a ## 正文内容 fulltext section → LINT-RAW-PASTE."""
+def test_lint_raw_paste_flags_source_page_with_fulltext_heading(tmp_path):
+    """NDG Phase 2: source page with full-text section heading → LINT-RAW-PASTE."""
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
-    paragraph = "\n".join(
-        "这是第 {} 行未经处理的原始文本，整段都是连续的长篇叙述，"
-        "没有任何 markdown 标记结构。".format(i)
-        for i in range(10)
-    )
-    body = "## 正文内容\n\n" + paragraph
+    body = "## 来源\n\nsome meta\n\n## 正文内容\n\n" + ("全文文本内容。" * 50)
     write_page(
         p,
         WikiPage(
@@ -223,113 +216,86 @@ def test_lint_raw_paste_flags_source_page_with_fulltext_section(tmp_path):
 
     report = lint_wiki(p)
     raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
-    assert len(raw) == 1
+    assert len(raw) == 1, f"source page with 正文内容 heading must be flagged, got {raw}"
     assert raw[0].page_id == "src-full"
+    assert "full-text" in raw[0].message.lower() or "正文内容" in raw[0].message
 
 
-def test_lint_raw_paste_allows_distilled_source_page(tmp_path):
-    """Source page in distilled form (summary / bullets / blockquote) → clean."""
+def test_lint_raw_paste_flags_source_page_with_transcript_heading(tmp_path):
+    """NDG Phase 2: source page with 转录内容 heading → LINT-RAW-PASTE."""
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
-    body = (
-        "## 摘要\n\n"
-        "这是一段简短的摘要，说明文档的核心观点。\n\n"
-        "## 关键观点\n\n"
-        "- 观点一：结构化列表项。\n"
-        "- 观点二：仍然是列表项。\n"
-        "> 一段引用作为补充。\n"
-    )
+    body = "## 转录内容\n\n" + ("会议记录文本。" * 20)
     write_page(
         p,
         WikiPage(
-            id="src-dist", title="SrcDist", type=PageType.SOURCE,
+            id="src-trans", title="SrcTrans", type=PageType.SOURCE,
             body=body, sources=["raw.md"],
         ),
     )
-    append_to_index(p, [("src-dist", PageType.SOURCE, "SrcDist")])
+    append_to_index(p, [("src-trans", PageType.SOURCE, "SrcTrans")])
 
     report = lint_wiki(p)
     raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
-    assert raw == []
+    assert len(raw) == 1
+    assert raw[0].page_id == "src-trans"
 
 
 def test_lint_raw_paste_ignores_fulltext_heading_inside_code_fence(tmp_path):
-    """A ## 转录内容 heading inside a ``` fence → not flagged."""
+    """NDG Phase 2: fulltext heading inside a ``` fence → no false positive."""
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
-    body = "```\n## 转录内容\n整段转录文本都在代码块里。\n```\n\n摘要正文。"
+    body = (
+        "## 摘要\n\nA short summary.\n\n"
+        "```markdown\n"
+        "## 正文内容\n"
+        "这个是代码示例中的标题，不是真实 section。\n"
+        "```\n"
+    )
     write_page(
         p,
         WikiPage(
-            id="src-fence", title="SrcFence", type=PageType.SOURCE,
+            id="src-code", title="SrcCode", type=PageType.SOURCE,
             body=body, sources=["raw.md"],
         ),
     )
-    append_to_index(p, [("src-fence", PageType.SOURCE, "SrcFence")])
+    append_to_index(p, [("src-code", PageType.SOURCE, "SrcCode")])
 
     report = lint_wiki(p)
     raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
-    assert raw == []
+    assert raw == [], f"fulltext heading inside code fence must not flag, got {raw}"
 
 
-def test_lint_raw_paste_flags_source_h3_transcript_heading(tmp_path):
-    """### 转录内容 (h3 variant) also counts as a fulltext section heading."""
+def test_lint_raw_paste_source_page_with_short_distilled_body(tmp_path):
+    """NDG Phase 2: source page with short summary, no fulltext heading → clean."""
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
-    body = "### 转录内容\n\n整段转录文字。"
+    body = "## 摘要\n\n这是一段简短的蒸馏摘要，大约一百字左右。描述了文档的主要内容和关键发现。\n\n## 关键观点\n\n- 观点一\n- 观点二\n"
     write_page(
         p,
         WikiPage(
-            id="src-h3", title="SrcH3", type=PageType.SOURCE,
+            id="src-ok", title="SrcOk", type=PageType.SOURCE,
             body=body, sources=["raw.md"],
         ),
     )
-    append_to_index(p, [("src-h3", PageType.SOURCE, "SrcH3")])
+    append_to_index(p, [("src-ok", PageType.SOURCE, "SrcOk")])
 
     report = lint_wiki(p)
     raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
-    assert len(raw) == 1
-    assert raw[0].page_id == "src-h3"
+    assert raw == [], f"short distilled source page must be clean, got {raw}"
 
 
-def test_lint_raw_paste_allows_500_char_source_summary(tmp_path):
-    """Source page with a ~500-char prose summary (no fulltext heading) → clean.
-
-    A 500-char run would flag a non-source page (T_non=300) but is under
-    the source threshold (T_source=1000).
-    """
+def test_lint_raw_paste_flags_source_page_with_long_raw_run(tmp_path):
+    """NDG Phase 2: source page with >T_source raw run → LINT-RAW-PASTE."""
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
-    para = (
-        "这是一段精心撰写的文档摘要，概括了原始素材的主题、背景、研究方法"
-        "与关键结论，以简洁的段落呈现而非完整转录正文。"
+    # Build a body just over _DEFAULT_T_SOURCE (2000) with no fulltext heading.
+    paragraph = "\n".join(
+        "这是第 {} 行未经处理的原始文本，整段都是连续的长篇叙述，没有任何 markdown 结构。".format(i)
+        for i in range(60)
     )
-    body = para * 7
-    assert 300 < len(body) < 1000, len(body)
-    write_page(
-        p,
-        WikiPage(
-            id="src-500", title="Src500", type=PageType.SOURCE,
-            body=body, sources=["raw.md"],
-        ),
-    )
-    append_to_index(p, [("src-500", PageType.SOURCE, "Src500")])
-
-    report = lint_wiki(p)
-    raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
-    assert raw == []
-
-
-def test_lint_raw_paste_flags_source_page_with_2000_char_run(tmp_path):
-    """Source page with a >1000-char continuous prose run → LINT-RAW-PASTE."""
-    ensure_knowledge_base(tmp_path)
-    p = WikiPaths(tmp_path)
-    segment = (
-        "这是一整段未经加工的连续长文，没有任何 markdown 结构，直接粘贴进正文，"
-        "长度远超 source 页的摘要阈值，属于典型的原始文本污染。"
-    )
-    body = segment * 70
-    assert len(body) > 2000, len(body)
+    assert len(paragraph) > 2000
+    body = "## 摘要\n\n" + paragraph
     write_page(
         p,
         WikiPage(
@@ -343,41 +309,27 @@ def test_lint_raw_paste_flags_source_page_with_2000_char_run(tmp_path):
     raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
     assert len(raw) == 1
     assert raw[0].page_id == "src-long"
+    assert "Source page" in raw[0].message
 
 
-def test_lint_raw_paste_uses_configured_thresholds(tmp_path):
-    """Thresholds come from .index/quality_settings.json raw_paste when present."""
+def test_lint_raw_paste_flags_source_page_with_variant_fulltext_heading(tmp_path):
+    """NDG Phase 2: 原文 / 全文 / 完整文本 headings also flag."""
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
-    cfg = p.index / "quality_settings.json"
-    cfg.parent.mkdir(parents=True, exist_ok=True)
-    cfg.write_text(
-        json.dumps(
-            {
-                "raw_paste": {
-                    "source_threshold": 50,
-                    "non_source_threshold": 10,
-                }
-            },
-            ensure_ascii=False,
-        ),
-        encoding="utf-8",
-    )
-    # A 100-char run exceeds the configured source threshold (50) but not the
-    # default (1000) — proves the config is actually consulted.
-    write_page(
-        p,
-        WikiPage(
-            id="cfg-src", title="CfgSrc", type=PageType.SOURCE,
-            body="x" * 100, sources=["raw.md"],
-        ),
-    )
-    append_to_index(p, [("cfg-src", PageType.SOURCE, "CfgSrc")])
+
+    for heading in ("原文", "全文", "完整文本"):
+        write_page(
+            p,
+            WikiPage(
+                id=f"src-{heading}", title=heading, type=PageType.SOURCE,
+                body=f"## {heading}\n\n" + ("内容。" * 30), sources=["raw.md"],
+            ),
+        )
+        append_to_index(p, [(f"src-{heading}", PageType.SOURCE, heading)])
 
     report = lint_wiki(p)
     raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
-    assert len(raw) == 1
-    assert raw[0].page_id == "cfg-src"
+    assert len(raw) == 3, f"all three fulltext-heading variants must flag, got {len(raw)}"
 
 
 def test_lint_raw_paste_ignores_blockquotes_and_list_items(tmp_path):

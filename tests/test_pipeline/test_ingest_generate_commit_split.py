@@ -109,13 +109,14 @@ async def test_generate_ingest_makes_no_disk_writes(tmp_path: Path) -> None:
     assert isinstance(extra_pages, list)
     assert isinstance(meta, dict)
     for key in (
-        "source_path",
-        "source_text",
-        "task_id",
-        "existing_wiki_index",
+        "analysis",
         "source_slug",
+        "source_page_id",
+        "source_grade",
         "downstream_count",
-        "has_analysis",
+        "extra_pages_count",
+        "rejected",
+        "warnings",
     ):
         assert key in meta, f"meta must expose {key!r} for the gate"
 
@@ -172,15 +173,13 @@ async def test_commit_ingest_writes_pages_index_and_log(tmp_path: Path) -> None:
         ),
     ]
 
-    result = await commit_ingest(
+    await commit_ingest(
         paths=paths,
         source_path=raw,
         pages=pages,
         extra_pages=extra_pages,
         task_id="kb-commit",
     )
-
-    assert result is pages, "commit_ingest returns the pages it wrote"
     # Page files on disk (both pages and extra_pages).
     assert (paths.wiki_sources / "src-commit-1234abcd.md").exists()
     assert (paths.wiki_concepts / "概念一.md").exists()
@@ -241,7 +240,7 @@ async def test_run_ingest_equals_generate_plus_commit(tmp_path: Path) -> None:
         provider=provider_b,
         task_id="kb-run",
     )
-    pages_commit = await commit_ingest(
+    await commit_ingest(
         paths=paths_b,
         source_path=raw,
         pages=pages_gen,
@@ -249,10 +248,12 @@ async def test_run_ingest_equals_generate_plus_commit(tmp_path: Path) -> None:
         task_id="kb-run",
     )
 
-    assert _page_sig(pages_run) == _page_sig(pages_commit), (
+    # commit_ingest is now write-only (returns None); the page set it writes
+    # is exactly the pages generate_ingest produced, so compare against that.
+    assert _page_sig(pages_run) == _page_sig(pages_gen), (
         "run_ingest and generate+commit must produce identical page sets"
     )
-    assert len(pages_run) == len(pages_commit)
+    assert len(pages_run) == len(pages_gen)
 
 
 # ---------------------------------------------------------------------------

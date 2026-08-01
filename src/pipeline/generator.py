@@ -250,7 +250,7 @@ listed in `## Existing wiki index`.  Example:
 - 素材/       素材品类   (如 素材/ugc, 素材/book, 素材/excerpt)
 - 可信度/     可信度     (如 可信度/ugc, 可信度/book, 可信度/mixed)
 不要使用这 10 个以外的前缀, 也不要写裸标签(无 `/`). 来源/概念页至少给 1-2 个最贴切的 tag.
-来源为公众号/论坛/自媒体/UGC 的页, tags 必须含 `素材/ugc` 与 `可信度/ugc`; 专业书籍含 `素材/book` 与 `可信度/book`.
+**UGC tagging (mandatory)**: ALL pages derived from 公众号/论坛/自媒体/UGC/飞书 sources MUST carry BOTH `素材/ugc` AND `可信度/ugc` simultaneously — never add one without the other. 专业书籍需 `素材/book` + `可信度/book`.
 (若本页在分析阶段已给出 tags 建议, 你可直接沿用或按其内容调整.)
 
 ## Task
@@ -402,7 +402,7 @@ transfer a claim about one entity to another just because they share terms.
 
 **Tags**: `prefix/name` format, 10 allowed prefixes:
 题材/ 功能/ 角色/ 事件/ 情绪/ 实体/ 场景阶段/ 状态/ 素材/ 可信度/
-**UGC tagging**: pages derived from 公众号/论坛/自媒体/UGC sources MUST include BOTH `素材/ugc` AND `可信度/ugc`; professional books include `素材/book` and `可信度/book`.
+**UGC tagging (MANDATORY)**: ALL pages MUST carry BOTH `素材/ugc` AND `可信度/ugc` together — never one without the other. If a page has `素材/ugc` it MUST also have `可信度/ugc`. Professional books use `素材/book` + `可信度/book`.
 
 **Relation types** (17 built-in + `x-*` custom):
 is_part_of contains references referenced_by causes caused_by contradicts

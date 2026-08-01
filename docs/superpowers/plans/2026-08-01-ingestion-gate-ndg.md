@@ -11,7 +11,7 @@
 >
 > **再校验修正（2026-08-01 第二遍）**：
 > 1. **V13【致命】**：原「generate 全部 → NDG → commit 全部」破坏批内可见性（`_collect_existing_wiki` 扫磁盘，file B 看不到 file A 未提交页 → 批内交叉引用 stub 爆炸 + 同 slug 静默覆盖）。→ 新增**批级 reconcile** 步骤（见 Phase 4.2），并用 V13 原则修订 Phase 4/5。
-> 2. **V14【重大】**：Phase 0 标定原依赖"临时 staging 空 wiki" → 语境失真（`Existing wiki index=(empty)`）。→ Phase 0 移到 Phase 1 之后，用 `generate_ingest(真实 paths, dry)` 标定。
+> 2. **V14【重大】**：Phase 1.5 标定原依赖"临时 staging 空 wiki" → 语境失真（`Existing wiki index=(empty)`）。→ Phase 0 移到 Phase 1 之后，用 `generate_ingest(真实 paths, dry)` 标定。
 > 3. **V15【重大】**：P6 只 flag 不 resolve 跨文件同 slug 重复实体 → 批级 reconcile 规则②（保留 grade 高者 + 合并 relations + merged 报告）。
 > 4. **V16【中】**：P4b 的 UGC 判定需 raw 文件头 → phase4_batch 读 raw 头传 `is_ugc_source` 标志；无标记 UGC 文件文档化为已知残留。
 > 5. **V17【中】**：并发(5.2) × 批内可见性 → 并发 generate + 批级 reconcile 吸收（reconcile 确定性、顺序无关）。
@@ -49,9 +49,9 @@
 ## 执行顺序（依赖硬约束）
 
 ```
-Phase 1  run_ingest 拆 generate/commit（前置①：门禁"写前"窗口；标定也依赖它）
-Phase 0  NDG 标定预演（前置②：依赖 generate_ingest，真实语境 dry-run → 锁阈值）
-Phase 2  lint.py 单一事实源（_has_fulltext_section / 阈值导出）
+Phase 1   run_ingest 拆 generate/commit（前置①：门禁"写前"窗口；标定也依赖它）
+Phase 1.5 NDG 标定预演（依赖 Phase 1 generate_ingest，真实语境 dry-run → 锁阈值）
+Phase 2   lint.py 单一事实源（_has_fulltext_section / 阈值导出）
 Phase 3  NDG 实现（batch_gate_check 重写，P1-P7 + P4b）
 Phase 4  phase4_batch 接入 generate→reconcile→NDG→commit + batch_build_state
 Phase 5  UGC(A) + B5 并发 + B6 覆盖保护
@@ -64,9 +64,9 @@ Phase 6  批 1-46 放行
 
 ---
 
-## Phase 0 — NDG 标定预演（纯测量，无生产写盘）
+## Phase 1.5 — NDG 标定预演（纯测量，无生产写盘）
 
-> **V14 修订**：本 Phase 依赖 Phase 1 的 `generate_ingest`（**真实 paths、dry、不写盘**）——否则标定在空 wiki 语境下生成，`Existing wiki index=(empty)`，分布失真。执行顺序排在 Phase 1 之后。
+> **V14 修订**：本 Phase 硬依赖 Phase 1 的 `generate_ingest`（**必须做完 Phase 1 才能跑**）。若在 Phase 1 之前执行会标定在空 wiki 语境下（`Existing wiki index=(empty)`），阈值失真。
 
 ### 0.1 新文档采样生成
 - **Files**：`scripts/ndg_calibrate.py`（新建；种子可复现）
