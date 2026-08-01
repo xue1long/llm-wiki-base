@@ -305,7 +305,9 @@ def _compute_reverse_relations(paths, pages):
 
 
 def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[WikiPage]:
-    """Post-process LLM-generated pages: enforce valid enums, canonicalize relation targets."""
+    """Post-process LLM-generated pages: enforce valid enums, canonicalize relation
+    targets, and auto-complete UGC credibility tags (LLMs often add ``素材/ugc``
+    but forget ``可信度/ugc``)."""
     import time
     try:
         from src.wiki.features.slug_aliases import SlugAliasRegistry
@@ -332,6 +334,10 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
                 canonical = reg.get_canonical(rel.target_id)
                 if canonical and canonical != rel.target_id:
                     rel.target_id = canonical
+        # Auto-complete UGC credibility tag: if the LLM added
+        # ``素材/ugc``, ensure ``可信度/ugc`` is present too.
+        if "素材/ugc" in page.tags and "可信度/ugc" not in page.tags:
+            page.tags = list(page.tags) + ["可信度/ugc"]
     return pages
 
 

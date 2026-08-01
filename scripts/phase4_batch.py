@@ -273,8 +273,21 @@ async def main() -> int:
             err += 1
             _log(f"  FAIL {raw_rel}: {result['error']}")
 
+    # Deduplicate extras — _compute_reverse_relations runs per file
+    # and can produce the same extra page for multiple batch pages that
+    # reference the same existing wiki page.
+    _seen_extra: set[str] = set()
+    _deduped_extra: list = []
+    for _ep in all_extra:
+        if _ep.id not in _seen_extra:
+            _seen_extra.add(_ep.id)
+            _deduped_extra.append(_ep)
+    if len(_deduped_extra) < len(all_extra):
+        _log(f"deduped extras: {len(all_extra)} → {len(_deduped_extra)}")
+    all_extra = _deduped_extra
+
     _log(f"generated ok={ok} err={err} total_pages={len(all_pages)} "
-         f"elapsed={time.time()-t0:.0f}s")
+         f"extras={len(all_extra)} elapsed={time.time()-t0:.0f}s")
 
     if err > 0 and ok == 0:
         _log("BATCH ABORTED: all files failed")
