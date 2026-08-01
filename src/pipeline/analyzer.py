@@ -41,16 +41,18 @@ ASCII kebab-case — 保留概念的自然字面，**禁止拼音转写**。专�
 
 ## Tags guidance (受控命名空间)
 每个建议页可带 0-N 个 tags (分类检索用). 每个 tag 必须是 `前缀/名称` 形式, 前缀
-只能是以下 8 个受控值之一 (名称用中文或英文, 不要含空格):
-- genre/       题材类型   (如 genre/现言, genre/玄幻)
-- func/        功能类型   (如 func/教程, func/案例)
-- char/        角色类型   (如 char/总裁, char/女主)
-- event/       事件类型   (如 event/签约, event/冲突)
-- mood/        情绪氛围   (如 mood/甜宠, mood/悬疑)
-- entity/      是什么(What) (如 entity/创酷中文网, entity/起点)
-- scene_phase/ 何时用(When) (如 scene_phase/开篇, scene_phase/高潮)
-- status/      生命周期   (如 status/草稿, status/完结)
-不要使用这 8 个以外的前缀, 也不要写裸标签(无 `/`). 来源/概念页至少给 1-2 个最贴切的 tag.
+只能是以下 10 个受控值之一 (名称用中文或英文, 不要含空格):
+- 题材/       题材类型   (如 题材/现言, 题材/玄幻)
+- 功能/       功能类型   (如 功能/教程, 功能/案例)
+- 角色/       角色类型   (如 角色/总裁, 角色/女主)
+- 事件/       事件类型   (如 事件/签约, 事件/冲突)
+- 情绪/       情绪氛围   (如 情绪/甜宠, 情绪/悬疑)
+- 实体/       是什么(What) (如 实体/创酷中文网, 实体/起点)
+- 场景阶段/   何时用(When) (如 场景阶段/开篇, 场景阶段/高潮)
+- 状态/       生命周期   (如 状态/草稿, 状态/完结)
+- 素材/       素材品类   (如 素材/ugc, 素材/book, 素材/excerpt)
+- 可信度/     可信度     (如 可信度/ugc, 可信度/book, 可信度/mixed)
+不要使用这 10 个以外的前缀, 也不要写裸标签(无 `/`). 来源/概念页至少给 1-2 个最贴切的 tag.
 
 ## Task
 Extract structured analysis. Output strict JSON:
@@ -72,8 +74,8 @@ Extract structured analysis. Output strict JSON:
       "grade": "A|B|C",                    // optional; default B
       "processing_depth": "concept|memory", // optional; default concept
       "is_immutable": false,               // optional; default false
-      "tags": ["genre/现言", "func/教程"]      // optional; default []
-      // 受控命名空间: 前缀只能是 genre/ func/ char/ event/ mood/ entity/ scene_phase/ status/ 之一,
+      "tags": ["题材/现言", "功能/教程"]      // optional; default []
+      // 受控命名空间: 前缀只能是 题材/ 功能/ 角色/ 事件/ 情绪/ 实体/ 场景阶段/ 状态/ 素材/ 可信度/ 之一,
       // 形式为 "前缀/名称" (名称用中文/英文, 不要含空格). 不要使用其它前缀或裸标签(无 /).
     }}
   ],

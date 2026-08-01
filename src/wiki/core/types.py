@@ -52,7 +52,7 @@ class WikiPage:
     heat: int = 50
     last_used_at: int = 0
     zombie_since: int | None = None
-    # Tags: controlled namespace prefixes (e.g. char/女主角, genre/都市)
+    # Tags: controlled namespace prefixes (e.g. 角色/女主角, 题材/都市)
     tags: list[str] = field(default_factory=list)
     # Taxonomy (v3.1): LLM-assigned classification, "" = unclassified
     category: str = ""

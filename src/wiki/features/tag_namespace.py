@@ -3,19 +3,21 @@ from typing import Iterable
 
 
 TAG_PREFIXES = {
-    "genre": "题材类型",
-    "func": "功能类型",
-    "char": "角色类型",
-    "event": "事件类型",
-    "mood": "情绪氛围",
-    "entity": "是什么 (What)",
-    "scene_phase": "何时用 (When)",
-    "status": "生命周期",
+    "题材": "题材类型",
+    "功能": "功能类型",
+    "角色": "角色类型",
+    "事件": "事件类型",
+    "情绪": "情绪氛围",
+    "实体": "是什么 (What)",
+    "场景阶段": "何时用 (When)",
+    "状态": "生命周期",
+    "素材": "素材品类",
+    "可信度": "可信度",
 }
 
 
 def is_valid(tag: str) -> bool:
-    """True if tag uses one of 8 controlled prefixes."""
+    """True if tag uses one of 10 controlled prefixes."""
     return any(tag.startswith(prefix + "/") for prefix in TAG_PREFIXES)
 
 

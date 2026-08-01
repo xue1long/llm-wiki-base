@@ -52,7 +52,7 @@ async def test_analyze_parses_v22_fields_from_llm():
                 "grade": "A",
                 "processing_depth": "memory",
                 "is_immutable": True,
-                "tags": ["genre/noir", "func/reference"],
+                "tags": ["题材/noir", "功能/reference"],
             },
         ],
         "links_to_existing": [],
@@ -69,7 +69,7 @@ async def test_analyze_parses_v22_fields_from_llm():
     assert sp.grade == "A"
     assert sp.processing_depth == "memory"
     assert sp.is_immutable is True
-    assert sp.tags == ["genre/noir", "func/reference"]
+    assert sp.tags == ["题材/noir", "功能/reference"]
 
 
 @pytest.mark.asyncio
