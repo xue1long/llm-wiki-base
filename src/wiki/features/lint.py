@@ -133,6 +133,29 @@ def _missing_ugc_cred(page) -> bool:
     return "素材/ugc" in page.tags and "可信度/ugc" not in page.tags
 
 
+# UGC carrier detection (R3-1 / D5).  A raw file is a "UGC carrier" when its
+# first ~4000 characters reference a known UGC platform (feishu.cn,
+# mp.weixin.qq.com, 飞书云文档, 公众号, 论坛, 知乎, 豆瓣, 简书, QQ群).
+# Shared by the phase4 auto-tag step and the NDG gate's P4b check so the two
+# never diverge.
+_UGC_CARRIER_RE = re.compile(
+    r"feishu\.cn|mp\.weixin\.qq\.com|飞书云文档|公众号|论坛|知乎|豆瓣|简书|QQ群",
+    re.IGNORECASE,
+)
+
+
+def _is_ugc_carrier(header: str) -> bool:
+    """True when *header* (a raw file's first ~4000 chars) is a UGC carrier.
+
+    Deterministic, zero LLM cost.  Case- and whitespace-tolerant: whitespace
+    is compacted out of the input before the regex runs, so ``" 飞 书 云 文 档 "``
+    and ``"FEISHU.CN"`` both hit.
+    """
+    if not header:
+        return False
+    return _UGC_CARRIER_RE.search("".join(header.split())) is not None
+
+
 def _parse_version(version_str: str) -> tuple[int, ...]:
     """Parse a dotted version string into a comparable tuple.
 

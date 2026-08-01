@@ -1,6 +1,8 @@
 # tests/test_wiki/test_lint.py
+import pytest
+
 from src.wiki.core.types import PageType, WikiPage
-from src.wiki.features.lint import lint_wiki, LintSeverity
+from src.wiki.features.lint import lint_wiki, LintSeverity, _is_ugc_carrier
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths
 from src.wiki.storage.page_writer import write_page
@@ -465,3 +467,41 @@ def test_lint_ugc_cred_silent_when_credibility_tag_present(tmp_path):
     report = lint_wiki(p)
     ugc = [i for i in report.issues if i.code == "LINT-UGC-CRED"]
     assert ugc == []
+
+
+# ---------------------------------------------------------------------------
+# R3-1 · _is_ugc_carrier — UGC carrier detection (D5 single source of truth).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("header", [
+    "https://www.feishu.cn/docx/abc123",
+    "https://mp.weixin.qq.com/s/xyz789",
+    "来源：飞书云文档",
+    "本文转载自公众号 写作技法",
+    "整理自某小说论坛精华帖",
+    "知乎高赞回答，作者匿名",
+    "豆瓣书评摘录",
+    "简书热门文章转载",
+    "加QQ群 123456 领取资料",
+])
+def test_is_ugc_carrier_hits_known_platforms(header):
+    assert _is_ugc_carrier(header), f"{header!r} should be a UGC carrier"
+
+
+def test_is_ugc_carrier_case_insensitive():
+    assert _is_ugc_carrier("FEISHU.CN 文档")
+    assert _is_ugc_carrier("MP.WEIXIN.QQ.COM/s/abc")
+
+
+def test_is_ugc_carrier_whitespace_tolerant():
+    assert _is_ugc_carrier("  飞 书 云 文 档  ")
+    assert _is_ugc_carrier("mp.weixin.qq. com 正文内容")
+    assert _is_ugc_carrier("来源：公 众 号 整理")
+
+
+def test_is_ugc_carrier_misses_normal_text():
+    assert not _is_ugc_carrier("")
+    assert not _is_ugc_carrier("普通文本，无任何 UGC 平台。")
+    assert not _is_ugc_carrier("https://example.com/article/123")
+    assert not _is_ugc_carrier("书籍《写作指南》第一章")
