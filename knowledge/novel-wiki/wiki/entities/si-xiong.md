@@ -11,6 +11,10 @@ relations:
   type: is_part_of
   weight: 0.9
   context: 四凶是上古神话异兽的代表
+- target: 上古十大凶兽
+  type: is_part_of
+  weight: 0.9
+  context: 四凶是上古凶兽的代表
 - target: di-shun
   type: references
   weight: 0.85
@@ -19,6 +23,10 @@ relations:
   type: references
   weight: 0.85
   context: 梼杌为颛顼子孙所化
+- target: 梼杌
+  type: contains
+  weight: 0.8
+  context: 梼杌属于四凶之一
 grade: B
 processing_depth: entity
 is_immutable: false
