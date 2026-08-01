@@ -1,18 +1,12 @@
-"""NDG gate — per-page + batch-level quality checks (P1–P7).
+"""NDG gate — batch-level structural checks (P5–P7).
 
 Consumes :mod:`src.wiki.features.lint` exported symbols so the gate and
 ``cli lint`` never diverge.  All checks are deterministic (zero LLM cost).
 
-Checks
-------
-**Per-page (P1–P4):** run on every page in the batch.
-
-P1  READABILITY       body is non-empty and the page can be parsed
-P2  RAW-PASTE         no full-text section heading; raw run ≤ threshold
-P3  MISSING-SOURCES   ``sources`` is non-empty OR has derivation relation
-P4  UGC-CRED          ``素材/ugc`` → must also carry ``可信度/ugc``
-
-**Batch-level (P5–P7):** run once across the whole batch.
+Scope
+-----
+The gate enforces only the **batch-level structural checks** that must run
+before write (or on a batch of on-disk pages):
 
 P5  INPUT-SOURCE-PAIR  every raw input has a corresponding SOURCE page
                        (warning only — Fix D guarantees one per file)
@@ -20,10 +14,17 @@ P6  SLUG-CONFLICT      no two pages share the same slug with different types
 P7  EXTRA-PAGES        extra_pages that would overwrite existing non-stub
                        pages → flag (unless ``--allow-overwrite``)
 
+Per-page quality checks (P1 readability, P2 raw-paste, P3 missing-sources,
+P4 ugc-cred) are **not** part of the gate — ``cli lint`` (via
+:mod:`src.wiki.features.lint`) surfaces them, so low-quality pages are
+written and then cleaned up rather than blocked at write time.  The
+``check_page`` helper remains exported for callers that want the P1–P4
+predicates directly; it shares its decision logic with lint.
+
 Usage (library)
 ---------------
 >>> from src.wiki.features.ndg_gate import check_page, check_batch, GateReport
->>> issues_p14 = check_page(page)
+>>> issues_p14 = check_page(page)          # P1–P4 (lint-shared predicates)
 >>> issues_p57 = check_batch(pages, raw_headers, paths)
 >>> report = run_ndg_gate(pages, raw_headers=raw_headers, paths=paths)
 
@@ -42,7 +43,6 @@ from ..core.paths import WikiPaths
 from .lint import (
     _has_fulltext_section,
     _long_raw_text_run,
-    _load_raw_paste_thresholds,
     _readability_violation,
     _missing_sources,
     _missing_ugc_cred,
@@ -110,9 +110,8 @@ def check_page(
     page:
         The WikiPage to check.
     T_source / T_non:
-        RAW-PASTE thresholds.  When *None*, loaded from the project
-        quality-settings file via :func:`_load_raw_paste_thresholds`
-        (which falls back to internal constants).
+        RAW-PASTE thresholds.  When *None*, falls back to the module
+        constants (:data:`_DEFAULT_T_SOURCE` / :data:`_DEFAULT_T_NON`).
 
     Returns
     -------
@@ -365,29 +364,22 @@ def run_ndg_gate(
     T_non: int | None = None,
     allow_overwrite: bool = False,
 ) -> GateReport:
-    """Run the full NDG gate (P1–P7) on a batch.
+    """Run the NDG gate on a batch.
+
+    The gate now enforces only the batch-level structural checks
+    (P5 input→source pairing, P6 slug-conflict, P7 extra-page overwrite
+    protection).  Per-page quality checks (P1 readability, P2 raw-paste,
+    P3 missing-sources, P4 ugc-cred) are the job of ``cli lint`` (via
+    :mod:`src.wiki.features.lint`), so a batch with low-quality pages can
+    be written and then cleaned up rather than blocked at write time.
+
+    ``T_source`` / ``T_non`` are accepted for backward compatibility but
+    are no longer used by this function (RAW-PASTE is lint's concern).
 
     Returns a :class:`GateReport` whose ``passed`` attribute is ``True``
     only when zero blocker issues were found.
     """
     all_issues: list[GateIssue] = []
-
-    # Load per-project thresholds when available and the caller didn't
-    # supply explicit overrides.  When quality_settings.json is absent,
-    # the internal defaults are a reasonable starting point (2000/300)
-    # — calibrated thresholds can tighten them later via Phase 1.5.
-    if T_source is None and T_non is None and paths is not None:
-        T_source, T_non = _load_raw_paste_thresholds(paths)
-        if T_source == _DEFAULT_T_SOURCE and T_non == _DEFAULT_T_NON:
-            import logging as _logging
-            _logging.getLogger(__name__).info(
-                "using default RAW-PASTE thresholds (T_source=%d, T_non=%d) "
-                "— run ndg_calibrate.py to lock project-specific values",
-                T_source, T_non,
-            )
-
-    for page in pages:
-        all_issues.extend(check_page(page, T_source=T_source, T_non=T_non))
 
     all_issues.extend(
         check_batch(pages, raw_headers, extra_pages, paths,

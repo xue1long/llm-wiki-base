@@ -247,17 +247,35 @@ def test_run_ndg_gate_all_clean():
     assert report.passed
     assert report.blocker_count == 0
 
-def test_run_ndg_gate_with_violations():
+def test_run_ndg_gate_with_batch_violation():
+    """run_ndg_gate blocks on a batch-level violation (P6 cross-type slug
+    conflict) — the gate now only enforces P5/P6/P7."""
     pages = [
-        WikiPage(id="bad", title="", type=PageType.ENTITY,
-                  body="", sources=[]),
+        WikiPage(id="dup", title="E", type=PageType.ENTITY,
+                  body="content", sources=["raw/x.txt"]),
+        WikiPage(id="dup", title="C", type=PageType.CONCEPT,
+                  body="content", sources=["raw/x.txt"]),
     ]
     report = run_ndg_gate(pages)
     assert not report.passed
     assert report.blocker_count > 0
     codes = {i.code for i in report.issues}
-    assert "P1" in codes
-    assert "P3" in codes
+    assert "P6" in codes
+
+
+def test_run_ndg_gate_no_longer_blocks_p1_p4():
+    """Per-page checks P1-P4 are the lint's job now: run_ndg_gate no longer
+    reports them (a page with empty id/body/sources passes the gate — those
+    are surfaced by ``cli lint`` instead)."""
+    pages = [
+        WikiPage(id="", title="", type=PageType.ENTITY,
+                  body="", sources=[]),
+    ]
+    report = run_ndg_gate(pages)
+    codes = {i.code for i in report.issues}
+    assert not (codes & {"P1", "P2", "P3", "P4"}), (
+        f"gate must not enforce P1-P4, got {sorted(codes)}"
+    )
 
 def test_run_ndg_gate_p5_is_warning_not_blocker():
     """P5 fires but doesn't block the batch."""
