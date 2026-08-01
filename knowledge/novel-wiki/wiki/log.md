@@ -937,3 +937,13 @@
 - **ingest**: `re3-东方玄幻上古巫族十二魔神传说` — generated 10 pages from 东方玄幻上古巫族十二魔神传说.md
 ## 2026-08-01T13:04:58.652024
 - **ingest**: `re3-东方玄幻中国上古洪荒神话八拾遗之四` — generated 11 pages from 东方玄幻中国上古洪荒神话八拾遗之四.md
+## 2026-08-02T01:12:01.785740
+- **ingest**: `b0` — generated 10 pages from 东方玄幻中国佛家道家宗派说.md
+## 2026-08-02T01:12:01.833656
+- **ingest**: `b0` — generated 9 pages from 东方玄幻中国占星术之三垣二十八宿.md
+## 2026-08-02T01:12:01.897069
+- **ingest**: `b0` — generated 11 pages from 东方玄幻中国历史七大美男.md
+## 2026-08-02T01:12:01.955835
+- **ingest**: `b0` — generated 6 pages from 东方玄幻中国历史上公主的命运.md
+## 2026-08-02T01:12:02.022532
+- **ingest**: `b0` — generated 13 pages from 东方玄幻中国历史上医学巅峰.md
