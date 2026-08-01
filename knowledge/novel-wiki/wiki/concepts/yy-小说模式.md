@@ -3,83 +3,63 @@ id: yy-小说模式
 title: YY小说模式
 type: concept
 sources:
-- raw\sources\02_进阶技巧\方法论YY小说模式.md
-created_at: 1785423842346
-updated_at: 1785423842346
+- raw\sources\02_进阶技巧\补充教程新手选题和大纲扩展精选.md
+created_at: 1785556059471
+updated_at: 1785556059471
 relations:
-- target: yy-点-103-式
+- target: 补充教程新手选题和大纲扩展精选-f773bc65
+  type: derived_from
+  weight: 1.0
+  context: 本教程详细阐述了YY小说的核心定律和常见模式
+- target: 扩句法
+  type: derived_from
+  weight: 0.9
+  context: 扩句法是基于YY小说模式的具体操作方法
+- target: 金手指设定
   type: contains
-  weight: 0.95
-  context: YY点103式是YY小说模式的核心子概念
-- target: 方法论YY小说模式-942f4f92
-  type: references
-  weight: 0.9
-  context: 核心参考来源，详细定义了16条规则
-- target: jin-zhi-shou
-  type: required_by
-  weight: 0.9
-  context: 金手指是YY小说的标配元素
-- target: 入门教程6对白-7ce1f254
-  type: referenced_by
-  weight: 0.9
-  context: 本教程介绍的103个经典桥段属于YY小说模式的核心组成部分
-- target: ban-zhu-chi-hu-lao-hu
-  type: analogous_to
-  weight: 0.8
-  context: 扮猪吃老虎是YY小说的核心爽点手法
-- target: sheng-ji-lian-gong-xiao-shuo
-  type: supported_by
-  weight: 0.8
-  context: 升级练功与YY模式结合是最受欢迎的形式
-- target: 代入感
-  type: supported_by
-  weight: 0.6
-  context: YY模式常与代入感配合使用增强读者满足
-grade: A
+  weight: 0.7
+  context: 金手指是实现YY效果的具体手段
+grade: B
 processing_depth: concept
 is_immutable: false
 heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- 题材/网文
-- 功能/写作模式
-category: 写作技巧
-taxonomy_sub: 网文模式
+- 题材/YY小说
+- 功能/模式
+category: ''
+taxonomy_sub: ''
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
 ## 定义
 
-YY小说模式是网络文学中以主角获得逆天金手指、越级挑战、扮猪吃老虎为核心爽点的写作套路。该模式强调主角从平凡起步，通过偶然获得的宝物逐步崛起，并伴随大量副本刷怪和美女倒追情节。
+YY小说模式是指以"强"字为核心的网络小说创作范式。其核心理念是主角必须在某个方面超越常人（很强、非常强、特别强、第一强），通过展现主角的强大来给读者带来阅读快感（YY）。这一模式被比喻为网络小说界的"能量守恒定律"。
 
 ## 主要特点
 
-- 主角必须从平凡甚至倒霉的清白之身起步
-- 在情节开端偶然发现不起眼却逆天的宝贝
-- 宝贝功能需逐步揭露，不能一次性全部揭示
-- 主角获得好处后必然惹事，麻烦雪球越滚越大
-- 主角能越级杀人，至少战胜同等级两个敌人
-- 宝贝会牵扯出巨大副本，副本内含快速升级资源
-- 存在BOSS级敌人派盒饭给主角练级的设定
-- 美女中至少有一个来头很大但最终成为附属
-- 与主角亲近者风光无限，对立者必死无疑
-- 主角随力量增强越来越聪明，配角越强越傻
+- 核心定律是"强"字，主角必须很强才能吸引读者
+- 主角超强可以有多种方向：武力、学识、财富、地位、势力等
+- 主角超强的原因有经典三套路：运气好、师承家世好、天赋高
+- 现代网络小说还发展出：穿越、重生、转世、神明附体、外星人眷顾等新套路
+- 主角强大后必须有明确目标（复仇、建设、变强等），否则缺乏意义
+- 套路虽老套，但换外衣、搭配新设定仍能吸引读者
 
 ## 例子
 
-- 来源未提供具体例子
+- 传统武侠套路：掉崖不死学到神功（运气好）、名门正派弟子（师承好）、武学天才（天赋高）
+- 现代网络小说套路：穿越到异世界获得异能、重生者利用前世记忆、神明附体获得神力
 
 ## 相关概念
 
-- [[ban-zhu-chi-hu-lao-hu]]
-- [[jin-zhi-shou]]
-- [[sheng-ji-lian-gong-xiao-shuo]]
-- [[fu-ben-guan-shui-ji-fa]]
-- [[chao-ji-sheng-ji]]
-- [[zhuang-bi-da-lian]]
+- [[扩句法]]
+- [[金手指设定]]
+- [[废材流]]
+- [[爽点构建原理]]
 
 ## 参考来源
 
-- [[方法论YY小说模式-942f4f92]]
+- [[补充教程新手选题和大纲扩展精选-f773bc65]]

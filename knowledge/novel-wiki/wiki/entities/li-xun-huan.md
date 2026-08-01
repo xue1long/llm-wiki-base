@@ -7,6 +7,18 @@ sources:
 created_at: 1785420957427
 updated_at: 1785420957427
 relations:
+- target: 飞刀又见飞刀
+  type: referenced_by
+  weight: 1.0
+  context: 李寻欢是故事中的关键祖辈人物
+- target: 李坏
+  type: derives
+  weight: 1.0
+  context: 李坏是李寻欢的孙子
+- target: 飞刀
+  type: referenced_by
+  weight: 1.0
+  context: 李寻欢是飞刀绝技的代表人物
 - target: gu-long
   type: referenced_by
   weight: 0.9

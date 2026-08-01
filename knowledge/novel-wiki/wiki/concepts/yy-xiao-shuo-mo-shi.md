@@ -7,7 +7,7 @@ sources:
 created_at: 1785400774439
 updated_at: 1785400774439
 relations:
-- target: 方法论YY小说模式-942f4f92
+- target: 方法论-yy-小说模式-942f4f92
   type: referenced_by
   weight: 1.0
   context: 本文系统阐述YY小说模式方法论
@@ -15,14 +15,18 @@ relations:
   type: referenced_by
   weight: 1.0
   context: 本综述系统化该概念的16条规则
-- target: 方法论YY小说模式-942f4f92
-  type: is_part_of
+- target: 补充教程新手选题和大纲扩展精选-f773bc65
+  type: referenced_by
   weight: 0.9
-  context: 本概念的系统阐述见该源文档
+  context: 教程以YY小说为对象，阐述了'强'字核心定律和常见套路
 - target: sheng-ji-lian-gong-xiao-suo
   type: contains
   weight: 0.8
   context: 升级练功小说是该模式最常见的载体
+- target: 主角设定原则
+  type: supports
+  weight: 0.8
+  context: 符合YY大前提直接来源于YY小说模式的要求
 - target: 扮猪吃老虎
   type: contains
   weight: 0.7
@@ -51,6 +55,7 @@ tags:
 category: 创作方法论
 taxonomy_sub: 网文流派方法论
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

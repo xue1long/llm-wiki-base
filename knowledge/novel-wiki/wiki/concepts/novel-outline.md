@@ -11,10 +11,22 @@ relations:
   type: contains
   weight: 0.9
   context: 这是一个具体的小说大纲示例。
+- target: 大纲示例
+  type: supported_by
+  weight: 0.9
+  context: 大纲示例服务于小说大纲创作
+- target: 大纲创作
+  type: supported_by
+  weight: 0.9
+  context: 大纲创作产出小说大纲
 - target: 格局创意
   type: supported_by
   weight: 0.7
   context: 架构型创意是小说大纲的核心支撑
+- target: 分集情节大纲
+  type: supported_by
+  weight: 0.7
+  context: 分集情节大纲是小说大纲的重要组成部分
 grade: A
 processing_depth: concept
 is_immutable: false
@@ -26,6 +38,7 @@ tags:
 category: ''
 taxonomy_sub: ''
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

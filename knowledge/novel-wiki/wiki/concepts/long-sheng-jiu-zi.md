@@ -3,10 +3,18 @@ id: long-sheng-jiu-zi
 title: 龙生九子
 type: concept
 sources:
-  - raw/sources/04_题材专题/东方玄幻龙生九子之三嘲风.md
+- raw/sources/04_题材专题/东方玄幻龙生九子之三嘲风.md
 created_at: 1785336209830
 updated_at: 1785336209830
-relations: []
+relations:
+- target: 狴犴
+  type: contains
+  weight: 0.95
+  context: 狴犴是龙生九子之一
+- target: 东方玄幻龙生九子之七狴犴-b94356c3
+  type: referenced_by
+  weight: 0.8
+  context: 狴犴是龙生九子之一
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -16,6 +24,8 @@ zombie_since: null
 tags:
 - 题材/神话
 - 功能/综述
+category: ''
+taxonomy_sub: ''
 ---
 
 <!-- wiki-template-version: 2.0.0 -->
