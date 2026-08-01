@@ -105,8 +105,9 @@ Phase 5 合规（随时可做，建议最后）
   - 只重取清单内的未引用 raw——**不重复触达已引用文件**（幂等对旧文件无效，靠清单兜底，见规范 §六）。
   - 源页 slug 由 `{NFC stem}-{md5(path)[:8]}` 决定：路径不变则 slug 不变 → 覆盖而非重复。
   - **反斜杠路径规范化拆成独立子步骤**：先跑 `scripts/normalize_sources_paths.py` 处理存量页并**单独 commit**，再开始批次摄取——避免一次失败分不清是路径问题还是 Generator 问题。
-  - 每批后跑门禁：`lint` + `tags validate` + `fields validate`；stub 计数若回升即回退排查（说明 0.5 未生效）。
-- **验收**：tap rate 逐批上升，目标 ≥80%；stub 不新增；`sources` 全正斜杠。
+  - **source 页正文收窄（RAG 建议，P0，批次摄取前落地）**：把 source 模板 `main_content` 槽改为**可选**，提示词改为"source 页只出短摘要 + 元数据 + 抽取概念，完整正文交还 raw"——避免 wiki 层整页向量与 raw 全文冗余（长文单向量稀释检索精度）。这是模板+提示词代码改动，先单独 commit，使重取的新 source 页直接按收窄形态生成。
+  - 每批后跑门禁：`lint`（**本批新增页不得新增 LINT-RAW-PASTE**；存量旧页的 RAW-PASTE 属历史债，另行清理）+ `tags validate` + `fields validate`；stub 计数若回升即回退排查（说明 0.5 未生效）。
+- **验收**：tap rate 逐批上升，目标 ≥80%；stub 不新增；`sources` 全正斜杠；**新 source 页正文为短摘要（无与 raw 重复的全文）**。
 - **Commit**：`feat(novel-wiki): 分批再摄取未触达 raw（每批≤20 + 门禁）`
 
 ---
