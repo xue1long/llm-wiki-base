@@ -86,7 +86,8 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
         return 1
 
-    report = run_ndg_gate(reconcile.pages, raw_headers=raw_headers or None, paths=paths)
+    report = run_ndg_gate(reconcile.pages, raw_headers=raw_headers or None,
+                          extra_pages=reconcile.extras, paths=paths)
 
     print(f"[gate] {len(pages)} page(s): "
           f"{'PASS' if report.passed else 'FAIL'} "
