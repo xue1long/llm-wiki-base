@@ -65,7 +65,3 @@ taxonomy_sub: 大纲创作
 - [[买断]]
 - [[上架点]]
 - [[novel-outline]]
-
-## 正文内容
-
-专业团队打造质量大纲，详情访问淘宝店铺http://item.taobao.com/item.htm?spm=686.1000925.1000774.109.TOj6Il&id=39018393221
