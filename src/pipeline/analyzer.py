@@ -53,6 +53,7 @@ ASCII kebab-case — 保留概念的自然字面，**禁止拼音转写**。专�
 - 素材/       素材品类   (如 素材/ugc, 素材/book, 素材/excerpt)
 - 可信度/     可信度     (如 可信度/ugc, 可信度/book, 可信度/mixed)
 不要使用这 10 个以外的前缀, 也不要写裸标签(无 `/`). 来源/概念页至少给 1-2 个最贴切的 tag.
+来源为公众号/论坛/自媒体/UGC 的页, tags 必须含 `素材/ugc` 与 `可信度/ugc`; 专业书籍含 `素材/book` 与 `可信度/book`.
 
 ## Task
 Extract structured analysis. Output strict JSON:

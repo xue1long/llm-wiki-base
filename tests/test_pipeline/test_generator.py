@@ -327,6 +327,59 @@ async def test_generator_prompt_prohibits_chain_of_thought(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_generator_prompt_directs_ugc_tagging(tmp_path):
+    """GENERATOR_PROMPT must tell the LLM that pages derived from UGC
+    sources (公众号/论坛/自媒体) carry BOTH `素材/ugc` AND `可信度/ugc`
+    tags, and that professional books carry `素材/book` + `可信度/book`.
+
+    `素材/ugc` / `可信度/ugc` already appear in the prompt's prefix-list
+    examples, so this test requires a single directive window that PAIRS a
+    UGC source keyword with both tags — not merely their presence anywhere.
+    """
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="concept", slug="kb-1", title="T", reasoning="r"),
+        ],
+    )
+    provider = ScriptedLLMProvider([{
+        "pages": [{"id": "kb-1", "type": "concept", "title": "T",
+                    "slots": {"definition": "B",
+                              "characteristics": ["B"], "examples": ["B"],
+                              "related_concepts": ["B"], "references": ["B"]}}]
+    }])
+    await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="",
+        provider=provider,
+    )
+
+    prompt = provider.calls[0]["messages"][0]["content"]
+    # A single when-to-use directive must pair a UGC source keyword with
+    # both controlled tags (素材/ugc AND 可信度/ugc) in one window.
+    ugc_keywords = ("公众号", "论坛", "自媒体", "UGC")
+    tag_pair = ("素材/ugc", "可信度/ugc")
+    found = False
+    for kw in ugc_keywords:
+        idx = prompt.find(kw)
+        if idx < 0:
+            continue
+        window = prompt[max(0, idx - 120):idx + 200]
+        if all(t in window for t in tag_pair):
+            found = True
+            break
+    assert found, (
+        "GENERATOR_PROMPT must include a when-to-use rule pairing UGC "
+        "sources (公众号/论坛/自媒体/UGC) with `素材/ugc` AND `可信度/ugc` "
+        "in a single directive window."
+    )
+
+
+@pytest.mark.asyncio
 async def test_generator_prompt_has_subject_boundary_guard(tmp_path):
     """GENERATOR_PROMPT must tell the LLM not to transfer claims,
     evaluations, or recommendations between subjects simply because
