@@ -67,10 +67,42 @@ relations:
   type: contains
   weight: 0.8
   context: 重明鸟是上古神话中的神鸟
+- target: 东方玄幻中国上古洪荒神话三帝喾帝尧-c10521fc
+  type: referenced_by
+  weight: 0.8
+  context: 本文属于上古神话体系
 - target: 烛龙神兽设定
   type: derives
   weight: 0.7
   context: 烛龙概念来源于中国上古神话异兽
+- target: 东方玄幻上古十大凶兽-96a2e9-290969ae
+  type: references
+  weight: 0.7
+  context: 本文档为上古神话异兽的素材来源
+- target: 白泽
+  type: contains
+  weight: 0.7
+  context: 白泽属于上古神话异兽体系
+- target: 夔
+  type: contains
+  weight: 0.7
+  context: 夔属于上古神话异兽体系
+- target: 梼杌
+  type: contains
+  weight: 0.7
+  context: 梼杌属于上古神话异兽体系
+- target: 獬豸
+  type: contains
+  weight: 0.7
+  context: 獬豸属于上古神话异兽体系
+- target: 凤凰
+  type: contains
+  weight: 0.6
+  context: 凤凰属于上古神话异兽体系
+- target: 麒麟
+  type: contains
+  weight: 0.6
+  context: 麒麟属于上古神话异兽体系
 grade: B
 processing_depth: entity
 is_immutable: false

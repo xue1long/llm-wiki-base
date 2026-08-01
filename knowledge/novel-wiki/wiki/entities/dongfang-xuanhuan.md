@@ -11,6 +11,10 @@ relations:
   type: contains
   weight: 0.95
   context: 本文档隶属 [[dongfang-xuanhuan]] (东方玄幻) 题材资源库,聚焦其中的中国上古洪荒神话子领域。
+- target: 东方玄幻中国上古洪荒神话三帝喾帝尧-c10521fc
+  type: referenced_by
+  weight: 0.95
+  context: 本文属于东方玄幻题材
 - target: 东方玄幻中国神话人百图-ab1c1178
   type: referenced_by
   weight: 0.9
@@ -19,6 +23,10 @@ relations:
   type: contains
   weight: 0.9
   context: 属于东方玄幻题材范畴
+- target: 东方玄幻中国人物名-ed4e82e4
+  type: referenced_by
+  weight: 0.9
+  context: 本文档明确标注为东方玄幻题材专用人名参考资料
 - target: 东方玄幻夜叉-59a21a8b
   type: contains
   weight: 0.8
@@ -31,6 +39,14 @@ relations:
   type: depends_on
   weight: 0.8
   context: 东方玄幻小说的世界观设定依赖中国神仙体系
+- target: 祖巫
+  type: is_part_of
+  weight: 0.8
+  context: 祖巫是东方玄幻题材的核心神话设定元素
+- target: 古风命名
+  type: referenced_by
+  weight: 0.8
+  context: 古风命名广泛用于东方玄幻题材小说
 - target: 中国神话人物
   type: supported_by
   weight: 0.7

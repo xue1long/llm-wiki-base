@@ -15,6 +15,10 @@ relations:
   type: references
   weight: 0.95
   context: 禹传位给其子启开创夏朝
+- target: 大禹治水
+  type: referenced_by
+  weight: 0.95
+  context: 大禹是治水的主角人物
 - target: zhuan-xu
   type: references
   weight: 0.9

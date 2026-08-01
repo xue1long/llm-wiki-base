@@ -27,6 +27,10 @@ relations:
   type: references
   weight: 0.85
   context: 传说伯益为《山海经》作者
+- target: 东方玄幻中国上古洪荒神话三帝喾帝尧-c10521fc
+  type: referenced_by
+  weight: 0.85
+  context: 本文多次引用《山海经》内容
 grade: B
 processing_depth: entity
 is_immutable: false

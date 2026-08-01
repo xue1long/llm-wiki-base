@@ -7,6 +7,10 @@ sources:
 created_at: 1785421128564
 updated_at: 1785421128564
 relations:
+- target: 五帝
+  type: is_part_of
+  weight: 1.0
+  context: 帝尧是五帝之一
 - target: di-shun
   type: referenced_by
   weight: 0.95
@@ -23,10 +27,18 @@ relations:
   type: referenced_by
   weight: 0.9
   context: 《竹书纪年》记载尧被囚禁28年
+- target: 帝喾
+  type: referenced_by
+  weight: 0.9
+  context: 帝尧是帝喾的儿子，后继承帝位
 - target: di-ku
   type: references
   weight: 0.85
   context: 帝喾继承颛顼后与尧同属白帝一脉
+- target: 羿射九日
+  type: referenced_by
+  weight: 0.85
+  context: 帝尧是在位天子，派遣羿射日
 grade: B
 processing_depth: entity
 is_immutable: false

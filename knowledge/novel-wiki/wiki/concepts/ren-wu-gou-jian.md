@@ -11,7 +11,7 @@ relations:
   type: contains
   weight: 1.0
   context: 该方法论是人物构建的具体提问工具
-- target: 方法论创造你的角色时该考虑的20个问题-8216da77
+- target: 方法论创造你的角色时该考虑的-20-个问题-8216da77
   type: supported_by
   weight: 0.9
   context: 为人物构建提供具体提问工具
@@ -19,6 +19,10 @@ relations:
   type: contains
   weight: 0.8
   context: 角色设定是人物构建的输出物之一
+- target: 角色命名原则
+  type: supported_by
+  weight: 0.8
+  context: 命名是人物构建的基础要素之一
 - target: ren-wu-fu-zhu-xiao-shi-ti-x
   type: analogous_to
   weight: 0.7
@@ -27,6 +31,10 @@ relations:
   type: supports
   weight: 0.7
   context: 通过系统化背景追问支撑角色个性一致性
+- target: 玄幻人物命名
+  type: supported_by
+  weight: 0.7
+  context: 命名是人物构建的重要组成部分
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -35,6 +43,8 @@ last_used_at: 0
 zombie_since: null
 tags:
 - 功能/方法论
+category: ''
+taxonomy_sub: ''
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

@@ -7,6 +7,10 @@ sources:
 created_at: 1785421128564
 updated_at: 1785421128564
 relations:
+- target: 五帝
+  type: is_part_of
+  weight: 1.0
+  context: 颛顼是五帝之一
 - target: di-shun
   type: references
   weight: 0.9
@@ -15,6 +19,10 @@ relations:
   type: references
   weight: 0.9
   context: 大禹也是颛顼后裔
+- target: 帝喾
+  type: referenced_by
+  weight: 0.9
+  context: 帝喾是颛顼的侄子，从小跟随颛顼学习治国之道
 - target: si-xiong
   type: references
   weight: 0.85

@@ -19,6 +19,10 @@ relations:
   type: references
   weight: 0.85
   context: 传说伯益为《山海经》作者
+- target: 大禹治水
+  type: referenced_by
+  weight: 0.8
+  context: 伯益随大禹治水，相传著《山海经》
 grade: B
 processing_depth: entity
 is_immutable: false

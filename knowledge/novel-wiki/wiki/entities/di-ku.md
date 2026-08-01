@@ -7,6 +7,14 @@ sources:
 created_at: 1785421128564
 updated_at: 1785421128564
 relations:
+- target: 五帝
+  type: is_part_of
+  weight: 1.0
+  context: 帝喾是五帝之一
+- target: 颛顼
+  type: referenced_by
+  weight: 0.9
+  context: 帝喾继承颛顼的帝位
 - target: di-yao
   type: references
   weight: 0.85

@@ -7,6 +7,10 @@ sources:
 created_at: 1785421128564
 updated_at: 1785421128564
 relations:
+- target: 五帝
+  type: is_part_of
+  weight: 1.0
+  context: 帝舜是五帝之一
 - target: di-yao
   type: references
   weight: 0.95

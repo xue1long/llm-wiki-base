@@ -15,6 +15,14 @@ relations:
   type: supports
   weight: 0.9
   context: 巫咸国制盐技术是'巫术'一词的词源依据
+- target: 珥蛇
+  type: supports
+  weight: 0.8
+  context: 巫咸国大巫的持蛇行为与珥蛇有相似巫术意义
+- target: 东方玄幻中国上古洪荒神话十拾遗之六-b73576df
+  type: is_part_of
+  weight: 0.7
+  context: 文中提及的重要神话国度
 grade: B
 processing_depth: entity
 is_immutable: false
@@ -24,7 +32,10 @@ zombie_since: null
 tags:
 - 题材/玄幻
 - 实体/巫咸国
+category: ''
+taxonomy_sub: ''
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 
