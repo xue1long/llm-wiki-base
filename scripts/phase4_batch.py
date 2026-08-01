@@ -33,6 +33,10 @@ _TYPE_DIR = {"source": "sources", "entity": "entities",
 MAX_RETRIES = 1
 # NDG Phase 5.2: concurrent generate calls (LLM-bound, read-only — safe).
 DEFAULT_CONCURRENCY = 3
+# Hard per-file ceiling (seconds).  generate_ingest has its own LLM-phase
+# timeout; this is an outer guard so a file that stalls anywhere (sanitize,
+# reconcile, disk I/O) fails the file rather than hanging the batch.
+FILE_TIMEOUT = 900
 
 
 def _log(msg: str) -> None:
@@ -219,10 +223,13 @@ async def main() -> int:
             last_err = None
             for attempt in range(MAX_RETRIES + 1):
                 try:
-                    pages, extra, meta = await generate_ingest(
-                        paths=paths, source_path=Path(raw_rel),
-                        source_text=text, provider=provider,
-                        folder_context="", task_id=task_id,
+                    pages, extra, meta = await asyncio.wait_for(
+                        generate_ingest(
+                            paths=paths, source_path=Path(raw_rel),
+                            source_text=text, provider=provider,
+                            folder_context="", task_id=task_id,
+                        ),
+                        timeout=FILE_TIMEOUT,
                     )
                     last_err = None
                     break
