@@ -10,8 +10,9 @@ from src.wiki.features.indexer import append_to_index
 def test_lint_clean_wiki_no_issues(tmp_path):
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
-    write_page(p, WikiPage(id="foo", title="Foo", type=PageType.ENTITY, body="Hello world"))
-    write_page(p, WikiPage(id="bar", title="Bar", type=PageType.CONCEPT, body="Other content"))
+    # Pages carry sources so they are clean under LINT-MISSING-SOURCES too.
+    write_page(p, WikiPage(id="foo", title="Foo", type=PageType.ENTITY, body="Hello world", sources=["a.md"]))
+    write_page(p, WikiPage(id="bar", title="Bar", type=PageType.CONCEPT, body="Other content", sources=["b.md"]))
     append_to_index(p, [("foo", PageType.ENTITY, "Foo"), ("bar", PageType.CONCEPT, "Bar")])
 
     report = lint_wiki(p)
@@ -165,3 +166,193 @@ def test_lint_version_with_three_components(tmp_path):
     assert _parse_version("2.1") >= (2, 0, 0)
     assert _parse_version("1.9.9") < (2, 0, 0)
     assert _parse_version("2.1.3") >= (2, 0, 0)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.1 — deterministic content checks:
+# LINT-RAW-PASTE / LINT-MISSING-SOURCES / LINT-UGC-CRED.
+# ---------------------------------------------------------------------------
+
+
+def test_lint_raw_paste_detects_long_plain_paragraph(tmp_path):
+    """Concept page with a >300-char unstructured paragraph → LINT-RAW-PASTE."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    paragraph = "\n".join(
+        "这是第 {} 行未经处理的原始文本，整段都是连续的长篇叙述，"
+        "没有任何 markdown 标记结构。".format(i)
+        for i in range(10)
+    )
+    assert len(paragraph) > 300  # the fixture really is a raw-paste-sized run
+    write_page(
+        p,
+        WikiPage(
+            id="raw", title="Raw", type=PageType.CONCEPT,
+            body=paragraph, sources=["a.md"],
+        ),
+    )
+    append_to_index(p, [("raw", PageType.CONCEPT, "Raw")])
+
+    report = lint_wiki(p)
+    raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
+    assert len(raw) == 1
+    assert raw[0].severity == LintSeverity.WARNING
+    assert raw[0].page_id == "raw"
+
+
+def test_lint_raw_paste_exempts_source_pages(tmp_path):
+    """Source pages carry full main_content legitimately → no LINT-RAW-PASTE."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    paragraph = "\n".join(
+        "这是第 {} 行未经处理的原始文本，整段都是连续的长篇叙述，"
+        "没有任何 markdown 标记结构。".format(i)
+        for i in range(10)
+    )
+    write_page(
+        p,
+        WikiPage(
+            id="src", title="Src", type=PageType.SOURCE,
+            body=paragraph, sources=["raw.md"],
+        ),
+    )
+    append_to_index(p, [("src", PageType.SOURCE, "Src")])
+
+    report = lint_wiki(p)
+    raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
+    assert raw == []
+
+
+def test_lint_raw_paste_ignores_blockquotes_and_list_items(tmp_path):
+    """A long body made of blockquotes / list items → no LINT-RAW-PASTE."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    lines = ["> 引用第 {} 行：这是一段很长的引用内容正文。".format(i) for i in range(20)]
+    lines += ["- 列表第 {} 项：这是一段很长的列表内容正文。".format(i) for i in range(20)]
+    lines += ["12. 有序列表第 {} 项：这是一段很长的有序列表内容。".format(i) for i in range(20)]
+    body = "\n".join(lines)
+    assert len(body) > 300
+    write_page(
+        p,
+        WikiPage(
+            id="mk", title="Mk", type=PageType.CONCEPT,
+            body=body, sources=["a.md"],
+        ),
+    )
+    append_to_index(p, [("mk", PageType.CONCEPT, "Mk")])
+
+    report = lint_wiki(p)
+    raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
+    assert raw == []
+
+
+def test_lint_raw_paste_ignores_code_fence(tmp_path):
+    """A long verbatim block inside a ``` fence → no LINT-RAW-PASTE."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    body = "```\n" + "\n".join("verbatim line {}" .format(i) * 8 for i in range(20)) + "\n```"
+    write_page(
+        p,
+        WikiPage(
+            id="code", title="Code", type=PageType.CONCEPT,
+            body=body, sources=["a.md"],
+        ),
+    )
+    append_to_index(p, [("code", PageType.CONCEPT, "Code")])
+
+    report = lint_wiki(p)
+    raw = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
+    assert raw == []
+
+
+def test_lint_missing_sources_detects_empty_sources(tmp_path):
+    """Page with empty sources and no derivation relation → LINT-MISSING-SOURCES."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    write_page(
+        p,
+        WikiPage(id="nosrc", title="NoSrc", type=PageType.CONCEPT, body="正文内容。"),
+    )
+    append_to_index(p, [("nosrc", PageType.CONCEPT, "NoSrc")])
+
+    report = lint_wiki(p)
+    missing = [i for i in report.issues if i.code == "LINT-MISSING-SOURCES"]
+    assert len(missing) == 1
+    assert missing[0].severity == LintSeverity.WARNING
+    assert missing[0].page_id == "nosrc"
+
+
+def test_lint_missing_sources_silent_when_sources_set(tmp_path):
+    """Synthesis page listing its sources → no LINT-MISSING-SOURCES."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    write_page(
+        p,
+        WikiPage(
+            id="syn", title="Syn", type=PageType.SYNTHESIS,
+            body="## 综述\n\n对比内容。",
+            sources=["raw/a.md", "raw/b.md"],
+        ),
+    )
+    append_to_index(p, [("syn", PageType.SYNTHESIS, "Syn")])
+
+    report = lint_wiki(p)
+    missing = [i for i in report.issues if i.code == "LINT-MISSING-SOURCES"]
+    assert missing == []
+
+
+def test_lint_missing_sources_silent_with_derived_from_relation(tmp_path):
+    """Empty sources but a derived_from relation → no LINT-MISSING-SOURCES."""
+    from src.wiki.features.relations import Relation
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    write_page(
+        p,
+        WikiPage(
+            id="der", title="Der", type=PageType.CONCEPT, body="正文内容。",
+            relations=[Relation(target_id="src-a", type="derived_from")],
+        ),
+    )
+    append_to_index(p, [("der", PageType.CONCEPT, "Der")])
+
+    report = lint_wiki(p)
+    missing = [i for i in report.issues if i.code == "LINT-MISSING-SOURCES"]
+    assert missing == []
+
+
+def test_lint_ugc_cred_detects_ugc_without_credibility(tmp_path):
+    """Page tagged 素材/ugc but missing 可信度/ugc → LINT-UGC-CRED."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    write_page(
+        p,
+        WikiPage(
+            id="ugc", title="UGC", type=PageType.CONCEPT, body="正文内容。",
+            tags=["素材/ugc"], sources=["a.md"],
+        ),
+    )
+    append_to_index(p, [("ugc", PageType.CONCEPT, "UGC")])
+
+    report = lint_wiki(p)
+    ugc = [i for i in report.issues if i.code == "LINT-UGC-CRED"]
+    assert len(ugc) == 1
+    assert ugc[0].severity == LintSeverity.WARNING
+    assert ugc[0].page_id == "ugc"
+
+
+def test_lint_ugc_cred_silent_when_credibility_tag_present(tmp_path):
+    """Page tagged both 素材/ugc and 可信度/ugc → no LINT-UGC-CRED."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    write_page(
+        p,
+        WikiPage(
+            id="ugc2", title="UGC2", type=PageType.CONCEPT, body="正文内容。",
+            tags=["素材/ugc", "可信度/ugc"], sources=["a.md"],
+        ),
+    )
+    append_to_index(p, [("ugc2", PageType.CONCEPT, "UGC2")])
+
+    report = lint_wiki(p)
+    ugc = [i for i in report.issues if i.code == "LINT-UGC-CRED"]
+    assert ugc == []

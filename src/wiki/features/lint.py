@@ -1,7 +1,8 @@
-"""Wiki lint (A4) — runs 6 non-LLM checks across all wiki pages.
+"""Wiki lint (A4) — runs 9 non-LLM checks across all wiki pages.
 
 Detects: LINT-MISSING-ID, LINT-MISSING-TITLE, LINT-EMPTY-BODY,
-LINT-MISSING-SECTION, LINT-ORPHAN, LINT-DUPLICATE.
+LINT-MISSING-SECTION, LINT-ORPHAN, LINT-DUPLICATE, LINT-RAW-PASTE,
+LINT-MISSING-SOURCES, LINT-UGC-CRED.
 
 LINT-MISSING-SECTION (Plan 27 / wiki v2.3 schema) is **version-gated**:
 only pages whose leading HTML comment declares
@@ -24,6 +25,7 @@ from ..storage.ensure import ensure_knowledge_base
 from .indexer import read_index
 from ..storage.page_writer import read_page
 from ..core.paths import WikiPaths
+from ..core.types import PageType
 from ..templates import list_resolved, required_slot_names
 
 
@@ -36,6 +38,16 @@ _TEMPLATE_VERSION_RE = re.compile(
 # Heading lines emitted in the rendered body so we can extract exactly
 # which sections are present vs missing per the active template.
 _BODY_HEADING_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
+# Fenced code block delimiters. Lines between two such markers are exempt
+# from LINT-RAW-PASTE (they are intentionally verbatim).
+_FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
+# List-item markers: "- ", "* " (unordered) or "1. " / "1) " (ordered),
+# with optional leading indentation. Also catches "+ " / "• " variants.
+_LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+•]\s|\d+[.)]\s)")
+
+# A plain-text run longer than this many characters is treated as a raw
+# paste rather than curated wiki prose.
+_RAW_PASTE_THRESHOLD = 300
 
 
 class LintSeverity(str, Enum):
@@ -77,8 +89,37 @@ def _parse_version(version_str: str) -> tuple[int, ...]:
     return tuple(parts[:3])
 
 
+def _long_raw_text_run(body: str) -> int:
+    """Length of the longest run of "plain prose" lines in ``body``.
+
+    A plain-prose line is non-empty and is NOT a blockquote, NOT a list
+    item, and NOT inside a fenced code block. Blank lines, blockquotes,
+    list items, and fence boundaries all reset the current run. The
+    returned value is the character length of the longest qualifying run.
+    """
+    longest = 0
+    current = 0
+    in_fence = False
+    for line in body.split("\n"):
+        stripped = line.strip()
+        if _FENCE_RE.match(stripped):
+            in_fence = not in_fence
+            current = 0
+            continue
+        if in_fence or not stripped:
+            current = 0
+            continue
+        if stripped.startswith(">") or _LIST_ITEM_RE.match(stripped):
+            current = 0
+            continue
+        current += len(stripped)
+        if current > longest:
+            longest = current
+    return longest
+
+
 def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
-    """Run all 6 lint checks against the wiki at ``paths``.
+    """Run all 9 lint checks against the wiki at ``paths``.
 
     Scans wiki_sources / wiki_entities / wiki_concepts / wiki_synthesis (skips
     stubs). Returns a LintReport with the collected issues and the page count.
@@ -145,6 +186,77 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
             if page.body.strip():
                 content_hash = hashlib.md5(page.body.encode("utf-8")).hexdigest()
                 body_hashes.setdefault(content_hash, []).append(page.id)
+
+            # LINT-RAW-PASTE: source pages carry the full source text as
+            # their main_content, so they are exempt. For every other page
+            # type, a long run of plain text with no markdown structure
+            # (no blockquote / list item / code fence) indicates
+            # unprocessed raw text was pasted straight into the body.
+            if page.type != PageType.SOURCE:
+                raw_run = _long_raw_text_run(page.body)
+                if raw_run > _RAW_PASTE_THRESHOLD:
+                    issues.append(
+                        LintIssue(
+                            code="LINT-RAW-PASTE",
+                            severity=LintSeverity.WARNING,
+                            message=(
+                                f"Page body contains a {raw_run}-char run of "
+                                "unstructured plain text (possible raw paste)"
+                            ),
+                            page_id=page.id,
+                            suggestion=(
+                                "Split the prose into sections, list items, or "
+                                "blockquotes, or move the verbatim text into the "
+                                "page's source file."
+                            ),
+                        )
+                    )
+
+            # LINT-MISSING-SOURCES: a page should either list its raw source
+            # file(s) or declare a derivation relation (derived_from /
+            # supported_by). A synthesis page that enumerates its sources is
+            # fine; only a page with neither signal is flagged.
+            rel_types = {
+                r.type if isinstance(r.type, str) else r.type.value
+                for r in page.relations
+            }
+            if not page.sources and not (
+                rel_types & {"derived_from", "supported_by"}
+            ):
+                issues.append(
+                    LintIssue(
+                        code="LINT-MISSING-SOURCES",
+                        severity=LintSeverity.WARNING,
+                        message=(
+                            f"Page has no sources and no derived/supported "
+                            f"relation: {page.id}"
+                        ),
+                        page_id=page.id,
+                        suggestion=(
+                            "Add the raw source path(s) to the page's sources, "
+                            "or add a derived_from / supported_by relation."
+                        ),
+                    )
+                )
+
+            # LINT-UGC-CRED: UGC-sourced material (素材/ugc) must also carry a
+            # credibility tag (可信度/ugc) so readers know how it was verified.
+            if "素材/ugc" in page.tags and "可信度/ugc" not in page.tags:
+                issues.append(
+                    LintIssue(
+                        code="LINT-UGC-CRED",
+                        severity=LintSeverity.WARNING,
+                        message=(
+                            f"Page tagged 素材/ugc but missing the 可信度/ugc "
+                            f"credibility tag: {page.id}"
+                        ),
+                        page_id=page.id,
+                        suggestion=(
+                            "Add the 可信度/ugc tag to record how the UGC "
+                            "material was verified."
+                        ),
+                    )
+                )
 
             # LINT-MISSING-SECTION: v2+ template pages must include every
             # required heading. The parser strips the leading comment from
