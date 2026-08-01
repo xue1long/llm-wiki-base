@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import sys
 import time
 from pathlib import Path
@@ -144,6 +145,16 @@ def _check_overwrite_protection(
 
 
 async def main() -> int:
+    # Make pipeline INFO logs visible so batch progress is observable
+    # (unified produced / creating stubs / etc.).  Without a handler the
+    # ``logging`` INFO records are silently dropped and a slow-but-healthy
+    # batch looks hung.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stderr,
+    )
     ap = argparse.ArgumentParser(
         description="NDG batch: generate → reconcile → gate → commit")
     ap.add_argument("--manifest", default=str(MANIFEST))
