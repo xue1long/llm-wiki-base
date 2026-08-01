@@ -179,3 +179,94 @@ def test_extra_pages_included_in_output():
     assert len(result.pages) == 2
     assert any(p.id == "extra-1" for p in result.pages)
     assert any(p.id == "new-1" for p in result.pages)
+
+
+# ---------------------------------------------------------------------------
+# Cross-type conflict: wiki-known slug wins (NDG Phase 6 resolution)
+# ---------------------------------------------------------------------------
+
+def _make_wiki_with(root, entries):
+    """Write a minimal wiki/index.md with the given (slug, type) entries and
+    return the WikiPaths object."""
+    from src.wiki.core.paths import WikiPaths
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    paths = ensure_knowledge_base(root)
+    idx_lines = ["# Wiki Index\n"]
+    for slug, ptype in entries:
+        idx_lines.append(f"- **{slug}** ({ptype.value}) — {slug}\n")
+    paths.llm_wiki_index.write_text("".join(idx_lines), encoding="utf-8")
+    return paths
+
+
+def test_cross_type_conflict_resolved_by_wiki_type(tmp_path):
+    """When the wiki already has a slug (e.g. as concept), the batch's
+    same-slug page of the *other* type (entity) is dropped — no conflict."""
+    paths = _make_wiki_with(tmp_path, [("三清", PageType.CONCEPT)])
+
+    pages = [
+        WikiPage(id="三清", title="三清", type=PageType.ENTITY, body="entity ver"),
+        WikiPage(id="三清", title="三清", type=PageType.CONCEPT, body="concept ver"),
+    ]
+    result = reconcile_batch(pages, paths=paths)
+
+    assert result.conflicts == [], "wiki-known slug must not be a conflict"
+    kept = [p for p in result.pages if p.id == "三清"]
+    assert len(kept) == 1, "only the wiki-typed page survives"
+    assert kept[0].type == PageType.CONCEPT
+
+
+def test_cross_type_conflict_still_flag_when_wiki_unknown(tmp_path):
+    """When the wiki has no entry for the slug, entity/concept collision is
+    still reported as a conflict (cannot pick a side)."""
+    paths = _make_wiki_with(tmp_path, [])  # empty wiki
+
+    pages = [
+        WikiPage(id="新实体", title="新实体", type=PageType.ENTITY, body="e"),
+        WikiPage(id="新实体", title="新实体", type=PageType.CONCEPT, body="c"),
+    ]
+    result = reconcile_batch(pages, paths=paths)
+
+    assert len(result.conflicts) == 1
+    assert result.conflicts[0].slug == "新实体"
+    assert set(result.conflicts[0].types) == {"entity", "concept"}
+
+
+def test_cross_type_drop_folds_relations_into_survivor(tmp_path):
+    """Dropped cross-type pages' relations are folded into the surviving
+    wiki-typed page so no information is lost."""
+    paths = _make_wiki_with(tmp_path, [("三清", PageType.CONCEPT)])
+
+    pages = [
+        WikiPage(id="三清", title="三清", type=PageType.ENTITY, body="e",
+                 sources=["raw/sources/foo.md"],
+                 relations=[Relation(target_id="某道场", type="located_at")]),
+        WikiPage(id="三清", title="三清", type=PageType.CONCEPT, body="c",
+                 sources=["raw/sources/bar.md"]),
+    ]
+    result = reconcile_batch(pages, paths=paths)
+
+    assert result.conflicts == []
+    survivor = next(p for p in result.pages if p.id == "三清")
+    assert survivor.type == PageType.CONCEPT
+    # Dropped entity page's relations + sources folded in.
+    rel_targets = {r.target_id for r in (survivor.relations or [])}
+    assert "某道场" in rel_targets, "dropped page's relations must be folded"
+    assert "raw/sources/foo.md" in (survivor.sources or [])
+
+
+def test_cross_type_conflict_wiki_type_matches_batch_keeps_both_same_type(tmp_path):
+    """If the wiki knows the slug as concept and the batch only has concept
+    pages (no entity), nothing is dropped — the two same-type pages are
+    merged (V15) rather than flagged as a cross-type conflict."""
+    paths = _make_wiki_with(tmp_path, [("六御", PageType.CONCEPT)])
+
+    pages = [
+        WikiPage(id="六御", title="六御", type=PageType.CONCEPT, body="c1"),
+        WikiPage(id="六御", title="六御", type=PageType.CONCEPT, body="c2"),
+    ]
+    result = reconcile_batch(pages, paths=paths)
+
+    assert result.conflicts == [], "same-type pages are not a cross-type conflict"
+    kept = [p for p in result.pages if p.id == "六御"]
+    assert len(kept) == 1, "same-type duplicate pages are merged to one"
+    assert kept[0].type == PageType.CONCEPT

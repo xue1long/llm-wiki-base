@@ -54,6 +54,7 @@ class ReconcileResult:
 def reconcile_batch(
     pages: list[WikiPage],
     extra_pages: list[WikiPage] | None = None,
+    paths: "WikiPaths | None" = None,
 ) -> ReconcileResult:
     """Reconcile a batch of generated pages before gate + commit.
 
@@ -65,6 +66,13 @@ def reconcile_batch(
         Pre-existing pages touched by reverse relations.  These are
         appended to the output as-is — they are **not** subject to
         merge logic (merging could throw away richer existing content).
+    paths:
+        When provided, the batch's cross-type slug conflicts are resolved
+        against the existing wiki: the on-disk type for a slug wins, and
+        batch pages of the *other* type are dropped.  A cross-type
+        conflict is only reported when the wiki has no entry for the slug
+        (nothing to defer to).  When ``None`` (legacy callers / pure batch
+        tests), every cross-type slug collision is reported as a conflict.
 
     Returns
     -------
@@ -89,24 +97,97 @@ def reconcile_batch(
     merged: list[MergeEntry] = []
     conflicts: list[ConflictEntry] = []
 
-    # Index batch pages by (slug, type)
+    # When paths is provided, load the existing wiki's slug→type map so
+    # cross-type collisions can defer to the on-disk type (Phase 6 fix).
+    wiki_slug_types: dict[str, str] = {}
+    if paths is not None:
+        try:
+            from .indexer import read_index
+            for slug, ptype, _title in read_index(paths):
+                wiki_slug_types[slug] = ptype.value if hasattr(ptype, "value") else str(ptype)
+        except Exception:
+            wiki_slug_types = {}
+
+    # Cross-type conflicts.  Two-pass detection so the resolution is
+    # deterministic regardless of page order:
+    #   1st pass — collect every type a slug appears with in the batch.
+    #   2nd pass — for slugs with >1 type: if the wiki knows the slug,
+    #              drop the pages whose type differs from the wiki type
+    #              (the wiki is the source of truth); otherwise report a
+    #              ConflictEntry (nothing to defer to).
+    batch_types: dict[str, set[str]] = {}
+    for p in kept:
+        if not p.id:
+            continue
+        pt = p.type.value if hasattr(p.type, "value") else str(p.type)
+        batch_types.setdefault(p.id, set()).add(pt)
+
+    cross_type_slugs = {
+        slug for slug, types in batch_types.items()
+        if len(types) > 1
+    }
+
+    drop_slugs: set[str] = set()   # slugs resolved by the wiki (drop non-matching)
+    for slug in cross_type_slugs:
+        wiki_type = wiki_slug_types.get(slug)
+        if wiki_type is not None:
+            # Wiki knows the slug → its type wins; the batch pages of the
+            # other type(s) are dropped, not flagged.
+            drop_slugs.add(slug)
+        else:
+            # Wiki has no entry → genuine cross-type collision.
+            conflicts.append(ConflictEntry(
+                slug=slug, types=tuple(sorted(batch_types[slug])),
+            ))
+
+    if drop_slugs:
+        # Wiki-known slug with a cross-type batch collision: keep only the
+        # pages whose type matches the wiki's type, and fold the dropped
+        # pages' sources + relations into the surviving page(s) so no
+        # information is lost by the type resolution.
+        _survivors: list[WikiPage] = []
+        _dropped: list[WikiPage] = []
+        for p in kept:
+            if not p.id or p.id not in drop_slugs:
+                _survivors.append(p)
+                continue
+            pt = p.type.value if hasattr(p.type, "value") else str(p.type)
+            if pt == wiki_slug_types[p.id]:
+                _survivors.append(p)
+            else:
+                _dropped.append(p)
+        # Fold dropped pages' sources + relations into survivors of the
+        # same slug (best-effort; multiple survivors share the folded info).
+        if _dropped:
+            for d in _dropped:
+                targets = [q for q in _survivors if q.id == d.id]
+                if not targets:
+                    continue
+                t = targets[0]
+                if d.sources:
+                    _srcs = set(t.sources or [])
+                    for s in d.sources:
+                        if s not in _srcs:
+                            t.sources = list(t.sources or []) + [s]
+                            _srcs.add(s)
+                if d.relations:
+                    _rels = list(t.relations or [])
+                    _ridx = {(r.target_id, r.type) for r in _rels}
+                    for rel in d.relations:
+                        if (rel.target_id, rel.type) not in _ridx:
+                            _rels.append(rel)
+                            _ridx.add((rel.target_id, rel.type))
+                    t.relations = _rels
+        kept = _survivors
+
+    # Index batch pages by (slug, type) — after cross-type resolution so
+    # dropped pages never reach the merge step.
     by_slug_type: dict[tuple[str, str], list[WikiPage]] = {}
     for p in kept:
         if not p.id:
             continue
         key = (p.id, p.type.value if hasattr(p.type, "value") else str(p.type))
         by_slug_type.setdefault(key, []).append(p)
-
-    # Cross-type conflicts
-    slug_types: dict[str, str] = {}
-    for p in kept:
-        if not p.id:
-            continue
-        pt = p.type.value if hasattr(p.type, "value") else str(p.type)
-        existing = slug_types.get(p.id)
-        if existing is not None and existing != pt:
-            conflicts.append(ConflictEntry(slug=p.id, types=(existing, pt)))
-        slug_types[p.id] = pt
 
     # Merge within same (slug, type) groups
     deduped: list[WikiPage] = []

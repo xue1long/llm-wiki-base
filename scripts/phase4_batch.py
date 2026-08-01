@@ -294,7 +294,7 @@ async def main() -> int:
         return 1
 
     # ── Phase 4.2: batch reconcile ─────────────────────────────────
-    result = reconcile_batch(all_pages, all_extra)
+    result = reconcile_batch(all_pages, all_extra, paths=paths)
     if result.stubs_suppressed:
         _log(f"reconcile: suppressed {result.stubs_suppressed} stub(s)")
     for m in result.merged:
