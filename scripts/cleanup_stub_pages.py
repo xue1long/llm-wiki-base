@@ -31,7 +31,10 @@ links, so this script:
     matching ``[[...]]`` wikilinks are touched; every other byte (frontmatter,
     body, line endings) is preserved.
   * deletes each stub file with ``git rm`` (falls back to ``os.remove`` when the
-    file is not tracked by git).
+    file is not tracked by git);
+  * prunes the ``wiki/index.md`` catalog: lines whose ``**id**`` matches a
+    deleted stub are removed (stubs were indexed at creation, so deleting the
+    files without pruning would leave ~693 dead catalog rows).
 
 SAFE BY DEFAULT: without ``--apply`` nothing is written or deleted — only a
 full change plan is printed. ``--max N`` stops after N stubs in apply mode.
@@ -69,6 +72,9 @@ WIKI_TYPES = ("sources", "entities", "concepts", "synthesis")
 
 FRONT_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n(.*)$", re.DOTALL)
 WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
+# A line reduced to a bare list marker by stub-wikilink removal (`- ` from
+# `- [[stub]]`) must be dropped, not left as a degenerate bullet.
+_EMPTY_LIST_RE = re.compile(r"^[-*+]\s*$")
 STUB_BODY_MARK = "占位条目"
 
 # Priority for choosing a repoint target when several real pages qualify.
@@ -347,7 +353,11 @@ def _rewrite_one_wikilink(m: re.Match, stub: Stub, replacement: str | None) -> s
 
 
 def rewrite_wikilinks(body: str, stub: Stub, replacement: str | None) -> tuple[str, int]:
-    """Remove or repoint every [[wikilink]] whose target is the stub."""
+    """Remove or repoint every [[wikilink]] whose target is the stub.
+
+    When a removal leaves a bare list marker (``- `` from ``- [[stub]]``),
+    the now-empty line is dropped so no degenerate bullet remains.
+    """
     n = 0
 
     def _sub(m: re.Match) -> str:
@@ -357,7 +367,12 @@ def rewrite_wikilinks(body: str, stub: Stub, replacement: str | None) -> tuple[s
             n += 1
         return res
 
-    return WIKILINK_RE.sub(_sub, body), n
+    new_body = WIKILINK_RE.sub(_sub, body)
+    if n:
+        lines = new_body.split("\n")
+        lines = [ln for ln in lines if not _EMPTY_LIST_RE.match(ln)]
+        new_body = "\n".join(lines)
+    return new_body, n
 
 
 def rewrite_page(index: WikiIndex, path: Path, stub: Stub, replacement: str | None) -> int:
@@ -414,6 +429,36 @@ def delete_stub(wiki_root: Path, stub: Stub) -> str:
     except FileNotFoundError:
         pass
     return "os"
+
+
+def _prune_index(index_path: Path, deleted_ids: set[str]) -> int:
+    """Remove catalog rows in ``wiki/index.md`` whose ``**id**`` was deleted.
+
+    Preserves every other byte (line endings handled like pages). Returns the
+    number of rows removed. A row must look like ``- **<id>** (<type>) — …``
+    (a list item carrying a bold id) to be eligible for removal.
+    """
+    if not index_path.is_file():
+        return 0
+    raw = index_path.read_text(encoding="utf-8", newline="")
+    nl = "\r\n" if "\r\n" in raw else "\n"
+    text = raw.replace("\r\n", "\n")
+    kept: list[str] = []
+    removed = 0
+    for line in text.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            m = re.search(r"\*\*([^*]+)\*\*", stripped)
+            if m and m.group(1).strip() in deleted_ids:
+                removed += 1
+                continue
+        kept.append(line)
+    if removed == 0:
+        return 0
+    out = "\n".join(kept)
+    out = out.replace("\n", nl) if nl == "\r\n" else out
+    index_path.write_text(out, encoding="utf-8", newline="")
+    return removed
 
 
 # ---------------------------------------------------------------------------
@@ -492,6 +537,7 @@ def main() -> int:
     removed = 0
     deleted = 0
     processed = 0
+    deleted_ids: set[str] = set()
 
     for s, replacement, refs in plan:
         if args.max is not None and processed >= args.max:
@@ -514,14 +560,20 @@ def main() -> int:
 
         how = delete_stub(wiki_root, s)
         deleted += 1
+        deleted_ids.add(s.id)
         print(f"STUB {s.id}  [{s.bucket}]  {_action_label(s, replacement, refs)}  "
               f"(deleted via {how})")
+
+    # prune the catalog: stubs were indexed at creation, so rows pointing at
+    # deleted files must go or index.md accumulates ~693 dead entries.
+    index_pruned = _prune_index(wiki_root / "wiki" / "index.md", deleted_ids)
 
     print("=" * 78)
     print(f"SUMMARY  stubs processed: {processed} / {len(stubs)}")
     print(f"  references repointed: {repointed}")
     print(f"  references removed:   {removed}")
     print(f"  stub pages deleted:   {deleted}")
+    print(f"  index.md rows pruned: {index_pruned}")
     return 0
 
 
