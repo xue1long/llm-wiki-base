@@ -77,7 +77,7 @@ def _histogram(values: list[int], bin_size: int = 200) -> dict[str, int]:
                        key=lambda x: int(x[0].split("-")[0]) if x[0][0].isdigit() else 0))
 
 
-def _scan_raw_files(raw_dir: Path, max_files: int | None = None) -> list[Path]:
+def _scan_raw_files(raw_dir: Path) -> list[Path]:
     """Scan *raw_dir* recursively for readable text files."""
     files: list[Path] = []
     for ext in ("*.txt", "*.md", "*.html"):
@@ -85,8 +85,6 @@ def _scan_raw_files(raw_dir: Path, max_files: int | None = None) -> list[Path]:
             if f.is_file():
                 files.append(f)
     files.sort()
-    if max_files is not None:
-        files = files[:max_files]
     return files
 
 
@@ -187,7 +185,12 @@ async def main() -> int:
             type_str = p.type.value if hasattr(p.type, "value") else str(p.type)
             page_types[type_str] += 1
 
-            if p.type.value == "source" if hasattr(p.type, "value") else p.type == "source":
+            if hasattr(p.type, "value"):
+                is_source = p.type.value == "source"
+            else:
+                is_source = p.type == "source"
+
+            if is_source:
                 source_runs.append(run)
             else:
                 non_source_runs.append(run)
