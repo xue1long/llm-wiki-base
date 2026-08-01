@@ -82,6 +82,41 @@ def _batch_completed_files(batch_key: str) -> set[str]:
     return set()
 
 
+def _decide_abort(
+    ok: int,
+    err: int,
+    pending: int,
+    resume: bool,
+    completed: set,
+    skip: int,
+) -> tuple[bool, str]:
+    """R0-2: decide whether to abort the batch after the generate summary.
+
+    A batch that produced zero pages must not fake-commit ``committed`` (B4).
+    The only legitimate ``ok==0`` case is a ``--resume`` re-run where every
+    file was already completed in a prior run (then there is nothing left to
+    do, and the batch is already recorded as done).
+
+    Params:
+      ok        number of files successfully generated
+      err       number of files that failed generation
+      pending   number of files still pending — missing on disk this run
+      resume    whether ``--resume`` was given
+      completed set of raw paths already completed in a prior run
+      skip      number of files skipped as already-completed (resume)
+
+    Returns ``(abort, reason)``.
+    """
+    if ok == 0 and err > 0:
+        return True, "all files failed"
+    if ok == 0 and err == 0:
+        if pending:
+            return True, "all files missing (empty batch)"
+        if resume and skip and len(completed) >= skip:
+            return False, "all files already completed (resume)"
+    return False, ""
+
+
 def _check_overwrite_protection(
     pages: list,
     paths,
@@ -210,12 +245,16 @@ async def main() -> int:
 
     # Filter out completed files and missing files
     pending: list[tuple[int, str]] = []
+    missing_count = 0
+    completed_skip_count = 0
     for raw_rel in files:
         if args.resume and raw_rel in completed_files:
+            completed_skip_count += 1
             _log(f"SKIP completed: {raw_rel}")
             continue
         src = ROOT / raw_rel
         if not src.is_file():
+            missing_count += 1
             _log(f"SKIP missing: {raw_rel}")
             continue
         pending.append((len(pending), raw_rel))
@@ -307,8 +346,24 @@ async def main() -> int:
     _log(f"generated ok={ok} err={err} total_pages={len(all_pages)} "
          f"extras={len(all_extra)} elapsed={time.time()-t0:.0f}s")
 
-    if err > 0 and ok == 0:
-        _log("BATCH ABORTED: all files failed")
+    abort, reason = _decide_abort(
+        ok=ok, err=err, pending=missing_count,
+        resume=args.resume, completed=completed_files,
+        skip=completed_skip_count,
+    )
+    if abort:
+        _log(f"BATCH ABORTED: {reason}")
+        state = _load_state()
+        state[batch_key] = {
+            "status": "failed",
+            "files": files,
+            "ok": ok, "err": err,
+            "missing": missing_count,
+            "skipped_completed": completed_skip_count,
+            "reason": reason,
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+        _save_state(state)
         return 1
 
     # ── Phase 4.2: batch reconcile ─────────────────────────────────
