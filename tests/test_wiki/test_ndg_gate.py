@@ -141,6 +141,83 @@ def test_p4_no_ugc_tags():
 
 
 # ---------------------------------------------------------------------------
+# P4b — UGC-CARRIER (batch-level, D5 defensive line behind auto-tag)
+# ---------------------------------------------------------------------------
+
+def test_p4b_carrier_page_missing_both_tags_blocker():
+    """Carrier-derived page with no UGC tags → P4b blocker."""
+    pages = [
+        WikiPage(id="ent-1", title="Entity", type=PageType.ENTITY,
+                 body="content", sources=["raw/a.md"],
+                 processing_depth="concept"),
+    ]
+    raw_headers = {"raw/a.md": "https://mp.weixin.qq.com/s/abc"}
+    issues = check_batch(pages, raw_headers=raw_headers)
+    p4b = [i for i in issues if i.code == "P4b"]
+    assert len(p4b) == 1
+    assert p4b[0].page_id == "ent-1"
+    assert p4b[0].is_blocker is True, "P4b must block the batch"
+
+def test_p4b_carrier_page_missing_only_cred_blocker():
+    """素材/ugc present but 可信度/ugc missing → P4b blocker."""
+    pages = [
+        WikiPage(id="ent-1", title="Entity", type=PageType.ENTITY,
+                 body="content", sources=["raw/a.md"],
+                 processing_depth="concept", tags=["素材/ugc"]),
+    ]
+    raw_headers = {"raw/a.md": "https://mp.weixin.qq.com/s/abc"}
+    issues = check_batch(pages, raw_headers=raw_headers)
+    p4b = [i for i in issues if i.code == "P4b"]
+    assert len(p4b) == 1
+    assert "可信度/ugc" in p4b[0].message
+
+def test_p4b_carrier_page_with_both_tags_passes():
+    """Carrier-derived page carrying both UGC tags → no P4b."""
+    pages = [
+        WikiPage(id="ent-1", title="Entity", type=PageType.ENTITY,
+                 body="content", sources=["raw/a.md"],
+                 processing_depth="concept",
+                 tags=["素材/ugc", "可信度/ugc"]),
+    ]
+    raw_headers = {"raw/a.md": "https://mp.weixin.qq.com/s/abc"}
+    issues = check_batch(pages, raw_headers=raw_headers)
+    assert not any(i.code == "P4b" for i in issues)
+
+def test_p4b_non_carrier_unaffected():
+    """Page from a non-carrier raw → no P4b, even untagged."""
+    pages = [
+        WikiPage(id="ent-1", title="Entity", type=PageType.ENTITY,
+                 body="content", sources=["raw/a.md"],
+                 processing_depth="concept"),
+    ]
+    raw_headers = {"raw/a.md": "https://example.com/article/123"}
+    issues = check_batch(pages, raw_headers=raw_headers)
+    assert not any(i.code == "P4b" for i in issues)
+
+def test_p4b_stub_exempt():
+    """Stub page derived from a carrier raw is exempt (auto-tag skips stubs
+    too, so the gate must stay in sync)."""
+    pages = [
+        WikiPage(id="stub-1", title="Stub", type=PageType.ENTITY,
+                 body="stub body", sources=["raw/a.md"],
+                 processing_depth="stub"),
+    ]
+    raw_headers = {"raw/a.md": "https://mp.weixin.qq.com/s/abc"}
+    issues = check_batch(pages, raw_headers=raw_headers)
+    assert not any(i.code == "P4b" for i in issues)
+
+def test_p4b_no_raw_headers_skips():
+    """No raw_headers → P4b does not fire."""
+    pages = [
+        WikiPage(id="ent-1", title="Entity", type=PageType.ENTITY,
+                 body="content", sources=["raw/a.md"],
+                 processing_depth="concept"),
+    ]
+    issues = check_batch(pages)
+    assert not any(i.code == "P4b" for i in issues)
+
+
+# ---------------------------------------------------------------------------
 # P5 — INPUT-SOURCE-PAIR (warning only)
 # ---------------------------------------------------------------------------
 
@@ -345,3 +422,18 @@ def test_run_ndg_gate_p5_is_warning_not_blocker():
     assert len(p5_issues) == 1
     assert all(not i.is_blocker for i in p5_issues)
     assert report.passed  # P5 alone doesn't block
+
+def test_run_ndg_gate_p4b_blocks_batch():
+    """A carrier-derived page missing UGC tags → P4b blocker fails the batch."""
+    pages = [
+        WikiPage(id="ent-1", title="Entity", type=PageType.ENTITY,
+                  body="content", sources=["raw/a.md"],
+                  processing_depth="concept"),
+    ]
+    raw_headers = {"raw/a.md": "https://mp.weixin.qq.com/s/abc"}
+    report = run_ndg_gate(pages, raw_headers=raw_headers)
+    p4b = [i for i in report.issues if i.code == "P4b"]
+    assert len(p4b) == 1
+    assert p4b[0].is_blocker is True
+    assert not report.passed
+    assert report.blocker_count >= 1

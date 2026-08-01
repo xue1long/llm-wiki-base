@@ -8,6 +8,9 @@ Scope
 The gate enforces only the **batch-level structural checks** that must run
 before write (or on a batch of on-disk pages):
 
+P4b UGC-CARRIER       a non-stub page derived from a UGC carrier raw must
+                       carry BOTH 素材/ugc AND 可信度/ugc — missing either
+                       is a blocker (D5 defensive line behind auto-tag)
 P5  INPUT-SOURCE-PAIR  every raw input has a corresponding SOURCE page
                        (warning only — Fix D guarantees one per file)
 P6  SLUG-CONFLICT      no two pages share the same slug with different types
@@ -47,6 +50,7 @@ from .lint import (
     _readability_violation,
     _missing_sources,
     _missing_ugc_cred,
+    _is_ugc_carrier,
     _DEFAULT_T_SOURCE,
     _DEFAULT_T_NON,
 )
@@ -215,7 +219,7 @@ def check_batch(
         All pages produced by this batch's generate step.
     raw_headers:
         ``{raw_path: first_4000_chars}`` for every raw file in the batch.
-        Used for P5 input→source pairing.
+        Used for P5 input→source pairing and P4b UGC-carrier detection.
     extra_pages:
         Pre-existing pages touched by reverse relations.  Checked by P7.
     paths:
@@ -235,6 +239,7 @@ def check_batch(
         for src in (page.sources or []):
             raw_to_pages.setdefault(src, []).append(page)
 
+    _check_p4b_ugc_carrier(pages, raw_headers, issues)
     _check_p5_input_source_pair(pages, raw_to_pages, raw_headers, issues)
     _check_p6_slug_conflict(pages, issues)
     _check_p7_extra_pages(extra_pages, paths, allow_overwrite, issues)
@@ -356,6 +361,47 @@ def _check_p7_extra_pages(
             issues.append(GateIssue("P7", ep.id, msg, is_blocker=False))
         else:
             issues.append(GateIssue("P7", ep.id, msg, is_blocker=True))
+
+
+def _check_p4b_ugc_carrier(
+    pages: list[WikiPage],
+    raw_headers: dict[str, str] | None,
+    issues: list[GateIssue],
+) -> None:
+    """P4b: every non-stub page derived from a UGC carrier raw must carry
+    BOTH ``素材/ugc`` and ``可信度/ugc``.
+
+    A raw file is a UGC carrier when its header (first ~4000 chars) matches
+    :func:`src.wiki.features.lint._is_ugc_carrier`.  A derived page is one
+    whose ``sources`` contains such a raw.  Missing either tag is a blocker
+    (the phase4 auto-tag step is the deterministic fixer; this check is the
+    defensive line so a batch can never write an untagged UGC page).
+    """
+    if not raw_headers:
+        return
+    carrier_raws = {
+        raw for raw, header in raw_headers.items()
+        if _is_ugc_carrier(header)
+    }
+    if not carrier_raws:
+        return
+
+    for page in pages:
+        if getattr(page, "processing_depth", "") == "stub":
+            continue
+        if not (set(page.sources or []) & carrier_raws):
+            continue
+        tags = set(page.tags or [])
+        missing = [
+            tag for tag in ("素材/ugc", "可信度/ugc") if tag not in tags
+        ]
+        if missing:
+            issues.append(GateIssue(
+                "P4b", page.id,
+                f"Page derived from UGC carrier raw(s) is missing tag(s): "
+                f"{', '.join(missing)}.",
+                is_blocker=True,
+            ))
 
 
 # ---------------------------------------------------------------------------
