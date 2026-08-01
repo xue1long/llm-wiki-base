@@ -24,6 +24,8 @@ from src.pipeline.ingest import (
     _format_wiki_index,
     _extract_wikilink_targets,
     _compute_reverse_relations,
+    _classify_missing_stubs,
+    _is_source_slug_variant,
 )
 
 
@@ -176,3 +178,76 @@ def test_compute_reverse_relations_symmetric_skipped(tmp_path: Path):
     extra = _compute_reverse_relations(p, [A])
     b = next((pg for pg in extra if pg.id == "B-old"), None)
     assert b is None or all(r.type != "contradicts" for r in b.relations)
+
+
+# ---------------------------------------------------------------------------
+# 0.5.1: missing-slug classification — stub suppression for non-domain refs
+# ---------------------------------------------------------------------------
+def test_classify_suppresses_source_slug_variant():
+    """A slug whose 8-hex tail matches a real source page's hash is a broken
+    source-page reference -> suppressed, no stub."""
+    missing = {"必备资料-22-期待感让你的作品能够引人入胜-1-3deff6a3"}
+    create, suppressed = _classify_missing_stubs(missing, {"3deff6a3"})
+    assert suppressed == missing
+    assert create == set()
+
+
+def test_classify_source_variant_without_matching_hash_is_clean():
+    """An 8-hex tail that does NOT match any real source hash is not a source
+    variant (hard criterion, not loose stem match) -> treated as a clean
+    referenced entity."""
+    missing = {"some-entity-12345678"}
+    create, suppressed = _classify_missing_stubs(missing, set())
+    assert "some-entity-12345678" in create
+    assert suppressed == set()
+
+
+def test_classify_suppresses_tag_like_slugs():
+    """Tag-namespace names (current CJK + legacy English) referenced as pages
+    must not become stubs."""
+    missing = {"func-教程", "题材-玄幻", "genre-现言", "event-冲突"}
+    create, suppressed = _classify_missing_stubs(missing, set())
+    assert suppressed == missing
+    assert create == set()
+
+
+def test_classify_suppresses_type_prefix_and_entity_suffix():
+    """PageType-prefixed ids and `-entity` suffix must not become stubs."""
+    missing = {
+        "source-补充教程小说写作大纲的模版共享-a56031f5",
+        "concept-穿越小说角色塑造套路",
+        "琴帝-entity",
+    }
+    create, suppressed = _classify_missing_stubs(missing, set())
+    assert suppressed == missing
+    assert create == set()
+
+
+def test_classify_suppresses_path_like_slugs():
+    """Raw-path slugs (double hyphen / raw- prefix / -md-) must not become
+    stubs."""
+    missing = {
+        "raw-sources-01-新手入门--入门教程三十六种经典情节模式情节艺术-md-9163987c",
+        "女频男频--架空类小说恶俗桥段盘点-8a5397b6",
+    }
+    create, suppressed = _classify_missing_stubs(missing, set())
+    assert suppressed == missing
+    assert create == set()
+
+
+def test_classify_creates_clean_referenced_entities():
+    """Genuine entity references (clean slugs) still get a stub (subject to
+    the cap) — suppression must not hide real missing entities."""
+    missing = {"tolkien", "修真", "an-yi"}
+    create, suppressed = _classify_missing_stubs(missing, set())
+    assert create == missing
+    assert suppressed == set()
+
+
+def test_is_source_slug_variant_hard_criterion():
+    """Only an exact hash-tail match suppresses; a different tail or no tail
+    does not."""
+    slug = "必备资料22期待感让你的作品能够引人入胜1-3deff6a3"
+    assert _is_source_slug_variant(slug, {"3deff6a3"})
+    assert not _is_source_slug_variant(slug, {"deadbeef"})
+    assert not _is_source_slug_variant("tolkien", {"3deff6a3"})

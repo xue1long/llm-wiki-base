@@ -42,6 +42,7 @@ from ..lib.atomic_ctx import AtomicContext
 from ..lib.write_hooks import flush_pending_writes
 from ..wiki.features.indexer import append_to_index
 from ..wiki.features.logger import log_event
+from ..wiki.features.tag_namespace import TAG_PREFIXES
 from ..wiki.storage.page_writer import write_page
 # Resolve analyze/generate via the pipeline package namespace so
 # monkey-patches on `src.pipeline.pipeline.analyze` /
@@ -91,6 +92,82 @@ def _get_stub_blocklist() -> frozenset[str]:
             | {s.strip() for s in extra.split(",") if s.strip()}
         )
     return frozenset(_DEFAULT_STUB_BLOCKLIST)
+
+
+# ---------------------------------------------------------------------------
+# 0.5.1 — missing-slug classification (stub suppression).
+# ---------------------------------------------------------------------------
+# A slug whose trailing 8-hex tail equals a real source page's deterministic
+# hash ({stem}-{md5(path)[:8]}) is a broken source-page reference — the LLM
+# referenced a source by a guessed slug instead of the on-disk one. Such
+# slugs must never become stub pages.
+_SOURCE_HASH_TAIL_RE = re.compile(r"-([0-9a-f]{8})$")
+
+# Bad-morphology slugs: tag-namespace names (current CJK + legacy English
+# that produced the observed pollution), PageType prefixes, `-entity`
+# suffix, or raw-path-shaped slugs.
+_TAG_NS_PREFIXES = tuple(TAG_PREFIXES) + (
+    "genre", "func", "char", "event", "mood", "scene_phase", "status",
+)
+_TYPE_PREFIXES = ("source", "concept", "synthesis")
+
+
+def _collect_source_hash_tails(existing_wiki: dict) -> set[str]:
+    """Return the set of 8-hex md5 tails of all SOURCE pages on disk.
+
+    Each tail is the ``md5(raw_path)[:8]`` from the deterministic source
+    slug. Used as the hard criterion for detecting broken source-page
+    references in ``missing``.
+    """
+    tails: set[str] = set()
+    for slug, ptype in existing_wiki.items():
+        if ptype == PageType.SOURCE:
+            m = _SOURCE_HASH_TAIL_RE.search(slug)
+            if m:
+                tails.add(m.group(1))
+    return tails
+
+
+def _is_source_slug_variant(slug: str, source_hash_tails: set[str]) -> bool:
+    """True if *slug* ends in an 8-hex tail that matches a real SOURCE page's
+    deterministic hash — i.e. the LLM referenced a source by a wrong slug."""
+    m = _SOURCE_HASH_TAIL_RE.search(slug)
+    return bool(m and m.group(1) in source_hash_tails)
+
+
+def _is_bad_morphology_slug(slug: str) -> bool:
+    """True if *slug* looks like a tag name, a raw path, a type-prefixed id,
+    or carries an ``-entity`` suffix — i.e. the LLM referenced a non-page."""
+    if slug.endswith("-entity"):
+        return True
+    if any(slug.startswith(p + "-") for p in _TAG_NS_PREFIXES):
+        return True
+    if any(slug.startswith(p + "-") for p in _TYPE_PREFIXES):
+        return True
+    if slug.startswith("raw-") or "--" in slug or "-md-" in slug:
+        return True
+    return False
+
+
+def _classify_missing_stubs(
+    missing: set[str],
+    source_hash_tails: set[str],
+) -> tuple[set[str], set[str]]:
+    """Split *missing* slugs into ``(create, suppressed)``.
+
+    Suppressed slugs never get a stub page (the LLM referenced a non-page:
+    a broken source-slug variant, a tag name, a path, a type-prefixed id, or
+    an ``-entity`` suffix). Everything else is a genuine referenced entity
+    and is returned in ``create`` (still subject to the caller's cap).
+    """
+    create: set[str] = set()
+    suppressed: set[str] = set()
+    for slug in missing:
+        if _is_source_slug_variant(slug, source_hash_tails) or _is_bad_morphology_slug(slug):
+            suppressed.add(slug)
+        else:
+            create.add(slug)
+    return create, suppressed
 
 
 # ---------------------------------------------------------------------------
@@ -776,6 +853,19 @@ async def run_ingest(
                 ", ".join(sorted(missing & _blocklist)),
             )
         missing = filtered
+
+    # 0.5.1: classify missing slugs — only genuine referenced entities may
+    # become stubs; broken source-slug variants and bad-morphology slugs are
+    # suppressed (logged) instead of polluting the wiki.
+    source_hash_tails = _collect_source_hash_tails(_existing_wiki)
+    _stub_create, _stub_suppressed = _classify_missing_stubs(missing, source_hash_tails)
+    if _stub_suppressed:
+        _logger.info(
+            "[run_ingest] suppressed %d non-domain stub slug(s): %s",
+            len(_stub_suppressed),
+            ", ".join(sorted(_stub_suppressed)[:10]),
+        )
+    missing = _stub_create
 
     # P2 quality gate: suppress excessive stub creation to avoid noise.
     _max_stubs = _get_max_stubs_per_ingest()
