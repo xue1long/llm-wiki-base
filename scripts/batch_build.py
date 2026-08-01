@@ -99,15 +99,25 @@ def sha256_text(t: str) -> str:
 def load_state(state_path: Path) -> dict:
     if state_path.exists():
         try:
-            return json.loads(state_path.read_text(encoding="utf-8"))
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            # 状态文件可能由别的工具写入（如 phase4 只写 batch_N 键）；
+            # 补齐本脚本依赖的三个分区，同时保留已有键。
+            state.setdefault("ingested", {})
+            state.setdefault("archived", {})
+            state.setdefault("failed", {})
+            return state
         except Exception:
             log.warning("状态文件损坏，已重置: %s", state_path)
     return {"ingested": {}, "archived": {}, "failed": {}}
 
 
 def save_state(state_path: Path, state: dict) -> None:
+    """原子写状态文件（tmp + os.replace），避免中断产生半截 JSON——与
+    phase4_batch._save_state 对齐。"""
     state_path.parent.mkdir(parents=True, exist_ok=True)
-    state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp = state_path.with_suffix(state_path.suffix + ".tmp")
+    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(str(tmp), str(state_path))
 
 
 def resolve_root(project_id: str | None) -> Path:
