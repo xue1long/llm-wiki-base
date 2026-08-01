@@ -38,9 +38,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/方法论
-- func/YY点
-- func/综述
+- 功能/方法论
+- 功能/YY点
+- 功能/综述
 category: ''
 taxonomy_sub: ''
 ---

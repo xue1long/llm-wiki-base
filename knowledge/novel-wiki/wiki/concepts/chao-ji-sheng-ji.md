@@ -22,8 +22,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/写作技巧
-- mood/爽点
+- 功能/写作技巧
+- 情绪/爽点
 category: 写作技巧
 taxonomy_sub: 战斗设计
 ---

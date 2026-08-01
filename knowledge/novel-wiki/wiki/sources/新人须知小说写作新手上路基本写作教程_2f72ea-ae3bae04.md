@@ -22,9 +22,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/教程
-- func/写作基础
-- status/archived
+- 题材/教程
+- 功能/写作基础
+- 状态/archived
 ---
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->

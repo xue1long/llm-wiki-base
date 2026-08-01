@@ -42,8 +42,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/网文
-- func/写作模式
+- 题材/网文
+- 功能/写作模式
 category: 写作技巧
 taxonomy_sub: 网文模式
 ---

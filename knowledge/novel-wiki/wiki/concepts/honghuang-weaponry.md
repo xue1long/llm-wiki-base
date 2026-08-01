@@ -22,8 +22,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/法宝
-- func/概念
+- 实体/法宝
+- 功能/概念
 category: ''
 taxonomy_sub: ''
 ---

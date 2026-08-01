@@ -22,9 +22,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/后宫
-- func/写作技巧
-- mood/爽文
+- 题材/后宫
+- 功能/写作技巧
+- 情绪/爽文
 category: 小说类型
 taxonomy_sub: 后宫流
 ---

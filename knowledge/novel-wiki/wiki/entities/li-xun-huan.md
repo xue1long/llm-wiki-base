@@ -22,8 +22,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- char/男主
-- genre/武侠
+- 角色/男主
+- 题材/武侠
 category: 小说角色
 taxonomy_sub: ''
 ---

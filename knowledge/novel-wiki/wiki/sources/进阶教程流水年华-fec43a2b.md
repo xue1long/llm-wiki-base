@@ -34,9 +34,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- mood/抒情
-- entity/文档
+- 功能/教程
+- 情绪/抒情
+- 实体/文档
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

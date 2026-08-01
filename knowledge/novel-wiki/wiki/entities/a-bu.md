@@ -38,7 +38,7 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/人
+- 实体/人
 category: 网文教学讲者
 taxonomy_sub: 入门教程·文笔与开篇
 ---

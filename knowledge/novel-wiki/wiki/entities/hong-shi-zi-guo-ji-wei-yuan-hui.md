@@ -26,8 +26,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/国际组织
-- entity/人道主义
+- 实体/国际组织
+- 实体/人道主义
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

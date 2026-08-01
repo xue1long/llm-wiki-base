@@ -30,9 +30,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- genre/玄幻
-- scene_phase/打斗
+- 功能/教程
+- 题材/玄幻
+- 场景阶段/打斗
 category: 写作方法论
 taxonomy_sub: 打斗场景写作
 ---

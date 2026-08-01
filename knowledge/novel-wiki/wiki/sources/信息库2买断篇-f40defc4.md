@@ -34,9 +34,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- entity/出版社资料
-- status/外部
+- 功能/教程
+- 实体/出版社资料
+- 状态/外部
 category: 运营出版
 taxonomy_sub: 买断签约
 ---

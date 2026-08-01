@@ -34,8 +34,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/作者
-- genre/武侠
+- 实体/作者
+- 题材/武侠
 category: 武侠作家
 taxonomy_sub: ''
 ---

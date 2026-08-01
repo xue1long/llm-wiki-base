@@ -22,8 +22,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/武侠
-- func/体系
+- 题材/武侠
+- 功能/体系
 ---
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->

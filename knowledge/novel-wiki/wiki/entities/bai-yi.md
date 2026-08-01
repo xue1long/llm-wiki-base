@@ -26,8 +26,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/上古人物
-- entity/中国神话
+- 实体/上古人物
+- 实体/中国神话
 category: ''
 taxonomy_sub: ''
 ---

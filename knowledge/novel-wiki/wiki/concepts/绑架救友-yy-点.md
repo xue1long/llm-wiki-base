@@ -30,8 +30,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/套路
-- func/YY点
+- 功能/套路
+- 功能/YY点
 ---
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->

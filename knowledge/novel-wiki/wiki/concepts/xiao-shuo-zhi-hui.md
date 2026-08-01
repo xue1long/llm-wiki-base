@@ -14,8 +14,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/核心
-- mood/升华
+- 功能/核心
+- 情绪/升华
 ---
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->

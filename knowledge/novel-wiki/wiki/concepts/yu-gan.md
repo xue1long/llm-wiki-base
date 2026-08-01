@@ -14,8 +14,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/语言
-- entity/能力
+- 功能/语言
+- 实体/能力
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

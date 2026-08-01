@@ -14,8 +14,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/神话
-- func/综述
+- 题材/神话
+- 功能/综述
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

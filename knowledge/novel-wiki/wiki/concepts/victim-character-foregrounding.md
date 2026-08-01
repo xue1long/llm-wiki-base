@@ -42,9 +42,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/技巧
-- genre/悬疑
-- scene_phase/开篇
+- 功能/技巧
+- 题材/悬疑
+- 场景阶段/开篇
 ---
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->

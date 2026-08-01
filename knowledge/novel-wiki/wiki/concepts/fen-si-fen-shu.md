@@ -26,8 +26,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- entity/网文生态
+- 功能/教程
+- 实体/网文生态
 category: 创作理念
 taxonomy_sub: ''
 ---

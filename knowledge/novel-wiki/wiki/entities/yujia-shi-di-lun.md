@@ -26,8 +26,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/玄幻
-- entity/经典文献
+- 题材/玄幻
+- 实体/经典文献
 category: 经典文献
 taxonomy_sub: ''
 ---

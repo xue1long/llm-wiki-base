@@ -42,9 +42,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/武侠洪荒
-- func/资料
-- entity/文档
+- 题材/武侠洪荒
+- 功能/资料
+- 实体/文档
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

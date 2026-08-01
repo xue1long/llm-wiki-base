@@ -34,9 +34,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/仙侠
-- func/设定素材
-- entity/道教
+- 题材/仙侠
+- 功能/设定素材
+- 实体/道教
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

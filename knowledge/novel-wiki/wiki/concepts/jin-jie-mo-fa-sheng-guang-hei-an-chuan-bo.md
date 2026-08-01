@@ -14,7 +14,7 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- scene_phase/设定集
+- 场景阶段/设定集
 ---
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->

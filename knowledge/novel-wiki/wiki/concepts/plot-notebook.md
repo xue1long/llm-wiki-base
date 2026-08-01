@@ -46,8 +46,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/方法
-- scene_phase/构思
+- 功能/方法
+- 场景阶段/构思
 ---
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->

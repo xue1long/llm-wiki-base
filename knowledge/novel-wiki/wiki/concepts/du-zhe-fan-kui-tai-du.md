@@ -18,8 +18,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- mood/心态
+- 功能/教程
+- 情绪/心态
 category: 创作心态
 taxonomy_sub: ''
 ---

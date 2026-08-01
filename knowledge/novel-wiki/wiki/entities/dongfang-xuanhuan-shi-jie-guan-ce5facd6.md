@@ -14,7 +14,7 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/dongfang-xuanhuan
+- 实体/dongfang-xuanhuan
 ---
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->

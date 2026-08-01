@@ -26,8 +26,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/写作元素
-- genre/网文
+- 功能/写作元素
+- 题材/网文
 category: 写作元素
 taxonomy_sub: 金手指设定
 ---

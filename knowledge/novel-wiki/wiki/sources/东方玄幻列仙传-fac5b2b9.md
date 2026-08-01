@@ -22,9 +22,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/东方玄幻
-- func/设定资料
-- entity/典籍
+- 题材/东方玄幻
+- 功能/设定资料
+- 实体/典籍
 ---
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->

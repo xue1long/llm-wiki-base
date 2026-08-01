@@ -34,9 +34,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/写作技巧
-- genre/YY小说
-- mood/核心概念
+- 功能/写作技巧
+- 题材/YY小说
+- 情绪/核心概念
 category: 小说技法
 taxonomy_sub: 爽点类型
 ---

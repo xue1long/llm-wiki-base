@@ -38,8 +38,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/玄幻
-- entity/吐蕃
+- 题材/玄幻
+- 实体/吐蕃
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

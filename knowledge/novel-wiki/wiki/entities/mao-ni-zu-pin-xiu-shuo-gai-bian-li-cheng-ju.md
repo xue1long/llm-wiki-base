@@ -14,9 +14,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/
-- genre/玄幻
-- func/教程
+- 实体/
+- 题材/玄幻
+- 功能/教程
 ---
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->

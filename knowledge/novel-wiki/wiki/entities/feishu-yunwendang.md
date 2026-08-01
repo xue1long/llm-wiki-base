@@ -14,7 +14,7 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/平台
+- 实体/平台
 category: 互联网平台
 taxonomy_sub: 文档协作
 ---

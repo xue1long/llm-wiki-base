@@ -26,10 +26,10 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/热血
-- genre/都市仙侠
-- func/新人教程
-- status/新书
+- 题材/热血
+- 题材/都市仙侠
+- 功能/新人教程
+- 状态/新书
 ---
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->

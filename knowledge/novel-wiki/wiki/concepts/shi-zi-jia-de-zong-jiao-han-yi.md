@@ -30,8 +30,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/西方奇幻
-- entity/宗教
+- 题材/西方奇幻
+- 实体/宗教
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

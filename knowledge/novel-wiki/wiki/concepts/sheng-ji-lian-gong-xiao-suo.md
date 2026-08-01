@@ -38,8 +38,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/升级练功
-- genre/yy
+- 题材/升级练功
+- 题材/yy
 category: 创作方法论
 taxonomy_sub: 网文题材方法论
 ---

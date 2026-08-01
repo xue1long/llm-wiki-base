@@ -22,7 +22,7 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- char/剑客
+- 角色/剑客
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

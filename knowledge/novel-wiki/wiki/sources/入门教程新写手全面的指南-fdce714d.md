@@ -42,9 +42,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- genre/网文
-- entity/入门
+- 功能/教程
+- 题材/网文
+- 实体/入门
 category: 写作教程
 taxonomy_sub: 新手入门
 ---

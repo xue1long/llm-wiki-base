@@ -22,8 +22,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/素材
-- genre/通用
+- 功能/素材
+- 题材/通用
 category: 写作素材
 taxonomy_sub: 词汇积累
 ---

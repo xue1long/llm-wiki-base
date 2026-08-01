@@ -18,8 +18,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- genre/现言
+- 功能/教程
+- 题材/现言
 category: ''
 taxonomy_sub: ''
 ---

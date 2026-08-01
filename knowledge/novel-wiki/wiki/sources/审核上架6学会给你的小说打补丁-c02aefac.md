@@ -22,8 +22,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- entity/运营出版
+- 功能/教程
+- 实体/运营出版
 category: 写作技巧
 taxonomy_sub: 小说修补技法
 ---

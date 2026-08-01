@@ -22,8 +22,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/历史人物
-- entity/人道主义
+- 实体/历史人物
+- 实体/人道主义
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

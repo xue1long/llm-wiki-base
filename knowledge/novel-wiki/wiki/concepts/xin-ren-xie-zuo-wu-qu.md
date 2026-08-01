@@ -18,8 +18,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- status/草稿
+- 功能/教程
+- 状态/草稿
 category: 创作指导
 taxonomy_sub: ''
 ---

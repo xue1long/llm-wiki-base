@@ -34,9 +34,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- entity/大纲模板
-- scene_phase/大纲阶段
+- 功能/教程
+- 实体/大纲模板
+- 场景阶段/大纲阶段
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

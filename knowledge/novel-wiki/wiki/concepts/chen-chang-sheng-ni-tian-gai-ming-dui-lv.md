@@ -14,8 +14,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/玄幻
-- event/冲突
+- 题材/玄幻
+- 事件/冲突
 ---
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->

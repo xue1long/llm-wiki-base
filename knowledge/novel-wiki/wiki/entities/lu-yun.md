@@ -26,7 +26,7 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/character
+- 实体/character
 category: ''
 taxonomy_sub: ''
 ---

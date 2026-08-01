@@ -26,8 +26,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/武侠
-- func/对比综述
+- 题材/武侠
+- 功能/对比综述
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

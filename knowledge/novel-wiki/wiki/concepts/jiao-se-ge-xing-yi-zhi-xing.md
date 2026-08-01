@@ -38,8 +38,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/写作技巧
-- func/人物构建
+- 功能/写作技巧
+- 功能/人物构建
 category: ''
 taxonomy_sub: ''
 ---

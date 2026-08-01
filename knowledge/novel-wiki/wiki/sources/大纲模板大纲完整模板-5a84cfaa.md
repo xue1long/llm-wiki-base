@@ -42,8 +42,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- genre/通用
+- 功能/教程
+- 题材/通用
 category: 写作教程
 taxonomy_sub: 大纲设计
 ---

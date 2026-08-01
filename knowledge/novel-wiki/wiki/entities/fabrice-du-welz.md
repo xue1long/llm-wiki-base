@@ -18,8 +18,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/人物
-- entity/影视工作者
+- 实体/人物
+- 实体/影视工作者
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

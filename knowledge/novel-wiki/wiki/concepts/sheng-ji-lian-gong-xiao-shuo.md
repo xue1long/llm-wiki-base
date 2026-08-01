@@ -30,8 +30,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/网文
-- func/题材类型
+- 题材/网文
+- 功能/题材类型
 category: 小说类型
 taxonomy_sub: 网文题材
 ---

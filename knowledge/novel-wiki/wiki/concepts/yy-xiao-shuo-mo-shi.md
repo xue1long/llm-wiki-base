@@ -46,8 +46,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/方法论
-- genre/yy
+- 功能/方法论
+- 题材/yy
 category: 创作方法论
 taxonomy_sub: 网文流派方法论
 ---

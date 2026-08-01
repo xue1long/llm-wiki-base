@@ -22,8 +22,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- scene_phase/创作中
+- 功能/教程
+- 场景阶段/创作中
 category: 写作技巧
 taxonomy_sub: ''
 ---

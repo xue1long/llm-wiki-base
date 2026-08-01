@@ -22,9 +22,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/现言
-- mood/情感
-- scene_phase/写作
+- 题材/现言
+- 情绪/情感
+- 场景阶段/写作
 category: ''
 taxonomy_sub: ''
 ---

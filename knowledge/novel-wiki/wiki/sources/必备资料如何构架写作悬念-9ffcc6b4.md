@@ -38,9 +38,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- entity/平台
-- genre/网文
+- 功能/教程
+- 实体/平台
+- 题材/网文
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

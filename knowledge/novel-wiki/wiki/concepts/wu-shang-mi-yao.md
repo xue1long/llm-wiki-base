@@ -18,8 +18,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/历史文献
-- genre/东方玄幻
+- 功能/历史文献
+- 题材/东方玄幻
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

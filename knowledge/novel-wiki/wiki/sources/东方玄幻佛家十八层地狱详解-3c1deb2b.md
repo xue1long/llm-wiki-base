@@ -34,10 +34,10 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/东方玄幻
-- func/世界观资料
-- mood/恐怖
-- entity/宗教典籍
+- 题材/东方玄幻
+- 功能/世界观资料
+- 情绪/恐怖
+- 实体/宗教典籍
 ---
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->

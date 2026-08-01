@@ -18,7 +18,7 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
+- 功能/教程
 category: 创作技巧
 taxonomy_sub: ''
 ---

@@ -26,7 +26,7 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/编辑
+- 实体/编辑
 category: 运营出版
 taxonomy_sub: 编辑
 ---

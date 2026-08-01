@@ -18,7 +18,7 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/author
+- 实体/author
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

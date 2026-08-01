@@ -22,8 +22,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/历史
-- func/考据
+- 题材/历史
+- 功能/考据
 category: ''
 taxonomy_sub: ''
 ---

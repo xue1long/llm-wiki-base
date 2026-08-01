@@ -38,8 +38,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/影视作品
-- genre/西方奇幻
+- 实体/影视作品
+- 题材/西方奇幻
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

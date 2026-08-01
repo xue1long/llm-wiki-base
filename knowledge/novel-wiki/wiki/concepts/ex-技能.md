@@ -58,8 +58,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/技能设计
-- genre/修真
+- 功能/技能设计
+- 题材/修真
 category: ''
 taxonomy_sub: ''
 ---

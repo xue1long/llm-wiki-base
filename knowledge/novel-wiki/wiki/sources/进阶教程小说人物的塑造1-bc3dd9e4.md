@@ -14,8 +14,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- genre/小说写作
+- 功能/教程
+- 题材/小说写作
 category: 写作教程
 taxonomy_sub: 人物塑造
 ---

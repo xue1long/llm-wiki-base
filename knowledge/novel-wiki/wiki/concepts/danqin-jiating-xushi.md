@@ -26,9 +26,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/现言
-- event/冲突
-- scene_phase/写作
+- 题材/现言
+- 事件/冲突
+- 场景阶段/写作
 category: ''
 taxonomy_sub: ''
 ---

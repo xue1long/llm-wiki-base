@@ -22,8 +22,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/写作技巧
-- genre/网文
+- 功能/写作技巧
+- 题材/网文
 category: 写作技巧
 taxonomy_sub: 副本设计
 ---

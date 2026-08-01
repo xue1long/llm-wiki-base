@@ -30,8 +30,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/yy
-- entity/流派
+- 题材/yy
+- 实体/流派
 category: 网文流派
 taxonomy_sub: 男频流派
 ---

@@ -38,9 +38,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/教程
-- genre/网文运营
-- status/已审核
+- 功能/教程
+- 题材/网文运营
+- 状态/已审核
 category: 运营出版
 taxonomy_sub: 审核上架
 ---

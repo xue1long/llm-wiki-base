@@ -18,7 +18,7 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/企业
+- 实体/企业
 category: 组织机构
 taxonomy_sub: 科技公司
 ---

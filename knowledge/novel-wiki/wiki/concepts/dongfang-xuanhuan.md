@@ -30,8 +30,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/玄幻
-- genre/题材
+- 题材/玄幻
+- 题材/题材
 category: ''
 taxonomy_sub: ''
 ---

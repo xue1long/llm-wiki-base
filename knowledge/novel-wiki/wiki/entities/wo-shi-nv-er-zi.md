@@ -26,8 +26,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/作品
-- genre/现言
+- 实体/作品
+- 题材/现言
 category: ''
 taxonomy_sub: ''
 ---

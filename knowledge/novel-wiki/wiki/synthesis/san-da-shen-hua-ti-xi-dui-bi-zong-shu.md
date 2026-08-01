@@ -30,8 +30,8 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- func/综述
-- entity/中国神话
+- 功能/综述
+- 实体/中国神话
 category: ''
 taxonomy_sub: ''
 ---

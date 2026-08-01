@@ -30,9 +30,9 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- genre/玄幻
-- func/素材
-- scene_phase/写作中
+- 题材/玄幻
+- 功能/素材
+- 场景阶段/写作中
 category: 修真素材
 taxonomy_sub: 听觉描写
 ---

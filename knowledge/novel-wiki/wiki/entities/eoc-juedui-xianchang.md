@@ -26,7 +26,7 @@ heat: 50
 last_used_at: 0
 zombie_since: null
 tags:
-- entity/节目
+- 实体/节目
 category: ''
 taxonomy_sub: ''
 ---
