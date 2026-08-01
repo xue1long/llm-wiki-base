@@ -267,6 +267,18 @@ async def phase_ingest(root: Path, raw_dir: Path, state: dict, args) -> dict:
     return stats
 
 
+def _is_stub_note(path: Path) -> bool:
+    """占位页（frontmatter ``processing_depth: stub``）不应被建向量；
+    复用 read_page 作为 frontmatter 的唯一事实源。"""
+    try:
+        from src.wiki.storage.page_writer import read_page
+
+        return read_page(path).processing_depth == "stub"
+    except Exception:  # noqa: BLE001
+        # 解析失败按普通笔记处理，由 archive 阶段报错兜底
+        return False
+
+
 async def phase_archive(root: Path, state: dict, args) -> dict:
     from src.pipeline.librarian import archive
     from src.vector.store import init_vector_store_for_paths
@@ -283,6 +295,8 @@ async def phase_archive(root: Path, state: dict, args) -> dict:
     # 只扫笔记子目录，不扫 wiki 根：真实生成的笔记一律在
     # sources/concepts/entities/synthesis 下；wiki 根的 index.md/log.md
     # 是索引元数据，不是待归档笔记。
+    # 跳过占位页（processing_depth: stub），避免被向量化污染检索结果。
+    notes = [n for n in notes if not _is_stub_note(n)]
 
     log.info("[archive] 找到 %d 个待归档笔记", len(notes))
     stats = {"ok": 0, "skip": 0, "fail": 0}
