@@ -730,43 +730,47 @@ async def generate_ingest(
     )
     source_title = norm_stem
 
-    # Render via the bundled source.md template. Falls back to the
-    # legacy inline body if the template is missing (operator deleted
-    # bundled file).
+    # Render via the bundled source.md template. Falls back to a distilled
+    # inline body if the template is missing (operator deleted the bundled
+    # file).
+    #
+    # Shared slot-value computation used by BOTH the template render branch
+    # and the missing-template fallback so they stay in sync (Plan 27:
+    # required slots must contain substantive content per the v2.3 schema).
+    # key_points come from the analyzer's extracted key_facts when available;
+    # fall back to one bullet per generated downstream page so the section is
+    # never blank.
+    #
+    # Unified path (analysis=None): extract summary from the
+    # already-generated source page if the LLM produced one.
+    _has_analysis = analysis is not None
+    key_facts = list(analysis.key_facts or []) if _has_analysis else []
+    if key_facts:
+        key_points_value: list[str] | str = [
+            kf if isinstance(kf, str) else str(kf) for kf in key_facts
+        ]
+    else:
+        key_points_value = [
+            f"→ [[{p.id}]]" for p in pages if getattr(p, "id", None)
+        ] or ["(无可抽取的要点，详见抽取的概念)"]
+    extracted_concepts_value: list[str] = [
+        f"→ [[{p.id}]]" for p in pages if getattr(p, "id", None)
+    ] or ["(本摄取无下游页面)"]
+
+    # Summary: prefer analyzer, then unified-generated source page's summary slot
+    _summary_text = ""
+    if _has_analysis:
+        _summary_text = analysis.summary or ""
+    else:
+        # Unified path: look for source page with summary slot
+        for _p in pages:
+            if _p.type == PageType.SOURCE:
+                _summary_text = _p.body or ""
+                break
+
     try:
         from ..wiki.templates import render_body
         source_tpl = resolve_template(PageType.SOURCE, paths.root)
-        # Build key_points from the analyzer's extracted key_facts when
-        # available; fall back to one bullet per generated downstream
-        # page so the section is never blank. (Plan 27: required
-        # slots must contain substantive content per the v2.3 schema.)
-        #
-        # Unified path (analysis=None): extract summary from the
-        # already-generated source page if the LLM produced one.
-        _has_analysis = analysis is not None
-        key_facts = list(analysis.key_facts or []) if _has_analysis else []
-        if key_facts:
-            key_points_value: list[str] | str = [
-                kf if isinstance(kf, str) else str(kf) for kf in key_facts
-            ]
-        else:
-            key_points_value = [
-                f"→ [[{p.id}]]" for p in pages if getattr(p, "id", None)
-            ] or ["(无可抽取的要点，详见抽取的概念)"]
-        extracted_concepts_value: list[str] = [
-            f"→ [[{p.id}]]" for p in pages if getattr(p, "id", None)
-        ] or ["(本摄取无下游页面)"]
-
-        # Summary: prefer analyzer, then unified-generated source page's summary slot
-        _summary_text = ""
-        if _has_analysis:
-            _summary_text = analysis.summary or ""
-        else:
-            # Unified path: look for source page with summary slot
-            for _p in pages:
-                if _p.type == PageType.SOURCE:
-                    _summary_text = _p.body or ""
-                    break
         source_body = render_body(
             template_body=source_tpl.body_markdown,
             slots={
@@ -784,28 +788,33 @@ async def generate_ingest(
             template_version=source_tpl.version or "",
         )
     except FileNotFoundError:
-        # Fallback: hardcoded legacy body (matches the previous
-        # behaviour pre-template integration).
-        _summary_fb = ""
-        if _has_analysis:
-            _summary_fb = (analysis.summary or "").strip() or "(无摘要)"
-        else:
-            for _p in pages:
-                if _p.type == PageType.SOURCE:
-                    _summary_fb = _p.body or ""
-                    break
+        # Fallback: bundled source.md template missing. Build a distilled
+        # body WITHOUT the ## 正文内容 full-text section — full text lives in
+        # raw/; source pages carry summary + metadata only (C4: embedding
+        # denoise_source_text(source_text) here triggers LINT-RAW-PASTE).
+        _logger.error(
+            "[generate_ingest] source.md template missing — using distilled "
+            "fallback body (no full-text section) for %s",
+            source_path,
+        )
+        _key_points_md = "\n".join(
+            v if str(v).startswith("- ") else f"- {v}" for v in key_points_value
+        )
+        _extracted_md = "\n".join(
+            v if str(v).startswith("- ") else f"- {v}"
+            for v in extracted_concepts_value
+        )
         source_body = (
-            f"## 来源\n\n"
+            f"## 来源元数据\n\n"
             f"- 路径: `{source_path}`\n"
             f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"- 任务 ID: `{task_id}`\n\n"
             f"## 摘要\n\n"
-            f"{_summary_fb}\n\n"
+            f"{_summary_text.strip() or '(无摘要)'}\n\n"
+            f"## 关键观点\n\n"
+            f"{_key_points_md}\n\n"
             f"## 抽取的概念\n\n"
-            f"本次摄取共生成 **{len(pages)}** 个下游页面"
-            f"{('（共 '+ str(len(analysis.suggested_pages)) + ' 个建议页）') if _has_analysis and analysis.suggested_pages else ''}。\n\n"
-            f"## 正文内容\n\n"
-            f"{denoise_source_text(source_text)}\n"
+            f"{_extracted_md}\n"
         )
 
     # Count non-source downstream pages to detect empty extractions.
