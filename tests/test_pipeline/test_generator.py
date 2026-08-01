@@ -875,8 +875,11 @@ def test_auto_fill_preserves_llm_main_content():
     assert pages[0]["slots"]["main_content"] == organized
 
 
-def test_auto_fill_falls_back_to_denoised_when_main_content_empty():
-    """Empty main_content → denoised raw source so the body is never blank."""
+def test_auto_fill_drops_empty_main_content():
+    """Empty main_content is NOT back-filled with the raw source — the full
+    text lives in raw/ (RAG: source pages carry summary+metadata, not a
+    duplicate full body). The slot is dropped so the optional 正文内容 section
+    is omitted from the rendered body."""
     from src.pipeline.generator import _auto_fill_deterministic_slots
     pages = [{"type": "source", "title": "测试", "slots": {}}]
     _auto_fill_deterministic_slots(
@@ -884,16 +887,13 @@ def test_auto_fill_falls_back_to_denoised_when_main_content_empty():
         source_path="raw/sources/测试.md",
         source_text="正文开始\n登录/注册\n评论（0）\n正文结束",
     )
-    out = pages[0]["slots"]["main_content"]
-    assert "登录/注册" not in out
-    assert "评论（0）" not in out
-    assert "正文开始" in out
-    assert "正文结束" in out
+    assert "main_content" not in pages[0]["slots"]
 
 
-def test_auto_fill_replaces_placeholder_main_content():
-    """Placeholder-filled main_content → denoised raw source (never keep
-    the system placeholder in the body)."""
+def test_auto_fill_drops_placeholder_main_content():
+    """A placeholder in the optional main_content slot is cleared (dropped),
+    not replaced with the raw source — no placeholder and no duplicate full
+    text lands in the body."""
     from src.pipeline.generator import _auto_fill_deterministic_slots
     pages = [{
         "type": "source", "title": "测试",
@@ -904,9 +904,7 @@ def test_auto_fill_replaces_placeholder_main_content():
         source_path="raw/sources/测试.md",
         source_text="真实内容\n正文",
     )
-    out = pages[0]["slots"]["main_content"]
-    assert "系统占位" not in out
-    assert "真实内容" in out
+    assert "main_content" not in pages[0]["slots"]
 
 
 # ---------------------------------------------------------------------------
