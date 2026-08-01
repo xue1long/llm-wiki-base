@@ -340,19 +340,6 @@ async def main() -> int:
             err += 1
             _log(f"  FAIL {raw_rel}: {result['error']}")
 
-    # Deduplicate extras — _compute_reverse_relations runs per file
-    # and can produce the same extra page for multiple batch pages that
-    # reference the same existing wiki page.
-    _seen_extra: set[str] = set()
-    _deduped_extra: list = []
-    for _ep in all_extra:
-        if _ep.id not in _seen_extra:
-            _seen_extra.add(_ep.id)
-            _deduped_extra.append(_ep)
-    if len(_deduped_extra) < len(all_extra):
-        _log(f"deduped extras: {len(all_extra)} → {len(_deduped_extra)}")
-    all_extra = _deduped_extra
-
     _log(f"generated ok={ok} err={err} total_pages={len(all_pages)} "
          f"extras={len(all_extra)} elapsed={time.time()-t0:.0f}s")
 
@@ -392,15 +379,14 @@ async def main() -> int:
             _log(f"gate: {len(result.conflicts)} cross-type slug conflict(s) → FAIL")
             gate_rc = 1
         else:
-            # extra_pages are at the end of result.pages (reconcile
-            # appends them unmerged).  Separate them so P7 can check
-            # each one against the on-disk state.
-            _batch_page_count = len(result.pages) - len(all_extra)
-            _gate_extras = result.pages[_batch_page_count:] if all_extra else None
+            # result.pages holds only the batch's own pages; result.extras
+            # are the pre-existing pages kept by reconcile (R1-2).  P7 checks
+            # the extras against the on-disk state; the batch pages are gated
+            # as-is.
             report = run_ndg_gate(
-                result.pages[:_batch_page_count],
+                result.pages,
                 raw_headers=raw_headers,
-                extra_pages=_gate_extras,
+                extra_pages=result.extras,
                 paths=paths,
                 allow_overwrite=args.allow_overwrite,
             )
