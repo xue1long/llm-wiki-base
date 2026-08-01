@@ -315,10 +315,14 @@ def _check_p7_extra_pages(
     allow_overwrite: bool,
     issues: list[GateIssue],
 ) -> None:
-    """P7: extra_pages that would overwrite non-stub pages → flag.
+    """P7: extra_pages that would destructively overwrite pages → flag.
 
-    Overwriting a stub page is by design (stub→real upgrade).
-    Overwriting a non-stub page requires ``--allow-overwrite``.
+    Content-preservation judgment: a hit on an existing non-stub page is
+    allowed when the extra page's body is unchanged from the on-disk body
+    — that is a reverse-relation back-edge update (B13), where only
+    ``relations`` differ.  A body change is a destructive overwrite and
+    requires ``--allow-overwrite``.  Overwriting a stub page is by design
+    (stub→real upgrade).
     """
     if not extra_pages or paths is None:
         return
@@ -335,6 +339,10 @@ def _check_p7_extra_pages(
             from ..storage.page_writer import read_page
             existing = read_page(ep_path)
             if existing.processing_depth == "stub":
+                continue
+            if existing.body == ep.body:
+                # Body unchanged → reverse-relation back-edge update
+                # (B13), not a destructive overwrite.  Allow it.
                 continue
         except Exception:
             pass

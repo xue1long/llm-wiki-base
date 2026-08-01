@@ -213,6 +213,44 @@ def test_p7_extra_page_would_overwrite_non_stub(tmp_path: Path):
     issues = check_batch([], extra_pages=extra, paths=paths)
     assert any(i.code == "P7" for i in issues)
 
+def test_p7_extra_page_same_body_reverse_relation_ok(tmp_path: Path):
+    """B13 reverse-edge update: extra body equals the disk body (only
+    relations differ) → P7 stays silent."""
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    from src.wiki.storage.page_writer import write_page
+    existing = WikiPage(id="ent-1", title="Entity", type=PageType.ENTITY,
+                         body="## 基本信息\n\nInfo.", processing_depth="concept",
+                         sources=["raw/a.txt"])
+    write_page(paths, existing)
+
+    extra = [WikiPage(id="ent-1", title="Entity", type=PageType.ENTITY,
+                       body="## 基本信息\n\nInfo.", processing_depth="concept",
+                       sources=["raw/a.txt"],
+                       relations=[Relation(target_id="src-other",
+                                           type="related_to")])]
+    issues = check_batch([], extra_pages=extra, paths=paths)
+    assert not any(i.code == "P7" for i in issues)
+
+def test_p7_extra_page_different_body_allow_overwrite_warning(tmp_path: Path):
+    """Destructive overwrite downgraded to warning under --allow-overwrite."""
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    from src.wiki.storage.page_writer import write_page
+    existing = WikiPage(id="exist", title="Exist", type=PageType.ENTITY,
+                         body="existing", processing_depth="concept")
+    write_page(paths, existing)
+
+    extra = [WikiPage(id="exist", title="Exist2", type=PageType.ENTITY,
+                       body="new", processing_depth="concept")]
+    issues = check_batch([], extra_pages=extra, paths=paths,
+                         allow_overwrite=True)
+    p7 = [i for i in issues if i.code == "P7"]
+    assert len(p7) == 1
+    assert not p7[0].is_blocker, "P7 must be warning-only under allow_overwrite"
+
 def test_p7_extra_page_overwrite_stub_ok(tmp_path: Path):
     ensure_knowledge_base(tmp_path)
     paths = WikiPaths(tmp_path)
