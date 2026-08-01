@@ -90,6 +90,49 @@ class LintReport:
     scanned_pages: int = 0
 
 
+# ---------------------------------------------------------------------------
+# Page-level predicates (single source of truth)
+# ---------------------------------------------------------------------------
+# The NDG gate (P1/P3/P4) and ``cli lint`` share these decision predicates so
+# the two never diverge.  Each returns a plain answer about one page; the
+# callers wrap it in their own issue type / severity.
+
+_READABILITY_PLACEHOLDERS = {"(empty)", "(无内容)", "(占位)", "(placeholder)"}
+
+
+def _readability_violation(page) -> str | None:
+    """Return the first readability violation, or ``None`` for a clean page.
+
+    Order of checks (first match wins, mirroring the gate's P1):
+    ``empty_id`` → ``empty_title`` → ``empty_body`` → ``placeholder``.
+    """
+    if not page.id or not page.id.strip():
+        return "empty_id"
+    if not page.title or not page.title.strip():
+        return "empty_title"
+    if not page.body or not page.body.strip():
+        return "empty_body"
+    if page.body.strip() in _READABILITY_PLACEHOLDERS:
+        return "placeholder"
+    return None
+
+
+def _missing_sources(page) -> bool:
+    """True when the page lists no sources and no derivation relation."""
+    rel_types = {
+        r.type if isinstance(r.type, str) else r.type.value
+        for r in (page.relations or [])
+    }
+    return not page.sources and not (
+        rel_types & {"derived_from", "supported_by"}
+    )
+
+
+def _missing_ugc_cred(page) -> bool:
+    """True when the page is UGC-tagged but lacks the credibility tag."""
+    return "素材/ugc" in page.tags and "可信度/ugc" not in page.tags
+
+
 def _parse_version(version_str: str) -> tuple[int, ...]:
     """Parse a dotted version string into a comparable tuple.
 
@@ -223,7 +266,8 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
             page = read_page(Path(md_file))
             pages_seen.add(page.id)
 
-            if not page.id or not page.id.strip():
+            _read_violation = _readability_violation(page)
+            if _read_violation == "empty_id":
                 issues.append(
                     LintIssue(
                         code="LINT-MISSING-ID",
@@ -232,8 +276,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
                         page_id=md_file.stem,
                     )
                 )
-
-            if not page.title.strip():
+            elif _read_violation == "empty_title":
                 issues.append(
                     LintIssue(
                         code="LINT-MISSING-TITLE",
@@ -242,8 +285,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
                         page_id=page.id or md_file.stem,
                     )
                 )
-
-            if not page.body.strip():
+            elif _read_violation == "empty_body":
                 issues.append(
                     LintIssue(
                         code="LINT-EMPTY-BODY",
@@ -336,13 +378,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
             # file(s) or declare a derivation relation (derived_from /
             # supported_by). A synthesis page that enumerates its sources is
             # fine; only a page with neither signal is flagged.
-            rel_types = {
-                r.type if isinstance(r.type, str) else r.type.value
-                for r in page.relations
-            }
-            if not page.sources and not (
-                rel_types & {"derived_from", "supported_by"}
-            ):
+            if _missing_sources(page):
                 issues.append(
                     LintIssue(
                         code="LINT-MISSING-SOURCES",
@@ -361,7 +397,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
 
             # LINT-UGC-CRED: UGC-sourced material (素材/ugc) must also carry a
             # credibility tag (可信度/ugc) so readers know how it was verified.
-            if "素材/ugc" in page.tags and "可信度/ugc" not in page.tags:
+            if _missing_ugc_cred(page):
                 issues.append(
                     LintIssue(
                         code="LINT-UGC-CRED",

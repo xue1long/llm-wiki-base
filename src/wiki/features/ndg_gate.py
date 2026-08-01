@@ -43,6 +43,9 @@ from .lint import (
     _has_fulltext_section,
     _long_raw_text_run,
     _load_raw_paste_thresholds,
+    _readability_violation,
+    _missing_sources,
+    _missing_ugc_cred,
     _DEFAULT_T_SOURCE,
     _DEFAULT_T_NON,
 )
@@ -128,15 +131,14 @@ def check_page(
 
 def _check_p1_readability(page: WikiPage, issues: list[GateIssue]) -> None:
     """P1: page must have non-empty id, title, and body."""
-    if not page.id or not page.id.strip():
+    violation = _readability_violation(page)
+    if violation == "empty_id":
         issues.append(GateIssue("P1", None, "Page has empty id"))
-    elif not page.title or not page.title.strip():
+    elif violation == "empty_title":
         issues.append(GateIssue("P1", page.id, "Page has empty title"))
-    elif not page.body or not page.body.strip():
+    elif violation == "empty_body":
         issues.append(GateIssue("P1", page.id, "Page body is empty"))
-    elif page.body.strip() in (
-        "(empty)", "(无内容)", "(占位)", "(placeholder)",
-    ):
+    elif violation == "placeholder":
         issues.append(GateIssue("P1", page.id, "Page body is a placeholder"))
 
 
@@ -177,11 +179,7 @@ def _check_p2_raw_paste(
 
 def _check_p3_missing_sources(page: WikiPage, issues: list[GateIssue]) -> None:
     """P3: every page must reference its raw source(s)."""
-    rel_types = {
-        r.type if isinstance(r.type, str) else r.type.value
-        for r in (page.relations or [])
-    }
-    if not page.sources and not (rel_types & {"derived_from", "supported_by"}):
+    if _missing_sources(page):
         issues.append(GateIssue(
             "P3", page.id,
             "Page has no sources and no derived_from / supported_by relation.",
@@ -190,7 +188,7 @@ def _check_p3_missing_sources(page: WikiPage, issues: list[GateIssue]) -> None:
 
 def _check_p4_ugc_cred(page: WikiPage, issues: list[GateIssue]) -> None:
     """P4: 素材/ugc must be paired with 可信度/ugc."""
-    if "素材/ugc" in page.tags and "可信度/ugc" not in page.tags:
+    if _missing_ugc_cred(page):
         issues.append(GateIssue(
             "P4", page.id,
             "Page tagged 素材/ugc but missing 可信度/ugc credibility tag.",
