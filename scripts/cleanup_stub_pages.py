@@ -431,12 +431,17 @@ def delete_stub(wiki_root: Path, stub: Stub) -> str:
     return "os"
 
 
-def _prune_index(index_path: Path, deleted_ids: set[str]) -> int:
-    """Remove catalog rows in ``wiki/index.md`` whose ``**id**`` was deleted.
+def _prune_index(index_path: Path, deleted_pages: set[tuple[str, str]]) -> int:
+    """Remove catalog rows in ``wiki/index.md`` for deleted stub pages.
 
-    Preserves every other byte (line endings handled like pages). Returns the
-    number of rows removed. A row must look like ``- **<id>** (<type>) — …``
-    (a list item carrying a bold id) to be eligible for removal.
+    Matches by **(id, type)** — NOT id alone. Page ids are unique per type
+    directory but not globally: a deleted stub ``修真`` (entity) and a real
+    concept ``修真`` (concepts) share the id, so id-only matching would drop
+    the real page's row too (regression observed after Phase 1: 25 real
+    concept pages orphaned). A row ``- **<id>** (<type>) — …`` is removed
+    only when both its id AND type match a deleted stub.
+
+    Returns the number of rows removed.
     """
     if not index_path.is_file():
         return 0
@@ -448,8 +453,8 @@ def _prune_index(index_path: Path, deleted_ids: set[str]) -> int:
     for line in text.split("\n"):
         stripped = line.strip()
         if stripped.startswith("- "):
-            m = re.search(r"\*\*([^*]+)\*\*", stripped)
-            if m and m.group(1).strip() in deleted_ids:
+            m = re.match(r"-\s*\*\*([^*]+)\*\*\s*\(([^)]+)\)", stripped)
+            if m and (m.group(1).strip(), m.group(2).strip()) in deleted_pages:
                 removed += 1
                 continue
         kept.append(line)
@@ -537,7 +542,7 @@ def main() -> int:
     removed = 0
     deleted = 0
     processed = 0
-    deleted_ids: set[str] = set()
+    deleted_pages: set[tuple[str, str]] = set()
 
     for s, replacement, refs in plan:
         if args.max is not None and processed >= args.max:
@@ -560,13 +565,14 @@ def main() -> int:
 
         how = delete_stub(wiki_root, s)
         deleted += 1
-        deleted_ids.add(s.id)
+        deleted_pages.add((s.id, "entity"))
         print(f"STUB {s.id}  [{s.bucket}]  {_action_label(s, replacement, refs)}  "
               f"(deleted via {how})")
 
     # prune the catalog: stubs were indexed at creation, so rows pointing at
     # deleted files must go or index.md accumulates ~693 dead entries.
-    index_pruned = _prune_index(wiki_root / "wiki" / "index.md", deleted_ids)
+    # Match by (id, type) — ids are only unique per type directory.
+    index_pruned = _prune_index(wiki_root / "wiki" / "index.md", deleted_pages)
 
     print("=" * 78)
     print(f"SUMMARY  stubs processed: {processed} / {len(stubs)}")
