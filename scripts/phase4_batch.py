@@ -2,14 +2,22 @@
 
 Consumes the backlog manifest, generates pages for one batch's files
 through ``generate_ingest`` (NO writes), reconciles intra-batch conflicts,
-runs the full NDG gate (P1-P7), and only commits when the gate passes.
+runs the NDG gate (P5-P7), and only commits when the gate passes.  Commit is
+per-file (one ``commit_ingest`` per raw file), each group's success is
+atomically recorded in ``completed_files`` so ``--resume`` regenerates only
+the remaining files.
 
 Usage:
     env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
       PYTHONIOENCODING=utf-8 PYTHONPATH=. python scripts/phase4_batch.py \
-      --batch 0 [--count 10] [--skip-gate] [--allow-overwrite]
+      --batch 0 [--count 10] [--skip-gate] [--allow-overwrite] \
+      [--resume] [--skip-files raw/a.md,raw/b.md]
 
-Exit code: 0 = batch committed and gate passed; 2 = gate blocked.
+Exit codes:
+  0  batch committed and POSTCHECK passed
+  1  manifest / batch arg error, or the batch aborted (zero pages generated)
+  2  gate blocked (NDG gate P5-P7 / B6 overwrite protection)
+  3  POSTCHECK failed — pages missing after commit; --resume to fill them
 """
 from __future__ import annotations
 
@@ -189,94 +197,74 @@ def _check_overwrite_protection(
     return blockers
 
 
-async def main() -> int:
-    # Make pipeline INFO logs visible so batch progress is observable
-    # (unified produced / creating stubs / etc.).  Without a handler the
-    # ``logging`` INFO records are silently dropped and a slow-but-healthy
-    # batch looks hung.
-    logging.basicConfig(
-        level=logging.INFO,
-        format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-        stream=sys.stderr,
-    )
-    ap = argparse.ArgumentParser(
-        description="NDG batch: generate → reconcile → gate → commit")
-    ap.add_argument("--manifest", default=str(MANIFEST))
-    ap.add_argument("--batch", type=int, default=0)
-    ap.add_argument("--count", type=int, default=None)
-    ap.add_argument("--project", default=PROJECT_ID)
-    ap.add_argument("--skip-gate", action="store_true")
-    ap.add_argument("--allow-overwrite", action="store_true")
-    ap.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
-    ap.add_argument("--resume", action="store_true",
-                    help="skip files already completed in a prior partial run")
-    args = ap.parse_args()
+async def _generate_batch(
+    paths,
+    provider,
+    files: list[str],
+    completed_files: set[str],
+    skip_files: set[str],
+    concurrency: int,
+    batch_no: int,
+    root: Path,
+) -> dict:
+    """Generate pages for the batch's pending raw files (Phase 5.2).
 
-    if not Path(args.manifest).exists():
-        _log(f"manifest missing: {args.manifest}")
-        return 1
-    data = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
-    batches = data["batches"]
-    if args.batch >= len(batches):
-        _log(f"batch {args.batch} out of range (0..{len(batches)-1})")
-        return 1
-    batch = batches[args.batch]
-    files = batch["files"]
-    if args.count is not None:
-        files = files[:args.count]
-    _log(f"batch {args.batch} [{batch['theme']}]: {len(files)} file(s)")
+    Pure coroutine — every I/O dependency is a parameter and
+    ``generate_ingest`` is imported at call time so tests can monkeypatch it.
+    Completed (resume) and ``--skip-files`` raw files are dropped before any
+    LLM call; missing files are counted but not generated.
 
-    from src.pipeline import _get_provider, _resolve_wiki_paths
-    from src.pipeline.ingest import generate_ingest, commit_ingest
+    Returns a dict::
+
+        ok / err                 files generated / failed
+        missing_count            files not on disk this run
+        completed_skip_count     files skipped as already-completed (resume)
+        skip_count               files excluded via --skip-files
+        pending                  [(idx, raw_rel)] actually generated
+        pages / extra            all generated pages / extras
+        raw_headers              normalized raw_rel → first-chars header
+        file_results             raw_rel → per-file result dict (F5)
+    """
+    from src.pipeline.ingest import generate_ingest
     from src.utils.path import normalize_source_path
-    from src.wiki.features.batch_reconcile import reconcile_batch
-    from src.wiki.features.ndg_gate import run_ndg_gate
-
-    paths = _resolve_wiki_paths(args.project)
-    provider = _get_provider(args.project)
-    _log(f"provider: {type(provider).__name__}")
-
-    # ── Phase 5.2: generate all (concurrent, no writes) ─────────────
-    # Checkpoint resume: skip files already completed in a prior run.
-    batch_key = f"batch_{args.batch}"
-    completed_files: set[str] = set()
-    if args.resume:
-        completed_files = _batch_completed_files(batch_key)
-        if completed_files:
-            _log(f"resume: skipping {len(completed_files)} already-completed file(s)")
 
     all_pages: list = []
     all_extra: list = []
     raw_headers: dict[str, str] = {}
-    file_results: dict[str, dict] = {}  # raw_rel → {ok, pages, stubs, ...}
-    t0 = time.time()
-    sem = asyncio.Semaphore(args.concurrency)
-
-    # Filter out completed files and missing files
-    pending: list[tuple[int, str]] = []
+    file_results: dict[str, dict] = {}
+    ok = err = 0
     missing_count = 0
     completed_skip_count = 0
+    skip_count = 0
+
+    pending: list[tuple[int, str]] = []
     for raw_rel in files:
-        if args.resume and raw_rel in completed_files:
+        if raw_rel in skip_files:
+            skip_count += 1
+            _log(f"SKIP --skip-files: {raw_rel}")
+            continue
+        if raw_rel in completed_files:
             completed_skip_count += 1
             _log(f"SKIP completed: {raw_rel}")
             continue
-        src = ROOT / raw_rel
+        src = root / raw_rel
         if not src.is_file():
             missing_count += 1
             _log(f"SKIP missing: {raw_rel}")
             continue
         pending.append((len(pending), raw_rel))
 
-    _log(f"generating {len(pending)} file(s) with concurrency={args.concurrency} "
+    _log(f"generating {len(pending)} file(s) with concurrency={concurrency} "
          f"(skipped {len(files) - len(pending)})")
+
+    t0 = time.monotonic()
+    sem = asyncio.Semaphore(concurrency)
 
     async def _ingest_one(idx: int, raw_rel: str) -> tuple[str, object]:
         async with sem:
-            src = ROOT / raw_rel
+            src = root / raw_rel
             text = src.read_text(encoding="utf-8", errors="replace")
-            task_id = f"b{args.batch}-{Path(raw_rel).stem[:30]}"
+            task_id = f"b{batch_no}-{Path(raw_rel).stem[:30]}"
             header = _read_raw_header(src)
 
             pages = extra = meta = None
@@ -312,7 +300,6 @@ async def main() -> int:
     tasks = [_ingest_one(i, r) for i, r in pending]
     gathered = await asyncio.gather(*tasks, return_exceptions=True)
 
-    ok = err = 0
     for item in gathered:
         if isinstance(item, BaseException):
             err += 1
@@ -341,12 +328,256 @@ async def main() -> int:
             _log(f"  FAIL {raw_rel}: {result['error']}")
 
     _log(f"generated ok={ok} err={err} total_pages={len(all_pages)} "
-         f"extras={len(all_extra)} elapsed={time.time()-t0:.0f}s")
+         f"extras={len(all_extra)} elapsed={time.monotonic()-t0:.0f}s")
+
+    return {
+        "ok": ok, "err": err,
+        "missing_count": missing_count,
+        "completed_skip_count": completed_skip_count,
+        "skip_count": skip_count,
+        "pending": pending,
+        "pages": all_pages,
+        "extra": all_extra,
+        "raw_headers": raw_headers,
+        "file_results": file_results,
+    }
+
+
+async def _commit_all(
+    paths,
+    pages: list,
+    extras: list,
+    batch_key: str,
+    batch_files: list[str],
+    root: Path,
+    task_id: str,
+    *,
+    prior_completed: set[str] | None = None,
+    gen_failed: list[str] | None = None,
+    ok: int = 0,
+    err: int = 0,
+) -> tuple[dict, int]:
+    """Commit reconciled batch pages grouped by raw file (R2-2).
+
+    Pure coroutine — ``commit_ingest`` / ``read_index`` are imported at call
+    time so tests can monkeypatch them.  Ownership of a raw file is decided
+    by its SOURCE page: a raw_rel belongs to every SOURCE page whose
+    ``sources`` field contains it (D1) — never by ``sources[0]`` (F5).
+
+    State is persisted atomically after every group commit (status
+    ``committing``) so a crash mid-batch resumes at file granularity;
+    ``failed_files`` holds only this run's failures (a resume replaces them
+    with the retried outcome).  ``prior_completed`` seeds ``completed_files``
+    on a resume so already-committed files stay recorded.
+
+    Returns ``(state_entry, exit_code)``:
+      0  committed + POSTCHECK clean
+      3  POSTCHECK found missing pages (entry carries the ``missing`` ids)
+    """
+    from src.pipeline.ingest import commit_ingest
+    from src.wiki.core.types import PageType
+    from src.wiki.features.indexer import read_index
+    from src.wiki.storage.page_writer import page_path_for
+
+    batch_set = set(batch_files)
+
+    # {raw_rel: source_page_id} — SOURCE-page ownership, not sources[0].
+    raw_to_source: dict[str, str] = {}
+    for p in pages:
+        if getattr(p, "type", None) != PageType.SOURCE:
+            continue
+        for src in (p.sources or []):
+            if src in batch_set:
+                raw_to_source.setdefault(src, p.id)
+
+    # Group batch pages by their primary raw_rel (first batch source in the
+    # page's own sources).  Pages with no batch source are committed as a
+    # single orphan group so POSTCHECK still accounts for them.
+    groups: dict[str, list] = {}
+    group_order: list[str] = []
+    orphans: list = []
+    for p in pages:
+        primary = next((r for r in (p.sources or []) if r in batch_set), None)
+        if primary is None:
+            orphans.append(p)
+            continue
+        if primary not in groups:
+            groups[primary] = []
+            group_order.append(primary)
+        groups[primary].append(p)
+
+    completed: list[str] = list(prior_completed or [])
+    failed: list[str] = list(gen_failed or [])
+    committed_pages = 0
+
+    def _save_committing() -> None:
+        state = _load_state()
+        state[batch_key] = {
+            "status": "committing",
+            "files": batch_files,
+            "ok": ok, "err": err,
+            "completed_files": completed,
+            "failed_files": failed,
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+        _save_state(state)
+
+    for raw_rel in group_order:
+        spages = groups[raw_rel]
+        try:
+            await commit_ingest(paths, root / raw_rel, spages, task_id=task_id)
+        except Exception as exc:
+            failed.append(raw_rel)
+            _log(f"  COMMIT FAIL {raw_rel}: {exc}")
+        else:
+            committed_pages += len(spages)
+            # Mark every raw_rel that shares this group's SOURCE page as
+            # completed (handles alias entries mapping to the same source).
+            src_page_id = raw_to_source.get(raw_rel)
+            if src_page_id is not None:
+                for rr, sid in raw_to_source.items():
+                    if sid == src_page_id and rr not in completed:
+                        completed.append(rr)
+            elif raw_rel not in completed:
+                completed.append(raw_rel)
+        _save_committing()
+
+    if orphans:
+        _log(f"  COMMIT {len(orphans)} orphan page(s) (no batch source)")
+        try:
+            await commit_ingest(
+                paths, root / "(batch-reconcile)", orphans, task_id=task_id)
+        except Exception as exc:
+            failed.append("(orphans)")
+            _log(f"  COMMIT FAIL (orphans): {exc}")
+        _save_committing()
+
+    # B9: extras are pre-existing pages touched by reverse relations — one
+    # independent audit event, no fake per-file ingest log.
+    if extras:
+        _log(f"committing {len(extras)} extra page(s) (reverse-relation) ...")
+        try:
+            await commit_ingest(
+                paths, Path("(batch-reconcile)"), [], extras,
+                task_id=task_id, event="reverse-relation",
+            )
+        except Exception as exc:
+            failed.append("(extras)")
+            _log(f"  COMMIT FAIL extras: {exc}")
+
+    # ── POSTCHECK (zero LLM cost) ────────────────────────────────────
+    _post_errors = 0
+    missing: list[str] = []
+    _index_ids = {e[0] for e in read_index(paths)}
+    for _p in pages:
+        _pp = page_path_for(paths, _p.type, _p.id)
+        if not _pp.exists():
+            _log(f"POSTCHECK MISSING: {_p.id} — file not on disk")
+            _post_errors += 1
+            missing.append(_p.id)
+        elif _p.id not in _index_ids:
+            _log(f"POSTCHECK NOT-IN-INDEX: {_p.id}")
+            _post_errors += 1
+            missing.append(_p.id)
+
+    if _post_errors:
+        _log(f"POSTCHECK: {_post_errors} error(s) — review before next batch")
+        entry = {
+            "status": "postcheck_failed",
+            "files": batch_files,
+            "ok": ok, "err": err,
+            "completed_files": completed,
+            "failed_files": failed,
+            "missing": missing,
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+    else:
+        _log("POSTCHECK: all pages on disk and indexed")
+        entry = {
+            "status": "committed",
+            "files": batch_files,
+            "ok": ok, "err": err,
+            "completed_files": completed,
+            "failed_files": failed,
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+    state = _load_state()
+    state[batch_key] = entry
+    _save_state(state)
+    return entry, 3 if _post_errors else 0
+
+
+async def main() -> int:
+    # Make pipeline INFO logs visible so batch progress is observable
+    # (unified produced / creating stubs / etc.).  Without a handler the
+    # ``logging`` INFO records are silently dropped and a slow-but-healthy
+    # batch looks hung.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stderr,
+    )
+    ap = argparse.ArgumentParser(
+        description="NDG batch: generate → reconcile → gate → commit")
+    ap.add_argument("--manifest", default=str(MANIFEST))
+    ap.add_argument("--batch", type=int, default=0)
+    ap.add_argument("--count", type=int, default=None)
+    ap.add_argument("--project", default=PROJECT_ID)
+    ap.add_argument("--skip-gate", action="store_true")
+    ap.add_argument("--allow-overwrite", action="store_true")
+    ap.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
+    ap.add_argument("--resume", action="store_true",
+                    help="skip files already completed in a prior partial run")
+    ap.add_argument("--skip-files", default="",
+                    help="comma-separated raw_rel list to exclude from this batch")
+    args = ap.parse_args()
+
+    if not Path(args.manifest).exists():
+        _log(f"manifest missing: {args.manifest}")
+        return 1
+    data = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
+    batches = data["batches"]
+    if args.batch >= len(batches):
+        _log(f"batch {args.batch} out of range (0..{len(batches)-1})")
+        return 1
+    batch = batches[args.batch]
+    files = batch["files"]
+    if args.count is not None:
+        files = files[:args.count]
+    _log(f"batch {args.batch} [{batch['theme']}]: {len(files)} file(s)")
+
+    from src.pipeline import _get_provider, _resolve_wiki_paths
+    from src.wiki.features.batch_reconcile import reconcile_batch
+    from src.wiki.features.ndg_gate import run_ndg_gate
+
+    paths = _resolve_wiki_paths(args.project)
+    provider = _get_provider(args.project)
+    _log(f"provider: {type(provider).__name__}")
+
+    # ── Phase 5.2: generate (concurrent, no writes) ──────────────────
+    # Checkpoint resume: skip files already completed in a prior run.
+    batch_key = f"batch_{args.batch}"
+    completed_files: set[str] = set()
+    if args.resume:
+        completed_files = _batch_completed_files(batch_key)
+        if completed_files:
+            _log(f"resume: skipping {len(completed_files)} already-completed file(s)")
+
+    skip_files = {s.strip() for s in args.skip_files.split(",") if s.strip()}
+    if skip_files:
+        _log(f"--skip-files: excluding {len(skip_files)} file(s)")
+
+    gen = await _generate_batch(
+        paths=paths, provider=provider, files=files,
+        completed_files=completed_files, skip_files=skip_files,
+        concurrency=args.concurrency, batch_no=args.batch, root=ROOT,
+    )
 
     abort, reason = _decide_abort(
-        ok=ok, err=err, pending=missing_count,
+        ok=gen["ok"], err=gen["err"], pending=gen["missing_count"],
         resume=args.resume, completed=completed_files,
-        skip=completed_skip_count,
+        skip=gen["completed_skip_count"],
     )
     if abort:
         _log(f"BATCH ABORTED: {reason}")
@@ -354,17 +585,17 @@ async def main() -> int:
         state[batch_key] = {
             "status": "failed",
             "files": files,
-            "ok": ok, "err": err,
-            "missing": missing_count,
-            "skipped_completed": completed_skip_count,
+            "ok": gen["ok"], "err": gen["err"],
+            "missing": gen["missing_count"],
+            "skipped_completed": gen["completed_skip_count"],
             "reason": reason,
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
         }
         _save_state(state)
         return 1
 
-    # ── Phase 4.2: batch reconcile ─────────────────────────────────
-    result = reconcile_batch(all_pages, all_extra, paths=paths)
+    # ── Phase 4.2: batch reconcile (R1-2: extras separated) ──────────
+    result = reconcile_batch(gen["pages"], gen["extra"], paths=paths)
     if result.stubs_suppressed:
         _log(f"reconcile: suppressed {result.stubs_suppressed} stub(s)")
     for m in result.merged:
@@ -372,20 +603,16 @@ async def main() -> int:
     for c in result.conflicts:
         _log(f"reconcile: CONFLICT {c.slug!r} types={c.types}")
 
-    # ── NDG gate (P1-P7) ──────────────────────────────────────────
+    # ── NDG gate (P5-P7) ─────────────────────────────────────────────
     gate_rc = 0
     if not args.skip_gate:
         if result.conflicts:
             _log(f"gate: {len(result.conflicts)} cross-type slug conflict(s) → FAIL")
             gate_rc = 1
         else:
-            # result.pages holds only the batch's own pages; result.extras
-            # are the pre-existing pages kept by reconcile (R1-2).  P7 checks
-            # the extras against the on-disk state; the batch pages are gated
-            # as-is.
             report = run_ndg_gate(
                 result.pages,
-                raw_headers=raw_headers,
+                raw_headers=gen["raw_headers"],
                 extra_pages=result.extras,
                 paths=paths,
                 allow_overwrite=args.allow_overwrite,
@@ -401,12 +628,11 @@ async def main() -> int:
 
     if gate_rc != 0:
         _log("BATCH BLOCKED: gate failed — zero wiki writes (generate was dry)")
-        # Save state so the operator can retry
         state = _load_state()
-        state[f"batch_{args.batch}"] = {
+        state[batch_key] = {
             "status": "gate_failed",
             "files": files,
-            "ok": ok, "err": err,
+            "ok": gen["ok"], "err": gen["err"],
             "conflicts": [(c.slug, list(c.types)) for c in result.conflicts],
             "merged_count": len(result.merged),
             "stubs_suppressed": result.stubs_suppressed,
@@ -415,87 +641,48 @@ async def main() -> int:
         _save_state(state)
         return 2
 
-    # ── B6: overwrite protection (check against existing wiki) ──────
+    # ── B6: overwrite protection (check against existing wiki) ────────
     overwrite_blockers = _check_overwrite_protection(
         result.pages, paths, args.allow_overwrite)
     if overwrite_blockers:
         _log(f"B6 overwrite protection: {len(overwrite_blockers)} blocker(s)")
         for msg in overwrite_blockers:
             _log(f"  BLOCK {msg}")
-        _log("BATCH BLOCKED: overwrite protection — use --allow-overwrite to force")
+        _log("BATCH BLOCKED: overwrite protection — use --allow-overwrite to "
+             "force, or --skip-files <raw_rel,...> to exclude the source file")
         state = _load_state()
         state[batch_key] = {
             "status": "overwrite_blocked",
             "files": files,
-            "ok": ok, "err": err,
+            "ok": gen["ok"], "err": gen["err"],
             "overwrite_blockers": overwrite_blockers,
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
         }
         _save_state(state)
         return 2
 
-    # ── Commit (only if gate passed + overwrite check OK) ───────────
+    # ── Commit (R2-2): per-file, SOURCE-page ownership, POSTCHECK ─────
     _log(f"committing {len(result.pages)} reconciled page(s) ...")
-    t_commit = time.time()
+    _entry, rc = await _commit_all(
+        paths=paths,
+        pages=result.pages,
+        extras=result.extras,
+        batch_key=batch_key,
+        batch_files=files,
+        root=ROOT,
+        task_id=f"b{args.batch}",
+        prior_completed=completed_files,
+        gen_failed=[r for r, res in gen["file_results"].items() if not res["ok"]],
+        ok=gen["ok"], err=gen["err"],
+    )
 
-    # Group pages by source_path so we can call commit_ingest per file
-    # (commit_ingest writes index + log once per source file).
-    by_source: dict[str, list] = {}
-    source_order: list[str] = []
-    for p in result.pages:
-        src = (p.sources or ["(unknown)"])[0]
-        if src not in by_source:
-            by_source[src] = []
-            source_order.append(src)
-        by_source[src].append(p)
-
-    # Assign extra pages to the first source for commit purposes
-    committed = 0
-    for src in source_order:
-        spages = by_source[src]
-        # For the real source_path, resolve back from the project-relative form
-        try:
-            sp = ROOT / src
-        except Exception:
-            sp = Path(src)
-        await commit_ingest(paths, sp, spages, task_id=f"b{args.batch}")
-        committed += len(spages)
-
-    _log(f"committed {committed} page(s) in {time.time()-t_commit:.0f}s")
-
-    # ── Post-commit sanity (zero LLM cost) ────────────────────────
-    from src.wiki.features.indexer import read_index
-    from src.wiki.storage.page_writer import page_path_for
-    _post_errors = 0
-    _index_ids = {e[0] for e in read_index(paths)}
-    for _p in result.pages:
-        _pp = page_path_for(paths, _p.type, _p.id)
-        if not _pp.exists():
-            _log(f"POSTCHECK MISSING: {_p.id} — file not on disk")
-            _post_errors += 1
-        elif _p.id not in _index_ids:
-            _log(f"POSTCHECK NOT-IN-INDEX: {_p.id}")
-            _post_errors += 1
-    if _post_errors:
-        _log(f"POSTCHECK: {_post_errors} error(s) — review before next batch")
+    if rc == 0:
+        _log(f"BATCH DONE ok={gen['ok']} err={gen['err']} "
+             f"pages={len(result.pages)} gate=PASS")
     else:
-        _log("POSTCHECK: all pages on disk and indexed")
-
-    # Save completion state
-    state = _load_state()
-    state[f"batch_{args.batch}"] = {
-        "status": "committed",
-        "files": files,
-        "ok": ok, "err": err,
-        "merged": [(m.kept, m.dropped, m.reason) for m in result.merged],
-        "stubs_suppressed": result.stubs_suppressed,
-        "page_count": len(result.pages),
-        "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
-    }
-    _save_state(state)
-
-    _log(f"BATCH DONE ok={ok} err={err} pages={len(result.pages)} gate=PASS")
-    return 0
+        _log(f"BATCH DONE WITH ERRORS ok={gen['ok']} err={gen['err']} "
+             f"pages={len(result.pages)} → POSTCHECK FAILED (exit {rc})")
+    return rc
 
 
 if __name__ == "__main__":
