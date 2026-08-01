@@ -29,6 +29,7 @@ getattr(_generator_module, "generate")). The compat shim that re-exports
 ``src.pipeline.pipeline`` is added in Task 10.
 """
 from __future__ import annotations
+import asyncio
 import hashlib
 import logging
 import re
@@ -72,6 +73,35 @@ _MAX_STUBS_ENV = "RUFLO_MAX_STUBS_PER_INGEST"
 def _get_max_stubs_per_ingest() -> int:
     """Return the current max stubs threshold (re-reads env var at call time)."""
     return int(__import__("os").environ.get(_MAX_STUBS_ENV, "3"))
+
+
+# ---------------------------------------------------------------------------
+# LLM phase timeout guard (batch-0 hang fix — 2026-08-01).
+# ---------------------------------------------------------------------------
+# The provider's httpx timeout only covers the network read/write window;
+# a provider that accepts the connection but never returns a body (half-open
+# socket, server stall) does not trip it, and the whole unified→two-step
+# fallback can hang indefinitely.  Wrap the LLM phase in an asyncio-level
+# timeout so a single file has a hard ceiling and the batch runner can fail
+# it instead of stalling the whole batch.
+# Set via env var ``RUFLO_LLM_TIMEOUT_SECONDS`` (default 300).
+_LLM_TIMEOUT_ENV = "RUFLO_LLM_TIMEOUT_SECONDS"
+
+
+def _llm_timeout_seconds() -> float:
+    return float(__import__("os").environ.get(_LLM_TIMEOUT_ENV, "300"))
+
+
+async def _with_llm_timeout(coro, timeout: float, op: str):
+    """Await *coro* under an asyncio timeout, converting a hang into a
+    ``RuntimeError`` naming the phase (*op*).  Fast inner failures propagate
+    unchanged; only the timeout case is converted."""
+    try:
+        return await asyncio.wait_for(coro, timeout=timeout)
+    except asyncio.TimeoutError:
+        raise RuntimeError(
+            f"{op} timed out after {timeout:.0f}s (RUFLO_LLM_TIMEOUT_SECONDS)"
+        ) from None
 
 
 # Slugs that should never get stub entity pages because they represent
@@ -553,19 +583,27 @@ async def generate_ingest(
     _source_slug_map = {str(source_path): _source_slug_for_map}
 
     # Unified path: single LLM call (Analyzer + Generator merged).
-    # Falls back to two-step on failure.
+    # Falls back to two-step on failure.  Each LLM phase runs under the
+    # asyncio timeout guard so a hung provider call (which httpx's read
+    # timeout does not always trip) fails the file instead of stalling the
+    # whole batch (batch-0 hang fix).
+    _llm_timeout = _llm_timeout_seconds()
     analysis = None  # type: ignore[assignment]
     pages: list[WikiPage] = []
     try:
         from .generator import unified_generate
-        pages = await unified_generate(
-            source_text=_sanitized_source_text,
-            source_path=str(source_path),
-            folder_context=folder_context or "",
-            paths=paths,
-            existing_wiki_index=_existing_wiki_index,
-            provider=provider,
-            source_slug_map=_source_slug_map,
+        pages = await _with_llm_timeout(
+            unified_generate(
+                source_text=_sanitized_source_text,
+                source_path=str(source_path),
+                folder_context=folder_context or "",
+                paths=paths,
+                existing_wiki_index=_existing_wiki_index,
+                provider=provider,
+                source_slug_map=_source_slug_map,
+            ),
+            timeout=_llm_timeout,
+            op="unified_generate",
         )
         _logger.info(
             "[generate_ingest] unified path produced %d pages for %s",
@@ -579,22 +617,30 @@ async def generate_ingest(
             _unified_err,
         )
         # Fallback: original two-step Analyze → Generate
-        analysis = await _analyze(
-            source_text=_sanitized_source_text,
-            source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
-            existing_wiki_index=_existing_wiki_index,
-            folder_context=folder_context,
-            provider=provider,
-            task_id=task_id,
-            source_path=str(source_path),
+        analysis = await _with_llm_timeout(
+            _analyze(
+                source_text=_sanitized_source_text,
+                source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
+                existing_wiki_index=_existing_wiki_index,
+                folder_context=folder_context,
+                provider=provider,
+                task_id=task_id,
+                source_path=str(source_path),
+            ),
+            timeout=_llm_timeout,
+            op="two-step analyze",
         )
-        pages = await _generate(
-            paths=paths,
-            analysis=analysis,
-            existing_wiki_index=_existing_wiki_index,
-            provider=provider,
-            source_slug_map=_source_slug_map,
-            source_text=_sanitized_source_text,
+        pages = await _with_llm_timeout(
+            _generate(
+                paths=paths,
+                analysis=analysis,
+                existing_wiki_index=_existing_wiki_index,
+                provider=provider,
+                source_slug_map=_source_slug_map,
+                source_text=_sanitized_source_text,
+            ),
+            timeout=_llm_timeout,
+            op="two-step generate",
         )
 
     # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.
