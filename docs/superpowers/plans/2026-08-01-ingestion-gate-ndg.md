@@ -9,6 +9,14 @@
 > 1. 执行计划 Phase 3.1 称"LINT-RAW-PASTE 必须豁免 source 页（main_content 槽本就是完整正文）"——**已过时**。6e1348d/4edda47 后 source 模板无 main_content 槽，source 页正文应为蒸馏形态。本计划将 RAW-PASTE 改为 **source 页同样检查**（全文段标题 + 长 run），并保留对"长摘要"的容错（阈值标定）。
 > 2. 执行计划 Phase 4.2 称门禁 = `lint + tags validate + fields validate`——升级为**新文档门禁 NDG**（P1-P7，写盘前拦截）。
 >
+> **再校验修正（2026-08-01 第二遍）**：
+> 1. **V13【致命】**：原「generate 全部 → NDG → commit 全部」破坏批内可见性（`_collect_existing_wiki` 扫磁盘，file B 看不到 file A 未提交页 → 批内交叉引用 stub 爆炸 + 同 slug 静默覆盖）。→ 新增**批级 reconcile** 步骤（见 Phase 4.2），并用 V13 原则修订 Phase 4/5。
+> 2. **V14【重大】**：Phase 0 标定原依赖"临时 staging 空 wiki" → 语境失真（`Existing wiki index=(empty)`）。→ Phase 0 移到 Phase 1 之后，用 `generate_ingest(真实 paths, dry)` 标定。
+> 3. **V15【重大】**：P6 只 flag 不 resolve 跨文件同 slug 重复实体 → 批级 reconcile 规则②（保留 grade 高者 + 合并 relations + merged 报告）。
+> 4. **V16【中】**：P4b 的 UGC 判定需 raw 文件头 → phase4_batch 读 raw 头传 `is_ugc_source` 标志；无标记 UGC 文件文档化为已知残留。
+> 5. **V17【中】**：并发(5.2) × 批内可见性 → 并发 generate + 批级 reconcile 吸收（reconcile 确定性、顺序无关）。
+> 6. **V18【小】**：Phase 2 后存量 7 个带转录/长摘要 source 页被新开检标记 → `cli lint` 计数上升，提交信息注明为预期行为。
+>
 > 遵守 CLAUDE.md：TDD-per-task + 一次一 commit + 每任务 reviewer。**本计划立项时不写代码。**
 
 ## 决策记录
@@ -41,30 +49,30 @@
 ## 执行顺序（依赖硬约束）
 
 ```
-Phase 0  NDG 标定预演（新文档分布 → 锁阈值）
-   │
-   ├─► Phase 1  run_ingest 拆 generate/commit（前置，否则门禁无"写前"窗口）
-   │
-   ├─► Phase 2  lint.py 单一事实源（_has_fulltext_section / 阈值导出）
-   │
-   ├─► Phase 3  NDG 实现（batch_gate_check 重写，P1-P7）
-   │
-   ├─► Phase 4  phase4_batch 接入 generate→NDG→commit + batch_build_state
-   │
-   ├─► Phase 5  UGC(A) + B5 并发 + B6 覆盖保护
-   │
-   └─► Phase 6  批 1-46 放行
+Phase 1  run_ingest 拆 generate/commit（前置①：门禁"写前"窗口；标定也依赖它）
+Phase 0  NDG 标定预演（前置②：依赖 generate_ingest，真实语境 dry-run → 锁阈值）
+Phase 2  lint.py 单一事实源（_has_fulltext_section / 阈值导出）
+Phase 3  NDG 实现（batch_gate_check 重写，P1-P7 + P4b）
+Phase 4  phase4_batch 接入 generate→reconcile→NDG→commit + batch_build_state
+Phase 5  UGC(A) + B5 并发 + B6 覆盖保护
+Phase 6  批 1-46 放行
 ```
+
+> **V13 修订后的批执行流**（Phase 4/5 统一采用）：
+> `generate 全部（可并发）→ 批级 reconcile → NDG P1-P7 → PASS 才 commit 全部`
+> reconcile 在 gate 前、commit 前，见 Phase 4.2。
 
 ---
 
 ## Phase 0 — NDG 标定预演（纯测量，无生产写盘）
 
+> **V14 修订**：本 Phase 依赖 Phase 1 的 `generate_ingest`（**真实 paths、dry、不写盘**）——否则标定在空 wiki 语境下生成，`Existing wiki index=(empty)`，分布失真。执行顺序排在 Phase 1 之后。
+
 ### 0.1 新文档采样生成
 - **Files**：`scripts/ndg_calibrate.py`（新建；种子可复现）
 - **Implementation guidance**：
   1. 从新 manifest `.index/reingest_backlog.json` 的 `ingestible` 抽 25 文件（`--seed` 默认固定）；
-  2. 每文件 `generate_ingest`（若 Phase 1 未完成，先用临时 staging `WikiPaths` 写临时目录，不触生产 wiki）；
+  2. 每文件 `generate_ingest(paths=真实, dry)` ——读真实 existing-wiki index 进提示词、**不写盘**（依赖 Phase 1）；若 Phase 1 尚未拆分，退路为写临时 staging `WikiPaths`（接受语境近似，标定报告中注明）；
   3. 收集每页：type、body chars、`_long_raw_text_run`、全文段标题命中、`sources` 非空、tags、slug。
 - **验收**：输出 `_long_raw_text_run` 直方图 + 各 type 的 p90/p95/p99 + Top-10 最长 run 预览。
 
@@ -100,6 +108,7 @@ Phase 0  NDG 标定预演（新文档分布 → 锁阈值）
   2. `T_source` / `T_non` 从 `.index/quality_settings.json` 读取（Phase 0 写入），缺省回落常量；
   3. **LINT-RAW-PASTE 改为 source 同样检查**（修正旧假设）：source 页命中全文段标题 **或** run > T_source → 违规；非 source run > T_non → 违规。
 - **验收**：`test_lint.py` 更新旧"source 豁免"断言为"source 带全文段 → 违规 / source 蒸馏 → 放行"；新增围栏、变体标题用例。
+- **V18 注**：本 Phase 后存量 7 个带转录/长摘要 source 页会被 `cli lint` 新标记为 RAW-PASTE——**预期行为**（遗留债挂账不动），提交信息注明，避免被误判为回归。
 - **Commit**：`feat(lint): RAW-PASTE 覆盖 source 页（全文段标题 + 阈值），单一事实源`
 
 ## Phase 3 — NDG 实现
@@ -109,18 +118,30 @@ Phase 0  NDG 标定预演（新文档分布 → 锁阈值）
 - **Tests**：新增 `tests/test_wiki/test_ndg_gate.py`（合成样本断言 P1-P7 各违规）
 - **Implementation guidance**：`check_page` 只消费 lint 导出符号（`_has_fulltext_section`、`_long_raw_text_run`、阈值），不各自实现：
   - P1 READABILITY；P2 RAW-PASTE（source/非source 双阈值）；P3 MISSING-SOURCES；P4 UGC-CRED；
-  - P4b（D1）：输入文件 UGC 载体判定 → 派生页强制双 UGC 标；
-  - 批级 P5 输入↔source 配对、P6 slug 唯一、P7 extra_pages 轻查。
+  - P4b（D1，**V16 修订**）：**phase4_batch 读输入 raw 文件头（前 4000 字符）**，命中 UGC 载体标记（feishu.cn / mp.weixin.qq.com / 飞书云文档 / 公众号 / 论坛 / 知乎 / 豆瓣 / 简书 / QQ群）→ 该文件派生页强制双 UGC 标；`is_ugc_source` 标志由 batch runner 传入 NDG（gate 不自己读 raw）。**已知残留**：未命中载体标记的真实 UGC 文件会漏标——文档化，不伪装覆盖。
+  - 批级 P5 输入↔source 配对、P6 slug 唯一（跨 type 冲突 → 拒批）、P7 extra_pages 轻查。
 - **验收**：合成样本各违规命中；真样本（Phase 0 的 25 文件）0 假阳性。
 - **Commit**：`feat(scripts): NDG 门禁 P1-P7 + UGC(A) 强制打标`
 
 ## Phase 4 — 批执行接入
 
-### 4.1 phase4_batch 改 generate→NDG→commit
+### 4.1 phase4_batch 改 generate→reconcile→NDG→commit
 - **Files**：`scripts/phase4_batch.py`
-- **Implementation guidance**：批流改为 `generate 全部 → NDG 全批校验 → PASS 才逐文件 commit → 记录 batch_build_state`；FAIL 整批拒写（回滚粒度=批，天然由"未写盘"实现）；文件级失败单列 `retry_batch`，重试 1 次后再 FAIL 即批次拦截并告警。
-- **验收**：制造一个必 FAIL 的输入（含 `## 转录内容` 的假源）→ 批 FAIL 且 wiki mtime 无变化。
-- **Commit**：`feat(scripts): phase4_batch 接入 generate→NDG→commit，FAIL 零写盘`
+- **Implementation guidance**（**V13 修订**）：批流改为
+  `generate 全部（可并发）→ 批级 reconcile（4.2）→ NDG 全批校验 → PASS 才 commit 全部 → 记录 batch_build_state`；
+  FAIL 整批拒写（回滚粒度=批，天然由"未写盘"实现）；文件级失败单列 `retry_batch`，重试 1 次后再 FAIL 即批次拦截并告警。
+- **验收**：① 制造一个必 FAIL 的输入（含 `## 转录内容` 的假源）→ 批 FAIL 且 wiki mtime 无变化；② 构造批内 A 引用 B 将产出的实体 → reconcile 后无 stub、无同 slug 双页（**V13 回归测试**）。
+- **Commit**：`feat(scripts): phase4_batch 接入 generate→reconcile→NDG→commit，FAIL 零写盘`
+
+### 4.2 批级 reconcile（新增，V13/V15/V17 核心）
+- **Files**：`src/wiki/features/batch_reconcile.py`（新建；纯确定性，无 LLM）
+- **Implementation guidance**——在 gate 前、commit 前，对批内全部 `pages ∪ extra` 执行：
+  1. **stub 压制**：`processing_depth=stub` 且 slug 命中批内非 stub 页 → 丢弃 stub（防批内交叉引用的 stub 爆炸）；
+  2. **同 slug 同 type 合并**（**V15**）：批内两个文件提取同一实体 → 保留 `grade` 高者（同 grade 保留先到者），把另一页的 `relations`/反向边合并进保留页，删除被合并页，记入 merged 报告（确定性规则，不调 LLM）；
+  3. **同 slug 跨 type**：P6 判定 → 拒批（不自动选边）。
+  reconcile 产物是 gate 与 commit 的唯一输入。
+- **验收**：构造同实体两文件批 → reconcile 后单页、relations 合并、merged 报告记录；跨 type 冲突 → P6 拒批。
+- **Commit**：`feat(wiki): 批级 reconcile——stub 压制 + 同 slug 实体合并（V13/V15）`
 
 ## Phase 5 — UGC(A) + 并发 + 覆盖保护
 
@@ -129,10 +150,10 @@ Phase 0  NDG 标定预演（新文档分布 → 锁阈值）
 - **Implementation guidance**：见 D1。book 类豁免留 TODO（本期不实现）。
 - **验收**：对含 feishu URL 头的输入，派生页缺 UGC 标 → P4b 命中。
 
-### 5.2 并发 + 断点续跑（B5）
+### 5.2 并发 + 断点续跑（B5，V17 修订）
 - **Files**：`scripts/phase4_batch.py`
-- **Implementation guidance**：generate 阶段并发 3（LLM 密集 + 只读，安全）；commit 阶段串行；批前读/批后写 `.index/batch_build_state.json`，支持中断续跑。
-- **验收**：中断批 N → 重跑跳过已完成文件。
+- **Implementation guidance**：generate 阶段并发 3（LLM 密集 + 只读，安全）；**并发下 A/B 互相看不到批内页 → 由批级 reconcile（4.2）吸收**（reconcile 确定性、与并发完成顺序无关）；commit 阶段串行；批前读/批后写 `.index/batch_build_state.json`，支持中断续跑。
+- **验收**：中断批 N → 重跑跳过已完成文件；并发批的 reconcile 结果与串行批一致（V17 回归测试）。
 
 ### 5.3 覆盖保护（B6）
 - **Files**：`scripts/phase4_batch.py`
