@@ -163,7 +163,7 @@ def _load_raw_paste_thresholds(paths: WikiPaths) -> tuple[int, int]:
     Reads ``.index/quality_settings.json``, key ``raw_paste`` with
     sub-keys ``source_threshold`` and ``non_source_threshold``.  Falls
     back to :data:`_DEFAULT_T_SOURCE` / :data:`_DEFAULT_T_NON` when the
-    file or keys are absent.
+    file or keys are absent, corrupt, or contain invalid values.
     """
     import json as _json
 
@@ -177,10 +177,16 @@ def _load_raw_paste_thresholds(paths: WikiPaths) -> tuple[int, int]:
     if not isinstance(rp, dict):
         return _DEFAULT_T_SOURCE, _DEFAULT_T_NON
 
-    return (
-        int(rp.get("source_threshold", _DEFAULT_T_SOURCE)),
-        int(rp.get("non_source_threshold", _DEFAULT_T_NON)),
-    )
+    try:
+        ts = int(rp.get("source_threshold", _DEFAULT_T_SOURCE))
+    except (TypeError, ValueError):
+        ts = _DEFAULT_T_SOURCE
+    try:
+        tn = int(rp.get("non_source_threshold", _DEFAULT_T_NON))
+    except (TypeError, ValueError):
+        tn = _DEFAULT_T_NON
+
+    return ts, tn
 
 
 def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:

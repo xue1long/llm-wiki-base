@@ -62,38 +62,34 @@ def reconcile_batch(
     pages:
         All pages produced by this batch's ``generate_ingest`` calls.
     extra_pages:
-        Pre-existing pages touched by reverse relations (will be
-        included in the output but not subject to merge logic).
+        Pre-existing pages touched by reverse relations.  These are
+        appended to the output as-is — they are **not** subject to
+        merge logic (merging could throw away richer existing content).
 
     Returns
     -------
     ReconcileResult
         Reconciled page list + merge log + cross-type conflicts.
     """
-    all_pages = list(pages)
-    if extra_pages:
-        all_pages.extend(extra_pages)
-
-    # ── Step 1: stub suppression ──────────────────────────────────
-    # Build a lookup of non-stub slugs in this batch.
+    # ── Step 1: stub suppression (batch pages only) ───────────────
     non_stub_slugs: set[str] = {
-        p.id for p in all_pages
+        p.id for p in pages
         if p.id and getattr(p, "processing_depth", None) != "stub"
     }
 
     stubs_suppressed = 0
     kept: list[WikiPage] = []
-    for p in all_pages:
+    for p in pages:
         if getattr(p, "processing_depth", None) == "stub" and p.id in non_stub_slugs:
             stubs_suppressed += 1
-            continue  # real page supersedes stub
+            continue
         kept.append(p)
 
-    # ── Step 2: same-slug same-type merge (V15) ───────────────────
+    # ── Step 2: same-slug same-type merge (V15, batch pages only) ──
     merged: list[MergeEntry] = []
     conflicts: list[ConflictEntry] = []
 
-    # Index by (slug, type)
+    # Index batch pages by (slug, type)
     by_slug_type: dict[tuple[str, str], list[WikiPage]] = {}
     for p in kept:
         if not p.id:
@@ -114,7 +110,7 @@ def reconcile_batch(
 
     # Merge within same (slug, type) groups
     deduped: list[WikiPage] = []
-    for (slug, _pt), group in by_slug_type.items():
+    for (_slug, _pt), group in by_slug_type.items():
         if len(group) == 1:
             deduped.append(group[0])
             continue
@@ -126,31 +122,58 @@ def reconcile_batch(
         ))
 
         winner = group[0]
+        w_grade = getattr(winner, "grade", "B")
         for loser in group[1:]:
-            # Merge loser's relations into winner
+            l_grade = getattr(loser, "grade", "B")
+
+            # Merge loser's sources
+            if loser.sources:
+                winner_srcs = set(winner.sources or [])
+                for s in loser.sources:
+                    if s not in winner_srcs:
+                        winner.sources = list(winner.sources or []) + [s]
+                        winner_srcs.add(s)
+
+            # Merge relations: keep higher-weight relation on ties
             if loser.relations:
                 winner_rels = list(winner.relations or [])
-                existing_targets = {(r.target_id, r.type) for r in winner_rels}
+                # Index winner relations by (target_id, type)
+                w_idx: dict[tuple[str, str], int] = {}
+                for i, r in enumerate(winner_rels):
+                    w_idx[(r.target_id, r.type)] = i
                 for rel in loser.relations:
-                    if (rel.target_id, rel.type) not in existing_targets:
+                    key_r = (rel.target_id, rel.type)
+                    if key_r not in w_idx:
                         winner_rels.append(rel)
-                        existing_targets.add((rel.target_id, rel.type))
+                        w_idx[key_r] = len(winner_rels) - 1
+                    else:
+                        # Keep the one with higher weight
+                        existing_w = getattr(winner_rels[w_idx[key_r]], "weight", 1.0) or 1.0
+                        loser_w = getattr(rel, "weight", 1.0) or 1.0
+                        if loser_w > existing_w:
+                            winner_rels[w_idx[key_r]] = rel
                 winner.relations = winner_rels
 
+            reason = (
+                f"higher grade ({w_grade} > {l_grade})"
+                if w_grade != l_grade
+                else "same grade, kept first"
+            )
             merged.append(MergeEntry(
                 kept=winner.id,
                 dropped=loser.id,
-                reason=(
-                    f"higher grade ({getattr(winner, 'grade', 'B')}"
-                    f" > {getattr(loser, 'grade', 'B')})"
-                ),
+                reason=reason,
             ))
 
         deduped.append(winner)
+
+    # ── Step 3: append extra_pages (unmerged) ─────────────────────
+    if extra_pages:
+        deduped.extend(extra_pages)
 
     return ReconcileResult(
         pages=deduped,
         merged=merged,
         conflicts=conflicts,
         stubs_suppressed=stubs_suppressed,
-    )
+)

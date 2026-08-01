@@ -1069,7 +1069,7 @@ async def generate_ingest(
         "stubs_suppressed": _stubs_suppressed_count,
         "extra_pages_count": len(extra_pages),
         "rejected": False,
-        "warnings": [],
+        "warnings": list(_result.warnings) if _result.warnings else [],
     }
     return pages, extra_pages, meta
 

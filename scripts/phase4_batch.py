@@ -49,9 +49,13 @@ def _load_state() -> dict:
 
 
 def _save_state(state: dict) -> None:
+    """Atomically write batch state (tmp + os.replace to avoid corruption)."""
+    import os as _os
     BATCH_STATE.parent.mkdir(parents=True, exist_ok=True)
-    BATCH_STATE.write_text(json.dumps(state, indent=2, ensure_ascii=False),
-                           encoding="utf-8")
+    tmp = BATCH_STATE.with_suffix(BATCH_STATE.suffix + ".tmp")
+    tmp.write_text(json.dumps(state, indent=2, ensure_ascii=False),
+                   encoding="utf-8")
+    _os.replace(str(tmp), str(BATCH_STATE))
 
 
 def _read_raw_header(raw_path: Path, chars: int = 4000) -> str:
@@ -105,10 +109,21 @@ def _check_overwrite_protection(
         # Check if the on-disk page is a stub
         try:
             from src.wiki.core.types import PageType as PT
-            disk_page = read_page(page_path_for(
-                paths, getattr(PT, existing_type.upper(), p.type), p.id))
+            disk_type = getattr(PT, existing_type.upper(), p.type)
+            disk_page = read_page(page_path_for(paths, disk_type, p.id))
             if disk_page.processing_depth == "stub":
-                continue  # stub upgrade → always OK
+                # Stub upgrade — verify type matches
+                if existing_type != ptype:
+                    blockers.append(
+                        f"Stub {p.id!r} is {existing_type} but new page "
+                        f"is {ptype} — cannot upgrade across types."
+                    )
+                    continue
+                # Same-type stub → real upgrade (by design)
+                continue
+        except FileNotFoundError:
+            # Listed in index but missing on disk → stale index, treat as free
+            continue
         except Exception:
             pass
 
@@ -154,6 +169,7 @@ async def main() -> int:
 
     from src.pipeline import _get_provider, _resolve_wiki_paths
     from src.pipeline.ingest import generate_ingest, commit_ingest
+    from src.utils.path import normalize_source_path
     from src.wiki.features.batch_reconcile import reconcile_batch
     from src.wiki.features.ndg_gate import run_ndg_gate
 
@@ -236,7 +252,13 @@ async def main() -> int:
             _log(f"  UNHANDLED: {type(item).__name__}: {item}")
             continue
         raw_rel, result = item
-        raw_headers[raw_rel] = result["header"]
+        # Normalise the raw path key to match the source page's sources
+        # field.  generate_ingest receives Path(raw_rel) and builds the
+        # source page with normalize_source_path(str(Path(raw_rel)), root).
+        # We replicate that exact normalization here so the gate key
+        # matches what the source page stores in its sources field.
+        _norm_key = normalize_source_path(str(Path(raw_rel)), paths.root)
+        raw_headers[_norm_key] = result["header"]
         file_results[raw_rel] = result
 
         if result["ok"]:
@@ -267,17 +289,22 @@ async def main() -> int:
     for c in result.conflicts:
         _log(f"reconcile: CONFLICT {c.slug!r} types={c.types}")
 
-    # ── NDG gate (P1-P7 + P4b) ────────────────────────────────────
+    # ── NDG gate (P1-P7) ──────────────────────────────────────────
     gate_rc = 0
     if not args.skip_gate:
         if result.conflicts:
             _log(f"gate: {len(result.conflicts)} cross-type slug conflict(s) → FAIL")
             gate_rc = 1
         else:
+            # extra_pages are at the end of result.pages (reconcile
+            # appends them unmerged).  Separate them so P7 can check
+            # each one against the on-disk state.
+            _batch_page_count = len(result.pages) - len(all_extra)
+            _gate_extras = result.pages[_batch_page_count:] if all_extra else None
             report = run_ndg_gate(
-                result.pages,
+                result.pages[:_batch_page_count],
                 raw_headers=raw_headers,
-                extra_pages=None,  # already reconciled into result.pages
+                extra_pages=_gate_extras,
                 paths=paths,
                 allow_overwrite=args.allow_overwrite,
             )
@@ -353,6 +380,24 @@ async def main() -> int:
         committed += len(spages)
 
     _log(f"committed {committed} page(s) in {time.time()-t_commit:.0f}s")
+
+    # ── Post-commit sanity (zero LLM cost) ────────────────────────
+    from src.wiki.features.indexer import read_index
+    from src.wiki.storage.page_writer import page_path_for
+    _post_errors = 0
+    _index_ids = {e[0] for e in read_index(paths)}
+    for _p in result.pages:
+        _pp = page_path_for(paths, _p.type, _p.id)
+        if not _pp.exists():
+            _log(f"POSTCHECK MISSING: {_p.id} — file not on disk")
+            _post_errors += 1
+        elif _p.id not in _index_ids:
+            _log(f"POSTCHECK NOT-IN-INDEX: {_p.id}")
+            _post_errors += 1
+    if _post_errors:
+        _log(f"POSTCHECK: {_post_errors} error(s) — review before next batch")
+    else:
+        _log("POSTCHECK: all pages on disk and indexed")
 
     # Save completion state
     state = _load_state()

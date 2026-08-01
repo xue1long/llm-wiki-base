@@ -1,4 +1,4 @@
-"""NDG gate — per-page + batch-level quality checks (P1–P7 + P4b).
+"""NDG gate — per-page + batch-level quality checks (P1–P7).
 
 Consumes :mod:`src.wiki.features.lint` exported symbols so the gate and
 ``cli lint`` never diverge.  All checks are deterministic (zero LLM cost).
@@ -12,11 +12,10 @@ P2  RAW-PASTE         no full-text section heading; raw run ≤ threshold
 P3  MISSING-SOURCES   ``sources`` is non-empty OR has derivation relation
 P4  UGC-CRED          ``素材/ugc`` → must also carry ``可信度/ugc``
 
-**Batch-level (P4b, P5–P7):** run once across the whole batch.
+**Batch-level (P5–P7):** run once across the whole batch.
 
-P4b UGC-SOURCE-TAG    raw file is UGC → every derived page MUST carry
-                       ``素材/ugc`` + ``可信度/ugc``
 P5  INPUT-SOURCE-PAIR  every raw input has a corresponding SOURCE page
+                       (warning only — Fix D guarantees one per file)
 P6  SLUG-CONFLICT      no two pages share the same slug with different types
 P7  EXTRA-PAGES        extra_pages that would overwrite existing non-stub
                        pages → flag (unless ``--allow-overwrite``)
@@ -24,9 +23,9 @@ P7  EXTRA-PAGES        extra_pages that would overwrite existing non-stub
 Usage (library)
 ---------------
 >>> from src.wiki.features.ndg_gate import check_page, check_batch, GateReport
->>> issues_p14 = check_page(page, is_ugc_source=False)
->>> issues_p4bp7 = check_batch(pages, raw_headers, paths)
->>> report = GateReport(issues_p14 + issues_p4bp7)
+>>> issues_p14 = check_page(page)
+>>> issues_p57 = check_batch(pages, raw_headers, paths)
+>>> report = run_ndg_gate(pages, raw_headers=raw_headers, paths=paths)
 
 Usage (CLI)
 -----------
@@ -53,24 +52,6 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# UGC source markers (D1 — deterministic, no LLM)
-# ---------------------------------------------------------------------------
-# When the first 4000 chars of a raw file contain one of these markers the
-# file is classified as UGC and every page derived from it MUST carry both
-# ``素材/ugc`` and ``可信度/ugc`` tags.
-_UGC_MARKERS = (
-    "feishu.cn",
-    "mp.weixin.qq.com",
-    "飞书云文档",
-    "公众号",
-    "论坛",
-    "知乎",
-    "豆瓣",
-    "简书",
-    "QQ群",
-)
-
-# ---------------------------------------------------------------------------
 # Data model
 # ---------------------------------------------------------------------------
 
@@ -79,7 +60,7 @@ _UGC_MARKERS = (
 class GateIssue:
     """A single NDG gate violation."""
 
-    code: str            # "P1" … "P7", "P4b"
+    code: str            # "P1" … "P7"
     page_id: str | None  # None for batch-level issues without a single page
     message: str
     is_blocker: bool = True  # False → warning only, doesn't block commit
@@ -110,26 +91,12 @@ def _build_report(issues: list[GateIssue], page_count: int) -> GateReport:
 
 
 # ---------------------------------------------------------------------------
-# UGC source detection (P4b helper)
-# ---------------------------------------------------------------------------
-
-
-def is_ugc_source(raw_header: str) -> bool:
-    """True if *raw_header* contains a known UGC carrier marker.
-
-    *raw_header* should be the first ~4000 characters of the raw file.
-    """
-    return any(marker in raw_header for marker in _UGC_MARKERS)
-
-
-# ---------------------------------------------------------------------------
 # Per-page checks (P1–P4)
 # ---------------------------------------------------------------------------
 
 
 def check_page(
     page: WikiPage,
-    is_ugc_source: bool = False,
     T_source: int | None = None,
     T_non: int | None = None,
 ) -> list[GateIssue]:
@@ -139,9 +106,6 @@ def check_page(
     ----------
     page:
         The WikiPage to check.
-    is_ugc_source:
-        True when the raw file this page derives from is a known UGC
-        carrier (P4b context — the batch runner sets this flag).
     T_source / T_non:
         RAW-PASTE thresholds.  When *None*, loaded from the project
         quality-settings file via :func:`_load_raw_paste_thresholds`
@@ -154,20 +118,10 @@ def check_page(
     """
     issues: list[GateIssue] = []
 
-    # ── P1: READABILITY ──────────────────────────────────────────
     _check_p1_readability(page, issues)
-
-    # ── P2: RAW-PASTE ────────────────────────────────────────────
     _check_p2_raw_paste(page, T_source, T_non, issues)
-
-    # ── P3: MISSING-SOURCES ──────────────────────────────────────
     _check_p3_missing_sources(page, issues)
-
-    # ── P4: UGC-CRED (per-page tag consistency) ──────────────────
     _check_p4_ugc_cred(page, issues)
-
-    # ── P4b: UGC-SOURCE-TAG (raw-level enforcement) ──────────────
-    _check_p4b_ugc_source_tag(page, is_ugc_source, issues)
 
     return issues
 
@@ -198,7 +152,6 @@ def _check_p2_raw_paste(
     raw_run = _long_raw_text_run(page.body)
 
     if page.type == PageType.SOURCE:
-        # Check 1: fulltext-section heading (unconditional flag).
         if _has_fulltext_section(page.body):
             issues.append(GateIssue(
                 "P2", page.id,
@@ -206,7 +159,6 @@ def _check_p2_raw_paste(
                 "heading (正文内容/转录内容/原文/全文/完整文本) — "
                 "raw text belongs in raw/sources/, not the wiki.",
             ))
-        # Check 2: long raw run past source threshold.
         elif raw_run > ts:
             issues.append(GateIssue(
                 "P2", page.id,
@@ -245,37 +197,8 @@ def _check_p4_ugc_cred(page: WikiPage, issues: list[GateIssue]) -> None:
         ))
 
 
-def _check_p4b_ugc_source_tag(
-    page: WikiPage,
-    is_ugc_source: bool,
-    issues: list[GateIssue],
-) -> None:
-    """P4b: if the raw source is UGC, the page MUST carry both tags.
-
-    .. note::
-
-        *Known residual* — raw files that are genuinely UGC but whose
-        headers do NOT contain any ``_UGC_MARKERS`` substring will not
-        set ``is_ugc_source`` and this check will be skipped.  These
-        are documented as a known gap; do not pretend coverage.
-    """
-    if not is_ugc_source:
-        return
-    missing = []
-    if "素材/ugc" not in page.tags:
-        missing.append("素材/ugc")
-    if "可信度/ugc" not in page.tags:
-        missing.append("可信度/ugc")
-    if missing:
-        issues.append(GateIssue(
-            "P4b", page.id,
-            f"Raw source is UGC but page is missing required tag(s): "
-            f"{', '.join(missing)}.",
-        ))
-
-
 # ---------------------------------------------------------------------------
-# Batch-level checks (P4b context, P5–P7)
+# Batch-level checks (P5–P7)
 # ---------------------------------------------------------------------------
 
 
@@ -286,7 +209,7 @@ def check_batch(
     paths: WikiPaths | None = None,
     allow_overwrite: bool = False,
 ) -> list[GateIssue]:
-    """Run P5–P7 (and UGC context) across the full batch.
+    """Run P5–P7 across the full batch.
 
     Parameters
     ----------
@@ -294,7 +217,7 @@ def check_batch(
         All pages produced by this batch's generate step.
     raw_headers:
         ``{raw_path: first_4000_chars}`` for every raw file in the batch.
-        Used for P4b UGC-source detection.
+        Used for P5 input→source pairing.
     extra_pages:
         Pre-existing pages touched by reverse relations.  Checked by P7.
     paths:
@@ -309,28 +232,13 @@ def check_batch(
     """
     issues: list[GateIssue] = []
 
-    # Build a raw→pages index so we can answer "which pages derive
-    # from this raw file?" for P4b and P5.
     raw_to_pages: dict[str, list[WikiPage]] = {}
     for page in pages:
         for src in (page.sources or []):
             raw_to_pages.setdefault(src, []).append(page)
 
-    # ── P4b: UGC-source tag enforcement (batch context) ──────────
-    if raw_headers:
-        for raw_path, header in raw_headers.items():
-            if is_ugc_source(header):
-                derived = raw_to_pages.get(raw_path, [])
-                for page in derived:
-                    _check_p4b_ugc_source_tag(page, True, issues)
-
-    # ── P5: INPUT-SOURCE-PAIR ────────────────────────────────────
     _check_p5_input_source_pair(pages, raw_to_pages, raw_headers, issues)
-
-    # ── P6: SLUG-CONFLICT ────────────────────────────────────────
     _check_p6_slug_conflict(pages, issues)
-
-    # ── P7: EXTRA-PAGES ──────────────────────────────────────────
     _check_p7_extra_pages(extra_pages, paths, allow_overwrite, issues)
 
     return issues
@@ -342,12 +250,16 @@ def _check_p5_input_source_pair(
     raw_headers: dict[str, str] | None,
     issues: list[GateIssue],
 ) -> None:
-    """P5: every raw input must have exactly one SOURCE page."""
+    """P5: every raw input should have exactly one SOURCE page.
+
+    Warning only (is_blocker=False) — Fix D in generate_ingest always
+    appends a source page, so this fires only when something unusual
+    happens (LLM source-page suppression, path mismatch).
+    """
     raw_paths = set(raw_headers or {})
     if not raw_paths:
         return
 
-    # Count source pages that reference each raw path
     source_per_raw: dict[str, list[str]] = {}
     for page in pages:
         if page.type != PageType.SOURCE:
@@ -363,12 +275,14 @@ def _check_p5_input_source_pair(
                 "P5", None,
                 f"Raw input {rp!r} has no corresponding SOURCE page "
                 f"in the batch.",
+                is_blocker=False,
             ))
         elif len(src_pages) > 1:
             issues.append(GateIssue(
                 "P5", None,
                 f"Raw input {rp!r} maps to {len(src_pages)} SOURCE "
                 f"pages: {src_pages} — expected exactly one.",
+                is_blocker=False,
             ))
 
 
@@ -418,15 +332,13 @@ def _check_p7_extra_pages(
         ep_path = page_path_for(paths, ep.type, ep.id)
         if not ep_path.exists():
             continue
-        # Stub overwrite is always OK.
         if ep.processing_depth == "stub":
             continue
-        # Check if the on-disk page is a stub.
         try:
             from ..storage.page_writer import read_page
             existing = read_page(ep_path)
             if existing.processing_depth == "stub":
-                continue  # stub → real upgrade
+                continue
         except Exception:
             pass
 
@@ -455,27 +367,30 @@ def run_ndg_gate(
     T_non: int | None = None,
     allow_overwrite: bool = False,
 ) -> GateReport:
-    """Run the full NDG gate (P1–P7 + P4b) on a batch.
+    """Run the full NDG gate (P1–P7) on a batch.
 
     Returns a :class:`GateReport` whose ``passed`` attribute is ``True``
     only when zero blocker issues were found.
     """
     all_issues: list[GateIssue] = []
 
-    # Per-page checks (P1–P4 + P4b).  P4b needs per-raw UGC context:
-    # precompute a {raw_path: is_ugc} lookup from the headers.
-    ugc_raw: set[str] = set()
-    if raw_headers:
-        for rp, hdr in raw_headers.items():
-            if is_ugc_source(hdr):
-                ugc_raw.add(rp)
+    # Load per-project thresholds when available and the caller didn't
+    # supply explicit overrides.  When quality_settings.json is absent,
+    # the internal defaults are a reasonable starting point (2000/300)
+    # — calibrated thresholds can tighten them later via Phase 1.5.
+    if T_source is None and T_non is None and paths is not None:
+        T_source, T_non = _load_raw_paste_thresholds(paths)
+        if T_source == _DEFAULT_T_SOURCE and T_non == _DEFAULT_T_NON:
+            import logging as _logging
+            _logging.getLogger(__name__).info(
+                "using default RAW-PASTE thresholds (T_source=%d, T_non=%d) "
+                "— run ndg_calibrate.py to lock project-specific values",
+                T_source, T_non,
+            )
 
     for page in pages:
-        _is_ugc = any(src in ugc_raw for src in (page.sources or []))
-        all_issues.extend(check_page(page, is_ugc_source=_is_ugc,
-                                     T_source=T_source, T_non=T_non))
+        all_issues.extend(check_page(page, T_source=T_source, T_non=T_non))
 
-    # Batch-level checks (P5–P7).
     all_issues.extend(
         check_batch(pages, raw_headers, extra_pages, paths,
                     allow_overwrite=allow_overwrite)
