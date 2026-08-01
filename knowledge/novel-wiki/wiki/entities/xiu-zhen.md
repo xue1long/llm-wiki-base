@@ -6,7 +6,15 @@ sources:
 - raw\sources\04_题材专题\东方玄幻六尘.md
 created_at: 1785420975228
 updated_at: 1785420975228
-relations: []
+relations:
+- target: 五派六院七界
+  type: contains
+  weight: 0.8
+  context: 五派六院七界是修真世界的核心设定
+- target: 大纲示例七界传说-95cb46f7
+  type: referenced_by
+  weight: 0.7
+  context: 大纲涉及的核心修炼体系
 grade: C
 processing_depth: stub
 is_immutable: false

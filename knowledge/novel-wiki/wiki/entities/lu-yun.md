@@ -3,7 +3,7 @@ id: lu-yun
 title: 陆云
 type: entity
 sources:
-  - raw/sources/03_大纲创作/大纲示例七界传说.md
+- raw/sources/03_大纲创作/大纲示例七界传说.md
 created_at: 1785338366595
 updated_at: 1785338366595
 relations:
@@ -15,6 +15,10 @@ relations:
   type: referenced_by
   weight: 1.0
   context: 文档详细描述了陆云的初始设定和成长路径。
+- target: 易园
+  type: supported_by
+  weight: 0.9
+  context: 陆云在易园修炼成长
 grade: A
 processing_depth: entity
 is_immutable: false
@@ -23,6 +27,8 @@ last_used_at: 0
 zombie_since: null
 tags:
 - entity/character
+category: ''
+taxonomy_sub: ''
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

@@ -837,3 +837,57 @@
 - **ingest**: `kb-20260731091911-af03559c` — generated 15 pages from 方法论小说结构.md
 ## 2026-07-31T11:15:31.094257
 - **ingest**: `kb-20260731110736-4f4e48a3` — generated 7 pages from 借鉴素材套路.md
+## 2026-07-31T23:12:02.260545
+- **ingest**: `reingest-8f97f756` — generated 12 pages from 东方玄幻中国神仙.md
+## 2026-07-31T23:17:11.412584
+- **ingest**: `reingest-8f97f756` — generated 5 pages from 东方玄幻中国神仙.md
+## 2026-07-31T23:18:00.113528
+- **ingest**: `reingest-59a21a8b` — generated 4 pages from 东方玄幻夜叉.md
+## 2026-07-31T23:18:48.847173
+- **ingest**: `reingest-4925a54f` — generated 3 pages from 东方玄幻烛龙.md
+## 2026-07-31T23:21:06.828813
+- **ingest**: `reingest-a142147c` — generated 4 pages from 入门教程你是新人吗.md
+## 2026-07-31T23:22:56.024101
+- **ingest**: `reingest-9a22f24a` — generated 7 pages from 入门教程关于悬念.md
+## 2026-07-31T23:24:25.468930
+- **ingest**: `reingest-c8a4597a` — generated 9 pages from 出版经验分享2.md
+## 2026-07-31T23:25:29.706041
+- **ingest**: `reingest-95cb46f7` — generated 7 pages from 大纲示例七界传说.md
+## 2026-07-31T23:27:23.081390
+- **ingest**: `reingest-8386d4b0` — generated 7 pages from 大纲示例永生.md
+## 2026-07-31T23:30:02.395933
+- **ingest**: `reingest-94018be8` — generated 10 pages from 大纲示例琴帝.md
+## 2026-07-31T23:30:45.197440
+- **ingest**: `reingest-7b7fdbc6` — generated 3 pages from 大纲示例网络小说买断大纲以及上架大纲.md
+## 2026-07-31T23:33:32.775778
+- **ingest**: `reingest-7bfb3a57` — generated 8 pages from 审核上架13作品仆街后的出路.md
+## 2026-07-31T23:34:57.162104
+- **ingest**: `reingest-eac9cdc0` — generated 9 pages from 审核上架1什么书能够赚钱.md
+## 2026-07-31T23:37:15.330361
+- **ingest**: `reingest-c02aefac` — generated 7 pages from 审核上架6学会给你的小说打补丁.md
+## 2026-07-31T23:38:40.102658
+- **ingest**: `reingest-332ac8b1` — generated 10 pages from 新人须知5速度网络文学创作的唯一秘诀.md
+## 2026-07-31T23:40:02.968099
+- **ingest**: `reingest-6e8db1c9` — generated 7 pages from 武侠洪荒洗髓经.md
+## 2026-07-31T23:47:14.775570
+- **ingest**: `reingest-dbd495ea` — generated 6 pages from 补充教程描写人物品质的成语.md
+## 2026-07-31T23:50:02.144871
+- **ingest**: `reingest-29489a75` — generated 9 pages from 进阶教程18创作会经常遇到的问题.md
+## 2026-07-31T23:53:07.143976
+- **ingest**: `reingest-157a3e61` — generated 7 pages from 进阶教程39文章的开头你想让读者记住什么.md
+## 2026-07-31T23:55:11.494379
+- **ingest**: `reingest-2327f869` — generated 15 pages from 进阶教程如何写好一本小说抓住13个关键.md
+## 2026-07-31T23:57:32.949081
+- **ingest**: `reingest-d93da56a` — generated 4 pages from 进阶教程小说靠什么来吸引读者.md
+## 2026-07-31T23:58:14.544616
+- **ingest**: `reingest-90f1e671` — generated 5 pages from 进阶教程无线秘籍1.md
+## 2026-08-01T00:01:40.029556
+- **ingest**: `reingest5-8f97f756` — generated 5 pages from 东方玄幻中国神仙.md
+## 2026-08-01T00:02:37.627696
+- **ingest**: `reingest5-a142147c` — generated 8 pages from 入门教程你是新人吗.md
+## 2026-08-01T00:04:01.558679
+- **ingest**: `reingest5-4925a54f` — generated 3 pages from 东方玄幻烛龙.md
+## 2026-08-01T00:05:19.432526
+- **ingest**: `reingest5-94018be8` — generated 9 pages from 大纲示例琴帝.md
+## 2026-08-01T00:07:13.013912
+- **ingest**: `reingest5-c8a4597a` — generated 7 pages from 出版经验分享2.md

@@ -19,6 +19,18 @@ relations:
   type: contains
   weight: 0.9
   context: 属于东方玄幻题材范畴
+- target: 东方玄幻夜叉-59a21a8b
+  type: contains
+  weight: 0.8
+  context: 夜叉所属的题材分类
+- target: 烛龙神兽设定
+  type: contains
+  weight: 0.8
+  context: 烛龙是东方玄幻小说的常见神兽素材
+- target: 中国神仙体系
+  type: depends_on
+  weight: 0.8
+  context: 东方玄幻小说的世界观设定依赖中国神仙体系
 - target: 中国神话人物
   type: supported_by
   weight: 0.7
@@ -27,6 +39,14 @@ relations:
   type: referenced_by
   weight: 0.7
   context: 所属题材分类为东方玄幻
+- target: 夜叉
+  type: contains
+  weight: 0.7
+  context: 夜叉常作为东方玄幻小说的素材出现
+- target: 面恶心善
+  type: contains
+  weight: 0.7
+  context: 面恶心善是东方玄幻小说中常用的人物塑造手法
 - target: 仙侠题材
   type: analogous_to
   weight: 0.6
@@ -40,6 +60,8 @@ zombie_since: null
 tags:
 - genre/东方玄幻
 - entity/题材
+category: ''
+taxonomy_sub: ''
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

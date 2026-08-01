@@ -3,7 +3,7 @@ id: novel-outline
 title: 小说大纲
 type: concept
 sources:
-  - raw/sources/03_大纲创作/大纲示例永生.md
+- raw/sources/03_大纲创作/大纲示例永生.md
 created_at: 1785346065077
 updated_at: 1785346065077
 relations:
@@ -11,6 +11,10 @@ relations:
   type: contains
   weight: 0.9
   context: 这是一个具体的小说大纲示例。
+- target: 格局创意
+  type: supported_by
+  weight: 0.7
+  context: 架构型创意是小说大纲的核心支撑
 grade: A
 processing_depth: concept
 is_immutable: false
@@ -19,6 +23,8 @@ last_used_at: 0
 zombie_since: null
 tags:
 - func/教程
+category: ''
+taxonomy_sub: ''
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

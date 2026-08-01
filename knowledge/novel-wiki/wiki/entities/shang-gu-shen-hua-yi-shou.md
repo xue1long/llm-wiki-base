@@ -19,6 +19,10 @@ relations:
   type: references
   weight: 0.85
   context: 舜流放四凶
+- target: 烛龙神兽设定
+  type: derives
+  weight: 0.7
+  context: 烛龙概念来源于中国上古神话异兽
 grade: B
 processing_depth: entity
 is_immutable: false

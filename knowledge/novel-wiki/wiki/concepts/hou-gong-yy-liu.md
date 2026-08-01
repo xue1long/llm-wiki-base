@@ -15,14 +15,14 @@ relations:
   type: is_part_of
   weight: 0.9
   context: 后宫YY流是YY小说模式的重要子流派
-- target: 方法论YY小说模式-942f4f92
-  type: is_part_of
-  weight: 0.7
-  context: 作为YY小说的前身流派提及
 - target: sheng-ji-lian-gong-xiao-shuo
   type: superseded_by
   weight: 0.7
   context: 升级练功小说是后宫YY流审美疲劳后的替代品
+- target: 审核上架1什么书能够赚钱-eac9cdc0
+  type: referenced_by
+  weight: 0.6
+  context: 关于泡妞类作品的写作技巧对比
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -33,6 +33,8 @@ tags:
 - genre/网文
 - mood/爽文
 - func/方法论
+category: ''
+taxonomy_sub: ''
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

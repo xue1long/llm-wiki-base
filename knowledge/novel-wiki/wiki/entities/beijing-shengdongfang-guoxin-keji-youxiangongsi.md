@@ -6,7 +6,11 @@ sources:
 - raw\sources\03_大纲创作\大纲示例网络小说大纲写法.md
 created_at: 1785420388944
 updated_at: 1785420388944
-relations: []
+relations:
+- target: 学龙
+  type: supports
+  weight: 0.9
+  context: 学龙属于该公司知识库作者
 grade: C
 processing_depth: memory
 is_immutable: false
