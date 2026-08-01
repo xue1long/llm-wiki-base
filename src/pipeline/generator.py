@@ -26,7 +26,7 @@ from ..utils.path import normalize_source_path
 from ..utils.slugify import slugify as _slugify
 from ..wiki.core.paths import WikiPaths
 from ..wiki.features.relations import parse_relations_from_response
-from ..wiki.features.tag_namespace import is_valid as is_valid_tag
+from ..wiki.features.tag_namespace import TAG_PREFIXES, is_valid as is_valid_tag
 from ..wiki.core.types import PageType, WikiPage
 from ..wiki.templates import (
     Template,
@@ -64,6 +64,56 @@ _DEPTH_BY_TYPE: dict[PageType, str] = {
     PageType.CONCEPT: "concept",
     PageType.SYNTHESIS: "synthesis",
 }
+
+
+# ---------------------------------------------------------------------------
+# 0.5.2 — generated-id hygiene. Page ids are derived from the LLM's title
+# (`slug = _slugify(title)`), so a title that is a tag name, a raw path, a
+# type-prefixed id, or an `-entity` suffix becomes a polluted page id.
+# Source pages are exempt — their slug is the deterministic on-disk one
+# from source_slug_map.
+# ---------------------------------------------------------------------------
+_ID_TAG_NS = tuple(TAG_PREFIXES) + (
+    "genre", "func", "char", "event", "mood", "scene_phase", "status",
+)
+_ID_TYPE_PREFIXES = ("source", "concept", "synthesis", "entity")
+
+
+def _is_bad_id_slug(slug: str) -> bool:
+    """True if *slug* is tag-like, path-like, type-prefixed, or carries an
+    ``-entity`` suffix — i.e. not a valid page id."""
+    if slug.endswith("-entity"):
+        return True
+    if any(slug.startswith(p + "-") for p in _ID_TAG_NS):
+        return True
+    if any(slug.startswith(p + "-") for p in _ID_TYPE_PREFIXES):
+        return True
+    if slug.startswith("raw-") or "--" in slug or "-md-" in slug:
+        return True
+    return False
+
+
+def _sanitize_generated_id(slug: str) -> str | None:
+    """Repair or reject a generated page id.
+
+    - Clean id: returned unchanged.
+    - Type-prefix / ``-entity`` / tag-prefix: strip the bad affix, return rest.
+    - Path-like id: unrecoverable → ``None`` (caller drops the page).
+    """
+    if not _is_bad_id_slug(slug):
+        return slug
+    if slug.startswith("raw-") or "--" in slug or "-md-" in slug:
+        return None
+    for p in _ID_TAG_NS + _ID_TYPE_PREFIXES:
+        if slug.startswith(p + "-"):
+            rest = slug[len(p) + 1:]
+            if rest:
+                return rest
+    if slug.endswith("-entity"):
+        rest = slug[:-len("-entity")]
+        if rest:
+            return rest
+    return None
 
 
 _logger = logging.getLogger(__name__)
@@ -534,6 +584,17 @@ async def unified_generate(
             if map_slug:
                 slug = map_slug
 
+        # 0.5.2: reject/repair bad generated ids (tag-like, path-like,
+        # type-prefix, `-entity`). Source pages keep their deterministic slug.
+        if page_type != PageType.SOURCE:
+            slug = _sanitize_generated_id(slug)
+            if slug is None:
+                _logger.warning(
+                    "[unified_generate] dropping page with unrecoverable id: %r",
+                    p.get("id"),
+                )
+                continue
+
         template = resolved_templates.get(page_type)
         if template is None:
             body_md = ""
@@ -800,6 +861,17 @@ async def generate(
             map_slug = source_slug_map.get(analysis.source_path)
             if map_slug:
                 slug = map_slug
+
+        # 0.5.2: reject/repair bad generated ids (tag-like, path-like,
+        # type-prefix, `-entity`). Source pages keep their deterministic slug.
+        if page_type != PageType.SOURCE:
+            slug = _sanitize_generated_id(slug)
+            if slug is None:
+                _logger.warning(
+                    "[generator] dropping page with unrecoverable id: %r",
+                    p.get("id"),
+                )
+                continue
 
         template = resolved_templates.get(page_type)
         if template is None:

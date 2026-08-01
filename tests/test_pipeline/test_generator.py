@@ -854,3 +854,88 @@ def test_auto_fill_replaces_placeholder_main_content():
     out = pages[0]["slots"]["main_content"]
     assert "系统占位" not in out
     assert "真实内容" in out
+
+
+# ---------------------------------------------------------------------------
+# 0.5.2 — generated-id sanitisation (bad ids: tag-like / path-like /
+# type-prefix / `-entity`)
+# ---------------------------------------------------------------------------
+
+def test_sanitize_keeps_clean_id():
+    from src.pipeline.generator import _sanitize_generated_id
+    assert _sanitize_generated_id("tolkien") == "tolkien"
+    assert _sanitize_generated_id("穿越小说角色塑造套路") == "穿越小说角色塑造套路"
+    assert _sanitize_generated_id("expectation-悬念") == "expectation-悬念"
+
+
+def test_sanitize_strips_type_prefix():
+    from src.pipeline.generator import _sanitize_generated_id
+    assert _sanitize_generated_id("source-补充教程小说写作大纲的模版共享-a56031f5") == "补充教程小说写作大纲的模版共享-a56031f5"
+    assert _sanitize_generated_id("concept-穿越小说角色塑造套路") == "穿越小说角色塑造套路"
+
+
+def test_sanitize_strips_entity_suffix():
+    from src.pipeline.generator import _sanitize_generated_id
+    assert _sanitize_generated_id("琴帝-entity") == "琴帝"
+
+
+def test_sanitize_repairs_tag_prefix():
+    from src.pipeline.generator import _sanitize_generated_id
+    assert _sanitize_generated_id("func-教程") == "教程"
+    assert _sanitize_generated_id("题材-玄幻") == "玄幻"
+
+
+def test_sanitize_drops_path_like():
+    from src.pipeline.generator import _sanitize_generated_id
+    assert _sanitize_generated_id("raw-sources-01-新手入门--入门教程三十六种经典情节模式情节艺术-md-9163987c") is None
+    assert _sanitize_generated_id("女频男频--架空类小说恶俗桥段盘点-8a5397b6") is None
+
+
+def test_is_bad_id_slug_detects_pollution_forms():
+    from src.pipeline.generator import _is_bad_id_slug
+    assert _is_bad_id_slug("func-教程")
+    assert _is_bad_id_slug("题材-玄幻")
+    assert _is_bad_id_slug("source-补充教程")
+    assert _is_bad_id_slug("琴帝-entity")
+    assert _is_bad_id_slug("raw-sources-01-新手入门")
+    assert not _is_bad_id_slug("tolkien")
+    assert not _is_bad_id_slug("修真")
+    assert not _is_bad_id_slug("期望式悬念与突发式悬念")
+
+
+@pytest.mark.asyncio
+async def test_generate_sanitizes_bad_ids(tmp_path):
+    """0.5.2 wiring: a type-prefix title is repaired to its bare id; a
+    path-like title is dropped entirely. Source pages keep their
+    deterministic slug and are unaffected."""
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="source", slug="kb-1", title="Article", reasoning="r"),
+            PageSpec(type="concept", slug="t", title="source-补充教程", reasoning="r"),
+            PageSpec(type="concept", slug="p", title="raw-sources-01-新手入门", reasoning="r"),
+        ],
+    )
+    provider = ScriptedLLMProvider([{
+        "pages": [
+            {"id": "kb-1", "type": "source", "title": "Article",
+             "slots": {"source_meta": "sm", "summary": "B",
+                       "key_points": ["B"], "extracted_concepts": ["B"]}},
+            {"id": "t", "type": "concept", "title": "source-补充教程",
+             "slots": _concept_slots()},
+            {"id": "p", "type": "concept", "title": "raw-sources-01-新手入门",
+             "slots": _concept_slots()},
+        ]
+    }])
+    pages = await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="", provider=provider,
+    )
+    ids = {p.id for p in pages}
+    assert "article" in ids                     # source page survives
+    assert "补充教程" in ids                      # type-prefix repaired
+    assert not any("raw-sources" in i for i in ids)  # path-like dropped
