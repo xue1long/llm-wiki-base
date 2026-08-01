@@ -1,0 +1,153 @@
+# 新文档门禁 NDG + 摄取优化 — 实施计划（2026-08-01）
+
+> **依据**：
+> - 2026-08-01 第三方审计（隐含假设树 / 门禁 V1-V12 对抗验证）——审计结论见会话记录；
+> - `2026-08-01-novel-wiki-ingest-execution.md` Phase 3.1 / Phase 4.2（本计划**修正其中两条过时假设**）；
+> - `docs/guides/novel-wiki-ingest-spec.md`（规范 v2，验收目标 §十）。
+>
+> **修正声明**（相对既有执行计划）：
+> 1. 执行计划 Phase 3.1 称"LINT-RAW-PASTE 必须豁免 source 页（main_content 槽本就是完整正文）"——**已过时**。6e1348d/4edda47 后 source 模板无 main_content 槽，source 页正文应为蒸馏形态。本计划将 RAW-PASTE 改为 **source 页同样检查**（全文段标题 + 长 run），并保留对"长摘要"的容错（阈值标定）。
+> 2. 执行计划 Phase 4.2 称门禁 = `lint + tags validate + fields validate`——升级为**新文档门禁 NDG**（P1-P7，写盘前拦截）。
+>
+> 遵守 CLAUDE.md：TDD-per-task + 一次一 commit + 每任务 reviewer。**本计划立项时不写代码。**
+
+## 决策记录
+
+### D1 — UGC 源判定 = 选项 A（细化版）
+- **规则**：输入 raw 文件头部（前 4000 字符）命中 UGC 载体标记
+  `feishu.cn | mp.weixin.qq.com | 飞书云文档 | 公众号 | 论坛 | 知乎 | 豆瓣 | 简书 | QQ群`
+  → 该文件派生的**所有页**必须同时携带 `素材/ugc` + `可信度/ugc`。
+- **理由**：novel-wiki 语料源几乎全为飞书托管的公众号/论坛 UGC 内容；判定为确定性（读文件头），不依赖 LLM 输出；覆盖 pilot 实测的 `ugc_tags=0` 失败形态（此前 LINT-UGC-CRED 只查一致性、抓不到"完全没打标"）。
+- **白名单扩展**：未来引入书籍/官方源时，检测器加豁免——源含 `book/官方/出版社` 标记 → 要求 `素材/book` + `可信度/book`（本期不实现，仅预留）。
+- **默认行为**：本语料下 ≈ 全部新页被强制要求双 UGC 标（与语料真实属性一致）。
+
+### D2 — 门禁时机 = 先校验后写盘（generate/commit 分离）
+- 修复审计 V1（写后校验，污染已入库）。架构见 Phase 1。
+
+### D3 — 阈值不硬编码，由 Phase 0 标定
+- 修复审计 V4。`T_source` / `T_non` 由新文档 dry-run 分布决定，写死后仅能经标定流程修订。
+
+---
+
+## 验收总目标（NDG 生效后）
+
+- 每批 NDG PASS 才写盘；FAIL 时磁盘**零写入**（可验证：FAIL 后 wiki 目录 mtime 无变化）。
+- 新页：全文段标题 0 命中、`_long_raw_text_run ≤ T` 100%、P5 输入↔source 配对 100%、P6 slug 零冲突。
+- 全部 NDG 判定逻辑收敛到 `src/wiki/features/lint.py` 单一事实源（gate 只消费导出符号）。
+- backlog：829 可摄取 / 46 批（已重写生成器落地）。
+
+---
+
+## 执行顺序（依赖硬约束）
+
+```
+Phase 0  NDG 标定预演（新文档分布 → 锁阈值）
+   │
+   ├─► Phase 1  run_ingest 拆 generate/commit（前置，否则门禁无"写前"窗口）
+   │
+   ├─► Phase 2  lint.py 单一事实源（_has_fulltext_section / 阈值导出）
+   │
+   ├─► Phase 3  NDG 实现（batch_gate_check 重写，P1-P7）
+   │
+   ├─► Phase 4  phase4_batch 接入 generate→NDG→commit + batch_build_state
+   │
+   ├─► Phase 5  UGC(A) + B5 并发 + B6 覆盖保护
+   │
+   └─► Phase 6  批 1-46 放行
+```
+
+---
+
+## Phase 0 — NDG 标定预演（纯测量，无生产写盘）
+
+### 0.1 新文档采样生成
+- **Files**：`scripts/ndg_calibrate.py`（新建；种子可复现）
+- **Implementation guidance**：
+  1. 从新 manifest `.index/reingest_backlog.json` 的 `ingestible` 抽 25 文件（`--seed` 默认固定）；
+  2. 每文件 `generate_ingest`（若 Phase 1 未完成，先用临时 staging `WikiPaths` 写临时目录，不触生产 wiki）；
+  3. 收集每页：type、body chars、`_long_raw_text_run`、全文段标题命中、`sources` 非空、tags、slug。
+- **验收**：输出 `_long_raw_text_run` 直方图 + 各 type 的 p90/p95/p99 + Top-10 最长 run 预览。
+
+### 0.2 阈值标定 + 检查项验证
+- **Implementation guidance**：
+  1. 人工过目 Top-10 长 run：判「合法长摘要」（放行）还是「污染」（拦截）；
+  2. `T_source` / `T_non` = 合法页 p99（取整到 50 的倍数），写入 `.index/quality_settings.json`（`raw_paste: {source_threshold, non_source_threshold}`）；
+  3. 验证 P5 配对 100%、P6 零冲突、P2 样本 0 误伤、全文段标题 0 命中。
+- **验收**：标定报告存档（`scripts/_ndg_calibrate_report.txt`）；阈值有据可查、非拍脑袋。
+
+---
+
+## Phase 1 — run_ingest 拆 generate/commit
+
+### 1.1 generate_ingest / commit_ingest 拆分
+- **Files**：`src/pipeline/ingest.py`
+- **Tests**：`tests/test_pipeline/`（新增/扩展拆分后语义不变的单测）
+- **Implementation guidance**：
+  1. `generate_ingest(paths, source_path, source_text, provider, folder_context, task_id) -> (pages, extra_pages, meta)`：现有 `run_ingest` 中 sanitize → unified/two-step → stubs → reverse relations（**只读**既有页）→ quality_gate 过滤的全部逻辑，**不含任何写盘**；
+  2. `commit_ingest(paths, source_path, pages, extra_pages, task_id)`：write_page × N + append_to_index + log_event（现有 AtomicContext 块）；
+  3. `run_ingest = generate_ingest + commit_ingest`（对外签名、行为不变，旧调用方/生产/测试不受影响）。
+- **验收**：`tests/test_pipeline/` 全绿；`run_ingest` 行为与拆分前一致（对比一次摄取前后 wiki mtime）。
+- **Commit**：`refactor(pipeline): run_ingest 拆 generate/commit，门禁前置的前提`
+
+---
+
+## Phase 2 — lint.py 单一事实源
+
+### 2.1 全文段检测器 + 阈值导出
+- **Files**：`src/wiki/features/lint.py`、`tests/test_wiki/test_lint.py`
+- **Implementation guidance**：
+  1. `_FULLTEXT_SECTION_RE`（`^#{1,6}\s*(正文内容|转录内容|原文|全文|完整文本)`）+ `_has_fulltext_section(body)`——**围栏感知**（复用 `_long_raw_text_run` 的 `in_fence` 状态，避免代码块内标题误报）；
+  2. `T_source` / `T_non` 从 `.index/quality_settings.json` 读取（Phase 0 写入），缺省回落常量；
+  3. **LINT-RAW-PASTE 改为 source 同样检查**（修正旧假设）：source 页命中全文段标题 **或** run > T_source → 违规；非 source run > T_non → 违规。
+- **验收**：`test_lint.py` 更新旧"source 豁免"断言为"source 带全文段 → 违规 / source 蒸馏 → 放行"；新增围栏、变体标题用例。
+- **Commit**：`feat(lint): RAW-PASTE 覆盖 source 页（全文段标题 + 阈值），单一事实源`
+
+## Phase 3 — NDG 实现
+
+### 3.1 batch_gate_check 重写为 NDG 消费者
+- **Files**：`scripts/batch_gate_check.py`（重写）、`scripts/ndg_calibrate.py`（Phase 0 复用其 check 函数）
+- **Tests**：新增 `tests/test_wiki/test_ndg_gate.py`（合成样本断言 P1-P7 各违规）
+- **Implementation guidance**：`check_page` 只消费 lint 导出符号（`_has_fulltext_section`、`_long_raw_text_run`、阈值），不各自实现：
+  - P1 READABILITY；P2 RAW-PASTE（source/非source 双阈值）；P3 MISSING-SOURCES；P4 UGC-CRED；
+  - P4b（D1）：输入文件 UGC 载体判定 → 派生页强制双 UGC 标；
+  - 批级 P5 输入↔source 配对、P6 slug 唯一、P7 extra_pages 轻查。
+- **验收**：合成样本各违规命中；真样本（Phase 0 的 25 文件）0 假阳性。
+- **Commit**：`feat(scripts): NDG 门禁 P1-P7 + UGC(A) 强制打标`
+
+## Phase 4 — 批执行接入
+
+### 4.1 phase4_batch 改 generate→NDG→commit
+- **Files**：`scripts/phase4_batch.py`
+- **Implementation guidance**：批流改为 `generate 全部 → NDG 全批校验 → PASS 才逐文件 commit → 记录 batch_build_state`；FAIL 整批拒写（回滚粒度=批，天然由"未写盘"实现）；文件级失败单列 `retry_batch`，重试 1 次后再 FAIL 即批次拦截并告警。
+- **验收**：制造一个必 FAIL 的输入（含 `## 转录内容` 的假源）→ 批 FAIL 且 wiki mtime 无变化。
+- **Commit**：`feat(scripts): phase4_batch 接入 generate→NDG→commit，FAIL 零写盘`
+
+## Phase 5 — UGC(A) + 并发 + 覆盖保护
+
+### 5.1 UGC(A) 载体判定落地
+- **Files**：`src/wiki/features/lint.py`（P4b 判定函数，供 NDG 消费）
+- **Implementation guidance**：见 D1。book 类豁免留 TODO（本期不实现）。
+- **验收**：对含 feishu URL 头的输入，派生页缺 UGC 标 → P4b 命中。
+
+### 5.2 并发 + 断点续跑（B5）
+- **Files**：`scripts/phase4_batch.py`
+- **Implementation guidance**：generate 阶段并发 3（LLM 密集 + 只读，安全）；commit 阶段串行；批前读/批后写 `.index/batch_build_state.json`，支持中断续跑。
+- **验收**：中断批 N → 重跑跳过已完成文件。
+
+### 5.3 覆盖保护（B6）
+- **Files**：`scripts/phase4_batch.py`
+- **Implementation guidance**：commit 前将批内 `(slug,type)` 与既有 wiki 求交集：命中非 stub 页 → 告警 + 需 `--allow-overwrite`；命中 stub 页 → 放行（Fix E 的 stub→实页升级是设计行为）。
+- **验收**：同 slug 冲突页被拦截/告警，stub 升级不受阻。
+
+## Phase 6 — 批 1-46 放行
+
+- 前置：Phase 0-5 全绿；`tests/test_pipeline/`、`tests/test_wiki/`、`tests/test_lib/` 全过。
+- 逐批 `phase4_batch.py --batch N`；每批 NDG PASS 才落盘；成本护栏：单批 >60min 告警、累计超预算即停。
+- **验收**：46 批全部 NDG PASS；tap rate 达标；漂移基线（`_baseline.py`）重跑新增页漂移=0。
+
+---
+
+## 遗留（不进本计划范围，挂账）
+
+- 旧 wiki 数据：7 个含转录/长摘要 source 页、36 个 synthesis 长文页、59 个漂移 source 页——独立 cleanup 任务，**不动**。
+- UGC 白名单 book 豁免（D1 预留）。
