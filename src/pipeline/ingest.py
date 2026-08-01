@@ -62,13 +62,16 @@ from ._pipeline_common import clean_source_text, denoise_source_text
 # the LLM references more missing slugs than this threshold, stub creation
 # is suppressed to avoid polluting the wiki with placeholder pages for
 # platform names, company names, and other non-domain entities.
-# Set via env var ``RUFLO_MAX_STUBS_PER_INGEST`` (default 10).
+# Set via env var ``RUFLO_MAX_STUBS_PER_INGEST`` (default 3).
+# NOTE: wiring this cap into ``.index/quality_settings.json`` is deferred —
+# the only existing loader (quality_cmd._load_settings) is CLI-private and
+# has no shared hook for pipeline code; keep env + default until then.
 _MAX_STUBS_ENV = "RUFLO_MAX_STUBS_PER_INGEST"
 
 
 def _get_max_stubs_per_ingest() -> int:
     """Return the current max stubs threshold (re-reads env var at call time)."""
-    return int(__import__("os").environ.get(_MAX_STUBS_ENV, "10"))
+    return int(__import__("os").environ.get(_MAX_STUBS_ENV, "3"))
 
 
 # Slugs that should never get stub entity pages because they represent
