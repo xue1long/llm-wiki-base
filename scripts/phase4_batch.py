@@ -48,8 +48,14 @@ def _log(msg: str) -> None:
 
 
 def _load_state() -> dict:
-    if BATCH_STATE.exists():
-        return json.loads(BATCH_STATE.read_text(encoding="utf-8"))
+    """Read batch_build_state.json, tolerating a missing/unreadable/corrupt
+    file (D4/B7): both tools read/write the same file, and a stale .tmp or
+    partial write must not crash either of them."""
+    try:
+        if BATCH_STATE.exists():
+            return json.loads(BATCH_STATE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
     return {}
 
 
@@ -73,11 +79,15 @@ def _read_raw_header(raw_path: Path, chars: int = 4000) -> str:
 
 
 def _batch_completed_files(batch_key: str) -> set[str]:
-    """Return the set of raw file paths that were already successfully
-    ingested in a prior partial run of this batch (checkpoint resume)."""
+    """Return the set of raw file paths already completed for this batch.
+
+    Status-independent read (D1/F7): any entry carrying ``completed_files``
+    (``committing`` / ``partial`` / ``committed`` / ``postcheck_failed``)
+    resumes from it.  ``gate_failed`` / ``failed`` entries carry none →
+    correctly empty."""
     state = _load_state()
-    entry = state.get(batch_key, {})
-    if entry.get("status") in ("committed", "partial"):
+    entry = state.get(batch_key)
+    if isinstance(entry, dict):
         return set(entry.get("completed_files", []))
     return set()
 
