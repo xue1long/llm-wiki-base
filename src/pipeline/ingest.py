@@ -1,13 +1,19 @@
 """run_ingest — the full ingest pipeline orchestrator.
 
-This is the IO-heavy business function that:
-1. Resolves the project's WikiPaths (via _resolve_wiki_paths)
-2. Resolves the LLM provider (via _get_provider)
-3. Drives the Analyzer -> Generator stages
-4. Appends a source page (Fix D logic from src/pipeline/pipeline.py:217-259)
-5. Creates stub entity pages for missing slugs (Fix E, lines 261-343)
-6. Writes pages under AtomicContext
-7. Returns the list of generated WikiPage objects
+Since Phase 1 of the 2026-08-01 NDG plan, ``run_ingest`` is split into:
+
+- ``generate_ingest`` — the IO-light generation half: sanitize, unified/
+  two-step LLM generation, deterministic source page (Fix D), stub entity
+  pages (Fix E), reverse relations (read-only scan of pre-existing pages)
+  and the rule-based quality gate. Returns ``(pages, extra_pages, meta)``
+  and performs NO disk writes, so a quality gate can run before anything
+  hits the wiki.
+- ``commit_ingest`` — the write half: writes every page (incl. pre-existing
+  pages that gained inverse edges), appends to ``wiki/index.md`` and logs
+  one ``ingest`` event, all under a single AtomicContext.
+- ``run_ingest`` — thin wrapper: ``generate_ingest`` then ``commit_ingest``.
+  External signature and return value are unchanged from the pre-split
+  version (a list of generated WikiPage objects).
 
 run_ingest is NOT a pure function. It is an async coroutine with
 significant IO side effects (LLM calls, wiki page writes, index updates,
@@ -399,43 +405,48 @@ _logger = logging.getLogger(__name__)
 # src.pipeline package namespace, which is what propagates the patch.
 
 
-async def run_ingest(
+async def generate_ingest(
     paths: WikiPaths,
     source_path,
     source_text: str,
     provider,
     folder_context: str = "",
     task_id: str = "test",
-) -> list[WikiPage]:
-    """Run full 2-step pipeline + write pages + update index + log.
+) -> tuple[list[WikiPage], list[WikiPage], dict]:
+    """Generate wiki pages in memory — NO disk writes.
 
-    Returns list of generated WikiPage objects.
+    Phase 1 (2026-08-01 NDG plan): the generation half of the split
+    ``run_ingest``. Contains every step before the write block: sanitize,
+    unified/two-step LLM generation, deterministic source page (Fix D),
+    stub entity pages (Fix E), reverse relations (read-only scan of
+    pre-existing pages) and the rule-based quality gate.
+
+    Returns ``(pages, extra_pages, meta)``:
+      * ``pages`` — pages created this run (includes the source page).
+      * ``extra_pages`` — pre-existing pages that gained inverse edges and
+        must be written in the same batch as ``pages`` (they are NOT in
+        ``pages`` — those were created this run).
+      * ``meta`` — context dict (source_path, source_text, existing wiki
+        index, source slug, downstream count, ...) for downstream gates.
+        Intentionally NOT persisted; a gate consumes it before commit.
+
+    This function must remain write-free: no ``write_page``,
+    ``append_to_index``, ``log_event`` or AtomicContext commit. The
+    hard-reject path (sanitizer ``should_skip_llm`` + opt-in env var) is
+    handled by ``run_ingest`` BEFORE this function so no code path here
+    ever writes a rejected page to disk.
     """
-    # No pre-flight work needed: the 2026-07 cleanup removed the Inbox
-    # staging layer. The collector reads ``raw/sources/<file>`` directly
-    # and the wiki page's ``sources:`` field references that same
-    # project-relative path.
-    _ = paths  # keep the parameter for callers
-
     from .sanitizer import sanitize
 
     _result = sanitize(source_text)
 
     if _result.warnings:
         _logger.warning(
-            "[run_ingest] sanitizer: %s score=%.2f source=%s",
+            "[generate_ingest] sanitizer: %s score=%.2f source=%s",
             _result.warnings, _result.quality_score, source_path,
         )
 
     _sanitized_source_text = _result.text
-
-    # Hard-reject: skip LLM entirely for degraded sources (opt-in via
-    # RUFLO_SANITIZER_SKIP_LLM=1; off by default).
-    if _result.should_skip_llm and __import__("os").environ.get("RUFLO_SANITIZER_SKIP_LLM", "0") == "1":
-        _logger.warning("[run_ingest] skipping LLM for %s", source_path)
-        return await _write_rejected_source_page(
-            paths, source_path, source_text, _result, task_id
-        )
 
     _ = source_text  # keep the parameter — body writes reference source_text directly
 
@@ -480,14 +491,14 @@ async def run_ingest(
             source_slug_map=_source_slug_map,
         )
         _logger.info(
-            "[run_ingest] unified path produced %d pages for %s",
+            "[generate_ingest] unified path produced %d pages for %s",
             len(pages), source_path,
         )
         if not pages:
             raise RuntimeError("unified path returned 0 pages")
     except Exception as _unified_err:
         _logger.warning(
-            "[run_ingest] unified path failed (%s), falling back to two-step",
+            "[generate_ingest] unified path failed (%s), falling back to two-step",
             _unified_err,
         )
         # Fallback: original two-step Analyze → Generate
@@ -544,7 +555,7 @@ async def run_ingest(
                 # Filter out quarantined pages from the write list
                 pages = [p for p in pages if p.id not in result.pages_quarantined]
                 _logger.info(
-                    f"[run_ingest] quality gate quarantined "
+                    f"[generate_ingest] quality gate quarantined "
                     f"{len(result.pages_quarantined)} page(s); "
                     f"{len(pages)} passed"
                 )
@@ -552,7 +563,7 @@ async def run_ingest(
             # Decision A1: judge LLM failure must NOT block ingest.
             # Log + pass pages through (graceful degradation).
             _logger.warning(
-                f"[run_ingest] quality gate unavailable: {e}; "
+                f"[generate_ingest] quality gate unavailable: {e}; "
                 f"passing {len(pages)} page(s) through without judgment"
             )
 
@@ -737,7 +748,7 @@ async def run_ingest(
     )
     if llm_already_has_source:
         _logger.debug(
-            f"[run_ingest] source page already produced by LLM for "
+            f"[generate_ingest] source page already produced by LLM for "
             f"{source_path}; skipping task-id fallback (id={source_slug!r})"
         )
         # Adjust the LLM-generated source page's grade to reflect actual
@@ -851,7 +862,7 @@ async def run_ingest(
         filtered = missing - _blocklist  # type: ignore[operator]
         if len(filtered) < len(missing):
             _logger.info(
-                "[run_ingest] filtered %d blocklisted slug(s) from stubs: %s",
+                "[generate_ingest] filtered %d blocklisted slug(s) from stubs: %s",
                 len(missing) - len(filtered),
                 ", ".join(sorted(missing & _blocklist)),
             )
@@ -864,7 +875,7 @@ async def run_ingest(
     _stub_create, _stub_suppressed = _classify_missing_stubs(missing, source_hash_tails)
     if _stub_suppressed:
         _logger.info(
-            "[run_ingest] suppressed %d non-domain stub slug(s): %s",
+            "[generate_ingest] suppressed %d non-domain stub slug(s): %s",
             len(_stub_suppressed),
             ", ".join(sorted(_stub_suppressed)[:10]),
         )
@@ -874,7 +885,7 @@ async def run_ingest(
     _max_stubs = _get_max_stubs_per_ingest()
     if len(missing) > _max_stubs:
         _logger.warning(
-            "[run_ingest] suppressing %d stub(s) (exceeds max %d): %s",
+            "[generate_ingest] suppressing %d stub(s) (exceeds max %d): %s",
             len(missing), _max_stubs,
             ", ".join(sorted(missing)[:20]),
         )
@@ -882,7 +893,7 @@ async def run_ingest(
 
     if missing:
         _logger.info(
-            f"[run_ingest] creating {len(missing)} stub entity page(s): "
+            f"[generate_ingest] creating {len(missing)} stub entity page(s): "
             f"{sorted(missing)[:5]}{'...' if len(missing) > 5 else ''}"
         )
     for slug in sorted(missing):
@@ -958,12 +969,48 @@ async def run_ingest(
     from .quality_gate import check_pages
     _gate = check_pages(pages + extra_pages)
     for _pid, _reason in _gate.degraded.items():
-        _logger.warning("[run_ingest] quality gate: %s degraded — %s", _pid, _reason)
+        _logger.warning("[generate_ingest] quality gate: %s degraded — %s", _pid, _reason)
     _keep_ids = {p.id for p in _gate.pages}
     pages = [p for p in pages if p.id in _keep_ids]
     extra_pages = [p for p in extra_pages if p.id in _keep_ids]
 
-    # Atomic write all pages + index update + log
+    # Build the meta context dict for downstream gates. Intentionally NOT
+    # persisted — a gate (e.g. NDG) consumes it before commit_ingest writes.
+    meta = {
+        "source_path": str(source_path),
+        "source_text": source_text,
+        "sanitized_text": _sanitized_source_text,
+        "task_id": task_id,
+        "existing_wiki_index": _existing_wiki_index,
+        "source_slug": source_slug,
+        "downstream_count": _downstream_count,
+        "has_analysis": analysis is not None,
+        "sanitizer_warnings": list(_result.warnings),
+    }
+
+    # No disk writes in generate_ingest — the caller (commit_ingest, or a
+    # quality gate that rejects the batch) decides what happens next.
+    return pages, extra_pages, meta
+
+
+async def commit_ingest(
+    paths: WikiPaths,
+    source_path,
+    pages: list[WikiPage],
+    extra_pages: list[WikiPage],
+    task_id: str = "test",
+) -> list[WikiPage]:
+    """Write generated pages + index update + log, atomically.
+
+    Phase 1 (2026-08-01 NDG plan): the write half of the split
+    ``run_ingest``. Writes every page in ``pages`` and ``extra_pages``
+    (pre-existing pages that gained inverse edges), appends them to
+    ``wiki/index.md`` and records one ``ingest`` event in ``wiki/log.md``.
+    All under a single AtomicContext so a failure discards the whole batch.
+
+    Returns ``pages`` (the pages created this run) for parity with the
+    pre-split ``run_ingest`` return value.
+    """
     with AtomicContext(flush_callback=flush_pending_writes):
         for page in pages:
             write_page(paths, page)
@@ -981,6 +1028,60 @@ async def run_ingest(
         )
 
     return pages
+
+
+async def run_ingest(
+    paths: WikiPaths,
+    source_path,
+    source_text: str,
+    provider,
+    folder_context: str = "",
+    task_id: str = "test",
+) -> list[WikiPage]:
+    """Run full 2-step pipeline + write pages + update index + log.
+
+    Phase 1 (2026-08-01 NDG plan): now a thin wrapper that delegates to
+    ``generate_ingest`` (in-memory page generation, no disk writes) followed
+    by ``commit_ingest`` (atomic write). External signature and return value
+    are unchanged from the pre-split ``run_ingest`` — existing callers, the
+    compat shim and tests are unaffected.
+
+    Returns list of generated WikiPage objects.
+    """
+    # No pre-flight work needed: the 2026-07 cleanup removed the Inbox
+    # staging layer. The collector reads ``raw/sources/<file>`` directly
+    # and the wiki page's ``sources:`` field references that same
+    # project-relative path.
+
+    from .sanitizer import sanitize
+
+    _result = sanitize(source_text)
+
+    # Hard-reject: skip LLM entirely for degraded sources (opt-in via
+    # RUFLO_SANITIZER_SKIP_LLM=1; off by default). This path writes the
+    # rejected source page directly (event="rejected"); generate_ingest
+    # must stay write-free, so the check lives here rather than inside it.
+    if _result.should_skip_llm and __import__("os").environ.get("RUFLO_SANITIZER_SKIP_LLM", "0") == "1":
+        _logger.warning("[run_ingest] skipping LLM for %s", source_path)
+        return await _write_rejected_source_page(
+            paths, source_path, source_text, _result, task_id
+        )
+
+    pages, extra_pages, _meta = await generate_ingest(
+        paths=paths,
+        source_path=source_path,
+        source_text=source_text,
+        provider=provider,
+        folder_context=folder_context,
+        task_id=task_id,
+    )
+    return await commit_ingest(
+        paths=paths,
+        source_path=source_path,
+        pages=pages,
+        extra_pages=extra_pages,
+        task_id=task_id,
+    )
 
 
 async def run_batch_ingest(
