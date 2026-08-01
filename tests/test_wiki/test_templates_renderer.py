@@ -220,8 +220,11 @@ def test_render_source_drops_main_content_when_empty():
     assert "## 摘要" in out
 
 
-def test_render_source_main_content_preserves_full_text():
-    """The ## 正文内容 section renders when main_content slot has content."""
+def test_render_source_never_renders_main_content():
+    """The ## 正文内容 section is gone from the source template (RAG: full text
+    lives in raw/, source pages carry summary+metadata only). Even if a
+    stray main_content key is present in slots, it is NOT rendered — it is
+    not a template slot."""
     out = render_body(
         template_body=_bundled("source.md"),
         slots={
@@ -233,8 +236,8 @@ def test_render_source_main_content_preserves_full_text():
         },
         page_type=PageType.SOURCE,
     )
-    assert "## 正文内容" in out
-    assert "Full text content here." in out
+    assert "## 正文内容" not in out
+    assert "Full text content here." not in out
     assert "<!-- slot:" not in out
 
 

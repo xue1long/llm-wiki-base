@@ -179,9 +179,8 @@ Strict rules — schema is enforced. Empty slots = retry = wasted tokens.
   when you have nothing to put; either omit the property entirely or
   return `[]`.
 - Each slot value must be ≥ 1 character after trim. Lists: ≥ 1 substantive item.
-- **main_content (SOURCE 正文, 可选)**: 默认省略——完整原文保留在 raw/，由
-  `sources` 字段溯源；wiki 不存全文副本。如需提供，只给一段 ≤200 字的结构化
-  概述（核心结论/关键数据），不复制全文；摘要是 `summary` slot 的职责。
+- **main_content**: 不再是 SOURCE 页的槽——完整原文保留在 raw/（`sources`
+  字段溯源），wiki 不存全文副本。摘要/概述由 `summary` slot 承担。
 
 Slot minimums and fallbacks (DO NOT leave these required slots empty):
   `references`           → At LEAST `- [[<source-page-slug>]]`
@@ -351,11 +350,8 @@ Slugs may be CJK or ASCII kebab-case — keep the concept's natural form, no for
 - Never use placeholder text ("...", "（空）", "TBD", "placeholder", "（系统占位...）").
 - Optional slots (`<!-- slot:NAME? -->`): omit when empty.
 - Each slot: ≥ 1 char after trim. Lists: ≥ 1 substantive item.
-**main_content（SOURCE 页正文 — 可选, 短概述）**:
-- 默认省略: 完整原文保留在 raw/（`sources` 字段溯源），wiki 不存全文副本。
-- 若提供: 只给一段 ≤200 字的结构化概述(核心结论/关键数据), 不复制全文、
-  不逐条保留列表/表格。
-- 摘要是 `summary` slot 的职责; 需要原文细节时经 `sources` 溯源 raw/ 检索。
+**main_content**: 不再是 SOURCE 页的槽——完整原文保留在 raw/（`sources`
+字段溯源），wiki 不存全文副本。摘要/概述由 `summary` slot 承担。
 - 素材类文档(列表/表格)必须逐条完整保留。
 - 缺失时系统会用原文兜底, 但请务必主动提供整理结果。
 
