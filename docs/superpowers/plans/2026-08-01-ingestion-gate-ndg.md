@@ -37,9 +37,9 @@
 
 ### D4 — 门禁收窄为批级结构检查（P5-P7），页级质量归 lint（2026-08-01 落地）
 - **决策**：`run_ndg_gate` 只强制 P5（输入↔source 配对）、P6（slug 跨 type 冲突）、P7（extra_pages 覆盖保护）三项**批级结构检查**；P1（可读性）、P2（RAW-PASTE）、P3（缺 sources）、P4（UGC 缺标）**从门禁移除**，由 `cli lint`（`lint_wiki`）发现后修复。
-- **如实降级（R4-1）**：P2 属 lint 事后检查、不参与写前门禁；阈值仅被 lint 消费（标定影响事后告警，不阻塞写盘）。
+- **如实降级（R4-1，整改后修订）**：P2 属 lint 事后检查、不参与写前门禁（不阻塞写盘）；但整改 R5-2/F9 后 `run_ndg_gate` 以 `is_blocker=False` 复跑 `check_page`，P1-P4（含 P2 阈值）在写时以 warning 可见——阈值不再仅被 lint 消费。
 - **理由**：页级质量问题是"内容质量"而非"写盘安全"。向量化是独立 archive 阶段（`batch_build --only archive`，手动触发、不随摄取自动跑），坏页在 lint 修复前不会被向量化——只要遵守"archive 在 lint 修复后执行"的顺序约束，向量库零污染。
-- **实现**：P1/P3/P4 判定已收敛到 lint 单一事实源（`_readability_violation`/`_missing_sources`/`_missing_ugc_cred`），P2 复用 lint 的 `_long_raw_text_run`/`_has_fulltext_section`。`check_page` 保留为 P1-P4 的独立 API；`run_ndg_gate` 不再调用它。phase4_batch / batch_gate_check 均走 reconcile → run_ndg_gate。
+- **实现**：P1/P3/P4 判定已收敛到 lint 单一事实源（`_readability_violation`/`_missing_sources`/`_missing_ugc_cred`），P2 复用 lint 的 `_long_raw_text_run`/`_has_fulltext_section`。`check_page` 保留为 P1-P4 的独立 API；**整改后 `run_ndg_gate` 以 warning 形式调用它**（`is_blocker=False`，不改 block 语义，见整改方案 R5-2）。phase4_batch / batch_gate_check 均走 reconcile → run_ndg_gate。
 - **影响**：门禁 FAIL 不再保证"坏页零写盘"——只保证"结构性冲突零写盘"。页级质量问题由 lint 事后清理。
 
 ---
