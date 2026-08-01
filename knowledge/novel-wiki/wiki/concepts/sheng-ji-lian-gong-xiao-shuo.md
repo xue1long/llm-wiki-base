@@ -7,7 +7,7 @@ sources:
 created_at: 1785423842346
 updated_at: 1785423842346
 relations:
-- target: 方法论-yy-小说模式-942f4f92
+- target: 方法论YY小说模式-942f4f92
   type: references
   weight: 0.9
   context: 本文详细讨论了升级练功小说的创作方法
@@ -35,7 +35,6 @@ tags:
 category: 小说类型
 taxonomy_sub: 网文题材
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -64,8 +63,6 @@ taxonomy_sub: 网文题材
 - [[ban-zhu-chi-hu-lao-hu]]
 - [[fu-ben-guan-shui-ji-fa]]
 - [[chao-ji-sheng-ji]]
-- [[fu-ben-she-ding-lei-bi]]
-- [[sheng-ji-man-zu-gan]]
 
 ## 参考来源
 

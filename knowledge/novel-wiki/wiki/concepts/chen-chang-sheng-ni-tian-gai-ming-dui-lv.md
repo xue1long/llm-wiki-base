@@ -17,7 +17,6 @@ tags:
 - genre/玄幻
 - event/冲突
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -33,14 +32,12 @@ tags:
 
 ## 例子
 
-- [[zhe-tian-ji-dagang-yuan-wen-zai-feishu-cloud]] 中陈长生利用国教资源达成目的
+-  中陈长生利用国教资源达成目的
 
 ## 相关概念
 
 - [[ni-tian-gai-ming]]
-- [[情节高潮]]
 - [[人物塑造]]
 
 ## 参考来源
 
-- [[zhe-tian-ji-dagang-yuan-wen-zai-feishu-cloud]]

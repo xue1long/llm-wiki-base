@@ -35,7 +35,6 @@ tags:
 category: 写作素材
 taxonomy_sub: 成语词汇
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 
@@ -61,7 +60,7 @@ taxonomy_sub: 成语词汇
 - [[人物品质词汇应用指南-x1y2z3]]
 - [[人物性格刻画]]
 - [[正面人物特征词汇综述-r7s8t9]]
-- [[ren-wu-pin-zhi-cheng-yu]]
+- [[人物品质成语]]
 
 ## 正文内容
 

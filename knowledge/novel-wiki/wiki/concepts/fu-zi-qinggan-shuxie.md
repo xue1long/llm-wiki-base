@@ -7,7 +7,7 @@ sources:
 created_at: 1785417534252
 updated_at: 1785417534252
 relations:
-- target: da-shen-fangtan-3-8e12ebf3
+- target: 大神访谈3-8e12ebf3
   type: references
   weight: 0.9
   context: 访谈中苏瑞详细阐述了这一书写方式
@@ -28,7 +28,6 @@ tags:
 category: ''
 taxonomy_sub: ''
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -51,8 +50,7 @@ taxonomy_sub: ''
 
 - [[danqin-jiating-xushi]]
 - [[wen-xin-qin-qing]]
-- [[qinggan-chongtu]]
 
 ## 参考来源
 
-- [[da-shen-fangtan-3-8e12ebf3]]
+- [[大神访谈3-8e12ebf3]]

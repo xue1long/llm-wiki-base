@@ -18,7 +18,6 @@ tags:
 - genre/玄幻
 - func/教程
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 
@@ -36,4 +35,3 @@ tags:
 ## 相关引用
 
 - [[mao-ni]]
-- [[dongfang-xuanhuan-shi-jie-guan]]

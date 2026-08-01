@@ -16,7 +16,6 @@ zombie_since: null
 tags:
 - scene_phase/设定集
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -42,5 +41,4 @@ tags:
 
 ## 参考来源
 
-- [[西方魔法体系]]
-- [[穿越修真阵法大全]]]
+- ]

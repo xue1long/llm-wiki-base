@@ -27,7 +27,7 @@ relations:
   type: references
   weight: 0.95
   context: 六尘理论的完整阐述
-- target: xiu-zhen
+- target: 修真
   type: related_concepts
   weight: 0.9
   context: 修真体系中感知天地万物的理论基础
@@ -44,7 +44,6 @@ tags:
 category: 修真理论基础
 taxonomy_sub: 感知体系
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -72,7 +71,7 @@ taxonomy_sub: 感知体系
 
 - [[se-chen]]：六尘之一，眼根所对之色境
 - [[sheng-chen]]：六尘之一，耳根所对之声境
-- [[xiu-zhen]]：修真体系中六尘是感知天地的基础
+- [[修真]]：修真体系中六尘是感知天地的基础
 - [[dongfang-xuanhuan]]：东方玄幻世界观构建的理论支撑
 
 ## 参考来源

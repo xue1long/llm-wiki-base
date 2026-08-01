@@ -16,13 +16,12 @@ zombie_since: null
 tags:
 - entity/历史设定
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 
 ## 基本信息
 
-{'era': 'Zhou Dynasty', 'key_items': ['[[冕服]]', '[[深衣]]', '[[袆衣]]']}
+{'era': 'Zhou Dynasty', 'key_items': ['', '', '']}
 
 ## 简介
 

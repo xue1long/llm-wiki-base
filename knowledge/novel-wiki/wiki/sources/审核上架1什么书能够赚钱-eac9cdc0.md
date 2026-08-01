@@ -44,7 +44,6 @@ tags:
 category: 运营出版
 taxonomy_sub: 审核上架
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 
@@ -67,11 +66,10 @@ taxonomy_sub: 审核上架
 ## 抽取的概念
 
 - [[代入感]]
-- [[YY点七式分类综述]]
+- [[yy-点七式分类综述]]
 - [[商业小说盈利核心要素-b8c9d0e1]]
 - [[爽点构建原理]]
 - [[主角设定原则]]
-- [[后宫yy流]]
 - [[网文读者心态]]
 
 ## 正文内容

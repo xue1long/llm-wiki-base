@@ -7,7 +7,7 @@ sources:
 created_at: 1785423842346
 updated_at: 1785423842346
 relations:
-- target: 方法论-yy-小说模式-942f4f92
+- target: 方法论YY小说模式-942f4f92
   type: references
   weight: 0.9
   context: 文章详细描述了金手指的设定规则
@@ -31,7 +31,6 @@ tags:
 category: 写作元素
 taxonomy_sub: 金手指设定
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -57,9 +56,6 @@ taxonomy_sub: 金手指设定
 
 - [[yy-小说模式]]
 - [[fu-ben-guan-shui-ji-fa]]
-- [[fu-li-xuan-zhang]]
-- [[sheng-ji-man-zu-gan]]
-- [[wu-qi-fu-bao]]
 
 ## 参考来源
 

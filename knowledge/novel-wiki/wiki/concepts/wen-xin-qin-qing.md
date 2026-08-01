@@ -21,7 +21,6 @@ tags:
 - genre/现言
 - func/教程
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -44,9 +43,6 @@ tags:
 
 ## 相关概念
 
-- [[mu-ai]]
-- [[fu-ai]]
-- [[qian-gua]]
 
 ## 参考来源
 

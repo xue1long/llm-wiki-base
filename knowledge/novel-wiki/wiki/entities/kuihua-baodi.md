@@ -7,7 +7,7 @@ sources:
 created_at: 1785325859843
 updated_at: 1785325859843
 relations:
-- target: 女频男频-4-起点主编新书构思示例-d2d970b1
+- target: 女频男频4起点主编新书构思示例-d2d970b1
   type: referenced_by
   weight: 0.95
   context: 葵花宝典作为示例核心设定的素材来源，被该教程完整展开为都市YY文的金手指
@@ -33,7 +33,6 @@ tags:
 - genre/武侠
 - entity/金庸
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 

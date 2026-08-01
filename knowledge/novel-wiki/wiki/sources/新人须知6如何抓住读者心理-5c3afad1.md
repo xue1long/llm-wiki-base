@@ -23,11 +23,11 @@ relations:
   type: derives
   weight: 0.8
   context: 本文系统讲解读者群分析框架
-- target: 新人须知-6-如何抓住读者心理-562918-4a4dc1b4
+- target: 新人须知6如何抓住读者心理_562918-4a4dc1b4
   type: analogous_to
   weight: 0.7
   context: 同一源文件在不同 wiki 索引中的另一 slug 条目
-- target: 新人须知-6-如何抓住读者心理-562918-b9383c6f
+- target: 新人须知6如何抓住读者心理_562918-b9383c6f
   type: analogous_to
   weight: 0.7
   context: 同一源文件在不同 wiki 索引中的另一 slug 条目
@@ -41,7 +41,6 @@ tags:
 - func/教程
 - status/新手指南
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 
@@ -76,7 +75,6 @@ Slug：新人须知6如何抓住读者心理-5c3afad1
 - [[第一印象]]
 - [[期待感]]
 - [[悬念]]
-- [[矛盾]]
 - [[上架作品更新秘诀]]
 - [[固定写作时段]]
 

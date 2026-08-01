@@ -11,7 +11,7 @@ relations:
   type: is_part_of
   weight: 0.95
   context: 苏瑞创作的书籍
-- target: da-shen-fangtan-3-8e12ebf3
+- target: 大神访谈3-8e12ebf3
   type: referenced_by
   weight: 0.95
   context: 苏瑞是访谈的主角
@@ -31,7 +31,6 @@ tags:
 category: ''
 taxonomy_sub: ''
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 

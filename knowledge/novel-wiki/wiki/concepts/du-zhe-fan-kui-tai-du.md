@@ -23,7 +23,6 @@ tags:
 category: 创作心态
 taxonomy_sub: ''
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -45,8 +44,6 @@ taxonomy_sub: ''
 ## 相关概念
 
 - [[fen-si-fen-shu]]
-- [[du-zhe-ping-lun-can-kao-lun]]
-- [[zuo-zhe-xin-tai-tiao-zheng]]
 
 ## 参考来源
 

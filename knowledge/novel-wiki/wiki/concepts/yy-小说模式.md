@@ -11,7 +11,7 @@ relations:
   type: contains
   weight: 0.95
   context: YY点103式是YY小说模式的核心子概念
-- target: 方法论-yy-小说模式-942f4f92
+- target: 方法论YY小说模式-942f4f92
   type: references
   weight: 0.9
   context: 核心参考来源，详细定义了16条规则
@@ -47,7 +47,6 @@ tags:
 category: 写作技巧
 taxonomy_sub: 网文模式
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -80,8 +79,6 @@ YY小说模式是网络文学中以主角获得逆天金手指、越级挑战、
 - [[fu-ben-guan-shui-ji-fa]]
 - [[chao-ji-sheng-ji]]
 - [[zhuang-bi-da-lian]]
-- [[shuang-dian-gou-jian-yuan-li]]
-- [[yue-ji-tiao-zhan]]
 
 ## 参考来源
 

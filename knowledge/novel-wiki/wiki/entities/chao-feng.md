@@ -7,14 +7,10 @@ sources:
 created_at: 1785401232888
 updated_at: 1785401232888
 relations:
-- target: 信息库-2-买断篇-f40defc4
+- target: 信息库2买断篇-f40defc4
   type: referenced_by
   weight: 0.6
   context: 落落引用烽火的评论佐证情节要素
-- target: 华山
-  type: references
-  weight: 0.5
-  context: 烽火评论发生于华山上
 - target: 落落
   type: referenced_by
   weight: 0.5
@@ -30,7 +26,6 @@ tags:
 category: 运营出版
 taxonomy_sub: 评论者
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 
@@ -48,5 +43,4 @@ taxonomy_sub: 评论者
 ## 相关引用
 
 - [[信息库2买断篇-f40defc4]]
-- [[华山]]
 - [[情节]]

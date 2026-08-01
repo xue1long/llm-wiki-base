@@ -48,7 +48,6 @@ tags:
 category: 修真理论基础
 taxonomy_sub: 感知体系
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -74,7 +73,7 @@ taxonomy_sub: 感知体系
 - [[xian-se]]：显色是色尘的子分类
 - [[xing-se]]：形色是色尘的子分类
 - [[biao-se]]：表色是色尘的子分类
-- [[fa-bao]]：法宝外观描写可运用色尘概念
+- ：法宝外观描写可运用色尘概念
 
 ## 参考来源
 

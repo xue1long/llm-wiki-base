@@ -26,7 +26,6 @@ tags:
 category: ''
 taxonomy_sub: ''
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -45,8 +44,6 @@ taxonomy_sub: ''
 
 ## 相关概念
 
-- [[world-building]]
-- [[character-goujian]]
 
 ## 参考来源
 

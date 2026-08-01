@@ -7,7 +7,7 @@ sources:
 created_at: 1785512097118
 updated_at: 1785512097118
 relations:
-- target: 审核上架-1-什么书能够赚钱-eac9cdc0
+- target: 审核上架1什么书能够赚钱-eac9cdc0
   type: referenced_by
   weight: 0.9
   context: 核心内容来源
@@ -28,7 +28,6 @@ tags:
 category: 小说类型
 taxonomy_sub: 后宫流
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -52,7 +51,7 @@ taxonomy_sub: 后宫流
 
 ## 相关概念
 
-- [[YY点七式分类综述]]
+- [[yy-点七式分类综述]]
 - [[爽点构建原理]]
 - [[代入感]]
 - [[暧昧情节]]

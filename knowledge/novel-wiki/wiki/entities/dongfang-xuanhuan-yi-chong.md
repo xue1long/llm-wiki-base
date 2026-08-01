@@ -16,7 +16,6 @@ zombie_since: null
 tags:
 - entity/题材元素
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 
@@ -30,5 +29,5 @@ tags:
 
 ## 相关引用
 
-- {'target': '[[world-building]]', 'type': 'is_part_of', 'weight': 0.9, 'context': '服饰是世界观构建的具体表现之一'}
+- {'target': '', 'type': 'is_part_of', 'weight': 0.9, 'context': '服饰是世界观构建的具体表现之一'}
 - {'target': '[[dongfang-xuanhuan-shi-jie-guan-ce5facd6]]', 'type': 'related_to', 'weight': 0.8, 'context': '直接影响角色外观与文化设定'}

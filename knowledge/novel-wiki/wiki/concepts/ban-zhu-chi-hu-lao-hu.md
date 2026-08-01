@@ -7,7 +7,7 @@ sources:
 created_at: 1785423842346
 updated_at: 1785423842346
 relations:
-- target: 方法论-yy-小说模式-942f4f92
+- target: 方法论YY小说模式-942f4f92
   type: references
   weight: 0.9
   context: 文章强调该手法是YY小说的核心爽点
@@ -35,7 +35,6 @@ tags:
 category: 写作技巧
 taxonomy_sub: 爽点设计
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -61,8 +60,6 @@ taxonomy_sub: 爽点设计
 - [[sheng-ji-lian-gong-xiao-shuo]]
 - [[chao-ji-sheng-ji]]
 - [[zhuang-bi-da-lian]]
-- [[shuang-dian-gou-jian-yuan-li]]
-- [[shuang-dian-gou-jian-yuan-li]]
 
 ## 参考来源
 

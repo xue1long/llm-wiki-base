@@ -25,7 +25,6 @@ tags:
 - genre/武侠
 - func/体系
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -48,7 +47,6 @@ tags:
 
 - [[wu-xi-hong-huang-ba-wu]]
 - [[xiang-xia-ba-wu-zhi-li]]
-- [[wushu-weaponry-system]]
 
 ## 参考来源
 

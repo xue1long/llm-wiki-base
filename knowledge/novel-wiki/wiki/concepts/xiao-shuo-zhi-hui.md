@@ -17,7 +17,6 @@ tags:
 - func/核心
 - mood/升华
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -38,7 +37,6 @@ tags:
 ## 相关概念
 
 - [[小说节奏写作原理-2f72ea]]
-- [[人物塑造原则]]
 
 ## 参考来源
 

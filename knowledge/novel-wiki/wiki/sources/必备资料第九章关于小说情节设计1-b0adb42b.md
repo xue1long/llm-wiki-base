@@ -45,7 +45,6 @@ tags:
 - func/教程
 - genre/侦探
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 
@@ -75,10 +74,6 @@ tags:
 ## 抽取的概念
 
 - [[plot-notebook]]
-- [[seasonal-writing-rhythm]]
 - [[incremental-chapter-planning]]
 - [[victim-character-foregrounding]]
-- [[plot-as-acting-characters]]
-- [[misdirection-plot-twist]]
 - [[broad-theme-starting]]
-- [[pruning-for-quality]]

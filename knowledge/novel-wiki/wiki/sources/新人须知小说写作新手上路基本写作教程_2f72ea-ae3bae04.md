@@ -26,7 +26,6 @@ tags:
 - func/写作基础
 - status/archived
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 
@@ -47,6 +46,5 @@ tags:
 
 ## 抽取的概念
 
-- [[小说节奏写作原理_2f72ea]]
 - [[北京圣东方国信科技有限公司]]
 - [[语感与通感应用]]

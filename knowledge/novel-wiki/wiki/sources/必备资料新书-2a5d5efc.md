@@ -31,7 +31,6 @@ tags:
 - func/新人教程
 - status/新书
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 
@@ -61,5 +60,4 @@ tags:
 - [[冲突点与爽点]]
 - [[期待感]]
 - [[伏笔]]
-- [[铺阶]]
 - [[配角与龙套塑造]]

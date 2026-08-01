@@ -7,7 +7,7 @@ sources:
 created_at: 1785315836547
 updated_at: 1785315836547
 relations:
-- target: 必备资料第九章关于小说情节设计-1-b0adb42b
+- target: 必备资料第九章关于小说情节设计1-b0adb42b
   type: derived_from
   weight: 0.9
   context: 本概念直接提炼自该来源文档对第一章引入受害者、推迟死亡场景的阐述
@@ -46,7 +46,6 @@ tags:
 - genre/悬疑
 - scene_phase/开篇
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

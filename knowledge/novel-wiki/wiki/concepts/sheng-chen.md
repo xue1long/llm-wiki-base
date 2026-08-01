@@ -36,7 +36,6 @@ tags:
 category: 修真素材
 taxonomy_sub: 听觉描写
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -63,7 +62,7 @@ taxonomy_sub: 听觉描写
 - [[liu-chen]]：声尘是六尘之一
 - [[you-zhi-shou-da-zhong-yin-zhi-sheng]]：声尘分类之一
 - [[wu-zhi-shou-da-zhong-yin-zhi-sheng]]：声尘分类之一
-- [[fa-bao]]：法宝音效描写可运用声尘概念
+- ：法宝音效描写可运用声尘概念
 
 ## 参考来源
 

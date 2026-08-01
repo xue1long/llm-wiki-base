@@ -16,13 +16,12 @@ zombie_since: null
 tags:
 - entity/dongfang-xuanhuan
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 
 ## 基本信息
 
-{'name': '烛龙 (Zhu Long)', 'aliases': ['[[shi-wu]]', '[[man-zu]]'], 'category': 'Chinese Mythology / Eastern Fantasy Creature'}
+{'name': '烛龙 (Zhu Long)', 'aliases': ['', '[[man-zu]]'], 'category': 'Chinese Mythology / Eastern Fantasy Creature'}
 
 ## 简介
 

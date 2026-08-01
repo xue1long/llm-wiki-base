@@ -19,7 +19,7 @@ relations:
   type: supports
   weight: 0.85
   context: 宽泛主题起步法与渐进式章节规划共同构成'边写边想'的整体方法论
-- target: 必备资料第九章关于小说情节设计-1-b0adb42b
+- target: 必备资料第九章关于小说情节设计1-b0adb42b
   type: derived_from
   weight: 0.85
   context: 本概念直接提炼自该来源文档对'只知宽泛主题与简略角色'起步方法的阐述
@@ -57,7 +57,6 @@ tags:
 - func/方法论
 - scene_phase/开篇
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

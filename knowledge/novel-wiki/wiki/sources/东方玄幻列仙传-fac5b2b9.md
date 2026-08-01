@@ -11,18 +11,10 @@ relations:
   type: references
   weight: 1.0
   context: 本片段摘录自《列仙传》原典
-- target: 洪荒神话
-  type: references
-  weight: 0.9
-  context: 所收黄帝、炎帝、神农等均为洪荒神话核心人物
-- target: 东方玄幻
+- target: dongfang-xuanhuan
   type: is_part_of
   weight: 0.8
   context: 归类于东方玄幻题材专题
-- target: 仙侠
-  type: is_part_of
-  weight: 0.8
-  context: 仙侠题材的源头文献之一
 grade: A
 processing_depth: source
 is_immutable: false
@@ -34,7 +26,6 @@ tags:
 - func/设定资料
 - entity/典籍
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 
@@ -64,12 +55,8 @@ tags:
 - [[宁封子]]
 - [[马师皇]]
 - [[黄帝]]
-- [[老子]]
 - [[彭祖]]
 - [[关令尹喜]]
 - [[吕尚]]
-- [[西王母]]
 - [[中国神话人物]]
-- [[仙侠]]
-- [[东方玄幻]]
-- [[洪荒神话]]
+- [[dongfang-xuanhuan]]

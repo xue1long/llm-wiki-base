@@ -11,7 +11,7 @@ relations:
   type: related_to
   weight: 0.8
   context: 与广义的逆天改命概念相通，但具象化为小说情节。
-- target: zhe-tian-ji-outline-source-b8baa659
+- target: 大纲示例择天记-b8baa659
   type: derived_from
   weight: 0.7
   context: 该概念是文档的核心叙事驱动力。
@@ -25,7 +25,6 @@ tags:
 - func/叙事目标
 - genre/东方玄幻
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -49,6 +48,6 @@ tags:
 
 ## 参考来源
 
-- [[zhe-tian-ji-outline-source-b8baa659]]
+- [[大纲示例择天记-b8baa659]]
 - [[ni-tian-gai-ming]]
 - [[chuang-zuo-biao-ge-hua-shi-xing-ren-wu]]

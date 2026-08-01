@@ -23,7 +23,6 @@ tags:
 category: 创作指导
 taxonomy_sub: ''
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -48,8 +47,6 @@ taxonomy_sub: ''
 
 - [[xie-zuo-ji-chu]]
 - [[xi-jie-miao-xie-xing-jia-bi]]
-- [[du-zhe-ping-lun-can-kao-lun]]
-- [[xiu-gai-wu-qu]]
 
 ## 参考来源
 

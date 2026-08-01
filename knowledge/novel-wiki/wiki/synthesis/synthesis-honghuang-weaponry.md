@@ -35,7 +35,6 @@ tags:
 category: ''
 taxonomy_sub: ''
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: synthesis -->
 
@@ -52,7 +51,6 @@ taxonomy_sub: ''
 ## 涉及的概念
 
 - [[法宝]]
-- [[先天之物]]
 - [[不周山巨漠]]
 
 ## 对比表

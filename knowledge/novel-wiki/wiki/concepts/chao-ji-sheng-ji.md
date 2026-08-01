@@ -7,7 +7,7 @@ sources:
 created_at: 1785423842346
 updated_at: 1785423842346
 relations:
-- target: 方法论-yy-小说模式-942f4f92
+- target: 方法论YY小说模式-942f4f92
   type: references
   weight: 0.9
   context: 文章强调越级挑战是YY小说的核心爽点
@@ -27,7 +27,6 @@ tags:
 category: 写作技巧
 taxonomy_sub: 战斗设计
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -52,7 +51,6 @@ taxonomy_sub: 战斗设计
 - [[ban-zhu-chi-hu-lao-hu]]
 - [[yy-小说模式]]
 - [[sheng-ji-lian-gong-xiao-shuo]]
-- [[shuang-dian-gou-jian-yuan-li]]
 
 ## 参考来源
 

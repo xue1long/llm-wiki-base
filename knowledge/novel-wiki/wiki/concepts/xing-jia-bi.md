@@ -27,7 +27,6 @@ tags:
 category: 写作技巧
 taxonomy_sub: ''
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -49,9 +48,7 @@ taxonomy_sub: ''
 
 ## 相关概念
 
-- [[hao-gang-yong-zai-dao-ren-shang]]
 - [[xi-jie-miao-xie-xing-jia-bi]]
-- [[xi-jie-dong-zuo-miao-xie]]
 
 ## 参考来源
 

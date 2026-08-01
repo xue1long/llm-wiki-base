@@ -22,7 +22,6 @@ tags:
 category: 创作技巧
 taxonomy_sub: ''
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -44,7 +43,6 @@ taxonomy_sub: ''
 
 ## 相关概念
 
-- [[xiu-gai-wu-qu]]
 - [[wan-ben-zhong-yao-xing]]
 - [[xie-zuo-ji-chu]]
 

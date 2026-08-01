@@ -21,7 +21,6 @@ tags:
 - genre/玄幻
 - func/属性
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -37,14 +36,12 @@ tags:
 
 ## 例子
 
-- [[番天印]]
-- [[混沌钟]]
-- [[盘古幡]]
+- [[bu-zhou-shan-artifact]]
 
 ## 相关概念
 
 - [[法宝]]
-- [[洪荒神话法宝体系综述]]
+- [[synthesis-honghuang-weaponry]]
 
 ## 参考来源
 

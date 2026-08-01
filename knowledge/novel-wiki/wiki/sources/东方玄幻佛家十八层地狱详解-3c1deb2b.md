@@ -39,7 +39,6 @@ tags:
 - mood/恐怖
 - entity/宗教典籍
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 
@@ -64,7 +63,6 @@ tags:
 - [[佛教地狱观]]
 - [[因果报应]]
 - [[恐怖小说刑罚描写]]
-- [[六道轮回]]
 
 
 ---

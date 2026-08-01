@@ -31,7 +31,6 @@ tags:
 category: 写作教程
 taxonomy_sub: 入门教程
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 
@@ -56,8 +55,6 @@ taxonomy_sub: 入门教程
 - [[简介写作技巧]]
 - [[书名与简介的重要性]]
 - [[都市小说]]
-- [[女频言情]]
-- [[后穿越历史]]
 
 ## 正文内容
 

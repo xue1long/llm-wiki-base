@@ -7,7 +7,7 @@ sources:
 created_at: 1785315836547
 updated_at: 1785315836547
 relations:
-- target: 必备资料第九章关于小说情节设计-1-b0adb42b
+- target: 必备资料第九章关于小说情节设计1-b0adb42b
   type: derived_from
   weight: 0.95
   context: 本概念直接提炼自该来源文档对情节记事本方法的系统阐述
@@ -49,7 +49,6 @@ tags:
 - func/方法
 - scene_phase/构思
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

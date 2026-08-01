@@ -16,7 +16,6 @@ zombie_since: null
 tags:
 - func/设定规则
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -38,7 +37,6 @@ tags:
 ## 相关概念
 
 - [[dongfang-xuanhuan-yi-chong]]
-- [[character-goujian]]
 
 ## 参考来源
 

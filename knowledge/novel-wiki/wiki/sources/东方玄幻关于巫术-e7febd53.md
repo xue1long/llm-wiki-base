@@ -45,7 +45,6 @@ tags:
 - genre/玄幻
 - func/资料
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 
@@ -69,13 +68,10 @@ tags:
 
 ## 抽取的概念
 
-- [[巫术]]
-- [[黑巫术]]
-- [[白巫术]]
-- [[巫觋]]
-- [[降神仪式]]
-- [[咒语]]
-- [[巫咸国]]
+- [[wu-shu]]
+- [[hei-wu-shu]]
+- [[bai-wu-shu]]
+- [[wu-xian-guo]]
 
 
 ---

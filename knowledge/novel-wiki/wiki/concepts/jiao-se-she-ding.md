@@ -31,7 +31,7 @@ relations:
   type: analogous_to
   weight: 0.7
   context: 同为角色设计的辅助方法
-- target: 方法论创造你的角色时该考虑的-20-个问题-8216da77
+- target: 方法论创造你的角色时该考虑的20个问题-8216da77
   type: supported_by
   weight: 0.7
   context: 为角色设定提供系统性问句清单
@@ -44,7 +44,6 @@ zombie_since: null
 tags:
 - func/方法论
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

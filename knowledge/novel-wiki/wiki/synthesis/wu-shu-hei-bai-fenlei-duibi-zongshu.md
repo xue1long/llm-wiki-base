@@ -33,7 +33,6 @@ tags:
 - genre/玄幻
 - func/对比综述
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: synthesis -->
 
@@ -55,9 +54,6 @@ tags:
 - [[wu-shu]]
 - [[hei-wu-shu]]
 - [[bai-wu-shu]]
-- [[wu-xi]]
-- [[jiang-shen-yi-shi]]
-- [[zhou-yu]]
 
 ## 对比表
 

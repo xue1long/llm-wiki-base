@@ -7,7 +7,7 @@ sources:
 created_at: 1785400706384
 updated_at: 1785400706384
 relations:
-- target: 帮助新手网文创作-3-ee985b9a
+- target: 帮助新手网文创作3-ee985b9a
   type: referenced_by
   weight: 1.0
   context: 阿布主讲的第三讲转录即本档
@@ -42,7 +42,6 @@ tags:
 category: 网文教学讲者
 taxonomy_sub: 入门教程·文笔与开篇
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 

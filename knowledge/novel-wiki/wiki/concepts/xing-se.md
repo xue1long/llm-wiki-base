@@ -23,7 +23,6 @@ tags:
 category: 修真素材
 taxonomy_sub: 视觉描写
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -48,7 +47,7 @@ taxonomy_sub: 视觉描写
 
 - [[se-chen]]：形色属于色尘
 - [[xian-se]]：形色与显色共同构成色尘
-- [[fa-bao]]：法宝描写常需运用形色概念
+- ：法宝描写常需运用形色概念
 
 ## 参考来源
 

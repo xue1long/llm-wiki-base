@@ -7,7 +7,7 @@ sources:
 created_at: 1785325859843
 updated_at: 1785325859843
 relations:
-- target: 女频男频-4-起点主编新书构思示例-d2d970b1
+- target: 女频男频4起点主编新书构思示例-d2d970b1
   type: derived_from
   weight: 0.95
   context: 该框架直接来源于本文中提出的武侠模板四环节拆解方法
@@ -45,7 +45,6 @@ tags:
 - func/教程
 - scene_phase/开篇
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

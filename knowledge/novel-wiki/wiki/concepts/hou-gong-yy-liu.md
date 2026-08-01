@@ -7,7 +7,7 @@ sources:
 created_at: 1785385466827
 updated_at: 1785385466827
 relations:
-- target: 方法论-yy-小说模式-942f4f92
+- target: 方法论YY小说模式-942f4f92
   type: references
   weight: 1.0
   context: 本文档明确提及的流派
@@ -36,7 +36,6 @@ tags:
 category: ''
 taxonomy_sub: ''
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

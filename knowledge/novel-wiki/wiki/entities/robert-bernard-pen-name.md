@@ -7,11 +7,7 @@ sources:
 created_at: 1785315836547
 updated_at: 1785315836547
 relations:
-- target: bernard-bastber
-  type: analogous_to
-  weight: 0.9
-  context: 同一作者使用的另一笔名,用于不同题材(历史犯罪小说),两笔名并列展示作者的多重身份
-- target: 必备资料第九章关于小说情节设计-1-b0adb42b
+- target: 必备资料第九章关于小说情节设计1-b0adb42b
   type: derived_from
   weight: 0.85
   context: 本实体页基于该来源文档对该笔名及其代表作的提及
@@ -24,7 +20,6 @@ zombie_since: null
 tags:
 - entity/作者
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 
@@ -41,7 +36,7 @@ tags:
 
 ## 相关引用
 
-- [[bernard-bastber]] (同一作者的另一笔名,代表作《死亡的莫扎特》)
+-  (同一作者的另一笔名,代表作《死亡的莫扎特》)
 - [[plot-notebook]] (该笔名作者的素材积累方法)
 - [[incremental-chapter-planning]] (该笔名作者的章节规划方法)
 - [[broad-theme-starting]] (该笔名作者的开篇观念)

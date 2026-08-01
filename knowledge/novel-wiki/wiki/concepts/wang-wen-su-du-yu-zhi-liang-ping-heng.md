@@ -27,7 +27,6 @@ tags:
 category: 创作理念
 taxonomy_sub: ''
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -49,9 +48,6 @@ taxonomy_sub: ''
 
 ## 相关概念
 
-- [[bao-zheng-zhi-liang-de-qing-jie]]
-- [[geng-xin-su-du]]
-- [[geng-xin-pin-lv-guan-li]]
 
 ## 参考来源
 

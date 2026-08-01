@@ -19,7 +19,7 @@ relations:
   type: supersedes
   weight: 0.5
   context: 升级练功小说分流了后宫YY流读者
-- target: 方法论-yy-小说模式-942f4f92
+- target: 方法论YY小说模式-942f4f92
   type: referenced_by
   weight: 0.5
   context: 该源以后宫YY流为前情背景引出升级练功模式
@@ -35,7 +35,6 @@ tags:
 category: 网文流派
 taxonomy_sub: 男频流派
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 

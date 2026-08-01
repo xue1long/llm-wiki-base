@@ -33,7 +33,6 @@ tags:
 - genre/玄幻
 - func/概念
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -57,8 +56,6 @@ tags:
 
 - [[wu-shu]]
 - [[bai-wu-shu]]
-- [[wu-xi]]
-- [[zhou-yu]]
 
 ## 参考来源
 

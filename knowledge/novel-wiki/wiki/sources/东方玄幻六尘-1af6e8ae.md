@@ -31,7 +31,7 @@ relations:
   type: related_concepts
   weight: 0.8
   context: 本文属于东方玄幻题材专题
-- target: xiu-zhen
+- target: 修真
   type: related_concepts
   weight: 0.8
   context: 六尘是修真体系中感知天地万物的理论基础
@@ -47,7 +47,6 @@ tags:
 category: 修真素材
 taxonomy_sub: 修真理论基础
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 

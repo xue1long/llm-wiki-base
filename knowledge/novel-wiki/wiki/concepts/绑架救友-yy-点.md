@@ -33,7 +33,6 @@ tags:
 - func/套路
 - func/YY点
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -56,12 +55,11 @@ tags:
 
 ## 相关概念
 
-- [[YY点103式]]
+- [[yy-点-103-式]]
 - [[yy-xiao-shuo-mo-shi]]
 - [[优越感桥段]]
 - [[man-zu]]
-- [[shuang-dian-gou-jian-yuan-li]]
-- [[YY点七式分类综述]]
+- [[yy-点七式分类综述]]
 
 ## 参考来源
 

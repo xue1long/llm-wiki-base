@@ -31,7 +31,6 @@ tags:
 category: 写作教程
 taxonomy_sub: 大纲创作
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 
@@ -58,6 +57,3 @@ taxonomy_sub: 大纲创作
 
 - [[分集情节大纲]]
 - [[故事结构]]
-- [[伏笔悬念]]
-- [[冲突设计]]
-- [[主角塑造]]

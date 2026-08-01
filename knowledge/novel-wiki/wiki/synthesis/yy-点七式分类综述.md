@@ -11,7 +11,7 @@ relations:
   type: supports
   weight: 1.0
   context: 本文是 YY 点 103 式的 7 式分类综述
-- target: 方法论-yy-点-103-式-e6b9ec09
+- target: 方法论YY点103式-e6b9ec09
   type: referenced_by
   weight: 1.0
   context: 基于该源文档的 7 个 YY 点进行综合
@@ -44,7 +44,6 @@ tags:
 category: ''
 taxonomy_sub: ''
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: synthesis -->
 
@@ -61,11 +60,8 @@ taxonomy_sub: ''
 
 ## 涉及的概念
 
-- [[YY点103式]]
-- [[隐藏身份危机揭露YY点]]
-- [[绑架救友YY点]]
+- [[yy-点-103-式]]
 - [[yy-xiao-shuo-mo-shi]]
-- [[shuang-dian-gou-jian-yuan-li]]
 - [[优越感桥段]]
 - [[装逼打脸]]
 - [[先抑后扬-a1b2c3d4]]

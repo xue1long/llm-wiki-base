@@ -27,7 +27,6 @@ tags:
 category: 写作基础
 taxonomy_sub: ''
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -50,9 +49,6 @@ taxonomy_sub: ''
 
 ## 相关概念
 
-- [[xie-zuo-ji-chu-gong]]
-- [[wen-bi-ji-chu]]
-- [[wen-bi-jie-duan-xing-lun]]
 
 ## 参考来源
 

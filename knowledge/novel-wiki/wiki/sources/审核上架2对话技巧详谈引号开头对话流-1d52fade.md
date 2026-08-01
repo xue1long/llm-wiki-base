@@ -19,10 +19,6 @@ relations:
   type: references
   weight: 0.8
   context: 本文强调了对话形式多样化的重要性。
-- target: 对话细节描写
-  type: references
-  weight: 0.8
-  context: 本文建议通过对话细节描写来增强人物心理活动。
 - target: 人物塑造
   type: references
   weight: 0.8
@@ -31,14 +27,6 @@ relations:
   type: references
   weight: 0.7
   context: 本文提到人物身份不明确是对话流中的常见错误。
-- target: 标点格式
-  type: references
-  weight: 0.7
-  context: 本文指出标点格式错误是对话流中的常见问题。
-- target: 灌水
-  type: references
-  weight: 0.6
-  context: 本文提到对话是灌水的最佳时机。
 grade: A
 processing_depth: source
 is_immutable: false
@@ -50,7 +38,6 @@ tags:
 - func/写作技巧
 - scene_phase/创作指导
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: source -->
 

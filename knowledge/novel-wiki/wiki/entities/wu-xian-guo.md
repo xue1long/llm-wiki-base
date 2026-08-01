@@ -11,26 +11,10 @@ relations:
   type: references
   weight: 1.0
   context: 实体信息全部来自该源文档
-- target: shi-wu
-  type: contains
-  weight: 0.9
-  context: 十巫为巫咸国十位巫师的合称
 - target: wu-shu
   type: supports
   weight: 0.9
   context: 巫咸国制盐技术是'巫术'一词的词源依据
-- target: wu-xian
-  type: contains
-  weight: 0.85
-  context: 巫咸是巫咸国酋长与十巫之首
-- target: an-yi
-  type: references
-  weight: 0.85
-  context: 巫咸国位于安邑城南，巫咸山位于安邑县南
-- target: yun-cheng
-  type: references
-  weight: 0.8
-  context: 巫咸国所在区域后为运城潞盐产区
 grade: B
 processing_depth: entity
 is_immutable: false
@@ -41,7 +25,6 @@ tags:
 - genre/玄幻
 - entity/巫咸国
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 
@@ -56,9 +39,9 @@ tags:
 ## 相关引用
 
 - 巫咸国与[[wu-shu]]词源直接相关：'巫术'一词源自'巫人制盐之术'。
-- 巫咸国与[[shi-wu]]直接相关：十巫即巫咸国十位巫师的合称。
-- 巫咸国与[[yun-cheng]]相关：其地所在区域后演变为运城潞盐产区。
-- 巫咸国与[[an-yi]]相关：位于安邑城南，巫咸山在安邑县南。
+- 巫咸国与直接相关：十巫即巫咸国十位巫师的合称。
+- 巫咸国与相关：其地所在区域后演变为运城潞盐产区。
+- 巫咸国与相关：位于安邑城南，巫咸山在安邑县南。
 
 
 ---

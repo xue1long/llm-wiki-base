@@ -7,7 +7,7 @@ sources:
 created_at: 1785401232888
 updated_at: 1785401232888
 relations:
-- target: 信息库-2-买断篇-f40defc4
+- target: 信息库2买断篇-f40defc4
   type: references
   weight: 0.8
   context: 学龙是该文档的上传者
@@ -30,7 +30,6 @@ tags:
 category: 运营出版
 taxonomy_sub: 编辑
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 

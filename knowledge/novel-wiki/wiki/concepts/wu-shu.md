@@ -27,18 +27,6 @@ relations:
   type: supported_by
   weight: 0.9
   context: 巫咸国制盐技术是'巫术'一词的词源依据
-- target: wu-xi
-  type: related
-  weight: 0.85
-  context: 巫觋是施术者的统称，与巫术概念直接关联
-- target: jiang-shen-yi-shi
-  type: contains
-  weight: 0.8
-  context: 降神仪式是巫术仪式的两大核心内容之一
-- target: zhou-yu
-  type: contains
-  weight: 0.8
-  context: 咒语是巫术仪式的两大核心内容之二
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -49,7 +37,6 @@ tags:
 - genre/玄幻
 - func/概念
 ---
-
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
@@ -75,9 +62,6 @@ tags:
 
 - [[hei-wu-shu]]
 - [[bai-wu-shu]]
-- [[wu-xi]]
-- [[jiang-shen-yi-shi]]
-- [[zhou-yu]]
 - [[wu-xian-guo]]
 - [[仙侠题材]]
 
