@@ -1,16 +1,38 @@
 """build_reingest_backlog.py — Phase 4.1: raw files not yet referenced by any
-wiki page's ``sources`` field, grouped by theme and batched ≤20 for re-ingest.
+wiki page's ``sources`` field, deduplicated and size-policed, grouped by theme
+and batched ≤20 for re-ingest.
 
 Read-only: never writes wiki data. With ``--out`` it writes a JSON batch
 manifest a batch-runner can consume (a new file, not wiki state).
 
-Usage:
-    env PYTHONIOENCODING=utf-8 python scripts/build_reingest_backlog.py [wiki_root]
-    env PYTHONIOENCODING=utf-8 python scripts/build_reingest_backlog.py [wiki_root] --out backlog.json
+Size / dedup policy (2026-08-01 rewrite, Phase 4 audit H3.1/B7):
+  - Content dedup: whitespace-compacted md5 fingerprint. Within a duplicate
+    group one member is kept (prefer a batch-sized one); the rest are
+    classified ``skipped(reason=duplicate_of)`` and never batched. Catches
+    exact / whitespace-only dups (e.g. the cross-theme 东方玄幻/都市言情
+    ``清朝有名得妃子`` pair). Header-line drift (下载时间/URL) is out of scope.
+  - ``--tiny-chars`` (default 500): files with FEWER decoded characters are
+    classified ``skipped(reason=tiny)`` — too thin to be worth a page.
+  - ``--max-chars`` (default 8000, == generator.MAX_SOURCE_CHARS): files with
+    MORE decoded characters are deferred to ``long_docs``. The generator
+    truncates at 8000 chars, so ingesting a 1.6MB novel only extracts its
+    opening — pointless. Long docs are NOT batched until a chunking
+    capability lands.
+  - Binary suffixes (pdf/docx/xlsx/epub) that the batch runner cannot
+    ``read_text`` are classified ``skipped(reason=unhandled_format)``.
+
+Manifest shape (consumers read only ``batches``):
+  {
+    "summary": {...},
+    "batches": [{"theme", "batch_no", "files": [...]}],   # batch-sized, ingestible only
+    "long_docs": [{"path", "chars"}],                     # deferred, out of batch scope
+    "skipped": [{"path", "reason", "detail"}],            # duplicate_of | tiny | unhandled_format
+  }
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -21,7 +43,13 @@ WIKI_SUBDIRS = ("sources", "entities", "concepts", "synthesis")
 # Only files the ingest collector can actually process count toward the
 # re-ingest backlog; skip obvious non-document artifacts.
 INCLUDE_SUFFIXES = {".md", ".txt", ".pdf", ".docx", ".xlsx", ".html", ".htm", ".epub"}
+# Suffixes the batch runner can pass to ``read_text`` without garbage output.
+TEXT_SUFFIXES = {".md", ".txt", ".html", ".htm"}
 BATCH_SIZE = 20
+DEFAULT_MAX_CHARS = 8000   # == src/pipeline/generator.py MAX_SOURCE_CHARS
+DEFAULT_TINY_CHARS = 500
+
+_WS_RE = re.compile(r"\s+")
 
 
 def _frontmatter_sources(text: str) -> list[str]:
@@ -51,9 +79,18 @@ def _norm(raw: str) -> str:
     return s
 
 
+def _decode(p: Path) -> str:
+    return p.read_text(encoding="utf-8", errors="replace")
+
+
+def _fingerprint(text: str) -> str:
+    """Whitespace-compacted md5 — catches exact + whitespace-only dups."""
+    return hashlib.md5(_WS_RE.sub("", text).encode("utf-8")).hexdigest()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="List unreferenced raw files and group them into ≤20-file batches.",
+        description="List unreferenced raw files, dedup + size-policy, group into ≤N-file batches.",
     )
     ap.add_argument("wiki_root", nargs="?", default="knowledge/novel-wiki",
                     help="project root (parent of raw/ and wiki/). default: knowledge/novel-wiki")
@@ -61,6 +98,10 @@ def main() -> int:
                     help="write the batch manifest JSON to this path (default: stdout preview only)")
     ap.add_argument("--batch", type=int, default=BATCH_SIZE,
                     help=f"max files per batch (default {BATCH_SIZE})")
+    ap.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS,
+                    help=f"defer files LONGER than this many decoded chars to long_docs (default {DEFAULT_MAX_CHARS})")
+    ap.add_argument("--tiny-chars", type=int, default=DEFAULT_TINY_CHARS,
+                    help=f"skip files SHORTER than this many decoded chars (default {DEFAULT_TINY_CHARS})")
     args = ap.parse_args()
 
     root = Path(args.wiki_root)
@@ -97,11 +138,81 @@ def main() -> int:
                 return True
         return False
 
-    backlog = [p for p in raw_files if not is_touched(p)]
+    candidates = [p for p in raw_files if not is_touched(p)]
 
-    # Group by theme = first path segment under raw/ (e.g. "sources/01_新手入门").
+    # --- classify binary suffixes before any decoding ---
+    text_candidates = [p for p in candidates if p.suffix.lower() in TEXT_SUFFIXES]
+    skipped: list[dict] = [
+        {
+            "path": p.relative_to(root).as_posix(),
+            "reason": "unhandled_format",
+            "detail": p.suffix.lower(),
+        }
+        for p in candidates
+        if p.suffix.lower() not in TEXT_SUFFIXES
+    ]
+
+    # --- content fingerprint (decode once per file, cache) ---
+    text_cache: dict[Path, str] = {}
+
+    def get_text(p: Path) -> str:
+        if p not in text_cache:
+            text_cache[p] = _decode(p)
+        return text_cache[p]
+
+    def get_chars(p: Path) -> int:
+        return len(get_text(p))
+
+    def in_batch_range(p: Path) -> bool:
+        n = get_chars(p)
+        return n >= args.tiny_chars and n <= args.max_chars
+
+    groups: dict[str, list[Path]] = defaultdict(list)
+    for p in text_candidates:
+        groups[_fingerprint(get_text(p))].append(p)
+
+    # --- pick one keeper per dup group (prefer a batch-sized member) ---
+    keepers: list[Path] = []
+    for g in groups.values():
+        g_sorted = sorted(g, key=lambda p: str(p))
+        if len(g_sorted) == 1:
+            keepers.append(g_sorted[0])
+            continue
+        in_range = [p for p in g_sorted if in_batch_range(p)]
+        keeper = in_range[0] if in_range else g_sorted[0]
+        keepers.append(keeper)
+        for p in g_sorted:
+            if p != keeper:
+                skipped.append({
+                    "path": p.relative_to(root).as_posix(),
+                    "reason": "duplicate_of",
+                    "detail": keeper.relative_to(root).as_posix(),
+                })
+
+    # --- size-policy classification of keepers ---
+    ingestible: list[Path] = []
+    long_docs: list[dict] = []
+    tiny_count = 0
+    for p in keepers:
+        n = get_chars(p)
+        if n < args.tiny_chars:
+            tiny_count += 1
+            skipped.append({
+                "path": p.relative_to(root).as_posix(),
+                "reason": "tiny",
+                "detail": f"{n} chars",
+            })
+        elif n > args.max_chars:
+            long_docs.append({
+                "path": p.relative_to(root).as_posix(),
+                "chars": n,
+            })
+        else:
+            ingestible.append(p)
+
+    # --- group ingestible files by theme and batch ---
     by_theme: dict[str, list[Path]] = defaultdict(list)
-    for p in backlog:
+    for p in ingestible:
         rel = p.relative_to(raw_root)
         parts = rel.parts
         theme = parts[0] if parts else "(root)"
@@ -120,30 +231,51 @@ def main() -> int:
                 "files": [p.relative_to(root).as_posix() for p in chunk],
             })
 
-    touched = len(raw_files) - len(backlog)
+    n_dup = sum(1 for s in skipped if s["reason"] == "duplicate_of")
+    n_unhandled = sum(1 for s in skipped if s["reason"] == "unhandled_format")
+    summary = {
+        "raw_total": len(raw_files),
+        "touched": len(raw_files) - len(candidates),
+        "backlog_candidates": len(candidates),
+        "duplicate_groups": sum(1 for g in groups.values() if len(g) > 1),
+        "skipped_duplicates": n_dup,
+        "skipped_tiny": tiny_count,
+        "skipped_unhandled_format": n_unhandled,
+        "long_docs": len(long_docs),
+        "ingestible": len(ingestible),
+        "batches": len(batches),
+        "batch_size": args.batch,
+        "max_chars": args.max_chars,
+        "tiny_chars": args.tiny_chars,
+    }
+
+    touched = len(raw_files) - len(candidates)
     print(f"[backlog] raw ingestible files: {len(raw_files)}")
     print(f"[backlog] already referenced (touched): {touched}  (tap rate {touched/len(raw_files)*100:.1f}%)")
-    print(f"[backlog] re-ingest backlog: {len(backlog)}")
+    print(f"[backlog] re-ingest candidates: {len(candidates)}")
+    print(f"[backlog]   -> ingestible (batched): {len(ingestible)}")
+    print(f"[backlog]   -> long_docs (deferred >{args.max_chars} chars): {len(long_docs)}")
+    print(f"[backlog]   -> skipped: duplicate_of={n_dup}, tiny={tiny_count}, unhandled_format={n_unhandled}")
     print(f"[backlog] batches (≤{args.batch}/batch): {len(batches)}")
     print("[backlog] by theme:")
     for theme in sorted(by_theme, key=lambda t: -len(by_theme[t])):
         print(f"  {theme:<24} {len(by_theme[theme])}")
-    print(f"[backlog] first batch preview ({min(args.batch, len(batches[0]['files'])) if batches else 0} files):")
+    if long_docs:
+        print("[backlog] top long_docs:")
+        for d in sorted(long_docs, key=lambda d: -d["chars"])[:8]:
+            print(f"  {d['chars']//1024}KB  {d['path']}")
     if batches:
+        print(f"[backlog] first batch preview ({min(args.batch, len(batches[0]['files']))} files):")
         for f in batches[0]["files"][:5]:
             print(f"  - {f}")
 
     if args.out:
         out = Path(args.out)
         out.write_text(json.dumps({
-            "summary": {
-                "raw_total": len(raw_files),
-                "touched": touched,
-                "backlog": len(backlog),
-                "batches": len(batches),
-                "batch_size": args.batch,
-            },
+            "summary": summary,
             "batches": batches,
+            "long_docs": long_docs,
+            "skipped": skipped,
         }, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"[backlog] manifest written to {out}")
     return 0
