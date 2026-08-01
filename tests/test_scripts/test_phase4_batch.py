@@ -426,3 +426,129 @@ def test_b6_read_failure_logs_warning_and_blocks(tmp_path, monkeypatch, capsys):
     assert "dup" in blockers[0]
     out = capsys.readouterr().out
     assert "WARN overwrite check" in out
+
+
+# ---------------------------------------------------------------------------
+# R3-1 · _auto_tag_ugc — reconcile 后 UGC 载体自动打标（F2 / D5）
+# ---------------------------------------------------------------------------
+
+from scripts.phase4_batch import _auto_tag_ugc, _read_raw_header
+from src.wiki.features.batch_reconcile import reconcile_batch
+from src.wiki.features.ndg_gate import run_ndg_gate
+
+
+def test_auto_tag_after_reconcile_merged_page_keeps_ugc_tags(tmp_path):
+    """F2 regression: 载体文件 A、B 同时产出同 slug 实体 → reconcile 合并后
+    merged 页仍有双 UGC 标（auto-tag 在 reconcile 之后，标不再被合并丢掉）。"""
+    root = tmp_path
+    paths = ensure_knowledge_base(root)
+    a_rel = "raw/sources/a.md"
+    b_rel = "raw/sources/b.md"
+    _make_raw(root, a_rel, text="# 飞书云文档 A 文件")
+    _make_raw(root, b_rel, text="https://mp.weixin.qq.com/s/b")
+
+    page_a = _wiki_page("hero", sources=[a_rel], body="shared body")
+    page_b = _wiki_page("hero", sources=[b_rel], body="shared body")
+    assert "素材/ugc" not in page_a.tags and "素材/ugc" not in page_b.tags
+
+    result = reconcile_batch([page_a, page_b], paths=paths)
+    assert len(result.pages) == 1
+    merged = result.pages[0]
+    # reconcile 折叠 sources 但不折 tags → merged 页仍无标
+    assert "素材/ugc" not in merged.tags
+    assert set(merged.sources) == {a_rel, b_rel}
+
+    raw_headers = {
+        a_rel: _read_raw_header(root / a_rel),
+        b_rel: _read_raw_header(root / b_rel),
+    }
+    tagged = _auto_tag_ugc(result.pages, raw_headers)
+    assert tagged == 1
+    assert "素材/ugc" in merged.tags
+    assert "可信度/ugc" in merged.tags
+
+
+def test_auto_tag_does_not_touch_non_carrier_pages(tmp_path):
+    """非载体 raw 派生的页不被污染；只有载体派生页被打标。"""
+    root = tmp_path
+    paths = ensure_knowledge_base(root)
+    plain_rel = "raw/sources/plain.md"
+    carrier_rel = "raw/sources/carrier.md"
+    _make_raw(root, plain_rel, text="https://example.com/plain")
+    _make_raw(root, carrier_rel, text="# 飞书云文档 载体")
+
+    carrier_page = _wiki_page("carrier", sources=[carrier_rel], body="c")
+    plain_page = _wiki_page("plain", sources=[plain_rel], body="c")
+    result = reconcile_batch([carrier_page, plain_page], paths=paths)
+
+    raw_headers = {
+        plain_rel: _read_raw_header(root / plain_rel),
+        carrier_rel: _read_raw_header(root / carrier_rel),
+    }
+    tagged = _auto_tag_ugc(result.pages, raw_headers)
+    assert tagged == 1
+
+    carrier = next(p for p in result.pages if p.id == "carrier")
+    plain = next(p for p in result.pages if p.id == "plain")
+    assert "素材/ugc" in carrier.tags and "可信度/ugc" in carrier.tags
+    assert "素材/ugc" not in plain.tags
+    assert "可信度/ugc" not in plain.tags
+
+
+def test_auto_tag_skips_stubs(tmp_path):
+    """stub 页不打标。"""
+    root = tmp_path
+    paths = ensure_knowledge_base(root)
+    a_rel = "raw/sources/a.md"
+    _make_raw(root, a_rel, text="https://mp.weixin.qq.com/s/abc")
+
+    stub = WikiPage(id="stub-x", title="Stub", type=PageType.ENTITY,
+                    sources=[a_rel], body="stub", processing_depth="stub")
+    result = reconcile_batch([stub], paths=paths)
+
+    raw_headers = {a_rel: _read_raw_header(root / a_rel)}
+    tagged = _auto_tag_ugc(result.pages, raw_headers)
+    assert tagged == 0
+    assert "素材/ugc" not in result.pages[0].tags
+    assert "可信度/ugc" not in result.pages[0].tags
+
+
+def test_auto_tag_does_not_backtag_extras(tmp_path):
+    """extra（既有页）不被反溯打标——auto-tag 只遍历 result.pages。"""
+    root = tmp_path
+    paths = ensure_knowledge_base(root)
+    a_rel = "raw/sources/a.md"
+    _make_raw(root, a_rel, text="# 飞书云文档 A 文件")
+
+    batch_page = _wiki_page("hero", sources=[a_rel], body="new content")
+    extra_page = _wiki_page("extra-x", sources=[a_rel], body="existing body")
+    result = reconcile_batch([batch_page], extra_pages=[extra_page], paths=paths)
+    assert any(p.id == "extra-x" for p in result.extras)
+
+    raw_headers = {a_rel: _read_raw_header(root / a_rel)}
+    tagged = _auto_tag_ugc(result.pages, raw_headers)
+    assert tagged == 1  # 只有批页被标，extra 未被反溯
+
+    hero = next(p for p in result.pages if p.id == "hero")
+    assert "素材/ugc" in hero.tags and "可信度/ugc" in hero.tags
+    extra_kept = next(p for p in result.extras if p.id == "extra-x")
+    assert "素材/ugc" not in extra_kept.tags
+    assert "可信度/ugc" not in extra_kept.tags
+
+
+def test_auto_tag_then_gate_p4b_zero_hits(tmp_path):
+    """防线集成：reconcile → auto-tag → run_ndg_gate 后 P4b 零命中、批通过。"""
+    root = tmp_path
+    paths = ensure_knowledge_base(root)
+    a_rel = "raw/sources/a.md"
+    _make_raw(root, a_rel, text="# 飞书云文档 A 文件")
+
+    page = _wiki_page("hero", sources=[a_rel], body="## 基本信息\n\nInfo.")
+    result = reconcile_batch([page], paths=paths)
+
+    raw_headers = {a_rel: _read_raw_header(root / a_rel)}
+    _auto_tag_ugc(result.pages, raw_headers)
+
+    report = run_ndg_gate(result.pages, raw_headers=raw_headers)
+    assert not any(i.code == "P4b" for i in report.issues)
+    assert report.passed
