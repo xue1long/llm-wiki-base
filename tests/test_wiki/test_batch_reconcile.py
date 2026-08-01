@@ -166,8 +166,9 @@ def test_reconcile_stub_and_merge_together():
 # Extra pages passthrough
 # ---------------------------------------------------------------------------
 
-def test_extra_pages_included_in_output():
-    """Extra pages are included in the reconciled output (not subject to merge)."""
+def test_extra_pages_kept_separate_in_extras():
+    """Non-colliding extra pages are returned in result.extras, never mixed
+    into result.pages."""
     extra = [
         WikiPage(id="extra-1", title="Extra", type=PageType.ENTITY,
                   body="existing"),
@@ -176,9 +177,8 @@ def test_extra_pages_included_in_output():
         WikiPage(id="new-1", title="New", type=PageType.ENTITY, body="new"),
     ]
     result = reconcile_batch(pages, extra_pages=extra)
-    assert len(result.pages) == 2
-    assert any(p.id == "extra-1" for p in result.pages)
-    assert any(p.id == "new-1" for p in result.pages)
+    assert [p.id for p in result.pages] == ["new-1"]
+    assert [p.id for p in result.extras] == ["extra-1"]
 
 
 # ---------------------------------------------------------------------------
@@ -270,3 +270,76 @@ def test_cross_type_conflict_wiki_type_matches_batch_keeps_both_same_type(tmp_pa
     kept = [p for p in result.pages if p.id == "六御"]
     assert len(kept) == 1, "same-type duplicate pages are merged to one"
     assert kept[0].type == PageType.CONCEPT
+
+
+# ---------------------------------------------------------------------------
+# Extra-page management (R1-2): fold by id, adjudicate collisions by grade
+# ---------------------------------------------------------------------------
+
+def test_extra_duplicates_folded_relations_union():
+    """Two extras with the same id → one survives; relations are unioned (B2)."""
+    pages = [
+        WikiPage(id="batch-1", title="Batch", type=PageType.ENTITY, body="b"),
+    ]
+    extras = [
+        WikiPage(id="extra-x", title="X", type=PageType.ENTITY, body="same body",
+                 relations=[Relation(target_id="a", type="references")]),
+        WikiPage(id="extra-x", title="X", type=PageType.ENTITY, body="same body",
+                 relations=[Relation(target_id="b", type="references")]),
+    ]
+    result = reconcile_batch(pages, extra_pages=extras)
+    assert len(result.extras) == 1
+    assert result.extras[0].id == "extra-x"
+    targets = {(r.target_id, r.type) for r in (result.extras[0].relations or [])}
+    assert ("a", "references") in targets
+    assert ("b", "references") in targets
+
+
+def test_extra_collision_batch_equal_higher_grade_folds_extra():
+    """Extra collides with a batch page of equal-or-higher grade → the extra's
+    relations fold into the batch page and the extra is dropped (A3)."""
+    pages = [
+        WikiPage(id="ent-1", title="Batch", type=PageType.ENTITY,
+                 body="batch body", grade="A",
+                 relations=[Relation(target_id="own", type="references")]),
+    ]
+    extras = [
+        WikiPage(id="ent-1", title="Existing", type=PageType.ENTITY,
+                 body="existing body", grade="B",
+                 relations=[Relation(target_id="ext", type="references")]),
+    ]
+    result = reconcile_batch(pages, extra_pages=extras)
+    assert [p.id for p in result.pages] == ["ent-1"]
+    assert result.pages[0].body == "batch body"   # batch page kept
+    assert result.extras == []                    # extra folded, not kept
+    targets = {(r.target_id, r.type) for r in (result.pages[0].relations or [])}
+    assert ("own", "references") in targets
+    assert ("ext", "references") in targets       # extra's relations folded in
+    assert len(result.merged) == 1
+    assert result.merged[0].kept == "ent-1"
+    assert result.merged[0].dropped == "ent-1"
+    assert "extra folded" in result.merged[0].reason
+
+
+def test_extra_collision_extra_higher_grade_wins():
+    """Extra collides with a batch page of lower grade → the extra survives
+    (goes to result.extras) and the batch page is dropped (F3)."""
+    pages = [
+        WikiPage(id="ent-1", title="Batch", type=PageType.ENTITY,
+                 body="batch body", grade="B",
+                 relations=[Relation(target_id="br", type="references")]),
+    ]
+    extras = [
+        WikiPage(id="ent-1", title="Existing", type=PageType.ENTITY,
+                 body="existing body", grade="A",
+                 relations=[Relation(target_id="er", type="references")]),
+    ]
+    result = reconcile_batch(pages, extra_pages=extras)
+    assert result.pages == [], "lower-grade batch page must be dropped"
+    assert len(result.extras) == 1
+    assert result.extras[0].id == "ent-1"
+    assert result.extras[0].body == "existing body"
+    assert len(result.merged) == 1
+    assert result.merged[0].kept == "ent-1"
+    assert result.merged[0].dropped == "ent-1"
+    assert "higher grade" in result.merged[0].reason

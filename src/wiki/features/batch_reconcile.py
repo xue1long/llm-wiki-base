@@ -15,6 +15,12 @@ conflicts that arise from concurrent generation (V13/V15/V17):
 3. **Same-slug cross-type conflict** — detected and returned as a conflict
    list.  The caller (NDG gate P6) decides whether to reject the batch.
 
+4. **Extra-page management (R1-2)** — pre-existing pages touched by reverse
+   relations are deduped by id; a collision with a batch page is adjudicated
+   by grade (batch wins → extra folded; extra wins → batch dropped) and the
+   survivors are returned separately in ``ReconcileResult.extras``, never
+   mixed into ``pages``.
+
 All operations are in-memory; nothing is written to disk.
 """
 from __future__ import annotations
@@ -22,6 +28,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from src.wiki.core.types import WikiPage
+
+# Grade precedence for reconcile adjudication: A > B > C.
+_GRADE_ORDER = {"A": 0, "B": 1, "C": 2}
 
 
 @dataclass
@@ -43,12 +52,51 @@ class ConflictEntry:
 class ReconcileResult:
     """Output of :func:`reconcile_batch`.
 
-    *pages* is the authoritative page list for subsequent gate + commit.
+    *pages* is the authoritative batch-page list for subsequent gate + commit.
+    *extras* are the pre-existing pages that survive reconcile — either
+    non-colliding extras passed in, or extras that beat a same-(id, type)
+    batch page on grade.  They are kept separate from the batch's own pages.
     """
     pages: list[WikiPage]
+    extras: list[WikiPage] = field(default_factory=list)
     merged: list[MergeEntry] = field(default_factory=list)
     conflicts: list[ConflictEntry] = field(default_factory=list)
     stubs_suppressed: int = 0
+
+
+def _fold_relations(winner: WikiPage, loser: WikiPage) -> None:
+    """Merge *loser*'s relations into *winner*, deduped by (target_id, type);
+    on a tie the higher-weight relation wins.  Mutates *winner* in place."""
+    if not loser.relations:
+        return
+    winner_rels = list(winner.relations or [])
+    w_idx: dict[tuple[str, str], int] = {}
+    for i, r in enumerate(winner_rels):
+        w_idx[(r.target_id, r.type)] = i
+    for rel in loser.relations:
+        key_r = (rel.target_id, rel.type)
+        if key_r not in w_idx:
+            winner_rels.append(rel)
+            w_idx[key_r] = len(winner_rels) - 1
+        else:
+            existing_w = getattr(winner_rels[w_idx[key_r]], "weight", 1.0) or 1.0
+            loser_w = getattr(rel, "weight", 1.0) or 1.0
+            if loser_w > existing_w:
+                winner_rels[w_idx[key_r]] = rel
+    winner.relations = winner_rels
+
+
+def _fold_extras(group: list[WikiPage]) -> WikiPage:
+    """Fold a group of same-(id, type) extras into a single representative.
+
+    Duplicate extras arise when several batch pages reference the same
+    existing page; their bodies are identical by construction, so only
+    relations are unioned.  The highest-grade page becomes the rep."""
+    group = sorted(group, key=lambda e: _GRADE_ORDER.get(getattr(e, "grade", "B"), 1))
+    rep = group[0]
+    for other in group[1:]:
+        _fold_relations(rep, other)
+    return rep
 
 
 def reconcile_batch(
@@ -63,9 +111,12 @@ def reconcile_batch(
     pages:
         All pages produced by this batch's ``generate_ingest`` calls.
     extra_pages:
-        Pre-existing pages touched by reverse relations.  These are
-        appended to the output as-is — they are **not** subject to
-        merge logic (merging could throw away richer existing content).
+        Pre-existing pages touched by reverse relations.  Same-id extras are
+        folded (relations unioned) into a single representative; a collision
+        with a batch page (same id + type) is adjudicated by grade — the
+        higher-grade page wins and the loser's relations fold into it.  The
+        survivors are returned in ``ReconcileResult.extras``, kept separate
+        from the batch's own pages.
     paths:
         When provided, the batch's cross-type slug conflicts are resolved
         against the existing wiki: the on-disk type for a slug wins, and
@@ -197,9 +248,8 @@ def reconcile_batch(
             continue
 
         # Sort by grade: A > B > C, then by position in original list
-        _grade_order = {"A": 0, "B": 1, "C": 2}
         group.sort(key=lambda p: (
-            _grade_order.get(getattr(p, "grade", "B"), 1),
+            _GRADE_ORDER.get(getattr(p, "grade", "B"), 1),
         ))
 
         winner = group[0]
@@ -216,24 +266,7 @@ def reconcile_batch(
                         winner_srcs.add(s)
 
             # Merge relations: keep higher-weight relation on ties
-            if loser.relations:
-                winner_rels = list(winner.relations or [])
-                # Index winner relations by (target_id, type)
-                w_idx: dict[tuple[str, str], int] = {}
-                for i, r in enumerate(winner_rels):
-                    w_idx[(r.target_id, r.type)] = i
-                for rel in loser.relations:
-                    key_r = (rel.target_id, rel.type)
-                    if key_r not in w_idx:
-                        winner_rels.append(rel)
-                        w_idx[key_r] = len(winner_rels) - 1
-                    else:
-                        # Keep the one with higher weight
-                        existing_w = getattr(winner_rels[w_idx[key_r]], "weight", 1.0) or 1.0
-                        loser_w = getattr(rel, "weight", 1.0) or 1.0
-                        if loser_w > existing_w:
-                            winner_rels[w_idx[key_r]] = rel
-                winner.relations = winner_rels
+            _fold_relations(winner, loser)
 
             reason = (
                 f"higher grade ({w_grade} > {l_grade})"
@@ -248,12 +281,58 @@ def reconcile_batch(
 
         deduped.append(winner)
 
-    # ── Step 3: append extra_pages (unmerged) ─────────────────────
-    if extra_pages:
-        deduped.extend(extra_pages)
+    # ── Step 3: extra_pages — fold by id, adjudicate collisions by grade ──
+    # Extras are pre-existing pages touched by reverse relations.  When an
+    # extra collides with a batch page (same id + type), the higher-grade page
+    # survives: batch wins (equal-or-higher) → extra's relations fold into the
+    # batch page; extra wins (strictly higher) → the batch page drops and the
+    # extra is kept in result.extras.  Non-colliding extras are deduped by id
+    # and kept in result.extras — result.pages holds only the batch's pages.
+    batch_by_id: dict[tuple[str, str], WikiPage] = {}
+    for p in deduped:
+        if not p.id:
+            continue
+        key = (p.id, p.type.value if hasattr(p.type, "value") else str(p.type))
+        batch_by_id[key] = p
+
+    extra_by_id: dict[tuple[str, str], list[WikiPage]] = {}
+    for ep in (extra_pages or []):
+        if not ep.id:
+            continue
+        key = (ep.id, ep.type.value if hasattr(ep.type, "value") else str(ep.type))
+        extra_by_id.setdefault(key, []).append(ep)
+
+    extras_out: list[WikiPage] = []
+    for key, extra_group in extra_by_id.items():
+        rep = _fold_extras(extra_group)
+        batch_page = batch_by_id.get(key)
+        if batch_page is None:
+            extras_out.append(rep)
+            continue
+        b_order = _GRADE_ORDER.get(getattr(batch_page, "grade", "B"), 1)
+        e_order = _GRADE_ORDER.get(getattr(rep, "grade", "B"), 1)
+        if b_order <= e_order:
+            # Batch page is equal-or-higher grade → fold the extra into it.
+            _fold_relations(batch_page, rep)
+            merged.append(MergeEntry(
+                kept=batch_page.id,
+                dropped=rep.id,
+                reason=f"extra folded (grade {getattr(rep, 'grade', 'B')})",
+            ))
+        else:
+            # Extra has strictly higher grade → it survives; batch page drops
+            # (its outbound relations drop with it — quality over connectivity).
+            deduped = [p for p in deduped if p is not batch_page]
+            extras_out.append(rep)
+            merged.append(MergeEntry(
+                kept=rep.id,
+                dropped=batch_page.id,
+                reason="existing higher grade",
+            ))
 
     return ReconcileResult(
         pages=deduped,
+        extras=extras_out,
         merged=merged,
         conflicts=conflicts,
         stubs_suppressed=stubs_suppressed,
