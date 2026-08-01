@@ -139,3 +139,40 @@ Phase 5 合规（随时可做，建议最后）
 - `python -m src.cli lint --project <id>`、`tags validate --all`、`fields validate`、`heat zombies`（宿主既有）
 - `scripts/audit_wiki_baseline.py`、`scripts/audit_placeholder_classify.py`（Phase 0/F3 已建）
 - `python scripts/quality_check_wiki.py <root>`（存量质检，含 broken-wikilink 统计）
+
+---
+
+## Phase 5.2 执行细则 — synthesis 人工门流程
+
+> 目标：把"综述（synthesis）页必须经人确认才能进入正式 wiki"固化为一条可执行、可复核、可告警的流程。自动环节只负责"圈候选"，最终发布与否由**单一复核人（库主）**决定。
+
+### 5.2.1 入口 — 谁进入候选清单
+- **综述候选**：摄取后达到阈值者——同主题素材 **≥2** 条即可圈出（跨 ≥2 个 source），**≥3** 条必进清单；由 Generator/对账层产出时打 `synthesis-candidate` 标记。
+- **stub 候选**：stubs 候选中被标记 `type: synthesis`（或 `synthesis-*`）的页，随清单一并圈出。
+- 两类合并去重后写入候选清单；清单项至少含：slug、主题、候选来源数、支撑页 id 列表。
+
+### 5.2.2 候选清单落点
+- 建议落点 **`.index/staging/`**（宿主既有暂存目录）。暂存页**不入 wiki 检索**：不进 `index.md`、不被 `quality_check_wiki.py` 扫描、不作为 wikilink 目标。
+- 每个候选一个 `synthesis-<slug>.md` 暂存草稿（含 frontmatter 骨架 + 待复核项）；人工确认后原样搬移或重写。
+- 候选清单本身以 `.index/staging/synthesis-candidates.json` 维护（状态：`pending` / `confirmed` / `rejected`），不写入 wiki。
+- 不经确认不得落入 `wiki/synthesis/`；也不放 `wiki/_archive/`（会被质量扫描 `rglob("*.md")` 扫到）。
+
+### 5.2.3 复核清单（至少 4 项，全过才发布）
+- ① **支撑充足**：synthesis 有 **≥2** 个概念/实体支撑（`relations` 非空，或"涉及概念/涉及实体"槽非空）。
+- ② **溯源完整**：`sources` 列出全部来源，**不空**。
+- ③ **内容非空**：对比维度 / 综述正文非空，非占位、非纯标题。
+- ④ **UGC 标注**：若素材含 UGC 来源（公众号/论坛/自媒体），tags 已含 `可信度/ugc`；无可信度冲突未标注（即非 UGC 素材不强制打 ugc）。
+
+### 5.2.4 发布动作
+- **确认** → 经宿主写页（`write_page` + `safe_write` 原子提交）写入 `wiki/synthesis/`，并更新 `wiki/index.md` 目录；原暂存草稿删除或移入 `.llm-wiki/dedup_history/`。
+- **不确认** → 保留在 `.index/staging/` 待补素材，或打回 `wiki/_stubs/` 标记 `needs-sources`；两者均不进正式 wiki。
+- 每次确认/打回/发布均记 `wiki/log.md`（audit trail），可回溯。
+
+### 5.2.5 角色与频率
+- **单一复核人 = 库主**：不设多人轮审，避免责任稀释；库主缺位时流程暂停、不自动放行。
+- **频率**：每批摄取完成后 **1 小时内**处理该批候选。
+- **告警**：候选积压 **>20 条**触发告警（写 `log.md` + 服务端可观测），提示暂停新摄取、先清积压。
+
+### 5.2.6 演练验收
+- 首次执行跑通一次"**候选 → 确认 → 发布**"：圈出 1 个候选 → 过 4 项复核 → 确认发布到 `wiki/synthesis/` → `index.md` 更新 → 全程记 `log.md`。
+- 验收 = Phase 5.2 验收：流程文档落盘（本文件）＋一次"候选→发布"演练通过。
