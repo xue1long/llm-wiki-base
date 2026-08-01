@@ -21,6 +21,7 @@ from pathlib import Path
 
 from src.wiki.core.paths import WikiPaths
 from src.wiki.storage.page_writer import read_page
+from src.wiki.features.batch_reconcile import reconcile_batch
 from src.wiki.features.ndg_gate import run_ndg_gate, GateReport
 
 
@@ -70,7 +71,22 @@ def main(argv: list[str] | None = None) -> int:
     if not pages:
         return 1  # missing or unreadable file → block
 
-    report = run_ndg_gate(pages, raw_headers=raw_headers or None, paths=paths)
+    # Reconcile first (mirrors phase4_batch): cross-type slug collisions the
+    # wiki has already adjudicated are resolved here, so P6 only flags
+    # conflicts with no wiki precedent.  An unresolvable conflict (wiki has
+    # no entry for the slug) blocks the batch.
+    reconcile = reconcile_batch(pages, paths=paths)
+    if reconcile.conflicts:
+        for c in reconcile.conflicts:
+            print(f"  [BLOCK] RECONCILE {c.slug}: cross-type slug conflict "
+                  f"{list(c.types)} — no wiki precedent, cannot adjudicate.",
+                  file=sys.stderr)
+        print(f"[gate] {len(pages)} page(s): "
+              f"FAIL ({len(reconcile.conflicts)} unresolvable conflict(s))",
+              file=sys.stderr)
+        return 1
+
+    report = run_ndg_gate(reconcile.pages, raw_headers=raw_headers or None, paths=paths)
 
     print(f"[gate] {len(pages)} page(s): "
           f"{'PASS' if report.passed else 'FAIL'} "
