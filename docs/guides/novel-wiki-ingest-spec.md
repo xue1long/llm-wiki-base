@@ -43,7 +43,7 @@
 
 ## 三、raw/ 目录（在现状上增量扩展，不重构）
 
-现状 `raw/sources/` 已有 `01_新手入门/ 02_进阶技巧/` 等 4066 文件，结构良好，**冻结不动**（`sources` 字段与 relations 都引用了这些路径，改动即断链）。
+现状 `raw/sources/` 已有 `01_新手入门/ 02_进阶技巧/` 等 **1361 个文件**（早期"4066"是把 wiki 页误计入 raw 的测量错误，见 §十口径修正），结构良好，**冻结不动**（`sources` 字段与 relations 都引用了这些路径，改动即断链）。
 
 只按需新增**兄弟**目录，且只在真有素材时创建：
 
@@ -127,16 +127,23 @@ raw/
 
 **为什么可选而非强制（F2 约束）**：lint 的 `_SLOT_TO_HEADING` 映射是硬编码（`src/wiki/features/lint.py`），且模板改动会**反向作用于所有已声明 v2.0.0 的旧页**——若把"局限与风险"设为必填，1150 个旧 concept 页全部缺节，lint 立即爆 1000+ 条。可选槽方案经实测：`lint --no-cache` 前后均为 3 条 LINT-DUPLICATE、**零新增 MISSING-SECTION**，resolver 确认命中 project 级模板。
 
-**局限与风险的"强制"留待 Phase 4 再摄取后**：届时全部 concept 页都含该节，再把 `limitations` 改为必填槽 + 扩展 `_SLOT_TO_HEADING`，lint 才能强制且不误伤旧页。
+**局限与风险的"强制"时点（三选一，不可默认"Phase 4 后"）**：lint 的 `LINT-MISSING-SECTION` 判定对象是**所有声明 v2.0.0+ 的页**（对照当前解析模板），不是"只查新模板生成的页"。要把 `limitations` 改为必填槽，必须满足其一：
+
+- (a) **全量重渲染**：把**所有产出 concept 的源**都重取，保证每页都含该节（成本高）；
+- (b) **改 lint 版本门**：项目模板 bump 到 2.1.0，并让 lint 只检查声明版本 ≥ 2.1.0 的页（需改 `src/wiki/features/lint.py`）；
+- (c) **放弃硬强制**：保持 `limitations?` 可选，靠模板引导 + 人工抽查，不设 lint 强制。
+
+> **当前选 (c)。** Phase 4 只按 tap rate 覆盖部分源，不能保证所有 concept 页被重渲染；在走 (a)(b) 之前，不可宣称"强制"。
 
 ## 六、执行状态机（替换原方案全部"自动/定期/触发"悬空指令）
 
 ```
 素材到达 → ①判定品类（第二节四问）
         → ②命名 + 落盘 raw/（第三节规则）
-        → ③POST /api/v1/projects/<id>/ingest  {"source": raw路径}
+        → ③POST /api/v1/projects/<id>/ingest  {"source": raw路径}   （异步，立即返回 taskId）
+        → ③' 轮询 task 状态至完成（GET /ingest/status/{task_id}），超时/失败重投
         → ④宿主 Collector→Analyzer→Generator 生成 4 类页面
-        → ⑤门禁校验：fields validate + tags validate + lint
+        → ⑤门禁校验：fields validate + tags validate + lint（**新摄入页必须全过；存量页旧英文前缀 tag 走豁免清单**，见 Phase 1）
         → ⑥分级处置：
              source 页      → 自动过
              低价值/碎片     → 只留 raw + index 登记，不建页
@@ -145,7 +152,7 @@ raw/
         → ⑦报告：log.md + 周报模板
 ```
 
-每步都有**幂等键**（宿主 md5(source+folder_context)）：同一 raw 文件重复执行 ④ 自动去重，不会重复建页。
+每步都有**幂等键**（宿主 md5(source+folder_context)），但**幂等边界有限**：`IdempotencyCache` 是内存字典 + 7 天 TTL + 服务重启即清空——只对"7 天内、同服务实例"的重复 POST 去重。**Phase 4 重摄取的都是数周前的旧文件，幂等必然失效**：去重必须靠人工清单（按 raw 是否已被引用），不依赖幂等。同一 slug 的源页会被 `write_page` 覆盖而非追加，但 Generator 会重跑（成本）并可能重新触发 stub 机制。
 
 ## 七、真实数据清理（Phase 1 必做，针对已观察到的污染）
 
@@ -161,7 +168,7 @@ raw/
 1. **幂等**：一律走 ③ 的宿主 ingest API，禁止手工往 wiki/ 写页（绕过 idempotency 即污染源）。
 2. **成本预算**：每批 ≤20 个 raw 文件（`raw 立即增量 + wiki 批量刷新` 的成本可控），单次会话超限即停，避免 Embedding 费用失控（H2）。
 3. **词条泛滥**：靠宿主 `heat zombies` + 孤立页（无 relations）定期清理；synthesis 全部人工门（H3/F6）。
-4. **merge 语义**：词条更新 = 读取→合并→写回，绝不整篇覆盖；`is_immutable` 页不写回（H6）。
+4. **merge 语义（政策，需机制兜底）**：词条更新 = 读取→合并→写回，绝不整篇覆盖；`is_immutable` 页不写回。**注意：宿主 `write_page` 默认整篇覆盖、写路径不强制 `is_immutable`**——这是操作纪律而非系统保证；如需系统级强制，需在写路径加 merge/immutable 守卫（代码任务，未排期）。
 5. **合规**：`conversations/`、`journal/`、`transcripts/` 含隐私 → 不入 git / 不随 vault 同步（新增 `.gitignore` 排除）；`raw/assets/` 大媒体排除出 git。受版权书籍全文不公开（F5）。
 
 ## 九、Lint 增强清单（映射原方案 §6 的 9 项，标明可自动化程度）
@@ -176,7 +183,7 @@ raw/
 | 6 词条泛滥 | heat zombies + 孤立页（无 relations）清单 | ✅ 现有 |
 | 7 矛盾结论未立板块 | **人工**复核队列（模板含"信息冲突"槽，无法自动判真伪） | ⚠️ 半自动 |
 | 8 缺强制模块 | `LINT-MISSING-SECTION`（v2.0.0+） | ✅ 现有 |
-| 9 UGC 未标可信度 | 新增检查：带 `素材/ugc` 的页必须带 `可信度/ugc` | ✅ 代码 |
+| 9 UGC 未标可信度 | 新增检查：带 `素材/ugc` 的页必须带 `可信度/ugc`。**前提：提示词加显式规则**——"来源为公众号/论坛/自媒体的页必须打 `素材/ugc` + `可信度/ugc`"，否则 LLM 不会自发打标，此检查查不到东西 | ✅ 代码 + 提示词 |
 
 ## 十、验收指标
 
@@ -188,7 +195,7 @@ raw/
 | `sources` 非空率 | **94.2%**（155 页为空） | 100% |
 | 孤立页（无 relations） | **638**（23.8%） | <10% |
 | LINT-DUPLICATE | **3 组 / 69 页**（占位 body 重复） | 0 |
-| 带 `可信度/ugc` 的 UGC 页占比 | 0%（命名空间未启用） | 100%（对 UGC 素材） |
+| 带 `可信度/ugc` 的 UGC 页占比 | 0%（命名空间未启用） | 100%（对 UGC 素材）——**依赖提示词显式指令落地，否则此指标不可达** |
 | 每批摄取成本 | 未统计 | ≤20 文件/批 |
 
 > **指标口径修正**：raw→wiki "覆盖率" 不能用 `wiki页数/raw数`——一份 raw 会产出 1 个 source 页 + 多个 concept/实体/synthesis 页，该比值结构性 >100%（当前 197.1%），无意义。改用 **tap rate**（被引用 raw 占比）作为真实摄取进度。另：此前 4066 raw 数字是把 wiki 页误计入的测量错误，实际 1361。
@@ -210,12 +217,14 @@ raw/
 
 ## 分阶段落地计划
 
-- **Phase 0 基线审计**：跑 `lint`、`fields validate`、`tags validate`、`heat zombies`，产出污染清单与指标基线。→ 验收：得到第六/十节所有数字。
-- **Phase 1 数据清理**：归档/替换 entity 占位页；`dedup auto` 清冗余。
+- **Phase 0 基线审计**：跑 `lint`、`fields validate`、`tags validate`、`heat zombies`，产出污染清单与指标基线。**注意：前缀中文化后 `tags validate` 会对存量旧英文前缀 tag 报违规，属已知基线**（见 §四遗留说明）。→ 验收：得到第六/十节所有数字。
+- **Phase 0.5 Generator 对账层（F3 修复，前置）**：在 `ingest.py` 加"引用-产出对账"——生成后校验每个 `relations[].target`/body wikilink 是否 ∈ 产出∪已有，未解析的引用抑制或标记重试；加生成页 id 校验（拒绝 tag 状/路径状/类型前缀/`-entity` 后缀的 id）；stub 改为最后兜底 + 硬上限。→ 验收：对同一 raw 连续摄取两次，stub 不再新增。
+  > **必须排在 Phase 1 与 Phase 4 之前**——否则 Phase 1 清掉的 stub 会在 Phase 4 再摄取时被重新生成，方案自锁死结（BUG-A）。
+- **Phase 1 数据清理**：归档/替换 entity 占位页；`dedup auto` 清冗余；**迁移/豁免旧英文前缀 tags**（`genre/玄幻`→`题材/玄幻` 批量改写，或对存量页出豁免清单，否则 §六.⑤ 门禁不可满足）。
 - **Phase 2 模板落盘**：新建 `<project>/.wiki-templates/` 4 类型模板。→ 验收：新摄取页面触发 LINT-MISSING-SECTION 且字段齐全。
-- **Phase 3 Lint 增强**：新增"未加工原文/溯源缺失/UGC可信度"检查项。
+- **Phase 3 Lint 增强**：新增"未加工原文/溯源缺失/UGC可信度"检查项；**同步在 generator/analyzer 提示词加 UGC 打标显式规则**（否则第 9 项检查无输入、§十"可信度/ugc 100%"不可达）。
 - **Phase 4 分批再摄取**：按主题批次重跑 raw，覆盖模板升级 + 修复反斜杠路径 + 补覆盖率。
-- **Phase 5 合规**：`.gitignore` 排除敏感/大文件；建立人工 synthesis 门。
+- **Phase 5 合规**：**现状盘点**——列出已入库的第三方全文/隐私内容，决定保留 / `git rm --cached` + 排除同步；`.gitignore` 只对**新目录**生效（对已 git 跟踪的文件无效）；建立人工 synthesis 门。
 
 ---
 
