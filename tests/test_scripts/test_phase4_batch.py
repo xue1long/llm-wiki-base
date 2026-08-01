@@ -10,6 +10,7 @@ deferred to call time, so importing it here pulls no heavy deps.
 """
 import asyncio
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -21,6 +22,7 @@ from scripts.phase4_batch import (
     _decide_abort,
     _generate_batch,
     _load_state,
+    main,
 )
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.storage.ensure import ensure_knowledge_base
@@ -151,6 +153,18 @@ def test_decide_abort_mixed_ok():
     abort, _reason = _decide_abort(
         ok=2, err=1, pending=0, resume=False, completed=set(), skip=0)
     assert abort is False
+
+
+def test_decide_abort_empty_non_resume_aborts():
+    """⑤ M1: ok==0, pending==0, non-resume → abort.
+
+    Typical causes: every file excluded by ``--skip-files``, or ``--count 0``.
+    Such a batch must not silently fake-commit ``committed`` / exit 0 (B4).
+    """
+    abort, reason = _decide_abort(
+        ok=0, err=0, pending=0, resume=False, completed=set(), skip=0)
+    assert abort is True
+    assert reason
 
 
 # ---------------------------------------------------------------------------
@@ -386,6 +400,48 @@ def test_extras_committed_with_reverse_relation_event(tmp_path, monkeypatch):
     assert last["npages"] == 0
 
 
+def test_extras_commit_failure_marks_postcheck_failed(tmp_path, monkeypatch):
+    """⑤ H2: extras reverse-relation commit failure must not be masked by
+    exit 0 — batch ends postcheck_failed / exit 3 with ``missing_extras``
+    recorded in state (POSTCHECK only scans batch pages, not extras)."""
+    root = tmp_path
+    paths = ensure_knowledge_base(root)
+    files = ["raw/sources/f1.md"]
+    _make_raw(root, files[0])
+    src_page = _source_page(files[0])
+    concept = _wiki_page("concept-f1", sources=[files[0]])
+    extra = _wiki_page("extra-x", sources=[files[0]], body="existing body")
+
+    # Per-file group commit (event="ingest") succeeds and writes pages to
+    # disk so POSTCHECK passes for them; the extras reverse-relation call
+    # (event="reverse-relation") throws.
+    async def flaky_commit(paths, source_path, pages, extra_pages=None,
+                           task_id="test", *, event="ingest", detail=None,
+                           log_task_id=None):
+        if event == "reverse-relation":
+            raise RuntimeError("extras commit exploded")
+        from src.wiki.features.indexer import append_to_index
+        from src.wiki.storage.page_writer import write_page
+        for p in pages:
+            write_page(paths, p)
+        append_to_index(
+            paths, [(p.id, p.type, p.title) for p in pages])
+
+    _patch_commit_surface(monkeypatch, tmp_path, flaky_commit)
+
+    entry, rc = asyncio.run(_commit_all(
+        paths=paths, pages=[src_page, concept], extras=[extra],
+        batch_key="batch_0", batch_files=files, root=root, task_id="b0",
+    ))
+    assert rc == 3
+    assert entry["status"] == "postcheck_failed"
+    assert entry["missing_extras"] is True
+    state = json.loads((tmp_path / "batch_build_state.json").read_text(
+        encoding="utf-8"))
+    assert state["batch_0"]["status"] == "postcheck_failed"
+    assert state["batch_0"]["missing_extras"] is True
+
+
 # ---------------------------------------------------------------------------
 # R2-2 · B6 collision listing
 # ---------------------------------------------------------------------------
@@ -552,3 +608,45 @@ def test_auto_tag_then_gate_p4b_zero_hits(tmp_path):
     report = run_ndg_gate(result.pages, raw_headers=raw_headers)
     assert not any(i.code == "P4b" for i in report.issues)
     assert report.passed
+
+
+# ---------------------------------------------------------------------------
+# H1 · --resume blocked on prior postcheck_failed (no fake-committed)
+# ---------------------------------------------------------------------------
+
+def test_resume_blocked_when_prior_postcheck_failed(tmp_path, monkeypatch):
+    """H1: a prior run that ended postcheck_failed is NOT resumable.
+
+    Its completed_files already include the files whose pages are missing, so
+    --resume would skip exactly those files → empty batch → fake-commit
+    'committed' / exit 0 while the missing pages stay missing.  main() must
+    abort (exit non-zero) and leave state as postcheck_failed."""
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({
+        "batches": [{"theme": "t", "files": ["raw/a.md", "raw/b.md"]}],
+    }), encoding="utf-8")
+    state_file = tmp_path / "batch_build_state.json"
+    state_file.write_text(json.dumps({
+        "batch_0": {
+            "status": "postcheck_failed",
+            "files": ["raw/a.md", "raw/b.md"],
+            "ok": 2, "err": 0,
+            "completed_files": ["raw/a.md", "raw/b.md"],
+            "failed_files": [],
+            "missing": ["src-b", "concept-b"],
+        },
+    }), encoding="utf-8")
+    monkeypatch.setattr("scripts.phase4_batch.MANIFEST", manifest)
+    monkeypatch.setattr("scripts.phase4_batch.BATCH_STATE", state_file)
+    monkeypatch.setattr("scripts.phase4_batch.REPORT", tmp_path / "report.txt")
+    monkeypatch.setattr(
+        sys, "argv", ["phase4_batch.py", "--resume", "--batch", "0"])
+
+    rc = asyncio.run(main())
+
+    assert rc == 1
+    state = json.loads(state_file.read_text(encoding="utf-8"))
+    # status preserved as postcheck_failed — must NOT be overwritten to committed
+    assert state["batch_0"]["status"] == "postcheck_failed"
+    assert state["batch_0"]["missing"] == ["src-b", "concept-b"]
+    assert "RESUME BLOCKED" in (tmp_path / "report.txt").read_text(encoding="utf-8")

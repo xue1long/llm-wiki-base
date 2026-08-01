@@ -129,8 +129,14 @@ def _decide_abort(
     if ok == 0 and err == 0:
         if pending:
             return True, "all files missing (empty batch)"
+        # ok==0, pending==0 — nothing was generated this run.  The ONLY
+        # legitimate zero-page outcome is a --resume re-run where every file
+        # was already completed in a prior run.  Any other empty batch
+        # (all files --skip-files'd, --count 0, plain empty run) must abort
+        # instead of fake-committing 'committed' (B4 / M1).
         if resume and skip and len(completed) >= skip:
             return False, "all files already completed (resume)"
+        return True, "empty batch (zero pages generated)"
     return False, ""
 
 
@@ -499,6 +505,11 @@ async def _commit_all(
             _log(f"  COMMIT FAIL (orphans): {exc}")
         _save_committing()
 
+    # ── POSTCHECK (zero LLM cost) ────────────────────────────────────
+    _post_errors = 0
+    missing: list[str] = []
+    _missing_extras = False
+
     # B9: extras are pre-existing pages touched by reverse relations — one
     # independent audit event, no fake per-file ingest log.
     if extras:
@@ -509,12 +520,16 @@ async def _commit_all(
                 task_id=task_id, event="reverse-relation",
             )
         except Exception as exc:
+            # H2: an extras commit failure must not be masked by exit 0 —
+            # POSTCHECK only scans batch pages, never extras, so count it
+            # here.  End the batch postcheck_failed / exit 3 instead of
+            # fake-committing 'committed'.
+            _post_errors += 1
+            _missing_extras = True
             failed.append("(extras)")
-            _log(f"  COMMIT FAIL extras: {exc}")
+            _log(f"  COMMIT FAIL extras (FATAL): {exc} — extras pages missing, "
+                 f"batch must not fake-commit")
 
-    # ── POSTCHECK (zero LLM cost) ────────────────────────────────────
-    _post_errors = 0
-    missing: list[str] = []
     _index_ids = {e[0] for e in read_index(paths)}
     for _p in pages:
         _pp = page_path_for(paths, _p.type, _p.id)
@@ -536,6 +551,7 @@ async def _commit_all(
             "completed_files": completed,
             "failed_files": failed,
             "missing": missing,
+            "missing_extras": _missing_extras,
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
         }
     else:
@@ -596,6 +612,36 @@ async def main() -> int:
         files = files[:args.count]
     _log(f"batch {args.batch} [{batch['theme']}]: {len(files)} file(s)")
 
+    # ── H1: postcheck_failed 批不可 --resume（缺页永不补）────────────
+    # A prior run that ended postcheck_failed is NOT resumable: its
+    # completed_files already include the files whose pages are missing, so
+    # --resume would skip exactly those files, generate nothing, and (B4)
+    # fake-commit 'committed' / exit 0 while the missing pages stay missing.
+    # Block before any LLM/generate work — only manual repair of the missing
+    # pages or a non-resume re-run can clear it.
+    batch_key = f"batch_{args.batch}"
+    if args.resume:
+        _prior = _load_state().get(batch_key)
+        if isinstance(_prior, dict) and _prior.get("status") == "postcheck_failed":
+            _missing = _prior.get("missing", [])
+            _log(f"RESUME BLOCKED: prior run ended postcheck_failed — "
+                 f"{len(_missing)} missing page(s): {_missing}")
+            _log("先人工修复缺页，或非 --resume 重跑 — resume 会把缺页所属文件当已完成 "
+                 "skip 掉，不会补生成")
+            _state = _load_state()
+            _state[batch_key] = {
+                "status": "postcheck_failed",
+                "files": files,
+                "ok": _prior.get("ok", 0),
+                "err": _prior.get("err", 0),
+                "completed_files": _prior.get("completed_files", []),
+                "failed_files": _prior.get("failed_files", []),
+                "missing": _missing,
+                "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            }
+            _save_state(_state)
+            return 1
+
     from src.pipeline import _get_provider, _resolve_wiki_paths
     from src.wiki.features.batch_reconcile import reconcile_batch
     from src.wiki.features.ndg_gate import run_ndg_gate
@@ -606,7 +652,6 @@ async def main() -> int:
 
     # ── Phase 5.2: generate (concurrent, no writes) ──────────────────
     # Checkpoint resume: skip files already completed in a prior run.
-    batch_key = f"batch_{args.batch}"
     completed_files: set[str] = set()
     if args.resume:
         completed_files = _batch_completed_files(batch_key)
