@@ -1383,6 +1383,18 @@ async def generate_ingest(
     pages = [p for p in pages if p.id in _keep_ids]
     extra_pages = [p for p in extra_pages if p.id in _keep_ids]
 
+    # C2: C-grade page handling — classify root cause and attempt regeneration
+    # for STRUCTURAL pages (one LLM call per page, max 3 per document).
+    # Non-structural C-grade pages are marked as stubs.
+    from .c_grade_handler import handle_c_grade_pages as _handle_c_grades
+    pages = await _handle_c_grades(
+        pages, provider, source_text=source_text,
+    )
+    if extra_pages:
+        extra_pages = await _handle_c_grades(
+            extra_pages, provider, source_text=source_text,
+        )
+
     # Collect candidate metrics for observability report
     _candidate_claims = getattr(candidate, "claims", []) if candidate else []
     _candidate_evidence = getattr(candidate, "evidence", []) if candidate else []
