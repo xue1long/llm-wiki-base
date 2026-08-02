@@ -60,3 +60,5 @@ class KnowledgeCandidate:
     evidence: list[dict]
     raw_llm_output: dict
     status: CandidateStatus = field(default=CandidateStatus.PENDING)
+    chunk_index: int | None = None
+    chunk_total: int | None = None

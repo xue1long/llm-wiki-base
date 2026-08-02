@@ -111,7 +111,12 @@ Slugs 使用中文 (CJK) 或 ASCII kebab-case — 保留概念的自然字面，
 {existing_wiki_index}
 
 ## Source text
-{source_text}
+{chunk_context}{source_text}
+
+## Page numbers
+The source text may contain `<!-- page: N -->` markers indicating page
+boundaries in the original document. When these markers are present,
+include the page number in each evidence entry's `page` field.
 
 ## Task
 Extract structured knowledge claims as a JSON object matching this schema:
@@ -175,6 +180,8 @@ class AnalyzerOutputParser:
         self,
         raw: dict | None,
         source_path: str = "",
+        chunk_index: int | None = None,
+        chunk_total: int | None = None,
     ) -> KnowledgeCandidate:
         """Validate *raw* dict and return a KnowledgeCandidate.
 
@@ -200,6 +207,8 @@ class AnalyzerOutputParser:
                 evidence=[],
                 raw_llm_output=raw if isinstance(raw, dict) else {},
                 status=CandidateStatus.REJECTED,
+                chunk_index=chunk_index,
+                chunk_total=chunk_total,
             )
 
         confidence = 1.0
@@ -255,6 +264,8 @@ class AnalyzerOutputParser:
             evidence=evidence,
             raw_llm_output=raw,
             status=status,
+            chunk_index=chunk_index,
+            chunk_total=chunk_total,
         )
 
 
@@ -272,6 +283,8 @@ async def analyze(
     task_id: str = "test",
     source_path: str = "raw/sources/test",
     output_format: str = "markdown",
+    chunk_index: int | None = None,
+    chunk_total: int | None = None,
 ) -> AnalysisResult | KnowledgeCandidate:
     """Step 1: LLM call -> AnalysisResult or KnowledgeCandidate.
 
@@ -292,6 +305,8 @@ async def analyze(
             provider=provider,
             source_path=source_path,
             _al=_al,
+            chunk_index=chunk_index,
+            chunk_total=chunk_total,
         )
 
     prompt = ANALYZER_PROMPT.format(
@@ -439,6 +454,8 @@ async def _analyze_json(
     provider,
     source_path: str,
     _al: logging.Logger,
+    chunk_index: int | None = None,
+    chunk_total: int | None = None,
 ) -> KnowledgeCandidate:
     """JSON mode: LLM call -> KnowledgeCandidate with 3-tier validation.
 
@@ -446,11 +463,21 @@ async def _analyze_json(
     ``response_format``).  If both attempts fail, return a REJECTED
     candidate instead of raising.
     """
+    _chunk_ctx = ""
+    if chunk_index is not None and chunk_total is not None:
+        _chunk_ctx = (
+            f"\n## Chunk context\n"
+            f"This is chunk {chunk_index + 1}/{chunk_total} of a large document. "
+            f"Extract claims that are MOST specific to this chunk's content. "
+            f"Cross-chunk entity references will be merged later — you do NOT "
+            f"need to reference other chunks.\n\n"
+        )
     prompt = ANALYZER_JSON_PROMPT.format(
         source_path=source_path,
         folder_context=folder_context or "(none)",
         existing_wiki_index=existing_wiki_index or "(empty)",
         source_text=source_text,
+        chunk_context=_chunk_ctx,
     )
 
     MAX_ATTEMPTS = 2
@@ -487,7 +514,7 @@ async def _analyze_json(
             if attempt == MAX_ATTEMPTS - 1:
                 # Both attempts exhausted — return REJECTED candidate
                 parser = AnalyzerOutputParser()
-                return parser.parse({}, source_path=source_path)
+                return parser.parse({}, source_path=source_path, chunk_index=chunk_index, chunk_total=chunk_total)
             continue
 
         if not isinstance(response, dict):
@@ -498,14 +525,14 @@ async def _analyze_json(
             )
             if attempt == MAX_ATTEMPTS - 1:
                 parser = AnalyzerOutputParser()
-                return parser.parse({}, source_path=source_path)
+                return parser.parse({}, source_path=source_path, chunk_index=chunk_index, chunk_total=chunk_total)
             continue
 
         break
 
     # JSON parse succeeded — run 3-tier validation
     parser = AnalyzerOutputParser()
-    return parser.parse(response, source_path=source_path)
+    return parser.parse(response, source_path=source_path, chunk_index=chunk_index, chunk_total=chunk_total)
 
 
 def _parse_llm_response(llm_resp) -> dict:

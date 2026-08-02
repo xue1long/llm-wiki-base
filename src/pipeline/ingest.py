@@ -507,6 +507,13 @@ async def generate_ingest(
     )
     _source_slug_map = {str(source_path): _source_slug_for_map}
 
+    # --- Chunking (large-doc gate) ---
+    from .chunker import chunk_source_text as _chunk_source_text, merge_candidates as _merge_candidates
+
+    CHUNK_THRESHOLD = 12000
+    _chunks = _chunk_source_text(_sanitized_source_text, threshold=CHUNK_THRESHOLD)
+    _is_chunked = len(_chunks) > 1
+
     # --- Pipeline mode selection ---
     _pipeline_mode = __import__("os").environ.get("RUFLO_PIPELINE_MODE", "candidate")
 
@@ -519,59 +526,61 @@ async def generate_ingest(
 
         # Step 1: JSON analyzer → KnowledgeCandidate
         from ..knowledge.core.candidate import KnowledgeCandidate as _KC
-        _raw_result = await _with_llm_timeout(
-            _analyze(
-                source_text=_sanitized_source_text,
-                source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
-                existing_wiki_index=_existing_wiki_index,
-                folder_context=folder_context,
-                provider=provider,
-                task_id=task_id,
-                source_path=str(source_path),
-                output_format="json",
-            ),
-            timeout=180.0,
-            op="analyzer (json)",
-        )
 
-        # If analyze was monkeypatched to return AnalysisResult (legacy test
-        # stubs), fall back to the two-step path transparently.
-        if not isinstance(_raw_result, _KC):
-            import warnings as _w
-            _w.warn(
-                "analyze() returned AnalysisResult instead of KnowledgeCandidate; "
-                "falling back to legacy two-step path. "
-                "Update stubs to return KnowledgeCandidate when output_format='json'.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            analysis = _raw_result  # type: ignore[assignment]
-            pages = await _generate(
-                paths=paths,
-                analysis=analysis,
-                existing_wiki_index=_existing_wiki_index,
-                provider=provider,
-                source_slug_map=_source_slug_map,
-                source_text=_sanitized_source_text,
-            )
+        if _is_chunked:
             _logger.info(
-                "[run_ingest] legacy fallback produced %d pages for %s",
-                len(pages), source_path,
+                "[run_ingest] chunked %s into %d parts (%.1f KB total)",
+                source_path, len(_chunks), round(len(_sanitized_source_text.encode("utf-8")) / 1024, 1),
             )
-            # Jump to quality gate / source page generation below.
-            _has_fallback = True
-        else:
-            candidate = _raw_result
-            _has_fallback = False
-
-        if not _has_fallback:
-            # Step 2: Reviewer (4 rule checks)
             from .stages.reviewer import ReviewerStage
-            reviewer = ReviewerStage()
-            result = reviewer.review(candidate, paths.root)
+            _reviewer = ReviewerStage()
+            _all_candidates: list = []
 
-            if result.status == "rejected":
-                _logger.warning("[run_ingest] candidate REJECTED: %s", result.reason)
+            for _ch in _chunks:
+                _ch_text = _ch["text"]
+                if not _ch_text.strip():
+                    continue
+                try:
+                    _ch_candidate = await _with_llm_timeout(
+                        _analyze(
+                            source_text=_ch_text,
+                            source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
+                            existing_wiki_index=_existing_wiki_index,
+                            folder_context=folder_context,
+                            provider=provider,
+                            task_id=task_id,
+                            source_path=str(source_path),
+                            output_format="json",
+                            chunk_index=_ch["chunk_index"],
+                            chunk_total=_ch["chunk_total"],
+                        ),
+                        timeout=180.0,
+                        op=f"analyzer chunk {_ch['chunk_index']+1}/{_ch['chunk_total']}",
+                    )
+                except Exception as _ch_exc:
+                    _logger.warning(
+                        "[run_ingest] chunk %d/%d failed: %s",
+                        _ch["chunk_index"] + 1, _ch["chunk_total"], _ch_exc,
+                    )
+                    continue
+
+                if not isinstance(_ch_candidate, _KC):
+                    continue
+
+                _ch_result = _reviewer.review(_ch_candidate, paths.root)
+                if _ch_result.status == "validated":
+                    _all_candidates.append(_ch_candidate)
+                elif _ch_result.status == "needs_human_review":
+                    _create_review_item(_ch_candidate, _ch_result, paths, task_id)
+                    _all_candidates.append(_ch_candidate)
+                else:
+                    _logger.warning(
+                        "[run_ingest] chunk %d/%d REJECTED: %s",
+                        _ch["chunk_index"] + 1, _ch["chunk_total"], _ch_result.reason,
+                    )
+
+            if not _all_candidates:
+                _logger.warning("[run_ingest] all chunks rejected for %s", source_path)
                 meta = {
                     "analysis": None,
                     "source_slug": "",
@@ -580,26 +589,96 @@ async def generate_ingest(
                     "downstream_count": 0,
                     "extra_pages_count": 0,
                     "rejected": True,
-                    "reason": result.reason,
+                    "reason": "all chunks rejected by reviewer",
                     "warnings": [],
                 }
                 return [], [], meta
 
-            if result.status == "needs_human_review":
-                _logger.info("[run_ingest] candidate NEEDS_HUMAN_REVIEW: %s", result.reason)
-                _create_review_item(candidate, result, paths, task_id)
-                meta = {
-                    "analysis": None,
-                    "source_slug": "",
-                    "source_page_id": "",
-                    "source_grade": "C",
-                    "downstream_count": 0,
-                    "extra_pages_count": 0,
-                    "needs_review": True,
-                    "reason": result.reason,
-                    "warnings": [],
-                }
-                return [], [], meta
+            candidate = _merge_candidates(_all_candidates, source_path=str(source_path))
+            analysis = None  # type: ignore[assignment]
+            _has_fallback = False
+        else:
+            _raw_result = await _with_llm_timeout(
+                _analyze(
+                    source_text=_sanitized_source_text,
+                    source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
+                    existing_wiki_index=_existing_wiki_index,
+                    folder_context=folder_context,
+                    provider=provider,
+                    task_id=task_id,
+                    source_path=str(source_path),
+                    output_format="json",
+                ),
+                timeout=180.0,
+                op="analyzer (json)",
+            )
+
+            # If analyze was monkeypatched to return AnalysisResult (legacy test
+            # stubs), fall back to the two-step path transparently.
+            if not isinstance(_raw_result, _KC):
+                import warnings as _w
+                _w.warn(
+                    "analyze() returned AnalysisResult instead of KnowledgeCandidate; "
+                    "falling back to legacy two-step path. "
+                    "Update stubs to return KnowledgeCandidate when output_format='json'.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                analysis = _raw_result  # type: ignore[assignment]
+                pages = await _generate(
+                    paths=paths,
+                    analysis=analysis,
+                    existing_wiki_index=_existing_wiki_index,
+                    provider=provider,
+                    source_slug_map=_source_slug_map,
+                    source_text=_sanitized_source_text,
+                )
+                _logger.info(
+                    "[run_ingest] legacy fallback produced %d pages for %s",
+                    len(pages), source_path,
+                )
+                # Jump to quality gate / source page generation below.
+                _has_fallback = True
+            else:
+                candidate = _raw_result
+                _has_fallback = False
+
+            if not _has_fallback:
+                # Step 2: Reviewer (4 rule checks)
+                from .stages.reviewer import ReviewerStage
+                reviewer = ReviewerStage()
+                result = reviewer.review(candidate, paths.root)
+
+                if result.status == "rejected":
+                    _logger.warning("[run_ingest] candidate REJECTED: %s", result.reason)
+                    meta = {
+                        "analysis": None,
+                        "source_slug": "",
+                        "source_page_id": "",
+                        "source_grade": "C",
+                        "downstream_count": 0,
+                        "extra_pages_count": 0,
+                        "rejected": True,
+                        "reason": result.reason,
+                        "warnings": [],
+                    }
+                    return [], [], meta
+
+                if result.status == "needs_human_review":
+                    _logger.info("[run_ingest] candidate NEEDS_HUMAN_REVIEW: %s", result.reason)
+                    _create_review_item(candidate, result, paths, task_id)
+                    meta = {
+                        "analysis": None,
+                        "source_slug": "",
+                        "source_page_id": "",
+                        "source_grade": "C",
+                        "downstream_count": 0,
+                        "extra_pages_count": 0,
+                        "needs_review": True,
+                        "reason": result.reason,
+                        "warnings": [],
+                    }
+                    return [], [], meta
 
             # Step 3: Promote Candidate → KnowledgeObject
             from .stages.candidate_promoter import CandidatePromoter
@@ -817,6 +896,7 @@ async def generate_ingest(
                     f"- 路径: `{source_path}`\n"
                     f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
                     f"- 任务 ID: `{task_id}`\n"
+                    f"- 分块数: {len(_chunks)}\n"
                 ),
                 "summary": _summary_text.strip() or "(无摘要)",
                 "key_points": key_points_value,
@@ -841,7 +921,8 @@ async def generate_ingest(
             f"## 来源\n\n"
             f"- 路径: `{source_path}`\n"
             f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"- 任务 ID: `{task_id}`\n\n"
+            f"- 任务 ID: `{task_id}`\n"
+            f"- 分块数: {len(_chunks)}\n\n"
             f"## 摘要\n\n"
             f"{_summary_fb}\n\n"
             f"## 抽取的概念\n\n"
@@ -865,17 +946,22 @@ async def generate_ingest(
     else:
         _source_grade = "A"
 
-    # Warn when source text was truncated before LLM processing.
-    # MAX_SOURCE_CHARS is the generator's truncation threshold; if the
-    # original text exceeds it, downstream pages may miss information.
-    from .generator import MAX_SOURCE_CHARS as _MAX_SOURCE_CHARS
-    if len(source_text) > _MAX_SOURCE_CHARS:
+    # Chunked ingest note: replaces the old single-truncation warning.
+    if _is_chunked:
         _size_kb = len(source_text) / 1024
         source_body += (
-            f"\n\n> ⚠️ **文档过长**: 原始文档 {_size_kb:.0f} KB, "
-            f"仅前 {_MAX_SOURCE_CHARS} 字符送 LLM 处理。"
-            "下游页面可能缺失后半部分的关键信息，建议拆分文档后重新摄取。"
+            f"\n\n> 📦 **分块摄取**: 原始文档 {_size_kb:.0f} KB, "
+            f"已拆分为 {len(_chunks)} 块逐块送 LLM 处理后合并。"
         )
+    else:
+        from .generator import MAX_SOURCE_CHARS as _MAX_SOURCE_CHARS
+        if len(source_text) > _MAX_SOURCE_CHARS:
+            _size_kb = len(source_text) / 1024
+            source_body += (
+                f"\n\n> ⚠️ **文档过长**: 原始文档 {_size_kb:.0f} KB, "
+                f"仅前 {_MAX_SOURCE_CHARS} 字符送 LLM 处理。"
+                "下游页面可能缺失后半部分的关键信息，建议拆分文档后重新摄取。"
+            )
 
     source_page = WikiPage(
         id=source_slug,
