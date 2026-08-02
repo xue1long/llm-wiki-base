@@ -383,6 +383,13 @@ async def generate_ingest(
 
     _sanitized_source_text = _result.text
 
+    # 数据收集：记录文件大小概况（积累 100+ 样本后建模调度策略）
+    _source_bytes = len(_sanitized_source_text.encode("utf-8"))
+    _logger.info(
+        "[run_ingest] size_profile source=%s bytes=%d kb=%.1f",
+        source_path, _source_bytes, round(_source_bytes / 1024, 1),
+    )
+
     # Hard-reject: skip LLM entirely for degraded sources (opt-in via
     # RUFLO_SANITIZER_SKIP_LLM=1; off by default).
     if _result.should_skip_llm and __import__("os").environ.get("RUFLO_SANITIZER_SKIP_LLM", "0") == "1":
