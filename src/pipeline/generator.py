@@ -35,6 +35,7 @@ from ..wiki.templates import (
     render_body,
     required_slot_names,
 )
+from ..knowledge.core.candidate import KnowledgeCandidate
 from ._pipeline_common import clean_source_text, parse_llm_json
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
@@ -650,6 +651,319 @@ def _resolve_page_tags_unified(page: dict) -> list[str]:
     if not isinstance(raw, (list, tuple)):
         return []
     return [t for t in raw if isinstance(t, str) and is_valid_tag(t)]
+
+
+# ---------------------------------------------------------------------------
+# Candidate → WikiPage rendering prompt
+# ---------------------------------------------------------------------------
+
+CANDIDATE_RENDER_PROMPT = """You are rendering wiki pages from structured knowledge claims
+that were already extracted by a prior analysis step. Do NOT extract new
+information — only organize and render the claims provided below.
+
+## CRITICAL — JSON Format
+1. Output ONLY the raw JSON object — no markdown fences (```), no
+   introductory text, no concluding remarks.
+2. Your response MUST start with `{{` and end with `}}`.
+3. Do NOT wrap the JSON in ```json ... ``` blocks.
+4. All strings must be properly escaped (double quotes, not single quotes).
+
+## Candidate metadata
+- Type: {candidate_type}
+- Title: {candidate_title}
+- Confidence: {candidate_confidence}
+
+## Extracted Claims
+{claims_text}
+
+## Evidence Excerpts
+{evidence_text}
+
+## Source page id for THIS run
+{SOURCE_SLUG_MAP}
+
+## Existing wiki index (reuse slugs exactly as listed)
+{existing_wiki_index}
+
+## Page Templates
+{PAGE_TEMPLATES}
+
+## Rules (all mandatory)
+
+**Language**: 简体中文 for all user-visible text (title, slots, relations[].context).
+Slugs may be CJK or ASCII kebab-case — keep the concept's natural form, no forced pinyin.
+
+**Slug reuse**: Use EXISTING slugs from the wiki index verbatim. Never invent variants.
+
+**RENDER, don't extract**: The claims below were already extracted from the source
+by a prior analyzer. Your job is to RENDER them into well-structured wiki pages.
+Use the exact claim statements and evidence quotes — do not paraphrase or invent
+facts not present in the claims.
+
+**Page budget**: Create 1-3 pages from the claims below. Focus on quality over
+quantity. At minimum, create ONE page for the primary concept/entity in the title.
+
+**Slot filling — CRITICAL: NO EMPTY SLOTS ALLOWED**:
+- Every `<!-- slot:NAME -->` (no `?`) is REQUIRED and MUST have substantive content.
+- Never use placeholder text ("...", "（空）", "TBD", "placeholder").
+- Optional slots (`<!-- slot:NAME? -->`): omit when empty.
+- Each slot: >= 1 char after trim. Lists: >= 1 substantive item.
+
+**Slot-specific minimums (enforced)**:
+SLOT                  | PAGE TYPE   | MINIMUM ACCEPTABLE CONTENT
+----------------------|-------------|----------------------------------------------------
+`references`          | concept     | At LEAST one `[[wikilink]]` to the source page
+`source_meta`         | source      | MUST include: 来源(URL/平台), 下载时间, 发布组织
+`related_concepts`    | concept     | At LEAST 2 `[[wikilinks]]` to other concept/entity pages
+`related`             | entity      | At LEAST 1 `[[wikilink]]` to the source page or parent entity
+`key_points`          | source      | At LEAST 3 bullet points from the claims
+`extracted_concepts`  | source      | At LEAST 3 `[[wikilinks]]` to concept/entity pages
+`comparison_dimensions`| synthesis  | At LEAST 2 dimensions being compared
+`overview`            | synthesis   | At LEAST 1 paragraph summarising the comparison
+
+**FALLBACKS — when claims truly lack info, use these instead of empty/placeholder**:
+- `references`    → Write `- [[<source-page-slug>]]`
+- `source_meta`   → Write "来源: [文件名]; 格式: Markdown; 下载时间: 见原始文件头部"
+- `related_concepts` → List other concept/entity slugs from THIS response
+- `related`       → Write `- [[<source-page-slug>]]`
+- `examples`      → Write "来源未提供具体例子" (invent NOTHING)
+- ALL OTHERS      → Write "来源未详述此方面" (not empty, not placeholder)
+
+**Factuality**: Copy facts EXACTLY from the claims. Do NOT invent titles, names,
+or statistics. When a claim has no example, write "来源未提供例子".
+
+**Tags**: `prefix/name` format, 10 allowed prefixes:
+题材/ 功能/ 角色/ 事件/ 情绪/ 实体/ 场景阶段/ 状态/ 素材/ 可信度/
+
+**Relation types** (17 built-in + `x-*` custom):
+is_part_of contains references referenced_by causes caused_by contradicts
+supports supported_by supersedes superseded_by depends_on required_by
+analogous_to opposite_of derived_from derives
+
+{WIKI_RULES_SUMMARY}
+
+## Task
+Render the claims above into structured wiki pages. Output strict JSON:
+
+{{
+  "pages": [
+    {{
+      "id": "<slug>",
+      "type": "source|entity|concept|synthesis",
+      "title": "<中文标题>",
+      "slots": {{"<slot_name>": "<content or list of strings>"}},
+      "relations": [{{"target": "<slug>", "type": "<relation_type>", "weight": 0.0-1.0, "context": "<why>"}}],
+      "tags": ["题材/现言", "功能/教程"],
+      "grade": "A|B|C",
+      "category": "",
+      "taxonomy_sub": "",
+      "processing_depth": "concept|memory"
+    }}
+  ]
+}}
+
+Every slot in the template for each page type MUST be filled.
+Use [[other-slug]] for cross-references within slot content.
+"""
+
+
+async def generate_from_candidate(
+    candidate: KnowledgeCandidate,
+    paths: WikiPaths,
+    existing_wiki_index: str,
+    provider,
+    source_slug_map: Optional["dict[str, str]"] = None,
+    source_text: str = "",
+) -> list[WikiPage]:
+    """Render wiki pages from a validated KnowledgeCandidate.
+
+    The LLM is instructed to RENDER the candidate's claims into
+    well-structured wiki pages — it must NOT extract new information.
+    Frontmatter fields (type, title, grade) are sourced from the
+    candidate; only body content comes from the LLM.
+    """
+    import json as _json
+    import time as _time
+
+    # Format claims for the prompt
+    _claims_lines: list[str] = []
+    for i, claim in enumerate(candidate.claims):
+        statement = claim.get("statement", "")
+        conf = claim.get("confidence", 0.0)
+        refs = claim.get("evidence_refs", [])
+        _claims_lines.append(
+            f"{i + 1}. [{conf:.0%}] {statement}  (evidence: {refs})"
+        )
+    claims_text = "\n".join(_claims_lines) if _claims_lines else "(no claims)"
+
+    # Format evidence for the prompt
+    _ev_lines: list[str] = []
+    for i, ev in enumerate(candidate.evidence):
+        src = ev.get("source_path", "")
+        quote = ev.get("quote", "")
+        _ev_lines.append(f"[{i}] {src}\n    > {quote}")
+    evidence_text = "\n".join(_ev_lines) if _ev_lines else "(no evidence)"
+
+    # Resolve templates (same as generate())
+    resolved_templates = {t.type: t for t in list_resolved(paths.root)}
+    required_slots_by_type: dict[PageType, list[str]] = {
+        pt: required_slot_names(resolved_templates[pt])
+        for pt in PageType
+        if pt in resolved_templates
+    }
+
+    response_format = {
+        "type": "object",
+        "properties": {
+            "pages": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "type": {"type": "string", "enum": ["source", "entity", "concept", "synthesis"]},
+                        "title": {"type": "string"},
+                        "slots": {
+                            "type": "object",
+                            "additionalProperties": {"type": "string", "minLength": 1},
+                            "minProperties": 1,
+                        },
+                        "relations": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "target": {"type": "string"}, "type": {"type": "string"},
+                                    "weight": {"type": "number"}, "context": {"type": "string"},
+                                },
+                                "required": ["target", "type"],
+                            },
+                        },
+                        "tags": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                        "grade": {"type": "string", "enum": ["A", "B", "C"]},
+                        "category": {"type": "string"},
+                        "taxonomy_sub": {"type": "string"},
+                        "processing_depth": {"type": "string", "enum": ["source", "entity", "concept", "synthesis", "memory"]},
+                    },
+                    "required": ["id", "type", "title", "slots"],
+                },
+            },
+        },
+        "required": ["pages"],
+    }
+
+    # Derive grade from candidate confidence
+    _conf = candidate.confidence
+    _derived_grade = "A" if _conf >= 0.7 else "B" if _conf >= 0.5 else "C"
+
+    base_prompt = CANDIDATE_RENDER_PROMPT.format(
+        candidate_type=candidate.type.value,
+        candidate_title=candidate.title,
+        candidate_confidence=_conf,
+        claims_text=claims_text,
+        evidence_text=evidence_text,
+        SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
+        existing_wiki_index=existing_wiki_index or "(empty)",
+        WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
+        PAGE_TEMPLATES=_render_template_section(paths.root),
+    )
+
+    response_dict = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt=base_prompt,
+        response_format=response_format,
+        required_slots_by_type=required_slots_by_type,
+        timeout=600.0,
+    )
+
+    raw_pages = response_dict.get("pages", [])
+
+    # Auto-fill deterministic slots before placeholder fallback
+    raw_pages = _auto_fill_deterministic_slots(
+        raw_pages,
+        source_path=candidate.source_id,
+        source_text=source_text,
+        source_slug_map=source_slug_map,
+    )
+
+    filled_pages, missing_summary = _ensure_required_slots_filled(
+        raw_pages,
+        required_slots_by_type=required_slots_by_type,
+    )
+    if missing_summary:
+        _logger.warning(
+            "[generate_from_candidate] required slots still missing after retry+auto-fill, "
+            "filled with placeholder: %s", missing_summary,
+        )
+
+    now = int(_time.time() * 1000)
+    pages: list[WikiPage] = []
+
+    for p in filled_pages:
+        title = p.get("title", candidate.title)
+        slug = _slugify(title) or p.get("id", "")
+
+        try:
+            page_type = PageType(p.get("type"))
+        except ValueError:
+            _logger.warning(f"Unknown page type: {p.get('type')}")
+            continue
+
+        # Deterministic source-page slug
+        if source_slug_map and page_type == PageType.SOURCE and candidate.source_id:
+            map_slug = source_slug_map.get(candidate.source_id)
+            if map_slug:
+                slug = map_slug
+
+        # Sanitize generated ids (skip source pages with deterministic slug)
+        if page_type != PageType.SOURCE:
+            cleaned = _sanitize_generated_id(slug)
+            if cleaned is None:
+                _logger.warning(
+                    "[generate_from_candidate] dropping page with unrecoverable id: %r",
+                    p.get("id"),
+                )
+                continue
+            slug = cleaned
+
+        template = resolved_templates.get(page_type)
+        if template is None:
+            body_md = ""
+        else:
+            body_md = render_body(
+                template_body=template.body_markdown,
+                slots=p.get("slots", {}) or {},
+                page_type=page_type,
+                template_version=template.version or "",
+            )
+
+        # Relation dedup by slugified target
+        raw_relations = p.get("relations", []) or []
+        deduped_relations: list[dict] = []
+        seen_targets: set = set()
+        for rel in sorted(raw_relations, key=lambda r: r.get("weight", 1.0), reverse=True):
+            tgt = rel.get("target", "")
+            if not tgt:
+                continue
+            canon = _slugify(tgt) or tgt
+            if canon not in seen_targets:
+                seen_targets.add(canon)
+                deduped_relations.append(rel)
+
+        pages.append(WikiPage(
+            id=slug, title=title, type=page_type,
+            sources=[normalize_source_path(candidate.source_id, paths.root)],
+            created_at=now, updated_at=now, body=body_md,
+            grade=p.get("grade", _derived_grade),
+            processing_depth=p.get("processing_depth") or _DEPTH_BY_TYPE.get(page_type, "concept"),
+            is_immutable=p.get("is_immutable", False),
+            relations=parse_relations_from_response(deduped_relations),
+            tags=_resolve_page_tags_unified(p),
+            category=p.get("category", ""),
+            taxonomy_sub=p.get("taxonomy_sub", ""),
+        ))
+
+    return pages
 
 
 async def generate(
