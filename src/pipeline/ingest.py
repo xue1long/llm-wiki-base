@@ -37,6 +37,7 @@ from pathlib import Path
 
 from ..wiki.core.paths import WikiPaths
 from ..utils.path import normalize_source_path
+from ..utils.slugify import slugify
 from ..wiki.core.types import PageType, WikiPage
 from ..lib.atomic_ctx import AtomicContext
 from ..lib.write_hooks import flush_pending_writes
@@ -234,10 +235,21 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
         reg = None
 
     now_ms = int(time.time() * 1000)
+
+    _DEPTH_BY_TYPE = {
+        PageType.SOURCE: "source",
+        PageType.ENTITY: "entity",
+        PageType.CONCEPT: "concept",
+        PageType.SYNTHESIS: "synthesis",
+    }
+
     for page in pages:
         if page.grade not in ("A", "B", "C"):
             page.grade = "B"
-        if page.processing_depth not in ("concept", "memory", "stub"):
+        _depth = _DEPTH_BY_TYPE.get(page.type)
+        if _depth:
+            page.processing_depth = _depth
+        elif page.processing_depth not in ("concept", "memory", "stub"):
             page.processing_depth = "concept"
         if page.id:
             page.id = page.id.strip()
@@ -319,17 +331,20 @@ _logger = logging.getLogger(__name__)
 # src.pipeline package namespace, which is what propagates the patch.
 
 
-async def run_ingest(
+async def generate_ingest(
     paths: WikiPaths,
     source_path,
     source_text: str,
     provider,
     folder_context: str = "",
     task_id: str = "test",
-) -> list[WikiPage]:
-    """Run full 2-step pipeline + write pages + update index + log.
+):
+    """Phase 1 (NDG split): LLM processing only — ZERO disk writes.
 
-    Returns list of generated WikiPage objects.
+    Returns (pages, extra_pages, meta) where meta is a dict with keys
+    ``analysis``, ``source_slug``, ``source_page_id``, ``source_grade``,
+    ``downstream_count``, ``extra_pages_count``, ``rejected``, ``warnings``.
+    The caller is responsible for calling ``commit_ingest`` to persist.
     """
     # No pre-flight work needed: the 2026-07 cleanup removed the Inbox
     # staging layer. The collector reads ``raw/sources/<file>`` directly
@@ -870,11 +885,37 @@ async def run_ingest(
     pages = [p for p in pages if p.id in _keep_ids]
     extra_pages = [p for p in extra_pages if p.id in _keep_ids]
 
-    # Atomic write all pages + index update + log
+    meta = {
+        "analysis": analysis,
+        "source_slug": source_slug,
+        "source_page_id": source_slug,
+        "source_grade": _source_grade,
+        "downstream_count": _downstream_count,
+        "extra_pages_count": len(extra_pages),
+        "rejected": [],
+        "warnings": [],
+    }
+    return pages, extra_pages, meta
+
+
+async def commit_ingest(
+    paths: WikiPaths,
+    source_path,
+    pages: list[WikiPage],
+    extra_pages: list[WikiPage] | None = None,
+    task_id: str = "test",
+):
+    """Phase 2 (NDG split): write pages + index update + log.
+
+    The I/O half that was previously at the tail of ``run_ingest``.
+    ``extra_pages`` are pre-existing pages that gained inverse edges
+    (written to disk but NOT re-appended to the index).
+    """
+    _extra = extra_pages or []
     with AtomicContext(flush_callback=flush_pending_writes):
         for page in pages:
             write_page(paths, page)
-        for page in extra_pages:
+        for page in _extra:
             write_page(paths, page)
         append_to_index(
             paths,
@@ -887,6 +928,34 @@ async def run_ingest(
             detail=f"generated {len(pages)} pages from {Path(str(source_path)).name}",
         )
 
+
+async def run_ingest(
+    paths: WikiPaths,
+    source_path,
+    source_text: str,
+    provider,
+    folder_context: str = "",
+    task_id: str = "test",
+) -> list[WikiPage]:
+    """Run full pipeline (generate + commit). Behaviour-preserving wrapper.
+
+    Returns list of generated WikiPage objects.
+    """
+    pages, extra_pages, _meta = await generate_ingest(
+        paths=paths,
+        source_path=source_path,
+        source_text=source_text,
+        provider=provider,
+        folder_context=folder_context,
+        task_id=task_id,
+    )
+    await commit_ingest(
+        paths=paths,
+        source_path=source_path,
+        pages=pages,
+        extra_pages=extra_pages,
+        task_id=task_id,
+    )
     return pages
 
 
