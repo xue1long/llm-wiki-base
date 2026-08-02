@@ -22,6 +22,8 @@ from src.permissions import AgentType
 
 KNOWLEDGE_CREATE = "knowledge:create"
 KNOWLEDGE_UPDATE = "knowledge:update"
+RAW_CREATE = "raw:create"
+RAW_READ = "raw:read"
 
 # ---------------------------------------------------------------------------
 # PermissionEngine — thin wrapper over src.permissions agent model
@@ -32,7 +34,7 @@ _AGENT_KNOWLEDGE_PERMISSIONS: dict[AgentType, set[str]] = {
     AgentType.PROCESSOR:    {KNOWLEDGE_CREATE, KNOWLEDGE_UPDATE},
     AgentType.LIBRARIAN:    {KNOWLEDGE_CREATE, KNOWLEDGE_UPDATE},
     AgentType.SEARCHER:     set(),
-    AgentType.COLLECTOR:    set(),
+    AgentType.COLLECTOR:    {RAW_CREATE, RAW_READ},
 }
 
 
