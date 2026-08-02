@@ -55,6 +55,7 @@ from ..wiki.storage.page_writer import write_page
 from . import analyzer as _analyzer_module
 from . import generator as _generator_module
 from ._pipeline_common import clean_source_text
+from .prefilter import prefilter as _run_prefilter
 from .retry import retry_with_backoff, RetryExhausted, PermanentFailure, CircuitBreakerOpen
 
 
@@ -1464,6 +1465,52 @@ async def run_ingest(
     import time as _time
     _started_at = int(_time.time() * 1000)
 
+    # D3: Rule-based document pre-filtering — runs before any LLM work.
+    # Evaluates file size, sanitizer quality, list density, and language
+    # to decide whether to process, skip, or downgrade the document.
+    from .sanitizer import sanitize as _prefilter_sanitize
+
+    _pf_sanitize_result = _prefilter_sanitize(source_text)
+    _pf_file_size = len(source_text.encode("utf-8"))
+    _prefilter_result = _run_prefilter(
+        source_text=_pf_sanitize_result.text,
+        file_size=_pf_file_size,
+        sanitizer_score=_pf_sanitize_result.quality_score,
+    )
+
+    if _prefilter_result.action == "skip":
+        _logger.info(
+            "[run_ingest] prefilter skip: %s — %s",
+            source_path, _prefilter_result.reason,
+        )
+        return []
+
+    if _prefilter_result.action == "source_only":
+        _logger.info(
+            "[run_ingest] prefilter source_only: %s — %s",
+            source_path, _prefilter_result.reason,
+        )
+        _pf_pages = _create_source_only_page(
+            paths, source_path, source_text, task_id,
+            reason=_prefilter_result.reason,
+        )
+        await commit_ingest(
+            paths=paths,
+            source_path=source_path,
+            pages=_pf_pages,
+            task_id=task_id,
+        )
+        return _pf_pages
+
+    if _prefilter_result.action == "reference_list":
+        _logger.info(
+            "[run_ingest] prefilter reference_list density=%.2f: %s",
+            _prefilter_result.metadata.get("list_density", 0.0),
+            source_path,
+        )
+        # Proceed to generate_ingest; C3's detect_reference_list_density
+        # already handles list-heavy documents by suppressing stubs.
+
     # C1: wrap generate_ingest with retry-awareness.  If the LLM is
     # unreachable (circuit breaker OPEN, all retries exhausted, 422
     # content moderation), fall back to a source-only stub page.
@@ -1491,6 +1538,12 @@ async def run_ingest(
             pages=_source_only_pages,
             task_id=task_id,
         )
+        # D2: record failed-verdict metrics
+        _duration = (int(_time.time() * 1000) - _started_at) / 1000.0
+        _fail_reason = type(_retry_exc).__name__.lower()
+        from ..metrics import INGEST_DURATION_SECONDS, INGEST_VERDICT_TOTAL
+        INGEST_DURATION_SECONDS.observe(_duration, verdict="failed")
+        INGEST_VERDICT_TOTAL.inc(verdict="failed", reason=_fail_reason)
         return _source_only_pages
 
     # Handle the case where generate_ingest succeeded but produced no
@@ -1509,6 +1562,12 @@ async def run_ingest(
             pages=_source_only_pages,
             task_id=task_id,
         )
+        # D2: record rejected-verdict metrics
+        _duration = (int(_time.time() * 1000) - _started_at) / 1000.0
+        _reject_reason = _meta.get("reason", "unknown")
+        from ..metrics import INGEST_DURATION_SECONDS, INGEST_VERDICT_TOTAL
+        INGEST_DURATION_SECONDS.observe(_duration, verdict="rejected")
+        INGEST_VERDICT_TOTAL.inc(verdict="rejected", reason=_reject_reason)
         return _source_only_pages
 
     await commit_ingest(
@@ -1546,6 +1605,14 @@ async def run_ingest(
             from ..metrics import INGEST_CANDIDATE_REJECTED_TOTAL
             _reason_label = _verdict_reason[:80] if _verdict_reason else "unknown"
             INGEST_CANDIDATE_REJECTED_TOTAL.inc(reason=_reason_label)
+
+        # D2: record ingest duration histogram + verdict counter
+        _duration_sec = (_finished_at - _started_at) / 1000.0
+        _d2_verdict = "success" if _verdict == "validated" else "rejected"
+        _d2_reason = _verdict_reason or ""
+        from ..metrics import INGEST_DURATION_SECONDS, INGEST_VERDICT_TOTAL
+        INGEST_DURATION_SECONDS.observe(_duration_sec, verdict=_d2_verdict)
+        INGEST_VERDICT_TOTAL.inc(verdict=_d2_verdict, reason=_d2_reason)
 
         from .ingest_report import build_report, write_ingest_report
         _report = build_report(

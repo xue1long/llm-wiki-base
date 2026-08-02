@@ -232,7 +232,7 @@ class TestShadowModeInRunIngest:
             run_ingest(
                 paths=paths,
                 source_path=src_file,
-                source_text="# Test\nContent here.",
+                source_text="# 测试标题\n中文内容段落。这是用于测试的中文文档。" * 3,
                 provider=provider,
                 task_id="kb-shadow-e2e",
             )
@@ -270,7 +270,7 @@ class TestShadowModeInRunIngest:
             run_ingest(
                 paths=paths,
                 source_path=src_file,
-                source_text="# Test",
+                source_text="# 测试标题\n中文内容段落。用于通过预过滤器的测试文档。" * 3,
                 provider=provider,
                 task_id="kb-no-shadow",
             )
@@ -309,7 +309,7 @@ class TestShadowModeInRunIngest:
             run_ingest(
                 paths=paths,
                 source_path=src_file,
-                source_text="# Test",
+                source_text="# 测试标题\n中文内容段落。用于通过预过滤器的测试文档。" * 3,
                 provider=provider,
                 task_id="kb-shadow-fail",
             )

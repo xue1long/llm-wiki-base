@@ -224,9 +224,9 @@ async def test_run_ingest_equals_generate_plus_commit(tmp_path: Path) -> None:
     # Same absolute source path (outside both project roots → same slug hash
     # and same `sources` normalisation for both runs).
     raw = tmp_path / "shared-doc.md"
-    raw.write_text("这是一段用于测试的共享源文档内容。", encoding="utf-8")
+    raw.write_text("这是一段用于测试的共享源文档内容，包含足够的中文字符以通过预过滤器检查。" * 3, encoding="utf-8")
 
-    source_text = "这是一段用于测试的共享源文档内容。"
+    source_text = "这是一段用于测试的共享源文档内容，包含足够的中文字符以通过预过滤器检查。" * 3
 
     # Via run_ingest (project A).
     provider_a = ScriptedLLMProvider([dict(x) for x in _CONCEPT_SCRIPT])

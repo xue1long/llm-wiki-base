@@ -51,3 +51,45 @@ def test_metrics_endpoint_includes_ruflo_ingest_total() -> None:
     r = _client().get("/metrics")
     assert r.status_code == 200
     assert "ruflo_ingest_total" in r.text, f"counter not in response: {r.text}"
+
+
+def test_metrics_endpoint_includes_ingest_duration_histogram() -> None:
+    """D2: INGEST_DURATION_SECONDS histogram appears in /metrics with correct buckets."""
+    from src.metrics import INGEST_DURATION_SECONDS
+    from src.metrics.registry import MetricsRegistry
+
+    MetricsRegistry.reset_values()
+    INGEST_DURATION_SECONDS.observe(45.0, verdict="success")
+
+    r = _client().get("/metrics")
+    assert r.status_code == 200
+    assert "ruflo_ingest_duration_seconds" in r.text, (
+        f"histogram not in response: {r.text[:500]}"
+    )
+    assert "# TYPE ruflo_ingest_duration_seconds histogram" in r.text
+    assert 'ruflo_ingest_duration_seconds_bucket{le="30"' in r.text
+    assert 'ruflo_ingest_duration_seconds_bucket{le="60"' in r.text
+    assert 'ruflo_ingest_duration_seconds_bucket{le="600"' in r.text
+    assert 'ruflo_ingest_duration_seconds_bucket{le="+Inf"' in r.text
+
+
+def test_metrics_endpoint_includes_ingest_verdict_counter() -> None:
+    """D2: INGEST_VERDICT_TOTAL counter appears in /metrics response."""
+    from src.metrics import INGEST_VERDICT_TOTAL
+    from src.metrics.registry import MetricsRegistry
+
+    MetricsRegistry.reset_values()
+    INGEST_VERDICT_TOTAL.inc(verdict="success", reason="")
+    INGEST_VERDICT_TOTAL.inc(verdict="failed", reason="api_error")
+
+    r = _client().get("/metrics")
+    assert r.status_code == 200
+    assert "ruflo_ingest_verdict_total" in r.text, (
+        f"counter not in response: {r.text[:500]}"
+    )
+    assert "# TYPE ruflo_ingest_verdict_total counter" in r.text
+    # Success verdict with empty reason
+    assert 'verdict="success"' in r.text
+    # Failed verdict with api_error reason
+    assert 'verdict="failed"' in r.text
+    assert 'reason="api_error"' in r.text

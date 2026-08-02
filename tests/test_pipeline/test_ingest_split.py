@@ -165,25 +165,35 @@ async def test_commit_ingest_rejected_log(tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_run_ingest_hard_reject_writes_rejected_log(tmp_path: Path, monkeypatch):
-    """run_ingest hard-reject must write a 'rejected' audit event (legacy compat)."""
+    """generate_ingest hard-reject must write a 'rejected' audit event via commit_ingest.
+
+    The prefilter in run_ingest() now intercepts degraded sources before they
+    reach generate_ingest.  This test calls generate_ingest + commit_ingest
+    directly to exercise the SKIP_LLM path without triggering the prefilter.
+    """
     monkeypatch.setenv("RUFLO_SANITIZER_SKIP_LLM", "1")
 
     ensure_knowledge_base(tmp_path)
     paths = WikiPaths(tmp_path)
     raw = paths.raw_sources / "junk.txt"
     raw.parent.mkdir(parents=True, exist_ok=True)
-    raw.write_text("junk", encoding="utf-8")
+    raw.write_text("x", encoding="utf-8")  # < 5 chars → should_skip_llm = True
 
     provider = ScriptedLLMProvider([])
 
-    pages = await run_ingest(
+    pages, extra, meta = await generate_ingest(
         paths=paths, source_path=raw,
-        source_text="junk", provider=provider,
+        source_text="x", provider=provider,
     )
 
+    assert meta["rejected"] is True
     assert len(pages) == 1
     assert pages[0].grade == "C"
     assert pages[0].type == PageType.SOURCE
+
+    # No disk writes yet (generate_ingest contract).
+    # Commit explicitly.
+    await commit_ingest(paths, raw, pages, extra, task_id="t-rej")
 
     # Page + index + rejected log exist
     assert list(paths.wiki_sources.glob("*.md"))

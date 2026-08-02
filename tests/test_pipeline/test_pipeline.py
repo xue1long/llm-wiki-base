@@ -2,6 +2,9 @@ import asyncio
 import pytest
 from src.shared.test_helpers import ScriptedLLMProvider
 from src.pipeline.pipeline import run_ingest
+
+# Minimum 100 bytes of Chinese text to pass the D3 prefilter.
+_PREFILTER_PAD = "这是一段用于测试的中文源文档内容，包含足够的信息。" * 3  # ~180 bytes
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths
 from src.wiki.core.types import PageType
@@ -38,7 +41,7 @@ async def test_run_ingest_full_pipeline(tmp_path):
     ])
 
     pages = await run_ingest(
-        paths=p, source_path=raw, source_text="PDF content about backprop",
+        paths=p, source_path=raw, source_text="反向传播算法是训练神经网络的核心方法。" + _PREFILTER_PAD,
         provider=provider,
     )
     # Deterministic source-page slug rewrites LLM's "test" to "test-<hash>".
@@ -85,7 +88,7 @@ async def test_collector_done_triggers_run_ingest(tmp_path, monkeypatch):
     task.status = TaskStatus.RUNNING
     service.backend.save(task)
     service.tracker.acquire(task_id)
-    payload = CollectorDonePayload(task_id=task_id, raw_path=str(raw), content="content")
+    payload = CollectorDonePayload(task_id=task_id, raw_path=str(raw), content="测试中文内容。" + _PREFILTER_PAD)
     await pipeline_mod._on_collector_done(payload)
     # Deterministic source-page slug: {stem}-{hash}
     source_page = next((p.wiki_sources.glob("x-*.md")), None)
@@ -125,7 +128,7 @@ async def test_run_ingest_kb_task_id_fallback_when_llm_omits_source_page(tmp_pat
     # raw file's stem with a short path-hash suffix.
     test_task_id = f"kb-test-{_uuid.uuid4().hex[:8]}"
     pages = await run_ingest(
-        paths=p, source_path=raw, source_text="content",
+        paths=p, source_path=raw, source_text="测试内容。" + _PREFILTER_PAD,
         provider=provider, task_id=test_task_id,
     )
     page_ids = {p.id for p in pages}
@@ -164,7 +167,7 @@ async def test_source_page_uses_chinese_stem_with_path_hash(tmp_path):
         {"pages": []},
     ])
     pages = await run_ingest(
-        paths=p, source_path=raw, source_text="body",
+        paths=p, source_path=raw, source_text="中文文档正文内容。" + _PREFILTER_PAD,
         provider=provider, task_id="kb-test-stem",
     )
     page = next(p for p in pages if p.type == PageType.SOURCE)
@@ -200,7 +203,7 @@ async def test_source_page_title_strips_md_suffix(tmp_path):
         {"pages": []},
     ])
     pages = await run_ingest(
-        paths=p, source_path=raw, source_text="body",
+        paths=p, source_path=raw, source_text="中文文档正文内容。" + _PREFILTER_PAD,
         provider=provider, task_id="kb-test-title",
     )
     page = next(p for p in pages if p.type == PageType.SOURCE)
@@ -224,7 +227,7 @@ async def test_source_page_id_stable_across_reingest(tmp_path, monkeypatch):
         {"pages": []},
     ])
     pages1 = await run_ingest(
-        paths=p, source_path=raw, source_text="body",
+        paths=p, source_path=raw, source_text="中文文档正文内容。" + _PREFILTER_PAD,
         provider=provider1, task_id="kb-test-stable-1",
     )
     source1 = next(p for p in pages1 if p.type == PageType.SOURCE)
@@ -239,7 +242,7 @@ async def test_source_page_id_stable_across_reingest(tmp_path, monkeypatch):
         {"pages": []},
     ])
     pages2 = await run_ingest(
-        paths=p, source_path=raw, source_text="body",
+        paths=p, source_path=raw, source_text="中文文档正文内容。" + _PREFILTER_PAD,
         provider=provider2, task_id="kb-test-stable-2",
     )
     source2 = next(p for p in pages2 if p.type == PageType.SOURCE)
@@ -398,7 +401,7 @@ async def test_run_batch_ingest_processes_multiple_files(tmp_path):
     for i in range(3):
         f = p.raw_sources / f"doc{i}.md"
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(f"Content of document {i}", encoding="utf-8")
+        f.write_text(f"第{i}篇中文测试文档的内容。" + _PREFILTER_PAD, encoding="utf-8")
         files.append(f)
 
     # Each file gets one unified response with all required slots filled
@@ -440,7 +443,7 @@ async def test_run_batch_ingest_exception_isolation(tmp_path):
     for i in range(3):
         f = p.raw_sources / f"doc{i}.md"
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(f"Content {i}", encoding="utf-8")
+        f.write_text(f"第{i}篇中文测试文档。" + _PREFILTER_PAD, encoding="utf-8")
         files.append(f)
 
     # File 1 (doc1.md) will fail — provider raises on EVERY call for it.
