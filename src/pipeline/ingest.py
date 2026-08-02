@@ -397,12 +397,27 @@ async def _write_rejected_source_page(
         grade="C",
     )
 
-    async with AtomicContext() as ctx:
+    with AtomicContext() as ctx:
         write_page(paths, page, ctx)
         append_to_index(paths, page, ctx)
         log_event(paths, "rejected", page.id, {"reason": result.warnings}, ctx)
 
     return [page]
+
+
+def _create_review_item(candidate, review_result, paths, task_id):
+    """Create a ReviewItem for a NEEDS_HUMAN_REVIEW candidate."""
+    from ..wiki.features.review import add_review
+    add_review(
+        paths,
+        type="candidate_review",
+        title=candidate.title,
+        detail=review_result.reason,
+        confidence=candidate.confidence,
+        source_task_id=task_id,
+        search_queries=[],
+        page_path="",
+    )
 
 
 _logger = logging.getLogger(__name__)
@@ -492,50 +507,183 @@ async def generate_ingest(
     )
     _source_slug_map = {str(source_path): _source_slug_for_map}
 
-    # Unified path: single LLM call (Analyzer + Generator merged).
-    # Falls back to two-step on failure.
-    analysis = None  # type: ignore[assignment]
-    pages: list[WikiPage] = []
-    try:
-        from .generator import unified_generate
-        pages = await unified_generate(
-            source_text=_sanitized_source_text,
-            source_path=str(source_path),
-            folder_context=folder_context or "",
-            paths=paths,
-            existing_wiki_index=_existing_wiki_index,
-            provider=provider,
-            source_slug_map=_source_slug_map,
+    # --- Pipeline mode selection ---
+    _pipeline_mode = __import__("os").environ.get("RUFLO_PIPELINE_MODE", "candidate")
+
+    if _pipeline_mode == "candidate":
+        # ==================================================================
+        # New path: json analyzer → Reviewer → Promoter → generate_from_candidate
+        # ==================================================================
+        analysis = None  # type: ignore[assignment]
+        pages: list[WikiPage] = []
+
+        # Step 1: JSON analyzer → KnowledgeCandidate
+        from ..knowledge.core.candidate import KnowledgeCandidate as _KC
+        _raw_result = await _with_llm_timeout(
+            _analyze(
+                source_text=_sanitized_source_text,
+                source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
+                existing_wiki_index=_existing_wiki_index,
+                folder_context=folder_context,
+                provider=provider,
+                task_id=task_id,
+                source_path=str(source_path),
+                output_format="json",
+            ),
+            timeout=180.0,
+            op="analyzer (json)",
         )
-        _logger.info(
-            "[run_ingest] unified path produced %d pages for %s",
-            len(pages), source_path,
+
+        # If analyze was monkeypatched to return AnalysisResult (legacy test
+        # stubs), fall back to the two-step path transparently.
+        if not isinstance(_raw_result, _KC):
+            import warnings as _w
+            _w.warn(
+                "analyze() returned AnalysisResult instead of KnowledgeCandidate; "
+                "falling back to legacy two-step path. "
+                "Update stubs to return KnowledgeCandidate when output_format='json'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            analysis = _raw_result  # type: ignore[assignment]
+            pages = await _generate(
+                paths=paths,
+                analysis=analysis,
+                existing_wiki_index=_existing_wiki_index,
+                provider=provider,
+                source_slug_map=_source_slug_map,
+                source_text=_sanitized_source_text,
+            )
+            _logger.info(
+                "[run_ingest] legacy fallback produced %d pages for %s",
+                len(pages), source_path,
+            )
+            # Jump to quality gate / source page generation below.
+            _has_fallback = True
+        else:
+            candidate = _raw_result
+            _has_fallback = False
+
+        if not _has_fallback:
+            # Step 2: Reviewer (4 rule checks)
+            from .stages.reviewer import ReviewerStage
+            reviewer = ReviewerStage()
+            result = reviewer.review(candidate, paths.root)
+
+            if result.status == "rejected":
+                _logger.warning("[run_ingest] candidate REJECTED: %s", result.reason)
+                meta = {
+                    "analysis": None,
+                    "source_slug": "",
+                    "source_page_id": "",
+                    "source_grade": "C",
+                    "downstream_count": 0,
+                    "extra_pages_count": 0,
+                    "rejected": True,
+                    "reason": result.reason,
+                    "warnings": [],
+                }
+                return [], [], meta
+
+            if result.status == "needs_human_review":
+                _logger.info("[run_ingest] candidate NEEDS_HUMAN_REVIEW: %s", result.reason)
+                _create_review_item(candidate, result, paths, task_id)
+                meta = {
+                    "analysis": None,
+                    "source_slug": "",
+                    "source_page_id": "",
+                    "source_grade": "C",
+                    "downstream_count": 0,
+                    "extra_pages_count": 0,
+                    "needs_review": True,
+                    "reason": result.reason,
+                    "warnings": [],
+                }
+                return [], [], meta
+
+            # Step 3: Promote Candidate → KnowledgeObject
+            from .stages.candidate_promoter import CandidatePromoter
+            promoter = CandidatePromoter()
+            try:
+                ko = promoter.promote(candidate)
+            except ValueError as _promote_err:
+                _logger.warning("[run_ingest] promotion failed: %s", _promote_err)
+                meta = {
+                    "analysis": None, "source_slug": "", "source_page_id": "",
+                    "source_grade": "C", "downstream_count": 0,
+                    "extra_pages_count": 0, "rejected": True,
+                    "reason": str(_promote_err), "warnings": [],
+                }
+                return [], [], meta
+
+            # Step 4: Generate pages from candidate
+            from .generator import generate_from_candidate
+            pages = await generate_from_candidate(
+                candidate=candidate,
+                paths=paths,
+                existing_wiki_index=_existing_wiki_index,
+                provider=provider,
+                source_slug_map=_source_slug_map,
+                source_text=_sanitized_source_text,
+            )
+            _logger.info(
+                "[run_ingest] candidate path produced %d pages for %s",
+                len(pages), source_path,
+            )
+    else:
+        # ==================================================================
+        # Legacy path: unified_generate (single-pass) or two-step fallback
+        # ==================================================================
+        import warnings
+        warnings.warn(
+            "Legacy pipeline mode is deprecated. "
+            "Set RUFLO_PIPELINE_MODE=candidate to use the new pipeline.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-        if not pages:
-            raise RuntimeError("unified path returned 0 pages")
-    except Exception as _unified_err:
-        _logger.warning(
-            "[run_ingest] unified path failed (%s), falling back to two-step",
-            _unified_err,
-        )
-        # Fallback: original two-step Analyze → Generate
-        analysis = await _analyze(
-            source_text=_sanitized_source_text,
-            source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
-            existing_wiki_index=_existing_wiki_index,
-            folder_context=folder_context,
-            provider=provider,
-            task_id=task_id,
-            source_path=str(source_path),
-        )
-        pages = await _generate(
-            paths=paths,
-            analysis=analysis,
-            existing_wiki_index=_existing_wiki_index,
-            provider=provider,
-            source_slug_map=_source_slug_map,
-            source_text=_sanitized_source_text,
-        )
+
+        analysis = None  # type: ignore[assignment]
+        pages: list[WikiPage] = []
+        try:
+            from .generator import unified_generate
+            pages = await unified_generate(
+                source_text=_sanitized_source_text,
+                source_path=str(source_path),
+                folder_context=folder_context or "",
+                paths=paths,
+                existing_wiki_index=_existing_wiki_index,
+                provider=provider,
+                source_slug_map=_source_slug_map,
+            )
+            _logger.info(
+                "[run_ingest] unified path produced %d pages for %s",
+                len(pages), source_path,
+            )
+            if not pages:
+                raise RuntimeError("unified path returned 0 pages")
+        except Exception as _unified_err:
+            _logger.warning(
+                "[run_ingest] unified path failed (%s), falling back to two-step",
+                _unified_err,
+            )
+            # Fallback: original two-step Analyze → Generate
+            analysis = await _analyze(
+                source_text=_sanitized_source_text,
+                source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
+                existing_wiki_index=_existing_wiki_index,
+                folder_context=folder_context,
+                provider=provider,
+                task_id=task_id,
+                source_path=str(source_path),
+            )
+            pages = await _generate(
+                paths=paths,
+                analysis=analysis,
+                existing_wiki_index=_existing_wiki_index,
+                provider=provider,
+                source_slug_map=_source_slug_map,
+                source_text=_sanitized_source_text,
+            )
 
     # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.
     # Default OFF (QualitySettings.enabled=False) — must be explicitly
@@ -628,6 +776,7 @@ async def generate_ingest(
     # Render via the bundled source.md template. Falls back to the
     # legacy inline body if the template is missing (operator deleted
     # bundled file).
+    _has_analysis = analysis is not None
     try:
         from ..wiki.templates import render_body
         source_tpl = resolve_template(PageType.SOURCE, paths.root)
@@ -638,7 +787,6 @@ async def generate_ingest(
         #
         # Unified path (analysis=None): extract summary from the
         # already-generated source page if the LLM produced one.
-        _has_analysis = analysis is not None
         key_facts = list(analysis.key_facts or []) if _has_analysis else []
         if key_facts:
             key_points_value: list[str] | str = [

@@ -30,6 +30,13 @@ from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.storage.page_writer import write_page
 
 
+@pytest.fixture(autouse=True)
+def _legacy_pipeline_mode(monkeypatch):
+    """These tests were written for the legacy pipeline path.
+    Force legacy mode so they don't enter the candidate path."""
+    monkeypatch.setenv("RUFLO_PIPELINE_MODE", "legacy")
+
+
 def _snapshot_tree(root: Path) -> dict[str, str]:
     """Return {relative_posix_path: content} for every file under *root*."""
     out: dict[str, str] = {}

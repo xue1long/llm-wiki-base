@@ -15,6 +15,13 @@ from src.shared.test_helpers import ScriptedLLMProvider
 from src.pipeline.ingest import generate_ingest, commit_ingest, run_ingest
 
 
+@pytest.fixture(autouse=True)
+def _legacy_pipeline_mode(monkeypatch):
+    """These tests were written for the legacy pipeline path.
+    Force legacy mode so they don't enter the candidate path."""
+    monkeypatch.setenv("RUFLO_PIPELINE_MODE", "legacy")
+
+
 # ---------------------------------------------------------------------------
 # generate_ingest disk-write safety
 # ---------------------------------------------------------------------------

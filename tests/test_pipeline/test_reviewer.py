@@ -60,7 +60,7 @@ class TestReviewerValidCandidate:
         candidate = _make_valid_candidate(tmp_path)
         result = stage.review(candidate, tmp_path)
 
-        assert result.status == "VALIDATED"
+        assert result.status == "validated"
         assert len(result.checks_failed) == 0
         assert len(result.checks_passed) == 4
         assert "schema_compliance" in result.checks_passed
@@ -79,7 +79,7 @@ class TestReviewerSchemaCompliance:
         candidate = _make_valid_candidate(tmp_path, source_id="")
         result = stage.review(candidate, tmp_path)
 
-        assert result.status == "REJECTED"
+        assert result.status == "rejected"
         assert "schema_compliance" in result.checks_failed
         assert "source_id" in result.reason.lower()
 
@@ -97,7 +97,7 @@ class TestReviewerEvidenceExistence:
         )
         result = stage.review(candidate, tmp_path)
 
-        assert result.status == "REJECTED"
+        assert result.status == "rejected"
         assert "evidence_existence" in result.checks_failed
 
     def test_claim_with_out_of_bounds_evidence_ref_rejected(self, tmp_path):
@@ -110,7 +110,7 @@ class TestReviewerEvidenceExistence:
         )
         result = stage.review(candidate, tmp_path)
 
-        assert result.status == "REJECTED"
+        assert result.status == "rejected"
         assert "evidence_existence" in result.checks_failed
 
 
@@ -132,7 +132,7 @@ class TestReviewerReferenceConsistency:
         )
         result = stage.review(candidate, tmp_path)
 
-        assert result.status == "REJECTED"
+        assert result.status == "rejected"
         assert "reference_consistency" in result.checks_failed
 
 
@@ -146,7 +146,7 @@ class TestReviewerConfidenceThreshold:
         candidate = _make_valid_candidate(tmp_path, confidence=0.3)
         result = stage.review(candidate, tmp_path)
 
-        assert result.status == "REJECTED"
+        assert result.status == "rejected"
         assert "confidence_threshold" in result.checks_failed
 
     def test_confidence_0_6_needs_human_review(self, tmp_path):
@@ -156,7 +156,7 @@ class TestReviewerConfidenceThreshold:
         candidate = _make_valid_candidate(tmp_path, confidence=0.6)
         result = stage.review(candidate, tmp_path)
 
-        assert result.status == "NEEDS_HUMAN_REVIEW"
+        assert result.status == "needs_human_review"
         assert "confidence_threshold" in result.checks_failed
         assert "between" in result.reason.lower()
 
@@ -167,7 +167,7 @@ class TestReviewerConfidenceThreshold:
         candidate = _make_valid_candidate(tmp_path, confidence=0.9)
         result = stage.review(candidate, tmp_path)
 
-        assert result.status == "VALIDATED"
+        assert result.status == "validated"
         assert "confidence_threshold" in result.checks_passed
 
 

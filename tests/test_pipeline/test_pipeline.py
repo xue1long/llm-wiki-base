@@ -12,6 +12,13 @@ from src.utils.idempotency import get_idempotency_cache
 import src.pipeline.pipeline as pipeline_mod
 
 
+@pytest.fixture(autouse=True)
+def _legacy_pipeline_mode(monkeypatch):
+    """These tests were written for the legacy pipeline (unified_generate /
+    two-step). Force legacy mode so they don't enter the candidate path."""
+    monkeypatch.setenv("RUFLO_PIPELINE_MODE", "legacy")
+
+
 @pytest.mark.asyncio
 async def test_run_ingest_full_pipeline(tmp_path):
     ensure_knowledge_base(tmp_path)

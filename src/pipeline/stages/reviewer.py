@@ -101,7 +101,7 @@ class ReviewerStage:
         # Determine final status: structural failures override confidence
         structural_failures = {"schema_compliance", "evidence_existence", "reference_consistency"}
         if structural_failures & set(failed):
-            status = "REJECTED"
+            status = "rejected"
         else:
             status = confidence_status
 
@@ -120,16 +120,21 @@ class ReviewerStage:
         )
 
         # --- Mutate candidate status ---
-        try:
-            candidate.status = CandidateStatus(status)
-        except ValueError:
-            candidate.status = CandidateStatus.REJECTED
+        # Map result status to CandidateStatus enum. "needs_human_review"
+        # is not a CandidateStatus value — the candidate stays PENDING
+        # until a human explicitly approves or rejects it.
+        _status_map: dict[str, CandidateStatus] = {
+            "validated": CandidateStatus.VALIDATED,
+            "rejected": CandidateStatus.REJECTED,
+            "needs_human_review": CandidateStatus.PENDING,
+        }
+        candidate.status = _status_map.get(status, CandidateStatus.REJECTED)
 
         # --- Cache for idempotency ---
         self._cache.put(candidate.id, result)
 
         # --- Emit event for downstream stages ---
-        if status == "VALIDATED":
+        if status == "validated":
             event_bus.emit("candidate:validated", {
                 "candidate": candidate,
                 "result": result,
@@ -216,13 +221,13 @@ class ReviewerStage:
         if c < 0.5:
             failed.append("confidence_threshold")
             reasons.append(f"Confidence {c} is below minimum threshold (0.5)")
-            return "REJECTED"
+            return "rejected"
         elif c < 0.7:
             failed.append("confidence_threshold")
             reasons.append(
                 f"Confidence {c} is between 0.5 and 0.7 — needs human review"
             )
-            return "NEEDS_HUMAN_REVIEW"
+            return "needs_human_review"
         else:
             passed.append("confidence_threshold")
-            return "VALIDATED"
+            return "validated"

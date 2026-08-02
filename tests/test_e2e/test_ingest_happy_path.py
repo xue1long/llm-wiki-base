@@ -65,6 +65,10 @@ def stub_llm_pipeline(monkeypatch):
     produce so the test can assert against it."""
     from src.pipeline import pipeline as pipeline_module
 
+    # Force legacy mode — the new candidate path (default) bypasses the
+    # monkeypatched analyze/generate and would need a real LLM provider.
+    monkeypatch.setenv("RUFLO_PIPELINE_MODE", "legacy")
+
     canned_page = WikiPage(
         id="card_e2e_smoke_001",
         title="E2E Smoke Test",
