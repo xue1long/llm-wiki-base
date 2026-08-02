@@ -12,6 +12,22 @@ class PageType(str, Enum):
     ENTITY = "entity"
     CONCEPT = "concept"
     SYNTHESIS = "synthesis"
+    CLAIM = "claim"
+    DECISION = "decision"
+    PROCEDURE = "procedure"
+    EVENT = "event"
+
+
+_TYPE_TO_DIR: dict[PageType, str] = {
+    PageType.SOURCE: "wiki_sources",
+    PageType.ENTITY: "wiki_entities",
+    PageType.CONCEPT: "wiki_concepts",
+    PageType.SYNTHESIS: "wiki_synthesis",
+    PageType.CLAIM: "wiki_claims",
+    PageType.DECISION: "wiki_decisions",
+    PageType.PROCEDURE: "wiki_concepts",
+    PageType.EVENT: "wiki_concepts",
+}
 
 
 class EventName:

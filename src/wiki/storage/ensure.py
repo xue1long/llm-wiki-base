@@ -16,6 +16,8 @@ def ensure_knowledge_base(root: Path | str) -> WikiPaths:
         paths.wiki_entities,
         paths.wiki_concepts,
         paths.wiki_synthesis,
+        paths.wiki_claims,
+        paths.wiki_decisions,
         paths.wiki_stubs,
         paths.raw_sources,
         paths.index,
