@@ -290,8 +290,9 @@ async def _write_rejected_source_page(
     _t = _time.localtime()
     _stem = Path(str(source_path)).stem if hasattr(source_path, "stem") else str(source_path)
     _norm = unicodedata.normalize("NFC", _stem)
+    _slug_stem = slugify(_norm)
     _hash = hashlib.md5(str(source_path).encode("utf-8")).hexdigest()[:8]
-    _slug = f"{_norm}-{_hash}"
+    _slug = f"{_slug_stem}-{_hash}"
 
     body = (
         f"## 来源\n\n"
@@ -389,12 +390,13 @@ async def generate_ingest(
         if hasattr(source_path, "stem") else str(source_path)
     )
     _norm_stem_for_slug = unicodedata.normalize("NFC", _raw_stem_for_slug)
+    _slug_stem_for_map = slugify(_norm_stem_for_slug)
     _path_hash_for_slug = hashlib.md5(
         str(source_path).encode("utf-8")
     ).hexdigest()[:8]
     _source_slug_for_map = (
-        f"{_norm_stem_for_slug}-{_path_hash_for_slug}"
-        if _norm_stem_for_slug else
+        f"{_slug_stem_for_map}-{_path_hash_for_slug}"
+        if _slug_stem_for_map else
         task_id if task_id.startswith("kb-") else f"kb-{task_id}"
     )
     _source_slug_map = {str(source_path): _source_slug_for_map}
@@ -525,11 +527,12 @@ async def generate_ingest(
         if hasattr(source_path, "stem") else str(source_path)
     )
     norm_stem = unicodedata.normalize("NFC", raw_stem)
+    slug_stem = slugify(norm_stem)
     path_hash = hashlib.md5(str(source_path).encode("utf-8")).hexdigest()[:8]
-    source_slug = f"{norm_stem}-{path_hash}" if norm_stem else (
+    source_slug = f"{slug_stem}-{path_hash}" if slug_stem else (
         task_id if task_id.startswith("kb-") else f"kb-{task_id}"
     )
-    source_title = norm_stem
+    source_title = norm_stem.replace("_", " ")
 
     # Render via the bundled source.md template. Falls back to the
     # legacy inline body if the template is missing (operator deleted
@@ -751,6 +754,12 @@ async def generate_ingest(
             referenced_slugs.add(_strip_type_prefix(_slugify(_tgt) or _tgt))
 
     produced_slugs = {p.id for p in pages}
+    # 兜底：LLM 可能引用 source page 标题但不带 -<8hex> hash 后缀，
+    # 加入去 hash 变体确保 referenced_slugs 能匹配 produced_slugs
+    for sid in list(produced_slugs):
+        no_hash = re.sub(r"-[0-9a-f]{8}$", "", sid)
+        if no_hash != sid:
+            produced_slugs.add(no_hash)
     # Existing wiki pages (across all four type directories) — reuse the
     # index scanned at the top of run_ingest (_existing_wiki). The previous
     # implementation built attribute names via f"wiki_{pt.value}s", which
