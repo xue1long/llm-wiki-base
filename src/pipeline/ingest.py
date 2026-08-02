@@ -73,25 +73,26 @@ def _get_max_stubs_per_ingest() -> int:
 
 # Slugs that should never get stub entity pages because they represent
 # platform / organisation / tool names rather than domain concepts.
+# Applied to stub creation, relation filtering, and body wikilink cleanup.
 # Extended via env var ``RUFLO_STUB_BLOCKLIST`` (comma-separated).
-_DEFAULT_STUB_BLOCKLIST: set[str] = {
+_DEFAULT_NOISE_BLOCKLIST: frozenset[str] = frozenset({
     "feishu-yunwendang",                  # 飞书云文档
     "beijing-shengdongfang-guoxin-keji-youxiangongsi",  # 北京圣东方国信科技有限公司
     "feishu",                              # 飞书
     "yunque",                              # 云雀
     "lark",                                # Lark (飞书国际版)
-}
+})
 
 
-def _get_stub_blocklist() -> frozenset[str]:
-    """Return the current stub blocklist (re-reads env var at call time)."""
+def _get_noise_blocklist() -> frozenset[str]:
+    """Return the current noise blocklist for stub + relation + body filtering."""
     extra = __import__("os").environ.get("RUFLO_STUB_BLOCKLIST", "")
     if extra:
         return frozenset(
-            _DEFAULT_STUB_BLOCKLIST
+            _DEFAULT_NOISE_BLOCKLIST
             | {s.strip() for s in extra.split(",") if s.strip()}
         )
-    return frozenset(_DEFAULT_STUB_BLOCKLIST)
+    return _DEFAULT_NOISE_BLOCKLIST
 
 
 # ---------------------------------------------------------------------------
@@ -264,6 +265,23 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
                 canonical = reg.get_canonical(rel.target_id)
                 if canonical and canonical != rel.target_id:
                     rel.target_id = canonical
+
+    # 过滤平台/组织噪音：relation 拦截 + body wikilink 清理
+    _noise = _get_noise_blocklist()
+    if _noise:
+        for page in pages:
+            # 2a. 过滤 relation（target_id 已被 Relation.from_dict slugify，直接字符串比较）
+            page.relations = [
+                rel for rel in page.relations
+                if rel.target_id not in _noise
+            ]
+            # 2b. 清除 body 中的噪音 wikilink（如 [[beijing-shengdongfang-...]]）
+            for _slug in _noise:
+                page.body = re.sub(
+                    r"\[\[" + re.escape(_slug) + r"(?:\|[^\]]*)?\]\]",
+                    "", page.body
+                )
+
     return pages
 
 
@@ -790,7 +808,7 @@ async def generate_ingest(
     missing = referenced_slugs - produced_slugs - existing_slugs
 
     # P2 quality gate: exclude non-domain slugs (platform names, org names).
-    _blocklist = _get_stub_blocklist()
+    _blocklist = _get_noise_blocklist()
     if _blocklist:
         filtered = missing - _blocklist  # type: ignore[operator]
         if len(filtered) < len(missing):
