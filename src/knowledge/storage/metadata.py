@@ -184,7 +184,11 @@ class PostgresMetadataStore(MetadataStore):
             row = cur.fetchone()
         if row is None:
             return None
-        fm = dict(row[0])  # JSONB deserialised to dict by psycopg2
+        fm_raw = row[0]
+        if isinstance(fm_raw, str):
+            fm = json.loads(fm_raw)
+        else:
+            fm = dict(fm_raw)  # JSONB deserialised to dict by psycopg2
         fm["body"] = row[1]
         return fm
 

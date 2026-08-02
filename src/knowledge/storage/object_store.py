@@ -278,6 +278,10 @@ class S3ObjectStore(ObjectStore):
             except Exception:
                 logger.exception("S3 presigned URL failed — using static URL")
 
+        # Delegate to local fallback when S3 client is unavailable
+        if self._fallback is not None:
+            return self._fallback.public_url(key)
+
         # Static fallback
         ep = self._endpoint.rstrip("/")
         return f"{ep}/{self._bucket}/{safe_key}"

@@ -29,6 +29,7 @@ getattr(_generator_module, "generate")). The compat shim that re-exports
 ``src.pipeline.pipeline`` is added in Task 10.
 """
 from __future__ import annotations
+import asyncio
 import hashlib
 import logging
 import re
@@ -54,6 +55,20 @@ from ..wiki.storage.page_writer import write_page
 from . import analyzer as _analyzer_module
 from . import generator as _generator_module
 from ._pipeline_common import clean_source_text
+
+
+async def _with_llm_timeout(coro, timeout: float, op: str):
+    """Wrap a coroutine with an asyncio timeout guard.
+
+    Returns the coroutine's value on success.  Raises ``RuntimeError``
+    (with a *timed out* message) when the timeout fires, and propagates
+    any inner exception unchanged.
+    """
+    try:
+        return await asyncio.wait_for(coro, timeout=timeout)
+    except asyncio.TimeoutError:
+        raise RuntimeError(f"LLM {op} timed out after {timeout}s")
+
 
 # ---------------------------------------------------------------------------
 # Stub quality gate (P2 optimization — 2026-07-29).
@@ -203,7 +218,7 @@ def _compute_reverse_relations(paths, pages):
         try:
             pg = read_page(f)
         except Exception:
-            logger.warning("Failed to read page %s for relation target", target_id, exc_info=True)
+            _logger.warning("Failed to read page %s for relation target", target_id, exc_info=True)
             return None
         extra[target_id] = pg
         return pg
@@ -224,6 +239,57 @@ def _compute_reverse_relations(paths, pages):
             target.relations = rels
 
     return list(extra.values())
+
+
+# ---------------------------------------------------------------------------
+# Missing-stub classification helpers
+# ---------------------------------------------------------------------------
+
+def _is_source_slug_variant(slug: str, source_hashes: set) -> bool:
+    """Return True when *slug* ends with an 8-hex tail matching a source hash."""
+    if not slug or not source_hashes:
+        return False
+    parts = slug.rsplit("-", 1)
+    if len(parts) != 2:
+        return False
+    tail = parts[1]
+    if len(tail) == 8 and all(c in "0123456789abcdef" for c in tail):
+        return tail in source_hashes
+    return False
+
+
+_TAG_PREFIXES = ("func-", "题材-", "genre-", "event-")
+_TYPE_PREFIXES = ("source-", "concept-", "entity-", "synthesis-")
+
+
+def _classify_missing_stubs(
+    missing: set[str], source_hashes: set[str],
+) -> tuple[set[str], set[str]]:
+    """Classify missing slugs into (create, suppressed).
+
+    Suppresses slugs that are source-page variants, tag-namespace names,
+    type-prefixed ids, *-entity* suffixes, or path-like raw slugs — these
+    are non-domain references that should not become stubs.  Clean entity
+    references go into *create*.
+    """
+    create: set[str] = set()
+    suppressed: set[str] = set()
+
+    for slug in missing:
+        if _is_source_slug_variant(slug, source_hashes):
+            suppressed.add(slug)
+        elif any(slug.startswith(p) for p in _TAG_PREFIXES):
+            suppressed.add(slug)
+        elif any(slug.startswith(p) for p in _TYPE_PREFIXES):
+            suppressed.add(slug)
+        elif slug.endswith("-entity"):
+            suppressed.add(slug)
+        elif slug.startswith("raw-") or "--" in slug or "-md-" in slug:
+            suppressed.add(slug)
+        else:
+            create.add(slug)
+
+    return create, suppressed
 
 
 def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[WikiPage]:
