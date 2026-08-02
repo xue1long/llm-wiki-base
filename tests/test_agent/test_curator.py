@@ -454,8 +454,8 @@ class TestCuratorAgentApplyProposal:
         page = read_page(page_path_for(populated_wiki, PageType.ENTITY, "low-qual-page"))
         assert page.grade == "B"
 
-    def test_apply_archive_sets_immutable(self, populated_wiki: WikiPaths):
-        """Applying an 'archive' proposal sets is_immutable on the page."""
+    def test_apply_archive_moves_to_archive_dir(self, populated_wiki: WikiPaths):
+        """Applying an 'archive' proposal moves the page to wiki/_archive/."""
         agent = CuratorAgent(populated_wiki, dry_run=False, auto_apply=False)
         agent.curate()
 
@@ -471,9 +471,12 @@ class TestCuratorAgentApplyProposal:
         result = agent2.apply_proposal(archive[0].id)
         assert result is True
 
-        # Verify page was updated
-        page = read_page(page_path_for(populated_wiki, PageType.CONCEPT, "zombie-page"))
-        assert page.is_immutable is True
+        # Verify page was moved to archive directory
+        archive_path = populated_wiki.wiki / "_archive" / "zombie-page.md"
+        assert archive_path.exists()
+        # Original location should be gone
+        original = page_path_for(populated_wiki, PageType.CONCEPT, "zombie-page")
+        assert not original.exists()
 
     def test_apply_already_applied_returns_false(self, populated_wiki: WikiPaths):
         """Applying an already-applied proposal returns False."""

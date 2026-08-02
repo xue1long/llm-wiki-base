@@ -143,7 +143,29 @@ async def _memory_search(arguments: dict) -> list[TextContent]:
     result = _memory_response_to_dict(response)
     if memory_type:
         result["filter_memory_type"] = memory_type
+        result["ranked_results"] = [
+            r for r in result.get("ranked_results", [])
+            if _result_matches_type(r, memory_type)
+        ]
     return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
+
+
+def _result_matches_type(result: dict, memory_type: str) -> bool:
+    """Check if a ranked result matches the requested memory type."""
+    source = result.get("source", "")
+    content = result.get("content", "")
+    title = result.get("title", "")
+    combined = f"{source} {title} {content}".lower()
+    type_keywords = {
+        "semantic": ["concept", "entity", "semantic", "knowledge"],
+        "episodic": ["event", "episodic", "experience", "incident"],
+        "decision": ["decision", "choice", "verdict", "resolution"],
+        "procedural": ["procedure", "how-to", "steps", "process", "method"],
+    }
+    keywords = type_keywords.get(memory_type, [])
+    if not keywords:
+        return True
+    return any(kw in combined for kw in keywords)
 
 
 async def _memory_recall(arguments: dict) -> list[TextContent]:

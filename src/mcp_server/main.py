@@ -115,7 +115,17 @@ async def main():
     in production.
     """
     server = Server("ruflo-kb")
-    register_memory_tools(server)
+
+    # Resolve active project for memory tool persistence
+    wiki_paths = None
+    try:
+        from pathlib import Path
+        from src.wiki.storage.ensure import ensure_knowledge_base
+        wiki_paths = ensure_knowledge_base(Path.cwd())
+    except Exception:
+        pass
+
+    register_memory_tools(server, wiki_paths=wiki_paths)
 
     @server.list_tools()
     async def _list_tools():

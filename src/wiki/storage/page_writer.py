@@ -15,6 +15,8 @@ _TYPE_TO_DIR: dict[PageType, str] = {
     PageType.SYNTHESIS: "wiki_synthesis",
     PageType.CLAIM: "wiki_claims",
     PageType.DECISION: "wiki_decisions",
+    PageType.PROCEDURE: "wiki_concepts",
+    PageType.EVENT: "wiki_concepts",
 }
 
 

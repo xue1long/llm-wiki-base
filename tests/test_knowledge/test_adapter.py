@@ -158,7 +158,7 @@ class TestKnowledgeObjectToWikiPageBasic:
             provenance=Provenance(source_path="/x"),
         )
         wp = knowledge_object_to_wiki_page(ko)
-        assert wp.sources == []
+        assert wp.sources == ["/x"]  # seeded from provenance.source_path
         assert wp.processing_depth == "concept"
         assert wp.is_immutable is False
         assert wp.last_used_at == 0
@@ -285,8 +285,9 @@ class TestRoundTrip:
         assert extra["provenance"]["source_path"] == "/docs/test.pdf"
         assert extra["provenance"]["page"] == 5
         assert extra["versions"][0]["version_id"] == "v1"
-        # WP-frontmatter fields survive (authoritative from WP fields)
-        assert extra["sources"] == ["/raw/s1.md"]
+        # WP-frontmatter fields survive (authoritative from WP fields +
+        # provenance.source_path seeded by the adapter)
+        assert extra["sources"] == ["/raw/s1.md", "/docs/test.pdf"]
         assert extra["processing_depth"] == "memory"
         assert extra["is_immutable"] is True
 

@@ -323,7 +323,7 @@ class CuratorAgent:
             if page.zombie_since is not None:
                 before = _page_to_snapshot(page)
                 after = _page_to_snapshot(page)
-                after["is_immutable"] = True
+                after["archived"] = True
 
                 diff = f"Archive '{page.id}': zombie since timestamp {page.zombie_since}"
                 reason = f"Page is obsolete (zombie_since={page.zombie_since})"
@@ -408,10 +408,15 @@ class CuratorAgent:
         write_page(self.paths, page)
 
     def _apply_archive(self, proposal: CuratorProposal) -> None:
-        """Apply an 'archive' proposal: mark the page as immutable."""
+        """Apply an 'archive' proposal: move the page to wiki/_archive/."""
         page = self._load_page_by_slug(proposal.object_id)
-        page.is_immutable = True
-        write_page(self.paths, page)
+        type_ = _infer_type(self.paths, proposal.object_id)
+        src_path = page_path_for(self.paths, type_, proposal.object_id)
+        archive_dir = self.paths.wiki / "_archive"
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        dst_path = archive_dir / f"{proposal.object_id}.md"
+        src_path.rename(dst_path)
+        _logger.info("Curator: archived %s → %s", proposal.object_id, dst_path)
 
     # ------------------------------------------------------------------
     # Internal helpers

@@ -10,6 +10,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from src.events.event_bus import event_bus
 from src.knowledge.kernel import KnowledgeKernel, RAW_CREATE
 from src.permissions import AgentType
 from src.types import SourceType
@@ -91,14 +92,16 @@ class CollectorAgent:
             raw_text=payload.content,
         )
 
-        # 7. Emit document.collected event
-        self.kernel.events.emit("document.collected", {
+        # 7. Emit events on both kernel bus and global event bus
+        payload = {
             "event": "document.collected",
             "source_path": result.source_path,
             "content_hash": result.content_hash,
             "byte_size": result.byte_size,
             "format": result.format,
             "collected_at": result.collected_at,
-        })
+        }
+        self.kernel.events.emit("document.collected", payload)
+        event_bus.emit("collector:done", payload)
 
         return result

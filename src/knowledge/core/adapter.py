@@ -168,6 +168,9 @@ def knowledge_object_to_wiki_page(obj: KnowledgeObject) -> WikiPage:
 
     # WP-only fields restored from incoming ko_extra (if any)
     new_extra["sources"] = list(ko_extra.get("sources", []))
+    # Seed sources from provenance when not already present
+    if obj.provenance.source_path and obj.provenance.source_path not in new_extra["sources"]:
+        new_extra["sources"].append(obj.provenance.source_path)
     new_extra["processing_depth"] = ko_extra.get("processing_depth", "concept")
     new_extra["is_immutable"] = bool(ko_extra.get("is_immutable", False))
     new_extra["last_used_at"] = int(ko_extra.get("last_used_at", 0))
