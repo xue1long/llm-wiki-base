@@ -41,6 +41,31 @@ def _current_bucket() -> dict[Path, str]:
     return bucket
 
 
+def _atomic_replace(tmp: Path, target: Path) -> None:
+    """Replace *target* with *tmp* atomically.
+
+    Prefers ``os.replace`` (atomic on POSIX + Windows when possible).
+    Falls back to ``unlink + rename`` when Windows denies ``os.replace``
+    (e.g. target file has a security descriptor that blocks
+    ``MoveFileExW`` with ``MOVEFILE_REPLACE_EXISTING``).
+    """
+    for attempt in range(5):
+        try:
+            os.replace(tmp, target)
+            return
+        except PermissionError:
+            if attempt < 4:
+                time.sleep(0.05 * (attempt + 1))
+                continue
+        break
+    # os.replace failed 5 times — fall back to unlink + rename
+    try:
+        os.unlink(target)
+    except FileNotFoundError:
+        pass
+    os.rename(tmp, target)
+
+
 def safe_write(path: Union[str, Path], content: str) -> None:
     """Write file, respecting AtomicContext; sentinel content queues deletion.
 
@@ -63,16 +88,7 @@ def safe_write(path: Union[str, Path], content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(content, encoding="utf-8")
-    # Windows: os.replace may transiently fail with PermissionError under
-    # high contention (antivirus, rapid queue saves). Retry a few times.
-    for attempt in range(5):
-        try:
-            os.replace(tmp, path)
-            return
-        except PermissionError:
-            if attempt == 4:
-                raise
-            time.sleep(0.05 * (attempt + 1))
+    _atomic_replace(tmp, path)
 
 
 def flush_pending_writes() -> int:
@@ -99,7 +115,7 @@ def flush_pending_writes() -> int:
             path.parent.mkdir(parents=True, exist_ok=True)
             tmp = path.with_name(path.name + ".tmp")
             tmp.write_text(content, encoding="utf-8")
-            os.replace(tmp, path)
+            _atomic_replace(tmp, path)
     return count
 
 

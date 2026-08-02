@@ -29,7 +29,6 @@ getattr(_generator_module, "generate")). The compat shim that re-exports
 ``src.pipeline.pipeline`` is added in Task 10.
 """
 from __future__ import annotations
-import asyncio
 import hashlib
 import logging
 import re
@@ -43,7 +42,6 @@ from ..lib.atomic_ctx import AtomicContext
 from ..lib.write_hooks import flush_pending_writes
 from ..wiki.features.indexer import append_to_index
 from ..wiki.features.logger import log_event
-from ..wiki.features.tag_namespace import TAG_PREFIXES
 from ..wiki.storage.page_writer import write_page
 # Resolve analyze/generate via the pipeline package namespace so
 # monkey-patches on `src.pipeline.pipeline.analyze` /
@@ -54,7 +52,7 @@ from ..wiki.storage.page_writer import write_page
 # at call time, after the test patch has run.
 from . import analyzer as _analyzer_module
 from . import generator as _generator_module
-from ._pipeline_common import clean_source_text, denoise_source_text
+from ._pipeline_common import clean_source_text
 
 # ---------------------------------------------------------------------------
 # Stub quality gate (P2 optimization — 2026-07-29).
@@ -63,45 +61,13 @@ from ._pipeline_common import clean_source_text, denoise_source_text
 # the LLM references more missing slugs than this threshold, stub creation
 # is suppressed to avoid polluting the wiki with placeholder pages for
 # platform names, company names, and other non-domain entities.
-# Set via env var ``RUFLO_MAX_STUBS_PER_INGEST`` (default 3).
-# NOTE: wiring this cap into ``.index/quality_settings.json`` is deferred —
-# the only existing loader (quality_cmd._load_settings) is CLI-private and
-# has no shared hook for pipeline code; keep env + default until then.
+# Set via env var ``RUFLO_MAX_STUBS_PER_INGEST`` (default 10).
 _MAX_STUBS_ENV = "RUFLO_MAX_STUBS_PER_INGEST"
 
 
 def _get_max_stubs_per_ingest() -> int:
     """Return the current max stubs threshold (re-reads env var at call time)."""
-    return int(__import__("os").environ.get(_MAX_STUBS_ENV, "3"))
-
-
-# ---------------------------------------------------------------------------
-# LLM phase timeout guard (batch-0 hang fix — 2026-08-01).
-# ---------------------------------------------------------------------------
-# The provider's httpx timeout only covers the network read/write window;
-# a provider that accepts the connection but never returns a body (half-open
-# socket, server stall) does not trip it, and the whole unified→two-step
-# fallback can hang indefinitely.  Wrap the LLM phase in an asyncio-level
-# timeout so a single file has a hard ceiling and the batch runner can fail
-# it instead of stalling the whole batch.
-# Set via env var ``RUFLO_LLM_TIMEOUT_SECONDS`` (default 300).
-_LLM_TIMEOUT_ENV = "RUFLO_LLM_TIMEOUT_SECONDS"
-
-
-def _llm_timeout_seconds() -> float:
-    return float(__import__("os").environ.get(_LLM_TIMEOUT_ENV, "300"))
-
-
-async def _with_llm_timeout(coro, timeout: float, op: str):
-    """Await *coro* under an asyncio timeout, converting a hang into a
-    ``RuntimeError`` naming the phase (*op*).  Fast inner failures propagate
-    unchanged; only the timeout case is converted."""
-    try:
-        return await asyncio.wait_for(coro, timeout=timeout)
-    except asyncio.TimeoutError:
-        raise RuntimeError(
-            f"{op} timed out after {timeout:.0f}s (RUFLO_LLM_TIMEOUT_SECONDS)"
-        ) from None
+    return int(__import__("os").environ.get(_MAX_STUBS_ENV, "10"))
 
 
 # Slugs that should never get stub entity pages because they represent
@@ -125,82 +91,6 @@ def _get_stub_blocklist() -> frozenset[str]:
             | {s.strip() for s in extra.split(",") if s.strip()}
         )
     return frozenset(_DEFAULT_STUB_BLOCKLIST)
-
-
-# ---------------------------------------------------------------------------
-# 0.5.1 — missing-slug classification (stub suppression).
-# ---------------------------------------------------------------------------
-# A slug whose trailing 8-hex tail equals a real source page's deterministic
-# hash ({stem}-{md5(path)[:8]}) is a broken source-page reference — the LLM
-# referenced a source by a guessed slug instead of the on-disk one. Such
-# slugs must never become stub pages.
-_SOURCE_HASH_TAIL_RE = re.compile(r"-([0-9a-f]{8})$")
-
-# Bad-morphology slugs: tag-namespace names (current CJK + legacy English
-# that produced the observed pollution), PageType prefixes, `-entity`
-# suffix, or raw-path-shaped slugs.
-_TAG_NS_PREFIXES = tuple(TAG_PREFIXES) + (
-    "genre", "func", "char", "event", "mood", "scene_phase", "status",
-)
-_TYPE_PREFIXES = ("source", "concept", "synthesis")
-
-
-def _collect_source_hash_tails(existing_wiki: dict) -> set[str]:
-    """Return the set of 8-hex md5 tails of all SOURCE pages on disk.
-
-    Each tail is the ``md5(raw_path)[:8]`` from the deterministic source
-    slug. Used as the hard criterion for detecting broken source-page
-    references in ``missing``.
-    """
-    tails: set[str] = set()
-    for slug, ptype in existing_wiki.items():
-        if ptype == PageType.SOURCE:
-            m = _SOURCE_HASH_TAIL_RE.search(slug)
-            if m:
-                tails.add(m.group(1))
-    return tails
-
-
-def _is_source_slug_variant(slug: str, source_hash_tails: set[str]) -> bool:
-    """True if *slug* ends in an 8-hex tail that matches a real SOURCE page's
-    deterministic hash — i.e. the LLM referenced a source by a wrong slug."""
-    m = _SOURCE_HASH_TAIL_RE.search(slug)
-    return bool(m and m.group(1) in source_hash_tails)
-
-
-def _is_bad_morphology_slug(slug: str) -> bool:
-    """True if *slug* looks like a tag name, a raw path, a type-prefixed id,
-    or carries an ``-entity`` suffix — i.e. the LLM referenced a non-page."""
-    if slug.endswith("-entity"):
-        return True
-    if any(slug.startswith(p + "-") for p in _TAG_NS_PREFIXES):
-        return True
-    if any(slug.startswith(p + "-") for p in _TYPE_PREFIXES):
-        return True
-    if slug.startswith("raw-") or "--" in slug or "-md-" in slug:
-        return True
-    return False
-
-
-def _classify_missing_stubs(
-    missing: set[str],
-    source_hash_tails: set[str],
-) -> tuple[set[str], set[str]]:
-    """Split *missing* slugs into ``(create, suppressed)``.
-
-    Suppressed slugs never get a stub page (the LLM referenced a non-page:
-    a broken source-slug variant, a tag name, a path, a type-prefixed id, or
-    an ``-entity`` suffix). Everything else is a genuine referenced entity
-    and is returned in ``create`` (still subject to the caller's cap).
-    """
-    create: set[str] = set()
-    suppressed: set[str] = set()
-    for slug in missing:
-        if _is_source_slug_variant(slug, source_hash_tails) or _is_bad_morphology_slug(slug):
-            suppressed.add(slug)
-        else:
-            create.add(slug)
-    return create, suppressed
 
 
 # ---------------------------------------------------------------------------
@@ -311,7 +201,7 @@ def _compute_reverse_relations(paths, pages):
         try:
             pg = read_page(f)
         except Exception:
-            _logger.warning("Failed to read page %s for relation target", target_id, exc_info=True)
+            logger.warning("Failed to read page %s for relation target", target_id, exc_info=True)
             return None
         extra[target_id] = pg
         return pg
@@ -335,9 +225,7 @@ def _compute_reverse_relations(paths, pages):
 
 
 def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[WikiPage]:
-    """Post-process LLM-generated pages: enforce valid enums, canonicalize relation
-    targets, and auto-complete UGC credibility tags (LLMs often add ``素材/ugc``
-    but forget ``可信度/ugc``)."""
+    """Post-process LLM-generated pages: enforce valid enums, canonicalize relation targets."""
     import time
     try:
         from src.wiki.features.slug_aliases import SlugAliasRegistry
@@ -364,10 +252,6 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
                 canonical = reg.get_canonical(rel.target_id)
                 if canonical and canonical != rel.target_id:
                     rel.target_id = canonical
-        # Auto-complete UGC credibility tag: if the LLM added
-        # ``素材/ugc``, ensure ``可信度/ugc`` is present too.
-        if "素材/ugc" in page.tags and "可信度/ugc" not in page.tags:
-            page.tags = list(page.tags) + ["可信度/ugc"]
     return pages
 
 
@@ -381,17 +265,14 @@ def _generate(**kwargs):
     return getattr(sys.modules["src.pipeline.pipeline"], "generate")(**kwargs)
 
 
-def _build_rejected_source_pages(
+async def _write_rejected_source_page(
     paths: WikiPaths,
     source_path,
     source_text: str,
     result: "SanitizerResult",
     task_id: str,
 ) -> list[WikiPage]:
-    """Build grade=C source page(s) when source quality is too low for LLM.
-
-    Does NOT write to disk — the caller is responsible for committing.
-    """
+    """Write a grade=C source page when source quality is too low for LLM."""
     import time as _time
 
     _t = _time.localtime()
@@ -414,72 +295,17 @@ def _build_rejected_source_pages(
         id=_slug,
         title=_stem[:120],
         type=PageType.SOURCE,
-        sources=[normalize_source_path(str(source_path), paths.root)],
+        sources=[str(source_path)],
         body=body,
         grade="C",
     )
 
+    async with AtomicContext() as ctx:
+        write_page(paths, page, ctx)
+        append_to_index(paths, page, ctx)
+        log_event(paths, "rejected", page.id, {"reason": result.warnings}, ctx)
+
     return [page]
-
-
-async def commit_ingest(
-    paths: WikiPaths,
-    source_path,
-    pages: list[WikiPage],
-    extra_pages: list[WikiPage] | None = None,
-    task_id: str = "test",
-    *,
-    event: str = "ingest",
-    detail: str | None = None,
-    log_task_id: str | None = None,
-) -> None:
-    """Write generated pages to disk atomically.
-
-    This is the "commit" half of the generate/commit split (NDG Phase 1).
-    Callers that need a pre-write gate should call :func:`generate_ingest`,
-    run their gate checks, then call this function only on pass.
-
-    All writes happen inside a single ``AtomicContext`` so a partial failure
-    does not leave the wiki in an inconsistent state.
-    """
-    _extra = extra_pages or []
-    with AtomicContext(flush_callback=flush_pending_writes):
-        for page in pages:
-            write_page(paths, page)
-        for page in _extra:
-            write_page(paths, page)
-        append_to_index(
-            paths,
-            [(p.id, p.type, p.title) for p in pages],
-        )
-        log_event(
-            paths,
-            event=event,
-            task_id=log_task_id or task_id,
-            detail=detail or f"generated {len(pages)} pages from {Path(str(source_path)).name}",
-        )
-
-
-async def _write_rejected_source_page(
-    paths: WikiPaths,
-    source_path,
-    source_text: str,
-    result: "SanitizerResult",
-    task_id: str,
-) -> list[WikiPage]:
-    """Write a grade=C source page when source quality is too low for LLM.
-
-    .. deprecated::
-        Use :func:`_build_rejected_source_pages` + :func:`commit_ingest`
-        instead.  Kept for backward compatibility with tests.
-    """
-    pages = _build_rejected_source_pages(paths, source_path, source_text, result, task_id)
-    await commit_ingest(
-        paths, source_path, pages, task_id=task_id,
-        event="rejected", detail=", ".join(result.warnings),
-        log_task_id=pages[0].id,
-    )
-    return pages
 
 
 _logger = logging.getLogger(__name__)
@@ -493,29 +319,17 @@ _logger = logging.getLogger(__name__)
 # src.pipeline package namespace, which is what propagates the patch.
 
 
-async def generate_ingest(
+async def run_ingest(
     paths: WikiPaths,
     source_path,
     source_text: str,
     provider,
     folder_context: str = "",
     task_id: str = "test",
-) -> tuple[list[WikiPage], list[WikiPage], dict]:
-    """Run the full ingest pipeline **without writing to disk**.
+) -> list[WikiPage]:
+    """Run full 2-step pipeline + write pages + update index + log.
 
-    This is the "generate" half of the generate/commit split (NDG Phase 1).
-    It runs sanitize → unified/two-step LLM → source page construction →
-    stub creation → reverse relations → quality gate — everything except
-    the final disk write, which is deferred to :func:`commit_ingest`.
-
-    Returns ``(pages, extra_pages, meta)`` where *meta* carries:
-    - ``analysis``: the ``AnalysisResult`` (or ``None`` for unified path)
-    - ``source_slug``: deterministic source-page id
-    - ``downstream_count``: number of non-source generated pages
-    - ``stub_count``: number of stub entity pages created
-    - ``stubs_suppressed``: number of missing-ref slugs suppressed
-    - ``extra_pages_count``: number of pre-existing pages touched by
-      reverse relations (also returned as *extra_pages*)
+    Returns list of generated WikiPage objects.
     """
     # No pre-flight work needed: the 2026-07 cleanup removed the Inbox
     # staging layer. The collector reads ``raw/sources/<file>`` directly
@@ -529,7 +343,7 @@ async def generate_ingest(
 
     if _result.warnings:
         _logger.warning(
-            "[generate_ingest] sanitizer: %s score=%.2f source=%s",
+            "[run_ingest] sanitizer: %s score=%.2f source=%s",
             _result.warnings, _result.quality_score, source_path,
         )
 
@@ -538,22 +352,10 @@ async def generate_ingest(
     # Hard-reject: skip LLM entirely for degraded sources (opt-in via
     # RUFLO_SANITIZER_SKIP_LLM=1; off by default).
     if _result.should_skip_llm and __import__("os").environ.get("RUFLO_SANITIZER_SKIP_LLM", "0") == "1":
-        _logger.warning("[generate_ingest] skipping LLM for %s", source_path)
-        _rejected_pages = _build_rejected_source_pages(
+        _logger.warning("[run_ingest] skipping LLM for %s", source_path)
+        return await _write_rejected_source_page(
             paths, source_path, source_text, _result, task_id
         )
-        return _rejected_pages, [], {
-            "analysis": None,
-            "source_slug": _rejected_pages[0].id if _rejected_pages else "",
-            "source_page_id": _rejected_pages[0].id if _rejected_pages else "",
-            "source_grade": "C",
-            "downstream_count": 0,
-            "stub_count": 0,
-            "stubs_suppressed": 0,
-            "extra_pages_count": 0,
-            "rejected": True,
-            "warnings": list(_result.warnings),
-        }
 
     _ = source_text  # keep the parameter — body writes reference source_text directly
 
@@ -583,64 +385,48 @@ async def generate_ingest(
     _source_slug_map = {str(source_path): _source_slug_for_map}
 
     # Unified path: single LLM call (Analyzer + Generator merged).
-    # Falls back to two-step on failure.  Each LLM phase runs under the
-    # asyncio timeout guard so a hung provider call (which httpx's read
-    # timeout does not always trip) fails the file instead of stalling the
-    # whole batch (batch-0 hang fix).
-    _llm_timeout = _llm_timeout_seconds()
+    # Falls back to two-step on failure.
     analysis = None  # type: ignore[assignment]
     pages: list[WikiPage] = []
     try:
         from .generator import unified_generate
-        pages = await _with_llm_timeout(
-            unified_generate(
-                source_text=_sanitized_source_text,
-                source_path=str(source_path),
-                folder_context=folder_context or "",
-                paths=paths,
-                existing_wiki_index=_existing_wiki_index,
-                provider=provider,
-                source_slug_map=_source_slug_map,
-            ),
-            timeout=_llm_timeout,
-            op="unified_generate",
+        pages = await unified_generate(
+            source_text=_sanitized_source_text,
+            source_path=str(source_path),
+            folder_context=folder_context or "",
+            paths=paths,
+            existing_wiki_index=_existing_wiki_index,
+            provider=provider,
+            source_slug_map=_source_slug_map,
         )
         _logger.info(
-            "[generate_ingest] unified path produced %d pages for %s",
+            "[run_ingest] unified path produced %d pages for %s",
             len(pages), source_path,
         )
         if not pages:
             raise RuntimeError("unified path returned 0 pages")
     except Exception as _unified_err:
         _logger.warning(
-            "[generate_ingest] unified path failed (%s), falling back to two-step",
+            "[run_ingest] unified path failed (%s), falling back to two-step",
             _unified_err,
         )
         # Fallback: original two-step Analyze → Generate
-        analysis = await _with_llm_timeout(
-            _analyze(
-                source_text=_sanitized_source_text,
-                source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
-                existing_wiki_index=_existing_wiki_index,
-                folder_context=folder_context,
-                provider=provider,
-                task_id=task_id,
-                source_path=str(source_path),
-            ),
-            timeout=_llm_timeout,
-            op="two-step analyze",
+        analysis = await _analyze(
+            source_text=_sanitized_source_text,
+            source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
+            existing_wiki_index=_existing_wiki_index,
+            folder_context=folder_context,
+            provider=provider,
+            task_id=task_id,
+            source_path=str(source_path),
         )
-        pages = await _with_llm_timeout(
-            _generate(
-                paths=paths,
-                analysis=analysis,
-                existing_wiki_index=_existing_wiki_index,
-                provider=provider,
-                source_slug_map=_source_slug_map,
-                source_text=_sanitized_source_text,
-            ),
-            timeout=_llm_timeout,
-            op="two-step generate",
+        pages = await _generate(
+            paths=paths,
+            analysis=analysis,
+            existing_wiki_index=_existing_wiki_index,
+            provider=provider,
+            source_slug_map=_source_slug_map,
+            source_text=_sanitized_source_text,
         )
 
     # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.
@@ -678,7 +464,7 @@ async def generate_ingest(
                 # Filter out quarantined pages from the write list
                 pages = [p for p in pages if p.id not in result.pages_quarantined]
                 _logger.info(
-                    f"[generate_ingest] quality gate quarantined "
+                    f"[run_ingest] quality gate quarantined "
                     f"{len(result.pages_quarantined)} page(s); "
                     f"{len(pages)} passed"
                 )
@@ -686,7 +472,7 @@ async def generate_ingest(
             # Decision A1: judge LLM failure must NOT block ingest.
             # Log + pass pages through (graceful degradation).
             _logger.warning(
-                f"[generate_ingest] quality gate unavailable: {e}; "
+                f"[run_ingest] quality gate unavailable: {e}; "
                 f"passing {len(pages)} page(s) through without judgment"
             )
 
@@ -730,47 +516,43 @@ async def generate_ingest(
     )
     source_title = norm_stem
 
-    # Render via the bundled source.md template. Falls back to a distilled
-    # inline body if the template is missing (operator deleted the bundled
-    # file).
-    #
-    # Shared slot-value computation used by BOTH the template render branch
-    # and the missing-template fallback so they stay in sync (Plan 27:
-    # required slots must contain substantive content per the v2.3 schema).
-    # key_points come from the analyzer's extracted key_facts when available;
-    # fall back to one bullet per generated downstream page so the section is
-    # never blank.
-    #
-    # Unified path (analysis=None): extract summary from the
-    # already-generated source page if the LLM produced one.
-    _has_analysis = analysis is not None
-    key_facts = list(analysis.key_facts or []) if _has_analysis else []
-    if key_facts:
-        key_points_value: list[str] | str = [
-            kf if isinstance(kf, str) else str(kf) for kf in key_facts
-        ]
-    else:
-        key_points_value = [
-            f"→ [[{p.id}]]" for p in pages if getattr(p, "id", None)
-        ] or ["(无可抽取的要点，详见抽取的概念)"]
-    extracted_concepts_value: list[str] = [
-        f"→ [[{p.id}]]" for p in pages if getattr(p, "id", None)
-    ] or ["(本摄取无下游页面)"]
-
-    # Summary: prefer analyzer, then unified-generated source page's summary slot
-    _summary_text = ""
-    if _has_analysis:
-        _summary_text = analysis.summary or ""
-    else:
-        # Unified path: look for source page with summary slot
-        for _p in pages:
-            if _p.type == PageType.SOURCE:
-                _summary_text = _p.body or ""
-                break
-
+    # Render via the bundled source.md template. Falls back to the
+    # legacy inline body if the template is missing (operator deleted
+    # bundled file).
     try:
         from ..wiki.templates import render_body
         source_tpl = resolve_template(PageType.SOURCE, paths.root)
+        # Build key_points from the analyzer's extracted key_facts when
+        # available; fall back to one bullet per generated downstream
+        # page so the section is never blank. (Plan 27: required
+        # slots must contain substantive content per the v2.3 schema.)
+        #
+        # Unified path (analysis=None): extract summary from the
+        # already-generated source page if the LLM produced one.
+        _has_analysis = analysis is not None
+        key_facts = list(analysis.key_facts or []) if _has_analysis else []
+        if key_facts:
+            key_points_value: list[str] | str = [
+                kf if isinstance(kf, str) else str(kf) for kf in key_facts
+            ]
+        else:
+            key_points_value = [
+                f"→ [[{p.id}]]" for p in pages if getattr(p, "id", None)
+            ] or ["(无可抽取的要点，详见抽取的概念)"]
+        extracted_concepts_value: list[str] = [
+            f"→ [[{p.id}]]" for p in pages if getattr(p, "id", None)
+        ] or ["(本摄取无下游页面)"]
+
+        # Summary: prefer analyzer, then unified-generated source page's summary slot
+        _summary_text = ""
+        if _has_analysis:
+            _summary_text = analysis.summary or ""
+        else:
+            # Unified path: look for source page with summary slot
+            for _p in pages:
+                if _p.type == PageType.SOURCE:
+                    _summary_text = _p.body or ""
+                    break
         source_body = render_body(
             template_body=source_tpl.body_markdown,
             slots={
@@ -782,39 +564,34 @@ async def generate_ingest(
                 "summary": _summary_text.strip() or "(无摘要)",
                 "key_points": key_points_value,
                 "extracted_concepts": extracted_concepts_value,
-                "main_content": denoise_source_text(source_text),
+                "main_content": clean_source_text(source_text),
             },
             page_type=PageType.SOURCE,
             template_version=source_tpl.version or "",
         )
     except FileNotFoundError:
-        # Fallback: bundled source.md template missing. Build a distilled
-        # body WITHOUT the ## 正文内容 full-text section — full text lives in
-        # raw/; source pages carry summary + metadata only (C4: embedding
-        # denoise_source_text(source_text) here triggers LINT-RAW-PASTE).
-        _logger.error(
-            "[generate_ingest] source.md template missing — using distilled "
-            "fallback body (no full-text section) for %s",
-            source_path,
-        )
-        _key_points_md = "\n".join(
-            v if str(v).startswith("- ") else f"- {v}" for v in key_points_value
-        )
-        _extracted_md = "\n".join(
-            v if str(v).startswith("- ") else f"- {v}"
-            for v in extracted_concepts_value
-        )
+        # Fallback: hardcoded legacy body (matches the previous
+        # behaviour pre-template integration).
+        _summary_fb = ""
+        if _has_analysis:
+            _summary_fb = (analysis.summary or "").strip() or "(无摘要)"
+        else:
+            for _p in pages:
+                if _p.type == PageType.SOURCE:
+                    _summary_fb = _p.body or ""
+                    break
         source_body = (
-            f"## 来源元数据\n\n"
+            f"## 来源\n\n"
             f"- 路径: `{source_path}`\n"
             f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"- 任务 ID: `{task_id}`\n\n"
             f"## 摘要\n\n"
-            f"{_summary_text.strip() or '(无摘要)'}\n\n"
-            f"## 关键观点\n\n"
-            f"{_key_points_md}\n\n"
+            f"{_summary_fb}\n\n"
             f"## 抽取的概念\n\n"
-            f"{_extracted_md}\n"
+            f"本次摄取共生成 **{len(pages)}** 个下游页面"
+            f"{('（共 '+ str(len(analysis.suggested_pages)) + ' 个建议页）') if _has_analysis and analysis.suggested_pages else ''}。\n\n"
+            f"## 正文内容\n\n"
+            f"{clean_source_text(source_text)}\n"
         )
 
     # Count non-source downstream pages to detect empty extractions.
@@ -880,7 +657,7 @@ async def generate_ingest(
     )
     if llm_already_has_source:
         _logger.debug(
-            f"[generate_ingest] source page already produced by LLM for "
+            f"[run_ingest] source page already produced by LLM for "
             f"{source_path}; skipping task-id fallback (id={source_slug!r})"
         )
         # Adjust the LLM-generated source page's grade to reflect actual
@@ -994,33 +771,17 @@ async def generate_ingest(
         filtered = missing - _blocklist  # type: ignore[operator]
         if len(filtered) < len(missing):
             _logger.info(
-                "[generate_ingest] filtered %d blocklisted slug(s) from stubs: %s",
+                "[run_ingest] filtered %d blocklisted slug(s) from stubs: %s",
                 len(missing) - len(filtered),
                 ", ".join(sorted(missing & _blocklist)),
             )
         missing = filtered
 
-    # 0.5.1: classify missing slugs — only genuine referenced entities may
-    # become stubs; broken source-slug variants and bad-morphology slugs are
-    # suppressed (logged) instead of polluting the wiki.
-    _stubs_suppressed_count = 0
-    source_hash_tails = _collect_source_hash_tails(_existing_wiki)
-    _stub_create, _stub_suppressed = _classify_missing_stubs(missing, source_hash_tails)
-    if _stub_suppressed:
-        _stubs_suppressed_count += len(_stub_suppressed)
-        _logger.info(
-            "[generate_ingest] suppressed %d non-domain stub slug(s): %s",
-            len(_stub_suppressed),
-            ", ".join(sorted(_stub_suppressed)[:10]),
-        )
-    missing = _stub_create
-
     # P2 quality gate: suppress excessive stub creation to avoid noise.
     _max_stubs = _get_max_stubs_per_ingest()
     if len(missing) > _max_stubs:
-        _stubs_suppressed_count += len(missing)
         _logger.warning(
-            "[generate_ingest] suppressing %d stub(s) (exceeds max %d): %s",
+            "[run_ingest] suppressing %d stub(s) (exceeds max %d): %s",
             len(missing), _max_stubs,
             ", ".join(sorted(missing)[:20]),
         )
@@ -1028,7 +789,7 @@ async def generate_ingest(
 
     if missing:
         _logger.info(
-            f"[generate_ingest] creating {len(missing)} stub entity page(s): "
+            f"[run_ingest] creating {len(missing)} stub entity page(s): "
             f"{sorted(missing)[:5]}{'...' if len(missing) > 5 else ''}"
         )
     for slug in sorted(missing):
@@ -1104,66 +865,28 @@ async def generate_ingest(
     from .quality_gate import check_pages
     _gate = check_pages(pages + extra_pages)
     for _pid, _reason in _gate.degraded.items():
-        _logger.warning("[generate_ingest] quality gate: %s degraded — %s", _pid, _reason)
+        _logger.warning("[run_ingest] quality gate: %s degraded — %s", _pid, _reason)
     _keep_ids = {p.id for p in _gate.pages}
     pages = [p for p in pages if p.id in _keep_ids]
     extra_pages = [p for p in extra_pages if p.id in _keep_ids]
 
-    # NDG Phase 1: generate_ingest does NOT write to disk.
-    # The caller (run_ingest or a batch runner with a gate) calls
-    # commit_ingest to persist pages.
-    _stub_count = sum(1 for p in pages if p.processing_depth == "stub")
-    # Resolve the actual source page id — the LLM may have produced a
-    # different source-page id than our deterministic source_slug
-    # (llm_already_has_source path), and NDG Phase 3 P5 needs the real id.
-    _source_page_id = next(
-        (p.id for p in pages if p.type == PageType.SOURCE),
-        source_slug,
-    )
-    meta = {
-        "analysis": analysis,
-        "source_slug": source_slug,
-        "source_page_id": _source_page_id,
-        "source_grade": _source_grade,
-        "downstream_count": _downstream_count,
-        "stub_count": _stub_count,
-        "stubs_suppressed": _stubs_suppressed_count,
-        "extra_pages_count": len(extra_pages),
-        "rejected": False,
-        "warnings": list(_result.warnings) if _result.warnings else [],
-    }
-    return pages, extra_pages, meta
-
-
-async def run_ingest(
-    paths: WikiPaths,
-    source_path,
-    source_text: str,
-    provider,
-    folder_context: str = "",
-    task_id: str = "test",
-) -> list[WikiPage]:
-    """Run full 2-step pipeline + write pages + update index + log.
-
-    Thin wrapper around :func:`generate_ingest` + :func:`commit_ingest`.
-    External signature and behaviour are unchanged.
-    """
-    pages, extra_pages, meta = await generate_ingest(
-        paths=paths,
-        source_path=source_path,
-        source_text=source_text,
-        provider=provider,
-        folder_context=folder_context,
-        task_id=task_id,
-    )
-    if meta.get("rejected"):
-        await commit_ingest(
-            paths, source_path, pages, task_id=task_id,
-            event="rejected", detail=", ".join(meta["warnings"]),
-            log_task_id=pages[0].id if pages else None,
+    # Atomic write all pages + index update + log
+    with AtomicContext(flush_callback=flush_pending_writes):
+        for page in pages:
+            write_page(paths, page)
+        for page in extra_pages:
+            write_page(paths, page)
+        append_to_index(
+            paths,
+            [(p.id, p.type, p.title) for p in pages],
         )
-    else:
-        await commit_ingest(paths, source_path, pages, extra_pages, task_id)
+        log_event(
+            paths,
+            event="ingest",
+            task_id=task_id,
+            detail=f"generated {len(pages)} pages from {Path(str(source_path)).name}",
+        )
+
     return pages
 
 
