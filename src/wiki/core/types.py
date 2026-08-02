@@ -73,6 +73,8 @@ class WikiPage:
     # Taxonomy (v3.1): LLM-assigned classification, "" = unclassified
     category: str = ""
     taxonomy_sub: str = ""
+    # C3: low-importance entity references inlined instead of creating stub pages
+    related_entities: list[str] = field(default_factory=list)
 
     def to_frontmatter_dict(self) -> dict:
         d = {
@@ -92,6 +94,7 @@ class WikiPage:
             "tags": list(self.tags),
             "category": self.category,
             "taxonomy_sub": self.taxonomy_sub,
+            "related_entities": list(self.related_entities),
         }
         ko_extra = getattr(self, "_ko_extra", None)
         if isinstance(ko_extra, dict):
@@ -119,6 +122,7 @@ class WikiPage:
             tags=list(d.get("tags", [])),
             category=d.get("category", ""),
             taxonomy_sub=d.get("taxonomy_sub", ""),
+            related_entities=list(d.get("related_entities", [])),
         )
 
 

@@ -55,6 +55,7 @@ from ..wiki.storage.page_writer import write_page
 from . import analyzer as _analyzer_module
 from . import generator as _generator_module
 from ._pipeline_common import clean_source_text
+from .retry import retry_with_backoff, RetryExhausted, PermanentFailure, CircuitBreakerOpen
 
 
 async def _with_llm_timeout(coro, timeout: float, op: str):
@@ -405,6 +406,65 @@ async def _write_rejected_source_page(
     return [page]
 
 
+def _create_source_only_page(
+    paths: WikiPaths,
+    source_path,
+    source_text: str,
+    task_id: str,
+    reason: str = "",
+) -> list[WikiPage]:
+    """Create a single degraded source page when LLM processing fails.
+
+    C1 fallback page format:
+    - ``processing_depth: "stub"`` (not "concept" or "source")
+    - ``grade: "C"``
+    - body = sanitized source text first 2000 chars + metadata header
+
+    This page is the degradation target when the LLM is unreachable
+    (circuit breaker OPEN, all retries exhausted, 422 content moderation).
+    """
+    import time as _time
+    import hashlib as _hashlib
+    from ..utils.slugify import slugify as _slugify
+    from ..utils.path import normalize_source_path as _norm_src_path
+
+    _stem = (
+        Path(str(source_path)).stem
+        if hasattr(source_path, "stem")
+        else str(source_path)
+    )
+    _norm = unicodedata.normalize("NFC", _stem)
+    _slug_stem = slugify(_norm)
+    _hash = _hashlib.md5(str(source_path).encode("utf-8")).hexdigest()[:8]
+    _slug = f"{_slug_stem}-{_hash}" if _slug_stem else f"stub-{task_id}"
+
+    _clean_body = clean_source_text(source_text)[:2000]
+
+    _reason_line = f"\n> ⚠️ **LLM 处理失败**: {reason}\n" if reason else ""
+    body = (
+        f"## 来源\n\n"
+        f"- 路径: `{source_path}`\n"
+        f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"- 任务 ID: `{task_id}`\n"
+        f"{_reason_line}\n"
+        f"## 内容\n\n{_clean_body}\n"
+    )
+
+    return [
+        WikiPage(
+            id=_slug,
+            title=_norm[:120],
+            type=PageType.SOURCE,
+            sources=[_norm_src_path(str(source_path), paths.root)],
+            body=body,
+            grade="C",
+            processing_depth="stub",
+            created_at=int(_time.time() * 1000),
+            updated_at=int(_time.time() * 1000),
+        )
+    ]
+
+
 def _create_review_item(candidate, review_result, paths, task_id):
     """Create a ReviewItem for a NEEDS_HUMAN_REVIEW candidate."""
     from ..wiki.features.review import add_review
@@ -542,23 +602,32 @@ async def generate_ingest(
                 if not _ch_text.strip():
                     continue
                 try:
-                    _ch_candidate = await _with_llm_timeout(
-                        _analyze(
-                            source_text=_ch_text,
-                            source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
-                            existing_wiki_index=_existing_wiki_index,
-                            folder_context=folder_context,
-                            provider=provider,
-                            task_id=task_id,
-                            source_path=str(source_path),
-                            output_format="json",
-                            chunk_index=_ch["chunk_index"],
-                            chunk_total=_ch["chunk_total"],
+                    # C1: wrap each chunk's analyzer call with retry.
+                    # Transient errors retry; permanent (422) + circuit
+                    # breaker OPEN propagate to fail the whole ingest.
+                    _ch_analyze = _analyze  # capture for lambda closure
+                    _ch_candidate = await retry_with_backoff(
+                        lambda: _with_llm_timeout(
+                            _ch_analyze(
+                                source_text=_ch_text,
+                                source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
+                                existing_wiki_index=_existing_wiki_index,
+                                folder_context=folder_context,
+                                provider=provider,
+                                task_id=task_id,
+                                source_path=str(source_path),
+                                output_format="json",
+                                chunk_index=_ch["chunk_index"],
+                                chunk_total=_ch["chunk_total"],
+                            ),
+                            timeout=180.0,
+                            op=f"analyzer chunk {_ch['chunk_index']+1}/{_ch['chunk_total']}",
                         ),
-                        timeout=180.0,
-                        op=f"analyzer chunk {_ch['chunk_index']+1}/{_ch['chunk_total']}",
+                        cb_name="ingest_llm",
                     )
-                except Exception as _ch_exc:
+                except (PermanentFailure, CircuitBreakerOpen):
+                    raise
+                except (RetryExhausted, Exception) as _ch_exc:
                     _logger.warning(
                         "[run_ingest] chunk %d/%d failed: %s",
                         _ch["chunk_index"] + 1, _ch["chunk_total"], _ch_exc,
@@ -604,19 +673,27 @@ async def generate_ingest(
             analysis = None  # type: ignore[assignment]
             _has_fallback = False
         else:
-            _raw_result = await _with_llm_timeout(
-                _analyze(
-                    source_text=_sanitized_source_text,
-                    source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
-                    existing_wiki_index=_existing_wiki_index,
-                    folder_context=folder_context,
-                    provider=provider,
-                    task_id=task_id,
-                    source_path=str(source_path),
-                    output_format="json",
+            # C1: wrap the single-chunk analyzer call with retry + backoff.
+            # Transient errors (timeout, disconnect, 5xx) retry up to 3x;
+            # 429 waits for Retry-After; 422 → PermanentFailure;
+            # circuit breaker OPEN → CircuitBreakerOpen.
+            _analyze_fn = _analyze  # capture for the lambda closure below
+            _raw_result = await retry_with_backoff(
+                lambda: _with_llm_timeout(
+                    _analyze_fn(
+                        source_text=_sanitized_source_text,
+                        source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
+                        existing_wiki_index=_existing_wiki_index,
+                        folder_context=folder_context,
+                        provider=provider,
+                        task_id=task_id,
+                        source_path=str(source_path),
+                        output_format="json",
+                    ),
+                    timeout=180.0,
+                    op="analyzer (json)",
                 ),
-                timeout=180.0,
-                op="analyzer (json)",
+                cb_name="ingest_llm",
             )
 
             # If analyze was monkeypatched to return AnalysisResult (legacy test
@@ -716,14 +793,22 @@ async def generate_ingest(
 
             # Step 4: Generate pages from KnowledgeObject (frontmatter from KO, LLM renders body)
             from .generator import generate_from_knowledge_object
-            pages = await generate_from_knowledge_object(
-                ko=ko,
-                candidate=candidate,
-                paths=paths,
-                existing_wiki_index=_existing_wiki_index,
-                provider=provider,
-                source_slug_map=_source_slug_map,
-                source_text=_sanitized_source_text,
+            # C1: wrap the generator LLM call with retry.  If the LLM
+            # fails transiently during body generation, retry the whole
+            # generate_from_knowledge_object call (stateless — it just
+            # re-generates pages from the same KnowledgeObject).
+            _gko_fn = generate_from_knowledge_object
+            pages = await retry_with_backoff(
+                lambda: _gko_fn(
+                    ko=ko,
+                    candidate=candidate,
+                    paths=paths,
+                    existing_wiki_index=_existing_wiki_index,
+                    provider=provider,
+                    source_slug_map=_source_slug_map,
+                    source_text=_sanitized_source_text,
+                ),
+                cb_name="ingest_llm",
             )
             _logger.info(
                 "[run_ingest] candidate path produced %d pages for %s",
@@ -1154,7 +1239,55 @@ async def generate_ingest(
             )
         missing = filtered
 
+    # C3: reference-list detection — suppress stubs entirely for list-heavy
+    # documents to prevent stub explosion from encyclopedic reference lists.
+    from .stub_quality import detect_reference_list_density as _detect_list_density
+    _list_density = _detect_list_density(source_text)
+    if _list_density > 0.6:
+        _logger.info(
+            "[run_ingest] list-heavy doc detected (density=%.2f); suppressing stubs",
+            _list_density,
+        )
+        missing = set()
+
+    # C3: score stub importance and filter low-importance slugs.
+    from .stub_quality import (
+        filter_low_importance_stubs as _filter_stubs,
+        split_by_importance as _split_stubs,
+        sort_stubs_by_importance as _sort_stubs,
+        StubImportance as _StubImportance,
+    )
+    _stub_scores: dict[str, "_StubImportance"] = {}
+    _inlined_slugs: set[str] = set()
+    if missing and pages:
+        _stub_scores = _filter_stubs(missing, pages)
+        _kept_slugs, _inlined_slugs = _split_stubs(_stub_scores)
+        if _inlined_slugs:
+            _logger.info(
+                "[run_ingest] inlining %d low-importance stub(s) as related_entities: %s",
+                len(_inlined_slugs),
+                ", ".join(sorted(_inlined_slugs)[:10]),
+            )
+            # Attach to the source page (find it in the pages list — may be
+            # the LLM-generated version if llm_already_has_source was True).
+            _target_source_page = source_page
+            if llm_already_has_source:
+                for _p in pages:
+                    if _p.type == PageType.SOURCE:
+                        _target_source_page = _p
+                        break
+            _target_source_page.related_entities = sorted(_inlined_slugs)
+            # Append related entities section to source page body
+            _rel_lines = "\n".join(f"  - [[{s}]]" for s in sorted(_inlined_slugs))
+            _target_source_page.body += (
+                f"\n\n## 相关实体（低优先级引用）\n\n"
+                f"以下实体被引用但重要性较低，未生成独立占位页面：\n\n"
+                f"{_rel_lines}\n"
+            )
+        missing = _kept_slugs
+
     # P2 quality gate: suppress excessive stub creation to avoid noise.
+    # C3: MAX_STUBS only counts high+medium stubs (low are already inlined above).
     _max_stubs = _get_max_stubs_per_ingest()
     if len(missing) > _max_stubs:
         _logger.warning(
@@ -1164,12 +1297,15 @@ async def generate_ingest(
         )
         missing = set()
 
-    if missing:
+    # C3: sort remaining stubs by importance (HIGH before MEDIUM) before creation.
+    _sorted_missing = _sort_stubs(missing, _stub_scores) if _stub_scores else sorted(missing)
+
+    if _sorted_missing:
         _logger.info(
-            f"[run_ingest] creating {len(missing)} stub entity page(s): "
-            f"{sorted(missing)[:5]}{'...' if len(missing) > 5 else ''}"
+            f"[run_ingest] creating {len(_sorted_missing)} stub entity page(s): "
+            f"{_sorted_missing[:5]}{'...' if len(_sorted_missing) > 5 else ''}"
         )
-    for slug in sorted(missing):
+    for slug in _sorted_missing:
         # Best-effort title: prefer the analyzer's original Chinese name
         # (e.g. "总裁文"); fall back to mechanical slug→text transform.
         analyzer_title = _analyzer_name_map.get(slug, "")
@@ -1316,14 +1452,53 @@ async def run_ingest(
     import time as _time
     _started_at = int(_time.time() * 1000)
 
-    pages, extra_pages, _meta = await generate_ingest(
-        paths=paths,
-        source_path=source_path,
-        source_text=source_text,
-        provider=provider,
-        folder_context=folder_context,
-        task_id=task_id,
-    )
+    # C1: wrap generate_ingest with retry-awareness.  If the LLM is
+    # unreachable (circuit breaker OPEN, all retries exhausted, 422
+    # content moderation), fall back to a source-only stub page.
+    try:
+        pages, extra_pages, _meta = await generate_ingest(
+            paths=paths,
+            source_path=source_path,
+            source_text=source_text,
+            provider=provider,
+            folder_context=folder_context,
+            task_id=task_id,
+        )
+    except (RetryExhausted, PermanentFailure, CircuitBreakerOpen) as _retry_exc:
+        _logger.warning(
+            "[run_ingest] LLM call failed (%s), creating source-only stub page",
+            type(_retry_exc).__name__,
+        )
+        _source_only_pages = _create_source_only_page(
+            paths, source_path, source_text, task_id,
+            reason=str(_retry_exc),
+        )
+        await commit_ingest(
+            paths=paths,
+            source_path=source_path,
+            pages=_source_only_pages,
+            task_id=task_id,
+        )
+        return _source_only_pages
+
+    # Handle the case where generate_ingest succeeded but produced no
+    # downstream pages (all chunks rejected, quality gate filter, etc.).
+    if not pages and _meta.get("rejected"):
+        _logger.warning(
+            "[run_ingest] all chunks/claims rejected, creating source-only stub page"
+        )
+        _source_only_pages = _create_source_only_page(
+            paths, source_path, source_text, task_id,
+            reason=_meta.get("reason", "all chunks rejected"),
+        )
+        await commit_ingest(
+            paths=paths,
+            source_path=source_path,
+            pages=_source_only_pages,
+            task_id=task_id,
+        )
+        return _source_only_pages
+
     await commit_ingest(
         paths=paths,
         source_path=source_path,
