@@ -1,4 +1,4 @@
-"""Tests for src/mcp_server/main.py — stdio MCP server with 8 tools.
+"""Tests for src/mcp_server/main.py — stdio MCP server with 13 tools.
 
 We test the tool-routing logic by directly invoking ``list_tools()`` and
 ``call_tool()`` against a mocked ``RufloKbAPIClient``. The MCP Server object
@@ -16,7 +16,7 @@ from src.mcp_server.main import call_tool, list_tools
 # list_tools
 # ---------------------------------------------------------------------------
 
-EXPECTED_TOOL_NAMES = {
+EXPECTED_LEGACY_TOOL_NAMES = {
     "ruflo_kb_status",
     "ruflo_kb_projects",
     "ruflo_kb_set_project",
@@ -27,12 +27,34 @@ EXPECTED_TOOL_NAMES = {
     "ruflo_kb_reviews",
 }
 
+EXPECTED_MEMORY_TOOL_NAMES = {
+    "ruflo_kb_memory_search",
+    "ruflo_kb_memory_recall",
+    "ruflo_kb_memory_explain",
+    "ruflo_kb_memory_verify",
+    "ruflo_kb_memory_update",
+}
 
-def test_list_tools_returns_eight_tools():
+
+def test_list_tools_returns_thirteen_tools():
     tools = list_tools()
-    assert len(tools) == 8
+    assert len(tools) == 13
     names = {t.name for t in tools}
-    assert names == EXPECTED_TOOL_NAMES
+    assert names == EXPECTED_LEGACY_TOOL_NAMES | EXPECTED_MEMORY_TOOL_NAMES
+
+
+def test_list_tools_includes_legacy_tools():
+    """Old 8 tools are still present (backward compat)."""
+    tools = list_tools()
+    names = {t.name for t in tools}
+    assert EXPECTED_LEGACY_TOOL_NAMES.issubset(names)
+
+
+def test_list_tools_includes_memory_tools():
+    """New 5 memory tools are registered."""
+    tools = list_tools()
+    names = {t.name for t in tools}
+    assert EXPECTED_MEMORY_TOOL_NAMES.issubset(names)
 
 
 def test_list_tools_each_has_description_and_schema():
