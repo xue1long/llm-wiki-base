@@ -451,6 +451,7 @@ async def generate_ingest(
     # and the wiki page's ``sources:`` field references that same
     # project-relative path.
     _ = paths  # keep the parameter for callers
+    candidate = None  # may be set by candidate pipeline path; used in meta enrichment
 
     from .sanitizer import sanitize
 
@@ -591,6 +592,11 @@ async def generate_ingest(
                     "rejected": True,
                     "reason": "all chunks rejected by reviewer",
                     "warnings": [],
+                    "source_bytes": _source_bytes,
+                    "chunks_count": len(_chunks),
+                    "claims_count": 0,
+                    "evidence_count": 0,
+                    "candidate_confidence": 0.0,
                 }
                 return [], [], meta
 
@@ -661,6 +667,11 @@ async def generate_ingest(
                         "rejected": True,
                         "reason": result.reason,
                         "warnings": [],
+                        "source_bytes": _source_bytes,
+                        "chunks_count": 1,
+                        "claims_count": 0,
+                        "evidence_count": 0,
+                        "candidate_confidence": 0.0,
                     }
                     return [], [], meta
 
@@ -677,6 +688,11 @@ async def generate_ingest(
                         "needs_review": True,
                         "reason": result.reason,
                         "warnings": [],
+                        "source_bytes": _source_bytes,
+                        "chunks_count": 1,
+                        "claims_count": 0,
+                        "evidence_count": 0,
+                        "candidate_confidence": 0.0,
                     }
                     return [], [], meta
 
@@ -692,6 +708,9 @@ async def generate_ingest(
                     "source_grade": "C", "downstream_count": 0,
                     "extra_pages_count": 0, "rejected": True,
                     "reason": str(_promote_err), "warnings": [],
+                    "source_bytes": _source_bytes, "chunks_count": 1,
+                    "claims_count": 0, "evidence_count": 0,
+                    "candidate_confidence": 0.0,
                 }
                 return [], [], meta
 
@@ -1228,6 +1247,11 @@ async def generate_ingest(
     pages = [p for p in pages if p.id in _keep_ids]
     extra_pages = [p for p in extra_pages if p.id in _keep_ids]
 
+    # Collect candidate metrics for observability report
+    _candidate_claims = getattr(candidate, "claims", []) if candidate else []
+    _candidate_evidence = getattr(candidate, "evidence", []) if candidate else []
+    _candidate_conf = getattr(candidate, "confidence", 0.0) if candidate else 0.0
+
     meta = {
         "analysis": analysis,
         "source_slug": source_slug,
@@ -1235,8 +1259,13 @@ async def generate_ingest(
         "source_grade": _source_grade,
         "downstream_count": _downstream_count,
         "extra_pages_count": len(extra_pages),
-        "rejected": [],
+        "rejected": False,
         "warnings": [],
+        "source_bytes": _source_bytes,
+        "chunks_count": len(_chunks) if _is_chunked else 1,
+        "claims_count": len(_candidate_claims) if isinstance(_candidate_claims, list) else 0,
+        "evidence_count": len(_candidate_evidence) if isinstance(_candidate_evidence, list) else 0,
+        "candidate_confidence": float(_candidate_conf) if _candidate_conf else 0.0,
     }
     return pages, extra_pages, meta
 
@@ -1284,6 +1313,9 @@ async def run_ingest(
 
     Returns list of generated WikiPage objects.
     """
+    import time as _time
+    _started_at = int(_time.time() * 1000)
+
     pages, extra_pages, _meta = await generate_ingest(
         paths=paths,
         source_path=source_path,
@@ -1299,6 +1331,56 @@ async def run_ingest(
         extra_pages=extra_pages,
         task_id=task_id,
     )
+
+    _finished_at = int(_time.time() * 1000)
+
+    # --- Ingest observability: report + metrics ---
+    try:
+        _pipeline_mode = __import__("os").environ.get("RUFLO_PIPELINE_MODE", "candidate")
+        _pages_by_type: dict[str, int] = {}
+        for p in pages:
+            _pt = p.type.value if hasattr(p.type, "value") else str(p.type)
+            _pages_by_type[_pt] = _pages_by_type.get(_pt, 0) + 1
+        for p in (extra_pages or []):
+            _pt = p.type.value if hasattr(p.type, "value") else str(p.type)
+            _pages_by_type[_pt] = _pages_by_type.get(_pt, 0) + 1
+
+        _verdict = "validated"
+        _verdict_reason = ""
+        if _meta.get("rejected"):
+            _verdict = "rejected"
+            _verdict_reason = _meta.get("reason", "")
+        elif _meta.get("needs_review"):
+            _verdict = "needs_human_review"
+            _verdict_reason = _meta.get("reason", "")
+
+        # Bump rejected-candidate counter for Prometheus /metrics
+        if _verdict == "rejected":
+            from ..metrics import INGEST_CANDIDATE_REJECTED_TOTAL
+            _reason_label = _verdict_reason[:80] if _verdict_reason else "unknown"
+            INGEST_CANDIDATE_REJECTED_TOTAL.inc(reason=_reason_label)
+
+        from .ingest_report import build_report, write_ingest_report
+        _report = build_report(
+            task_id=task_id,
+            source_path=str(source_path),
+            started_at=_started_at,
+            finished_at=_finished_at,
+            source_bytes=_meta.get("source_bytes", 0),
+            pipeline_mode=_pipeline_mode,
+            chunks_count=_meta.get("chunks_count", 1),
+            claims_count=_meta.get("claims_count", 0),
+            evidence_count=_meta.get("evidence_count", 0),
+            candidate_confidence=_meta.get("candidate_confidence", 0.0),
+            verdict=_verdict,
+            verdict_reason=_verdict_reason,
+            pages_total=len(pages) + len(extra_pages or []),
+            pages_by_type=_pages_by_type,
+            warnings=_meta.get("warnings", []),
+        )
+        write_ingest_report(paths, _report)
+    except Exception as _report_exc:
+        _logger.warning("[run_ingest] report generation failed: %s", _report_exc)
 
     # Shadow mode: run the non-default pipeline path for comparison.
     # Main path output goes to wiki; shadow output goes to .index/shadow/<task_id>/.

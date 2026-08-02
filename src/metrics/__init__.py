@@ -33,12 +33,18 @@ ACTIVE_TASKS = MetricsRegistry.gauge(
     "ruflo_active_tasks", "Number of currently active tasks",
     label_names=["status"],
 )
+INGEST_CANDIDATE_REJECTED_TOTAL = MetricsRegistry.counter(
+    "ruflo_ingest_candidate_rejected_total",
+    "Number of candidates rejected during ingest",
+    label_names=["reason"],
+)
 
 
 __all__ = [
     "Counter", "Gauge", "Histogram", "MetricsRegistry",
     "prometheus_format",
-    "INGEST_TOTAL", "CHAT_TOTAL", "LLM_CALL_DURATION",
+    "INGEST_TOTAL", "INGEST_CANDIDATE_REJECTED_TOTAL",
+    "CHAT_TOTAL", "LLM_CALL_DURATION",
     "LLM_COST_USD_TOTAL", "ACTIVE_TASKS",
     "DEFAULT_BUCKETS",
 ]
