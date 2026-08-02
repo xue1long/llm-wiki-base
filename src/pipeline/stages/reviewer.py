@@ -81,6 +81,9 @@ class ReviewerStage:
         if cached is not None:
             return cached
 
+        # --- Normalize evidence_refs (1-indexed → 0-indexed) ---
+        self._normalize_evidence_refs(candidate)
+
         # --- Run all checks ---
         passed: list[str] = []
         failed: list[str] = []
@@ -145,6 +148,35 @@ class ReviewerStage:
     # ------------------------------------------------------------------
     # Individual checks
     # ------------------------------------------------------------------
+    @staticmethod
+    def _normalize_evidence_refs(candidate: KnowledgeCandidate) -> None:
+        """Detect and fix 1-indexed evidence_refs (LLM convention drift).
+
+        When the LLM uses 1-indexed refs, every max ref equals evidence_count
+        instead of evidence_count-1. This normalizes by subtracting 1 from all
+        refs when the pattern is detected.
+        """
+        evidence_count = len(candidate.evidence)
+        if evidence_count == 0:
+            return
+        all_refs = [
+            r
+            for claim in candidate.claims
+            for r in claim.get("evidence_refs", [])
+            if isinstance(r, int)
+        ]
+        if not all_refs:
+            return
+        max_ref = max(all_refs)
+        min_ref = min(all_refs)
+        # Only normalize when the pattern is unambiguously 1-indexed:
+        # all refs >= 1 and max == evidence_count (not evidence_count-1)
+        if min_ref >= 1 and max_ref == evidence_count:
+            for claim in candidate.claims:
+                refs = claim.get("evidence_refs", [])
+                if refs:
+                    claim["evidence_refs"] = [r - 1 for r in refs if isinstance(r, int)]
+
     @staticmethod
     def _check_schema(
         candidate: KnowledgeCandidate,

@@ -25,10 +25,10 @@ KO_TYPE_TO_PAGE_TYPE: dict[KnowledgeType, PageType] = {
     KnowledgeType.DOCUMENT:    PageType.SOURCE,
     KnowledgeType.ENTITY:      PageType.ENTITY,
     KnowledgeType.CONCEPT:     PageType.CONCEPT,
-    KnowledgeType.CLAIM:       PageType.CLAIM,
-    KnowledgeType.DECISION:    PageType.DECISION,
-    KnowledgeType.PROCEDURE:   PageType.PROCEDURE,
-    KnowledgeType.EVENT:       PageType.EVENT,
+    KnowledgeType.CLAIM:       PageType.CONCEPT,
+    KnowledgeType.DECISION:    PageType.CONCEPT,
+    KnowledgeType.PROCEDURE:   PageType.CONCEPT,
+    KnowledgeType.EVENT:       PageType.CONCEPT,
     KnowledgeType.SYNTHESIS:   PageType.SYNTHESIS,
 }
 

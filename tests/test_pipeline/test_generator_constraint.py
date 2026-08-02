@@ -228,22 +228,30 @@ def test_validator_type_mapping_table():
         assert isinstance(pt, PageType), f"Mapping for {kt.name} is not a PageType: {pt!r}"
 
 
-def test_validator_type_mapping_is_bijective():
-    """Each KnowledgeType maps to a UNIQUE PageType (no two types share same mapping)."""
+def test_validator_type_mapping_maps_to_standard_pagetypes():
+    """Every KnowledgeType maps to one of the 4 standard PageTypes
+    (source, entity, concept, synthesis). Extended types (claim, decision,
+    procedure, event) are collapsed to CONCEPT."""
     from src.pipeline.generator_constraint import KO_TYPE_TO_PAGE_TYPE
-    seen: dict[PageType, KnowledgeType] = {}
-    for kt, pt in KO_TYPE_TO_PAGE_TYPE.items():
-        if pt in seen:
-            raise AssertionError(
-                f"PageType.{pt.value} is mapped from both "
-                f"KnowledgeType.{seen[pt].name} and KnowledgeType.{kt.name}"
-            )
-        seen[pt] = kt
+    standard_types = {PageType.SOURCE, PageType.ENTITY, PageType.CONCEPT, PageType.SYNTHESIS}
+    mapped_types = set(KO_TYPE_TO_PAGE_TYPE.values())
+    assert mapped_types.issubset(standard_types), \
+        f"KO_TYPE_TO_PAGE_TYPE must only map to standard PageTypes: got {mapped_types - standard_types}"
 
 
 # ---------------------------------------------------------------------------
 # 6. Validator is importable and has expected public API
 # ---------------------------------------------------------------------------
+
+def test_extended_types_map_to_concept():
+    """CLAIM, DECISION, PROCEDURE, EVENT all map to PageType.CONCEPT."""
+    from src.pipeline.generator_constraint import KO_TYPE_TO_PAGE_TYPE
+    extended = {KnowledgeType.CLAIM, KnowledgeType.DECISION,
+                KnowledgeType.PROCEDURE, KnowledgeType.EVENT}
+    for kt in extended:
+        assert KO_TYPE_TO_PAGE_TYPE[kt] == PageType.CONCEPT, \
+            f"KnowledgeType.{kt.name} should map to CONCEPT, got {KO_TYPE_TO_PAGE_TYPE[kt]}"
+
 
 def test_validator_public_api():
     """GeneratorOutputValidator exposes validate(ko, wp) -> list[str]"""

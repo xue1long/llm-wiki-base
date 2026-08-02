@@ -188,6 +188,123 @@ class TestReviewerIdempotency:
         assert result1.checks_failed == result2.checks_failed
 
 
+class TestEvidenceRefNormalization:
+    """1-indexed evidence_refs are auto-normalized to 0-indexed before checks."""
+
+    def test_1indexed_refs_normalized_and_pass(self, tmp_path):
+        """When all refs >= 1 and max == evidence_count, subtract 1 from each."""
+        from src.pipeline.stages.reviewer import ReviewerStage
+
+        stage = ReviewerStage()
+        # evidence_count=6, refs in [1,6] → 1-indexed pattern
+        candidate = _make_valid_candidate(
+            tmp_path,
+            claims=[
+                {"text": "Claim A", "evidence_refs": [1, 2]},
+                {"text": "Claim B", "evidence_refs": [6]},  # max=6 == evidence_count
+            ],
+            evidence=[
+                {"source_path": str(tmp_path / "e0.pdf"), "quote": "q0"},
+                {"source_path": str(tmp_path / "e1.pdf"), "quote": "q1"},
+                {"source_path": str(tmp_path / "e2.pdf"), "quote": "q2"},
+                {"source_path": str(tmp_path / "e3.pdf"), "quote": "q3"},
+                {"source_path": str(tmp_path / "e4.pdf"), "quote": "q4"},
+                {"source_path": str(tmp_path / "e5.pdf"), "quote": "q5"},
+            ],
+        )
+        for ev in candidate.evidence:
+            Path(ev["source_path"]).write_text("x")
+
+        result = stage.review(candidate, tmp_path)
+        assert result.status == "validated", f"Expected validated, got {result.status}: {result.reason}"
+        assert "evidence_existence" in result.checks_passed
+
+    def test_0indexed_refs_untouched(self, tmp_path):
+        """Already-correct 0-indexed refs are not modified."""
+        from src.pipeline.stages.reviewer import ReviewerStage
+
+        stage = ReviewerStage()
+        candidate = _make_valid_candidate(
+            tmp_path,
+            claims=[{"text": "Claim A", "evidence_refs": [0, 1]}],
+        )
+        result = stage.review(candidate, tmp_path)
+        assert result.status == "validated"
+        assert candidate.claims[0]["evidence_refs"] == [0, 1]
+
+    def test_mixed_0_and_max_ref_not_normalized(self, tmp_path):
+        """Mixed refs containing 0 AND evidence_count are genuinely malformed."""
+        from src.pipeline.stages.reviewer import ReviewerStage
+
+        stage = ReviewerStage()
+        candidate = _make_valid_candidate(
+            tmp_path,
+            claims=[{"text": "Bad mix", "evidence_refs": [0, 2]}],
+            evidence=[
+                {"source_path": str(tmp_path / "e0.pdf"), "quote": "q0"},
+                {"source_path": str(tmp_path / "e1.pdf"), "quote": "q1"},
+            ],
+        )
+        for ev in candidate.evidence:
+            Path(ev["source_path"]).write_text("x")
+
+        result = stage.review(candidate, tmp_path)
+        assert result.status == "rejected"
+        assert "evidence_existence" in result.checks_failed
+
+    def test_stress_test_round1_pattern(self, tmp_path):
+        """Reproduce: evidence_count=6, ref=6 → normalized to ref=5."""
+        from src.pipeline.stages.reviewer import ReviewerStage
+
+        stage = ReviewerStage()
+        candidate = _make_valid_candidate(
+            tmp_path,
+            claims=[
+                {"text": "Claim 10 with OOB ref", "evidence_refs": [6]},
+            ],
+            evidence=[
+                {"source_path": str(tmp_path / "e0.pdf"), "quote": "q0"},
+                {"source_path": str(tmp_path / "e1.pdf"), "quote": "q1"},
+                {"source_path": str(tmp_path / "e2.pdf"), "quote": "q2"},
+                {"source_path": str(tmp_path / "e3.pdf"), "quote": "q3"},
+                {"source_path": str(tmp_path / "e4.pdf"), "quote": "q4"},
+                {"source_path": str(tmp_path / "e5.pdf"), "quote": "q5"},
+            ],
+        )
+        for ev in candidate.evidence:
+            Path(ev["source_path"]).write_text("x")
+
+        result = stage.review(candidate, tmp_path)
+        assert result.status == "validated"
+        # ref was normalized from 6 to 5
+        assert candidate.claims[0]["evidence_refs"] == [5]
+
+    def test_all_refs_equal_evidence_count(self, tmp_path):
+        """All refs == evidence_count (1-indexed last element)."""
+        from src.pipeline.stages.reviewer import ReviewerStage
+
+        stage = ReviewerStage()
+        candidate = _make_valid_candidate(
+            tmp_path,
+            claims=[
+                {"text": "C1", "evidence_refs": [3]},
+                {"text": "C2", "evidence_refs": [3]},
+            ],
+            evidence=[
+                {"source_path": str(tmp_path / "e0.pdf"), "quote": "q0"},
+                {"source_path": str(tmp_path / "e1.pdf"), "quote": "q1"},
+                {"source_path": str(tmp_path / "e2.pdf"), "quote": "q2"},
+            ],
+        )
+        for ev in candidate.evidence:
+            Path(ev["source_path"]).write_text("x")
+
+        result = stage.review(candidate, tmp_path)
+        assert result.status == "validated"
+        assert candidate.claims[0]["evidence_refs"] == [2]
+        assert candidate.claims[1]["evidence_refs"] == [2]
+
+
 class TestReviewerAllChecksTracked:
     """Verify that all 4 check names appear in checks_passed or checks_failed."""
 

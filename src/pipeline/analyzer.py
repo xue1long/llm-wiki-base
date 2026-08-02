@@ -125,7 +125,7 @@ Extract structured knowledge claims as a JSON object matching this schema:
   "type": "concept|entity|claim|decision|procedure|event",
   "title": "<candidate title>",
   "claims": [
-    {{"statement": "<claim text>", "confidence": 0.0-1.0, "evidence_refs": [0, 1]}}
+    {{"statement": "<claim text>", "confidence": 0.0-1.0, "evidence_refs": [0, 1]}}  // 0-based: valid range 0 to len(evidence)-1, never use len(evidence)
   ],
   "evidence": [
     {{"source_path": "<path>", "page": null, "quote": "<supporting text excerpt>"}}
@@ -139,7 +139,7 @@ Rules:
 - claims: 3-10 factual claims extracted from the source. Each claim must have:
   - statement: the claim text (one sentence, self-contained)
   - confidence: how certain this claim is (0.0-1.0) based on source quality
-  - evidence_refs: integer indices into the evidence list
+  - evidence_refs: **0-based** integer indices (0 = first, N-1 = last). Never output N or higher.
 - evidence: supporting excerpts from the source. Each entry:
   - source_path: path to source
   - page: page number or null

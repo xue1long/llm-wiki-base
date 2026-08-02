@@ -1147,11 +1147,10 @@ async def generate_from_knowledge_object(
         # Page id: use KO.id as base, slugified
         slug = _slugify(ko.id) or p.get("id", "")
 
-        # Type from KO
-        try:
-            page_type = PageType(_ko_type_str)
-        except ValueError:
-            page_type = PageType.CONCEPT
+        # Type from KO — use constraint mapping to collapse extended types
+        # (claim/decision/procedure/event) into standard PageTypes
+        from .generator_constraint import KO_TYPE_TO_PAGE_TYPE
+        page_type = KO_TYPE_TO_PAGE_TYPE.get(ko.type, PageType.CONCEPT)
 
         # Deterministic source-page slug
         if source_slug_map and page_type == PageType.SOURCE and _ko_source_path:
