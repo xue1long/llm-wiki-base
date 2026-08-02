@@ -695,9 +695,10 @@ async def generate_ingest(
                 }
                 return [], [], meta
 
-            # Step 4: Generate pages from candidate
-            from .generator import generate_from_candidate
-            pages = await generate_from_candidate(
+            # Step 4: Generate pages from KnowledgeObject (frontmatter from KO, LLM renders body)
+            from .generator import generate_from_knowledge_object
+            pages = await generate_from_knowledge_object(
+                ko=ko,
                 candidate=candidate,
                 paths=paths,
                 existing_wiki_index=_existing_wiki_index,

@@ -197,3 +197,92 @@ class TestCandidatePipelinePath:
         # Legacy path should produce pages
         assert len(pages) >= 2  # concept + source
         assert not meta.get("rejected")
+
+    def test_candidate_path_needs_human_review_returns_empty(self, tmp_path, monkeypatch):
+        """NEEDS_HUMAN_REVIEW candidate returns empty pages with needs_review=True."""
+        import asyncio
+
+        monkeypatch.setenv("RUFLO_PIPELINE_MODE", "candidate")
+        root, src_file, paths = _bootstrap_project(tmp_path)
+
+        # Valid candidate but we mock the reviewer to return needs_human_review
+        candidate_json = _make_candidate_json_response(str(src_file))
+        analyzer_resp = FakeLLMResponse(json.dumps(candidate_json, ensure_ascii=False))
+        provider = MagicMock()
+        provider.complete = AsyncMock(return_value=analyzer_resp)
+
+        from src.pipeline.ingest import generate_ingest
+        from src.pipeline.stages.reviewer import ReviewResult
+
+        # Mock ReviewerStage.review to return needs_human_review
+        original_review = __import__("src.pipeline.stages.reviewer", fromlist=["ReviewerStage"]).ReviewerStage.review
+
+        def mock_review(self, candidate, project_path):
+            return ReviewResult(
+                candidate_id=candidate.id,
+                status="needs_human_review",
+                reason="Low confidence — needs human review",
+                checks_failed=["confidence_threshold"],
+            )
+
+        monkeypatch.setattr(
+            "src.pipeline.stages.reviewer.ReviewerStage.review",
+            mock_review,
+        )
+
+        pages, extra, meta = asyncio.run(
+            generate_ingest(
+                paths=paths,
+                source_path=src_file,
+                source_text="content",
+                provider=provider,
+                task_id="kb-test",
+            )
+        )
+
+        assert pages == []
+        assert extra == []
+        assert meta.get("needs_review") is True
+
+    def test_candidate_path_ko_grade_propagates_to_source_page(self, tmp_path, monkeypatch):
+        """When candidate path produces pages, source page grade reflects KO."""
+        import asyncio
+
+        monkeypatch.setenv("RUFLO_PIPELINE_MODE", "candidate")
+        root, src_file, paths = _bootstrap_project(tmp_path)
+
+        high_conf_json = {
+            "source_id": str(src_file),
+            "type": "concept",
+            "title": "High Quality Concept",
+            "claims": [
+                {"statement": "Well-supported claim", "confidence": 0.95, "evidence_refs": [0]},
+                {"statement": "Another strong claim", "confidence": 0.90, "evidence_refs": [0]},
+            ],
+            "evidence": [
+                {"source_path": str(src_file), "page": 1, "quote": "strong evidence text"},
+            ],
+        }
+        analyzer_resp = FakeLLMResponse(json.dumps(high_conf_json, ensure_ascii=False))
+        generator_resp = FakeLLMResponse(
+            json.dumps(_make_wiki_page_response(), ensure_ascii=False)
+        )
+        provider = MagicMock()
+        provider.complete = AsyncMock(side_effect=[analyzer_resp, generator_resp])
+
+        from src.pipeline.ingest import generate_ingest
+
+        pages, extra, meta = asyncio.run(
+            generate_ingest(
+                paths=paths,
+                source_path=src_file,
+                source_text="# High quality content\n\nSubstantive text here.",
+                provider=provider,
+                task_id="kb-test",
+            )
+        )
+
+        assert len(pages) >= 2
+        source_pages = [p for p in pages if p.type.value == "source"]
+        assert len(source_pages) == 1
+        assert source_pages[0].grade == "A"

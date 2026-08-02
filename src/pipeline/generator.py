@@ -36,6 +36,7 @@ from ..wiki.templates import (
     required_slot_names,
 )
 from ..knowledge.core.candidate import KnowledgeCandidate
+from ..knowledge.core.object import KnowledgeObject
 from ._pipeline_common import clean_source_text, parse_llm_json
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
@@ -969,6 +970,222 @@ async def generate_from_candidate(
             grade=p.get("grade", _derived_grade),
             processing_depth=p.get("processing_depth") or _DEPTH_BY_TYPE.get(page_type, "concept"),
             is_immutable=p.get("is_immutable", False),
+            relations=parse_relations_from_response(deduped_relations),
+            tags=_resolve_page_tags_unified(p),
+            category=p.get("category", ""),
+            taxonomy_sub=p.get("taxonomy_sub", ""),
+        )
+        page._ko_extra = {"provenance": _provenance_payload}
+        pages.append(page)
+
+    return pages
+
+
+async def generate_from_knowledge_object(
+    ko: "KnowledgeObject",
+    candidate: KnowledgeCandidate,
+    paths: WikiPaths,
+    existing_wiki_index: str,
+    provider,
+    source_slug_map: Optional["dict[str, str]"] = None,
+    source_text: str = "",
+) -> list[WikiPage]:
+    """Render wiki pages from a KnowledgeObject with frontmatter enforcement.
+
+    Frontmatter fields (type, title, grade, confidence, sources) are sourced
+    from the KnowledgeObject — the LLM is told to RENDER the candidate's
+    claims into body slots only.  GeneratorOutputValidator invariants are
+    applied after rendering.
+    """
+    import json as _json
+    import time as _time
+
+    # Format claims for the LLM prompt (same as generate_from_candidate)
+    _claims_lines: list[str] = []
+    for i, claim in enumerate(candidate.claims):
+        statement = claim.get("statement", "")
+        conf = claim.get("confidence", 0.0)
+        refs = claim.get("evidence_refs", [])
+        _claims_lines.append(
+            f"{i + 1}. [{conf:.0%}] {statement}  (evidence: {refs})"
+        )
+    claims_text = "\n".join(_claims_lines) if _claims_lines else "(no claims)"
+
+    _ev_lines: list[str] = []
+    for i, ev in enumerate(candidate.evidence):
+        src = ev.get("source_path", "")
+        quote = ev.get("quote", "")
+        _ev_lines.append(f"[{i}] {src}\n    > {quote}")
+    evidence_text = "\n".join(_ev_lines) if _ev_lines else "(no evidence)"
+
+    # Resolve templates
+    resolved_templates = {t.type: t for t in list_resolved(paths.root)}
+    required_slots_by_type: dict[PageType, list[str]] = {
+        pt: required_slot_names(resolved_templates[pt])
+        for pt in PageType
+        if pt in resolved_templates
+    }
+
+    response_format = {
+        "type": "object",
+        "properties": {
+            "pages": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "type": {"type": "string", "enum": ["source", "entity", "concept", "synthesis"]},
+                        "title": {"type": "string"},
+                        "slots": {
+                            "type": "object",
+                            "additionalProperties": {"type": "string", "minLength": 1},
+                            "minProperties": 1,
+                        },
+                        "relations": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "target": {"type": "string"}, "type": {"type": "string"},
+                                    "weight": {"type": "number"}, "context": {"type": "string"},
+                                },
+                                "required": ["target", "type"],
+                            },
+                        },
+                        "tags": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                        "grade": {"type": "string", "enum": ["A", "B", "C"]},
+                        "category": {"type": "string"},
+                        "taxonomy_sub": {"type": "string"},
+                        "processing_depth": {"type": "string", "enum": ["source", "entity", "concept", "synthesis", "memory"]},
+                    },
+                    "required": ["id", "type", "title", "slots"],
+                },
+            },
+        },
+        "required": ["pages"],
+    }
+
+    # KO-derived frontmatter values (these override LLM output)
+    _ko_grade = ko.grade or "B"
+    _ko_type_str = ko.type.value
+
+    base_prompt = CANDIDATE_RENDER_PROMPT.format(
+        candidate_type=_ko_type_str,
+        candidate_title=ko.title,
+        candidate_confidence=ko.confidence,
+        claims_text=claims_text,
+        evidence_text=evidence_text,
+        SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
+        existing_wiki_index=existing_wiki_index or "(empty)",
+        WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
+        PAGE_TEMPLATES=_render_template_section(paths.root),
+    )
+
+    response_dict = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt=base_prompt,
+        response_format=response_format,
+        required_slots_by_type=required_slots_by_type,
+        timeout=600.0,
+    )
+
+    raw_pages = response_dict.get("pages", [])
+
+    raw_pages = _auto_fill_deterministic_slots(
+        raw_pages,
+        source_path=ko.provenance.source_path if ko.provenance else candidate.source_id,
+        source_text=source_text,
+        source_slug_map=source_slug_map,
+    )
+
+    filled_pages, missing_summary = _ensure_required_slots_filled(
+        raw_pages,
+        required_slots_by_type=required_slots_by_type,
+    )
+    if missing_summary:
+        _logger.warning(
+            "[generate_from_knowledge_object] required slots still missing after retry+auto-fill, "
+            "filled with placeholder: %s", missing_summary,
+        )
+
+    now = int(_time.time() * 1000)
+    pages: list[WikiPage] = []
+
+    # Build provenance payload from KO
+    _prov = ko.provenance
+    _provenance_payload = {
+        "source_path": _prov.source_path if _prov else candidate.source_id,
+        "page": _prov.page if _prov else None,
+        "quote": _prov.quote if _prov else "",
+        "ingested_at": _prov.ingested_at if _prov else now,
+        "ingestor_version": _prov.ingestor_version if _prov else "2.0.0",
+    }
+
+    # KO source path for WikiPage.sources
+    _ko_source_path = _prov.source_path if _prov else candidate.source_id
+
+    for p in filled_pages:
+        # === Frontmatter from KO (LLM cannot override) ===
+        title = ko.title
+
+        # Page id: use KO.id as base, slugified
+        slug = _slugify(ko.id) or p.get("id", "")
+
+        # Type from KO
+        try:
+            page_type = PageType(_ko_type_str)
+        except ValueError:
+            page_type = PageType.CONCEPT
+
+        # Deterministic source-page slug
+        if source_slug_map and page_type == PageType.SOURCE and _ko_source_path:
+            map_slug = source_slug_map.get(_ko_source_path)
+            if map_slug:
+                slug = map_slug
+
+        if page_type != PageType.SOURCE:
+            cleaned = _sanitize_generated_id(slug)
+            if cleaned is None:
+                _logger.warning(
+                    "[generate_from_knowledge_object] dropping page with unrecoverable id: %r",
+                    p.get("id"),
+                )
+                continue
+            slug = cleaned
+
+        # Render body from LLM slots
+        template = resolved_templates.get(page_type)
+        if template is None:
+            body_md = ""
+        else:
+            body_md = render_body(
+                template_body=template.body_markdown,
+                slots=p.get("slots", {}) or {},
+                page_type=page_type,
+                template_version=template.version or "",
+            )
+
+        # Relation dedup
+        raw_relations = p.get("relations", []) or []
+        deduped_relations: list[dict] = []
+        seen_targets: set = set()
+        for rel in sorted(raw_relations, key=lambda r: r.get("weight", 1.0), reverse=True):
+            tgt = rel.get("target", "")
+            if not tgt:
+                continue
+            canon = _slugify(tgt) or tgt
+            if canon not in seen_targets:
+                seen_targets.add(canon)
+                deduped_relations.append(rel)
+
+        page = WikiPage(
+            id=slug, title=title, type=page_type,
+            sources=[normalize_source_path(_ko_source_path, paths.root)],
+            created_at=now, updated_at=now, body=body_md,
+            grade=_ko_grade,
+            processing_depth=p.get("processing_depth") or _DEPTH_BY_TYPE.get(page_type, "concept"),
+            is_immutable=ko.is_immutable if hasattr(ko, "is_immutable") else False,
             relations=parse_relations_from_response(deduped_relations),
             tags=_resolve_page_tags_unified(p),
             category=p.get("category", ""),
