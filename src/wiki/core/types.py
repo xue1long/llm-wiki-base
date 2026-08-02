@@ -75,7 +75,7 @@ class WikiPage:
     taxonomy_sub: str = ""
 
     def to_frontmatter_dict(self) -> dict:
-        return {
+        d = {
             "id": self.id,
             "title": self.title,
             "type": self.type.value,
@@ -93,6 +93,10 @@ class WikiPage:
             "category": self.category,
             "taxonomy_sub": self.taxonomy_sub,
         }
+        ko_extra = getattr(self, "_ko_extra", None)
+        if isinstance(ko_extra, dict):
+            d["_ko_extra"] = ko_extra
+        return d
 
     @classmethod
     def from_dict(cls, d: dict, body: str = "") -> "WikiPage":

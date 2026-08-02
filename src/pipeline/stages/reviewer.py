@@ -14,7 +14,8 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from src.knowledge.core.candidate import KnowledgeCandidate
+from src.events.event_bus import event_bus
+from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
 
 
 # ---------------------------------------------------------------------------
@@ -118,8 +119,22 @@ class ReviewerStage:
             checks_failed=failed,
         )
 
+        # --- Mutate candidate status ---
+        try:
+            candidate.status = CandidateStatus(status)
+        except ValueError:
+            candidate.status = CandidateStatus.REJECTED
+
         # --- Cache for idempotency ---
         self._cache.put(candidate.id, result)
+
+        # --- Emit event for downstream stages ---
+        if status == "VALIDATED":
+            event_bus.emit("candidate:validated", {
+                "candidate": candidate,
+                "result": result,
+            })
+
         return result
 
     # ------------------------------------------------------------------

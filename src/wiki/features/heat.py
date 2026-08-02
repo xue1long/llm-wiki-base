@@ -40,12 +40,15 @@ class HeatTracker:
         if not page_file.exists():
             return
         page = read_page(page_file)
+        was_zombie = page.heat == 0 and page.zombie_since is not None
         new_heat = min(100, max(0, page.heat + delta))
         page.heat = new_heat
         page.last_used_at = int(time.time() * 1000)
         page.zombie_since = None
         write_page(self.paths, page)
         self._log(page_id, delta, reason)
+        if was_zombie and new_heat > 0 and _decay_bridge is not None:
+            _decay_bridge.on_heat_restored(page_id, new_heat)
 
     def decay(self) -> list[HeatEvent]:
         """Decay all pages whose last_used_at > HEAT_DECAY_DAYS ago."""

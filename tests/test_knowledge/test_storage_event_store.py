@@ -57,7 +57,7 @@ def test_jsonl_read_all_returns_all_events(store):
 
 
 def test_jsonl_read_all_since_timestamp(store):
-    """Append events at different times -> filter by occurred_at."""
+    """Append events at different times -> filter by timestamp."""
     t1 = int(time.time() * 1000)
     store.append("s1", "e1", {"n": 1})
     time.sleep(0.01)  # ensure timestamp gap
@@ -68,7 +68,7 @@ def test_jsonl_read_all_since_timestamp(store):
     # since_timestamp=t2 excludes the first event
     events = store.read_all(since_timestamp=t2)
     assert len(events) == 2
-    event_types = [e["event_type"] for e in events]
+    event_types = [e["action"] for e in events]
     assert "e2" in event_types
     assert "e3" in event_types
 
@@ -147,17 +147,17 @@ def test_jsonl_empty_store(store):
 
 
 def test_jsonl_event_format(store):
-    """Each event has stream_id, event_type, event_version, payload, occurred_at."""
+    """Each event has stream_id, action, event_version, timestamp + payload spread."""
     store.append("my_stream", "my_event", {"key": "value"})
     events = store.read_all()
     assert len(events) == 1
     event = events[0]
     assert event["stream_id"] == "my_stream"
-    assert event["event_type"] == "my_event"
+    assert event["action"] == "my_event"
     assert event["event_version"] == 1
-    assert event["payload"] == {"key": "value"}
-    assert isinstance(event["occurred_at"], int)
-    assert event["occurred_at"] > 0
+    assert event["key"] == "value"  # payload spread at top level
+    assert isinstance(event["timestamp"], int)
+    assert event["timestamp"] > 0
 
 
 def test_jsonl_event_format_raw_file(store):
@@ -167,7 +167,11 @@ def test_jsonl_event_format_raw_file(store):
     lines = [l for l in raw.strip().split("\n") if l.strip()]
     assert len(lines) == 1
     parsed = json.loads(lines[0])
-    assert set(parsed.keys()) == {"stream_id", "event_type", "event_version", "payload", "occurred_at"}
+    assert parsed["action"] == "t"
+    assert parsed["stream_id"] == "s"
+    assert parsed["event_version"] == 1
+    assert parsed["p"] == 1
+    assert "timestamp" in parsed
 
 
 # ---------------------------------------------------------------------------

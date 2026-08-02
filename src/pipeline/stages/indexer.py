@@ -215,7 +215,11 @@ class IndexerStage:
             ACTIVE     → no-op
         """
         try:
-            if ko.lifecycle == LifecycleState.PROCESSING:
+            if ko.lifecycle == LifecycleState.CREATED:
+                lifecycle_engine.transition(ko, LifecycleState.PROCESSING, reason)
+                lifecycle_engine.transition(ko, LifecycleState.REVIEWING, reason)
+                lifecycle_engine.transition(ko, LifecycleState.ACTIVE, reason)
+            elif ko.lifecycle == LifecycleState.PROCESSING:
                 lifecycle_engine.transition(ko, LifecycleState.REVIEWING, reason)
                 lifecycle_engine.transition(ko, LifecycleState.ACTIVE, reason)
             elif ko.lifecycle == LifecycleState.REVIEWING:

@@ -16,6 +16,7 @@ from mcp.types import Tool, TextContent
 _memory_retrieval = None
 _decision_recorder = None
 _provenance_tracker = None
+_wiki_paths = None
 
 # Allowed fields for memory_update
 _SAFE_UPDATE_FIELDS = {"title", "content", "grade"}
@@ -239,7 +240,22 @@ async def _memory_update(arguments: dict) -> list[TextContent]:
             "allowed_fields": sorted(_SAFE_UPDATE_FIELDS),
         }, indent=2))]
 
-    # Check object exists and apply changes
+    # Try to persist to disk via wiki_paths
+    page = _find_and_update_page(object_id, changes)
+    if page is not None:
+        return [TextContent(type="text", text=json.dumps({
+            "object_id": object_id,
+            "updated_fields": changes,
+            "updated_object": {
+                "object_id": object_id,
+                "title": page.title,
+                "content": page.body,
+                "grade": page.grade,
+            },
+            "status": "updated",
+        }, indent=2))]
+
+    # Fallback: check via memory retrieval
     if _memory_retrieval is not None:
         response = _memory_retrieval.recall(object_id)
         if response.memory_object is None:
@@ -253,15 +269,59 @@ async def _memory_update(arguments: dict) -> list[TextContent]:
             "updated_fields": changes,
             "updated_object": current,
             "status": "updated",
+            "note": "Memory retrieval active but no wiki_paths configured; update not persisted",
         }, indent=2))]
 
-    # No retrieval configured — accept the update optimistically
     return [TextContent(type="text", text=json.dumps({
         "object_id": object_id,
         "updated_fields": changes,
         "status": "updated",
         "note": "Memory retrieval not configured; update recorded but not persisted",
     }, indent=2))]
+
+
+def _find_and_update_page(object_id: str, changes: dict):
+    """Locate the wiki page for *object_id* and apply *changes* in-place.
+
+    Returns the updated WikiPage on success, or None if the page could not
+    be found or written.
+    """
+    if _wiki_paths is None:
+        return None
+    try:
+        from src.wiki.storage.page_writer import read_page, write_page
+        from pathlib import Path
+
+        page_file = _locate_page_file(object_id)
+        if page_file is None:
+            return None
+
+        page = read_page(page_file)
+        if "title" in changes:
+            page.title = changes["title"]
+        if "content" in changes:
+            page.body = changes["content"]
+        if "grade" in changes:
+            page.grade = changes["grade"]
+        page.updated_at = int(__import__("time").time() * 1000)
+        write_page(_wiki_paths, page)
+        return page
+    except Exception:
+        return None
+
+
+def _locate_page_file(object_id: str):
+    """Find the .md file for *object_id* across all wiki directories."""
+    from pathlib import Path
+    for dir_attr in ("wiki_sources", "wiki_entities", "wiki_concepts",
+                     "wiki_synthesis", "wiki_claims", "wiki_decisions"):
+        dir_path = getattr(_wiki_paths, dir_attr, None)
+        if dir_path is None:
+            continue
+        candidate = Path(dir_path) / f"{object_id}.md"
+        if candidate.exists():
+            return candidate
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -278,7 +338,7 @@ _memory_handlers = {
 
 
 def register_memory_tools(mcp_server, memory_retrieval=None, decision_recorder=None,
-                          provenance_tracker=None):
+                          provenance_tracker=None, wiki_paths=None):
     """Register the 5 memory tools on the MCP server instance.
 
     Sets module-level state so that the tool handlers can access the
@@ -291,8 +351,10 @@ def register_memory_tools(mcp_server, memory_retrieval=None, decision_recorder=N
         memory_retrieval: Optional ``MemoryRetrieval`` instance.
         decision_recorder: Optional ``DecisionRecorder`` instance.
         provenance_tracker: Optional ``ProvenanceTracker`` instance.
+        wiki_paths: Optional ``WikiPaths`` for persisting memory updates.
     """
-    global _memory_retrieval, _decision_recorder, _provenance_tracker
+    global _memory_retrieval, _decision_recorder, _provenance_tracker, _wiki_paths
     _memory_retrieval = memory_retrieval
     _decision_recorder = decision_recorder
     _provenance_tracker = provenance_tracker
+    _wiki_paths = wiki_paths

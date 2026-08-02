@@ -38,10 +38,10 @@ class TestAcquire:
         assert lock.acquire("obj", 0) is False
 
     def test_increments_version_on_success(self, tmp_path):
-        """After acquire succeeds, version is incremented."""
+        """After with_lock succeeds, version is incremented."""
         lock = OptimisticLock(tmp_path)
         assert lock.get_version("obj") == 0
-        lock.acquire("obj", 0)
+        lock.with_lock("obj", lambda expected_version=0: "ok")
         assert lock.get_version("obj") == 1
 
     def test_does_not_change_version_on_failure(self, tmp_path):
@@ -176,8 +176,8 @@ class TestIndependentVersions:
         lock.release("obj_a", 3)
         lock.release("obj_b", 3)
 
-        # Acquire for obj_a only
-        assert lock.acquire("obj_a", 3) is True
+        # Increment version for obj_a via with_lock
+        lock.with_lock("obj_a", lambda expected_version=0: "ok")
 
         # obj_a version bumped
         assert lock.get_version("obj_a") == 4

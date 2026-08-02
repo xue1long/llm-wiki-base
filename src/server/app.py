@@ -112,6 +112,16 @@ def create_app() -> FastAPI:
                 project_root = Path.cwd()
                 paths = ensure_knowledge_base(project_root)
                 init_vector_store_for_paths(paths)
+                # Wire DecayBridge so heat decay triggers lifecycle transitions
+                try:
+                    from ..knowledge.core.lifecycle import LifecycleEngine
+                    from ..knowledge.lifecycle.decay import DecayBridge
+                    from ..wiki.features.heat import set_decay_bridge
+                    engine = LifecycleEngine()
+                    bridge = DecayBridge(engine)
+                    set_decay_bridge(bridge)
+                except Exception:
+                    pass
             except Exception as e:
                 _logger.warning("[startup] vector store init failed: %s", e)
 

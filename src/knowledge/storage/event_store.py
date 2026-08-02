@@ -66,15 +66,21 @@ class JSONLEventStore(EventStore):
             return 0
 
     def append(self, stream_id: str, event_type: str, payload: dict) -> int:
-        """Append event as JSON line. Increment and return version."""
+        """Append event as JSON line. Increment and return version.
+
+        Event format is compatible with GraphBuilder._apply_event():
+        ``action`` maps from *event_type*, and *payload* keys are spread
+        at the top level so that ``node``/``edge``/``node_id``/``edge_id``
+        are directly accessible.
+        """
         self._version_counter += 1
         version = self._version_counter
         event = {
+            "action": event_type,
+            **payload,
+            "timestamp": int(time.time() * 1000),
             "stream_id": stream_id,
-            "event_type": event_type,
             "event_version": version,
-            "payload": payload,
-            "occurred_at": int(time.time() * 1000),
         }
         line = json.dumps(event, ensure_ascii=False) + "\n"
         with open(self._events_path, "a", encoding="utf-8") as fh:
@@ -117,7 +123,8 @@ class JSONLEventStore(EventStore):
                         event = json.loads(stripped)
                     except json.JSONDecodeError:
                         continue
-                    if "occurred_at" in event and event["occurred_at"] >= since_timestamp:
+                    ts = event.get("timestamp", 0)
+                    if isinstance(ts, (int, float)) and ts >= since_timestamp:
                         events.append(event)
         except (FileNotFoundError, OSError):
             pass

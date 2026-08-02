@@ -9,8 +9,9 @@ Protocol:
 - Each object has a monotonic version counter at .index/locks/{object_id}.version
 - Writer reads current version before writing
 - Writer includes expected_version in the write
+- Writer performs the write; on success increments version to current+1
+- On failure the version is left unchanged (no counter corruption)
 - If expected_version != current_version -> conflict -> retry (max 3 times)
-- On successful write -> increment version counter
 - MCP memory_update returns version conflict as an error for caller retry
 """
 import json
@@ -68,21 +69,19 @@ class OptimisticLock:
             return 0
 
     def acquire(self, object_id: str, expected_version: int) -> bool:
-        """Try to acquire write lock at expected_version.
+        """Check whether expected_version matches current version.
 
-        Returns True if expected_version matches current version (lock acquired).
+        Returns True if the caller can proceed (no conflict).
         Returns False if version mismatch (conflict — caller should retry).
+
+        Does NOT increment the version — that happens after a successful
+        write in :meth:`with_lock`.
         """
         current = self.get_version(object_id)
-        if current != expected_version:
-            return False
-        next_version = current + 1
-        vp = self._version_path(object_id)
-        vp.write_text(str(next_version), encoding="utf-8")
-        return True
+        return current == expected_version
 
     def release(self, object_id: str, new_version: int) -> None:
-        """Release lock and update to new_version after successful write."""
+        """Update version counter to *new_version* after a successful write."""
         vp = self._version_path(object_id)
         vp.write_text(str(new_version), encoding="utf-8")
 
@@ -90,10 +89,11 @@ class OptimisticLock:
         """Execute write_fn with optimistic locking.
 
         1. Read current version
-        2. Call write_fn(expected_version=current_version)
-        3. If write_fn succeeds, increment version
-        4. If version conflict, retry up to MAX_RETRIES times
-        5. If all retries exhausted, raise ConcurrencyError
+        2. Check no conflict (expected_version == current)
+        3. Call write_fn(expected_version=current_version)
+        4. If write_fn succeeds, increment version to current+1
+        5. If version conflict, retry up to MAX_RETRIES times
+        6. If all retries exhausted, raise ConcurrencyError
 
         Returns the result of write_fn.
         """
@@ -103,6 +103,8 @@ class OptimisticLock:
                 continue
             try:
                 result = write_fn(*args, expected_version=current, **kwargs)
+                # Only increment version AFTER a successful write
+                self.release(object_id, current + 1)
                 return result
             except ConcurrencyError:
                 if attempt >= self.MAX_RETRIES:
