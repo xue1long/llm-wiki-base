@@ -37,16 +37,22 @@ class PermissionDenied(PermissionError):
 
 # 权限白名单
 #
-# Orchestrator 短路返回 True(见下),所以它的条目不在这里;
-# AgentType.COLLECTOR 是当前唯一受边界限制的 agent。
+# Orchestrator 短路返回 True(见下),所以它的条目不在这里。
 ALLOWED_PATHS = {
     AgentType.COLLECTOR: {
-        # The wiki-v2 input directory (per CLAUDE.md). Callers resolve
-        # an absolute project root via src/lib/project.py:resolve_project()
-        # (used by src/services/ingest.py) and pass paths relative to it
-        # so the boundary check below can match.
         Permission.READ: ["raw/sources"],
         Permission.WRITE: ["raw/sources"],
+    },
+    AgentType.PROCESSOR: {
+        Permission.READ: ["raw/sources", "wiki"],
+        Permission.WRITE: ["wiki", ".index"],
+    },
+    AgentType.LIBRARIAN: {
+        Permission.READ: ["wiki"],
+        Permission.WRITE: ["wiki", ".index"],
+    },
+    AgentType.SEARCHER: {
+        Permission.READ: ["wiki", ".index"],
     },
 }
 

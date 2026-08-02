@@ -14,8 +14,8 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from src.events.event_bus import event_bus
-from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
+from ...events.event_bus import event_bus
+from ...knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
 
 
 # ---------------------------------------------------------------------------

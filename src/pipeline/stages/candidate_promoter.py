@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import time
 
-from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
-from src.knowledge.core.object import (
+from ...knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
+from ...knowledge.core.object import (
     KnowledgeObject,
     KnowledgeType,
     LifecycleState,
