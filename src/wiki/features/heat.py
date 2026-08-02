@@ -10,6 +10,14 @@ HEAT_DECAY_DAYS = 30
 HEAT_DECAY_AMOUNT = 10
 HEAT_INCREMENT = 5
 
+_decay_bridge = None
+
+
+def set_decay_bridge(bridge):
+    """Register a DecayBridge to receive heat decay callbacks."""
+    global _decay_bridge
+    _decay_bridge = bridge
+
 
 @dataclass
 class HeatEvent:
@@ -60,6 +68,8 @@ class HeatTracker:
                     if page.heat == 0 and page.zombie_since is None:
                         page.zombie_since = now
                         ZombieDetector.generate_staging_draft(self.paths, page)
+                        if _decay_bridge is not None:
+                            _decay_bridge.on_heat_decayed(page.id, 0, True)
                     write_page(self.paths, page)
         return events
 
