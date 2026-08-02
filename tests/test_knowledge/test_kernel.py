@@ -55,6 +55,11 @@ class TestKnowledgeKernelInit:
         assert isinstance(kernel.lifecycle, LifecycleEngine)
         assert isinstance(kernel.versions, VersionManager)
 
+    def test_uses_global_event_bus_singleton(self, kernel):
+        """Kernel.events must be the module-level singleton, not a private instance."""
+        from src.events.event_bus import event_bus as _global
+        assert kernel.events is _global
+
     def test_lifecycle_engine_shares_kernel_event_bus(self, kernel):
         """LifecycleEngine should use the kernel's EventBus instance."""
         assert kernel.lifecycle.event_bus is kernel.events

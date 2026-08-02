@@ -6,7 +6,7 @@ single entry point with consistent audit trails and permission gating.
 
 from pathlib import Path
 
-from src.events.event_bus import EventBus
+from src.events.event_bus import event_bus
 from src.knowledge.core.lifecycle import LifecycleEngine
 from src.knowledge.core.object import (
     KnowledgeObject,
@@ -65,7 +65,7 @@ class KnowledgeKernel:
 
     def __init__(self, project_path: Path) -> None:
         self.permissions = PermissionEngine()
-        self.events = EventBus()
+        self.events = event_bus
         self.lifecycle = LifecycleEngine(self.events)
         self.versions = VersionManager(project_path)
         self._extensions: dict = {}  # Phase 2 adds Graph, Phase 3 adds Memory
