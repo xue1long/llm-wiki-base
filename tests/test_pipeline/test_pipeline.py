@@ -138,7 +138,7 @@ async def test_run_ingest_kb_task_id_fallback_when_llm_omits_source_page(tmp_pat
 
 
 # ---------------------------------------------------------------------------
-# v2.4 source-page id strategy: {NFC(stem)}-{path_hash_8_hex}
+# v2.5 source-page id strategy: {slugify(NFC(stem))}-{path_hash_8_hex}
 # ---------------------------------------------------------------------------
 
 
@@ -161,7 +161,8 @@ async def test_source_page_uses_chinese_stem_with_path_hash(tmp_path):
         provider=provider, task_id="kb-test-stem",
     )
     page = next(p for p in pages if p.type == PageType.SOURCE)
-    expected_stem = "必备资料15顺眼谈文章的画面感"
+    # B3: slugify inserts hyphens at CJK↔ASCII boundaries
+    expected_stem = "必备资料-15-顺眼谈文章的画面感"
     assert page.id.startswith(expected_stem + "-"), (
         f"source id should start with {expected_stem!r}-, got {page.id!r}"
     )
@@ -516,3 +517,42 @@ async def test_normalize_generated_pages_canonicalizes_relation_target_id(tmp_pa
     _normalize_generated_pages([page], p)
 
     assert page.relations[0].target_id == "qi-dai-gan-chuangzuo"
+
+
+def test_normalize_generated_pages_sets_correct_processing_depth():
+    """T2: _normalize_generated_pages maps PageType → processing_depth
+    per _DEPTH_BY_TYPE, covering all four concrete PageType values (B1).
+    """
+    from src.pipeline.ingest import _normalize_generated_pages
+    from src.wiki.core.types import WikiPage
+
+    # Use a tmp_path fixture via conftest
+    import tempfile, os
+    d = tempfile.mkdtemp()
+    try:
+        ensure_knowledge_base(d)
+        p = WikiPaths(d)
+
+        cases = [
+            (PageType.SOURCE, "source"),
+            (PageType.ENTITY, "entity"),
+            (PageType.CONCEPT, "concept"),
+            (PageType.SYNTHESIS, "synthesis"),
+        ]
+        for page_type, expected_depth in cases:
+            page = WikiPage(
+                id=f"test-{page_type.value}",
+                title=f"Test {page_type.value}",
+                type=page_type,
+                sources=[],
+                body="",
+                processing_depth="concept",  # deliberately wrong
+            )
+            _normalize_generated_pages([page], p)
+            assert page.processing_depth == expected_depth, (
+                f"{page_type.value} should map to {expected_depth!r}, "
+                f"got {page.processing_depth!r}"
+            )
+    finally:
+        import shutil
+        shutil.rmtree(d, ignore_errors=True)
