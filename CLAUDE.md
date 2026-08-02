@@ -120,7 +120,7 @@ Supported source formats (extracted by `src/utils/extract/`): PDF (pypdf), DOCX 
 
 Alternative ingestion paths:
 - **MCP** (`python -m src.cli mcp`) — stdio server exposes `ingest` as an MCP tool for Claude Desktop
-- **Programmatic** — `from src.pipeline.pipeline import run_ingest` runs Collector → Analyzer → Generator → atomic write synchronously (no queue); `from src.wiki.features.folder_ingest import collect_files` enumerates files in a folder for batch processing
+- **Programmatic** — `from src.pipeline.ingest import run_ingest` runs the full candidate pipeline (Collector → Analyzer → Reviewer → Promoter → Generator → Writer) synchronously (no queue); `from src.wiki.features.folder_ingest import collect_files` enumerates files in a folder for batch processing
 
 Verify results:
 ```bash
@@ -188,18 +188,23 @@ to delete stale entries. All cache/log/staging directories can be cleaned
 safely — wiki pages are the source of truth. The server also runs cleanup
 hourly in the background.
 
-### Pipeline (Analyzer → Generator → Writer)
+### Pipeline (Collector → Analyzer → Reviewer → Promoter → Generator → Writer)
 
-`src/pipeline/pipeline.py` registers event handlers at import time. The flow is:
+The default pipeline mode (`RUFLO_PIPELINE_MODE=candidate`, the default) uses the new candidate path:
 
-```
-collector:start → Collector → collector:done
-  → Analyzer (LLM extracts AnalysisResult)
-  → Generator (LLM renders WikiPage list)
-  → atomic: write_page + append_to_index + log_event
-```
+1. **Collector** — reads raw source files
+2. **Analyzer** (JSON mode) — LLM extracts KnowledgeCandidate (claims + evidence)
+3. **ReviewerStage** — 4 rule checks (schema, evidence, references, confidence)
+   - REJECTED → task FAILED + quarantine
+   - NEEDS_HUMAN_REVIEW → creates ReviewItem
+   - VALIDATED → continues
+4. **CandidatePromoter** — promotes KnowledgeCandidate → KnowledgeObject (lifecycle=PROCESSING)
+5. **Generator** (`generate_from_knowledge_object`) — LLM renders body slots only; frontmatter (type, title, grade, provenance) sourced from KnowledgeObject
+6. **Writer** — atomic: write_page + append_to_index + log_event
 
-`run_ingest(paths, source_path, source_text, provider, ...)` is the new pure function entry point. EventBus (`src/events/event_bus.py`) is a singleton; handlers register via `event_bus.on(name, handler)`. `AtomicContext` batches writes via `safe_write` (which buffers to `_pending_writes` and flushes on context exit). For deletions use the `DELETE_SENTINEL` mechanism in `src/lib/write_hooks.py` so cascade operations are atomic.
+The legacy path (`RUFLO_PIPELINE_MODE=legacy`) uses the old Analyzer (markdown) → Generator (`unified_generate` or two-step `analyze`→`generate`) flow and is deprecated. Shadow mode (`RUFLO_SHADOW_MODE=true`) runs both paths and writes a comparison report to `.index/shadow/<task_id>/`.
+
+`run_ingest(paths, source_path, source_text, provider, ...)` is the public entry point. `generate_ingest` returns pages without disk writes; `commit_ingest` persists them. EventBus (`src/events/event_bus.py`) is a singleton; handlers register via `event_bus.on(name, handler)`. `AtomicContext` batches writes via `safe_write` (which buffers to `_pending_writes` and flushes on context exit). For deletions use the `DELETE_SENTINEL` mechanism in `src/lib/write_hooks.py` so cascade operations are atomic.
 
 ### Critical gotcha: `ProjectContext.path` vs `WikiPaths`
 

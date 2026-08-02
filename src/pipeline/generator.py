@@ -450,10 +450,16 @@ async def unified_generate(
 ) -> list[WikiPage]:
     """Single-pass: analyze source text + render wiki pages in one LLM call.
 
-    Replaces the two-step Analyze→Generate pipeline.  Latency drops ~50 %;
-    quality may improve because the model reads the full source in one
-    context window (no intermediate JSON to drop entities or mangle slugs).
+    Deprecated: use the candidate pipeline path instead
+    (RUFLO_PIPELINE_MODE=candidate). The legacy unified_generate will be
+    removed in a future version.
     """
+    import warnings as _warnings
+    _warnings.warn(
+        "unified_generate is deprecated. Use RUFLO_PIPELINE_MODE=candidate.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     import json as _json
     import time as _time
     import re as _re

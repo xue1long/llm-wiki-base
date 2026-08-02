@@ -297,6 +297,14 @@ async def analyze(
     import logging as _logging
     _al = _logging.getLogger(__name__)
 
+    if output_format != "json":
+        import warnings as _warnings
+        _warnings.warn(
+            "markdown output_format is deprecated. Use output_format='json'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
     if output_format == "json":
         return await _analyze_json(
             source_text=source_text,
