@@ -76,6 +76,29 @@ def _save_state(state: dict) -> None:
     _os.replace(str(tmp), str(BATCH_STATE))
 
 
+def _preserve_ledger(prior: dict, entry: dict) -> dict:
+    """Merge a new batch entry over the prior entry, keeping the resume
+    ledger (``completed_files`` / ``failed_files``) from any earlier run.
+
+    Failure branches (abort / gate_failed / overwrite_blocked) write
+    wholesale status entries; without this merge they clobber the
+    ``completed_files`` a crashed ``committing`` run recorded, so a later
+    ``--resume`` regenerates already-committed files and trips B6.
+    """
+    return {
+        "completed_files": entry.get("completed_files", prior.get("completed_files", [])),
+        "failed_files": prior.get("failed_files", []),
+        **{k: v for k, v in entry.items() if k not in ("completed_files", "failed_files")},
+    }
+
+
+def _save_state_entry(batch_key: str, entry: dict) -> None:
+    """Persist a batch entry, preserving the resume ledger from prior runs."""
+    state = _load_state()
+    state[batch_key] = _preserve_ledger(state.get(batch_key, {}), entry)
+    _save_state(state)
+
+
 def _read_raw_header(raw_path: Path, chars: int = 4000) -> str:
     """Read the first *chars* characters of a raw file for UGC detection."""
     try:
@@ -628,18 +651,14 @@ async def main() -> int:
                  f"{len(_missing)} missing page(s): {_missing}")
             _log("先人工修复缺页，或非 --resume 重跑 — resume 会把缺页所属文件当已完成 "
                  "skip 掉，不会补生成")
-            _state = _load_state()
-            _state[batch_key] = {
+            _save_state_entry(batch_key, {
                 "status": "postcheck_failed",
                 "files": files,
                 "ok": _prior.get("ok", 0),
                 "err": _prior.get("err", 0),
-                "completed_files": _prior.get("completed_files", []),
-                "failed_files": _prior.get("failed_files", []),
                 "missing": _missing,
                 "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            }
-            _save_state(_state)
+            })
             return 1
 
     from src.pipeline import _get_provider, _resolve_wiki_paths
@@ -675,8 +694,7 @@ async def main() -> int:
     )
     if abort:
         _log(f"BATCH ABORTED: {reason}")
-        state = _load_state()
-        state[batch_key] = {
+        _save_state_entry(batch_key, {
             "status": "failed",
             "files": files,
             "ok": gen["ok"], "err": gen["err"],
@@ -684,8 +702,7 @@ async def main() -> int:
             "skipped_completed": gen["completed_skip_count"],
             "reason": reason,
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
-        }
-        _save_state(state)
+        })
         return 1
 
     # ── Phase 4.2: batch reconcile (R1-2: extras separated) ──────────
@@ -731,8 +748,7 @@ async def main() -> int:
 
     if gate_rc != 0:
         _log("BATCH BLOCKED: gate failed — zero wiki writes (generate was dry)")
-        state = _load_state()
-        state[batch_key] = {
+        _save_state_entry(batch_key, {
             "status": "gate_failed",
             "files": files,
             "ok": gen["ok"], "err": gen["err"],
@@ -740,8 +756,7 @@ async def main() -> int:
             "merged_count": len(result.merged),
             "stubs_suppressed": result.stubs_suppressed,
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
-        }
-        _save_state(state)
+        })
         return 2
 
     # ── B6: overwrite protection (check against existing wiki) ────────
@@ -753,15 +768,13 @@ async def main() -> int:
             _log(f"  BLOCK {msg}")
         _log("BATCH BLOCKED: overwrite protection — use --allow-overwrite to "
              "force, or --skip-files <raw_rel,...> to exclude the source file")
-        state = _load_state()
-        state[batch_key] = {
+        _save_state_entry(batch_key, {
             "status": "overwrite_blocked",
             "files": files,
             "ok": gen["ok"], "err": gen["err"],
             "overwrite_blockers": overwrite_blockers,
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
-        }
-        _save_state(state)
+        })
         return 2
 
     # ── Commit (R2-2): per-file, SOURCE-page ownership, POSTCHECK ─────

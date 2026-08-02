@@ -22,6 +22,8 @@ from scripts.phase4_batch import (
     _decide_abort,
     _generate_batch,
     _load_state,
+    _preserve_ledger,
+    _save_state_entry,
     main,
 )
 from src.wiki.core.types import PageType, WikiPage
@@ -210,6 +212,63 @@ def test_batch_completed_files_non_dict_entry(tmp_path, monkeypatch):
     state_file.write_text(json.dumps({"batch_0": "garbage"}), encoding="utf-8")
     monkeypatch.setattr("scripts.phase4_batch.BATCH_STATE", state_file)
     assert _batch_completed_files("batch_0") == set()
+
+
+# ---------------------------------------------------------------------------
+# R0-3 · _preserve_ledger / _save_state_entry — failure branches keep resume
+# ledger (a failed run must not clobber the completed_files a crashing
+# "committing" run recorded, or --resume regenerates committed files → B6)
+# ---------------------------------------------------------------------------
+
+def test_preserve_ledger_keeps_prior_completed_files():
+    """A failure entry (no completed_files) must not clobber a prior
+    committing entry's completed_files."""
+    prior = {
+        "status": "committing",
+        "completed_files": ["raw/a.md", "raw/b.md", "raw/c.md"],
+        "failed_files": [],
+    }
+    entry = {"status": "failed", "ok": 0, "err": 3, "reason": "all files failed"}
+    merged = _preserve_ledger(prior, entry)
+    assert merged["status"] == "failed"
+    assert merged["completed_files"] == ["raw/a.md", "raw/b.md", "raw/c.md"]
+    assert merged["failed_files"] == []
+
+
+def test_preserve_ledger_entry_completed_files_wins():
+    """A commit-path entry providing completed_files overrides the prior."""
+    prior = {"completed_files": ["raw/a.md"], "failed_files": []}
+    entry = {"status": "committed", "completed_files": ["raw/a.md", "raw/b.md"]}
+    merged = _preserve_ledger(prior, entry)
+    assert merged["completed_files"] == ["raw/a.md", "raw/b.md"]
+    assert merged["status"] == "committed"
+
+
+def test_preserve_ledger_no_prior():
+    """No prior entry → entry stands alone with empty ledger fields."""
+    entry = {"status": "failed", "ok": 0}
+    assert _preserve_ledger({}, entry) == {
+        "status": "failed", "ok": 0,
+        "completed_files": [], "failed_files": [],
+    }
+
+
+def test_save_state_entry_preserves_completed_files_on_failure(tmp_path, monkeypatch):
+    """A failure write after a crashing 'committing' run keeps the resume
+    ledger, so --resume skips files committed in the prior run."""
+    state_file = tmp_path / "batch_build_state.json"
+    state_file.write_text(json.dumps({
+        "batch_0": {
+            "status": "committing",
+            "completed_files": ["raw/a.md", "raw/b.md", "raw/c.md"],
+            "failed_files": [],
+        },
+    }), encoding="utf-8")
+    monkeypatch.setattr("scripts.phase4_batch.BATCH_STATE", state_file)
+
+    _save_state_entry("batch_0", {"status": "failed", "ok": 0, "err": 3})
+
+    assert _batch_completed_files("batch_0") == {"raw/a.md", "raw/b.md", "raw/c.md"}
 
 
 # ---------------------------------------------------------------------------
