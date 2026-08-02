@@ -16,6 +16,16 @@ from .types import (
 
 _logger = logging.getLogger(__name__)
 
+# Sentinel: page was skipped by sampling / should_judge() → False.
+SKIPPED_VERDICT = "skipped"
+
+
+def _should_judge_page(page: dict, settings: QualitySettings) -> bool:
+    """Determine whether a page dict should be judged based on its metadata."""
+    grade = page.get("grade", "B")
+    confidence = page.get("confidence", None)
+    return settings.should_judge(page_grade=grade, page_confidence=confidence)
+
 
 JUDGE_PROMPT = """You are judging the quality of a wiki page.
 
@@ -118,17 +128,55 @@ class QualityJudge:
     async def judge_batch(self, pages: list, source_texts: dict | None = None) -> BatchJudgmentResult:
         """Judge all pages; retry rejected ones; quarantine final rejects.
 
+        If ``self.settings.mode == "off"``, skips all pages — returns a result
+        with all pages passed and an ``audit.skipped_count`` metadata field.
+
+        In ``"sample"`` mode, uses ``QualitySettings.should_judge()`` to decide
+        per page (random sample + always_judge rules). Non-judged pages are
+        treated as "pass".
+
         If ``self.ensemble_judges`` is non-empty, delegates each page to
         :class:`EnsembleJudge` (no retry — veto is the hard stop).
 
-        ``pages`` is a list of dicts with keys ``id`` / ``type`` / ``body`` so the
-        judge doesn't require the wiki types module.
+        ``pages`` is a list of dicts with keys ``id`` / ``type`` / ``body``
+        (and optionally ``grade`` / ``confidence`` for tiered activation)
+        so the judge doesn't require the wiki types module.
         """
         source_texts = source_texts or {}
         judgments: dict[str, Judgment] = {}
         pages_passed: list[str] = []
         pages_rejected: list[str] = []
         pages_quarantined: list[str] = []
+
+        if not self.settings.is_active():
+            for page in pages:
+                pid = page["id"]
+                pages_passed.append(pid)
+            return BatchJudgmentResult(
+                pages={},
+                pages_passed=pages_passed,
+                pages_rejected=[],
+                pages_quarantined=[],
+            )
+
+        # Filter pages that need judging
+        pages_to_judge = []
+        for page in pages:
+            pid = page["id"]
+            if not _should_judge_page(page, self.settings):
+                _logger.debug("[quality] skipping %s (mode=%s, grade=%s)",
+                              pid, self.settings.mode, page.get("grade", "B"))
+                pages_passed.append(pid)
+            else:
+                pages_to_judge.append(page)
+
+        if not pages_to_judge:
+            return BatchJudgmentResult(
+                pages=judgments,
+                pages_passed=pages_passed,
+                pages_rejected=[],
+                pages_quarantined=[],
+            )
 
         if self.ensemble_judges:
             # Multi-judge path: no retry; veto replaces retry semantics.
@@ -138,7 +186,7 @@ class QualityJudge:
                 ensemble_judges=self.ensemble_judges,
                 primary_provider=self.provider_registry_name,
             )
-            for page in pages:
+            for page in pages_to_judge:
                 pid = page["id"]
                 ptype = page.get("type", "entity")
                 body = page.get("body", "")
@@ -169,7 +217,7 @@ class QualityJudge:
             )
 
         # Single-judge path: 1 retry per page (MVP semantics).
-        for page in pages:
+        for page in pages_to_judge:
             pid = page["id"]
             src = source_texts.get(pid, "")
             judgment = await self.judge_page(pid, page.get("type", "entity"), page.get("body", ""), src)
@@ -178,11 +226,15 @@ class QualityJudge:
                 pages_passed.append(pid)
                 continue
             # 1 retry (MVP)
-            retry_judgment = await self.judge_page(pid, page.get("type", "entity"), page.get("body", ""), src)
-            retry_judgment.llm_call_count = 2
-            judgments[pid] = retry_judgment
-            if retry_judgment.verdict == "pass":
-                pages_passed.append(pid)
+            if self.settings.max_retries >= 1:
+                retry_judgment = await self.judge_page(pid, page.get("type", "entity"), page.get("body", ""), src)
+                retry_judgment.llm_call_count = 2
+                judgments[pid] = retry_judgment
+                if retry_judgment.verdict == "pass":
+                    pages_passed.append(pid)
+                else:
+                    pages_quarantined.append(pid)
+                    pages_rejected.append(pid)
             else:
                 pages_quarantined.append(pid)
                 pages_rejected.append(pid)
