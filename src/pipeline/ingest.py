@@ -1299,6 +1299,43 @@ async def run_ingest(
         extra_pages=extra_pages,
         task_id=task_id,
     )
+
+    # Shadow mode: run the non-default pipeline path for comparison.
+    # Main path output goes to wiki; shadow output goes to .index/shadow/<task_id>/.
+    if __import__("os").environ.get("RUFLO_SHADOW_MODE", "") == "true":
+        from .shadow import run_shadow_ingest, write_comparison_report
+
+        _current_mode = __import__("os").environ.get("RUFLO_PIPELINE_MODE", "candidate")
+        _shadow_mode = "legacy" if _current_mode == "candidate" else "candidate"
+
+        _logger.info(
+            "[shadow] mode=%s task=%s — running shadow ingest in background",
+            _shadow_mode, task_id,
+        )
+        try:
+            shadow_pages, shadow_meta = await run_shadow_ingest(
+                paths=paths,
+                source_path=source_path,
+                source_text=source_text,
+                provider=provider,
+                folder_context=folder_context,
+                task_id=task_id,
+                shadow_mode=_shadow_mode,
+            )
+            shadow_dir = paths.index / "shadow" / task_id
+            write_comparison_report(
+                shadow_dir=shadow_dir,
+                main_pages=pages,
+                shadow_pages=shadow_pages,
+                main_meta=_meta,
+                shadow_meta=shadow_meta,
+                task_id=task_id,
+            )
+        except Exception as _shadow_exc:
+            _logger.warning(
+                "[shadow] shadow run failed for %s: %s", task_id, _shadow_exc,
+            )
+
     return pages
 
 
