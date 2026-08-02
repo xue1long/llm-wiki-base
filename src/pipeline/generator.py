@@ -26,7 +26,7 @@ from ..utils.path import normalize_source_path
 from ..utils.slugify import slugify as _slugify
 from ..wiki.core.paths import WikiPaths
 from ..wiki.features.relations import parse_relations_from_response
-from ..wiki.features.tag_namespace import TAG_PREFIXES, is_valid as is_valid_tag
+from ..wiki.features.tag_namespace import TAG_PREFIXES, is_valid as is_valid_tag, build_tag_prompt_section
 from ..wiki.core.types import PageType, WikiPage
 from ..wiki.templates import (
     Template,
@@ -41,6 +41,9 @@ from ._pipeline_common import clean_source_text, parse_llm_json
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
 
+# Dynamic tag namespace rules — built from TAG_VALUES and MANDATORY_PAIRS.
+# Used in all generator prompts so the LLM knows which tag values are valid.
+TAG_NAMESPACE_RULES = build_tag_prompt_section()
 
 _logger = logging.getLogger(__name__)
 
@@ -288,6 +291,7 @@ You may also use `x-<name>` for any user-registered type. Do not invent
 relation type names outside this set.
 
 {WIKI_RULES_SUMMARY}
+{TAG_NAMESPACE_RULES}
 
 ## Language (re-asserted — applies to ALL output below)
 默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
@@ -412,6 +416,7 @@ supports supported_by supersedes superseded_by depends_on required_by
 analogous_to opposite_of derived_from derives
 
 {WIKI_RULES_SUMMARY}
+{TAG_NAMESPACE_RULES}
 
 ## Task
 Read the source text. Identify entities, concepts, key facts, and synthesize
@@ -529,6 +534,7 @@ async def unified_generate(
         source_text=source_text,
         existing_wiki_index=existing_wiki_index or "(empty)",
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
+        TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
     )
@@ -748,6 +754,7 @@ supports supported_by supersedes superseded_by depends_on required_by
 analogous_to opposite_of derived_from derives
 
 {WIKI_RULES_SUMMARY}
+{TAG_NAMESPACE_RULES}
 
 ## Task
 Render the claims above into structured wiki pages. Output strict JSON:
@@ -872,6 +879,7 @@ async def generate_from_candidate(
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
         existing_wiki_index=existing_wiki_index or "(empty)",
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
+        TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
     )
 
@@ -1085,6 +1093,7 @@ async def generate_from_knowledge_object(
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
         existing_wiki_index=existing_wiki_index or "(empty)",
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
+        TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
     )
 
@@ -1315,6 +1324,7 @@ async def generate(
         analysis_json=analysis_json,
         existing_wiki_index=existing_wiki_index or "(empty)",
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
+        TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
     )
