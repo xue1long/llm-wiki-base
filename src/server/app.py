@@ -122,6 +122,15 @@ def create_app() -> FastAPI:
                     set_decay_bridge(bridge)
                 except Exception:
                     pass
+
+                # Initialize KnowledgeKernel for the active project so
+                # lifecycle events (knowledge.created / knowledge.updated)
+                # are emitted on the global EventBus singleton.
+                try:
+                    from ..knowledge.kernel import get_kernel
+                    get_kernel(project_root)
+                except Exception:
+                    pass
             except Exception as e:
                 _logger.warning("[startup] vector store init failed: %s", e)
 
