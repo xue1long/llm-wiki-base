@@ -183,7 +183,8 @@ def enqueue_source(
             source_str = _normalize_absolute_path(paths.root, source)
             source_type = SourceType.FILE
         task_hash = generate_task_hash(source_type, source_str, folder_context or "", project_id=resolved_id)
-        task_id = enqueue_task(source_str, source_type, task_hash, project_id=resolved_id)
+        task_id = enqueue_task(source_str, source_type, task_hash, project_id=resolved_id,
+                               folder_context=folder_context)
         if not task_id:
             return {"status": "ignored", "taskId": None, "reason": "Duplicate"}
         return {"status": "queued", "taskId": task_id, "reason": None}
@@ -200,6 +201,10 @@ def enqueue_source(
         )
     files = collect_files(folder_abs)
     supported = [f for f in files if f.suffix.lower() in _SUPPORTED_EXTENSIONS]
+
+    # Generate batch_id for tracking
+    import uuid as _uuid
+    _batch_id = f"kb-batch-{_uuid.uuid4().hex[:12]}"
 
     # Shuffle so that when count is specified, the selection is random
     # rather than biased toward the first files in filesystem order.
@@ -220,11 +225,33 @@ def enqueue_source(
             continue
         fctx = folder_context or folder_context_for(folder_abs, f)
         task_hash = generate_task_hash(SourceType.FILE, rel, fctx, project_id=resolved_id)
-        items.append({"source": rel, "source_type": SourceType.FILE, "task_hash": task_hash})
+        items.append({"source": rel, "source_type": SourceType.FILE, "task_hash": task_hash,
+                       "folder_context": fctx})
 
-    task_ids = enqueue_batch(items, project_id=resolved_id)
+    task_ids = enqueue_batch(items, project_id=resolved_id,
+                             folder_context=folder_context, batch_id=_batch_id)
     dupe_skipped = len(items) - len(task_ids)
     skipped = already_skipped + dupe_skipped + count_limited
+
+    # Write batch tracking state
+    import json as _json
+    import time as _time
+    _batch_state_file = paths.root / ".index" / "batch_build_state.json"
+    _batch_state: dict = {}
+    if _batch_state_file.exists():
+        try:
+            _batch_state = _json.loads(_batch_state_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    _batch_state[_batch_id] = {
+        "folder": folder_rel,
+        "total_files": len(supported),
+        "enqueued": len(task_ids),
+        "created_at": int(_time.time()),
+        "status": "in_progress",
+    }
+    _batch_state_file.parent.mkdir(parents=True, exist_ok=True)
+    _batch_state_file.write_text(_json.dumps(_batch_state, ensure_ascii=False, indent=2), encoding="utf-8")
 
     # Kick off initial pipeline workers (up to concurrency limit).
     # Subsequent tasks auto-advance via release_in_flight → advance().
@@ -233,8 +260,8 @@ def enqueue_source(
         svc.advance(project_id=resolved_id)
 
     _logger.info(
-        "[folder-ingest] enqueued=%d already_ingested=%d dupe_skipped=%d count_limited=%d total=%d",
-        len(task_ids), already_skipped, dupe_skipped, count_limited, len(files),
+        "[folder-ingest] enqueued=%d already_ingested=%d dupe_skipped=%d count_limited=%d total=%d batch=%s",
+        len(task_ids), already_skipped, dupe_skipped, count_limited, len(files), _batch_id,
     )
 
     result: dict = {
@@ -244,6 +271,7 @@ def enqueue_source(
         "alreadyIngested": already_skipped,
         "duplicateSkipped": dupe_skipped,
         "taskIds": task_ids,
+        "batchId": _batch_id,
     }
     if count_limited > 0:
         result["countLimited"] = count_limited

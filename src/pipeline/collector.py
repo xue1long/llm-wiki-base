@@ -287,6 +287,11 @@ async def collect(
             content = extract_pdf_text(str(file_path))
         elif ext in [".docx", ".doc", ".xlsx", ".xls"]:
             content = extract_office_text(str(file_path))
+        elif ext in [".html", ".htm"]:
+            raw_bytes = file_path.read_bytes()
+            html_str = _decode_text_file(raw_bytes, str(file_path))
+            from ..utils.text import html_to_text as _html_to_text
+            content = _html_to_text(html_str)
         elif ext in [".md", ".txt"]:
             raw_bytes = file_path.read_bytes()
             content = _decode_text_file(raw_bytes, str(file_path))

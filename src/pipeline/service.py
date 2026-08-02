@@ -72,11 +72,14 @@ class PipelineService:
         source = payload["source"]
         source_type = payload.get("source_type", SourceType.FILE)
         project_id = payload.get("project_id")
+        folder_context = payload.get("folder_context")
 
         async with self._semaphore:
-            await self._run_for_collector_start_inner(task_id, source, source_type, project_id)
+            await self._run_for_collector_start_inner(task_id, source, source_type, project_id,
+                                                       folder_context=folder_context)
 
-    async def _run_for_collector_start_inner(self, task_id, source, source_type, project_id) -> None:
+    async def _run_for_collector_start_inner(self, task_id, source, source_type, project_id,
+                                              folder_context: str | None = None) -> None:
         """Actual pipeline work — called while the semaphore is held."""
 
         # Mirror the original pipeline.py behavior: mark RUNNING before
@@ -128,6 +131,7 @@ class PipelineService:
                 source_path=_Path(ctx.collector_result.raw_path),
                 source_text=ctx.collector_result.content,
                 provider=provider,
+                folder_context=folder_context or "",
                 task_id=task_id,
             )
             self.queue_service.update_status(task_id, status=TaskStatus.APPROVED)
