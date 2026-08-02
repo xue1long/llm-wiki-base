@@ -889,6 +889,10 @@ async def generate_ingest(
                 if _p.type == PageType.SOURCE:
                     _summary_text = _p.body or ""
                     break
+        # Count PDF page markers in source text for source_meta
+        _page_marker_count = source_text.count("<!-- page:")
+        _page_count_line = f"- 页数: {_page_marker_count}\n" if _page_marker_count > 1 else ""
+
         source_body = render_body(
             template_body=source_tpl.body_markdown,
             slots={
@@ -897,6 +901,7 @@ async def generate_ingest(
                     f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
                     f"- 任务 ID: `{task_id}`\n"
                     f"- 分块数: {len(_chunks)}\n"
+                    f"{_page_count_line}"
                 ),
                 "summary": _summary_text.strip() or "(无摘要)",
                 "key_points": key_points_value,
@@ -917,12 +922,15 @@ async def generate_ingest(
                 if _p.type == PageType.SOURCE:
                     _summary_fb = _p.body or ""
                     break
+        _page_marker_count = source_text.count("<!-- page:")
+        _page_count_line_fb = f"- 页数: {_page_marker_count}\n" if _page_marker_count > 1 else ""
         source_body = (
             f"## 来源\n\n"
             f"- 路径: `{source_path}`\n"
             f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"- 任务 ID: `{task_id}`\n"
-            f"- 分块数: {len(_chunks)}\n\n"
+            f"- 分块数: {len(_chunks)}\n"
+            f"{_page_count_line_fb}\n"
             f"## 摘要\n\n"
             f"{_summary_fb}\n\n"
             f"## 抽取的概念\n\n"

@@ -40,14 +40,14 @@ def extract_pdf_text(file_path: str) -> str:
 
     text_parts = []
 
-    for page in reader.pages:
+    for i, page in enumerate(reader.pages):
         try:
             text = page.extract_text()
         except Exception as exc:
             _raise_if_encrypted(exc, suffix=".pdf")
             raise
         if text:
-            text_parts.append(text)
+            text_parts.append(f"<!-- page: {i + 1} -->\n{text}")
 
     return "\n\n".join(text_parts)
 

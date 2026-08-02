@@ -899,6 +899,18 @@ async def generate_from_candidate(
     now = int(_time.time() * 1000)
     pages: list[WikiPage] = []
 
+    # Build provenance payload from candidate evidence
+    _first_ev = candidate.evidence[0] if candidate.evidence else {}
+    _prov_page = _first_ev.get("page")
+    _prov_quote = str(_first_ev.get("quote", ""))[:200]
+    _provenance_payload = {
+        "source_path": candidate.source_id,
+        "page": _prov_page,
+        "quote": _prov_quote,
+        "ingested_at": now,
+        "ingestor_version": "2.0.0",
+    }
+
     for p in filled_pages:
         title = p.get("title", candidate.title)
         slug = _slugify(title) or p.get("id", "")
@@ -950,7 +962,7 @@ async def generate_from_candidate(
                 seen_targets.add(canon)
                 deduped_relations.append(rel)
 
-        pages.append(WikiPage(
+        page = WikiPage(
             id=slug, title=title, type=page_type,
             sources=[normalize_source_path(candidate.source_id, paths.root)],
             created_at=now, updated_at=now, body=body_md,
@@ -961,7 +973,9 @@ async def generate_from_candidate(
             tags=_resolve_page_tags_unified(p),
             category=p.get("category", ""),
             taxonomy_sub=p.get("taxonomy_sub", ""),
-        ))
+        )
+        page._ko_extra = {"provenance": _provenance_payload}
+        pages.append(page)
 
     return pages
 

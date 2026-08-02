@@ -111,8 +111,8 @@ class TestCandidatePromoterSuccess:
 
         assert isinstance(obj.provenance, Provenance)
         assert obj.provenance.source_path == "src-provenance-test"
-        assert obj.provenance.page is None
-        assert obj.provenance.quote == ""
+        assert obj.provenance.page is None  # evidence has no "page" key
+        assert obj.provenance.quote == "evidence quote"
         assert obj.provenance.ingestor_version == "2.0.0"
         assert obj.provenance.ingested_at >= now
 

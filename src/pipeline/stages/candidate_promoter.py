@@ -45,6 +45,10 @@ class CandidatePromoter:
 
         now_ms = int(time.time() * 1000)
 
+        _first_evidence = candidate.evidence[0] if candidate.evidence else {}
+        _first_page = _first_evidence.get("page")
+        _first_quote = str(_first_evidence.get("quote", ""))[:200]
+
         obj = KnowledgeObject(
             id=candidate.id,
             type=candidate.type,
@@ -54,8 +58,8 @@ class CandidatePromoter:
             confidence=candidate.confidence,
             provenance=Provenance(
                 source_path=candidate.source_id,
-                page=None,
-                quote="",
+                page=_first_page,
+                quote=_first_quote,
                 ingested_at=now_ms,
                 ingestor_version="2.0.0",
             ),
