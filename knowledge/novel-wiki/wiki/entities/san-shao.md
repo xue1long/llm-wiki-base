@@ -11,14 +11,18 @@ relations:
   type: referenced_by
   weight: 0.85
   context: 文中引用其创作速度作为正面案例
-- target: 新人须知13网络文学创作的几个误区-fce19a9f
-  type: referenced_by
-  weight: 0.85
-  context: 以其保证质量的创作速度为例（每小时六千字，每天可达三万六）
 - target: wang-wen-su-du-yu-zhi-liang-ping-heng
   type: referenced_by
   weight: 0.85
   context: 以其创作速度为例说明
+- target: 创作速度与更新速度
+  type: referenced_by
+  weight: 0.8
+  context: 创作速度典型案例
+- target: d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-02-进阶技巧--进阶教程-13-网络文学创作的几个误区-md-414d6833
+  type: referenced_by
+  weight: 0.6
+  context: 以三少日均保证质量产能约三万六为例
 grade: B
 processing_depth: concept
 is_immutable: false

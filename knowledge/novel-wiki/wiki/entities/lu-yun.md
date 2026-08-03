@@ -15,6 +15,10 @@ relations:
   type: referenced_by
   weight: 1.0
   context: 文档详细描述了陆云的初始设定和成长路径。
+- target: cand-67c038e5c8b6
+  type: referenced_by
+  weight: 0.95
+  context: 故事主角，天生残缺一魂一魄的逆天少年
 - target: 易园
   type: supported_by
   weight: 0.9

@@ -7,10 +7,14 @@ sources:
 created_at: 1785400706384
 updated_at: 1785400706384
 relations:
-- target: 帮助新手网文创作3-ee985b9a
+- target: 帮助新手网文创作-3-ee985b9a
   type: referenced_by
   weight: 1.0
   context: 阿布主讲的第三讲转录即本档
+- target: 帮助新手网文创作3-ee985b9a
+  type: referenced_by
+  weight: 0.95
+  context: 本教程主讲人阿布的网文创作方法论
 - target: 文笔阶段性论
   type: references
   weight: 0.9
@@ -27,10 +31,6 @@ relations:
   type: referenced_by
   weight: 0.9
   context: 阿布是本综述涉及的所有概念的源头讲者
-- target: 帮助新手网文创作3-ee985b9a
-  type: referenced_by
-  weight: 0.9
-  context: 教程由阿布讲解，分享网文写作技巧
 grade: A
 processing_depth: concept
 is_immutable: false
@@ -42,6 +42,7 @@ tags:
 category: 网文教学讲者
 taxonomy_sub: 入门教程·文笔与开篇
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: entity -->
 

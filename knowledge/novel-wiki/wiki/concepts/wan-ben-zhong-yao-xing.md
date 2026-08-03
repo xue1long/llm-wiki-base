@@ -11,6 +11,18 @@ relations:
   type: supported_by
   weight: 0.85
   context: 本文强调完本对作者成长的意义
+- target: d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-02-进阶技巧--进阶教程-13-网络文学创作的几个误区-md-414d6833
+  type: referenced_by
+  weight: 0.8
+  context: 第六个误区强调完本对作者的意义
+- target: 网络文学创作误区
+  type: referenced_by
+  weight: 0.7
+  context: 延伸误区(太监)对应完本重要性
+- target: 灵感与修改悖论
+  type: referenced_by
+  weight: 0.6
+  context: 完本后才适合跳出来审视/修改,二者紧密关联
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -23,6 +35,7 @@ tags:
 category: 创作理念
 taxonomy_sub: ''
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

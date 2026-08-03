@@ -63,10 +63,34 @@ relations:
   type: contains
   weight: 0.7
   context: 面恶心善是东方玄幻小说中常用的人物塑造手法
+- target: d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--东方玄幻角端-md-ea9eff25
+  type: referenced_by
+  weight: 0.7
+  context: 资料归属于东方玄幻题材专题
+- target: 角端
+  type: referenced_by
+  weight: 0.7
+  context: 常用于东方玄幻题材创作
+- target: 玄幻类型创作特点
+  type: supported_by
+  weight: 0.7
+  context: 玄幻与东方玄幻有大量重叠，本篇偏向商业特点
+- target: cand-6b19242f92be
+  type: contains
+  weight: 0.7
+  context: 北斗七星知识体系服务于东方玄幻创作，可作为其下天文/星象子分类
 - target: 仙侠题材
   type: analogous_to
   weight: 0.6
   context: 东方玄幻与仙侠在设定上有重叠,二者并非完全等同
+- target: 神兽坐骑设定
+  type: referenced_by
+  weight: 0.5
+  context: 常用于东方玄幻小说
+- target: 角端在东方玄幻创作中的应用定位综述
+  type: referenced_by
+  weight: 0.5
+  context: 所属创作题材
 grade: C
 processing_depth: entity
 is_immutable: false

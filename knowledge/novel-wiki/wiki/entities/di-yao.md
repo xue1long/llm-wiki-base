@@ -39,6 +39,18 @@ relations:
   type: referenced_by
   weight: 0.85
   context: 帝尧是在位天子，派遣羿射日
+- target: 羿
+  type: references
+  weight: 0.7
+  context: 羿射杀九婴的事件发生在尧帝在位期间
+- target: d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--东方玄幻九婴-md-2e7083d1
+  type: referenced_by
+  weight: 0.6
+  context: 九婴作害人间发生在尧帝在位期间
+- target: 九婴
+  type: references
+  weight: 0.6
+  context: 九婴出没的时代背景为尧帝时期
 grade: B
 processing_depth: entity
 is_immutable: false

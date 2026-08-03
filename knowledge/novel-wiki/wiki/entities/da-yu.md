@@ -31,6 +31,10 @@ relations:
   type: referenced_by
   weight: 0.85
   context: 九鼎与大禹治水相关
+- target: cand-5704c84cb50f
+  type: referenced_by
+  weight: 0.75
+  context: 乾坤鼎疑被大禹一化为九，用以镇压神州
 grade: B
 processing_depth: entity
 is_immutable: false

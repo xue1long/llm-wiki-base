@@ -11,10 +11,38 @@ relations:
   type: supported_by
   weight: 0.95
   context: 本文详细论述了基础的重要性
-- target: 新人须知13网络文学创作的几个误区-fce19a9f
+- target: 方法论如何抓住读者心理-57dbcf89
   type: referenced_by
-  weight: 0.95
-  context: 本文核心论点之一，强调基础的重要性
+  weight: 0.9
+  context: 文章将第一印象的好坏归因于作者是否具备写作基本功。
+- target: 抓住读者心理
+  type: required_by
+  weight: 0.9
+  context: 第一印象的好坏由写作基本功(错字率、标点、段落)决定,基本功是抓住读者心理的载体。
+- target: 第一印象
+  type: required_by
+  weight: 0.9
+  context: 第一印象由写作基本功决定,基本功差则第一印象差。
+- target: 标点符号应用规范
+  type: contains
+  weight: 0.8
+  context: 标点规范被本文列为写作基本功的组成项之一。
+- target: 日记写作
+  type: supported_by
+  weight: 0.8
+  context: 坚持写日记是写作基本功的日常练习场
+- target: 写作十年论与目标切割法
+  type: supported_by
+  weight: 0.7
+  context: 十年论为写作基本功的长期积累提供时间框架
+- target: 写作基础态度论
+  type: derived_from
+  weight: 0.7
+  context: 在写作基础概念上叠加'态度论'视角
+- target: 写作借口终结法
+  type: supported_by
+  weight: 0.6
+  context: 每日文字产出的稳定化是写作基本功的肌肉记忆前提
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -27,6 +55,7 @@ tags:
 category: 写作基础
 taxonomy_sub: ''
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

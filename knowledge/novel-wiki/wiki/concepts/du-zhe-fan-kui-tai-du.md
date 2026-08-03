@@ -11,6 +11,14 @@ relations:
   type: supported_by
   weight: 0.9
   context: 本文强调不应过分在意读者评论
+- target: 网络文学创作误区
+  type: referenced_by
+  weight: 0.7
+  context: 误区四对应读者反馈态度
+- target: 灵感与修改悖论
+  type: referenced_by
+  weight: 0.5
+  context: 修改误区的诱因之一是过度听从读者评论
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -23,6 +31,7 @@ tags:
 category: 创作心态
 taxonomy_sub: ''
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

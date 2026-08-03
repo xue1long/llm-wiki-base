@@ -15,6 +15,18 @@ relations:
   type: referenced_by
   weight: 0.9
   context: 作为粉丝分数高的典型代表
+- target: d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-02-进阶技巧--进阶教程-13-网络文学创作的几个误区-md-414d6833
+  type: referenced_by
+  weight: 0.6
+  context: 作为'粉丝分数高'的知名作者举例
+- target: 印象分与基础写作态度
+  type: referenced_by
+  weight: 0.6
+  context: 印象分典型案例
+- target: 写作基础态度论
+  type: referenced_by
+  weight: 0.5
+  context: 作为粉丝分数高的知名作者举例
 grade: B
 processing_depth: concept
 is_immutable: false

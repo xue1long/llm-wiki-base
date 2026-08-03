@@ -947,3 +947,235 @@
 - **ingest**: `b0` — generated 6 pages from 东方玄幻中国历史上公主的命运.md
 ## 2026-08-02T01:12:02.022532
 - **ingest**: `b0` — generated 13 pages from 东方玄幻中国历史上医学巅峰.md
+## 2026-08-02T12:57:03.310719
+- **ingest**: `kb-20260802125552-9ecf553f` — generated 10 pages from 帮助新手网文创作3.md
+## 2026-08-02T12:57:45.964544
+- **ingest**: `kb-20260802125624-9ee71344` — generated 7 pages from 入门教程理论篇从新手到大神.md
+## 2026-08-02T13:02:55.250606
+- **ingest**: `kb-20260802130104-fea547cd` — generated 17 pages from 女频男频5起点主编作者常见问题及普遍的谣言释疑.md
+## 2026-08-02T13:07:46.365630
+- **ingest**: `kb-20260802130603-e085360d` — generated 6 pages from 进阶教程外貌神态语言描写男.md
+## 2026-08-02T13:09:06.610310
+- **ingest**: `kb-20260802121537-da1fb4b8` — generated 8 pages from 方法论如何抓住读者心理.md
+## 2026-08-02T13:11:19.656020
+- **ingest**: `kb-20260802121539-82486bc3` — generated 12 pages from 大纲示例三生三世十里桃花.md
+## 2026-08-02T13:13:35.658142
+- **ingest**: `kb-20260802121540-7cfe45e3` — generated 14 pages from 东方玄幻上古十大凶兽_96a2e9.md
+## 2026-08-02T13:14:08.791924
+- **ingest**: `kb-20260802131104-898545b3` — generated 8 pages from 计谋格斗跑酷体能训练教程.md
+## 2026-08-02T13:18:08.007683
+- **ingest**: `kb-20260802121542-e9b3bec7` — generated 8 pages from 信息库4运营篇.md
+## 2026-08-02T13:21:11.835471
+- **ingest**: `kb-20260802131703-a3b5ca4f` — generated 14 pages from 进阶教程17文笔在网络文学创作上的作用.md
+## 2026-08-02T13:27:34.887004
+- **ingest**: `kb-20260802132404-64e9b4fe` — generated 12 pages from 女频男频10酒徒分享网络小说写作经验.md
+## 2026-08-02T13:31:47.446106
+- **ingest**: `kb-20260802132948-a6f46e84` — generated 10 pages from 必备资料37修真仙侠小说的元素和写法.md
+## 2026-08-02T13:36:00.127563
+- **ingest**: `kb-20260802133403-04a54cb8` — generated 10 pages from 补充教程小说写作大纲的模版共享.md
+## 2026-08-02T13:39:29.129037
+- **ingest**: `kb-20260802133803-a221cc17` — generated 7 pages from 审核上架1何为细腻的文笔.md
+## 2026-08-02T13:45:53.682157
+- **ingest**: `kb-20260802134304-dea97316` — generated 7 pages from 穿越修真真言手印.md
+## 2026-08-02T14:40:14.242949
+- **ingest**: `stress-r1-1-1785652700639` — generated 11 pages from 穿越修真先天之物和法宝.md
+## 2026-08-02T14:41:16.617688
+- **ingest**: `stress-r1-0-1785652700639` — generated 11 pages from 进阶教程藏剑江南碧落黄泉小讲.md
+## 2026-08-02T14:42:15.901878
+- **ingest**: `stress-r1-2-1785652700639` — generated 6 pages from 东方玄幻九婴.md
+## 2026-08-02T14:45:32.573331
+- **ingest**: `stress-r2-0-1785652995981` — generated 5 pages from 入门教程4人称.md
+## 2026-08-02T14:45:45.659123
+- **ingest**: `stress-r2-1-1785652995982` — generated 17 pages from 审核上架6学会给你的小说打补丁.md
+## 2026-08-02T14:46:33.699209
+- **ingest**: `stress-r2-2-1785652995982` — generated 13 pages from 穿越修真奇门遁甲.md
+## 2026-08-02T14:50:07.498905
+- **ingest**: `stress-r3-2-1785653253814` — generated 6 pages from 进阶教程女频总裁文套路的分析豆子.md
+## 2026-08-02T14:50:43.263163
+- **ingest**: `stress-r3-1-1785653253814` — generated 8 pages from 入门教程技术篇写大众小说常犯的错.md
+## 2026-08-02T14:50:59.436987
+- **ingest**: `stress-r3-0-1785653253814` — generated 5 pages from 进阶教程小说资料吧写作基础知识小说大纲介绍.md
+## 2026-08-02T14:53:52.105043
+- **ingest**: `stress-r4-0-1785653519496` — generated 8 pages from 进阶教程新人课堂6人物塑造.md
+## 2026-08-02T14:54:04.650339
+- **ingest**: `stress-r4-1-1785653519496` — generated 8 pages from 武侠洪荒中国武侠美女.md
+## 2026-08-02T14:54:58.875672
+- **ingest**: `stress-r4-2-1785653519496` — generated 8 pages from 新人须知30第一人称小说创作优劣详解.md
+## 2026-08-02T14:57:19.825533
+- **ingest**: `stress-r5-0-1785653758917` — generated 10 pages from 入门教程能力篇如何提高文笔和写作能力.md
+## 2026-08-02T14:58:10.457359
+- **ingest**: `stress-r5-2-1785653758917` — generated 6 pages from 大纲写作技巧.md
+## 2026-08-02T14:58:45.007386
+- **ingest**: `stress-r5-1-1785653758917` — generated 10 pages from 进阶教程小说靠什么来吸引读者.md
+## 2026-08-02T15:02:17.084713
+- **ingest**: `stress-r6-2-1785653985081` — generated 6 pages from 东方玄幻角端.md
+## 2026-08-02T15:02:43.434990
+- **ingest**: `stress-r6-1-1785653985081` — generated 10 pages from 进阶教程藏剑江南碧落黄泉小讲.md
+## 2026-08-02T15:05:56.210674
+- **ingest**: `stress-r6-0-1785653985081` — generated 9 pages from 入门教程三十六种经典情节模式情节艺术.md
+## 2026-08-02T15:07:09.342101
+- **ingest**: `stress-r6-0-1785654323785` — generated 7 pages from 入门教程三十六种经典情节模式情节艺术.md
+## 2026-08-02T15:08:01.534182
+- **ingest**: `stress-r7-2-1785654416273` — generated 12 pages from 穿越修真关于中国魏晋时期的玄学资料.md
+## 2026-08-02T15:08:38.732609
+- **ingest**: `stress-r6-2-1785654323785` — generated 7 pages from 东方玄幻角端.md
+## 2026-08-02T15:08:52.291075
+- **ingest**: `stress-r7-1-1785654416273` — generated 6 pages from 入门教程写作心得.md
+## 2026-08-02T15:09:28.728670
+- **ingest**: `stress-r7-0-1785654430471` — generated 6 pages from 进阶教程13网络文学创作的几个误区.md
+## 2026-08-02T15:09:29.502040
+- **ingest**: `stress-r7-1-1785654430471` — generated 5 pages from 入门教程写作心得.md
+## 2026-08-02T15:09:51.204005
+- **ingest**: `stress-r7-2-1785654430471` — generated 15 pages from 穿越修真关于中国魏晋时期的玄学资料.md
+## 2026-08-02T15:10:31.147765
+- **ingest**: `stress-r6-1-1785654323785` — generated 17 pages from 进阶教程藏剑江南碧落黄泉小讲.md
+## 2026-08-02T15:12:19.050525
+- **ingest**: `stress-r8-0-1785654651313` — generated 14 pages from 入门教程写作方法.md
+## 2026-08-02T15:12:35.773415
+- **ingest**: `stress-r8-2-1785654651313` — generated 7 pages from 大神访谈5.md
+## 2026-08-02T15:13:06.929881
+- **ingest**: `stress-r8-1-1785654651313` — generated 7 pages from 西方奇幻骑士美德和誓约.md
+## 2026-08-02T15:13:27.746797
+- **ingest**: `stress-r7-0-1785654691228` — generated 9 pages from 进阶教程13网络文学创作的几个误区.md
+## 2026-08-02T15:13:47.292215
+- **ingest**: `stress-r7-1-1785654691228` — generated 7 pages from 入门教程写作心得.md
+## 2026-08-02T15:15:48.926651
+- **ingest**: `stress-r7-0-1785654416272` — generated 16 pages from 进阶教程13网络文学创作的几个误区.md
+## 2026-08-02T15:16:01.135769
+- **ingest**: `stress-r9-0-1785654846998` — generated 17 pages from 道学经典12.md
+## 2026-08-02T15:16:35.294823
+- **ingest**: `stress-r7-2-1785654691228` — generated 8 pages from 穿越修真关于中国魏晋时期的玄学资料.md
+## 2026-08-02T15:16:57.964819
+- **ingest**: `stress-r9-1-1785654846998` — generated 12 pages from 方法论网络写手教程.md
+## 2026-08-02T15:18:08.159222
+- **ingest**: `stress-r9-2-1785654846998` — generated 9 pages from 新人须知17编辑讲课记录.md
+## 2026-08-02T23:17:33.723467
+- **ingest**: `quick-1785683743252` — generated 6 pages from 入门教程技术篇剧情开展讲解.md
+## 2026-08-02T23:21:11.216351
+- **ingest**: `stress-1785684020819` — generated 5 pages from 武侠洪荒先天灵宝篇.md
+## 2026-08-02T23:22:06.071033
+- **ingest**: `stress-1785684071237` — generated 4 pages from 新人须知27你为什么穿越你凭什么穿越.md
+## 2026-08-02T23:22:38.061756
+- **ingest**: `stress-1785684126089` — generated 0 pages from 西方奇幻北欧神话中的主要人物.md
+## 2026-08-02T23:24:40.622817
+- **ingest**: `stress-1785684218378` — generated 5 pages from 方法论小说结构.md
+## 2026-08-02T23:25:04.765491
+- **ingest**: `stress-1785684280655` — generated 0 pages from 出版知识第16述编辑眼中的好文章标准.md
+## 2026-08-02T23:26:17.801532
+- **ingest**: `stress-1785684304770` — generated 4 pages from 入门教程编辑眼中的好文.md
+## 2026-08-02T23:28:45.984110
+- **ingest**: `stress-1785684438545` — generated 3 pages from 进阶教程小说写作方法.md
+## 2026-08-02T23:29:05.159851
+- **ingest**: `stress-1785684525995` — generated 0 pages from 入门教程必须注意的写作.md
+## 2026-08-02T23:29:32.284073
+- **ingest**: `stress-1785684545163` — generated 0 pages from 进阶教程风扬讲课针对对话问题.md
+## 2026-08-02T23:31:05.714664
+- **ingest**: `stress-1785684632671` — generated 0 pages from 进阶教程如何让你的小说更引人.md
+## 2026-08-02T23:31:33.419948
+- **ingest**: `stress-1785684665718` — generated 0 pages from 武侠洪荒周易六十四卦一.md
+## 2026-08-02T23:32:37.701784
+- **ingest**: `stress-1785684693426` — generated 6 pages from 穿越修真修真系列之道家.md
+## 2026-08-02T23:37:09.948910
+- **ingest**: `stress-1785684940889` — generated 3 pages from 东方玄幻北斗七星.md
+## 2026-08-02T23:39:39.818510
+- **ingest**: `stress-1785685123786` — generated 3 pages from 入门教程0小说取名.md
+## 2026-08-02T23:40:41.470221
+- **ingest**: `stress-1785685179835` — generated 4 pages from 进阶教程写作相关写手成神之路起点编辑部的教材三2奇幻流.md
+## 2026-08-02T23:42:33.653830
+- **ingest**: `stress-1785685241485` — generated 3 pages from 西方奇幻吸血鬼简史.md
+## 2026-08-02T23:43:56.550069
+- **ingest**: `stress-1785685413985` — generated 0 pages from 进阶教程大神说法第一讲如何抓住读者的心.md
+## 2026-08-02T23:44:41.655225
+- **ingest**: `stress-1785685436554` — generated 3 pages from 女频男频2男频小说投稿信誉网站.md
+## 2026-08-02T23:45:14.319284
+- **ingest**: `stress-1785685481670` — generated 0 pages from 女频男频3古代女强文设定大纲.md
+## 2026-08-02T23:47:32.111969
+- **ingest**: `stress-1785685574714` — generated 6 pages from 进阶教程都市之春药全攻略猛.md
+## 2026-08-02T23:48:49.562544
+- **ingest**: `stress-1785685652123` — generated 4 pages from 东方玄幻十法界.md
+## 2026-08-02T23:50:37.868732
+- **ingest**: `stress-1785685729577` — generated 4 pages from 穿越修真修真之金丹玄要篇.md
+## 2026-08-02T23:53:00.213350
+- **ingest**: `stress-1785685898297` — generated 4 pages from 大纲示例七界传说大纲.md
+## 2026-08-02T23:53:24.174518
+- **ingest**: `stress-1785685980228` — generated 0 pages from 进阶教程网络文学的源流.md
+## 2026-08-02T23:54:21.598544
+- **ingest**: `stress-1785686004180` — generated 4 pages from 入门教程赠新作者.md
+## 2026-08-02T23:56:24.732684
+- **ingest**: `stress-1785686121945` — generated 4 pages from 穿越修真修真九要.md
+## 2026-08-02T23:58:22.077457
+- **ingest**: `stress-1785686184752` — generated 4 pages from 进阶教程耽美写作写耽美小说虐文的七个要素.md
+## 2026-08-02T23:59:11.125021
+- **ingest**: `stress-1785686302088` — generated 1 pages from 进阶教程断刃天涯讲课记录.md
+## 2026-08-03T09:33:23.826678
+- **ingest**: `kb-20260803093255-9a3644c1` — generated 1 pages from 东方玄幻异象篇.md
+## 2026-08-03T09:33:27.055269
+- **ingest**: `kb-20260803093300-6f0a2cde` — generated 1 pages from 穿越修真无情道的功法.md
+## 2026-08-03T09:33:43.520431
+- **ingest**: `kb-20260803093258-4fb9fe8d` — generated 1 pages from 审核上架1何为细腻的文笔.md
+## 2026-08-03T09:36:10.947633
+- **ingest**: `kb-20260803093544-c6c396dd` — generated 1 pages from 女频男频4言情文的写作线索.md
+## 2026-08-03T09:36:16.494508
+- **ingest**: `kb-20260803093538-af1e73d0` — generated 1 pages from 东方玄幻道教.md
+## 2026-08-03T09:36:17.558296
+- **ingest**: `kb-20260803093541-c746e5d3` — generated 1 pages from 新人须知22期待感让你的作品能够引人入胜_ac5917.md
+## 2026-08-03T09:36:50.838724
+- **ingest**: `kb-20260803093635-72181527` — generated 1 pages from 新人须知22期待感让你的作品能够引人入胜_ac5917.md
+## 2026-08-03T09:37:01.598871
+- **ingest**: `kb-20260803093638-db6a2078` — generated 1 pages from 女频男频4言情文的写作线索.md
+## 2026-08-03T09:37:04.258379
+- **ingest**: `kb-20260803093632-66c4386b` — generated 1 pages from 东方玄幻道教.md
+## 2026-08-03T09:38:44.885949
+- **ingest**: `kb-20260803093823-5f7d4550` — generated 1 pages from 入门教程一个新手的五个阶段.md
+## 2026-08-03T09:38:49.008362
+- **ingest**: `kb-20260803093817-73b123ce` — generated 1 pages from 东方玄幻道家思想全集.md
+## 2026-08-03T09:39:01.875154
+- **ingest**: `kb-20260803093828-221e2317` — generated 1 pages from 入门教程网络小说新人写手必看不要毁了自己的作品虎平阳_8556c3.md
+## 2026-08-03T09:41:11.480409
+- **ingest**: `kb-20260803094053-8d18f57e` — generated 1 pages from 方法论网络小说创作技巧.md
+## 2026-08-03T09:41:11.669525
+- **ingest**: `kb-20260803094050-0029597d` — generated 1 pages from 必备资料36架空历史的创作要点_e4d43b.md
+## 2026-08-03T09:41:12.190809
+- **ingest**: `kb-20260803094047-5d60ff79` — generated 1 pages from 方法论小说要给人以现实感.md
+## 2026-08-03T09:41:57.791593
+- **ingest**: `kb-20260803094132-1a6a555f` — generated 1 pages from 大纲示例新人写大纲_7c8873.md
+## 2026-08-03T09:42:00.851825
+- **ingest**: `kb-20260803094143-c59c8722` — generated 1 pages from 进阶教程教程6小说中的描写有哪些诀窍.md
+## 2026-08-03T09:42:00.873297
+- **ingest**: `kb-20260803094129-eb262dfc` — generated 1 pages from 东方玄幻国学之好学.md
+## 2026-08-03T09:42:10.773731
+- **ingest**: `kb-20260803094135-b2ce4cf3` — generated 1 pages from 借鉴素材玄幻标签创作基金评定标准详解.md
+## 2026-08-03T09:42:14.282737
+- **ingest**: `kb-20260803094146-60099d79` — generated 1 pages from 进阶教程视角.md
+## 2026-08-03T09:42:18.938827
+- **ingest**: `kb-20260803094139-1174d7e2` — generated 1 pages from 借鉴素材浅子小四素樱贱圣对对子精选片段.md
+## 2026-08-03T09:42:22.227923
+- **ingest**: `kb-20260803094152-8da74add` — generated 1 pages from 入门教程作者指南海星.md
+## 2026-08-03T09:42:25.918985
+- **ingest**: `kb-20260803094151-93d0b7c4` — generated 1 pages from 审核上架2对话技巧详谈引号开头对话流.md
+## 2026-08-03T09:42:29.431184
+- **ingest**: `kb-20260803094151-9faf3c20` — generated 1 pages from 必备资料小说人物描写方法与实例浅析.md
+## 2026-08-03T09:42:37.738064
+- **ingest**: `kb-20260803094157-d62acb20` — generated 1 pages from 新人须知22期待感让你的作品能够引人入胜.md
+## 2026-08-03T09:42:45.180206
+- **ingest**: `kb-20260803094209-4d3d8620` — generated 1 pages from 进阶教程大神说法第一讲如何抓住读者的心.md
+## 2026-08-03T09:42:53.058287
+- **ingest**: `kb-20260803094200-4c96dab7` — generated 1 pages from 新人须知6如何抓住读者心理.md
+## 2026-08-03T09:43:01.295600
+- **ingest**: `kb-20260803094208-291283e5` — generated 1 pages from 入门教程操作篇如何运营你的作品.md
+## 2026-08-03T09:43:02.158601
+- **ingest**: `kb-20260803094206-e1d0af3f` — generated 1 pages from 2刻画人物形象之语言动作描写第2段.md
+## 2026-08-03T09:43:07.300999
+- **ingest**: `kb-20260803094209-81234308` — generated 1 pages from 进阶教程鬼谷子春秋卫王诩.md
+## 2026-08-03T09:43:18.093439
+- **ingest**: `kb-20260803094214-07a92b5d` — generated 1 pages from 东方玄幻宋代米价变动的原因.md
+## 2026-08-03T09:43:26.390245
+- **ingest**: `kb-20260803094217-6bde8d99` — generated 1 pages from 进阶教程状物篇.md
+## 2026-08-03T09:43:28.427805
+- **ingest**: `kb-20260803094217-49f94f75` — generated 1 pages from 方法论写作心得.md
+## 2026-08-03T10:19:56.012830
+- **ingest**: `kb-20260803101926-c366d41c` — generated 1 pages from 东方玄幻道教.md
+## 2026-08-03T10:22:23.658526
+- **ingest**: `kb-20260803102116-72cbdd70` — generated 3 pages from 东方玄幻道教.md
+## 2026-08-03T12:45:38.206629
+- **ingest**: `ugc-e2e` — generated 3 pages from ugc-e2e.md

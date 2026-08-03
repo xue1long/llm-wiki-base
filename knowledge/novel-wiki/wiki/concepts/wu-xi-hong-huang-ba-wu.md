@@ -3,7 +3,7 @@ id: wu-xi-hong-huang-ba-wu
 title: 武侠洪荒武器历史 (Martial Arts Honghuang Weaponry History)
 type: concept
 sources:
-  - raw/sources/04_题材专题/武侠洪荒十八般武器.md
+- raw/sources/04_题材专题/武侠洪荒十八般武器.md
 created_at: 1785344831606
 updated_at: 1785344831606
 relations:
@@ -11,6 +11,10 @@ relations:
   type: contains_references_to
   weight: 1.0
   context: 该概念提供了十八般武艺的历史背景知识。
+- target: cand-5704c84cb50f
+  type: contains
+  weight: 0.8
+  context: 先天灵宝是武侠洪荒宝物体系中最顶级的灵宝类别
 - target: 东方玄幻上古十大神器-9b44fa41
   type: supported_by
   weight: 0.7

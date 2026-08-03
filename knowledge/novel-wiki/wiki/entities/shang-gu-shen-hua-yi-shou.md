@@ -71,6 +71,10 @@ relations:
   type: referenced_by
   weight: 0.8
   context: 本文属于上古神话体系
+- target: 角端
+  type: contains
+  weight: 0.8
+  context: 角端属上古神话异兽谱系
 - target: 烛龙神兽设定
   type: derives
   weight: 0.7
@@ -95,6 +99,10 @@ relations:
   type: contains
   weight: 0.7
   context: 獬豸属于上古神话异兽体系
+- target: 祥瑞神兽
+  type: contains
+  weight: 0.7
+  context: 祥瑞神兽属上古神话异兽体系
 - target: 凤凰
   type: contains
   weight: 0.6

@@ -7,14 +7,10 @@ sources:
 created_at: 1785512097118
 updated_at: 1785512097118
 relations:
-- target: 审核上架1什么书能够赚钱-eac9cdc0
+- target: 审核上架-1-什么书能够赚钱-eac9cdc0
   type: referenced_by
   weight: 0.9
   context: 核心内容来源
-- target: 审核上架1什么书能够赚钱-eac9cdc0
-  type: referenced_by
-  weight: 0.9
-  context: 文章核心概念，系统介绍七种YY爽点类型
 - target: 代入感
   type: depends_on
   weight: 0.8
@@ -23,6 +19,10 @@ relations:
   type: is_part_of
   weight: 0.8
   context: 后宫属于泡妞类YY点
+- target: 七式-yy-元素分类
+  type: supported_by
+  weight: 0.7
+  context: 本篇七式与综述七式同源，相互印证
 - target: hou-gong-yy-liu
   type: analogous_to
   weight: 0.6
@@ -40,6 +40,7 @@ tags:
 category: 小说技法
 taxonomy_sub: 爽点类型
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

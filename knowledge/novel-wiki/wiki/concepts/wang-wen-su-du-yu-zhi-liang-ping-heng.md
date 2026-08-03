@@ -11,10 +11,22 @@ relations:
   type: supported_by
   weight: 0.9
   context: 本文纠正了速度至上的误区
+- target: d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-02-进阶技巧--进阶教程-13-网络文学创作的几个误区-md-414d6833
+  type: referenced_by
+  weight: 0.9
+  context: 第三个误区讨论更新速度与质量的平衡
+- target: cand-47c9b323549b
+  type: is_part_of
+  weight: 0.9
+  context: 六大要素第六项：更新速度
 - target: san-shao
   type: references
   weight: 0.85
   context: 以其创作速度为例说明
+- target: 网络文学创作误区
+  type: referenced_by
+  weight: 0.8
+  context: 误区三直接对应网文速度与质量平衡议题
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -27,6 +39,7 @@ tags:
 category: 创作理念
 taxonomy_sub: ''
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

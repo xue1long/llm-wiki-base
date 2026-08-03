@@ -27,6 +27,18 @@ relations:
   type: referenced_by
   weight: 0.9
   context: 文中引用其作为细节描写的正面案例
+- target: 古龙
+  type: referenced_by
+  weight: 0.7
+  context: 其笔下人物李寻欢被作为'关键细节强化'范例
+- target: 细节描写性价比论
+  type: referenced_by
+  weight: 0.5
+  context: 举例人物:李寻欢的手
+- target: d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-02-进阶技巧--进阶教程-13-网络文学创作的几个误区-md-414d6833
+  type: referenced_by
+  weight: 0.5
+  context: 古龙笔下细节描写典范
 grade: B
 processing_depth: concept
 is_immutable: false

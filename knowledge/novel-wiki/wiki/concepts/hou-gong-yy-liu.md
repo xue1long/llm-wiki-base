@@ -7,7 +7,7 @@ sources:
 created_at: 1785385466827
 updated_at: 1785385466827
 relations:
-- target: 方法论YY小说模式-942f4f92
+- target: 方法论-yy-小说模式-942f4f92
   type: references
   weight: 1.0
   context: 本文档明确提及的流派
@@ -15,11 +15,15 @@ relations:
   type: is_part_of
   weight: 0.9
   context: 后宫YY流是YY小说模式的重要子流派
+- target: 魅惑之术
+  type: supported_by
+  weight: 0.9
+  context: 本设定是后宫流存在的合理性来源
 - target: sheng-ji-lian-gong-xiao-shuo
   type: superseded_by
   weight: 0.7
   context: 升级练功小说是后宫YY流审美疲劳后的替代品
-- target: 审核上架1什么书能够赚钱-eac9cdc0
+- target: 审核上架-1-什么书能够赚钱-eac9cdc0
   type: referenced_by
   weight: 0.6
   context: 关于泡妞类作品的写作技巧对比
@@ -36,6 +40,7 @@ tags:
 category: ''
 taxonomy_sub: ''
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

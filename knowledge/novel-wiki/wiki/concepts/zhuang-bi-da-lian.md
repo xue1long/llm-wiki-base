@@ -7,7 +7,7 @@ sources:
 created_at: 1785423842346
 updated_at: 1785423842346
 relations:
-- target: 方法论YY小说模式-942f4f92
+- target: 方法论-yy-小说模式-942f4f92
   type: references
   weight: 0.8
   context: 文章提到的装逼打脸相关桥段
@@ -15,6 +15,10 @@ relations:
   type: supports
   weight: 0.8
   context: 扮猪吃老虎是装逼打脸的基础
+- target: 力量等级体系设计
+  type: supported_by
+  weight: 0.7
+  context: 等级外显特征是装逼桥段的素材
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -27,6 +31,7 @@ tags:
 category: 写作技巧
 taxonomy_sub: 爽点设计
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

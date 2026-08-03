@@ -15,10 +15,14 @@ relations:
   type: supported_by
   weight: 0.85
   context: 文中详细解释了粉丝分数的作用
-- target: 新人须知13网络文学创作的几个误区-fce19a9f
+- target: 写作基础态度论
   type: referenced_by
-  weight: 0.85
-  context: 文中提及粉丝分数可掩盖部分写作错误
+  weight: 0.7
+  context: 基础印象分对应粉丝分数的累积机制
+- target: 烽火戏诸侯
+  type: contains
+  weight: 0.4
+  context: 作为粉丝分数概念的典型代表被引用
 grade: B
 processing_depth: concept
 is_immutable: false

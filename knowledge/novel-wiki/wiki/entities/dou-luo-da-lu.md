@@ -23,6 +23,10 @@ relations:
   type: contains
   weight: 0.6
   context: 菊斗罗是小说中的人物
+- target: d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-02-进阶技巧--进阶教程新人课堂-6-人物塑造-md-621a49e6
+  type: referenced_by
+  weight: 0.6
+  context: 引用《斗罗大陆》"xx一脸"作为口头禅案例
 grade: C
 processing_depth: entity
 is_immutable: false
@@ -31,6 +35,8 @@ last_used_at: 0
 zombie_since: null
 tags:
 - 实体/小说
+category: ''
+taxonomy_sub: ''
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

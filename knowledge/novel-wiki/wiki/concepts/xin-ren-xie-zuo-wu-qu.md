@@ -11,6 +11,10 @@ relations:
   type: supported_by
   weight: 0.95
   context: 本文系统总结了新人写作五大误区
+- target: 新人写作三大忌讳
+  type: supported_by
+  weight: 0.8
+  context: 为新人误区提供具体清单
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -23,6 +27,7 @@ tags:
 category: 创作指导
 taxonomy_sub: ''
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 

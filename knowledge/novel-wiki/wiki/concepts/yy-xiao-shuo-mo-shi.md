@@ -15,10 +15,22 @@ relations:
   type: referenced_by
   weight: 1.0
   context: 本综述系统化该概念的16条规则
+- target: d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-02-进阶技巧--方法论网络写手教程-md-6200d8a5
+  type: referenced_by
+  weight: 1.0
+  context: 概述 YY 为网文成功关键，与 YY 小说模式概念一致
 - target: 补充教程新手选题和大纲扩展精选-f773bc65
   type: referenced_by
   weight: 0.9
   context: 教程以YY小说为对象，阐述了'强'字核心定律和常见套路
+- target: d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--入门教程写作方法-md-8efa8b92
+  type: supports
+  weight: 0.9
+  context: 全文是对YY小说主角套路的总结
+- target: 七式-yy-元素分类
+  type: supported_by
+  weight: 0.9
+  context: 七式 YY 元素是 YY 小说模式的具体可操作清单
 - target: sheng-ji-lian-gong-xiao-suo
   type: contains
   weight: 0.8
@@ -27,6 +39,14 @@ relations:
   type: supports
   weight: 0.8
   context: 符合YY大前提直接来源于YY小说模式的要求
+- target: 多灾多难与不死之身
+  type: supported_by
+  weight: 0.8
+  context: 是YY模式节奏生成的基础设定
+- target: cand-3c6f3e321aed
+  type: supported_by
+  weight: 0.8
+  context: 本概念要求奇幻作品按传统YY模式塑造主角
 - target: 扮猪吃老虎
   type: contains
   weight: 0.7
@@ -39,10 +59,26 @@ relations:
   type: referenced_by
   weight: 0.7
   context: 学龙系统阐述了该概念
+- target: 主角八大绝技对比综述-yy-小说模式
+  type: supports
+  weight: 0.7
+  context: 全文核心主题
 - target: 后宫-yy-流
   type: supersedes
   weight: 0.6
   context: YY小说模式在升级练功方向上演化，分流了后宫YY流读者
+- target: 第一人称写作
+  type: supported_by
+  weight: 0.5
+  context: 第一人称便于YY爽点的表达
+- target: d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--入门教程-4-人称-md-ea84a44e
+  type: referenced_by
+  weight: 0.4
+  context: 提及第一人称YY感强的特性
+- target: 第一人称与第三人称写作对比
+  type: supported_by
+  weight: 0.4
+  context: YY感是对比的关键维度
 grade: A
 processing_depth: concept
 is_immutable: false

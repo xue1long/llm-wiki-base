@@ -35,6 +35,10 @@ relations:
   type: referenced_by
   weight: 0.85
   context: 八恺为颛顼后裔
+- target: 梼杌
+  type: referenced_by
+  weight: 0.7
+  context: 梼杌原为颛顼的不才子
 grade: B
 processing_depth: entity
 is_immutable: false

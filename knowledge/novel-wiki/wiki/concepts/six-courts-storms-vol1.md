@@ -3,10 +3,14 @@ id: six-courts-storms-vol1
 title: 六院风云
 type: concept
 sources:
-  - raw/sources/03_大纲创作/大纲示例七界传说.md
+- raw/sources/03_大纲创作/大纲示例七界传说.md
 created_at: 1785338366595
 updated_at: 1785338366595
-relations: []
+relations:
+- target: cand-67c038e5c8b6
+  type: referenced_by
+  weight: 0.9
+  context: 小说第一卷名称
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -15,6 +19,8 @@ last_used_at: 0
 zombie_since: null
 tags:
 - 场景阶段/volume1
+category: ''
+taxonomy_sub: ''
 ---
 
 <!-- wiki-template-version: 2.0.0 -->

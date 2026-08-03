@@ -11,6 +11,10 @@ relations:
   type: supported_by
   weight: 0.9
   context: 本文专门讨论修改误区
+- target: 灵感与修改悖论
+  type: derived_from
+  weight: 0.7
+  context: 修稿技巧在网文语境下的悖论式发展
 grade: B
 processing_depth: concept
 is_immutable: false
@@ -22,6 +26,7 @@ tags:
 category: 创作技巧
 taxonomy_sub: ''
 ---
+
 <!-- wiki-template-version: 2.0.0 -->
 <!-- wiki-template-type: concept -->
 
