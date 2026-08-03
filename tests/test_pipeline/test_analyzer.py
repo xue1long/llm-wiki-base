@@ -1,8 +1,6 @@
 # tests/test_pipeline/test_analyzer.py
-import json
 import pytest
 from src.shared.test_helpers import ScriptedLLMProvider
-from src.pipeline.schemas import AnalysisResult, EntityMention
 from src.pipeline.analyzer import analyze
 
 

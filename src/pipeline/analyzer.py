@@ -1,12 +1,12 @@
 """Step 1: LLM extracts AnalysisResult from source text."""
 import json
 import logging
-import re
 import uuid
 
 from ..knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
 from ..knowledge.core.object import KnowledgeType
 from ..lib.budgeted import BudgetedLLM
+from ..wiki.features.tag_namespace import build_tag_prompt_section
 from ._pipeline_common import parse_llm_json
 from .schemas import AnalysisResult, ConceptMention, EntityMention, PageSpec
 
@@ -43,20 +43,7 @@ ASCII kebab-case — 保留概念的自然字面，**禁止拼音转写**。专�
 {source_text}
 
 ## Tags guidance (受控命名空间)
-每个建议页可带 0-N 个 tags (分类检索用). 每个 tag 必须是 `前缀/名称` 形式, 前缀
-只能是以下 10 个受控值之一 (名称用中文或英文, 不要含空格):
-- 题材/       题材类型   (如 题材/现言, 题材/玄幻)
-- 功能/       功能类型   (如 功能/教程, 功能/案例)
-- 角色/       角色类型   (如 角色/总裁, 角色/女主)
-- 事件/       事件类型   (如 事件/签约, 事件/冲突)
-- 情绪/       情绪氛围   (如 情绪/甜宠, 情绪/悬疑)
-- 实体/       是什么(What) (如 实体/创酷中文网, 实体/起点)
-- 场景阶段/   何时用(When) (如 场景阶段/开篇, 场景阶段/高潮)
-- 状态/       生命周期   (如 状态/草稿, 状态/完结)
-- 素材/       素材品类   (如 素材/ugc, 素材/book, 素材/excerpt)
-- 可信度/     可信度     (如 可信度/ugc, 可信度/book, 可信度/mixed)
-不要使用这 10 个以外的前缀, 也不要写裸标签(无 `/`). 来源/概念页至少给 1-2 个最贴切的 tag.
-来源为公众号/论坛/自媒体/UGC 的页, tags 必须含 `素材/ugc` 与 `可信度/ugc`; 专业书籍含 `素材/book` 与 `可信度/book`.
+{tag_namespace_rules}
 
 ## Task
 Extract structured analysis. Output strict JSON:
@@ -219,7 +206,7 @@ class AnalyzerOutputParser:
         if not source_id:
             status = CandidateStatus.REJECTED
 
-        # type: default "concept", decay confidence when inferred
+        # default page type is "concept"; decay confidence when inferred
         if "type" not in raw:
             confidence *= 0.3
             ktype = KnowledgeType.CONCEPT
@@ -322,6 +309,7 @@ async def analyze(
         folder_context=folder_context or "(none)",
         existing_wiki_index=existing_wiki_index or "(empty)",
         source_text=source_text,
+        tag_namespace_rules=build_tag_prompt_section(),
     )
 
     ANALYZER_RESPONSE_FORMAT = {

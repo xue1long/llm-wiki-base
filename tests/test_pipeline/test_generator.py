@@ -3,7 +3,7 @@ import pytest
 from src.shared.test_helpers import ScriptedLLMProvider
 from src.pipeline.schemas import AnalysisResult, EntityMention, PageSpec
 from src.pipeline.generator import generate
-from src.wiki.core.types import PageType, WikiPage
+from src.wiki.core.types import PageType
 
 
 @pytest.mark.asyncio
@@ -328,13 +328,9 @@ async def test_generator_prompt_prohibits_chain_of_thought(tmp_path):
 
 @pytest.mark.asyncio
 async def test_generator_prompt_directs_ugc_tagging(tmp_path):
-    """GENERATOR_PROMPT must tell the LLM that pages derived from UGC
-    sources (公众号/论坛/自媒体) carry BOTH `素材/ugc` AND `可信度/ugc`
-    tags, and that professional books carry `素材/book` + `可信度/book`.
-
-    `素材/ugc` / `可信度/ugc` already appear in the prompt's prefix-list
-    examples, so this test requires a single directive window that PAIRS a
-    UGC source keyword with both tags — not merely their presence anywhere.
+    """GENERATOR_PROMPT must include MANDATORY_PAIRS tags as mandatory
+    via TAG_NAMESPACE_RULES (P0.4: UGC pairs moved from hardcoded prompts
+    to MANDATORY_PAIRS config, dynamically rendered by build_tag_prompt_section).
     """
     from src.wiki.storage.ensure import ensure_knowledge_base
     from src.wiki.core.paths import WikiPaths
@@ -359,23 +355,14 @@ async def test_generator_prompt_directs_ugc_tagging(tmp_path):
     )
 
     prompt = provider.calls[0]["messages"][0]["content"]
-    # A single when-to-use directive must pair a UGC source keyword with
-    # both controlled tags (素材/ugc AND 可信度/ugc) in one window.
-    ugc_keywords = ("公众号", "论坛", "自媒体", "UGC")
-    tag_pair = ("素材/ugc", "可信度/ugc")
-    found = False
-    for kw in ugc_keywords:
-        idx = prompt.find(kw)
-        if idx < 0:
-            continue
-        window = prompt[max(0, idx - 120):idx + 200]
-        if all(t in window for t in tag_pair):
-            found = True
-            break
-    assert found, (
-        "GENERATOR_PROMPT must include a when-to-use rule pairing UGC "
-        "sources (公众号/论坛/自媒体/UGC) with `素材/ugc` AND `可信度/ugc` "
-        "in a single directive window."
+    assert "素材/ugc" in prompt, (
+        "GENERATOR_PROMPT must include 素材/ugc via TAG_NAMESPACE_RULES"
+    )
+    assert "可信度/ugc" in prompt, (
+        "GENERATOR_PROMPT must include 可信度/ugc via TAG_NAMESPACE_RULES"
+    )
+    assert "Mandatory tags" in prompt, (
+        "GENERATOR_PROMPT must include Mandatory tags section from build_tag_prompt_section"
     )
 
 

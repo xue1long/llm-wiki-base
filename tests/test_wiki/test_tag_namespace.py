@@ -1,9 +1,12 @@
 """Tests for src/wiki/tag_namespace.py."""
+import pytest
+
 from src.wiki.features.tag_namespace import (
     TAG_PREFIXES, TAG_VALUES, MANDATORY_PAIRS,
     is_valid, is_valid_value, parse,
     validate_tags, validate_tag_values, missing_mandatory_tags,
     allowed_values_for, build_tag_prompt_section,
+    validate_tag_compliance, TagValidationError,
 )
 
 
@@ -101,9 +104,10 @@ def test_validate_tag_values():
 # -----------------------------------------------------------------------
 
 
-def test_mandatory_pairs_empty_by_default():
-    """MANDATORY_PAIRS starts empty."""
-    assert MANDATORY_PAIRS == []
+def test_mandatory_pairs_default():
+    """MANDATORY_PAIRS defaults to UGC paired tags (P0.4 — temporary until P2.5 rule engine)."""
+    assert ("素材", "ugc") in MANDATORY_PAIRS
+    assert ("可信度", "ugc") in MANDATORY_PAIRS
 
 
 def test_missing_mandatory_tags():
@@ -167,5 +171,64 @@ def test_build_tag_prompt_section_includes_mandatory():
         prompt = build_tag_prompt_section()
         assert "Mandatory tags" in prompt
         assert "功能/教程" in prompt
+    finally:
+        tn.MANDATORY_PAIRS[:] = original
+
+
+# -----------------------------------------------------------------------
+# validate_tag_compliance — combined validation
+# -----------------------------------------------------------------------
+
+
+def test_validate_tag_compliance_passes_on_valid_tags():
+    """No exception when all tags have valid values and mandatory pairs satisfied."""
+    validate_tag_compliance(["题材/现言", "状态/完结", "素材/ugc", "可信度/ugc"])
+
+
+def test_validate_tag_compliance_empty_passes():
+    """Empty tag list passes — page hasn't been tagged yet (mandatory pairs
+    are only enforced when at least one tag is present)."""
+    validate_tag_compliance([])
+
+
+def test_validate_tag_compliance_nonempty_missing_mandatory():
+    """Non-empty tag list fails when mandatory pairs are missing."""
+    with pytest.raises(TagValidationError) as exc:
+        validate_tag_compliance(["题材/现言"])
+    assert "素材/ugc" in exc.value.missing_pairs
+    assert "可信度/ugc" in exc.value.missing_pairs
+
+
+def test_validate_tag_compliance_raises_on_invalid_value():
+    """TagValidationError when a tag value is outside allowed domain."""
+    with pytest.raises(TagValidationError) as exc:
+        validate_tag_compliance(["题材/现言", "题材/bogus"])
+    assert "bogus" in str(exc.value)
+    assert "题材/bogus" in exc.value.invalid_values
+
+
+def test_validate_tag_compliance_raises_on_missing_mandatory():
+    """TagValidationError when a mandatory pair is missing."""
+    import src.wiki.features.tag_namespace as tn
+    original = list(tn.MANDATORY_PAIRS)
+    try:
+        tn.MANDATORY_PAIRS[:] = [("功能", "教程")]
+        with pytest.raises(TagValidationError) as exc:
+            validate_tag_compliance(["题材/现言"])
+        assert "功能/教程" in exc.value.missing_pairs
+    finally:
+        tn.MANDATORY_PAIRS[:] = original
+
+
+def test_validate_tag_compliance_raises_on_both_failures():
+    """TagValidationError reports both invalid values AND missing pairs."""
+    import src.wiki.features.tag_namespace as tn
+    original = list(tn.MANDATORY_PAIRS)
+    try:
+        tn.MANDATORY_PAIRS[:] = [("功能", "教程")]
+        with pytest.raises(TagValidationError) as exc:
+            validate_tag_compliance(["题材/bogus"])
+        assert len(exc.value.invalid_values) >= 1
+        assert "功能/教程" in exc.value.missing_pairs
     finally:
         tn.MANDATORY_PAIRS[:] = original

@@ -75,7 +75,6 @@ def test_lint_detects_empty_body(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-from pathlib import Path
 
 
 def _write_page_with_version(paths, slug, title, page_type, body, version):
@@ -432,16 +431,24 @@ def test_lint_missing_sources_silent_with_derived_from_relation(tmp_path):
 
 
 def test_lint_ugc_cred_detects_ugc_without_credibility(tmp_path):
-    """Page tagged 素材/ugc but missing 可信度/ugc → LINT-UGC-CRED."""
+    """Page tagged 素材/ugc but missing 可信度/ugc → LINT-UGC-CRED.
+
+    Since write_page now enforces tag compliance, we write the invalid page
+    directly to disk to simulate a pre-existing page from before the validation.
+    """
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
-    write_page(
-        p,
-        WikiPage(
-            id="ugc", title="UGC", type=PageType.CONCEPT, body="正文内容。",
-            tags=["素材/ugc"], sources=["a.md"],
-        ),
+    from src.wiki.storage.page_writer import page_path_for
+    page = WikiPage(
+        id="ugc", title="UGC", type=PageType.CONCEPT, body="正文内容。",
+        tags=["素材/ugc"], sources=["a.md"],
     )
+    path = page_path_for(p, PageType.CONCEPT, "ugc")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    import yaml
+    fm = yaml.dump(page.to_frontmatter_dict(), allow_unicode=True, sort_keys=False,
+                   default_flow_style=False)
+    path.write_text(f"---\n{fm}---\n\n{page.body}", encoding="utf-8")
     append_to_index(p, [("ugc", PageType.CONCEPT, "UGC")])
 
     report = lint_wiki(p)

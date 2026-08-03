@@ -6,6 +6,7 @@ import yaml
 from ...lib.write_hooks import safe_write
 from ..core.paths import WikiPaths
 from ..core.types import PageType, WikiPage
+from ..features.tag_namespace import validate_tag_compliance
 
 
 _TYPE_TO_DIR: dict[PageType, str] = {
@@ -69,6 +70,8 @@ def write_page(paths: WikiPaths, page: WikiPage) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
         _snapshot_raw(paths, page.id, path)
+    else:
+        validate_tag_compliance(page.tags)
     fm = page.to_frontmatter_dict()
     fm_text = yaml.dump(fm, allow_unicode=True, sort_keys=False, default_flow_style=False)
     content = f"---\n{fm_text}---\n\n{page.body}"

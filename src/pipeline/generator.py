@@ -21,7 +21,6 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from ..lib.budgeted import BudgetedLLM
 from ..utils.path import normalize_source_path
 from ..utils.slugify import slugify as _slugify
 from ..wiki.core.paths import WikiPaths
@@ -29,7 +28,6 @@ from ..wiki.features.relations import parse_relations_from_response
 from ..wiki.features.tag_namespace import TAG_PREFIXES, is_valid as is_valid_tag, build_tag_prompt_section
 from ..wiki.core.types import PageType, WikiPage
 from ..wiki.templates import (
-    Template,
     compute_slot_fill_status,
     list_resolved,
     render_body,
@@ -37,7 +35,7 @@ from ..wiki.templates import (
 )
 from ..knowledge.core.candidate import KnowledgeCandidate
 from ..knowledge.core.object import KnowledgeObject
-from ._pipeline_common import clean_source_text, parse_llm_json
+from ._pipeline_common import parse_llm_json
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
 
@@ -242,21 +240,7 @@ listed in `## Existing wiki index`.  Example:
   BAD:  - 《必备资料11月28号创酷中文网女频现言讲课记录》
 
 ## Tags guidance (受控命名空间)
-每个输出页可带 0-N 个 `tags` (分类检索用). 每个 tag 必须是 `前缀/名称` 形式, 前缀
-只能是以下 10 个受控值之一 (名称用中文或英文, 不要含空格):
-- 题材/       题材类型   (如 题材/现言, 题材/玄幻)
-- 功能/       功能类型   (如 功能/教程, 功能/案例)
-- 角色/       角色类型   (如 角色/总裁, 角色/女主)
-- 事件/       事件类型   (如 事件/签约, 事件/冲突)
-- 情绪/       情绪氛围   (如 情绪/甜宠, 情绪/悬疑)
-- 实体/       是什么(What) (如 实体/创酷中文网, 实体/起点)
-- 场景阶段/   何时用(When) (如 场景阶段/开篇, 场景阶段/高潮)
-- 状态/       生命周期   (如 状态/草稿, 状态/完结)
-- 素材/       素材品类   (如 素材/ugc, 素材/book, 素材/excerpt)
-- 可信度/     可信度     (如 可信度/ugc, 可信度/book, 可信度/mixed)
-不要使用这 10 个以外的前缀, 也不要写裸标签(无 `/`). 来源/概念页至少给 1-2 个最贴切的 tag.
-**UGC tagging (mandatory)**: ALL pages derived from 公众号/论坛/自媒体/UGC/飞书 sources MUST carry BOTH `素材/ugc` AND `可信度/ugc` simultaneously — never add one without the other. 专业书籍需 `素材/book` + `可信度/book`.
-(若本页在分析阶段已给出 tags 建议, 你可直接沿用或按其内容调整.)
+(若本页在分析阶段已给出 tags 建议, 你可直接沿用或按其内容调整. 详细规则见下方 Tag namespace rules.)
 
 ## Task
 For each suggested page, fill its slots. Output strict JSON:
@@ -406,9 +390,7 @@ will fail to parse and a slower fallback pipeline runs instead.
 **Subject boundary**: Keep claims attached to their exact subject. Do NOT
 transfer a claim about one entity to another just because they share terms.
 
-**Tags**: `prefix/name` format, 10 allowed prefixes:
-题材/ 功能/ 角色/ 事件/ 情绪/ 实体/ 场景阶段/ 状态/ 素材/ 可信度/
-**UGC tagging (MANDATORY)**: ALL pages MUST carry BOTH `素材/ugc` AND `可信度/ugc` together — never one without the other. If a page has `素材/ugc` it MUST also have `可信度/ugc`. Professional books use `素材/book` + `可信度/book`.
+**Tags**: `prefix/name` format — see Tag namespace rules below.
 
 **Relation types** (17 built-in + `x-*` custom):
 is_part_of contains references referenced_by causes caused_by contradicts
@@ -465,7 +447,6 @@ async def unified_generate(
         DeprecationWarning,
         stacklevel=2,
     )
-    import json as _json
     import time as _time
     import re as _re
 
@@ -618,10 +599,10 @@ async def unified_generate(
         # Fix broken source-page wikilinks in rendered body
         if source_slug_map and body_md:
             _known_source_slugs: set[str] = set(source_slug_map.values())
-            def _replace_broken_wl(m):
+            def _replace_broken_wl(m, _slugs=_known_source_slugs):  # noqa: B023
                 target = m.group(1).split("|")[0].split("#")[0].strip()
                 canon = _slugify(target) or target
-                for real_slug in _known_source_slugs:
+                for real_slug in _slugs:
                     if (_slugify(real_slug) or real_slug) == canon:
                         alias = m.group(1)[len(target):]
                         return f"[[{real_slug}{alias}]]"
@@ -796,7 +777,6 @@ async def generate_from_candidate(
     Frontmatter fields (type, title, grade) are sourced from the
     candidate; only body content comes from the LLM.
     """
-    import json as _json
     import time as _time
 
     # Format claims for the prompt
@@ -1011,7 +991,6 @@ async def generate_from_knowledge_object(
     claims into body slots only.  GeneratorOutputValidator invariants are
     applied after rendering.
     """
-    import json as _json
     import time as _time
 
     # Format claims for the LLM prompt (same as generate_from_candidate)
@@ -1238,7 +1217,8 @@ async def generate(
     ingested in earlier runs already appear in the wiki index and
     don't need to be listed here.
     """
-    import json, time
+    import json
+    import time
 
     # 0. Resolve the 4 active templates for this project (bundled /
     #    user-global / project-local in priority order). Mapping needed
@@ -1445,10 +1425,10 @@ async def generate(
         # whose slugified form matches a known source-page slug.
         if source_slug_map and body_md:
             _known_source_slugs: set[str] = set(source_slug_map.values())
-            def _replace_broken_source_wikilink(m: object) -> str:
+            def _replace_broken_source_wikilink(m: object, _slugs=_known_source_slugs) -> str:  # noqa: B023
                 target = m.group(1).split("|")[0].split("#")[0].strip()
                 canon = _slugify(target) or target
-                for real_slug in _known_source_slugs:
+                for real_slug in _slugs:
                     if (_slugify(real_slug) or real_slug) == canon:
                         alias = m.group(1)[len(target):]  # |alias or #fragment
                         return f"[[{real_slug}{alias}]]"

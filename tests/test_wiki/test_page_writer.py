@@ -7,6 +7,7 @@ from src.wiki.storage.page_writer import (
 )
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths
+from src.wiki.features.tag_namespace import TagValidationError
 
 
 def test_page_path_for(tmp_path):
@@ -67,3 +68,23 @@ def test_read_page_without_frontmatter(tmp_path):
     assert p.id == "bare"
     assert p.type == PageType.SOURCE
     assert "just some content" in p.body
+
+
+def test_write_page_rejects_invalid_tag_value(tmp_path):
+    """write_page raises TagValidationError when tags have out-of-domain values."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    page = WikiPage(id="foo", title="Foo", type=PageType.ENTITY, tags=["题材/bogus"])
+    with pytest.raises(TagValidationError) as exc:
+        write_page(p, page)
+    assert "题材/bogus" in exc.value.invalid_values
+
+
+def test_write_page_allows_valid_tags(tmp_path):
+    """write_page succeeds when tags are valid and mandatory pairs present."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    page = WikiPage(id="foo", title="Foo", type=PageType.ENTITY,
+                    tags=["题材/现言", "状态/完结", "素材/ugc", "可信度/ugc"])
+    write_page(p, page)
+    assert page_path_for(p, PageType.ENTITY, "foo").exists()

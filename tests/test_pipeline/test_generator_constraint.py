@@ -5,7 +5,6 @@ MUST be copied from the input KnowledgeObject.  This validator catches
 LLM hallucination in frontmatter (invented fields, modified facts, extra
 knowledge not in the candidate).
 """
-import pytest
 
 from src.knowledge.core.object import KnowledgeObject, KnowledgeType, LifecycleState, Provenance
 from src.pipeline.generator_constraint import GeneratorOutputValidator

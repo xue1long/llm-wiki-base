@@ -11,7 +11,6 @@ list means the output is consistent with the input.
 """
 from __future__ import annotations
 
-from dataclasses import fields as dc_fields
 
 from ..wiki.core.types import PageType, WikiPage
 from ..knowledge.core.object import KnowledgeObject, KnowledgeType
@@ -133,8 +132,8 @@ class GeneratorOutputValidator:
         """is_immutable should be False by default — Generator must not set it."""
         if wp.is_immutable:
             return (
-                f"is_immutable should be False (default), got True — "
-                f"Generator must not set the immutable flag"
+                "is_immutable should be False (default), got True — "
+                "Generator must not set the immutable flag"
             )
         return None
 

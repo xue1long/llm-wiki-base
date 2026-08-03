@@ -39,14 +39,17 @@ TAG_VALUES: dict[str, set[str] | None] = {
     "场景阶段": {"开篇", "转折", "高潮", "结局", "铺垫", "过渡", "冲突", "收束"},
     "状态": {"完结", "连载中", "弃坑", "暂停", "大纲", "待发布"},
     "素材": {"ugc", "official", "转载", "原创", "投稿"},
-    "可信度": {"book", "web", "expert", "user", "ai", "unknown"},
+    "可信度": {"book", "web", "expert", "user", "ai", "unknown", "ugc", "mixed"},
 }
 
 # ---------------------------------------------------------------------------
 # Mandatory pairs — tags that MUST exist in every valid tag set
 # ---------------------------------------------------------------------------
 
-MANDATORY_PAIRS: list[tuple[str, str]] = []
+MANDATORY_PAIRS: list[tuple[str, str]] = [
+    ("素材", "ugc"),
+    ("可信度", "ugc"),
+]
 
 # ---------------------------------------------------------------------------
 # Validation
@@ -122,6 +125,39 @@ def missing_mandatory_tags(tags: Iterable[str]) -> list[str]:
 # ---------------------------------------------------------------------------
 # LLM prompt helpers
 # ---------------------------------------------------------------------------
+
+
+class TagValidationError(ValueError):
+    """Raised when tags fail value-domain or mandatory-pair validation."""
+
+    def __init__(self, message: str, invalid_values: list[str] | None = None,
+                 missing_pairs: list[str] | None = None):
+        super().__init__(message)
+        self.invalid_values = invalid_values or []
+        self.missing_pairs = missing_pairs or []
+
+
+def validate_tag_compliance(tags: list[str]) -> None:
+    """Validate tags against value domain + mandatory pairs. Raises on failure.
+
+    Value-domain validation always applies. Mandatory-pair validation is
+    skipped when *tags* is empty (page hasn't been tagged yet). Once a page
+    carries at least one tag the full mandatory set must be present.
+    """
+    reasons: list[str] = []
+    invalid_vals = validate_tag_values(tags)
+    if invalid_vals:
+        reasons.append(f"invalid tag values: {invalid_vals}")
+    if tags:  # only enforce mandatory pairs when page has been tagged
+        missing = missing_mandatory_tags(tags)
+        if missing:
+            reasons.append(f"missing mandatory tags: {missing}")
+    if reasons:
+        raise TagValidationError(
+            "; ".join(reasons),
+            invalid_values=invalid_vals,
+            missing_pairs=missing if tags else [],
+        )
 
 
 def build_tag_prompt_section() -> str:

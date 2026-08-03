@@ -13,7 +13,6 @@ This locks in:
      raise — the existing time-out behaviour is preserved.
 """
 import asyncio
-import json
 
 import httpx
 import pytest
