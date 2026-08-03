@@ -105,9 +105,9 @@ def test_validate_tag_values():
 
 
 def test_mandatory_pairs_default():
-    """MANDATORY_PAIRS defaults to UGC paired tags (P0.4 — temporary until P2.5 rule engine)."""
-    assert ("素材", "ugc") in MANDATORY_PAIRS
-    assert ("可信度", "ugc") in MANDATORY_PAIRS
+    """MANDATORY_PAIRS is empty after P2 fix — tags are now optional."""
+    # P2 fix: disabled mandatory pairs. UGC/provenance tags are now optional.
+    assert MANDATORY_PAIRS == []
 
 
 def test_missing_mandatory_tags():
@@ -192,11 +192,9 @@ def test_validate_tag_compliance_empty_passes():
 
 
 def test_validate_tag_compliance_nonempty_missing_mandatory():
-    """Non-empty tag list fails when mandatory pairs are missing."""
-    with pytest.raises(TagValidationError) as exc:
-        validate_tag_compliance(["题材/现言"])
-    assert "素材/ugc" in exc.value.missing_pairs
-    assert "可信度/ugc" in exc.value.missing_pairs
+    """Non-empty tag list passes when mandatory pairs are empty (P2 fix)."""
+    # P2 fix: MANDATORY_PAIRS is now empty, so no mandatory tags are required
+    validate_tag_compliance(["题材/现言"])  # Should NOT raise
 
 
 def test_validate_tag_compliance_raises_on_invalid_value():

@@ -151,27 +151,36 @@ def create_app() -> FastAPI:
         # Auto-recover pending queue tasks after a server restart.
         # The queue is persisted to disk; PENDING tasks left from a
         # previous run are re-dispatched here (up to 6 concurrent workers).
-        # If the queue was paused before the restart (sentinel file exists),
-        # skip recovery — the user explicitly asked for a pause.
+        #
+        # P1 fix: if the queue was paused (sentinel file exists), auto-clear
+        # it on startup. A stale pause file from a crashed server would
+        # otherwise block all processing until manually removed.
         try:
-            from ..queue.service import get_default_queue_service
+            from ..queue.service import get_default_queue_service, PAUSE_FILE
+            from pathlib import Path as _Path
             svc = get_default_queue_service()
             status = svc.get_status()
             if status.get("paused"):
-                _logger.info(
-                    "[startup] queue is paused (%d pending, %d running) — skipping auto-recovery",
+                _logger.warning(
+                    "[startup] queue was paused (%d pending, %d running) — auto-clearing stale pause file",
                     status["pending_count"], status["running_count"],
                 )
-            else:
-                for _ in range(6):
-                    if not svc.advance():
-                        break
-                status = svc.get_status()
-                if status["pending_count"] or status["running_count"]:
-                    _logger.info(
-                        "[startup] queue recovery: %d pending, %d running",
-                        status["pending_count"], status["running_count"],
-                    )
+                # Clear the pause file and resume the queue
+                try:
+                    _Path(PAUSE_FILE).unlink(missing_ok=True)
+                except OSError:
+                    pass
+                svc.resume()
+            # Dispatch up to 6 workers for pending tasks
+            for _ in range(6):
+                if not svc.advance():
+                    break
+            status = svc.get_status()
+            if status["pending_count"] or status["running_count"]:
+                _logger.info(
+                    "[startup] queue recovery: %d pending, %d running",
+                    status["pending_count"], status["running_count"],
+                )
         except Exception:
             _logger.warning("[startup] queue recovery failed", exc_info=True)
 

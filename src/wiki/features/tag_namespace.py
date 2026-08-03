@@ -45,11 +45,10 @@ TAG_VALUES: dict[str, set[str] | None] = {
 # ---------------------------------------------------------------------------
 # Mandatory pairs — tags that MUST exist in every valid tag set
 # ---------------------------------------------------------------------------
-
-MANDATORY_PAIRS: list[tuple[str, str]] = [
-    ("素材", "ugc"),
-    ("可信度", "ugc"),
-]
+# P2 fix: disabled mandatory pairs. UGC/provenance tags are now optional.
+# Previously enforced `素材/ugc` + `可信度/ugc` which blocked ingestion
+# when the LLM couldn't determine provenance. Tags are now purely advisory.
+MANDATORY_PAIRS: list[tuple[str, str]] = []
 
 # ---------------------------------------------------------------------------
 # Validation
