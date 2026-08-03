@@ -68,6 +68,11 @@ _DEPTH_BY_TYPE: dict[PageType, str] = {
     PageType.SYNTHESIS: "synthesis",
 }
 
+# Valid values for WikiPage.processing_depth (see src/wiki/core/types.py).
+# Deliberately NOT the page-type enum — this constrains the LLM to the two
+# real processing depths so it cannot emit a page-type name here.
+PROCESSING_DEPTH_VALUES = ["concept", "memory"]
+
 
 # ---------------------------------------------------------------------------
 # 0.5.2 — generated-id hygiene. Page ids are derived from the LLM's title
@@ -500,7 +505,7 @@ async def unified_generate(
                         "grade": {"type": "string", "enum": ["A", "B", "C"]},
                         "category": {"type": "string"},
                         "taxonomy_sub": {"type": "string"},
-                        "processing_depth": {"type": "string", "enum": ["source", "entity", "concept", "synthesis", "memory"]},
+                        "processing_depth": {"type": "string", "enum": PROCESSING_DEPTH_VALUES},
                     },
                     "required": ["id", "type", "title", "slots"],
                 },
@@ -837,7 +842,7 @@ async def generate_from_candidate(
                         "grade": {"type": "string", "enum": ["A", "B", "C"]},
                         "category": {"type": "string"},
                         "taxonomy_sub": {"type": "string"},
-                        "processing_depth": {"type": "string", "enum": ["source", "entity", "concept", "synthesis", "memory"]},
+                        "processing_depth": {"type": "string", "enum": PROCESSING_DEPTH_VALUES},
                     },
                     "required": ["id", "type", "title", "slots"],
                 },
@@ -1050,7 +1055,7 @@ async def generate_from_knowledge_object(
                         "grade": {"type": "string", "enum": ["A", "B", "C"]},
                         "category": {"type": "string"},
                         "taxonomy_sub": {"type": "string"},
-                        "processing_depth": {"type": "string", "enum": ["source", "entity", "concept", "synthesis", "memory"]},
+                        "processing_depth": {"type": "string", "enum": PROCESSING_DEPTH_VALUES},
                     },
                     "required": ["id", "type", "title", "slots"],
                 },
@@ -1289,7 +1294,7 @@ async def generate(
                         },
                         "category": {"type": "string"},
                         "taxonomy_sub": {"type": "string"},
-                        "processing_depth": {"type": "string", "enum": ["source", "entity", "concept", "synthesis", "memory"]},
+                        "processing_depth": {"type": "string", "enum": PROCESSING_DEPTH_VALUES},
                     },
                     "required": ["id", "type", "title", "slots"],
                 },

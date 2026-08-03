@@ -2,8 +2,22 @@
 import pytest
 from src.shared.test_helpers import ScriptedLLMProvider
 from src.pipeline.schemas import AnalysisResult, EntityMention, PageSpec
-from src.pipeline.generator import generate
+from src.pipeline.generator import generate, PROCESSING_DEPTH_VALUES
 from src.wiki.core.types import PageType
+
+
+def test_processing_depth_values_are_concept_and_memory_only():
+    """PROCESSING_DEPTH_VALUES must equal ['concept', 'memory'] and never
+    absorb page-type names (regression: the LLM response schema used to mix
+    page-type names into the processing_depth enum, inviting illegal values
+    from the model). 'concept' is the one page type that doubles as a valid
+    depth, so the guard is against every OTHER PageType value."""
+    assert PROCESSING_DEPTH_VALUES == ["concept", "memory"]
+    non_depth_page_types = {t.value for t in PageType} - {"concept"}
+    assert not (set(PROCESSING_DEPTH_VALUES) & non_depth_page_types), (
+        "PROCESSING_DEPTH_VALUES must not contain page-type names other than "
+        "the valid depth 'concept'"
+    )
 
 
 @pytest.mark.asyncio

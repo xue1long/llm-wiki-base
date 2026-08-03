@@ -7,6 +7,7 @@ from ..knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
 from ..knowledge.core.object import KnowledgeType
 from ..lib.budgeted import BudgetedLLM
 from ..wiki.features.tag_namespace import build_tag_prompt_section
+from ..wiki.core.types import PageType
 from ._pipeline_common import parse_llm_json
 from .schemas import AnalysisResult, ConceptMention, EntityMention, PageSpec
 
@@ -58,7 +59,7 @@ Extract structured analysis. Output strict JSON:
   ],
   "suggested_pages": [
     {{
-      "type": "source|entity|concept|synthesis",
+      "type": "{page_types}",
       "slug": "...",
       "title": "...",
       "reasoning": "...",
@@ -109,7 +110,7 @@ include the page number in each evidence entry's `page` field.
 Extract structured knowledge claims as a JSON object matching this schema:
 {{
   "source_id": "<source path>",
-  "type": "concept|entity|claim|decision|procedure|event",
+  "type": "{knowledge_types}",
   "title": "<candidate title>",
   "claims": [
     {{"statement": "<claim text>", "confidence": 0.0-1.0, "evidence_refs": [0, 1]}}  // 0-based: valid range 0 to len(evidence)-1, never use len(evidence)
@@ -121,7 +122,7 @@ Extract structured knowledge claims as a JSON object matching this schema:
 
 Rules:
 - source_id: the path of the source document being analyzed
-- type: one of concept, entity, claim, decision, procedure, event
+- type: one of {knowledge_types}
 - title: a concise title summarizing the main topic (3-15 words)
 - claims: 3-10 factual claims extracted from the source. Each claim must have:
   - statement: the claim text (one sentence, self-contained)
@@ -310,6 +311,12 @@ async def analyze(
         existing_wiki_index=existing_wiki_index or "(empty)",
         source_text=source_text,
         tag_namespace_rules=build_tag_prompt_section(),
+        # Page-layer only: claim/decision/procedure/event are knowledge-layer
+        # and fold to concept downstream (see wiki-spec-sync plan §0.2).
+        page_types="|".join(
+            t.value for t in PageType
+            if t in (PageType.SOURCE, PageType.ENTITY, PageType.CONCEPT, PageType.SYNTHESIS)
+        ),
     )
 
     ANALYZER_RESPONSE_FORMAT = {
@@ -474,6 +481,7 @@ async def _analyze_json(
         existing_wiki_index=existing_wiki_index or "(empty)",
         source_text=source_text,
         chunk_context=_chunk_ctx,
+        knowledge_types="|".join(t.value for t in KnowledgeType),
     )
 
     MAX_ATTEMPTS = 2

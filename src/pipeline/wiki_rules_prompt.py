@@ -8,7 +8,7 @@ ID_RULES = {
 
 FRONTMATTER_RULES = {
     "required": ['id', 'title', 'type'],
-    "optional": ['sources', 'relations', 'grade', 'processing_depth', 'is_immutable', 'heat', 'last_used_at', 'zombie_since', 'tags'],
+    "optional": ['sources', 'relations', 'grade', 'processing_depth', 'is_immutable', 'heat', 'last_used_at', 'zombie_since', 'tags', 'created_at', 'updated_at', 'related_entities', 'category', 'taxonomy_sub'],
 }
 
 BODY_RULES = {
@@ -95,7 +95,7 @@ Tags 使用受控命名空间前缀，格式为 `prefix/name`。可用前缀：
 | `实体/` | 是什么 (What) |
 | `场景阶段/` | 何时用 (When) |
 | `状态/` | 生命周期 |
-| `素材/` | 素材品类（2026-08-01 新增，如 `素材/ugc`、`素材/book`、`素材/excerpt`） |
+| `素材/` | 素材品类（2026-08-01 新增，如 `素材/ugc`、`素材/原创`、`素材/投稿`） |
 | `可信度/` | 可信度（2026-08-01 新增，如 `可信度/ugc`、`可信度/book`、`可信度/mixed`） |
 
 ## Body 规则
@@ -105,6 +105,15 @@ Tags 使用受控命名空间前缀，格式为 `prefix/name`。可用前缀：
 - 跨页引用使用 `[[slug]]` 语法，如 `[[shuang-dian]]`
 
 ## PageType 语义（4 种 page type 的判定标准）
+
+### 页面层与知识层分离
+
+本项目存在两层类型，需要区分：
+
+- **页面层** `WikiPage.type`（`PageType`）只有 4 类：`source` / `entity` / `concept` / `synthesis`。
+- **知识层** `KnowledgeType` 有 8 类：`document` / `entity` / `concept` / `claim` / `decision` / `procedure` / `event` / `synthesis`。JSON analyzer 允许产出 `claim` / `decision` / `procedure` / `event` 等知识候选；但**生成页面时**经 `KO_TYPE_TO_PAGE_TYPE` 映射折叠：`claim` / `decision` / `procedure` / `event` → `concept`。
+- `PageType` 枚举保留 8 个值仅为兼容解析历史数据（如旧 `type: procedure` 页面），不应新建此类页面。
+- 因此规范页只有 4 类；知识层的 `claim` 等概念不等价于页面类型。
 
 正确分类是知识库图谱可用的前提。每条 `suggested_pages` 必须落到下面 4 类之一：
 
@@ -237,17 +246,23 @@ v2.4 起，`wiki/sources/*.md` 文件名不再是队列任务 ID（`kb-{time}-{8
 |---|---|---|
 | `必备资料15顺眼谈文章的画面感.md` | `kb-20260726173322-4c1dd21e.md` | `必备资料15顺眼谈文章的画面感-43c5df10.md` |
 
-### 实现 (`src/pipeline/ingest.py:174-180`)
+### 实现 (`src/pipeline/ingest.py:561-570`)
 
 ```python
-stem = Path(str(source_path)).stem
-norm_stem = unicodedata.normalize("NFC", stem)
-path_hash = hashlib.md5(str(source_path).encode("utf-8")).hexdigest()[:8]
-source_slug = f"{norm_stem}-{path_hash}"
-source_title = norm_stem   # 去掉 .md 后缀
+_raw_stem_for_slug = Path(str(source_path)).stem
+_norm_stem_for_slug = unicodedata.normalize("NFC", _raw_stem_for_slug)
+_slug_stem_for_map = slugify(_norm_stem_for_slug)   # CJK 原字保留；ASCII 空格/标点被 slug 化（如 "Annual Report 2024" → "annual-report-2024"）
+_path_hash_for_slug = hashlib.md5(str(source_path).encode("utf-8")).hexdigest()[:8]
+_source_slug_for_map = (
+    f"{_slug_stem_for_map}-{_path_hash_for_slug}"
+    if _slug_stem_for_map else
+    task_id if task_id.startswith("kb-") else f"kb-{task_id}"
+)
+source_title = _norm_stem_for_slug   # 去掉 .md 后缀
 ```
 
 - **不拼音化**：源文件 stem 直接作为 slug 的一部分（CJK 原字保留）。
+- **slugify 仅对 ASCII 生效**：纯中文文件名（如 `必备资料15…md`）slugify 原样保留；含空格/标点的英文文件名（如 `Annual Report 2024.md`）会被 slug 化为 `annual-report-2024-<hash>`，而非原样保留空格。
 - **NFC 标准化**避免 macOS HFS+ NFD 文件名导致不同 hash。
 - **8hex 短 hash** (32-bit 熵)：吸收 race condition（两个并发摄取同源文件不会撞）；跨 platform 跨 server 稳定。
 - **`title`** 也修了：之前是 `必备资料15顺眼谈文章的画面感.md`（带扩展名），现在是 `必备资料15顺眼谈文章的画面感`。
