@@ -97,7 +97,8 @@ class CircuitBreaker:
 
         if new_state == CircuitState.OPEN:
             self.opened_at = datetime.now()
-            self.failure_count = 0
+            # P2 fix: 保留failure_count用于审计，不重置
+            # 之前的重置逻辑导致get_status()返回failure_count=0误导用户
         elif new_state == CircuitState.HALF_OPEN:
             self.success_count = 0
         elif new_state == CircuitState.CLOSED:
