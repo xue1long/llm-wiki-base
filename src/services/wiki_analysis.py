@@ -238,3 +238,54 @@ def lint(project_id: str) -> dict:
         "orphans": orphans[:50],
         "dangling": dangling[:50],
     }
+
+
+# ---------------------------------------------------------------------------
+# Thin service wrappers — single-line delegations to wiki/features
+# ---------------------------------------------------------------------------
+
+
+def get_heat_tracker(paths):
+    from ..wiki.features.heat import HeatTracker
+    return HeatTracker(paths)
+
+
+def get_zombie_detector():
+    from ..wiki.features.zombie import ZombieDetector
+    return ZombieDetector
+
+
+def run_dedup_auto(paths, provider, threshold="medium"):
+    from ..wiki.features.dedup_auto import dedup_auto
+    return dedup_auto(paths, provider, threshold=threshold)
+
+
+def run_stub_promotion(paths, provider):
+    import asyncio
+    from ..wiki.features.stubs import StubMaterializerWorker
+    return asyncio.run(StubMaterializerWorker(paths, provider).run_once())
+
+
+def run_lint(paths, project_id):
+    from ..wiki.features.lint import lint_wiki
+    return lint_wiki(paths, project_id=project_id)
+
+
+def get_relations_for_page(paths, page_id):
+    from ..wiki.features.relations import RelationQuery
+    return RelationQuery.list_relations(paths, page_id)
+
+
+def get_backlinks_for_page(paths, page_id):
+    from ..wiki.features.relations import RelationQuery
+    return RelationQuery.find_backlinks(paths, page_id)
+
+
+def get_neighbors(paths, page_id, depth=1):
+    from ..wiki.features.relations import RelationQuery
+    return RelationQuery.find_neighbors(paths, page_id, depth=depth)
+
+
+def find_path_between(paths, source_id, target_id):
+    from ..wiki.features.relations import RelationQuery
+    return RelationQuery.find_path(paths, source_id, target_id)

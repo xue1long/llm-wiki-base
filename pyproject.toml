@@ -19,6 +19,8 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
+    "ruff>=0.11.0",
+    "mypy>=1.14.0",
 ]
 
 [tool.pytest.ini_options]
@@ -26,6 +28,62 @@ dev = [
 # explicit `@pytest.mark.asyncio` marker on every test. (STRICT mode
 # was the source of the 4 mutex test failures.)
 asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py311"
+exclude = [
+    ".venv",
+    ".git",
+    "__pycache__",
+    ".mypy_cache",
+    ".ruff_cache",
+    "docs",
+    ".memory",
+    ".claude",
+]
+
+[tool.ruff.lint]
+select = [
+    "F",      # pyflakes: unused imports, undefined names
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "B",      # flake8-bugbear: common bug patterns
+    "C4",     # flake8-comprehensions
+]
+ignore = [
+    "E501",   # line-too-long — defer to formatting pass
+    "B904",   # raise-without-from — ~30 HTTP routes use this pattern intentionally
+    "B905",   # zip-without-strict — requires annotation changes, fix later
+    "B028",   # no-explicit-stacklevel — fix later
+    "E402",   # import-not-at-top — auto-registration pattern in migrations
+    "B007",   # unused-loop-variable — pervasive, enable incrementally
+    "E741",   # ambiguous-variable-name — pervasive, enable incrementally
+    "E702",   # multiple-statements-on-one-line (semicolons) — pervasive
+    "F841",   # unused-variable — 45 instances, pre-existing cleanup
+    "C408",   # unnecessary-collection-call — pre-existing
+    "E701",   # multiple-statements-on-one-line (colons) — pre-existing
+    "C416",   # unnecessary-comprehension — pre-existing
+    "B017",   # assertRaises(Exception) — pre-existing pattern
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["B011"]  # assert False is deliberate in tests
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+check_untyped_defs = false
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+]
+check_untyped_defs = false
 
 [build-system]
 requires = ["setuptools>=61.0"]

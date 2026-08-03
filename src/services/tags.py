@@ -72,3 +72,9 @@ def build_tag_index(project_id: str) -> dict:
         namespaces[prefix] = {"label": label, "tags": sorted_tags}
 
     return {"namespaces": namespaces}
+
+
+def validate_tags_for_page(tags: list[str]) -> list[str]:
+    """Validate tags for a page; returns list of invalid tag strings."""
+    from ..wiki.features.tag_namespace import validate_tags
+    return validate_tags(tags)

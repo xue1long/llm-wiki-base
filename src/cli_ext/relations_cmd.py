@@ -3,8 +3,11 @@ import argparse
 import json
 import sys
 from ..wiki.features.relations import (
-    Relation, RelationType, INVERSE_RELATIONS, USER_TYPE_PREFIX,
-    RelationSync, RelationQuery,
+    RelationType, INVERSE_RELATIONS, USER_TYPE_PREFIX,
+)
+from ..services.wiki_analysis import (
+    get_relations_for_page, get_backlinks_for_page,
+    get_neighbors, find_path_between,
 )
 from ..wiki.core.paths import WikiPaths
 from ..project.context import ProjectContext, ProjectNotFoundError
@@ -19,14 +22,14 @@ def _paths(ctx: ProjectContext) -> WikiPaths:
 
 def cmd_relations_list(args: argparse.Namespace) -> None:
     ctx = _resolve(args.project)
-    rels = RelationQuery.list_relations(_paths(ctx), args.page_id)
+    rels = get_relations_for_page(_paths(ctx), args.page_id)
     for r in rels:
         print(f"  → {r.target_id}  ({r.type}, w={r.weight})  {r.context}")
 
 
 def cmd_relations_backlinks(args: argparse.Namespace) -> None:
     ctx = _resolve(args.project)
-    rels = RelationQuery.find_backlinks(_paths(ctx), args.page_id)
+    rels = get_backlinks_for_page(_paths(ctx), args.page_id)
     print(f"Backlinks to {args.page_id}:")
     for r in rels:
         print(f"  ← {r.target_id}  ({r.type}, w={r.weight})")
@@ -34,14 +37,14 @@ def cmd_relations_backlinks(args: argparse.Namespace) -> None:
 
 def cmd_relations_neighbors(args: argparse.Namespace) -> None:
     ctx = _resolve(args.project)
-    neighbors = RelationQuery.find_neighbors(_paths(ctx), args.page_id, args.depth)
+    neighbors = get_neighbors(_paths(ctx), args.page_id, args.depth)
     for nid, via, w in neighbors:
         print(f"  → {nid}  (via {via}, w={w:.2f})")
 
 
 def cmd_relations_path(args: argparse.Namespace) -> None:
     ctx = _resolve(args.project)
-    path = RelationQuery.find_path(_paths(ctx), args.from_id, args.to_id)
+    path = find_path_between(_paths(ctx), args.from_id, args.to_id)
     if not path:
         print(f"No path from {args.from_id} to {args.to_id}")
         sys.exit(1)

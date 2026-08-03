@@ -24,7 +24,7 @@ Setup (from repo root):
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
   pip install -e ".[dev]"
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
-  pip install watchdog tavily-python pypdf
+  pip install tavily-python pypdf
 
 # Offline install for the two heavy native packages (pyarrow + lancedb):
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
@@ -51,8 +51,6 @@ PYTHONPATH=. pytest tests/test_wiki/ tests/test_cli_ext/ tests/test_pipeline/ te
 Run a single test file or test node:
 
 ```
-pytest tests/test_file_watcher.py -v
-pytest tests/test_file_watcher.py::test_scan_once_detects_new_file -v
 pytest tests/test_vector/ -v                  # one test package
 pytest -k idempotency -v                       # by keyword
 ```
@@ -246,7 +244,7 @@ def _resolve_ctx(proj_arg):
 - **Queue** (`src/queue/queue.py`) — module-level `_queue`, JSON-persisted to `.kb-queue.json`. `MAX_RETRIES = 3`, then dead-letter.
 - **Idempotency** (`src/utils/idempotency.py`) — md5-keyed dedup, in-memory TTL 7 days.
 - **Schemas** (`src/schemas/`) — Migration framework. `Migration` ABC with `up`/`down`/`preview`. MigrationRegistry indexes by `(schema_name, from_version, to_version)`.
-- **Sync** (`src/sync/`) — `SnapshotStore` JSON, `FileSyncWatcher` watchdog observer. `start_watch` / `stop` are **deprecated** (no current callers; remove in 1.0).
+- **Sync** (`src/sync/`) — `SnapshotStore` JSON snapshot-based change detection.
 - **Vector store** (`src/vector/`) — `LanceDB` singleton, 1536-dim float32. `init_vector_store_for_paths(WikiPaths)` must be called before any upsert/search; the legacy `init_vector_store(db_path)` parent-walking heuristic was removed (use `WikiPaths(root)` to construct the canonical path object).
 - **Service layer** (`src/services/`) — business logic between HTTP routes and core domain. Routes are thin adapters; services are unit-testable without HTTP. 7 modules: `files`, `projects`, `schema`, `reviews`, `ingest`, `search`, `chat`.
 - **Project resolution** (`src/lib/project.py`) — single entry point. `resolve_project(arg, by_id_only) -> (ProjectContext, WikiPaths)`; `resolve_ctx_only(...)` for the no-paths case. Replaces 9 hand-rolled `_resolve_ctx` copies.
@@ -302,7 +300,6 @@ metadata:
 
 ## Things to know before editing
 
-- **Two import styles coexist.** Modules under `src/` generally use relative imports (`from .types import ...`, `from ..events.event_bus import event_bus`). `src/sync/file_watcher.py` is the exception: it uses absolute `from src.sync.snapshot_store import SnapshotStore`.
 - **Event handlers register on import.** `src/pipeline/pipeline.py` and `src/orchestrator/orchestrator.py` attach handlers at module load. Adding a new pipeline stage means (a) emit a new event, (b) add a handler in `pipeline.py`, (c) optionally add a payload dataclass in `events/events.py`.
 - **Embedding provider is a process-global singleton.** `pipeline.librarian._embedding_provider` and `searcher.hybrid_search._embedding_provider` are independent globals — set both if you switch providers.
 - **CLI is CWD-sensitive.** `Path("Inbox")`, `Path("Notes")`, `Path("Knowledge")`, and `WikiPaths.root` resolve relative to the current working directory. Run from the repo root or pass `--path`/`--project`.
@@ -326,7 +323,6 @@ In a single cleanup pass, the following changes landed on `feat/continue-impleme
 - `src/knowledge_base.py` deleted (107 lines) — old `Inbox/Notes/Knowledge` layout; superseded by `src/wiki/storage/ensure.py`
 - `InboxManager.clear_processing`, `IdempotencyCache.remove`, `EntityMention.to_dict` + `from_dict` removed
 - `src/schemas/__init__.py: CURRENT_VERSION / MIGRATIONS` back-compat shims removed
-- `FileSyncWatcher.start_watch / .stop` marked `DeprecationWarning` (no current callers; remove in 1.0)
 
 **Bug fixes surfaced by the audit**:
 - `OllamaProvider.close()` was not called by any business code → `httpx.AsyncClient` leak. Fixed via `ProviderRegistry._loaded_providers` + `aclose_all()` + FastAPI lifespan shutdown hook.

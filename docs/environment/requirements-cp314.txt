@@ -17,7 +17,6 @@ mcp>=0.1.0
 
 # Native / heavy (see wheels/ for offline install)
 pyarrow==25.0.0
-watchdog==6.0.0
 
 # Web search provider
 tavily-python==0.7.26

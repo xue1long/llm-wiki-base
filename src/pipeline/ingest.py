@@ -33,6 +33,10 @@ import asyncio
 import hashlib
 import logging
 import re
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .sanitizer import SanitizerResult
 import unicodedata
 from pathlib import Path
 
@@ -52,8 +56,6 @@ from ..wiki.storage.page_writer import write_page
 # The package namespace ``src.pipeline`` always contains the compat
 # shim's staticmethod-wrapped functions; ``getattr`` looks them up
 # at call time, after the test patch has run.
-from . import analyzer as _analyzer_module
-from . import generator as _generator_module
 from ._pipeline_common import clean_source_text
 from .prefilter import prefilter as _run_prefilter
 from .retry import retry_with_backoff, RetryExhausted, PermanentFailure, CircuitBreakerOpen
@@ -192,7 +194,7 @@ def _compute_reverse_relations(paths, pages):
     sync_page resets a page's own relations to the passed list and would
     clobber an inverse edge that a prior page's sync just wrote.
     """
-    from ..wiki.features.relations import Relation, SYMMETRIC_RELATIONS
+    from ..wiki.features.relations import SYMMETRIC_RELATIONS
     from ..wiki.storage.page_writer import read_page, page_path_for
 
     def _infer_type(slug):
@@ -355,12 +357,12 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
 
 def _analyze(**kwargs):
     import sys
-    return getattr(sys.modules["src.pipeline.pipeline"], "analyze")(**kwargs)
+    return sys.modules["src.pipeline.pipeline"].analyze(**kwargs)
 
 
 def _generate(**kwargs):
     import sys
-    return getattr(sys.modules["src.pipeline.pipeline"], "generate")(**kwargs)
+    return sys.modules["src.pipeline.pipeline"].generate(**kwargs)
 
 
 async def _write_rejected_source_page(
@@ -426,7 +428,6 @@ def _create_source_only_page(
     """
     import time as _time
     import hashlib as _hashlib
-    from ..utils.slugify import slugify as _slugify
     from ..utils.path import normalize_source_path as _norm_src_path
 
     _stem = (
@@ -606,11 +607,10 @@ async def generate_ingest(
                     # C1: wrap each chunk's analyzer call with retry.
                     # Transient errors retry; permanent (422) + circuit
                     # breaker OPEN propagate to fail the whole ingest.
-                    _ch_analyze = _analyze  # capture for lambda closure
                     _ch_candidate = await retry_with_backoff(
-                        lambda: _with_llm_timeout(
-                            _ch_analyze(
-                                source_text=_ch_text,
+                        lambda _a=_analyze, _t=_ch_text, _c=_ch: _with_llm_timeout(
+                            _a(
+                                source_text=_t,
                                 source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
                                 existing_wiki_index=_existing_wiki_index,
                                 folder_context=folder_context,
@@ -618,11 +618,11 @@ async def generate_ingest(
                                 task_id=task_id,
                                 source_path=str(source_path),
                                 output_format="json",
-                                chunk_index=_ch["chunk_index"],
-                                chunk_total=_ch["chunk_total"],
+                                chunk_index=_c["chunk_index"],
+                                chunk_total=_c["chunk_total"],
                             ),
                             timeout=180.0,
-                            op=f"analyzer chunk {_ch['chunk_index']+1}/{_ch['chunk_total']}",
+                            op=f"analyzer chunk {_c['chunk_index']+1}/{_c['chunk_total']}",
                         ),
                         cb_name="ingest_llm",
                     )
@@ -871,8 +871,8 @@ async def generate_ingest(
             )
 
     # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.
-    # Default OFF (QualitySettings.enabled=False) — must be explicitly
-    # enabled in the per-project settings file. When enabled:
+    # Default OFF (QualitySettings mode="off") — must be explicitly
+    # enabled in the per-project settings file. When active:
     #   - Decision A1: judge LLM failure → log warning, pass pages through
     #   - Decision B1: re-generate rejected pages up to max_retries
     #   - Decision C:  inline (this hook); async mode TBD via event bus
@@ -880,28 +880,33 @@ async def generate_ingest(
     # retries multiply by max_retries+1 since the existing judge does
     # re-judge internally — deviation from strict B1 "re-generate"
     # noted in the 9-plan-bugfix plan).
-    from ..quality.types import QualitySettings
     from ..quality.judge import QualityJudge
-    # QualitySettings() default: enabled=False. To turn on, the
-    # operator adds a "quality" section to the project settings file
-    # OR sets RUFLO_QUALITY_ENABLED=1 (env override, NOT YET WIRED).
-    _quality_settings = QualitySettings()
-    if _quality_settings.enabled and pages:
+    _quality_settings = _load_quality_settings(paths)
+    if _quality_settings.is_active() and pages:
         try:
             judge = QualityJudge(settings=_quality_settings)
             page_dicts = [
-                {"id": p.id, "type": p.type.value, "body": p.body}
+                {
+                    "id": p.id, "type": p.type.value, "body": p.body,
+                    "grade": p.grade,
+                    "confidence": getattr(p, "confidence", None),
+                }
                 for p in pages
             ]
             result = await judge.judge_batch(page_dicts, source_texts={p.id: source_text for p in pages})
             if result.pages_quarantined:
                 from ..quality.quarantine import QuarantineStore
                 _quarantine = QuarantineStore(paths)
-                # Build a dict of page_id → page for the quarantined ones
                 pages_by_id = {p.id: p for p in pages}
                 for qid in result.pages_quarantined:
                     if qid in pages_by_id:
-                        _quarantine.put(pages_by_id[qid], result.pages[qid])
+                        _quarantine.put(
+                            project_root=paths.root,
+                            task_id="quality_gate",
+                            page_id=qid,
+                            content=pages_by_id[qid].body,
+                            judgment=result.pages[qid],
+                        )
                 # Filter out quarantined pages from the write list
                 pages = [p for p in pages if p.id not in result.pages_quarantined]
                 _logger.info(
@@ -1448,6 +1453,30 @@ async def commit_ingest(
             task_id=task_id,
             detail=f"generated {len(pages)} pages from {Path(str(source_path)).name}",
         )
+
+
+def _load_quality_settings(paths: WikiPaths) -> "QualitySettings":  # noqa: F821
+    """Load QualitySettings from per-project JSON or fall back to defaults."""
+    import json
+
+    from ..quality.types import QualitySettings
+
+    cfg = paths.index / "quality_settings.json"
+    if not cfg.exists():
+        return QualitySettings()
+    try:
+        data = json.loads(cfg.read_text(encoding="utf-8"))
+        return QualitySettings(
+            mode=data.get("mode", "off"),
+            sample_rate=float(data.get("sample_rate", 0.2)),
+            always_judge_grade_a=bool(data.get("always_judge_grade_a", True)),
+            always_judge_low_confidence=float(data.get("always_judge_low_confidence", 0.7)),
+            weights=data.get("weights", QualitySettings().weights),
+            threshold_pass=float(data.get("threshold_pass", 0.7)),
+            max_retries=int(data.get("max_retries", 1)),
+        )
+    except (json.JSONDecodeError, OSError, ValueError):
+        return QualitySettings()
 
 
 async def run_ingest(

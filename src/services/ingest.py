@@ -276,3 +276,10 @@ def enqueue_source(
     if count_limited > 0:
         result["countLimited"] = count_limited
     return result
+
+
+def run_ingest_pipeline(paths, source_path, source_text, provider, task_id="svc"):
+    """Run the full ingest pipeline synchronously (async wrapper)."""
+    import asyncio
+    from ..pipeline.ingest import run_ingest
+    return asyncio.run(run_ingest(paths, source_path, source_text, provider, task_id=task_id))

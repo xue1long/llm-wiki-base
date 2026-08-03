@@ -33,7 +33,7 @@ wheels.
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy `
   C:\Python314\python.exe -m pip install -e ".[dev]"
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy `
-  C:\Python314\python.exe -m pip install watchdog tavily-python pypdf
+  C:\Python314\python.exe -m pip install tavily-python pypdf
 ```
 
 ### Offline path (use the wheels shipped in this directory)
