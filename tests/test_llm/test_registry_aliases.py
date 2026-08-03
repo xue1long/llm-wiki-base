@@ -7,7 +7,6 @@ Adds:
 - Tier 2 in get_default() resolution
 """
 import json
-import os
 from pathlib import Path
 
 import pytest

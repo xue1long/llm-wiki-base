@@ -1,5 +1,4 @@
 """Tests for src/schemas/migrations/v2_to_v2_2.py."""
-import json
 from pathlib import Path
 
 from src.schemas.migration import MigrationContext, SchemaVersion

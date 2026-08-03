@@ -132,7 +132,7 @@ class IndexerStage:
             )
             return
 
-        from datetime import datetime, timezone
+        from datetime import timezone
         now = int(datetime.now(timezone.utc).timestamp() * 1000)
         lance_chunks = [
             VectorChunk(

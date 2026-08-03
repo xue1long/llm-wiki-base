@@ -235,7 +235,8 @@ class ReviewerStage:
                 failed.append("reference_consistency")
                 reasons.append(f"Evidence {i} has no source_path")
                 return
-            file_path = Path(source_path_str)
+            normalized = source_path_str.replace("\\", "/")
+            file_path = project_path / normalized
             if not file_path.is_file():
                 failed.append("reference_consistency")
                 reasons.append(f"Evidence {i} source_path not found: {source_path_str}")

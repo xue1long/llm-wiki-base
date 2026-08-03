@@ -11,10 +11,7 @@ This is the EXACT logic from src/pipeline/pipeline.py:_dispatch_collector_start
 from __future__ import annotations
 import asyncio
 import logging
-from typing import Callable
 
-from .runner import PipelineRunner
-from .stages import AnalyzerStage, CollectorStage, GeneratorStage
 
 _logger = logging.getLogger(__name__)
 

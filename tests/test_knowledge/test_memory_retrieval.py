@@ -1,5 +1,4 @@
 """Test MemoryRetrieval orchestrator (Task 3.6)."""
-import pytest
 
 from src.knowledge.memory.retrieval import MemoryResponse, MemoryRetrieval
 from src.searcher.query_understanding import QueryType

@@ -1,7 +1,6 @@
 # ruflo-kb/tests/test_vector/test_store.py
 import pytest
 import tempfile
-import os
 from pathlib import Path
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths

@@ -1,6 +1,5 @@
 """LLM-as-judge quality gate for wiki pages."""
 import logging
-import os
 import time
 
 from ..llm.provider_factory import create_llm_provider

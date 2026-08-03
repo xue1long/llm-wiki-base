@@ -1,6 +1,6 @@
 """Tests for the health-check framework primitives."""
 from src.maintenance.health_check import (
-    CheckSeverity, CheckIssue, CheckResult, HealthReport, HealthCheckRunner,
+    CheckSeverity, CheckIssue, CheckResult, HealthReport,
 )
 
 

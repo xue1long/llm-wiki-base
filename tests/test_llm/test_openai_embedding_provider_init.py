@@ -5,7 +5,6 @@ Background: ``OpenAIEmbeddingProvider.__init__`` used to set BOTH
 (redundant alias). The duplicate ``self.client`` attribute is removed;
 canonical storage is ``self._sdk``.
 """
-import pytest
 
 from src.llm.openai_provider import OpenAIEmbeddingProvider
 

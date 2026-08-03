@@ -1,9 +1,6 @@
 """Test that src/cli_ext/templates_cmd.py uses WikiPaths(ctx.path) correctly."""
 from argparse import Namespace
-from pathlib import Path
-from unittest.mock import MagicMock
 
-import pytest
 
 
 def test_cmd_templates_apply_uses_paths(tmp_path, monkeypatch):

@@ -8,7 +8,6 @@ from src.wiki.features.dedup import (
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths
 from src.wiki.storage.page_writer import write_page
-from src.utils.slugify import slugify
 
 
 # -----------------------------------------------------------------------

@@ -1,6 +1,5 @@
 # src/server/routes/providers.py
 """HTTP routes for LLM provider management."""
-import json
 import os
 from pathlib import Path
 from typing import Any

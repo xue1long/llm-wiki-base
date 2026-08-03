@@ -6,14 +6,12 @@ keyed by base_url — many OllamaProvider instances pointing at the same URL
 share one client; close() closes the cached client exactly once.
 """
 import asyncio
-import httpx
 
 import pytest
 
 from src.llm.registry import ProviderRegistry
 from src.llm.types import ProviderConfig
 from src.llm.ollama_provider import OllamaProvider
-from src.llm.base import LLMResponse
 
 
 @pytest.fixture(autouse=True)

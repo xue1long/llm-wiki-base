@@ -1,5 +1,4 @@
 """Tests for D3: Rule-based document pre-filtering (src/pipeline/prefilter.py)."""
-import pytest
 from src.pipeline.prefilter import prefilter, PrefilterResult
 
 

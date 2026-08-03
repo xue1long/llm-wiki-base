@@ -1,5 +1,4 @@
 # ruflo-kb/tests/test_utils/test_text.py
-import pytest
 from src.utils.text import trim_text, html_to_text, chunk_markdown
 
 def test_trim_text():

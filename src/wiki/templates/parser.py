@@ -30,7 +30,7 @@ import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .types import PageType, TemplateAST, TemplateSection
+    from .types import PageType, Template, TemplateAST, TemplateSection
 
 # Pattern constants (compiled once for reuse).
 _VERSION_RE = re.compile(
@@ -103,7 +103,7 @@ def parse(markdown: str, expected_type: "PageType") -> "TemplateAST":
         TemplateParseError: if the markdown is missing required headers,
             has a type mismatch, or contains malformed markers.
     """
-    from .types import PageType, Slot, Include, TemplateAST, TemplateSection
+    from .types import Slot, Include, TemplateAST, TemplateSection
 
     # 0. Empty / blank template — fail early with a clearer message.
     if not markdown.strip():

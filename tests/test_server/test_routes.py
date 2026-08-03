@@ -3,14 +3,10 @@
 Behavioral tests using FastAPI's ``TestClient`` (200 response + correct shape).
 A small number of import-smoke tests are kept as a regression layer.
 """
-from pathlib import Path
-from unittest.mock import MagicMock
 
-import pytest
 from fastapi.testclient import TestClient
 
 from src.server.app import create_app
-from src.server.routes import files as files_route
 from src.schemas.migration import SchemaVersion
 from src.schemas.registry import MigrationRegistry
 

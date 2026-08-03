@@ -2,7 +2,6 @@
 import tempfile
 from pathlib import Path
 
-import pytest
 
 from src.wiki.core.types import PageType, _TYPE_TO_DIR
 from src.wiki.core.paths import WikiPaths

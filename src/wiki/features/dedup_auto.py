@@ -3,11 +3,11 @@ import json
 import logging
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
-from ..storage.page_writer import read_page, write_page, page_path_for
-from ..core.types import PageType, WikiPage
+from ..storage.page_writer import read_page, page_path_for
+from ..core.types import PageType
 from ..core.paths import WikiPaths
 from ...lib.write_hooks import safe_write, DELETE_SENTINEL
 

@@ -1,7 +1,6 @@
 """Test EventStore — JSONL + Postgres backends (Task 5.3)."""
 import json
 import time
-from pathlib import Path
 
 import pytest
 

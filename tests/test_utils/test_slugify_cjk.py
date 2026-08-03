@@ -4,7 +4,6 @@ After cutting over to CJK (2026-07-26), the slug generator must
 preserve Chinese characters rather than transliterate to pinyin.
 """
 import unicodedata
-import pytest
 from src.utils.slugify import slugify, ensure_unique_slug
 
 

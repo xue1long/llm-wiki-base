@@ -5,11 +5,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.knowledge.core.object import (
-    KnowledgeType,
-    LifecycleState,
-    Provenance,
-)
 from src.knowledge.core.lifecycle import LifecycleEngine
 from src.knowledge.graph.builder import GraphBuilder
 from src.wiki.core.paths import WikiPaths
@@ -337,7 +332,6 @@ class TestGraphEdgesFromProvenance:
 
     def test_provenance_creates_derives_from_edge(self, tmp_path):
         from src.pipeline.stages.indexer import IndexerStage
-        from src.knowledge.core.object import Provenance as KoProvenance
 
         paths, gb, le = _setup_graph_and_lifecycle(tmp_path)
         wp = _make_wiki_page(

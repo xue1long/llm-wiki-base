@@ -1,5 +1,4 @@
 # ruflo-kb/tests/test_utils/extract/test_html.py
-import pytest
 from src.utils.extract.html import convert_html_tables_to_markdown, html_img_tags_to_markdown
 
 def test_convert_html_tables():

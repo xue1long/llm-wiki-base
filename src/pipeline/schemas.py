@@ -1,6 +1,5 @@
 """Shared pipeline dataclasses (AnalysisResult + Generator output)."""
 from dataclasses import dataclass, field, asdict
-from typing import Optional
 
 from ..utils.slugify import slugify as _slugify
 

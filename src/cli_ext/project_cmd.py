@@ -7,10 +7,8 @@ from pathlib import Path
 from ..utils.path import safe_resolve, safe_resolve_posix
 
 from ..project.context import ProjectContext
-from ..project.paths import last_project_path as _last_project_path
 from ..project.registry import (
     GlobalRegistryStore,
-    registry_path as _registry_path,
 )
 
 
@@ -73,7 +71,6 @@ def cmd_project_select(args: argparse.Namespace) -> None:
 
 def cmd_project_import(args: argparse.Namespace) -> None:
     """Import an existing KB (path with .llm-wiki/project.json) into registry."""
-    from pathlib import Path
     kb_path = safe_resolve(args.path)
     if not (kb_path / ".llm-wiki" / "project.json").exists():
         print(f"No .llm-wiki/project.json at {kb_path}", file=sys.stderr)
@@ -114,7 +111,7 @@ def cmd_project_forget(args: argparse.Namespace) -> None:
             print(f"Refusing --delete-data: path {kb_path} is outside CWD", file=sys.stderr)
             sys.exit(3)
         if resolved == resolved.parent or str(resolved) in (str(Path.home()), ""):
-            print(f"Refusing --delete-data: would delete root or home directory", file=sys.stderr)
+            print("Refusing --delete-data: would delete root or home directory", file=sys.stderr)
             sys.exit(3)
         # Actually delete
         import shutil
@@ -135,7 +132,6 @@ def cmd_project_rename(args: argparse.Namespace) -> None:
         sys.exit(2)
 
     # Read + validate project.json FIRST (fail without touching registry if malformed)
-    from pathlib import Path
     import json as _json
     project_json = Path(entry.path) / ".llm-wiki" / "project.json"
     data = None
@@ -212,7 +208,7 @@ def cmd_project_set_provider(args: argparse.Namespace) -> None:
     data["llm_provider"] = args.provider_name
     project_json.write_text(_json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Project '{entry.name}': LLM provider set to '{args.provider_name}'")
-    print(f"  (restart the server or re-enqueue tasks for this to take effect)")
+    print("  (restart the server or re-enqueue tasks for this to take effect)")
 
 
 def cmd_project_set_model(args: argparse.Namespace) -> None:
@@ -244,4 +240,4 @@ def cmd_project_set_model(args: argparse.Namespace) -> None:
     data["llm_model"] = args.model_name
     project_json.write_text(_json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Project '{entry.name}': LLM model set to '{args.model_name}'")
-    print(f"  (restart the server or re-enqueue tasks for this to take effect)")
+    print("  (restart the server or re-enqueue tasks for this to take effect)")

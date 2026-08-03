@@ -12,7 +12,6 @@ Contract:
 
 This file pins both halves so neither side regresses.
 """
-from pathlib import Path
 
 from src.lib import write_hooks
 from src.lib.atomic_ctx import AtomicContext, __reset_for_testing

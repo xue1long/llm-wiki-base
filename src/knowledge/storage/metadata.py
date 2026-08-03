@@ -15,7 +15,7 @@ import json
 from abc import ABC, abstractmethod
 
 from ...wiki.core.paths import WikiPaths
-from ...wiki.core.types import PageType, WikiPage
+from ...wiki.core.types import WikiPage
 from .wiki_adapter import WikiPageAdapter
 
 

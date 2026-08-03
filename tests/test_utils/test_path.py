@@ -1,7 +1,5 @@
 # ruflo-kb/tests/test_utils/test_path.py
-import os
 import sys
-from pathlib import Path
 
 import pytest
 from src.utils.path import migrate_state_paths, normalize_path, resolve_stored_path

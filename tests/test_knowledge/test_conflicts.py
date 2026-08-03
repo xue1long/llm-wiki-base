@@ -1,9 +1,8 @@
 """Test ConflictDetector — two-stage contradiction detection (Task 2.5)."""
 import time
 
-import pytest
 
-from src.knowledge.claims.model import Claim, ClaimStatus, ClaimType
+from src.knowledge.claims.model import Claim
 from src.knowledge.conflicts.detector import ConflictDetector, ConflictReport
 
 

@@ -61,7 +61,6 @@ class StrictProvider:
 @pytest.mark.asyncio
 async def test_searcher_qa_uses_messages_contract(monkeypatch):
     from src.searcher import qa
-    from src.llm.base import LLMResponse
 
     provider = StrictProvider(content='{"answer": "ok"}')
     monkeypatch.setattr(qa, "_llm_provider", provider)

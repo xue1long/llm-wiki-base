@@ -67,4 +67,5 @@ __all__ = [
     "resume_queue",
     "generate_task_id",
     "get_default_queue_service",
+    "__reset_for_testing",
 ]

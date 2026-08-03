@@ -1,8 +1,7 @@
 """Tests for src/wiki/lint_cache.py."""
 import time
-from pathlib import Path
 
-from src.wiki.features.lint_cache import cache_key, get, put, invalidate_all, DEFAULT_TTL
+from src.wiki.features.lint_cache import cache_key, get, put, invalidate_all
 
 
 def test_cache_key_deterministic():

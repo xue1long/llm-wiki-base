@@ -9,10 +9,9 @@ from __future__ import annotations
 
 import logging
 import time
-from pathlib import Path
 
 from src.events.event_bus import event_bus
-from src.knowledge.claims.model import Claim, ClaimType, Evidence
+from src.knowledge.claims.model import Claim
 from src.knowledge.claims.parser import ClaimParser
 from src.knowledge.core.adapter import knowledge_object_to_wiki_page
 from src.knowledge.core.candidate import KnowledgeCandidate

@@ -4,7 +4,6 @@ from src.services import projects as projects_service
 
 def test_list_projects_empty(monkeypatch, tmp_path):
     """list_projects returns [] when the global registry is empty."""
-    from src.project.registry import GlobalRegistryStore
     from src.project import paths as project_paths
 
     cfg = tmp_path / "cfg"
@@ -140,7 +139,6 @@ def test_get_project_by_name(monkeypatch, tmp_path):
 
 def test_get_project_not_found(monkeypatch, tmp_path):
     """get_project raises ProjectNotFound when neither id nor name matches."""
-    from src.project.registry import GlobalRegistryStore
     from src.project import paths as project_paths
 
     cfg = tmp_path / "cfg"

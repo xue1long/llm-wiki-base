@@ -5,7 +5,6 @@ collector must be able to read from and write to that path. The legacy
 ``Inbox/{Pending,Processing,Error}`` paths are no longer allowed — the
 staged-copy flow that used them was removed in 2026-07.
 """
-import pytest
 
 from src.permissions import (
     ALLOWED_PATHS,

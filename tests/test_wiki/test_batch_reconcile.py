@@ -1,13 +1,9 @@
 """NDG Phase 4.2: tests for batch-level reconcile logic."""
-import pytest
 
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.features.relations import Relation, RelationType, SYMMETRIC_RELATIONS
 from src.wiki.features.batch_reconcile import (
     reconcile_batch,
-    ReconcileResult,
-    MergeEntry,
-    ConflictEntry,
 )
 
 
@@ -188,7 +184,6 @@ def test_extra_pages_kept_separate_in_extras():
 def _make_wiki_with(root, entries):
     """Write a minimal wiki/index.md with the given (slug, type) entries and
     return the WikiPaths object."""
-    from src.wiki.core.paths import WikiPaths
     from src.wiki.storage.ensure import ensure_knowledge_base
     paths = ensure_knowledge_base(root)
     idx_lines = ["# Wiki Index\n"]

@@ -27,7 +27,6 @@ from src.circuit_breaker import (
     _circuit_breakers,
     get_circuit_breaker,
 )
-from src.llm.base import LLMResponse
 from src.wiki.core.paths import WikiPaths
 from src.wiki.core.types import PageType
 from src.wiki.storage.ensure import ensure_knowledge_base

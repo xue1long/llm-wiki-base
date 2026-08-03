@@ -1,5 +1,4 @@
 """Background worker that materializes stub pages when new content references them."""
-import asyncio
 import logging
 
 # Lightweight imports (no heavy side effects). The pipeline imports below are
@@ -9,7 +8,6 @@ from ..storage.page_writer import read_page, write_page
 from ..core.paths import WikiPaths
 from ...lib.write_hooks import safe_write, DELETE_SENTINEL
 from .schema_routing import validate_schema_routing  # noqa: F401  (re-exported per plan)
-from ..core.types import PageType, WikiPage
 from .wikilink import extract_wikilinks
 
 

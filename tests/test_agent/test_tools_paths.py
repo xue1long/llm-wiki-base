@@ -2,10 +2,7 @@
 import asyncio
 import sys
 import types
-from pathlib import Path
-from unittest.mock import AsyncMock
 
-import pytest
 
 
 # Stub hybrid_search to avoid lancedb import
@@ -33,7 +30,7 @@ def _install_hybrid_search_stub():
         .get_embedding_provider
     )
     sys.modules["src.searcher.hybrid_search"] = hybrid_mod
-    setattr(searcher_pkg, "hybrid_search", hybrid_mod.hybrid_search)
+    searcher_pkg.hybrid_search = hybrid_mod.hybrid_search
 
     # Add a module-level logger for tests that assert on it
     import logging as _logging
@@ -45,7 +42,7 @@ def _install_hybrid_search_stub():
         return ""
     qa_mod.generate_answer = _stub_generate_answer
     sys.modules["src.searcher.qa"] = qa_mod
-    setattr(searcher_pkg, "generate_answer", qa_mod.generate_answer)
+    searcher_pkg.generate_answer = qa_mod.generate_answer
 
     # Stub src.searcher.searcher (no public surface; just needs to exist)
     searcher_mod = types.ModuleType("src.searcher.searcher")
@@ -64,7 +61,6 @@ def _run(coro):
 
 def test_wiki_read_page_tool_uses_paths(monkeypatch, tmp_path):
     """Verify WikiReadPageTool uses WikiPaths(ctx.path), not ctx.paths."""
-    from src.wiki.core.paths import WikiPaths
     from src.agent.tools import WikiReadPageTool
 
     # Setup: create a wiki page

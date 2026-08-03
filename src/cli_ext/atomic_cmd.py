@@ -10,7 +10,7 @@ from ..lib.context_budget import estimate_tokens, get_model_context_window
 def cmd_atomic_status(args: argparse.Namespace) -> None:
     """Print current AtomicContext + pending writes state."""
     if is_suspended():
-        print(f"Status: SUSPENDED (active AtomicContext)")
+        print("Status: SUSPENDED (active AtomicContext)")
         print(f"Pending writes: {get_pending_count()}")
     else:
         print("Status: idle (no active AtomicContext)")

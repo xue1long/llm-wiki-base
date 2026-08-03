@@ -246,7 +246,6 @@ def merge_candidates(
         weighted_conf = sum(c.confidence for c in candidates) / len(candidates)
 
     import hashlib
-    import uuid
     merged_id = "merged-" + hashlib.md5(source_path.encode()).hexdigest()[:12]
 
     return KnowledgeCandidate(

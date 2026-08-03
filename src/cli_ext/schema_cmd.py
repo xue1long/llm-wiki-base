@@ -2,7 +2,6 @@
 """Schema management subcommands: list / diff / upgrade / downgrade / backup."""
 import argparse
 import sys
-from pathlib import Path
 
 from ..schemas.migration import MigrationContext, SchemaVersion
 from ..schemas.registry import MigrationRegistry

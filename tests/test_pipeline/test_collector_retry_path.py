@@ -7,9 +7,7 @@ the previous ``move_to_processing`` flow would move the file before the
 LLM stage and turn every transient LLM failure into a DEAD_LETTER.
 """
 import asyncio
-from pathlib import Path
 
-import pytest
 
 
 def test_collector_does_not_move_source_on_pipeline_failure(tmp_path, monkeypatch):
@@ -23,7 +21,6 @@ def test_collector_does_not_move_source_on_pipeline_failure(tmp_path, monkeypatc
     idempotency is handled by the md5 cache in
     ``src/utils/idempotency.py``.
     """
-    from src.permissions import enforce_permission
     monkeypatch.setattr(
         "src.pipeline.collector.enforce_permission",
         lambda *a, **kw: None,
@@ -63,7 +60,6 @@ def test_collector_does_not_write_staged_copy(tmp_path, monkeypatch):
     """The collector should NOT create any Inbox/Processing/<task_id>.md
     copy. The legacy flow staged a copy there; the cleanup removes that.
     """
-    from src.permissions import enforce_permission
     monkeypatch.setattr(
         "src.pipeline.collector.enforce_permission",
         lambda *a, **kw: None,

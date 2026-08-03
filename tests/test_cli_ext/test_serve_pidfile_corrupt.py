@@ -6,9 +6,7 @@ Verifies that:
   raising an unhandled ValueError.
 - `cmd_serve_status` with a malformed pidfile unlinks it and exits cleanly.
 """
-import pytest
 
-from src.cli_ext import serve as serve_mod
 from src.cli_ext.serve import cmd_serve_stop, cmd_serve_status
 
 

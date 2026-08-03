@@ -1,6 +1,5 @@
 """Tests for src/pipeline/ingest_report.py."""
 import json
-from pathlib import Path
 
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths

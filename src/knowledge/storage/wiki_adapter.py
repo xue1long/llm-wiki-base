@@ -11,10 +11,9 @@ from pathlib import Path
 
 from ...lib.write_hooks import DELETE_SENTINEL, safe_write
 from ...wiki.core.paths import WikiPaths
-from ...wiki.core.types import PageType, WikiPage
+from ...wiki.core.types import WikiPage
 from ...wiki.storage.page_writer import (
     PageNotFoundError,
-    page_path_for,
     read_page,
     write_page,
 )

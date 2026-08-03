@@ -14,7 +14,6 @@ the persisted (non-env) provider that the user added explicitly.
 import json
 from pathlib import Path
 
-import pytest
 
 from src.llm.types import ProviderConfig
 from src.llm.registry import ProviderRegistry

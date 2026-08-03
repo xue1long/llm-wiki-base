@@ -77,7 +77,8 @@ def test_absolute_path_inside_project_is_anchored(project):
 
 def test_absolute_path_outside_project_raises(project):
     """An absolute path outside the project root raises IngestPathError."""
-    import os, tempfile
+    import os
+    import tempfile
     with tempfile.TemporaryDirectory() as other:
         outside = os.path.join(other, "evil.md")
         with pytest.raises(ingest_service.IngestPathError):

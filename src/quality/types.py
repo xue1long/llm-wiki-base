@@ -1,5 +1,4 @@
 """Judgment types — 6-dimension quality scores + verdict."""
-import os
 import random
 from dataclasses import asdict, dataclass, field
 from typing import Literal

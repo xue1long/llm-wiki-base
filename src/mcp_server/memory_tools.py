@@ -312,7 +312,6 @@ def _find_and_update_page(object_id: str, changes: dict):
         return None
     try:
         from src.wiki.storage.page_writer import read_page, write_page
-        from pathlib import Path
 
         page_file = _locate_page_file(object_id)
         if page_file is None:

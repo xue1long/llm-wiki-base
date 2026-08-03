@@ -11,7 +11,6 @@ the caller.
 We test the citation-parsing helper directly, plus a citation-stripping
 helper, so the validation logic is verifiable without an LLM.
 """
-import pytest
 
 from src.searcher.qa import (
     validate_citations,

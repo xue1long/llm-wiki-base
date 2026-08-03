@@ -1,12 +1,11 @@
 """Test ClaimParser — opaque dict to structured Claim bridge (Task 2.2)."""
 import logging
-import time
 
 import pytest
 
-from src.knowledge.claims.model import Claim, ClaimStatus, ClaimType, Evidence
+from src.knowledge.claims.model import Claim, ClaimStatus, ClaimType
 from src.knowledge.claims.parser import ClaimParser
-from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
+from src.knowledge.core.candidate import KnowledgeCandidate
 from src.knowledge.core.object import KnowledgeType
 
 

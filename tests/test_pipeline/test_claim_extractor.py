@@ -1,9 +1,6 @@
 """Tests for src/pipeline/stages/claim_extractor.py — ClaimExtractorStage."""
-import json
-import tempfile
 from pathlib import Path
 
-import pytest
 
 from src.knowledge.claims.model import Claim, ClaimStatus, ClaimType, Evidence
 from src.knowledge.claims.parser import ClaimParser
@@ -13,10 +10,8 @@ from src.knowledge.core.object import (
     KnowledgeType,
     LifecycleState,
     Provenance,
-    VersionRef,
 )
 from src.pipeline.stages.claim_extractor import (
-    CANDIDATE_VALIDATED_EVENT,
     CLAIMS_EXTRACTED_EVENT,
     ClaimExtractorStage,
 )

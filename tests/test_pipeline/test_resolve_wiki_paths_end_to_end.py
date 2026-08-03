@@ -6,9 +6,6 @@ both branches of _resolve_wiki_paths via the full project-init flow so
 the CWD-fallback and the registered-project branches stay coherent.
 """
 import pytest
-from src.project.context import ProjectContext
-from src.wiki.core.paths import WikiPaths
-from src.cli_ext import project_cmd
 from src.pipeline.pipeline import _resolve_wiki_paths
 
 

@@ -1,10 +1,9 @@
 """5 MVP tools: wiki.search / wiki.read_page / source.search / graph.search / web.search."""
-import asyncio
 import logging
 from typing import Protocol
 
 from ..searcher.hybrid_search import hybrid_search
-from ..wiki import PageType, page_path_for, read_page
+from ..wiki import read_page
 from ..wiki.core.paths import WikiPaths
 
 

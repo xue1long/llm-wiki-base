@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..project.context import ProjectContext
-from ..utils.path import safe_resolve, safe_resolve_str
+from ..utils.path import safe_resolve
 from ..project.registry import GlobalRegistryStore
 
 

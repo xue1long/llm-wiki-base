@@ -3,7 +3,6 @@
 Each test constructs synthetic pages and asserts that the specific
 violation code is (or is not) produced.
 """
-import pytest
 from pathlib import Path
 
 from src.wiki.core.types import PageType, WikiPage
@@ -14,8 +13,6 @@ from src.wiki.features.ndg_gate import (
     check_page,
     check_batch,
     run_ndg_gate,
-    GateIssue,
-    GateReport,
 )
 
 

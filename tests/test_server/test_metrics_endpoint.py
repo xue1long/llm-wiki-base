@@ -3,7 +3,6 @@
 The endpoint was previously dead code — get_router() existed but
 app.py never called it. These tests verify the wiring + format.
 """
-import re
 
 from fastapi.testclient import TestClient
 

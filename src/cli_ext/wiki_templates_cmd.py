@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 from ..wiki.core.types import PageType
-from ..wiki.templates import Template, list_resolved, resolve
+from ..wiki.templates import list_resolved, resolve
 from ..wiki.templates.parser import TemplateParseError, validate_type_header
 
 
@@ -301,8 +301,7 @@ def cmd_wiki_templates_status(_args: argparse.Namespace) -> None:
     Refreshing the state file at every call ensures we capture any
     sha256 changes to the bundled files since last invocation.
     """
-    from ..wiki.templates.state import refresh_state, State
-    from ..wiki.templates.types import BUNDLED_DIR
+    from ..wiki.templates.state import refresh_state
 
     # Refresh state so we always have current bundled sha256s.
     state, changed = refresh_state()

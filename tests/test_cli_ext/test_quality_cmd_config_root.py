@@ -8,7 +8,6 @@ Verifies that:
 """
 import json
 import sys
-import pytest
 
 from src.cli_ext.quality_cmd import cmd_quality_config_set
 
@@ -57,7 +56,6 @@ def test_quality_set_falls_back_to_cwd(tmp_path, monkeypatch):
 
 def test_cli_main_parser_has_quality_config_root(monkeypatch):
     """End-to-end: src.cli main() parses `quality config set --config-root <path>`."""
-    import sys
     # Patch main() exit side-effect: only verify argparse, don't run the command.
     import src.cli as cli_mod
 

@@ -1,6 +1,5 @@
 # tests/test_wiki/test_schema_routing.py
 import yaml
-from pathlib import Path
 
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.features.schema_routing import validate_schema_routing

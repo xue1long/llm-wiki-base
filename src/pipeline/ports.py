@@ -5,7 +5,7 @@ a list of stages and a PipelineContext, drives them sequentially, and
 handles status transitions.
 """
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
 from ..types import SourceType

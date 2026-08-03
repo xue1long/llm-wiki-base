@@ -1,5 +1,4 @@
 """Test KnowledgeObject core data model (Task 1.2)."""
-import pytest
 
 from src.knowledge.core.object import (
     KnowledgeType,

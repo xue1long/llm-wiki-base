@@ -409,7 +409,7 @@ class CuratorAgent:
 
     def _apply_archive(self, proposal: CuratorProposal) -> None:
         """Apply an 'archive' proposal: move the page to wiki/_archive/."""
-        page = self._load_page_by_slug(proposal.object_id)
+        page = self._load_page_by_slug(proposal.object_id)  # noqa: F841 — verify exists
         type_ = _infer_type(self.paths, proposal.object_id)
         src_path = page_path_for(self.paths, type_, proposal.object_id)
         archive_dir = self.paths.wiki / "_archive"

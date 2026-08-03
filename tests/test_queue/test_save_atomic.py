@@ -11,8 +11,6 @@ JsonFileBackend directly with the same atomic-write contract.
 """
 import json
 import os
-import pytest
-from pathlib import Path
 
 from src.queue import enqueue_task
 from src.queue import __reset_for_testing

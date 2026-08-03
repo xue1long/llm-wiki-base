@@ -12,7 +12,6 @@ from src.agent.tools import (
     GraphSearchTool,
     SourceSearchTool,
     WikiReadPageTool,
-    WebSearchTool,
 )
 
 

@@ -10,7 +10,6 @@ event_bus.on(EventName.SEARCHER_QUERY, lambda p: _on_search_query(p))
 
 async def _on_search_query(payload: dict):
     query = payload["query"]
-    mode = payload.get("mode", "hybrid")
 
     try:
         results = await hybrid_search(query, top_k=10)

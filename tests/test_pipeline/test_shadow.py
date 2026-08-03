@@ -1,8 +1,6 @@
 """Tests for shadow mode — dual-run pipeline comparison."""
 
 import json
-import pytest
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 

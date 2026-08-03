@@ -1,9 +1,6 @@
 """Tests for Task 2.2 — folder_context propagation, batch tracking, .html collector."""
 import json
-import tempfile
-from pathlib import Path
 
-import pytest
 
 
 # ---------------------------------------------------------------------------
@@ -47,7 +44,7 @@ class TestFolderContextPropagation:
     def test_enqueue_stores_folder_context_on_task(self):
         """QueueService.enqueue() stores folder_context on the KnowledgeTask."""
         from src.queue.service import QueueService
-        from src.queue.ports import QueueBackend, InFlightTracker, EventEmitter, RetryPolicy
+        from src.queue.ports import QueueBackend, EventEmitter, RetryPolicy
         from src.queue.in_flight import InMemoryInFlightTracker
         from src.types import SourceType
         from src.circuit_breaker import get_circuit_breaker, CircuitState
@@ -103,7 +100,7 @@ class TestFolderContextPropagation:
     def test_enqueue_batch_stores_folder_context(self):
         """enqueue_batch() stores folder_context and batch_id on KnowledgeTask."""
         from src.queue.service import QueueService
-        from src.queue.ports import QueueBackend, InFlightTracker, EventEmitter, RetryPolicy
+        from src.queue.ports import QueueBackend, EventEmitter, RetryPolicy
         from src.queue.in_flight import InMemoryInFlightTracker
         from src.types import SourceType
 
@@ -161,7 +158,6 @@ class TestFolderContextPropagation:
 class TestBatchTracking:
     def test_folder_enqueue_creates_batch_id(self, tmp_path):
         """enqueue_source with folder creates a batch_id and writes batch state."""
-        from src.services import ingest as ingest_service
         import src.services.ingest as _mod
 
         project_dir = tmp_path / "kb"
@@ -207,7 +203,6 @@ class TestBatchTracking:
 
     def test_batch_state_file_written(self, tmp_path):
         """Folder enqueue writes batch_build_state.json."""
-        from src.services import ingest as ingest_service
         import src.services.ingest as _mod
 
         project_dir = tmp_path / "kb"

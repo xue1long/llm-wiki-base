@@ -1,7 +1,6 @@
 """Test Claim + Evidence model (Task 2.1)."""
 import time
 
-import pytest
 
 from src.knowledge.claims.model import Claim, ClaimStatus, ClaimType, Evidence
 

@@ -30,6 +30,10 @@ All operations are in-memory; nothing is written to disk.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..core.paths import WikiPaths
 
 from src.wiki.core.types import WikiPage
 from src.wiki.features.relations import SYMMETRIC_RELATIONS

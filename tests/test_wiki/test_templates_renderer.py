@@ -7,7 +7,6 @@ from src.wiki.core.types import PageType
 from src.wiki.templates.renderer import (
     compute_slot_fill_status,
     render_body,
-    SlotFillStatus,
 )
 
 

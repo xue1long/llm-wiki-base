@@ -1,7 +1,6 @@
 """Tests for KnowledgeKernel — unified infrastructure facade (Task 1.12)."""
 
 import pytest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from src.knowledge.kernel import (
@@ -9,7 +8,6 @@ from src.knowledge.kernel import (
     get_kernel,
     PermissionEngine,
     KNOWLEDGE_CREATE,
-    KNOWLEDGE_UPDATE,
 )
 from src.knowledge.core.object import (
     KnowledgeObject,

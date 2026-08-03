@@ -11,6 +11,7 @@ from typing import TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..vector.search import ChunkSearchResult
+    from ..wiki.core.paths import WikiPaths
 
 from ..llm.embedding_runtime import (
     get_embedding_provider as _runtime_get_embedding_provider,

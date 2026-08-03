@@ -2,7 +2,6 @@
 
 import json
 import pytest
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate

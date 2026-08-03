@@ -49,7 +49,7 @@ def cmd_cache_cleanup(args: argparse.Namespace) -> None:
         # Run H5 first to show what would be cleaned
         check = H5CacheHealthCheck(ctx.path)
         result = check.run()
-        print(f"(dry run) Would clean up to:")
+        print("(dry run) Would clean up to:")
         print(f"  lint_cache entries:  {result.stats.get('lint_cache_entries', 0)}")
         print(f"  staging drafts:      {result.stats.get('staging_drafts', 0)}")
         print(f"  quarantine items:    {result.stats.get('quarantine_items', 0)}")

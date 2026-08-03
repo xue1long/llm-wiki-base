@@ -17,7 +17,6 @@ import threading
 from src.queue.service import QueueService
 from src.queue.retry import DefaultRetryPolicy
 from src.types import SourceType
-from .conftest import FakeQueueBackend, FakeEventEmitter
 
 
 def test_concurrent_enqueue_preserves_unique_tasks(fake_backend, fake_tracker, fake_emitter):

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
@@ -23,7 +23,6 @@ from src.knowledge.core.object import (
 from src.lib.write_hooks import safe_write
 from src.wiki.core.id_generator import generate_page_id
 from src.wiki.core.paths import WikiPaths
-from src.wiki.core.types import PageType, WikiPage
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,6 @@
 """Ingest observability — per-task JSON reports + Prometheus counter."""
 import json
 import logging
-import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 

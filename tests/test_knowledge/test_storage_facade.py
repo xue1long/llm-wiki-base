@@ -1,6 +1,5 @@
 """Tests for StorageFacade — unified storage with config-driven backend selection."""
 
-import os
 from pathlib import Path
 
 import pytest

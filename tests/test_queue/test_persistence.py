@@ -9,7 +9,6 @@ the new persistence module directly. The contract is the same:
 import json
 import os
 import pytest
-from pathlib import Path
 
 from src.queue.persistence import JsonFileBackend
 from src.queue.ports import QueueBackend

@@ -17,7 +17,7 @@ Difference from Analyzer:
 
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from src.knowledge.core.object import (
@@ -240,7 +240,7 @@ class ResearcherAgent:
         content = f"# {report.question}\n\n{report.summary}\n"
         if report.claims:
             content += "\n## Claims\n\n"
-            for i, claim in enumerate(report.claims):
+            for _i, claim in enumerate(report.claims):
                 content += f"- [{claim.get('source_index', '?')}] {claim.get('text', '')}\n"
 
         obj = KnowledgeObject(

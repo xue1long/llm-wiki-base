@@ -1,5 +1,4 @@
 """Agent runtime — run agent loop, execute tools, generate final answer."""
-import asyncio
 import json
 import logging
 

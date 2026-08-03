@@ -16,6 +16,7 @@ report shape. Public entry point is ``lint_wiki``.
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -23,6 +24,8 @@ from pathlib import Path
 
 from ..storage.ensure import ensure_knowledge_base
 from .indexer import read_index
+
+logger = logging.getLogger(__name__)
 from ..storage.page_writer import read_page
 from ..core.paths import WikiPaths
 from ..core.types import PageType

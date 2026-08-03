@@ -10,7 +10,6 @@ import pytest
 
 from src.llm.embedding_runtime import (
     set_embedding_provider,
-    get_embedding_provider,
     __reset_for_testing,
 )
 

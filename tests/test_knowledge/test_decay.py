@@ -1,6 +1,5 @@
 """Test DecayBridge — heat→lifecycle DEPRECATED transition (Task 4.2)."""
 import time
-import pytest
 
 from src.knowledge.core.object import (
     KnowledgeType,

@@ -133,7 +133,6 @@ class TestJudgeBatchTiered:
         """mode='full' submits all pages to the judge (with mock provider)."""
         from src.quality.types import QualitySettings
         from src.quality.judge import QualityJudge
-        from unittest.mock import patch, AsyncMock
 
         s = QualitySettings(mode="full")
         with patch("src.quality.judge.create_llm_provider") as mock_create:
@@ -161,7 +160,6 @@ class TestJudgeBatchTiered:
         """mode='sample' with 0% rate → only always_judge pages go through judge."""
         from src.quality.types import QualitySettings
         from src.quality.judge import QualityJudge
-        from unittest.mock import patch, AsyncMock
 
         # 0% sample rate + grade A always judged, no low-confidence rule
         s = QualitySettings(mode="sample", sample_rate=0.0,
@@ -192,7 +190,6 @@ class TestJudgeBatchTiered:
         """Low confidence pages are always judged in sample mode (with mock)."""
         from src.quality.types import QualitySettings
         from src.quality.judge import QualityJudge
-        from unittest.mock import patch, AsyncMock
 
         s = QualitySettings(mode="sample", sample_rate=0.0,
                             always_judge_grade_a=False,

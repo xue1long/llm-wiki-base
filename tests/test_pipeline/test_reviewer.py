@@ -1,10 +1,8 @@
 """Tests for src/pipeline/stages/reviewer.py — ReviewerStage rule engine."""
-import tempfile
 from pathlib import Path
 
-import pytest
 
-from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
+from src.knowledge.core.candidate import KnowledgeCandidate
 from src.knowledge.core.object import KnowledgeType
 
 

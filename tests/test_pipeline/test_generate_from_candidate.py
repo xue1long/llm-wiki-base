@@ -1,8 +1,7 @@
 """Tests for generate_from_candidate — candidate→WikiPage rendering."""
 
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 
 from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
 from src.knowledge.core.object import KnowledgeType

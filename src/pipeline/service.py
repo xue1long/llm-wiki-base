@@ -23,7 +23,6 @@ from ..types import SourceType, TaskStatus
 # ``import src.pipeline.pipeline as _pipeline_mod`` (inside the function).
 # By call time, `__init__.py` has finished and the shim is in place.
 from .dispatcher import dispatch_collector_start
-from .ingest import run_ingest
 from .ports import PipelineContext, PipelineStage
 from .runner import PipelineRunner
 from .stages import AnalyzerStage, CollectorStage, GeneratorStage

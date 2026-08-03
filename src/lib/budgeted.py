@@ -6,7 +6,7 @@ auto-splits.
 """
 import asyncio
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 from .context_budget import chunk_by_budget, estimate_tokens
 

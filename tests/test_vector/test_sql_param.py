@@ -7,7 +7,6 @@ which is a SQL-injection sink if ``task_id`` is attacker-controlled.
 The fix escapes single-quotes (the SQL string-literal delimiter) by
 doubling them, the same way standard SQL string literals are escaped.
 """
-import pytest
 
 from src.vector import upsert
 

@@ -12,8 +12,6 @@ import tempfile
 import pytest
 from fastapi.testclient import TestClient
 
-from src.services import ingest as ingest_service
-from src.services.ingest import IngestPathError
 
 
 @pytest.fixture

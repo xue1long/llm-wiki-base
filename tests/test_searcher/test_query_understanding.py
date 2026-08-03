@@ -7,7 +7,6 @@ import pytest
 from src.searcher.query_understanding import (
     QueryType,
     QueryIntent,
-    UnderstoodQuery,
     QueryUnderstanding,
     MEMORY_SEMANTIC,
     MEMORY_EPISODIC,

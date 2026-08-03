@@ -215,7 +215,6 @@ def test_resolve_caches_within_same_mtime(tmp_path):
     here we have a real project override so we can observe the
     file-read path being skipped the second time.
     """
-    import time
     from src.wiki.templates import resolver as r
 
     project = tmp_path / ".wiki-templates"

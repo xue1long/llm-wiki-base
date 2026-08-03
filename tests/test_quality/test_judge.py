@@ -38,10 +38,7 @@ class FakeProvider:
 
 def _pass_payload(score=0.9):
     return {
-        "scores": {k: score for k in [
-            "source_type_appropriateness", "factuality", "completeness",
-            "clarity", "readability", "searchability",
-        ]},
+        "scores": dict.fromkeys(["source_type_appropriateness", "factuality", "completeness", "clarity", "readability", "searchability"], score),
         "issues": [],
         "improvement_suggestions": "looks good",
     }
@@ -93,10 +90,7 @@ def test_score_validation_caps_out_of_range(monkeypatch):
     """LLM hallucinates 1.5 for some dim → judge clamps to 0 (passed via _safe_scores)."""
     settings = QualitySettings()
     bad_payload = {
-        "scores": {k: 0.5 for k in [
-            "source_type_appropriateness", "factuality", "completeness",
-            "clarity", "readability", "searchability",
-        ]},
+        "scores": dict.fromkeys(["source_type_appropriateness", "factuality", "completeness", "clarity", "readability", "searchability"], 0.5),
         "issues": [],
         "improvement_suggestions": "",
     }

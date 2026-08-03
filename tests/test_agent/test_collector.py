@@ -3,14 +3,12 @@
 import asyncio
 import hashlib
 import time
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from src.agent.collector import CollectorAgent, CollectorResult
 from src.knowledge.kernel import KnowledgeKernel
-from src.permissions import AgentType
 
 
 # ---------------------------------------------------------------------------

@@ -1,9 +1,7 @@
 """Tests for serve CLI subcommand + daemon."""
 import argparse
-import os
 import signal
-from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -11,7 +9,6 @@ from src.cli_ext.serve import (
     cmd_serve,
     cmd_serve_stop,
     cmd_serve_status,
-    PIDFILE,
 )
 
 

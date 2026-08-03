@@ -4,12 +4,9 @@
 import pytest
 
 from src.searcher.reranker import (
-    MAX_OVERLAP_BOOST,
     RankedResult,
     Reranker,
     RerankerConfig,
-    SOURCE_DIVERSITY_BONUS,
-    SOURCE_WEIGHTS,
 )
 
 

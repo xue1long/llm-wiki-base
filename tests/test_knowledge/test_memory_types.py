@@ -1,5 +1,4 @@
 """Test MemoryType enum and KnowledgeType mapping (Task 3.1)."""
-import pytest
 
 from src.knowledge.core.object import KnowledgeType
 from src.knowledge.memory.types import MemoryType, memory_type_from_knowledge_type

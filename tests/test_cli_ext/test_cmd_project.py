@@ -1,8 +1,5 @@
 # tests/test_cli_ext/test_cmd_project.py
 import json
-import sys
-from pathlib import Path
-from unittest.mock import patch
 
 
 def test_cmd_project_init_creates_project(tmp_path, monkeypatch, capsys):

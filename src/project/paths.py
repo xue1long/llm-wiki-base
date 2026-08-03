@@ -6,7 +6,6 @@ Uses platformdirs to follow OS conventions:
 - macOS: ~/Library/Application Support/ruflo-kb/
 - Windows: %APPDATA%/ruflo-kb/
 """
-import os
 from pathlib import Path
 
 from platformdirs import user_config_dir

@@ -1,5 +1,4 @@
 """Tests for tag index endpoint (1.2.1) and include_tags extension (1.2.2)."""
-import pytest
 
 from src.services import tags as tags_service
 from src.services import files as files_service

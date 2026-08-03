@@ -13,7 +13,6 @@ from src.wiki.core.paths import WikiPaths
 def test_resolve_project_returns_ctx_and_paths(monkeypatch, tmp_path):
     """resolve_project must return a (ctx, paths) tuple ready for use."""
     from src.lib import project as lib_project
-    from src.project import context as ctx_module
 
     # Set up a real project at tmp_path
     project_dir = tmp_path / "kb"

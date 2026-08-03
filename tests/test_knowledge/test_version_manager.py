@@ -1,6 +1,5 @@
 """Test VersionManager — snapshot, history, diff, retention, atomic write (Task 1.4)."""
 import json
-from pathlib import Path
 
 import pytest
 

@@ -1,7 +1,7 @@
 """Tests for src.wiki.types."""
 from src.wiki.core.types import (
     PageType, EventName, TaskStatus,
-    WikiPage, KnowledgeTask, ReviewItem, make_review_item,
+    WikiPage, KnowledgeTask, make_review_item,
 )
 
 

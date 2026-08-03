@@ -11,7 +11,6 @@ from __future__ import annotations
 import pytest
 
 from src.queue.in_flight import InMemoryInFlightTracker
-from src.queue.ports import QueueBackend
 from src.types import KnowledgeTask
 
 

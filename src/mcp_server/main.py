@@ -4,7 +4,6 @@ Old tools (ruflo_kb_search, ruflo_kb_read_file, ruflo_kb_files, ruflo_kb_ingest,
 ruflo_kb_reviews, ruflo_kb_projects, ruflo_kb_set_project, ruflo_kb_status)
 delegate to HTTP API and are marked deprecated in favour of the memory API.
 """
-import asyncio
 import json
 
 from mcp.server import Server

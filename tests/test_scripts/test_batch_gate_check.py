@@ -5,10 +5,8 @@ them.  Since it bypasses phase4_batch (which runs reconcile_batch before
 the gate), it must run reconcile itself so that cross-type slug conflicts
 the wiki has already adjudicated are not mis-flagged by P6.
 """
-import sys
 from pathlib import Path
 
-import pytest
 
 from src.wiki.core.paths import WikiPaths
 from src.wiki.core.types import PageType, WikiPage

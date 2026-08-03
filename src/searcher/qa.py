@@ -145,7 +145,7 @@ async def generate_answer(query: str, context: list[dict]) -> Optional[str]:
         )
         # Validate citations: drop any [N] where N is out of range.
         return strip_invalid_citations(response.content, n_context=len(context))
-    except Exception as e:
+    except Exception:
         # Fallback to simple summary
         top_result = context[0]
         raw = f"根据搜索结果：\n\n{top_result.get('content', '')[:200]}..."

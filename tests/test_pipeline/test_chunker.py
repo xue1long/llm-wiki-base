@@ -1,7 +1,6 @@
 """Tests for src/pipeline/chunker.py — semantic chunking + candidate merge."""
-import pytest
 
-from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
+from src.knowledge.core.candidate import KnowledgeCandidate
 from src.knowledge.core.object import KnowledgeType
 
 

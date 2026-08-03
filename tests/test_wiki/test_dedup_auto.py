@@ -1,5 +1,4 @@
 """Tests for src/wiki/dedup_auto.py."""
-import pytest
 from src.wiki.features.dedup_auto import DedupHistoryStore, dedup_auto, DedupMergeRecord
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.storage.ensure import ensure_knowledge_base

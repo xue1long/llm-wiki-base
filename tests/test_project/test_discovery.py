@@ -2,12 +2,10 @@
 from pathlib import Path
 
 from src.project.discovery import (
-    DEFAULT_SEARCH_PATHS,
     is_kb_root,
     discover_existing_kbs,
     auto_register_on_first_run,
 )
-from src.project.registry import GlobalRegistryStore
 
 
 def test_is_kb_root_v2(tmp_path: Path):
@@ -36,7 +34,7 @@ def test_is_kb_root_not_a_kb(tmp_path: Path):
 
 def test_discover_existing_kbs_finds_in_default_paths(tmp_path, monkeypatch):
     """discover_existing_kbs scans DEFAULT_SEARCH_PATHS for KBs."""
-    from src.project import paths, registry
+    from src.project import paths
     monkeypatch.setattr(paths, "config_dir", lambda: tmp_path / "config")
 
     # Create fake ~/Documents and ~/Notes
@@ -70,7 +68,6 @@ def test_discover_existing_kbs_finds_in_default_paths(tmp_path, monkeypatch):
 def test_auto_register_on_first_run(tmp_path, monkeypatch):
     """First run with no registry → auto-discovers and registers KBs."""
     from src.project import paths, registry
-    from src.project.discovery import DEFAULT_SEARCH_PATHS
 
     config_dir = tmp_path / "config"
     config_dir.mkdir()
@@ -98,7 +95,6 @@ def test_auto_register_on_first_run(tmp_path, monkeypatch):
 def test_auto_register_no_op_when_registry_exists(tmp_path, monkeypatch):
     """If registry.json already exists, auto_register is a no-op."""
     from src.project import paths, registry
-    from src.project.discovery import DEFAULT_SEARCH_PATHS
 
     config_dir = tmp_path / "config"
     config_dir.mkdir()

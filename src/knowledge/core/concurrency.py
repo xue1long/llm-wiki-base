@@ -14,8 +14,6 @@ Protocol:
 - If expected_version != current_version -> conflict -> retry (max 3 times)
 - MCP memory_update returns version conflict as an error for caller retry
 """
-import json
-import time
 from pathlib import Path
 
 

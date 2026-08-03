@@ -4,13 +4,12 @@ import json
 import pytest
 
 from src.llm.registry import ProviderRegistry, _default_providers
-from src.llm.types import ProviderConfig, ModelInfo
+from src.llm.types import ProviderConfig
 
 
 def _isolated_registry(monkeypatch, tmp_path):
     """Stub config_dir() to a tmpdir so the test does not touch the real registry."""
     from src.llm import registry as reg
-    from src import project as proj_pkg
 
     config_dir_path = tmp_path / "config"
     config_dir_path.mkdir()

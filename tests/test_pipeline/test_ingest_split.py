@@ -3,7 +3,6 @@
 These tests lock in the contract that generate_ingest writes nothing to disk
 and commit_ingest is the sole write path.
 """
-import os
 import pytest
 from pathlib import Path
 
@@ -12,7 +11,7 @@ from src.wiki.core.types import PageType, WikiPage
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.shared.test_helpers import ScriptedLLMProvider
 
-from src.pipeline.ingest import generate_ingest, commit_ingest, run_ingest
+from src.pipeline.ingest import generate_ingest, commit_ingest
 
 
 @pytest.fixture(autouse=True)

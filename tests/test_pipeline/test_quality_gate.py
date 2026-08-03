@@ -1,5 +1,4 @@
 """Tests for src/pipeline/quality_gate.py — check_pages() + helpers."""
-import pytest
 from src.pipeline.quality_gate import (
     check_pages,
     QualityGateResult,

@@ -9,7 +9,6 @@ wrong way. Per the brief:
 - then merge across lists by sum, sort desc
 - if one side is empty, return the other side's results (not empty)
 """
-import pytest
 
 from src.searcher.hybrid_search import rrf_fusion
 

@@ -11,7 +11,6 @@ import time
 from ...knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
 from ...knowledge.core.object import (
     KnowledgeObject,
-    KnowledgeType,
     LifecycleState,
     Provenance,
     VersionRef,
