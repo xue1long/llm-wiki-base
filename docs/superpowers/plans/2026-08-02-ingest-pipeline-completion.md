@@ -65,7 +65,7 @@ collector:start → CollectorStage → run_ingest()
 | P2 | 🔴 | unified_generate 单步路径绕过全部分层：Analyzer+Generator 合并为一次 LLM 调用，直接产出最终 WikiPage，无 Candidate、无 Reviewer、无三层验证 | `generator.py:440-642` |
 | P3 | 🟡 | 文件夹摄取未接线：路由接受 `{"source": {"folder": ...}}` 但不枚举目录 | `server/routes/ingest.py` |
 | P4 | 🟡 | QualityJudge 默认关闭（`QualitySettings.enabled=False`），LLM-as-judge 层形同虚设 | `quality/judge.py` |
-| P5 | 🟡 | 标签无值域约束：仅校验前缀，值域碎片化；配对规则硬编码 4 处 | `tag_namespace.py`（见评估文档） |
+| P5 | 🟡 | 标签**值域约束写入强制覆盖不全**：`TAG_VALUES` 已存在，`page_writer.py:74` 对**新建页面**调用 `validate_tag_compliance`（含 `validate_tag_values` + 强制配对），越界值/缺配对会被拒绝；但**更新既有页面时跳过**（`path.exists()`），且 Generator 内部 `_resolve_page_tags` 只按前缀静默过滤、不做值域校验；自由前缀（角色/事件/实体）仍任意取值。配对 `MANDATORY_PAIRS` 已配置化（素材/ugc+可信度/ugc，经 `build_tag_prompt_section` 驱动），仅前缀说明文案在提示词重复（技术债务 #11） | `tag_namespace.py` / `page_writer.py:74` |
 | P6 | 🟡 | 溯源仅文件级：`sources: list[str]` 无页码/段落/引用 | `wiki/core/types.py` |
 | P7 | 🟡 | `find_duplicates()` 是空实现 MVP，返回空列表 | `wiki/features/dedup.py` |
 | P8 | 🔴 | Schema 迁移 v2.1/v2.2 未注册：`migrations/__init__.py` 只导入 v1_to_v2，现存项目无法升级 schema | `schemas/migrations/__init__.py` |
@@ -335,11 +335,11 @@ unified 路径已禁用（锁定决策），两步法使端到端 LLM 调用次�
 
 #### Task 3.1 标签值域约束（解决 P5 🟡）
 
-依据 `docs/evaluations/tag-namespace-evaluation.md` 的 P0 建议：
+依据 `docs/evaluations/tag-namespace-evaluation.md`（已勘误）的整改方向：
 
-- `tag_namespace.py` 增加 `TAG_VALUES: dict[str, set[str] | None]`（高频前缀受控，其余开放）
-- LLM 提示词从值域表动态生成（替代硬编码示例）
-- 配对规则配置化 `MANDATORY_PAIRS`，消除 4 处硬编码
+- `tag_namespace.py` 的 `TAG_VALUES` **已存在**，且新建页面已通过 `page_writer.py:74` 的 `validate_tag_compliance` 强制校验；本任务改为**补全覆盖**：把 `validate_tag_compliance` 也覆盖到既有页面更新路径，并将自由前缀（角色/事件/实体）逐步纳入受约束值域，而非从零建值域
+- LLM 提示词从值域表动态生成（替代硬编码示例文案）
+- `MANDATORY_PAIRS` **已配置化**（素材/ugc+可信度/ugc，经 `build_tag_prompt_section` 驱动），本任务只需确认其覆盖全部摄取提示词；消除"前缀说明文案"的 4 处重复（技术债务 #11）
 - 存量标签一次性归一化脚本（`题材/现言` → `题材/现代言情` 类映射，dry-run 先行）
 
 #### Task 3.2 QualityJudge 启用策略（解决 P4 🟡）

@@ -1,12 +1,13 @@
-# LLM-Wiki（ruflo-kb）项目架构文档 v2.0
+# LLM-Wiki（ruflo-kb）项目架构文档 v2.1
 
-> 版本：v2.0 ｜ 更新日期：2026-08-03
+> 版本：v2.1 ｜ 更新日期：2026-08-04
 > 产品代号：**ruflo-kb**（配置目录 `~/.config/ruflo-kb/`）｜ 仓库目录：`LLM-Wiki`
 > 本文档为**单一可信源**，整合自：
 > - 演进方案可行性验证报告
 > - 标签命名空间配置评估
 > - 摄取流程完善方案（v1.1，决策已锁定）
 > - 对 `LLM-Wiki/src/` 的实地代码核查（2026-08-03）
+> - **v2.1 更新**：WikiPage 时间戳改为 ISO 8601 格式（2026-08-04）
 >
 > 它取代了先前分散的 `KNOWLEDGE_OS_EVOLUTION_FEASIBILITY_REPORT.md`、`tag-namespace-evaluation.md` 等文档中的重复描述。
 
@@ -371,17 +372,20 @@ class WikiPage:
     title: str
     type: PageType               # source | entity | concept | synthesis
     sources: list[str]           # ⚠️ 仅文件级，无页码
-    created_at / updated_at: int
+    created_at / updated_at: str  # ISO 8601 format (v3.2), e.g., "2024-08-04T10:30:00Z"
     body: str                    # Markdown（含 [[wikilinks]]）
     relations: list[Relation]
     grade: str                   # A / B / C
     processing_depth: str
     is_immutable: bool
     heat: int                    # 0-100，默认 50
-    last_used_at / zombie_since: int | None
+    last_used_at: str            # ISO 8601 format (v3.2)
+    zombie_since: str | None     # ISO 8601 format (v3.2)
     tags: list[str]              # 受控命名空间
     category / taxonomy_sub: str # v3.1
 ```
+
+**时间戳格式（v3.2）**：所有时间戳字段已从 Unix 毫秒（`int`）改为 ISO 8601 字符串（`str`），默认值为空字符串 `""`。旧数据在读取时自动转换。工具函数：`src/utils/timestamp.py`。
 
 **缺失字段**（演进目标，已由 KnowledgeObject 覆盖）：`lifecycle` / `confidence` / `provenance`（页码级）/ `versions` / `schema_version`
 

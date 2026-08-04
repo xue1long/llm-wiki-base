@@ -35,7 +35,19 @@ from ..wiki.templates import (
 )
 from ..knowledge.core.candidate import KnowledgeCandidate
 from ..knowledge.core.object import KnowledgeObject
+from ..llm.provider_profiles import get_source_char_limit
 from ._pipeline_common import parse_llm_json
+from ._prompt_common import (
+    JSON_FORMAT_RULES,
+    LANGUAGE_RULES,
+    SLOT_FILLING_RULES,
+    FALLBACK_VALUES,
+    RELATION_TYPES,
+    SLOT_MINIMUMS_TABLE,
+    build_generator_header,
+    GENERATOR_SLOT_EXAMPLE,
+    build_quality_feedback,
+)
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
 
@@ -45,10 +57,9 @@ TAG_NAMESPACE_RULES = build_tag_prompt_section()
 
 _logger = logging.getLogger(__name__)
 
-# Truncate very large sources to keep prompt size manageable and
-# prevent page-count explosion (observed: 34K source → 83 pages).
-# Reduced to 8000 for CPU Ollama — larger prompts time out at 180s.
-MAX_SOURCE_CHARS = 8000
+# Default max source chars - will be overridden by provider-specific limits
+# via get_source_char_limit() at call time.
+DEFAULT_MAX_SOURCE_CHARS = 8000
 
 
 def _parse_llm_response(llm_resp) -> dict:
@@ -129,15 +140,7 @@ _logger = logging.getLogger(__name__)
 
 GENERATOR_PROMPT = """You are rendering wiki pages for a knowledge base.
 
-Do NOT output chain-of-thought, hidden reasoning, or a thinking
-transcript. Reason internally and emit only the requested JSON.
-
-## Language
-默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
-title、body_markdown、relations[].context。Slugs (id、
-relations[].target) 可直接使用中文 (CJK),也可使用 ASCII kebab-case —
-保留概念的自然字面,无需拼音转写;专有名词/英文术语在 ASCII 段仍
-保持原始写法 (e.g. OpenAI, GPT-5, Transformer)。
+{header}
 
 ## Analysis result (from Step 1)
 {analysis_json}
@@ -176,33 +179,11 @@ Required slots are unmarked; slots marked `_(optional)_` may be omitted
 or returned as an empty list when the source has no relevant content —
 **only for those**, not for unmarked required ones.
 
-Strict rules — schema is enforced. Empty slots = retry = wasted tokens.
-- Every `<!-- slot:NAME -->` (no `?`) is REQUIRED. NEVER use "..." /
-  "（空）" / "（待补充）" / "placeholder" / "TBD" or similar filler —
-  the validator REJECTS empty values and triggers a retry.
-- Provide substantive content, or use the fallback for that slot (see below).
-- Do NOT add new slot names not in the template. The schema rejects
-  extra keys under `slots`.
-- Optional slots (`<!-- slot:NAME? -->` / `<!-- if:X -->`): only OMIT
-  when you have nothing to put; either omit the property entirely or
-  return `[]`.
-- Each slot value must be ≥ 1 character after trim. Lists: ≥ 1 substantive item.
-- **main_content**: 不再是 SOURCE 页的槽——完整原文保留在 raw/（`sources`
-  字段溯源），wiki 不存全文副本。摘要/概述由 `summary` slot 承担。
+{SLOT_FILLING_RULES}
 
-Slot minimums and fallbacks (DO NOT leave these required slots empty):
-  `references`           → At LEAST `- [[<source-page-slug>]]`
-  `source_meta`          → MUST state source URL/platform + date
-  `related_concepts`     → At LEAST 2 `[[wikilinks]]` to other pages
-  `related`              → At LEAST 1 `[[wikilink]]`
-  `key_points`           → At LEAST 3 bullets from source
-  `extracted_concepts`   → At LEAST 3 `[[wikilinks]]`
-  `examples`             → If none: "来源未提供具体例子"
-  `comparison_dimensions`→ At LEAST 2 dimensions
-  `overview`             → At LEAST 1 paragraph
+{SLOT_MINIMUMS_TABLE}
 
-When source truly lacks info for a required slot, write "来源未详述此方面"
-— NEVER leave it empty or filled with placeholder text.
+{FALLBACK_VALUES}
 
 {PAGE_TEMPLATES}
 
@@ -247,6 +228,8 @@ listed in `## Existing wiki index`.  Example:
 ## Tags guidance (受控命名空间)
 (若本页在分析阶段已给出 tags 建议, 你可直接沿用或按其内容调整. 详细规则见下方 Tag namespace rules.)
 
+{few_shot_examples}
+
 ## Task
 For each suggested page, fill its slots. Output strict JSON:
 {{
@@ -273,21 +256,15 @@ For each suggested page, fill its slots. Output strict JSON:
 
 Use [[other-slug]] for cross-references.
 
-Built-in relation types (17): is_part_of, contains, references, referenced_by,
-causes, caused_by, contradicts, supports, supported_by, supersedes, superseded_by,
-depends_on, required_by, analogous_to, opposite_of, derived_from, derives.
-You may also use `x-<name>` for any user-registered type. Do not invent
-relation type names outside this set.
+{RELATION_TYPES}
 
 {WIKI_RULES_SUMMARY}
 {TAG_NAMESPACE_RULES}
 
-## Language (re-asserted — applies to ALL output below)
+## Language (re-asserted — applies to ALL output above)
 默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
-title、slots[*]、relations[].context。Slugs (id、
-relations[].target) 可直接使用中文 (CJK),也可使用 ASCII kebab-case —
-保留概念的自然字面,无需拼音转写;专有名词/英文术语在 ASCII 段仍
-保持原始写法 (e.g. OpenAI, GPT-5, Transformer)。
+title、slots[*]、relations[].context。Slugs (id、relations[].target)
+可直接使用中文 (CJK),也可使用 ASCII kebab-case — 保留概念的自然字面。
 """
 
 
@@ -301,12 +278,7 @@ relations[].target) 可直接使用中文 (CJK),也可使用 ASCII kebab-case �
 UNIFIED_PROMPT = """You are a knowledge-base engine. Read the source text,
 extract structured knowledge, and render wiki pages in ONE pass.
 
-## CRITICAL — JSON Format
-1. Output ONLY the raw JSON object — no markdown fences (```), no
-   introductory text, no concluding remarks.
-2. Your response MUST start with `{{` and end with `}}`.
-3. Do NOT wrap the JSON in ```json ... ``` blocks.
-4. All strings must be properly escaped (double quotes, not single quotes).
+{header}
 
 ## Source
 - Path: {source_path}
@@ -334,41 +306,11 @@ empty extractions are worse than thin pages.
 **At least one entity page is REQUIRED** for every source document, regardless
 of length. A source with zero downstream pages is a pipeline failure.
 
-**Language**: 简体中文 for all user-visible text (title, slots, relations[].context).
-Slugs may be CJK or ASCII kebab-case — keep the concept's natural form, no forced pinyin.
+{SLOT_FILLING_RULES}
 
-**Slug reuse**: Use EXISTING slugs from the wiki index verbatim. Never invent variants.
+{SLOT_MINIMUMS_TABLE}
 
-**Slot filling — CRITICAL: NO EMPTY SLOTS ALLOWED**:
-- Every `<!-- slot:NAME -->` (no `?`) is REQUIRED and MUST have substantive content.
-  An empty or placeholder-filled slot triggers retry and wastes tokens for everyone.
-- Never use placeholder text ("...", "（空）", "TBD", "placeholder", "（系统占位...）").
-- Optional slots (`<!-- slot:NAME? -->`): omit when empty.
-- Each slot: ≥ 1 char after trim. Lists: ≥ 1 substantive item.
-**main_content**: 不再是 SOURCE 页的槽——完整原文保留在 raw/（`sources`
-字段溯源），wiki 不存全文副本。摘要/概述由 `summary` slot 承担。
-- 素材类文档(列表/表格)必须逐条完整保留。
-- 缺失时系统会用原文兜底, 但请务必主动提供整理结果。
-
-**Slot-specific minimums (enforced — do NOT leave these empty)**:
-SLOT                  | PAGE TYPE   | MINIMUM ACCEPTABLE CONTENT
-----------------------|-------------|----------------------------------------------------
-`references`          | concept     | At LEAST one `[[wikilink]]` to the source page
-`source_meta`         | source      | MUST include: 来源(URL/平台), 下载时间, 发布组织
-`related_concepts`    | concept     | At LEAST 2 `[[wikilinks]]` to other concept/entity pages
-`related`             | entity      | At LEAST 1 `[[wikilink]]` to the source page or parent entity
-`key_points`          | source      | At LEAST 3 bullet points from the source text
-`extracted_concepts`  | source      | At LEAST 3 `[[wikilinks]]` to concept/entity pages generated below
-`comparison_dimensions`| synthesis  | At LEAST 2 dimensions being compared
-`overview`            | synthesis   | At LEAST 1 paragraph summarising the comparison
-
-**FALLBACKS — when source truly lacks info, use these instead of empty/placeholder**:
-- `references` → Write `- [[<source-page-slug>]]` (the slug from `## Source page id` above)
-- `source_meta` → Write "来源: [文件名]; 格式: Markdown; 下载时间: 见原始文件头部"
-- `related_concepts` → List the concept/entity slugs you defined in other pages of THIS response
-- `related` → Write `- [[<source-page-slug>]]`
-- `examples` → Write "来源未提供具体例子" (invent NOTHING)
-- ALL OTHERS → Write "来源未详述此方面" (not empty, not placeholder)
+{FALLBACK_VALUES}
 
 **Entity pages are REQUIRED**: Every meaningful entity (person, org, work, platform,
 genre) mentioned in the source MUST have a page. Missing entities create broken
@@ -397,10 +339,7 @@ transfer a claim about one entity to another just because they share terms.
 
 **Tags**: `prefix/name` format — see Tag namespace rules below.
 
-**Relation types** (17 built-in + `x-*` custom):
-is_part_of contains references referenced_by causes caused_by contradicts
-supports supported_by supersedes superseded_by depends_on required_by
-analogous_to opposite_of derived_from derives
+{RELATION_TYPES}
 
 {WIKI_RULES_SUMMARY}
 {TAG_NAMESPACE_RULES}
@@ -455,15 +394,25 @@ async def unified_generate(
     import time as _time
     import re as _re
 
+    # Get provider-specific source char limit
+    provider_name = getattr(provider, "_provider_name", "openai") if provider else "openai"
+    provider_config = getattr(provider, "config", None) if provider else None
+    max_source_chars = get_source_char_limit(
+        provider_name,
+        getattr(provider, "model", "") if provider else "",
+        provider_config,
+    )
+
     _truncated = False
-    if len(source_text) > MAX_SOURCE_CHARS:
-        source_text = source_text[:MAX_SOURCE_CHARS] + "\n\n[... 文本过长，已截断 ...]"
+    if len(source_text) > max_source_chars:
+        source_text = source_text[:max_source_chars] + "\n\n[... 文本过长，已截断 ...]"
         _truncated = True
 
     _logger.info(
-        "[unified_generate] single-pass ingest for %s (%d chars%s)",
+        "[unified_generate] single-pass ingest for %s (%d chars%s, limit=%d)",
         source_path, len(source_text),
         ", truncated" if _truncated else "",
+        max_source_chars,
     )
 
     # Resolve templates (same as `generate()`).
@@ -515,10 +464,15 @@ async def unified_generate(
     }
 
     base_prompt = UNIFIED_PROMPT.format(
+        header=build_generator_header(),
         source_path=source_path,
         folder_context=folder_context or "(none)",
         source_text=source_text,
         existing_wiki_index=existing_wiki_index or "(empty)",
+        SLOT_FILLING_RULES=SLOT_FILLING_RULES,
+        SLOT_MINIMUMS_TABLE=SLOT_MINIMUMS_TABLE,
+        FALLBACK_VALUES=FALLBACK_VALUES,
+        RELATION_TYPES=RELATION_TYPES,
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
@@ -660,12 +614,7 @@ CANDIDATE_RENDER_PROMPT = """You are rendering wiki pages from structured knowle
 that were already extracted by a prior analysis step. Do NOT extract new
 information — only organize and render the claims provided below.
 
-## CRITICAL — JSON Format
-1. Output ONLY the raw JSON object — no markdown fences (```), no
-   introductory text, no concluding remarks.
-2. Your response MUST start with `{{` and end with `}}`.
-3. Do NOT wrap the JSON in ```json ... ``` blocks.
-4. All strings must be properly escaped (double quotes, not single quotes).
+{header}
 
 ## Candidate metadata
 - Type: {candidate_type}
@@ -684,60 +633,23 @@ information — only organize and render the claims provided below.
 ## Existing wiki index (reuse slugs exactly as listed)
 {existing_wiki_index}
 
+{quality_feedback}
+
 ## Page Templates
 {PAGE_TEMPLATES}
 
 ## Rules (all mandatory)
 
-**Language**: 简体中文 for all user-visible text (title, slots, relations[].context).
-Slugs may be CJK or ASCII kebab-case — keep the concept's natural form, no forced pinyin.
+{SLOT_FILLING_RULES}
 
-**Slug reuse**: Use EXISTING slugs from the wiki index verbatim. Never invent variants.
+{SLOT_MINIMUMS_TABLE}
 
-**RENDER, don't extract**: The claims below were already extracted from the source
-by a prior analyzer. Your job is to RENDER them into well-structured wiki pages.
-Use the exact claim statements and evidence quotes — do not paraphrase or invent
-facts not present in the claims.
-
-**Page budget**: Create 1-3 pages from the claims below. Focus on quality over
-quantity. At minimum, create ONE page for the primary concept/entity in the title.
-
-**Slot filling — CRITICAL: NO EMPTY SLOTS ALLOWED**:
-- Every `<!-- slot:NAME -->` (no `?`) is REQUIRED and MUST have substantive content.
-- Never use placeholder text ("...", "（空）", "TBD", "placeholder").
-- Optional slots (`<!-- slot:NAME? -->`): omit when empty.
-- Each slot: >= 1 char after trim. Lists: >= 1 substantive item.
-
-**Slot-specific minimums (enforced)**:
-SLOT                  | PAGE TYPE   | MINIMUM ACCEPTABLE CONTENT
-----------------------|-------------|----------------------------------------------------
-`references`          | concept     | At LEAST one `[[wikilink]]` to the source page
-`source_meta`         | source      | MUST include: 来源(URL/平台), 下载时间, 发布组织
-`related_concepts`    | concept     | At LEAST 2 `[[wikilinks]]` to other concept/entity pages
-`related`             | entity      | At LEAST 1 `[[wikilink]]` to the source page or parent entity
-`key_points`          | source      | At LEAST 3 bullet points from the claims
-`extracted_concepts`  | source      | At LEAST 3 `[[wikilinks]]` to concept/entity pages
-`comparison_dimensions`| synthesis  | At LEAST 2 dimensions being compared
-`overview`            | synthesis   | At LEAST 1 paragraph summarising the comparison
-
-**FALLBACKS — when claims truly lack info, use these instead of empty/placeholder**:
-- `references`    → Write `- [[<source-page-slug>]]`
-- `source_meta`   → Write "来源: [文件名]; 格式: Markdown; 下载时间: 见原始文件头部"
-- `related_concepts` → List other concept/entity slugs from THIS response
-- `related`       → Write `- [[<source-page-slug>]]`
-- `examples`      → Write "来源未提供具体例子" (invent NOTHING)
-- ALL OTHERS      → Write "来源未详述此方面" (not empty, not placeholder)
+{FALLBACK_VALUES}
 
 **Factuality**: Copy facts EXACTLY from the claims. Do NOT invent titles, names,
 or statistics. When a claim has no example, write "来源未提供例子".
 
-**Tags**: `prefix/name` format, 10 allowed prefixes:
-题材/ 功能/ 角色/ 事件/ 情绪/ 实体/ 场景阶段/ 状态/ 素材/ 可信度/
-
-**Relation types** (17 built-in + `x-*` custom):
-is_part_of contains references referenced_by causes caused_by contradicts
-supports supported_by supersedes superseded_by depends_on required_by
-analogous_to opposite_of derived_from derives
+{RELATION_TYPES}
 
 {WIKI_RULES_SUMMARY}
 {TAG_NAMESPACE_RULES}
@@ -774,6 +686,7 @@ async def generate_from_candidate(
     provider,
     source_slug_map: Optional["dict[str, str]"] = None,
     source_text: str = "",
+    previous_slugs: Optional[list[str]] = None,
 ) -> list[WikiPage]:
     """Render wiki pages from a validated KnowledgeCandidate.
 
@@ -781,8 +694,21 @@ async def generate_from_candidate(
     well-structured wiki pages — it must NOT extract new information.
     Frontmatter fields (type, title, grade) are sourced from the
     candidate; only body content comes from the LLM.
+
+    Parameters
+    ----------
+    previous_slugs:
+        List of page slugs from previous generation (for quality feedback).
+        If provided, lint cache will be queried for issues on these pages,
+        and the feedback will be injected into the prompt.
     """
     import time as _time
+
+    # Build quality feedback from lint cache if previous_slugs provided
+    _quality_feedback = ""
+    if previous_slugs:
+        _lint_cache_path = paths.index / "lint_cache.json"
+        _quality_feedback = build_quality_feedback(_lint_cache_path, previous_slugs)
 
     # Format claims for the prompt
     _claims_lines: list[str] = []
@@ -856,6 +782,7 @@ async def generate_from_candidate(
     _derived_grade = "A" if _conf >= 0.7 else "B" if _conf >= 0.5 else "C"
 
     base_prompt = CANDIDATE_RENDER_PROMPT.format(
+        header=build_generator_header(),
         candidate_type=candidate.type.value,
         candidate_title=candidate.title,
         candidate_confidence=_conf,
@@ -863,6 +790,11 @@ async def generate_from_candidate(
         evidence_text=evidence_text,
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
         existing_wiki_index=existing_wiki_index or "(empty)",
+        quality_feedback=_quality_feedback,
+        SLOT_FILLING_RULES=SLOT_FILLING_RULES,
+        SLOT_MINIMUMS_TABLE=SLOT_MINIMUMS_TABLE,
+        FALLBACK_VALUES=FALLBACK_VALUES,
+        RELATION_TYPES=RELATION_TYPES,
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
@@ -988,6 +920,7 @@ async def generate_from_knowledge_object(
     provider,
     source_slug_map: Optional["dict[str, str]"] = None,
     source_text: str = "",
+    previous_slugs: Optional[list[str]] = None,
 ) -> list[WikiPage]:
     """Render wiki pages from a KnowledgeObject with frontmatter enforcement.
 
@@ -995,8 +928,20 @@ async def generate_from_knowledge_object(
     from the KnowledgeObject — the LLM is told to RENDER the candidate's
     claims into body slots only.  GeneratorOutputValidator invariants are
     applied after rendering.
+
+    Parameters
+    ----------
+    previous_slugs:
+        List of page slugs from previous generation (for quality feedback).
+        If provided, lint cache will be queried for issues on these pages.
     """
     import time as _time
+
+    # Build quality feedback from lint cache if previous_slugs provided
+    _quality_feedback = ""
+    if previous_slugs:
+        _lint_cache_path = paths.index / "lint_cache.json"
+        _quality_feedback = build_quality_feedback(_lint_cache_path, previous_slugs)
 
     # Format claims for the LLM prompt (same as generate_from_candidate)
     _claims_lines: list[str] = []
@@ -1069,6 +1014,7 @@ async def generate_from_knowledge_object(
     _ko_type_str = ko.type.value
 
     base_prompt = CANDIDATE_RENDER_PROMPT.format(
+        header=build_generator_header(),
         candidate_type=_ko_type_str,
         candidate_title=ko.title,
         candidate_confidence=ko.confidence,
@@ -1076,6 +1022,11 @@ async def generate_from_knowledge_object(
         evidence_text=evidence_text,
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
         existing_wiki_index=existing_wiki_index or "(empty)",
+        quality_feedback=_quality_feedback,
+        SLOT_FILLING_RULES=SLOT_FILLING_RULES,
+        SLOT_MINIMUMS_TABLE=SLOT_MINIMUMS_TABLE,
+        FALLBACK_VALUES=FALLBACK_VALUES,
+        RELATION_TYPES=RELATION_TYPES,
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
@@ -1305,12 +1256,18 @@ async def generate(
 
     # 1. Initial LLM call + parse.
     base_prompt = GENERATOR_PROMPT.format(
+        header=build_generator_header(),
         analysis_json=analysis_json,
         existing_wiki_index=existing_wiki_index or "(empty)",
+        SLOT_FILLING_RULES=SLOT_FILLING_RULES,
+        SLOT_MINIMUMS_TABLE=SLOT_MINIMUMS_TABLE,
+        FALLBACK_VALUES=FALLBACK_VALUES,
+        RELATION_TYPES=RELATION_TYPES,
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
+        few_shot_examples=GENERATOR_SLOT_EXAMPLE,
     )
 
     response_dict = await _call_with_slot_retry(

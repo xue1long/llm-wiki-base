@@ -295,14 +295,18 @@ def test_json_prompt_contains_schema_directives():
 def test_json_prompt_knowledge_types_derived_from_knowledge_type():
     """ANALYZER_JSON_PROMPT's type list must be derived from the
     KnowledgeType enum (all 8 knowledge-layer values), not a hardcoded string."""
+    from src.pipeline._prompt_common import build_analyzer_header, ANALYZER_JSON_EXAMPLE
+
     knowledge_types = "|".join(t.value for t in KnowledgeType)
     rendered = ANALYZER_JSON_PROMPT.format(
+        header=build_analyzer_header(),
         source_path="s",
         folder_context="",
         existing_wiki_index="",
         source_text="",
         chunk_context="",
         knowledge_types=knowledge_types,
+        few_shot_examples=ANALYZER_JSON_EXAMPLE,
     )
     # The type segment must carry all 8 KnowledgeType values.
     assert f'"type": "{knowledge_types}"' in rendered

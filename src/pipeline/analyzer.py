@@ -9,30 +9,22 @@ from ..lib.budgeted import BudgetedLLM
 from ..wiki.features.tag_namespace import build_tag_prompt_section
 from ..wiki.core.types import PageType
 from ._pipeline_common import parse_llm_json
+from ._prompt_common import (
+    JSON_FORMAT_RULES,
+    LANGUAGE_RULES,
+    build_analyzer_header,
+    ANALYZER_JSON_EXAMPLE,
+)
 from .schemas import AnalysisResult, ConceptMention, EntityMention, PageSpec
 
 
 _logger = logging.getLogger(__name__)
 
 
-ANALYZER_PROMPT = """You are analyzing a source document for a knowledge base.
-
-## CRITICAL — JSON Format
-1. Output ONLY the raw JSON object — no markdown fences (```), no
-   introductory text, no concluding remarks.
-2. Your response MUST start with `{{` and end with `}}`.
-3. Do NOT wrap the JSON in ```json ... ``` blocks.
-4. All strings must be properly escaped (double quotes, not single quotes).
-
-Do NOT output chain-of-thought, hidden reasoning, or a thinking
-transcript. Reason internally and emit only the requested JSON.
-
-## Language
-默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
-summary、key_facts、entities/concepts 的 name 和 context、
-suggested_pages 的 title/reasoning/tags。Slugs 使用中文 (CJK) 或
-ASCII kebab-case — 保留概念的自然字面，**禁止拼音转写**。专有名词/英文
-术语在 ASCII 段仍保持原始写法 (e.g. OpenAI, GPT-5, Transformer)。
+# Analyzer prompt for legacy markdown mode (deprecated)
+# Uses template-style placeholders: {source_path}, {source_text}, etc.
+ANALYZER_PROMPT = """
+{header}
 
 ## Context
 - Source: {source_path}
@@ -76,21 +68,8 @@ Extract structured analysis. Output strict JSON:
 """
 
 
-ANALYZER_JSON_PROMPT = """You are analyzing a source document to extract structured knowledge claims.
-
-## CRITICAL — JSON Format
-1. Output ONLY the raw JSON object — no markdown fences (```), no
-   introductory text, no concluding remarks.
-2. Your response MUST start with `{{` and end with `}}`.
-3. Do NOT wrap the JSON in ```json ... ``` blocks.
-4. All strings must be properly escaped (double quotes, not single quotes).
-
-Do NOT output chain-of-thought, hidden reasoning, or a thinking
-transcript. Reason internally and emit only the requested JSON.
-
-## Language
-默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段。
-Slugs 使用中文 (CJK) 或 ASCII kebab-case — 保留概念的自然字面，**禁止拼音转写**。
+ANALYZER_JSON_PROMPT = """
+{header}
 
 ## Context
 - Source: {source_path}
@@ -132,6 +111,8 @@ Rules:
   - source_path: path to source
   - page: page number or null
   - quote: exact text excerpt supporting one or more claims
+
+{few_shot_examples}
 """
 
 
@@ -306,6 +287,7 @@ async def analyze(
         )
 
     prompt = ANALYZER_PROMPT.format(
+        header=build_analyzer_header(),
         source_path=source_path,
         folder_context=folder_context or "(none)",
         existing_wiki_index=existing_wiki_index or "(empty)",
@@ -476,12 +458,14 @@ async def _analyze_json(
             f"need to reference other chunks.\n\n"
         )
     prompt = ANALYZER_JSON_PROMPT.format(
+        header=build_analyzer_header(),
         source_path=source_path,
         folder_context=folder_context or "(none)",
         existing_wiki_index=existing_wiki_index or "(empty)",
         source_text=source_text,
         chunk_context=_chunk_ctx,
         knowledge_types="|".join(t.value for t in KnowledgeType),
+        few_shot_examples=ANALYZER_JSON_EXAMPLE,
     )
 
     MAX_ATTEMPTS = 2

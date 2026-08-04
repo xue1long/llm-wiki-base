@@ -12,7 +12,7 @@ def test_increment_updates_heat(tmp_path):
     """increment() raises page.heat by HEAT_INCREMENT (clamped to 100)."""
     ensure_knowledge_base(tmp_path)
     paths = WikiPaths(tmp_path)
-    write_page(paths, WikiPage(id="foo", title="F", type=PageType.ENTITY, body="", heat=50, last_used_at=0))
+    write_page(paths, WikiPage(id="foo", title="F", type=PageType.ENTITY, body="", heat=50, last_used_at=""))
 
     tracker = HeatTracker(paths)
     tracker.increment("foo")
@@ -21,8 +21,9 @@ def test_increment_updates_heat(tmp_path):
     from src.wiki.storage.page_writer import read_page, page_path_for
     p = read_page(page_path_for(paths, PageType.ENTITY, "foo"))
     assert p.heat == 55
-    assert p.last_used_at > 0
-    assert p.zombie_since is None
+    assert p.last_used_at != ""  # Should be set to current timestamp
+    # zombie_since can be None or empty string (both mean "not a zombie")
+    assert not p.zombie_since  # Either None or ""
 
 
 def test_increment_clamps_to_100(tmp_path):
@@ -43,8 +44,10 @@ def test_decay_reduces_heat(tmp_path):
     """decay() reduces heat for old pages."""
     ensure_knowledge_base(tmp_path)
     paths = WikiPaths(tmp_path)
-    # 31 days ago in milliseconds
-    old_ts = int(time.time() * 1000) - 31 * 86400 * 1000
+    # Create a timestamp 31 days ago in ISO 8601 format
+    from datetime import datetime, timezone, timedelta
+    old_dt = datetime.now(timezone.utc) - timedelta(days=31)
+    old_ts = old_dt.replace(microsecond=0).isoformat().replace("+00:00", "Z")
     write_page(paths, WikiPage(id="foo", title="F", type=PageType.ENTITY, body="", heat=80, last_used_at=old_ts))
 
     tracker = HeatTracker(paths)

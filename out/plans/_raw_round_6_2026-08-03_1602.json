@@ -1,0 +1,129 @@
+[
+ {
+  "name": "现代文写作技巧1.md",
+  "chars": 23506,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 56.10593359998893,
+  "call_count": 3,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 16.56
+   },
+   {
+    "stage": "analyzer",
+    "latency": 28.334
+   },
+   {
+    "stage": "analyzer",
+    "latency": 11.184
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-08-音频教程--现代文写作技巧-1-md-5f033a3f",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\08 音频教程\\现代文写作技巧1.md",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "其他题材网游小说角色种族设定.md",
+  "chars": 3705,
+  "verdict": "ok",
+  "failed": null,
+  "total_s": 276.90687830001116,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 57.063
+   },
+   {
+    "stage": "generator",
+    "latency": 79.239
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-91d4d9cf36e0",
+    "title": "网游小说角色种族设定体系",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-91d4d9cf36e0",
+    "title": "网游小说角色种族设定体系",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--其他题材网游小说角色种族设定-md-3962405c",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\04 题材专题\\其他题材网游小说角色种族设定.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "进阶教程最详细大纲写作方法再看不懂我也不知道怎么办了.md",
+  "chars": 1287,
+  "verdict": "ok",
+  "failed": null,
+  "total_s": 108.61483859992586,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 23.333
+   },
+   {
+    "stage": "generator",
+    "latency": 85.225
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-75ffd30532cd",
+    "title": "网络小说大纲写作方法详解",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-75ffd30532cd",
+    "title": "网络小说大纲写作方法详解",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-02-进阶技巧--进阶教程最详细大纲写作方法再看不懂我也不知道怎么办了-md-26379167",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\02 进阶技巧\\进阶教程最详细大纲写作方法再看不懂我也不知道怎么办了.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ }
+]

@@ -1,0 +1,102 @@
+[
+ {
+  "name": "必备资料20仙侠类题材作品的创作要点及卖点.md",
+  "chars": 978,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 17.68266150006093,
+  "call_count": 1,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 17.666
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--必备资料-20-仙侠类题材作品的创作要点及卖点-md-20a66680",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\01_新手入门\\必备资料20仙侠类题材作品的创作要点及卖点.md",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "穿越修真西方魔法发展史.md",
+  "chars": 1593,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 98.66812950000167,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 42.703
+   },
+   {
+    "stage": "generator",
+    "latency": 55.924
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-e0fce9aaee69",
+    "title": "穿越修真背景下的西方魔法发展史",
+    "type": "synthesis",
+    "grade": "B",
+    "depth": "synthesis",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "cand-e0fce9aaee69",
+    "title": "穿越修真背景下的西方魔法发展史",
+    "type": "synthesis",
+    "grade": "B",
+    "depth": "synthesis",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--穿越修真西方魔法发展史-md-41b2035e",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\04 题材专题\\穿越修真西方魔法发展史.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "西方魔法发展史",
+    "title": "西方魔法发展史",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "武侠洪荒上古十大神器.md",
+  "chars": 588,
+  "verdict": "crashed",
+  "failed": "TagValidationError: invalid tag values: ['功能/设定']",
+  "total_s": 91.00157919991761,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 28.215
+   },
+   {
+    "stage": "generator",
+    "latency": 62.786
+   }
+  ],
+  "pages": []
+ }
+]

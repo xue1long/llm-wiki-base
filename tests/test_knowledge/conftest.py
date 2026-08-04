@@ -2,9 +2,20 @@
 
 Stubs heavy optional dependencies so src modules that import them can still
 be collected by pytest. Mirrors tests/test_wiki/conftest.py pattern.
+
+Also restores real src.searcher submodules after sibling conftests stub them.
 """
 import sys
 import types
+
+
+# --- Restore src.searcher.* modules after test_agent conftest stubs them ---
+def pytest_configure(config):
+    """Run after all conftests are loaded. Restore real searcher modules."""
+    # Drop any stubbed src.searcher.* modules so test imports get the real ones
+    for mod_name in list(sys.modules):
+        if mod_name == "src.searcher" or mod_name.startswith("src.searcher."):
+            del sys.modules[mod_name]
 
 
 # --- pypdf ---

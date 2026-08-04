@@ -1,0 +1,143 @@
+[
+ {
+  "name": "女频男频2如何写好开头三万字.md",
+  "chars": 1912,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 144.67951250006445,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 45.103
+   },
+   {
+    "stage": "generator",
+    "latency": 99.491
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-5a3db41cb7bc",
+    "title": "网络小说开头三万字写作方法",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-5a3db41cb7bc",
+    "title": "网络小说开头三万字写作方法",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--女频男频-2-如何写好开头三万字-md-411e2d31",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\04 题材专题\\女频男频2如何写好开头三万字.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "开头瘦身技巧",
+    "title": "开头瘦身技巧",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "方法论写作心得.md",
+  "chars": 1219,
+  "verdict": "ok",
+  "failed": null,
+  "total_s": 86.31605400005355,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 23.58
+   },
+   {
+    "stage": "generator",
+    "latency": 62.635
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-0bb8c1da6dbe",
+    "title": "网络小说写作方法论：四大禁忌与十二戒",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-02-进阶技巧--方法论写作心得-md-520b1d80",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\02 进阶技巧\\方法论写作心得.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "东方玄幻十日齐出的背后.md",
+  "chars": 1347,
+  "verdict": "ok",
+  "failed": null,
+  "total_s": 86.98663040006068,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 51.752
+   },
+   {
+    "stage": "generator",
+    "latency": 35.2
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-7477e73d674a",
+    "title": "东方玄幻十日齐出的神话考据与设定推演",
+    "type": "synthesis",
+    "grade": "B",
+    "depth": "synthesis",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-7477e73d674a",
+    "title": "东方玄幻十日齐出的神话考据与设定推演",
+    "type": "synthesis",
+    "grade": "B",
+    "depth": "synthesis",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--东方玄幻十日齐出的背后-md-1ed90375",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\04 题材专题\\东方玄幻十日齐出的背后.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ }
+]

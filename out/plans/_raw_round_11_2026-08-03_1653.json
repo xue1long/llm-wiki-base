@@ -1,0 +1,153 @@
+[
+ {
+  "name": "武侠洪荒玄幻打斗描写技巧和举例.md",
+  "chars": 769,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 31.620521900011227,
+  "call_count": 1,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 31.549
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--武侠洪荒玄幻打斗描写技巧和举例-md-c5d92f63",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\04_题材专题\\武侠洪荒玄幻打斗描写技巧和举例.md",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "入门教程一个新手的五个阶段.md",
+  "chars": 1609,
+  "verdict": "ok",
+  "failed": null,
+  "total_s": 88.09068809996825,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 30.32
+   },
+   {
+    "stage": "generator",
+    "latency": 56.538
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-a5b578c30cd0",
+    "title": "网络小说新手作者的五个阶段",
+    "type": "synthesis",
+    "grade": "B",
+    "depth": "synthesis",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-a5b578c30cd0",
+    "title": "网络小说新手作者的五个阶段",
+    "type": "synthesis",
+    "grade": "B",
+    "depth": "synthesis",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "cand-a5b578c30cd0",
+    "title": "网络小说新手作者的五个阶段",
+    "type": "synthesis",
+    "grade": "B",
+    "depth": "synthesis",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "cand-a5b578c30cd0",
+    "title": "网络小说新手作者的五个阶段",
+    "type": "synthesis",
+    "grade": "B",
+    "depth": "synthesis",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "cand-a5b578c30cd0",
+    "title": "网络小说新手作者的五个阶段",
+    "type": "synthesis",
+    "grade": "B",
+    "depth": "synthesis",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "cand-a5b578c30cd0",
+    "title": "网络小说新手作者的五个阶段",
+    "type": "synthesis",
+    "grade": "B",
+    "depth": "synthesis",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "cand-a5b578c30cd0",
+    "title": "网络小说新手作者的五个阶段",
+    "type": "synthesis",
+    "grade": "B",
+    "depth": "synthesis",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "cand-a5b578c30cd0",
+    "title": "网络小说新手作者的五个阶段",
+    "type": "synthesis",
+    "grade": "B",
+    "depth": "synthesis",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--入门教程一个新手的五个阶段-md-ed2cc644",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\01 新手入门\\入门教程一个新手的五个阶段.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "东方玄幻中国占星术之三垣二十八宿.md",
+  "chars": 876,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 38.936727799940854,
+  "call_count": 1,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 38.868
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--东方玄幻中国占星术之三垣二十八宿-md-5ec23a7d",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\04_题材专题\\东方玄幻中国占星术之三垣二十八宿.md",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ }
+]

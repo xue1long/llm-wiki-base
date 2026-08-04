@@ -38,14 +38,14 @@
 - 写了 200 行却能用 50 行写完 → 重写。
 - 自检："资深工程师会觉得这过度复杂吗？"是 → 简化。
 
-**③ 外科手术式改动（Surgical Changes）** — `CLAUDE.md:376`
+**③ 外科手术式改动（Surgical Changes）** — `CLAUDE.md:378`
 - 只动必须动的；不顺手改相邻的代码 / 注释 / 格式。
 - 不重构没坏的东西；匹配现有风格（即便你有不同的写法）。
 - 发现无关死代码 → **提一句，但不要删**。
 - 自己改动产生的孤儿（未用 import / 变量 / 函数）要清掉；** preexisting 死代码未经要求不删**。
 - 验收标准：每一行改动都能直接追溯到用户需求。
 
-**④ 目标驱动执行（Goal-Driven Execution）** — `CLAUDE.md:392`
+**④ 目标驱动执行（Goal-Driven Execution）** — `CLAUDE.md:394`
 - 把任务转成可验证目标："加校验"→"先写非法输入的测试，再让它通过"。
 - 多步任务先给简要计划：`1. [步骤] → verify: [检查点]`。
 - 成功标准要硬；模糊标准（"让它跑起来"）会不断返工。
@@ -61,13 +61,13 @@
 | Embedding provider | `CLAUDE.md:205` 区 | 进程级单例，勿重复构造 |
 | Test 目录镜像 | `CLAUDE.md:227` | `tests/test_X/` 镜像 `src/` 一层；新测试目录要从现有 `conftest.py` 复制 |
 | TDD 工作流 | `CLAUDE.md:258` | 每 task 先写测试（红）→ 实现（绿）→ 提交 |
-| 提交粒度 | `CLAUDE.md:258` | 一个 task 一个 commit；前缀 `feat(scope):` / `fix(scope):` / `chore:` / `refactor:` |
+| 提交粒度 | `CLAUDE.md:263` | 一个 task 一个 commit；前缀 `feat(scope):` / `fix(scope):` / `chore:` / `refactor:` |
 
 ### 1.3 Lint / 类型 / 测试配置（`pyproject.toml`，强制）
 
 > ⚠️ 注意：CLAUDE.md:79 曾写"无 ruff.toml / mypy.ini 配置"，**实际配置写在 `pyproject.toml`** 里（无独立 `.toml/.ini` 文件）。以 pyproject 为准。
 
-- **Ruff**（`[tool.ruff]` `pyproject.toml:36`）：`target-version = "py311"`；选中规则 `F / E / W / B / C4`；忽略 `E501, B904, B905, B028, E402, B007, E741`（多数因历史代码普遍性，待增量启用）。
+- **Ruff**（`[tool.ruff]` `pyproject.toml:32`）：`target-version = "py311"`；选中规则 `F / E / W / B / C4`；忽略 `E501, B904, B905, B028, E402, B007, E741, E702, F841, C408, E701, C416, B017`（多数因历史代码普遍性，待增量启用）。
 - **Mypy**（`[tool.mypy]`）：`strict = false`。
 - **Pytest**（`[tool.pytest.ini_options]`）：`asyncio_mode = "auto"`（无需逐测试加 `@pytest.mark.asyncio`）。
 - 运行：`PYTHONPATH=. pytest --import-mode=importlib`（避免同名测试文件冲突）。
@@ -156,12 +156,23 @@ uvicorn>=0.31.0
 | `素材` | 素材品类 | ugc/official/转载/原创/投稿 |
 | `可信度` | 可信度 | book/web/expert/user/ai/unknown/ugc/mixed |
 
-**校验函数**：
-- `is_valid_prefix(tag)`（`tag_namespace.py:61`）：检查前缀是否受控。
-- `is_valid_value(prefix, value)`（`tag_namespace.py:80`）：检查值在 `TAG_VALUES` 值域内（自由前缀返回 True）。
-- `get_mandatory_pairs()`（`tag_namespace.py:88`）：返回必须出现的配对集合。
+**校验 API（真实签名，`tag_namespace.py`，2026-08-03 实测）**：
 
-**强制配对（MANDATORY_PAIRS，`tag_namespace.py:49`）**：当前 `MANDATORY_PAIRS = []` 为空——UGC 强制配对（`素材/ugc` + `可信度/ugc`）目前**硬编码在 analyzer / generator 提示词**里，非配置驱动（技术债务 #11 同源问题）。
+| 函数 | 行号 | 签名 | 作用 |
+|------|------|------|------|
+| `is_valid` | `:59` | `is_valid(tag: str) -> bool` | 前缀是否受控（10 中文前缀） |
+| `parse` | `:64` | `parse(tag: str) -> tuple[str, str] \| None` | 拆出 `(prefix, name)` |
+| `is_valid_value` | `:74` | `is_valid_value(tag: str) -> bool` | 值在值域内（**单参 `tag`**，自由前缀返回 `True`） |
+| `allowed_values_for` | `:86` | `allowed_values_for(prefix: str) -> set \| None` | 取某前缀值域 |
+| `validate_tags` | `:91` | `validate_tags(tags) -> list[str]` | 返回非法前缀标签 |
+| `validate_tag_values` | `:96` | `validate_tag_values(tags) -> list[str]` | 返回值越界标签 |
+| `missing_mandatory_tags` | `:114` | `missing_mandatory_tags(tags) -> list[str]` | 缺哪些强制配对 |
+| `validate_tag_compliance` | `:140` | `validate_tag_compliance(tags) -> None` | 不满足则抛 `TagValidationError` |
+| `build_tag_prompt_section` | `:163` | `build_tag_prompt_section() -> str` | 动态生成提示词片段（含强制配对） |
+
+> ⚠️ **调用注意（曾误写，本次纠正）**：① `is_valid_value` 只接收 **一个** `tag` 参数（不是 `(prefix, value)`）；② 没有 `is_valid_prefix` / `get_mandatory_pairs()` 这两个函数；配对通过模块级变量 `MANDATORY_PAIRS` 读取，缺失项用 `missing_mandatory_tags()` 检测。
+
+**强制配对（MANDATORY_PAIRS，`tag_namespace.py:49-52`）**：已配置 **2 个配对**——`("素材", "ugc")`、`("可信度", "ugc")`，**非空**。配对经 `build_tag_prompt_section()` **配置驱动**注入摄取提示词（analyzer / generator 从 `MANDATORY_PAIRS` 动态读取，不再硬编码规则）。提示词里仅"前缀说明文案"仍重复出现（属技术债务 #11 范畴，不影响配对逻辑）。
 
 **提示词一致性约束**：三处摄取提示词（analyzer / generator / unified）里硬编码的标签指引，应与 `TAG_PREFIXES` 单一来源一致，禁止另行发明前缀或值。
 
@@ -188,6 +199,6 @@ uvicorn>=0.31.0
 1. **标签前缀数量**：早期评估报告写成"8 个英文前缀" / "10 个中文前缀无值域"——**均错**。实测为 10 个中文前缀且 `TAG_VALUES` 早已实现（§3.4 为正确版本）。
 2. **Web UI 存在性**：早期可行性报告称"Web UI 从未启用"——**错**。`web/` 含完整静态前端，README 有 `serve` 启动命令。
 3. **Lint 配置位置**：CLAUDE.md 称"无 ruff.toml/mypy.ini"——实际配置在 `pyproject.toml`（§1.3）。
-4. **MANDATORY_PAIRS**：文档多处暗示已配置 UGC 强制配对，实际代码为空列表、配对硬编码在提示词。
+4. **MANDATORY_PAIRS**：早期评估文档（tag-namespace-evaluation / STS 评估 / 摄取方案 / 项目记忆）曾误称"代码为空列表、配对硬编码在提示词"——**错**。实测 `tag_namespace.py:49-52` 已配置 `[("素材","ugc"),("可信度","ugc")]` 且经 `build_tag_prompt_section()` 配置驱动；提示词里仅前缀说明文案重复（技术债务 #11 范畴）。本文件 §3.4 为正确版本。
 
 如发现新的偏差，请直接修正本文件对应章节，并回提上游原始文件。

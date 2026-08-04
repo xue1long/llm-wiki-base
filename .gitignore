@@ -25,6 +25,9 @@ registry.json
 # wiki spec sync
 .wiki-spec-md5
 
+# --- generated prompts (should not be committed) ---
+src/pipeline/wiki_rules_prompt.py
+
 # --- runtime artifacts (per-project data, not source) ---
 # The following are generated when the server runs or when ingest
 # happens; they belong to a specific project + machine and should not

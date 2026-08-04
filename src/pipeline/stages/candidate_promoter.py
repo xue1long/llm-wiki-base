@@ -15,6 +15,7 @@ from ...knowledge.core.object import (
     Provenance,
     VersionRef,
 )
+from ..ports import PipelineContext, StageResult
 
 
 class CandidatePromoter:
@@ -23,6 +24,41 @@ class CandidatePromoter:
     Candidate and KnowledgeObject share the same ID.  The candidate's status
     is mutated to PROMOTED on success.
     """
+
+    name = "candidate_promoter"
+
+    async def run(self, ctx: PipelineContext, prev_result) -> StageResult:
+        """Stage protocol: extract candidate and review_result, then promote."""
+        if prev_result is None:
+            return StageResult(success=False, payload={"error": "no prev_result"})
+
+        payload = prev_result.payload
+        if not isinstance(payload, dict):
+            return StageResult(success=False, payload={"error": "payload is not a dict"})
+
+        if "review_result" not in payload or "candidate" not in payload:
+            return StageResult(
+                success=False,
+                payload={"error": "payload missing review_result or candidate"}
+            )
+
+        review_result = payload["review_result"]
+        candidate = payload["candidate"]
+
+        if review_result.status != "validated":
+            return StageResult(
+                success=False,
+                payload={"error": f"candidate not validated: {review_result.status}"}
+            )
+
+        try:
+            ko = self.promote(candidate)
+            return StageResult(
+                success=True,
+                payload={"knowledge_object": ko, "candidate": candidate}
+            )
+        except ValueError as e:
+            return StageResult(success=False, payload={"error": str(e)})
 
     def promote(self, candidate: KnowledgeCandidate) -> KnowledgeObject:
         """Promote a VALIDATED candidate to a KnowledgeObject.

@@ -134,6 +134,17 @@ def create_app() -> FastAPI:
             except Exception as e:
                 _logger.warning("[startup] vector store init failed: %s", e)
 
+            # Initialize token metrics collector for LLM usage tracking.
+            # Metrics are written to .index/metrics/ and can be queried via CLI.
+            try:
+                from ..llm.token_metrics import init_metrics_collector
+                metrics_dir = Path.cwd() / ".index" / "metrics"
+                metrics_dir.mkdir(parents=True, exist_ok=True)
+                init_metrics_collector(metrics_dir)
+                _logger.debug("[startup] token metrics collector initialized at %s", metrics_dir)
+            except Exception as e:
+                _logger.warning("[startup] token metrics init failed: %s", e)
+
             # Health-check loop (preserved from prior behaviour).
             try:
                 from ..llm.provider_factory import _create_from_config

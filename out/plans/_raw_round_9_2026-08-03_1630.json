@@ -1,0 +1,210 @@
+[
+ {
+  "name": "必备资料人物设置与剧情的关系.md",
+  "chars": 1438,
+  "verdict": "ok",
+  "failed": null,
+  "total_s": 70.97141629992984,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 28.434
+   },
+   {
+    "stage": "generator",
+    "latency": 42.467
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-72d25e92ee16",
+    "title": "人物设置与剧情的关系",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-72d25e92ee16",
+    "title": "人物设置与剧情的关系",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--必备资料人物设置与剧情的关系-md-0472b1c1",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\01 新手入门\\必备资料人物设置与剧情的关系.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "入门教程如何写好网络小说_8ff63e.md",
+  "chars": 1088,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 525.7230165000074,
+  "call_count": 3,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 19.107
+   },
+   {
+    "stage": "generator",
+    "latency": 140.074
+   },
+   {
+    "stage": "generator",
+    "latency": 62.714
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-9389b96e9885",
+    "title": "网络小说创作技巧：节奏感、人物刻画与配角衬托",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-9389b96e9885",
+    "title": "网络小说创作技巧：节奏感、人物刻画与配角衬托",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-9389b96e9885",
+    "title": "网络小说创作技巧：节奏感、人物刻画与配角衬托",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--入门教程如何写好网络小说-8ff63e-md-449467ef",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\01 新手入门\\入门教程如何写好网络小说 8ff63e.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "网络小说创作技巧",
+    "title": "网络小说创作技巧",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "配角衬托",
+    "title": "配角衬托",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "人物个性刻画",
+    "title": "人物个性刻画",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "必备资料怎么渲染一场惊心动魄的战斗场面1_508621.md",
+  "chars": 1471,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 108.92787989997305,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 49.11
+   },
+   {
+    "stage": "generator",
+    "latency": 59.733
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-861d0437140c",
+    "title": "玄幻小说比武场面渲染方法：废材反击流套路",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "cand-861d0437140c",
+    "title": "玄幻小说比武场面渲染方法：废材反击流套路",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-861d0437140c",
+    "title": "玄幻小说比武场面渲染方法：废材反击流套路",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--必备资料怎么渲染一场惊心动魄的战斗场面-1-508621-md-688db41d",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\01 新手入门\\必备资料怎么渲染一场惊心动魄的战斗场面1 508621.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "废材反击流",
+    "title": "废材反击流",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "比武场面渲染方法",
+    "title": "比武场面渲染方法",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ }
+]

@@ -1,0 +1,130 @@
+[
+ {
+  "name": "大纲示例网络小说大纲辅助设定.md",
+  "chars": 556,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 194.96839249995537,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 31.503
+   },
+   {
+    "stage": "generator",
+    "latency": 43.06
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-3a565d0c9b35",
+    "title": "网络小说大纲辅助设定框架",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "cand-3a565d0c9b35",
+    "title": "网络小说大纲辅助设定框架",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-03-大纲创作--大纲示例网络小说大纲辅助设定-md-973fbaab",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\03 大纲创作\\大纲示例网络小说大纲辅助设定.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "网络小说大纲辅助设定框架",
+    "title": "网络小说大纲辅助设定框架",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "女频男频8防扑街必读枪毙一本书的理由.md",
+  "chars": 2392,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 39.10434210009407,
+  "call_count": 1,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 39.077
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--女频男频-8-防扑街必读枪毙一本书的理由-md-5031ce95",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\04_题材专题\\女频男频8防扑街必读枪毙一本书的理由.md",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "女频男频4读者不买女频文的死穴.md",
+  "chars": 3317,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 118.38809430005495,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 37.348
+   },
+   {
+    "stage": "generator",
+    "latency": 80.942
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--女频男频-4-读者不买女频文的死穴-md-015ba02d",
+    "title": "女频文读者弃文的八大死穴与避坑指南",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--女频男频-4-读者不买女频文的死穴-md-015ba02d",
+    "title": "女频文读者弃文的八大死穴与避坑指南",
+    "type": "source",
+    "grade": "B",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "女频文扑街死穴",
+    "title": "女频文扑街死穴",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ }
+]

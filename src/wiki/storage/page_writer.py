@@ -5,20 +5,8 @@ import yaml
 
 from ...lib.write_hooks import safe_write
 from ..core.paths import WikiPaths
-from ..core.types import PageType, WikiPage
+from ..core.types import PageType, WikiPage, _TYPE_TO_DIR
 from ..features.tag_namespace import validate_tag_compliance
-
-
-_TYPE_TO_DIR: dict[PageType, str] = {
-    PageType.SOURCE: "wiki_sources",
-    PageType.ENTITY: "wiki_entities",
-    PageType.CONCEPT: "wiki_concepts",
-    PageType.SYNTHESIS: "wiki_synthesis",
-    PageType.CLAIM: "wiki_claims",
-    PageType.DECISION: "wiki_decisions",
-    PageType.PROCEDURE: "wiki_concepts",
-    PageType.EVENT: "wiki_concepts",
-}
 
 
 class PageNotFoundError(Exception):

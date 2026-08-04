@@ -518,6 +518,137 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
     )
 
 
+# ---------------------------------------------------------------------------
+# Lint cache — persist results for quality feedback
+# ---------------------------------------------------------------------------
+
+def write_lint_cache(paths: WikiPaths, report: LintReport) -> None:
+    """Write lint results to cache file for quality feedback queries.
+
+    Cache format (lint_cache.json):
+        {
+            "wiki/concepts/仙侠小说.md": {
+                "timestamp": 1234567890,
+                "issues": [
+                    {"code": "LINT-XXX", "severity": "warning", "message": "...", "slot_name": null}
+                ]
+            }
+        }
+
+    Called automatically by CLI `lint` command and by the server after batch lint.
+    """
+    import json
+    import time as _time
+
+    cache_path = paths.index / "lint_cache.json"
+    cache_data: dict = {}
+
+    # Load existing cache
+    if cache_path.exists():
+        try:
+            cache_data = json.loads(cache_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    timestamp = int(_time.time())
+
+    # Group issues by page
+    for issue in report.issues:
+        if not issue.page_id:
+            continue
+        # Determine page type from slug (heuristic)
+        slug = issue.page_id
+        if slug.startswith("card_"):
+            # v2.2+ ID format — use concepts/ as default
+            file_key = f"wiki/concepts/{slug}.md"
+        else:
+            # Legacy slug — try to find actual file
+            for subdir in ["sources", "entities", "concepts", "synthesis"]:
+                candidate = paths.root / "wiki" / subdir / f"{slug}.md"
+                if candidate.exists():
+                    file_key = f"wiki/{subdir}/{slug}.md"
+                    break
+            else:
+                file_key = f"wiki/concepts/{slug}.md"
+
+        if file_key not in cache_data:
+            cache_data[file_key] = {"timestamp": timestamp, "issues": []}
+
+        cache_data[file_key]["issues"].append({
+            "code": issue.code,
+            "severity": issue.severity.value,
+            "message": issue.message,
+            "slot_name": _extract_slot_name(issue),
+        })
+        cache_data[file_key]["timestamp"] = timestamp
+
+    # Write cache
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(json.dumps(cache_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _extract_slot_name(issue: LintIssue) -> str | None:
+    """Extract slot name from issue message if applicable."""
+    if issue.code == "LINT-MISSING-SECTION":
+        import re
+        match = re.search(r"\[([^\]]+)\]", issue.message)
+        if match:
+            return match.group(1)
+    return None
+
+
+class LintCacheIndex:
+    """Query interface for lint results by slug.
+
+    Used by Generator to inject quality feedback when regenerating pages.
+    """
+
+    def __init__(self, cache_path: Path):
+        self.cache_path = cache_path
+        self._index: dict[str, dict] = {}
+        self._loaded = False
+
+    def load(self) -> None:
+        """Load cache file into memory index keyed by slug."""
+        if self._loaded:
+            return
+
+        if not self.cache_path.exists():
+            self._loaded = True
+            return
+
+        try:
+            import json
+            data = json.loads(self.cache_path.read_text(encoding="utf-8"))
+            # Build slug -> issues mapping
+            for file_key, entry in data.items():
+                # Extract slug from file path: "wiki/concepts/仙侠小说.md" -> "仙侠小说"
+                slug = Path(file_key).stem
+                self._index[slug] = entry
+        except (json.JSONDecodeError, OSError):
+            pass
+
+        self._loaded = True
+
+    def get_issues(self, slug: str) -> list[dict]:
+        """Get all issues for a page by slug."""
+        if not self._loaded:
+            self.load()
+        entry = self._index.get(slug)
+        if not entry:
+            return []
+        return entry.get("issues", [])
+
+    def get_issues_by_severity(self, slug: str, severity: str) -> list[dict]:
+        """Get issues filtered by severity (error/warning/info)."""
+        issues = self.get_issues(slug)
+        return [i for i in issues if i.get("severity") == severity]
+
+    def has_errors(self, slug: str) -> bool:
+        """Check if page has any error-level issues."""
+        return len(self.get_issues_by_severity(slug, "error")) > 0
+
+
 def _heading_label(slot_name: str, page_type: str = "") -> str:
     """Map a slot name to the template heading it's rendered under.
 

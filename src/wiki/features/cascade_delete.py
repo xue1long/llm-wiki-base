@@ -13,9 +13,9 @@ the caller also wraps us, the inner AtomicContext is a no-op (only the
 outer call to AtomicContext actually flushes on exit).
 """
 import logging
-import time
 
 from ...lib.write_hooks import DELETE_SENTINEL, safe_write
+from ...utils.timestamp import now_iso
 from ..storage.atomic_ctx_helpers import atomic_pipeline_op
 
 from ..storage.ensure import ensure_knowledge_base
@@ -97,7 +97,7 @@ def cascade_delete(paths: WikiPaths, source_id: str) -> dict:
                 deleted_pages.append(page.id)
             else:
                 page.sources = new_sources
-                page.updated_at = _now_ms()
+                page.updated_at = now_iso()
                 write_page(paths, page)
                 updated_pages.append(page.id)
 
@@ -125,5 +125,8 @@ def cascade_delete(paths: WikiPaths, source_id: str) -> dict:
         }
 
 
-def _now_ms() -> int:
-    return int(time.time() * 1000)
+
+# Backward compatibility - kept for any external callers
+def _now_iso() -> str:
+    """Deprecated: Use now_iso() from utils.timestamp instead."""
+    return now_iso()

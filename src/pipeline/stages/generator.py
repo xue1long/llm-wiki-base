@@ -1,4 +1,4 @@
-"""GeneratorStage — wraps `generate` as a PipelineStage.
+"""GeneratorStage — wraps `generate_from_knowledge_object` as a PipelineStage.
 
 Note: the full run_ingest (which also appends a source page and writes
 to disk under AtomicContext) lives in src/pipeline/ingest.py and is
@@ -16,14 +16,25 @@ class GeneratorStage:
     name = "generator"
 
     async def run(self, ctx: PipelineContext, prev_result) -> StageResult:
-        if ctx.analysis_result is None:
-            return StageResult(success=False, payload="missing analysis result")
-        generate_fn = _generator_module.generate
-        pages = await generate_fn(
+        """Stage protocol: extract KnowledgeObject and generate WikiPages."""
+        if prev_result is None:
+            return StageResult(success=False, payload={"error": "no prev_result"})
+
+        payload = prev_result.payload
+        if not isinstance(payload, dict) or "knowledge_object" not in payload:
+            return StageResult(success=False, payload={"error": "no knowledge_object in payload"})
+
+        ko = payload["knowledge_object"]
+        candidate = payload.get("candidate")
+
+        pages = await _generator_module.generate_from_knowledge_object(
+            ko=ko,
+            candidate=candidate,
             paths=ctx.paths,
-            analysis=ctx.analysis_result,
             existing_wiki_index="",
             provider=ctx.provider,
-            model=ctx.model,
+            source_slug_map={},
+            source_text=ctx.source,
         )
-        return StageResult(success=True, payload=pages)
+
+        return StageResult(success=True, payload={"pages": pages, "knowledge_object": ko})

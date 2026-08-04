@@ -59,6 +59,7 @@ from ..wiki.storage.page_writer import write_page
 from ._pipeline_common import clean_source_text
 from .prefilter import prefilter as _run_prefilter
 from .retry import retry_with_backoff, RetryExhausted, PermanentFailure, CircuitBreakerOpen
+from ..utils.timestamp import now_iso
 
 
 async def _with_llm_timeout(coro, timeout: float, op: str):
@@ -87,7 +88,7 @@ _MAX_STUBS_ENV = "RUFLO_MAX_STUBS_PER_INGEST"
 
 def _get_max_stubs_per_ingest() -> int:
     """Return the current max stubs threshold (re-reads env var at call time)."""
-    return int(__import__("os").environ.get(_MAX_STUBS_ENV, "10"))
+    return int(__import__("os").environ.get(_MAX_STUBS_ENV, "3"))
 
 
 # Slugs that should never get stub entity pages because they represent
@@ -305,7 +306,7 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
     except Exception:
         reg = None
 
-    now_ms = int(time.time() * 1000)
+    now_ts = now_iso()
 
     _DEPTH_BY_TYPE = {
         PageType.SOURCE: "source",
@@ -327,9 +328,9 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
         if page.title:
             page.title = page.title.strip()
         if not page.created_at:
-            page.created_at = now_ms
+            page.created_at = now_ts
         if not page.updated_at:
-            page.updated_at = now_ms
+            page.updated_at = now_ts
         if reg is not None:
             for rel in page.relations:
                 canonical = reg.get_canonical(rel.target_id)
@@ -382,6 +383,12 @@ async def _write_rejected_source_page(
     _hash = hashlib.md5(str(source_path).encode("utf-8")).hexdigest()[:8]
     _slug = f"{_slug_stem}-{_hash}"
 
+    # Convert absolute path to project-relative path for sources field
+    try:
+        _rel_path = Path(str(source_path)).relative_to(paths.root).as_posix()
+    except ValueError:
+        _rel_path = str(source_path)
+
     body = (
         f"## 来源\n\n"
         f"- 路径: `{source_path}`\n"
@@ -396,17 +403,23 @@ async def _write_rejected_source_page(
         id=_slug,
         title=_stem[:120],
         type=PageType.SOURCE,
-        sources=[str(source_path)],
+        sources=[_rel_path],
         body=body,
         grade="C",
     )
 
-    with AtomicContext() as ctx:
-        write_page(paths, page, ctx)
-        append_to_index(paths, page, ctx)
-        log_event(paths, "rejected", page.id, {"reason": result.warnings}, ctx)
+    with AtomicContext():
+        write_page(paths, page)
+        append_to_index(paths, [(page.id, page.type, page.title)])
+        log_event(paths, "rejected", page.id, {"reason": result.warnings})
 
-    return [page]
+    # Return tuple for compatibility with generate_ingest return signature
+    meta = {
+        "rejected": True,
+        "quality_score": result.quality_score,
+        "warnings": result.warnings,
+    }
+    return [page], [], meta
 
 
 def _create_source_only_page(
@@ -1022,9 +1035,10 @@ async def generate_ingest(
             page_type=PageType.SOURCE,
             template_version=source_tpl.version or "",
         )
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         # Fallback: hardcoded legacy body (matches the previous
         # behaviour pre-template integration).
+        _logger.error("source.md template missing, using fallback body: %s", e)
         _summary_fb = ""
         if _has_analysis:
             _summary_fb = (analysis.summary or "").strip() or "(无摘要)"
@@ -1044,11 +1058,11 @@ async def generate_ingest(
             f"{_page_count_line_fb}\n"
             f"## 摘要\n\n"
             f"{_summary_fb}\n\n"
+            f"## 关键观点\n\n"
+            f"- (无抽取的要点，详见抽取的概念)\n\n"
             f"## 抽取的概念\n\n"
             f"本次摄取共生成 **{len(pages)}** 个下游页面"
-            f"{('（共 '+ str(len(analysis.suggested_pages)) + ' 个建议页）') if _has_analysis and analysis.suggested_pages else ''}。\n\n"
-            f"## 正文内容\n\n"
-            f"{clean_source_text(source_text)}\n"
+            f"{('（共 '+ str(len(analysis.suggested_pages)) + ' 个建议页）') if _has_analysis and analysis.suggested_pages else ''}。\n"
         )
 
     # Count non-source downstream pages to detect empty extractions.
@@ -1073,7 +1087,7 @@ async def generate_ingest(
             f"已拆分为 {len(_chunks)} 块逐块送 LLM 处理后合并。"
         )
     else:
-        from .generator import MAX_SOURCE_CHARS as _MAX_SOURCE_CHARS
+        from .generator import DEFAULT_MAX_SOURCE_CHARS as _MAX_SOURCE_CHARS
         if len(source_text) > _MAX_SOURCE_CHARS:
             _size_kb = len(source_text) / 1024
             source_body += (
@@ -1430,6 +1444,9 @@ async def commit_ingest(
     pages: list[WikiPage],
     extra_pages: list[WikiPage] | None = None,
     task_id: str = "test",
+    event: str = "ingest",
+    detail: str | None = None,
+    log_task_id: str | None = None,
 ):
     """Phase 2 (NDG split): write pages + index update + log.
 
@@ -1447,11 +1464,12 @@ async def commit_ingest(
             paths,
             [(p.id, p.type, p.title) for p in pages],
         )
+        _detail = detail or f"generated {len(pages)} pages from {Path(str(source_path)).name}"
         log_event(
             paths,
-            event="ingest",
-            task_id=task_id,
-            detail=f"generated {len(pages)} pages from {Path(str(source_path)).name}",
+            event=event,
+            task_id=log_task_id or task_id,
+            detail=_detail,
         )
 
 

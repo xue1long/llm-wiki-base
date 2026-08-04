@@ -16,6 +16,7 @@ from pathlib import Path
 
 from ...events.event_bus import event_bus
 from ...knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
+from ..ports import PipelineContext, StageResult
 
 
 # ---------------------------------------------------------------------------
@@ -64,11 +65,39 @@ class ReviewerStage:
     Phase 4 optionally upgrades to LLM-assisted Reviewer.
     """
 
+    name = "reviewer"
+
     # Permission gate (checked by Kernel before calling ReviewerStage)
     REQUIRED_PERMISSION = "candidate.approve"
 
     def __init__(self):
         self._cache = _ReviewCache()
+
+    async def run(self, ctx: PipelineContext, prev_result) -> StageResult:
+        """Stage protocol: extract candidate from prev_result and review it."""
+        if prev_result is None:
+            return StageResult(success=False, payload={"error": "no prev_result"})
+
+        # Extract candidate from payload (could be KnowledgeCandidate or dict)
+        candidate = None
+        if isinstance(prev_result.payload, KnowledgeCandidate):
+            candidate = prev_result.payload
+        elif isinstance(prev_result.payload, dict) and "candidate" in prev_result.payload:
+            candidate = prev_result.payload["candidate"]
+
+        if candidate is None:
+            return StageResult(
+                success=False,
+                payload={"error": "prev_result.payload is not a KnowledgeCandidate"}
+            )
+
+        project_path = Path(ctx.source_path) if ctx.source_path else Path(ctx.source)
+        result = self.review(candidate, project_path)
+
+        return StageResult(
+            success=(result.status == "validated"),
+            payload={"review_result": result, "candidate": candidate}
+        )
 
     def review(self, candidate: KnowledgeCandidate, project_path: Path) -> ReviewResult:
         """Run 4 rule-based checks and return VALIDATED or REJECTED.

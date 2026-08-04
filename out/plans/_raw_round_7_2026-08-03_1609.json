@@ -1,0 +1,178 @@
+[
+ {
+  "name": "东方玄幻龙生九子之二睚眦.md",
+  "chars": 315,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 345.13803919998463,
+  "call_count": 4,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 16.784
+   },
+   {
+    "stage": "generator",
+    "latency": 48.818
+   },
+   {
+    "stage": "generator",
+    "latency": 25.264
+   },
+   {
+    "stage": "generator",
+    "latency": 127.882
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-3c7f8dc9baeb",
+    "title": "睚眦：龙生九子之二的形象与典故",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "cand-3c7f8dc9baeb",
+    "title": "睚眦：龙生九子之二的形象与典故",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-3c7f8dc9baeb",
+    "title": "睚眦：龙生九子之二的形象与典故",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-3c7f8dc9baeb",
+    "title": "睚眦：龙生九子之二的形象与典故",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--东方玄幻龙生九子之二睚眦-md-f32741a5",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\04 题材专题\\东方玄幻龙生九子之二睚眦.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "龙生九子",
+    "title": "龙生九子",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "睚眦",
+    "title": "睚眦",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "睚眦必报",
+    "title": "睚眦必报",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "必备资料小说人物塑造.md",
+  "chars": 1165,
+  "verdict": "ok",
+  "failed": null,
+  "total_s": 199.00913919997402,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 34.14
+   },
+   {
+    "stage": "generator",
+    "latency": 97.381
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-87f242bec576",
+    "title": "小说人物塑造方法与禁忌",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-87f242bec576",
+    "title": "小说人物塑造方法与禁忌",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--必备资料小说人物塑造-md-add66d07",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\01 新手入门\\必备资料小说人物塑造.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "必备资料11月28号创酷中文网女频现言讲课记录.md",
+  "chars": 16933,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 46.51489730004687,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 22.628
+   },
+   {
+    "stage": "analyzer",
+    "latency": 23.848
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--必备资料-11-月-28-号创酷中文网女频现言讲课记录-md-ff31427d",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\01 新手入门\\必备资料11月28号创酷中文网女频现言讲课记录.md",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ }
+]

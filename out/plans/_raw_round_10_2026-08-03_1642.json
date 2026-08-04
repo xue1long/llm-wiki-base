@@ -1,0 +1,121 @@
+[
+ {
+  "name": "进阶教程武侠小说中的招式1.md",
+  "chars": 809,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 30.719126900075935,
+  "call_count": 1,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 30.703
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-02-进阶技巧--进阶教程武侠小说中的招式-1-md-714f763b",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\02_进阶技巧\\进阶教程武侠小说中的招式1.md",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "信息库3出版片.md",
+  "chars": 1630,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 216.00917679991107,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 19.174
+   },
+   {
+    "stage": "generator",
+    "latency": 26.372
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-05-运营出版--信息库-3-出版片-md-884148ac",
+    "title": "网络小说出版流程与征稿要求",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-05-运营出版--信息库-3-出版片-md-884148ac",
+    "title": "网络小说出版流程与征稿要求",
+    "type": "source",
+    "grade": "B",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-05-运营出版--信息库-3-出版片-md-884148ac",
+    "title": "网络小说出版流程与征稿要求",
+    "type": "source",
+    "grade": "B",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 2
+   }
+  ]
+ },
+ {
+  "name": "入门教程8文笔.md",
+  "chars": 750,
+  "verdict": "ok",
+  "failed": null,
+  "total_s": 56.43875570001546,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 18.823
+   },
+   {
+    "stage": "generator",
+    "latency": 37.495
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-c512e6734e78",
+    "title": "文笔与文采的概念及构成要素",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-c512e6734e78",
+    "title": "文笔与文采的概念及构成要素",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--入门教程-8-文笔-md-a97df6df",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\01 新手入门\\入门教程8文笔.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ }
+]

@@ -21,7 +21,7 @@ ruflo-kb（多 Agent 知识库平台 / Knowledge OS），当前版本 v2.0.0
 5. 混合检索：向量 + 关键词 + RRF 融合（跑在 LanceDB 上）
 6. 受控标签命名空间：10 个中文前缀（题材/功能/角色/事件/情绪/实体/场景阶段/状态/素材/可信度）+ 值域约束
 7. 质量门控 / 治理：Quality Gate / Dedup / Lint / 热度衰减 / NDG Gate
-8. 命令行操作：21 个子命令（python -m src.cli）
+8. 命令行操作：28 个子命令（python -m src.cli；含 wiki-templates / wiki-cleanup-v1-data / wiki-migrate-source-slugs 等）
 
 ■ 可选扩展
 1. HTTP API：`` python -m src.cli serve --host 127.0.0.1 --port 8765 ``（FastAPI + uvicorn）

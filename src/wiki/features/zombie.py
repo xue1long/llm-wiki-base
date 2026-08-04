@@ -1,7 +1,8 @@
 """Zombie page detection — generate staging draft when heat hits 0."""
 from pathlib import Path
-import time
+from datetime import datetime
 from ...lib.write_hooks import safe_write
+from ...utils.timestamp import parse_iso, timestamp_diff_days, now_iso
 
 
 STAGING_DIR = ".index/staging"
@@ -12,9 +13,14 @@ class ZombieDetector:
     def generate_staging_draft(paths, page) -> Path:
         staging_dir = paths.root / STAGING_DIR
         staging_dir.mkdir(parents=True, exist_ok=True)
-        ts = time.strftime("%Y%m%d-%H%M%S")
+        ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
         draft_path = staging_dir / f"{page.id}-{ts}.md"
-        days_unused = (time.time() * 1000 - (page.last_used_at or 0)) / 86400000
+
+        # Calculate days since last use
+        days_unused = 0.0
+        if page.last_used_at:
+            days_unused = timestamp_diff_days(now_iso(), page.last_used_at) or 0.0
+
         content = f"""# Staging: {page.title} (zombie)
 
 - page_id: {page.id}

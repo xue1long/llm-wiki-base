@@ -31,7 +31,7 @@ async def test_rejected_source_page_sources_is_project_relative(tmp_path):
         should_skip_llm=True,
     )
 
-    pages = await ingest._write_rejected_source_page(
+    pages, extra, meta = await ingest._write_rejected_source_page(
         paths=paths,
         source_path=src,
         source_text="junk",

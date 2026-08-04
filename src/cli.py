@@ -64,6 +64,10 @@ from .cli_ext.wiki_polish_cmd import (
     cmd_stubs_list, cmd_stubs_promote, cmd_dedup_auto,
     cmd_lint_cache_clear, cmd_lint,
 )
+from .cli_ext.metrics_cmd import (
+    cmd_metrics_show, cmd_metrics_reset, cmd_metrics_export, cmd_metrics_cost,
+    cmd_token_show, cmd_token_by_prompt,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -226,6 +230,16 @@ def main():
     p_mexport.set_defaults(func=cmd_metrics_export)
     p_mcost = p_metrics_sub.add_parser("cost")
     p_mcost.set_defaults(func=cmd_metrics_cost)
+
+    # Token metrics subcommands
+    p_token = p_metrics_sub.add_parser("token", help="Token usage metrics")
+    p_token_sub = p_token.add_subparsers(dest="token_command")
+    p_token_show = p_token_sub.add_parser("show", help="Show token usage summary")
+    p_token_show.add_argument("--project", "-p", help="Project ID")
+    p_token_show.set_defaults(func=cmd_token_show)
+    p_token_by_prompt = p_token_sub.add_parser("by-prompt", help="Show token usage by prompt type")
+    p_token_by_prompt.add_argument("--project", "-p", help="Project ID")
+    p_token_by_prompt.set_defaults(func=cmd_token_by_prompt)
 
     # LLM providers
     p_llm = subparsers.add_parser("llm-providers", help="Manage LLM providers")

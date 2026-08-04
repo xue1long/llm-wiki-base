@@ -1,0 +1,156 @@
+[
+ {
+  "name": "新人须知15顺眼谈文章的画面感.md",
+  "chars": 1293,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 310.805537700071,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 41.901
+   },
+   {
+    "stage": "generator",
+    "latency": 96.077
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--新人须知-15-顺眼谈文章的画面感-md-352b5e5f",
+    "title": "顺眼——谈文章的画面感",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--新人须知-15-顺眼谈文章的画面感-md-352b5e5f",
+    "title": "顺眼——谈文章的画面感",
+    "type": "source",
+    "grade": "B",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--新人须知-15-顺眼谈文章的画面感-md-352b5e5f",
+    "title": "顺眼——谈文章的画面感",
+    "type": "source",
+    "grade": "B",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--新人须知-15-顺眼谈文章的画面感-md-352b5e5f",
+    "title": "顺眼——谈文章的画面感",
+    "type": "source",
+    "grade": "B",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "网络文学",
+    "title": "网络文学",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "画面感",
+    "title": "画面感",
+    "type": "entity",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "武侠洪荒武林秘籍.md",
+  "chars": 1393,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 320.6473742999369,
+  "call_count": 3,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 43.801
+   },
+   {
+    "stage": "analyzer",
+    "latency": 30.641
+   },
+   {
+    "stage": "generator",
+    "latency": 56.284
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--武侠洪荒武林秘籍-md-900fe3d8",
+    "title": "武侠小说武林秘籍大揭秘",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--武侠洪荒武林秘籍-md-900fe3d8",
+    "title": "武侠小说武林秘籍大揭秘",
+    "type": "source",
+    "grade": "B",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 2
+   }
+  ]
+ },
+ {
+  "name": "方法论教你如何开始写一本小说从项目管理漫谈小说写作.md",
+  "chars": 1709,
+  "verdict": "ok",
+  "failed": null,
+  "total_s": 151.48445059999358,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 48.393
+   },
+   {
+    "stage": "generator",
+    "latency": 102.951
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-9002d564c708",
+    "title": "用软件项目管理方法写小说的六阶段流程",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-02-进阶技巧--方法论教你如何开始写一本小说从项目管理漫谈小说写作-md-11e7972a",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\02 进阶技巧\\方法论教你如何开始写一本小说从项目管理漫谈小说写作.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ }
+]

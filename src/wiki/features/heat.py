@@ -1,8 +1,9 @@
 """Heat decay tracker for wiki pages."""
 import json
-import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from ...utils.timestamp import now_iso, parse_iso, timestamp_diff_days
 
 if TYPE_CHECKING:
     from ..core.types import WikiPage
@@ -27,7 +28,7 @@ class HeatEvent:
     page_id: str
     delta: int
     reason: str          # "ai_retrieval" | "decay" | "manual"
-    at: int              # unix ms
+    at: str              # ISO 8601 timestamp
 
 
 class HeatTracker:
@@ -46,7 +47,7 @@ class HeatTracker:
         was_zombie = page.heat == 0 and page.zombie_since is not None
         new_heat = min(100, max(0, page.heat + delta))
         page.heat = new_heat
-        page.last_used_at = int(time.time() * 1000)
+        page.last_used_at = now_iso()
         page.zombie_since = None
         write_page(self.paths, page)
         self._log(page_id, delta, reason)
@@ -59,20 +60,25 @@ class HeatTracker:
         from ..core.types import PageType
         from .zombie import ZombieDetector
         events: list[HeatEvent] = []
-        now = int(time.time() * 1000)
-        threshold = now - HEAT_DECAY_DAYS * 86400 * 1000
+        now_iso_ts = now_iso()
         for page_type, dir_prop in [
             (PageType.SOURCE, "wiki_sources"), (PageType.ENTITY, "wiki_entities"),
             (PageType.CONCEPT, "wiki_concepts"), (PageType.SYNTHESIS, "wiki_synthesis"),
         ]:
             for f in getattr(self.paths, dir_prop).glob("*.md"):
                 page = read_page(f)
-                if page.last_used_at > 0 and page.last_used_at < threshold and page.heat > 0:
+                # Check if last_used_at is older than HEAT_DECAY_DAYS
+                if not page.last_used_at:
+                    continue
+                days_unused = timestamp_diff_days(now_iso_ts, page.last_used_at)
+                if days_unused is None or days_unused < HEAT_DECAY_DAYS:
+                    continue
+                if page.heat > 0:
                     old_heat = page.heat
                     page.heat = max(0, page.heat - HEAT_DECAY_AMOUNT)
-                    events.append(HeatEvent(page.id, page.heat - old_heat, "decay", now))
+                    events.append(HeatEvent(page.id, page.heat - old_heat, "decay", now_iso_ts))
                     if page.heat == 0 and page.zombie_since is None:
-                        page.zombie_since = now
+                        page.zombie_since = now_iso_ts
                         ZombieDetector.generate_staging_draft(self.paths, page)
                         if _decay_bridge is not None:
                             _decay_bridge.on_heat_decayed(page.id, 0, True)
@@ -81,15 +87,15 @@ class HeatTracker:
 
     def _log(self, page_id, delta, reason):
         with open(self.log, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"page_id": page_id, "delta": delta, "reason": reason, "at": int(time.time() * 1000)}) + "\n")
+            f.write(json.dumps({"page_id": page_id, "delta": delta, "reason": reason, "at": now_iso()}) + "\n")
 
 
-def decay(page: "WikiPage", now: int | None = None) -> "WikiPage":
+def decay(page: "WikiPage", now: str | None = None) -> "WikiPage":
     """Pure-function heat decay for a single page.
 
     Short-circuits if ``page.is_immutable`` (zombie-resist flag).
     Threshold is based on ``max(page.created_at, page.last_used_at)`` —
-    treats 0 as missing, so a page with ``last_used_at == 0`` falls back to
+    treats empty string as missing, so a page with ``last_used_at == ""`` falls back to
     ``created_at`` as its activity baseline.
     """
     # Zombie-resist: immutable pages never decay.
@@ -97,12 +103,15 @@ def decay(page: "WikiPage", now: int | None = None) -> "WikiPage":
         return page
 
     if now is None:
-        now = int(time.time() * 1000)
+        now = now_iso()
 
-    threshold = now - HEAT_DECAY_DAYS * 86400 * 1000
-    # Treat 0 as missing: use created_at as fallback when last_used_at==0.
-    last_activity = max(page.created_at, page.last_used_at)
-    if last_activity > 0 and last_activity < threshold and page.heat > 0:
+    # Get last activity timestamp (prefer last_used_at, fallback to created_at)
+    last_activity = page.last_used_at or page.created_at
+    if not last_activity:
+        return page
+
+    days_unused = timestamp_diff_days(now, last_activity)
+    if days_unused is not None and days_unused >= HEAT_DECAY_DAYS and page.heat > 0:
         page.heat = max(0, page.heat - HEAT_DECAY_AMOUNT)
         if page.heat == 0 and page.zombie_since is None:
             page.zombie_since = now

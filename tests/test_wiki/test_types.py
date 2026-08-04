@@ -67,5 +67,5 @@ def test_knowledge_task_defaults():
 def test_wiki_page_defaults():
     p = WikiPage(id="x", title="X", type=PageType.SOURCE)
     assert p.sources == []
-    assert p.created_at == 0
+    assert p.created_at == ""  # Changed from int to ISO 8601 string
     assert p.body == ""

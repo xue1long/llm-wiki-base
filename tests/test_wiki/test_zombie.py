@@ -10,20 +10,22 @@ def test_zombie_detected_at_zero_heat(tmp_path):
     """ZombieDetector lists pages with zombie_since set."""
     ensure_knowledge_base(tmp_path)
     paths = WikiPaths(tmp_path)
-    write_page(paths, WikiPage(id="z1", title="Z", type=PageType.ENTITY, body="", zombie_since=12345))
+    # zombie_since is now ISO 8601 string
+    zombie_ts = "2024-01-01T12:34:56Z"
+    write_page(paths, WikiPage(id="z1", title="Z", type=PageType.ENTITY, body="", zombie_since=zombie_ts))
     write_page(paths, WikiPage(id="alive", title="A", type=PageType.ENTITY, body="", zombie_since=None))
 
     zombies = ZombieDetector.list_zombies(paths)
     assert len(zombies) == 1
     assert zombies[0]["id"] == "z1"
-    assert zombies[0]["zombie_since"] == 12345
+    assert zombies[0]["zombie_since"] == zombie_ts
 
 
 def test_generate_staging_draft(tmp_path):
     """generate_staging_draft creates a .index/staging/ file."""
     ensure_knowledge_base(tmp_path)
     paths = WikiPaths(tmp_path)
-    page = WikiPage(id="z1", title="Zombie", type=PageType.ENTITY, body="...", heat=0, last_used_at=0)
+    page = WikiPage(id="z1", title="Zombie", type=PageType.ENTITY, body="...", heat=0, last_used_at="")
 
     draft_path = ZombieDetector.generate_staging_draft(paths, page)
     assert draft_path.exists()

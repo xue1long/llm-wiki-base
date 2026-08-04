@@ -375,8 +375,8 @@ async def test_generator_prompt_directs_ugc_tagging(tmp_path):
     assert "可信度/ugc" in prompt, (
         "GENERATOR_PROMPT must include 可信度/ugc via TAG_NAMESPACE_RULES"
     )
-    assert "Mandatory tags" in prompt, (
-        "GENERATOR_PROMPT must include Mandatory tags section from build_tag_prompt_section"
+    assert "Tag namespace rules" in prompt, (
+        "GENERATOR_PROMPT must include Tag namespace rules section"
     )
 
 

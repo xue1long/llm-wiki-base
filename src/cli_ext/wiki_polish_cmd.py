@@ -72,6 +72,11 @@ def cmd_lint(args):
     print(f"Found {len(report.issues)} issues")
     for issue in report.issues:
         print(f"  [{issue.severity.value}] {issue.code}: {issue.message}")
+
+    # Write lint cache for quality feedback queries
+    from ..wiki.features.lint import write_lint_cache
+    write_lint_cache(paths, report)
+
     if ttl > 0:
         cache_put(key, [{"code": i.code, "severity": i.severity.value, "message": i.message} for i in report.issues], cache_dir, ttl=ttl)
 

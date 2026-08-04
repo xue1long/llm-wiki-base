@@ -191,8 +191,8 @@ async def test_run_ingest_hard_reject_writes_rejected_log(tmp_path: Path, monkey
     assert pages[0].type == PageType.SOURCE
 
     # No disk writes yet (generate_ingest contract).
-    # Commit explicitly.
-    await commit_ingest(paths, raw, pages, extra, task_id="t-rej")
+    # Commit explicitly with rejected event.
+    await commit_ingest(paths, raw, pages, extra, task_id="t-rej", event="rejected")
 
     # Page + index + rejected log exist
     assert list(paths.wiki_sources.glob("*.md"))

@@ -1,9 +1,18 @@
 # ruflo-kb/src/utils/similarity.py
 import math
 
+
 def cosine_similarity(a: list[float], b: list[float]) -> float:
-    """计算两个向量的余弦相似度"""
-    if len(a) != len(b):
+    """计算两个向量的余弦相似度
+
+    Args:
+        a: 第一个向量
+        b: 第二个向量
+
+    Returns:
+        余弦相似度，范围 [0.0, 1.0]。如果向量长度不同或为空，返回 0.0。
+    """
+    if not a or not b or len(a) != len(b):
         return 0.0
 
     dot_product = sum(x * y for x, y in zip(a, b))

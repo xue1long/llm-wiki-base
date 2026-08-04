@@ -29,6 +29,27 @@ _TYPE_TO_DIR: dict[PageType, str] = {
     PageType.EVENT: "wiki_concepts",
 }
 
+# Extended types are defined but not yet supported for generation
+_UNSUPPORTED_TYPES = {
+    PageType.CLAIM,
+    PageType.DECISION,
+    PageType.PROCEDURE,
+    PageType.EVENT,
+}
+
+
+def validate_page_type_supported(page_type: PageType) -> None:
+    """Check if page type is supported for generation.
+
+    Raises:
+        NotImplementedError: If type is defined but not yet supported.
+    """
+    if page_type in _UNSUPPORTED_TYPES:
+        raise NotImplementedError(
+            f"PageType.{page_type.name} is defined but not yet supported for generation. "
+            f"Supported types: SOURCE, ENTITY, CONCEPT, SYNTHESIS"
+        )
+
 
 class EventName:
     TASK_CREATED = "task:created"
@@ -56,8 +77,8 @@ class WikiPage:
     title: str
     type: PageType
     sources: list[str] = field(default_factory=list)
-    created_at: int = 0
-    updated_at: int = 0
+    created_at: str = ""  # ISO 8601 format: "2024-08-04T10:30:00Z"
+    updated_at: str = ""  # ISO 8601 format
     body: str = ""
     relations: list["Relation"] = field(default_factory=list)
     # NEW v2.2 fields
@@ -66,8 +87,8 @@ class WikiPage:
     is_immutable: bool = False
     # NEW heat fields (wiki-heat-5pool T1)
     heat: int = 50
-    last_used_at: int = 0
-    zombie_since: int | None = None
+    last_used_at: str = ""  # ISO 8601 format
+    zombie_since: str | None = None  # ISO 8601 format
     # Tags: controlled namespace prefixes (e.g. 角色/女主角, 题材/都市)
     tags: list[str] = field(default_factory=list)
     # Taxonomy (v3.1): LLM-assigned classification, "" = unclassified
@@ -104,21 +125,29 @@ class WikiPage:
     @classmethod
     def from_dict(cls, d: dict, body: str = "") -> "WikiPage":
         from ..features.relations import Relation
+        from ...utils.timestamp import unix_ms_to_iso
+
+        # Helper to convert int timestamps to ISO 8601 (backward compat)
+        def _to_iso(val):
+            if isinstance(val, int):
+                return unix_ms_to_iso(val)
+            return val or ""
+
         return cls(
             id=d["id"],
             title=d["title"],
             type=PageType(d["type"]),
             sources=list(d.get("sources", [])),
-            created_at=d.get("created_at", 0),
-            updated_at=d.get("updated_at", 0),
+            created_at=_to_iso(d.get("created_at", "")),
+            updated_at=_to_iso(d.get("updated_at", "")),
             body=body,
             relations=[Relation.from_dict(r) for r in d.get("relations", []) if isinstance(r, dict)],
             grade=d.get("grade", "B"),
             processing_depth=d.get("processing_depth", "concept"),
             is_immutable=d.get("is_immutable", False),
             heat=d.get("heat", 50),
-            last_used_at=d.get("last_used_at", 0),
-            zombie_since=d.get("zombie_since"),
+            last_used_at=_to_iso(d.get("last_used_at", "")),
+            zombie_since=_to_iso(d.get("zombie_since")),
             tags=list(d.get("tags", [])),
             category=d.get("category", ""),
             taxonomy_sub=d.get("taxonomy_sub", ""),

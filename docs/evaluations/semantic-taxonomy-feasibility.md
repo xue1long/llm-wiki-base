@@ -41,9 +41,9 @@
 
 - 当前 `TAG_PREFIXES` 已经是 **10 个中文前缀**：`题材/功能/角色/事件/情绪/实体/场景阶段/状态/素材/可信度`（不是我上次误判的 8 个英文前缀）。
 - **值域约束 `TAG_VALUES` 已经存在**：`题材` 限定 12 个值、`情绪` 8 个、`场景阶段` 8 个、`状态` 6 个、`素材` 5 个、`可信度` 6 个……并配有 `is_valid_value()` / `validate_tag_values()`。
-- `MANDATORY_PAIRS` 已存在，但**当前为空 `[]`**；UGC 强制标签（`素材/ugc`+`可信度/ugc`）是**硬编码在 analyzer/generator 提示词**里，并非走配置。
+- `MANDATORY_PAIRS` 已存在且**已配置 2 个配对 `[("素材","ugc"),("可信度","ugc")]`**（:49-52，非空）；UGC 强制标签经 `build_tag_prompt_section()`（:163）**配置驱动**注入提示词，并非硬编码。仅"前缀说明文案"在提示词中重复出现（技术债务 #11 范畴）。
 
-**评估：** STS 的"受控词汇 + 规则引擎"目标，**机制层已经具备 80%**（前缀、值域、配对三件套都在）。缺口只是"值域未强制接线 + 配对未配置化"。这与我早先标签评估报告里的 P0/P3 建议完全重合——**STS 不必重建这些，只需把已有的接上线**。
+**评估：** STS 的"受控词汇 + 规则引擎"目标，**机制层已经具备 80%**（前缀、值域、配对三件套都在）。缺口只是"值域强制覆盖不全（新建页面已接线、更新路径跳过）+ 自由前缀未约束"——配对早已配置化。这与我早先标签评估报告里的 P0 建议方向重合（但 P0 实为"补全覆盖"而非"从零接线"）——**STS 不必重建这些，只需把已有的补全覆盖**。
 
 ### 2.2 存储层 —— 方案的最大假设风险
 
@@ -98,7 +98,7 @@
 | §7 自生长机制 | 🟡 | 流程清晰，但 Similarity Check 误合并风险高（见 §4.2） |
 | §8 tag_candidates | ✅ | 复用 KnowledgeCandidate 模式 |
 | §9 自动合并(alias) | 🟡 | 需保守阈值 + 人工兜底，否则污染分类 |
-| §10 规则引擎替 MANDATORY_PAIRS | ✅ | 但 MANDATORY_PAIRS 当前已存在（空），应配置化而非"替代" |
+| §10 规则引擎替 MANDATORY_PAIRS | ✅ | 但 MANDATORY_PAIRS 当前已存在且已配置 2 个配对、经 `build_tag_prompt_section` 配置驱动；STS 规则引擎应"扩展"而非"从零替代" |
 | §11 与 KO 集成 | 🟡 | **KnowledgeObject 当前没有 `tags` 字段**（实测 grep 无结果），需先给 KO 加 taxonomy 字段 |
 | §12 检索用法 | ✅ | 高价值，补当前缺口 |
 | §13 持久化存储 | 🟡 | PG 不应强制；用现有 file/JSONL/LanceDB 即可 |
@@ -146,7 +146,7 @@
 
 1. `tag_namespace.py` 的 `TAG_PREFIXES` **确实是 10 个中文前缀**（题材/功能/角色/事件/情绪/实体/场景阶段/状态/素材/可信度）。原 `tag-namespace-evaluation.md` 和 `ARCHITECTURE.md §14` 的"10 中文前缀"描述**是正确的**。
 2. 那 8 个英文前缀（`genre/func/char/event/mood/entity/scene_phase/status`）只出现在 `generator.py:79` 的 `_ID_TAG_NS` 里，用途是**从生成正文里抽取实体引用标签以修复 wikilink**，与受控命名空间是两回事。主提示词的 tag guidance 用的仍是中文前缀，与校验器一致。
-3. **更关键的更正**：我早先标签评估报告把"无值域约束"列为 🔴 P0——**不准确**。值域约束 `TAG_VALUES` 早已实现，真正的问题是**它没有被接线强制**（只在提示词里软约束，写入时不校验）。应改为"P0 值域约束未强制接线"。
+3. **更关键的更正**：我早先标签评估报告把"无值域约束"列为 🔴 P0——**不准确**。值域约束 `TAG_VALUES` 早已实现，且新建页面已**接线强制**（`page_writer.py:74` 调 `validate_tag_compliance`，内部执行 `validate_tag_values` + 强制配对）。真实问题是**覆盖不全**（更新既有页面时跳过、Generator 内部只按前缀静默过滤）。应改为"P0 值域约束写入强制覆盖不全"。
 
 以上三处偏差不影响 STS 评估方向，但影响对"现状缺口"的判断：STS 要补的其实比我想的更少。
 
@@ -156,7 +156,7 @@
 
 | 阶段 | 内容 | 复用现有 | 工期 |
 |------|------|----------|------|
-| **T0 接线** | 把 `TAG_VALUES` 的 `validate_tag_values()` 接入摄取写入；配置化 `MANDATORY_PAIRS`（UGC 配对从提示词移到配置） | tag_namespace.py 已有 | 1-2 天 |
+| **T0 补全覆盖** | 值域强制已接线（新建页面 `page_writer.py:74` → `validate_tag_compliance`），本步改为：把 `validate_tag_compliance` 也覆盖到既有页面更新路径 + 自由前缀归一化；确认 `MANDATORY_PAIRS`（素材/ugc + 可信度/ugc）经 `build_tag_prompt_section` 已覆盖全部摄取提示词 | tag_namespace.py 已有 | 1-2 天 |
 | **T1 Tag store** | 在 `storage/facade` 上加 `tag_entities`/`tag_relations`/`tag_candidates` 模块（file/JSONL 默认，PG 可选）；KO 加 `tags: list[TagReference]` | storage 门面、KnowledgeObject | 3-4 天 |
 | **T2 自生长** | Taxonomy Agent：发现新概念→candidate→相似度检查→审核→approved；复用 `candidate.py`/`lifecycle.py`/`conflicts/detector.py` | candidate/lifecycle/conflicts | 3-5 天 |
 | **T3 图与检索** | 扩展 `GraphBuilder` 加 taxonomy 节点/边；检索加 `taxonomy_filters` + Graph Expansion | graph/builder、HybridSearch | 3-4 天 |
@@ -171,7 +171,7 @@
 1. **接受方向，但重新措辞**：把方案标题从"设计一个语义分类系统"改为"把已有标签/图/记忆/溯源子包整合为可生长的分类生态"——更准确，也更低风险。
 2. **PG 降级为可选**：默认用现有 file/JSONL/LanceDB 实现 tag store，PG 仅作大规scale 时的可选后端（代码已预留）。
 3. **复用优先**：Candidate/Lifecycle/GraphBuilder/Conflicts/Memory/Provenance 全部已有种子，STS 应"接线 + 扩展"，不做平行重建。
-4. **先修已知缺口**：T0（值域强制 + 配对配置化）几乎零成本，却能让当前标签系统立即达标，建议在启动 STS 前就做。
+4. **先修已知缺口**：T0（补全值域强制覆盖——更新路径 + 自由前缀归一化；配对早已配置化无需再做）几乎零成本，却能让当前标签系统立即达标，建议在启动 STS 前就做。
 5. **检索集成优先**：`taxonomy_filters` 投入产出比最高，建议作为 STS 第一个交付物。
 
 ---

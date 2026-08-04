@@ -1,0 +1,124 @@
+[
+ {
+  "name": "进阶教程小说怎么写大纲.md",
+  "chars": 1459,
+  "verdict": "ok",
+  "failed": null,
+  "total_s": 86.1819379000226,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 55.216
+   },
+   {
+    "stage": "generator",
+    "latency": 30.907
+   }
+  ],
+  "pages": [
+   {
+    "id": "cand-3b1bae554b4d",
+    "title": "网络小说大纲写作方法",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "cand-3b1bae554b4d",
+    "title": "网络小说大纲写作方法",
+    "type": "concept",
+    "grade": "B",
+    "depth": "concept",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-02-进阶技巧--进阶教程小说怎么写大纲-md-fc4be2b6",
+    "title": "D:\\5-Project\\LLM-Wiki-7-31\\LLM-Wiki\\knowledge\\novel-wiki\\raw\\sources\\02 进阶技巧\\进阶教程小说怎么写大纲.md",
+    "type": "source",
+    "grade": "A",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 0
+   }
+  ]
+ },
+ {
+  "name": "进阶教程大纲详细写法2.md",
+  "chars": 5346,
+  "verdict": "crashed",
+  "failed": "TagValidationError: invalid tag values: ['场景阶段/大纲']",
+  "total_s": 91.26897139998619,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 30.606
+   },
+   {
+    "stage": "generator",
+    "latency": 60.663
+   }
+  ],
+  "pages": []
+ },
+ {
+  "name": "入门教程打斗核心要素与如何扩大女性读者群体.md",
+  "chars": 4542,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 57.934103499981575,
+  "call_count": 2,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 28.358
+   },
+   {
+    "stage": "generator",
+    "latency": 29.491
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--入门教程打斗核心要素与如何扩大女性读者群体-md-0cceea2d",
+    "title": "打斗核心要素与扩大女性读者群体",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--入门教程打斗核心要素与如何扩大女性读者群体-md-0cceea2d",
+    "title": "打斗核心要素与扩大女性读者群体",
+    "type": "source",
+    "grade": "B",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--入门教程打斗核心要素与如何扩大女性读者群体-md-0cceea2d",
+    "title": "打斗核心要素与扩大女性读者群体",
+    "type": "source",
+    "grade": "B",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--入门教程打斗核心要素与如何扩大女性读者群体-md-0cceea2d",
+    "title": "打斗核心要素与扩大女性读者群体",
+    "type": "source",
+    "grade": "B",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 2
+   }
+  ]
+ }
+]

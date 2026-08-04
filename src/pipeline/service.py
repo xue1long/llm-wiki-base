@@ -10,8 +10,10 @@ Public methods:
   the dispatcher when an EventBus "collector:start" event fires
 """
 from __future__ import annotations
+
 import asyncio
 import logging
+import os
 from typing import Sequence
 
 from ..queue.service import get_default_queue_service
@@ -33,6 +35,10 @@ _logger = logging.getLogger(__name__)
 # particular degrades under load (>3 concurrent calls).  Bump once the
 # default provider supports higher concurrency.
 DEFAULT_MAX_CONCURRENCY = 6
+
+# Rollback switch: when false (default), use legacy pipeline path.
+# When true, use the new stage-scheduler path.
+USE_STAGE_SCHEDULER = os.environ.get("RUFLO_USE_STAGE_SCHEDULER", "false").lower() == "true"
 
 
 class PipelineService:
@@ -99,10 +105,16 @@ class PipelineService:
         # unexpected exception (e.g. PermissionDenied on a mis-prefixed path).
         # Without this, a stuck in-flight marker blocks the queue permanently.
         try:
+            # Late import: resolve paths/provider before ctx construction
+            import src.pipeline.pipeline as _pipeline_mod
+            from pathlib import Path as _Path
+            paths = _pipeline_mod._resolve_wiki_paths(project_id=project_id)
+            provider = _pipeline_mod._get_provider(project_id=project_id)
+
             # Step 1: Collector (read source)
             ctx = PipelineContext(
                 task_id=task_id, source=source, source_type=source_type,
-                project_id=project_id,
+                project_id=project_id, paths=paths, provider=provider,
             )
             for stage in self._stages[:1]:  # only CollectorStage
                 result = await stage.run(ctx, prev_result=None)
@@ -114,25 +126,22 @@ class PipelineService:
                     return
                 ctx.collector_result = result.payload
 
-            # Step 2: Run the full ingest (analyze + generate + source page + atomic write)
-            # This is the IO-heavy path from src/pipeline/pipeline.py:_on_collector_done
-            # Late import: src.pipeline.pipeline may not be in sys.modules
-            # yet at module-load time (the compat shim registration happens
-            # during __init__.py). At call time, the shim is in place.
-            import src.pipeline.pipeline as _pipeline_mod
-            from pathlib import Path as _Path
-            paths = _pipeline_mod._resolve_wiki_paths(project_id=project_id)
-            provider = _pipeline_mod._get_provider(project_id=project_id)
-            # raw_path is a str (CollectorDonePayload.raw_path). Wrap
-            # in Path so run_ingest can call .suffix / .name on it.
-            await _pipeline_mod.run_ingest(
-                paths=paths,
-                source_path=_Path(ctx.collector_result.raw_path),
-                source_text=ctx.collector_result.content,
-                provider=provider,
-                folder_context=folder_context or "",
-                task_id=task_id,
-            )
+            # Choose pipeline path based on rollback switch
+            if USE_STAGE_SCHEDULER:
+                # New path: run full stage chain (Analyzer → Reviewer → Promoter → Generator → Committer)
+                await self._run_stage_chain(ctx, folder_context)
+            else:
+                # Legacy path: run_ingest (analyze + generate + source page + atomic write)
+                # raw_path is a str (CollectorDonePayload.raw_path). Wrap
+                # in Path so run_ingest can call .suffix / .name on it.
+                await _pipeline_mod.run_ingest(
+                    paths=paths,
+                    source_path=_Path(ctx.collector_result.raw_path),
+                    source_text=ctx.collector_result.content,
+                    provider=provider,
+                    folder_context=folder_context or "",
+                    task_id=task_id,
+                )
             self.queue_service.update_status(task_id, status=TaskStatus.APPROVED)
         except Exception as exc:
             _logger.exception("ingest failed for %s", task_id)
@@ -149,6 +158,28 @@ class PipelineService:
                 self.queue_service.release_in_flight(task_id)
             except Exception:
                 _logger.exception("failed to release_in_flight %s", task_id)
+
+    async def _run_stage_chain(self, ctx: PipelineContext, folder_context: str | None = None) -> None:
+        """Run the full stage chain: Analyzer → Reviewer → Promoter → Generator → Committer."""
+        from .stages import AnalyzerStage, ReviewerStage, CandidatePromoter, GeneratorStage, CommitStage
+
+        ctx.folder_context = folder_context or ""
+        ctx.source_path = ctx.collector_result.raw_path
+
+        stages = [
+            AnalyzerStage(),
+            ReviewerStage(),
+            CandidatePromoter(),
+            GeneratorStage(),
+            CommitStage(),
+        ]
+
+        prev_result = ctx.collector_result  # Start with CollectorDonePayload
+        for stage in stages:
+            result = await stage.run(ctx, prev_result)
+            if not result.success:
+                raise RuntimeError(f"Stage {stage.name} failed: {result.payload}")
+            prev_result = result
 
 
 # --- module-level default singleton ---

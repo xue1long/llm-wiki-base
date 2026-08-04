@@ -13,6 +13,20 @@ from .object import (
     VersionRef,
 )
 from src.wiki.core.types import WikiPage, PageType
+from src.utils.timestamp import iso_to_unix_ms, unix_ms_to_iso
+
+
+# ---------------------------------------------------------------------------
+# Timestamp conversion helpers
+# ---------------------------------------------------------------------------
+
+def _iso_to_int(ts: str) -> int:
+    """Convert ISO 8601 string to Unix milliseconds (for KnowledgeObject)."""
+    return iso_to_unix_ms(ts)
+
+def _int_to_iso(ts: int) -> str:
+    """Convert Unix milliseconds to ISO 8601 string (for WikiPage)."""
+    return unix_ms_to_iso(ts)
 
 
 # ---------------------------------------------------------------------------
@@ -125,8 +139,8 @@ def wiki_page_to_knowledge_object(page: WikiPage) -> KnowledgeObject:
         heat=page.heat,
         relations=list(page.relations),
         versions=versions,
-        created_at=page.created_at,
-        updated_at=page.updated_at,
+        created_at=_iso_to_int(page.created_at),
+        updated_at=_iso_to_int(page.updated_at),
     )
 
     # Augment _ko_extra with WP-only fields so the reverse conversion can
@@ -134,8 +148,8 @@ def wiki_page_to_knowledge_object(page: WikiPage) -> KnowledgeObject:
     ko_extra["sources"] = list(page.sources)
     ko_extra["processing_depth"] = page.processing_depth
     ko_extra["is_immutable"] = page.is_immutable
-    ko_extra["last_used_at"] = page.last_used_at
-    ko_extra["zombie_since"] = page.zombie_since
+    ko_extra["last_used_at"] = page.last_used_at  # Keep as ISO string
+    ko_extra["zombie_since"] = page.zombie_since  # Keep as ISO string
     ko_extra["tags"] = list(page.tags)
     ko_extra["category"] = page.category
     ko_extra["taxonomy_sub"] = page.taxonomy_sub
@@ -173,8 +187,8 @@ def knowledge_object_to_wiki_page(obj: KnowledgeObject) -> WikiPage:
         new_extra["sources"].append(obj.provenance.source_path)
     new_extra["processing_depth"] = ko_extra.get("processing_depth", "concept")
     new_extra["is_immutable"] = bool(ko_extra.get("is_immutable", False))
-    new_extra["last_used_at"] = int(ko_extra.get("last_used_at", 0))
-    new_extra["zombie_since"] = ko_extra.get("zombie_since")
+    new_extra["last_used_at"] = ko_extra.get("last_used_at", "")  # Keep as ISO string
+    new_extra["zombie_since"] = ko_extra.get("zombie_since")  # Keep as ISO string
     new_extra["tags"] = list(ko_extra.get("tags", []))
     new_extra["category"] = ko_extra.get("category", "")
     new_extra["taxonomy_sub"] = ko_extra.get("taxonomy_sub", "")
@@ -185,8 +199,8 @@ def knowledge_object_to_wiki_page(obj: KnowledgeObject) -> WikiPage:
         title=obj.title,
         type=_KNOWLEDGETYPE_TO_PAGETYPE[obj.type],
         sources=new_extra["sources"],
-        created_at=obj.created_at,
-        updated_at=obj.updated_at,
+        created_at=_int_to_iso(obj.created_at),
+        updated_at=_int_to_iso(obj.updated_at),
         body=obj.content,
         relations=list(obj.relations),
         grade=obj.grade,

@@ -3,8 +3,9 @@ import pytest
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.features.dedup import (
     find_duplicates, find_near_duplicates,
-    _title_similarity, _cosine_similarity,
+    _title_similarity,
 )
+from src.utils.similarity import cosine_similarity
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths
 from src.wiki.storage.page_writer import write_page
@@ -29,21 +30,21 @@ def test_title_similarity_empty():
 
 
 # -----------------------------------------------------------------------
-# _cosine_similarity
+# cosine_similarity
 # -----------------------------------------------------------------------
 
 def test_cosine_identical():
     v = [0.5, 0.5, 0.5, 0.5]
-    assert _cosine_similarity(v, v) == pytest.approx(1.0)
+    assert cosine_similarity(v, v) == pytest.approx(1.0)
 
 def test_cosine_orthogonal():
-    assert _cosine_similarity([1.0, 0.0], [0.0, 1.0]) == pytest.approx(0.0)
+    assert cosine_similarity([1.0, 0.0], [0.0, 1.0]) == pytest.approx(0.0)
 
 def test_cosine_empty():
-    assert _cosine_similarity([], [1.0]) == 0.0
+    assert cosine_similarity([], [1.0]) == 0.0
 
 def test_cosine_different_lengths():
-    assert _cosine_similarity([1.0, 2.0], [1.0]) == 0.0
+    assert cosine_similarity([1.0, 2.0], [1.0]) == 0.0
 
 
 # -----------------------------------------------------------------------

@@ -1,0 +1,118 @@
+[
+ {
+  "name": "东方玄幻洪荒奇禽异兽.md",
+  "chars": 614,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 305.49207120004576,
+  "call_count": 3,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 57.717
+   },
+   {
+    "stage": "generator",
+    "latency": 83.337
+   },
+   {
+    "stage": "generator",
+    "latency": 55.489
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--东方玄幻洪荒奇禽异兽-md-de2b328a",
+    "title": "东方玄幻洪荒奇禽异兽图鉴",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-04-题材专题--东方玄幻洪荒奇禽异兽-md-de2b328a",
+    "title": "东方玄幻洪荒奇禽异兽图鉴",
+    "type": "source",
+    "grade": "B",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 2
+   }
+  ]
+ },
+ {
+  "name": "必备资料第一章小说如何塑造角色1_d36b97.md",
+  "chars": 3650,
+  "verdict": "fallback",
+  "failed": null,
+  "total_s": 264.31342349993065,
+  "call_count": 3,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 51.954
+   },
+   {
+    "stage": "generator",
+    "latency": 94.121
+   },
+   {
+    "stage": "generator",
+    "latency": 51.989
+   }
+  ],
+  "pages": [
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--必备资料第一章小说如何塑造角色-1-d36b97-md-007a83c2",
+    "title": "小说如何塑造角色：长篇小说类型与角色设计方法",
+    "type": "source",
+    "grade": "C",
+    "depth": "stub",
+    "empty_body": false,
+    "placeholder_hits": 0
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--必备资料第一章小说如何塑造角色-1-d36b97-md-007a83c2",
+    "title": "小说如何塑造角色：长篇小说类型与角色设计方法",
+    "type": "source",
+    "grade": "B",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 2
+   },
+   {
+    "id": "d-5-project-llm-wiki-7-31-llm-wiki-knowledge-novel-wiki-raw-sources-01-新手入门--必备资料第一章小说如何塑造角色-1-d36b97-md-007a83c2",
+    "title": "小说如何塑造角色：长篇小说类型与角色设计方法",
+    "type": "source",
+    "grade": "B",
+    "depth": "source",
+    "empty_body": false,
+    "placeholder_hits": 2
+   }
+  ]
+ },
+ {
+  "name": "方法论黑色幽默.md",
+  "chars": 2838,
+  "verdict": "crashed",
+  "failed": "TagValidationError: invalid tag values: ['题材/文学流派']",
+  "total_s": 111.17876759998035,
+  "call_count": 3,
+  "calls": [
+   {
+    "stage": "analyzer",
+    "latency": 42.363
+   },
+   {
+    "stage": "analyzer",
+    "latency": 23.365
+   },
+   {
+    "stage": "generator",
+    "latency": 45.451
+   }
+  ],
+  "pages": []
+ }
+]

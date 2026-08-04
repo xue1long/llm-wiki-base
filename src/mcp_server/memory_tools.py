@@ -324,7 +324,7 @@ def _find_and_update_page(object_id: str, changes: dict):
             page.body = changes["content"]
         if "grade" in changes:
             page.grade = changes["grade"]
-        page.updated_at = int(__import__("time").time() * 1000)
+        page.updated_at = __import__("src.utils.timestamp", fromlist=["now_iso"]).now_iso()
         write_page(_wiki_paths, page)
         return page
     except Exception:

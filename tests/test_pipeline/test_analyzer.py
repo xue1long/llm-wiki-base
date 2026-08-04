@@ -178,11 +178,14 @@ async def test_analyzer_prompt_prohibits_chain_of_thought():
 def test_analyzer_prompt_page_types_derived_from_page_type():
     """ANALYZER_PROMPT's suggested_pages type list must be derived from the
     PageType enum (the 4 page-layer values), not a hardcoded string."""
+    from src.pipeline._prompt_common import build_analyzer_header
+
     page_types = "|".join(
         t.value for t in PageType
         if t in (PageType.SOURCE, PageType.ENTITY, PageType.CONCEPT, PageType.SYNTHESIS)
     )
     rendered = ANALYZER_PROMPT.format(
+        header=build_analyzer_header(),
         source_path="s",
         folder_context="",
         existing_wiki_index="",

@@ -20,6 +20,12 @@ from src.shared.test_helpers import ScriptedLLMProvider
 from src.wiki.core.paths import WikiPaths
 from src.wiki.core.types import PageType
 from src.wiki.storage.ensure import ensure_knowledge_base
+from src.wiki.templates import resolve as real_resolve
+
+
+def _raise_fnf():
+    raise FileNotFoundError("source.md template missing")
+
 
 _FULL_TEXT = "这是完整的原始文档正文内容，绝不应被内嵌到 source 页的蒸馏正文中。" * 10
 
@@ -51,6 +57,10 @@ async def test_source_fallback_omits_fulltext_section(tmp_path: Path, caplog) ->
     no ``## 正文内容`` heading, no raw source text embedded; the summary /
     key_points / extracted_concepts sections are still present; an ERROR is
     logged for the missing template."""
+    import os
+    # Use legacy pipeline mode to test source template fallback
+    os.environ["RUFLO_PIPELINE_MODE"] = "legacy"
+
     ensure_knowledge_base(tmp_path)
     paths = WikiPaths(tmp_path)
     raw = paths.raw_sources / "c4-fallback.md"
@@ -59,25 +69,15 @@ async def test_source_fallback_omits_fulltext_section(tmp_path: Path, caplog) ->
 
     provider = ScriptedLLMProvider([dict(x) for x in _CONCEPT_SCRIPT])
 
-    # `generate_ingest` imports `resolve` inside the function via
-    # `from ..wiki.templates import resolve as resolve_template`, so we patch
-    # the package re-export. The generator uses `list_resolved` (which calls
-    # the *resolver-module* `resolve` directly, unaffected by this patch), so
-    # only the source-template lookup in generate_ingest raises.
-    import src.wiki.templates as templates_mod
-
-    real_resolve = templates_mod.resolve
-
-    def _no_source_template(page_type, project_root):
-        if page_type == PageType.SOURCE:
-            raise FileNotFoundError("source.md template missing")
-        return real_resolve(page_type, project_root)
-
+    # Patch the resolve function in the templates module
+    # ingest.py imports it as: from ..wiki.templates import resolve as resolve_template
     with caplog.at_level(logging.ERROR, logger="src.pipeline.ingest"):
-        with patch.object(
-            templates_mod,
-            "resolve",
-            side_effect=_no_source_template,
+        with patch(
+            "src.wiki.templates.resolve",
+            side_effect=lambda pt, pr: (
+                _raise_fnf() if pt == PageType.SOURCE
+                else real_resolve(pt, pr)
+            ),
         ):
             pages, _extra_pages, _meta = await generate_ingest(
                 paths=paths,
@@ -86,6 +86,9 @@ async def test_source_fallback_omits_fulltext_section(tmp_path: Path, caplog) ->
                 provider=provider,
                 task_id="kb-c4",
             )
+
+    # Restore pipeline mode
+    del os.environ["RUFLO_PIPELINE_MODE"]
 
     source = next(p for p in pages if p.type == PageType.SOURCE)
     # C4: no full-text section, no raw text embedded.
