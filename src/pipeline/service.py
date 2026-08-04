@@ -31,10 +31,11 @@ from .stages import AnalyzerStage, CollectorStage, GeneratorStage
 
 _logger = logging.getLogger(__name__)
 
-# Prevent flooding the LLM API with concurrent requests — MiniMax M3 in
-# particular degrades under load (>3 concurrent calls).  Bump once the
-# default provider supports higher concurrency.
-DEFAULT_MAX_CONCURRENCY = 6
+# Prevent flooding the LLM API with concurrent requests.
+# Default: 6 (safe for most providers).
+# MiniMax users should set RUFLO_LLM_MAX_CONCURRENCY=3
+# OpenAI/Anthropic users can set RUFLO_LLM_MAX_CONCURRENCY=15-20
+DEFAULT_MAX_CONCURRENCY = int(os.environ.get("RUFLO_LLM_MAX_CONCURRENCY", "6"))
 
 # Rollback switch: when false, use legacy pipeline path.
 # When true (default), use the new stage-scheduler path with Candidate/Reviewer/Promoter.
@@ -87,6 +88,45 @@ class PipelineService:
                                               folder_context: str | None = None) -> None:
         """Actual pipeline work — called while the semaphore is held."""
 
+        # Acquire project lock to prevent concurrent ingest on same project
+        from ..queue.distributed_lock import get_project_lock, LockHeldError
+        project_lock = get_project_lock()
+        lock_acquired = False
+
+        try:
+            await project_lock.acquire(project_id or "default")
+            lock_acquired = True
+        except LockHeldError as e:
+            _logger.warning(
+                "[PipelineService] Project %s locked by another process, requeueing task %s",
+                project_id, task_id
+            )
+            # Re-queue the task for later processing
+            # Note: task is still PENDING at this point, so we only update
+            # the error message without changing status (PENDING→PENDING is invalid)
+            try:
+                task = self.queue_service.backend.find(task_id)
+                if task is not None and task.status != TaskStatus.PENDING:
+                    self.queue_service.update_status(
+                        task_id, status=TaskStatus.PENDING,
+                        error=f"Project locked, will retry: {e}",
+                    )
+                # If already PENDING, just release the in-flight marker
+            except Exception:
+                _logger.exception("failed to update task %s for lock error", task_id)
+            finally:
+                try:
+                    self.queue_service.release_in_flight(task_id)
+                except Exception:
+                    _logger.exception("failed to release_in_flight %s", task_id)
+            return
+        except Exception as e:
+            _logger.warning(
+                "[PipelineService] Failed to acquire project lock: %s, proceeding without lock",
+                e
+            )
+            # Proceed without lock (fallback for single-instance deployments)
+
         # Mirror the original pipeline.py behavior: mark RUNNING before
         # touching any IO. PENDING -> APPROVED is an illegal transition
         # under the state machine; PENDING -> RUNNING -> APPROVED is legal.
@@ -98,6 +138,8 @@ class PipelineService:
                 self.queue_service.release_in_flight(task_id)
             except Exception:
                 _logger.exception("failed to release_in_flight %s", task_id)
+            if lock_acquired:
+                await project_lock.release(project_id or "default")
             return
 
         # Wrap the entire pipeline (collector + ingest) in a try/finally so
@@ -158,6 +200,12 @@ class PipelineService:
                 self.queue_service.release_in_flight(task_id)
             except Exception:
                 _logger.exception("failed to release_in_flight %s", task_id)
+            # Release project lock
+            if lock_acquired:
+                try:
+                    await project_lock.release(project_id or "default")
+                except Exception as e:
+                    _logger.warning("failed to release project lock for %s: %s", project_id, e)
 
     async def _run_stage_chain(self, ctx: PipelineContext, folder_context: str | None = None) -> None:
         """Run the full stage chain: Analyzer → Reviewer → Promoter → Generator → Committer."""

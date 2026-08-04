@@ -198,7 +198,28 @@ def create_app() -> FastAPI:
         # Start background cache cleanup task (runs every hour).
         cleanup_task = asyncio.create_task(_periodic_cache_cleanup())
 
+        # Start worker pool for continuous queue processing.
+        # Workers poll the queue and dispatch tasks, eliminating
+        # idle gaps between task completion and the next dispatch.
+        try:
+            from ..queue.worker_pool import get_default_worker_pool
+            worker_pool = get_default_worker_pool()
+            await worker_pool.start()
+            _logger.info("[startup] worker pool started (%d workers)", worker_pool.worker_count)
+        except Exception as e:
+            _logger.warning("[startup] worker pool start failed: %s", e)
+
         yield
+
+        # Stop worker pool on shutdown.
+        try:
+            from ..queue.worker_pool import get_default_worker_pool
+            worker_pool = get_default_worker_pool()
+            if worker_pool.is_running:
+                await worker_pool.stop()
+                _logger.info("[shutdown] worker pool stopped")
+        except Exception as e:
+            _logger.warning("[shutdown] worker pool stop failed: %s", e)
 
         # Cancel background cleanup on shutdown.
         cleanup_task.cancel()
