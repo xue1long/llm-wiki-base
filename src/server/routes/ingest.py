@@ -2,12 +2,15 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Union
+import logging
 from ...project.context import ProjectNotFoundError
 from ...services import ingest as ingest_service
 from ...services.ingest import IngestPathError
+from ...lib.validators import validate_source
 from ..ingest_tracker import get_task, list_tasks
 
 router = APIRouter(prefix="/api/v1", tags=["ingest"])
+_logger = logging.getLogger(__name__)
 
 
 class IngestRequest(BaseModel):
@@ -18,7 +21,35 @@ class IngestRequest(BaseModel):
 
 @router.post("/projects/{project_id}/ingest")
 async def ingest(project_id: str, body: IngestRequest):
-    """Enqueue a URL or folder path for ingestion."""
+    """Enqueue a URL or folder path for ingestion.
+
+    Validates input BEFORE enqueuing to fail fast on:
+    - Empty source strings
+    - Path traversal attempts
+    - Null byte injection
+    - Malformed URLs
+    """
+    # Debug: log the raw source to diagnose encoding issues
+    if isinstance(body.source, str):
+        _logger.info("[ingest route] source repr: %r", body.source)
+        _logger.info("[ingest route] source bytes: %s", body.source.encode('utf-8').hex())
+
+    # Resolve project first (to get project_root for validation)
+    try:
+        from ...lib.project import resolve_project
+        ctx, paths = resolve_project(project_id, by_id_only=True)
+        project_root = paths.root
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))
+
+    # Validate source string (fail fast)
+    if isinstance(body.source, str):
+        try:
+            validate_source(body.source, project_root)
+        except ValueError as e:
+            raise HTTPException(400, f"Invalid source: {e}")
+
+    # Enqueue
     try:
         return ingest_service.enqueue_source(project_id, body.source, body.folderContext, count=body.count)
     except ProjectNotFoundError as e:

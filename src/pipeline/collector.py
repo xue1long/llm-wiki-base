@@ -98,6 +98,52 @@ def _cjk_ideograph_density(text: str) -> float:
     total = len(text)
     if total == 0:
         return 0.0
+    cjk_count = sum(1 for c in text if '一' <= c <= '鿿')
+    return cjk_count / total
+
+
+def _try_repair_source_path(path: str) -> str | None:
+    """Try to repair encoding-corrupted file paths from HTTP API clients.
+
+    Windows PowerShell clients often corrupt CJK paths by mis-encoding them.
+    This function attempts common recovery strategies.
+    """
+    if not path:
+        return None
+
+    # Strategy 1: Latin-1 -> UTF-8 (Windows/PowerShell common corruption)
+    try:
+        recovered = path.encode("latin-1").decode("utf-8")
+        # Verify improvement: more CJK chars or fewer corruption markers
+        cjk_before = sum(1 for c in path if '一' <= c <= '鿿')
+        cjk_after = sum(1 for c in recovered if '一' <= c <= '鿿')
+        if cjk_after > cjk_before:
+            return recovered
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        pass
+
+    # Strategy 2: Latin-1 -> GBK (another common corruption pattern)
+    try:
+        recovered = path.encode("latin-1").decode("gbk")
+        cjk_before = sum(1 for c in path if '一' <= c <= '鿿')
+        cjk_after = sum(1 for c in recovered if '一' <= c <= '鿿')
+        if cjk_after > cjk_before:
+            return recovered
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        pass
+
+    # Strategy 3: UTF-8 double encoding recovery
+    try:
+        # Sometimes path is UTF-8 bytes interpreted as Latin-1 then re-encoded
+        recovered = path.encode("latin-1").decode("utf-8").encode("utf-8").decode("utf-8")
+        cjk_before = sum(1 for c in path if '一' <= c <= '鿿')
+        cjk_after = sum(1 for c in recovered if '一' <= c <= '鿿')
+        if cjk_after > cjk_before and '????' not in recovered and '' not in recovered:
+            return recovered
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        pass
+
+    return None
     return sum(1 for c in text if '一' <= c <= '鿿') / total
 
 
@@ -205,8 +251,16 @@ def _resolve_project_file(source: str, project_id: str | None) -> Path | None:
 
     project_root = str(entry.path)
     candidate = os.path.abspath(os.path.join(project_root, source))
-    if os.path.exists(candidate):
-        return Path(candidate)
+
+    # Use glob to handle Windows encoding issues where os.path.exists may fail
+    # on paths with CJK characters due to console/process encoding mismatch.
+    # This is a workaround for Python 3.14 + Windows path encoding issues.
+    import glob
+    pattern = candidate.replace("[", "[[]").replace("]", "[]]")
+    matches = glob.glob(pattern)
+    if matches:
+        return Path(matches[0])
+
     return None
 
 
@@ -256,16 +310,25 @@ async def collect(
         # Detect encoding corruption: if the path contains 4+ consecutive
         # question marks or the Unicode replacement character (U+FFFD),
         # the CJK characters were corrupted somewhere upstream (e.g.
-        # non-UTF-8 terminal encoding). Fail fast instead of attempting
-        # a doomed file read and wasting retries.
+        # non-UTF-8 terminal encoding). Try to repair before failing.
         _corruption_markers = ("????", "�")
         for _marker in _corruption_markers:
             if _marker in source_decoded:
-                raise ValueError(
-                    f"Source path appears to have encoding corruption "
-                    f"(found {_marker!r} in {source_decoded!r}). "
-                    f"Re-submit the path using a UTF-8 capable client."
-                )
+                # Try to repair encoding corruption
+                _repaired = _try_repair_source_path(source_decoded)
+                if _repaired and _marker not in _repaired:
+                    logger.info(
+                        "[collector] repaired corrupted path: %r -> %r",
+                        source_decoded, _repaired
+                    )
+                    source_decoded = _repaired
+                    break
+                else:
+                    raise ValueError(
+                        f"Source path appears to have encoding corruption "
+                        f"(found {_marker!r} in {source_decoded!r}) and repair failed. "
+                        f"Re-submit the path using a UTF-8 capable client."
+                    )
 
         file_path = Path(source_decoded)
         if not file_path.is_absolute() and project_id is not None:
