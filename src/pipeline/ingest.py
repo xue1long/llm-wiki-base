@@ -538,6 +538,28 @@ async def generate_ingest(
             _result.warnings, _result.quality_score, source_path,
         )
 
+    # --- Content hash dedup (Phase 1.5) ---
+    from ..utils.content_hash import is_content_processed, mark_content_processed
+    _sanitized_source_text = _result.text
+
+    _existing_page = is_content_processed(_sanitized_source_text, paths.index)
+    if _existing_page:
+        _logger.info(
+            "[run_ingest] content hash match — skipping %s (already processed as %s)",
+            source_path, _existing_page,
+        )
+        # Return empty pages with meta indicating skip
+        return [], [], {
+            "analysis": None,
+            "source_slug": "",
+            "source_page_id": _existing_page,
+            "downstream_count": 0,
+            "extra_pages_count": 0,
+            "rejected": [],
+            "warnings": ["content_hash_skip"],
+            "skipped_reason": f"content already exists as {_existing_page}",
+        }
+
     _sanitized_source_text = _result.text
 
     # 数据收集：记录文件大小概况（积累 100+ 样本后建模调度策略）
@@ -1447,6 +1469,7 @@ async def commit_ingest(
     event: str = "ingest",
     detail: str | None = None,
     log_task_id: str | None = None,
+    source_text: str = "",  # For content hash recording
 ):
     """Phase 2 (NDG split): write pages + index update + log.
 
@@ -1471,6 +1494,12 @@ async def commit_ingest(
             task_id=log_task_id or task_id,
             detail=_detail,
         )
+
+    # --- Content hash recording (Phase 1.5) ---
+    if source_text and pages:
+        from ..utils.content_hash import mark_content_processed
+        # Record the first page as the canonical result
+        mark_content_processed(source_text, pages[0].id, paths.index)
 
 
 def _load_quality_settings(paths: WikiPaths) -> "QualitySettings":  # noqa: F821
