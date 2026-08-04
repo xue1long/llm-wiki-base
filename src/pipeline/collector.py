@@ -287,6 +287,9 @@ async def collect(
             content = extract_pdf_text(str(file_path))
         elif ext in [".docx", ".doc", ".xlsx", ".xls"]:
             content = extract_office_text(str(file_path))
+        elif ext in [".epub", ".mobi"]:
+            from ..utils.extract.ebook import extract_ebook
+            content = extract_ebook(file_path)
         elif ext in [".html", ".htm"]:
             raw_bytes = file_path.read_bytes()
             html_str = _decode_text_file(raw_bytes, str(file_path))
