@@ -12,6 +12,7 @@ class AnalyzerStage:
         if ctx.collector_result is None:
             return StageResult(success=False, payload="missing collector result")
         analyze_fn = _analyzer_module.analyze
+        # Candidate path: use JSON mode to produce KnowledgeCandidate
         analysis = await analyze_fn(
             source_text=ctx.collector_result.content,
             source_ext=ctx.source_path or "",
@@ -20,6 +21,7 @@ class AnalyzerStage:
             provider=ctx.provider,
             task_id=ctx.task_id,
             source_path=ctx.source,
+            output_format="json",
         )
         ctx.analysis_result = analysis
         return StageResult(success=True, payload=analysis)

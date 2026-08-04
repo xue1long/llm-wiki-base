@@ -31,6 +31,7 @@ from src.circuit_breaker import get_circuit_breaker, CircuitState
 from src.events.event_bus import event_bus
 from src.events.events import CollectorDonePayload, EventName
 from src.pipeline import pipeline as pipeline_mod
+from src.pipeline import service as service_mod
 from src.queue import (
     __reset_for_testing,
     enqueue_task,
@@ -107,6 +108,10 @@ def test_sync_enqueue_full_chain_runs_to_completion_no_running_loop(
     `asyncio.run` closed its loop.
     """
     monkeypatch.chdir(tmp_path)
+
+    # Force legacy mode - this test mocks provider and run_ingest,
+    # which are only used in legacy path. Stage scheduler path requires real LLM.
+    monkeypatch.setattr(service_mod, "USE_STAGE_SCHEDULER", False)
 
     ingested = []
     collected = []

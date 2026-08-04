@@ -36,9 +36,9 @@ _logger = logging.getLogger(__name__)
 # default provider supports higher concurrency.
 DEFAULT_MAX_CONCURRENCY = 6
 
-# Rollback switch: when false (default), use legacy pipeline path.
-# When true, use the new stage-scheduler path.
-USE_STAGE_SCHEDULER = os.environ.get("RUFLO_USE_STAGE_SCHEDULER", "false").lower() == "true"
+# Rollback switch: when false, use legacy pipeline path.
+# When true (default), use the new stage-scheduler path with Candidate/Reviewer/Promoter.
+USE_STAGE_SCHEDULER = os.environ.get("RUFLO_USE_STAGE_SCHEDULER", "true").lower() == "true"
 
 
 class PipelineService:
