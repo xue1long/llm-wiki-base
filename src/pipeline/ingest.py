@@ -1501,6 +1501,16 @@ async def commit_ingest(
         # Record the first page as the canonical result
         mark_content_processed(source_text, pages[0].id, paths.index)
 
+    # --- Update overview.md (Phase 1.6) ---
+    if pages:
+        from ..wiki.features.overview import update_overview, collect_all_pages
+        try:
+            all_pages = collect_all_pages(paths)
+            update_overview(paths, all_pages)
+        except Exception as e:
+            # Non-fatal: overview update failure should not break ingest
+            _logger.warning("[commit_ingest] failed to update overview.md: %s", e)
+
 
 def _load_quality_settings(paths: WikiPaths) -> "QualitySettings":  # noqa: F821
     """Load QualitySettings from per-project JSON or fall back to defaults."""
