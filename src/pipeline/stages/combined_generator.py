@@ -227,6 +227,7 @@ class CombinedGeneratorStage:
 
     def _build_knowledge_object(self, result: dict, source_path: str, ctx: PipelineContext) -> KnowledgeObject:
         """Build KnowledgeObject for downstream compatibility."""
+        import time
         frontmatter = result.get("frontmatter", {})
 
         # Map page type to knowledge type
@@ -238,6 +239,9 @@ class CombinedGeneratorStage:
             "synthesis": KnowledgeType.SYNTHESIS,
         }.get(type_str.lower(), KnowledgeType.ENTITY)
 
+        # Use current timestamp since CollectorDonePayload doesn't have extracted_at
+        current_time = int(time.time() * 1000)
+
         return KnowledgeObject(
             id=frontmatter.get("id") or generate_page_id(frontmatter.get("title", "untitled")),
             title=frontmatter.get("title", "Untitled"),
@@ -247,6 +251,6 @@ class CombinedGeneratorStage:
             confidence=0.7,
             provenance=Provenance(
                 source_path=source_path,
-                ingested_at=ctx.collector_result.extracted_at if ctx.collector_result else 0,
+                ingested_at=current_time,
             ),
         )
