@@ -60,13 +60,34 @@ class PipelineService:
         # keep using a stale backend and ``update_status(task_id, ...)``
         # would raise KeyError.
         self._queue_service_factory = queue_service or get_default_queue_service
-        self._semaphore = asyncio.Semaphore(max_concurrency)
+        self._max_concurrency = max_concurrency
+        self._semaphore: asyncio.Semaphore | None = None  # Created lazily per event loop
         # Cache the runner with the initial queue service; on the next
         # chain run we'll resolve the factory again.
         self.runner = PipelineRunner(self._queue_service_factory())
         self._stages: list[PipelineStage] = [
             CollectorStage(), AnalyzerStage(), GeneratorStage(),
         ]
+
+    def _get_semaphore(self) -> asyncio.Semaphore:
+        """Get or create a semaphore bound to the current event loop.
+
+        Semaphores are bound to the event loop that created them.
+        When dispatcher uses asyncio.run(), a new loop is created,
+        so we must lazily create the semaphore within that loop.
+        """
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(self._max_concurrency)
+        else:
+            # Check if bound to current loop; if not, create new one
+            try:
+                loop = asyncio.get_running_loop()
+                if self._semaphore._loop is not loop:
+                    self._semaphore = asyncio.Semaphore(self._max_concurrency)
+            except RuntimeError:
+                # No running loop, create semaphore (will bind when used)
+                self._semaphore = asyncio.Semaphore(self._max_concurrency)
+        return self._semaphore
 
     @property
     def queue_service(self):
@@ -89,7 +110,7 @@ class PipelineService:
         project_id = payload.get("project_id")
         folder_context = payload.get("folder_context")
 
-        async with self._semaphore:
+        async with self._get_semaphore():
             await self._run_for_collector_start_inner(task_id, source, source_type, project_id,
                                                        folder_context=folder_context)
 
