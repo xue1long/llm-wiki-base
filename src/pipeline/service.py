@@ -88,44 +88,32 @@ class PipelineService:
                                               folder_context: str | None = None) -> None:
         """Actual pipeline work — called while the semaphore is held."""
 
-        # Acquire project lock to prevent concurrent ingest on same project
-        from ..queue.distributed_lock import get_project_lock, LockHeldError
-        project_lock = get_project_lock()
+        # Use file-level lock instead of project-level lock
+        # This allows parallel processing of different files in the same project
+        from ..queue.file_lock import get_file_lock_manager
+        file_lock_manager = get_file_lock_manager()
         lock_acquired = False
 
         try:
-            await project_lock.acquire(project_id or "default")
+            await file_lock_manager.acquire(project_id or "default", source)
             lock_acquired = True
-        except LockHeldError as e:
+        except TimeoutError as e:
             _logger.warning(
-                "[PipelineService] Project %s locked by another process, requeueing task %s",
-                project_id, task_id
+                "[PipelineService] Could not acquire file lock for %s in project %s: %s",
+                source[:50], project_id, e
             )
-            # Re-queue the task for later processing
-            # Note: task is still PENDING at this point, so we only update
-            # the error message without changing status (PENDING→PENDING is invalid)
+            # Release in-flight marker and return
             try:
-                task = self.queue_service.backend.find(task_id)
-                if task is not None and task.status != TaskStatus.PENDING:
-                    self.queue_service.update_status(
-                        task_id, status=TaskStatus.PENDING,
-                        error=f"Project locked, will retry: {e}",
-                    )
-                # If already PENDING, just release the in-flight marker
+                self.queue_service.release_in_flight(task_id)
             except Exception:
-                _logger.exception("failed to update task %s for lock error", task_id)
-            finally:
-                try:
-                    self.queue_service.release_in_flight(task_id)
-                except Exception:
-                    _logger.exception("failed to release_in_flight %s", task_id)
+                _logger.exception("failed to release_in_flight %s", task_id)
             return
         except Exception as e:
             _logger.warning(
-                "[PipelineService] Failed to acquire project lock: %s, proceeding without lock",
+                "[PipelineService] Failed to acquire file lock: %s, proceeding without lock",
                 e
             )
-            # Proceed without lock (fallback for single-instance deployments)
+            # Proceed without lock (fallback)
 
         # Mirror the original pipeline.py behavior: mark RUNNING before
         # touching any IO. PENDING -> APPROVED is an illegal transition
@@ -139,7 +127,7 @@ class PipelineService:
             except Exception:
                 _logger.exception("failed to release_in_flight %s", task_id)
             if lock_acquired:
-                await project_lock.release(project_id or "default")
+                file_lock_manager.release(project_id or "default", source)
             return
 
         # Wrap the entire pipeline (collector + ingest) in a try/finally so
@@ -200,12 +188,12 @@ class PipelineService:
                 self.queue_service.release_in_flight(task_id)
             except Exception:
                 _logger.exception("failed to release_in_flight %s", task_id)
-            # Release project lock
+            # Release file lock
             if lock_acquired:
                 try:
-                    await project_lock.release(project_id or "default")
+                    file_lock_manager.release(project_id or "default", source)
                 except Exception as e:
-                    _logger.warning("failed to release project lock for %s: %s", project_id, e)
+                    _logger.warning("failed to release file lock for %s: %s", source[:50], e)
 
     async def _run_stage_chain(self, ctx: PipelineContext, folder_context: str | None = None) -> None:
         """Run the full stage chain: Analyzer → Reviewer → Promoter → Generator → Committer."""
