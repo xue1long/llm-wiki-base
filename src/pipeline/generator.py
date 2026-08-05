@@ -47,6 +47,7 @@ from ._prompt_common import (
     build_generator_header,
     GENERATOR_SLOT_EXAMPLE,
     build_quality_feedback,
+    NARRATIVE_CONTENT_RULES,
 )
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
@@ -56,6 +57,53 @@ from .wiki_rules_prompt import WIKI_RULES_SUMMARY
 TAG_NAMESPACE_RULES = build_tag_prompt_section()
 
 _logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Template integration (v3): custom page types + fallback
+# ---------------------------------------------------------------------------
+def _get_template_for_paths(paths: WikiPaths):
+    """Get project template with caching."""
+    from ..wiki.project_templates import get_template_for_project
+    return get_template_for_project(paths)
+
+
+def _resolve_page_type_with_fallback(
+    type_str: str,
+    custom_types: list | None = None,
+) -> tuple[PageType, str]:
+    """Resolve page type with fallback to ENTITY for unknown types.
+
+    Returns (PageType, status) where status is "builtin", "custom", or "fallback".
+    """
+    if not type_str:
+        return PageType.ENTITY, "fallback"
+
+    type_lower = type_str.lower().strip()
+
+    # Try built-in types
+    try:
+        return PageType(type_lower), "builtin"
+    except ValueError:
+        pass
+
+    # Try custom types (mapped to ENTITY)
+    if custom_types:
+        for ct in custom_types:
+            if hasattr(ct, 'name') and ct.name == type_lower:
+                _logger.info(
+                    "[generator] custom type '%s' mapped to ENTITY (directory: %s)",
+                    ct.name, getattr(ct, 'directory', 'unknown')
+                )
+                return PageType.ENTITY, "custom"
+
+    # Fallback to ENTITY
+    return PageType.ENTITY, "fallback"
+    _logger.warning(
+        "[generator] unknown page type '%s', fallback to ENTITY",
+        type_str
+    )
+    return PageType.ENTITY, True
 
 # Default max source chars - will be overridden by provider-specific limits
 # via get_source_char_limit() at call time.
@@ -187,6 +235,8 @@ or returned as an empty list when the source has no relevant content —
 
 {PAGE_TEMPLATES}
 
+{NARRATIVE_CONTENT_RULES}
+
 ## Entity pages are REQUIRED
 Every entity listed in `suggested_pages` (type=entity) MUST have a
 corresponding entry in your `pages` output. The wiki knowledge graph
@@ -295,6 +345,8 @@ extract structured knowledge, and render wiki pages in ONE pass.
 ## Page Templates
 {PAGE_TEMPLATES}
 
+{NARRATIVE_CONTENT_RULES}
+
 ## Rules (all mandatory)
 
 **Page budget**: 5-15 pages total. For short sources (<2000 chars), aim for 5-8.
@@ -394,6 +446,20 @@ async def unified_generate(
     import time as _time
     import re as _re
 
+    # v3: Get project template for custom types + prompt injection
+    _template = _get_template_for_paths(paths)
+    if _template.custom_types:
+        paths._template_custom_types = _template.custom_types
+        _logger.info(
+            "[unified_generate] template loaded: id=%s custom_types=%s",
+            _template.template_id, [t.name for t in _template.custom_types]
+        )
+
+    # v3: Dynamic enum for response_format
+    _allowed_types = _template.allowed_page_types() if _template.is_active() else [
+        "source", "entity", "concept", "synthesis"
+    ]
+
     # Get provider-specific source char limit
     provider_name = getattr(provider, "_provider_name", "openai") if provider else "openai"
     provider_config = getattr(provider, "config", None) if provider else None
@@ -432,7 +498,7 @@ async def unified_generate(
                     "type": "object",
                     "properties": {
                         "id": {"type": "string"},
-                        "type": {"type": "string", "enum": ["source", "entity", "concept", "synthesis"]},
+                        "type": {"type": "string", "enum": _allowed_types},  # v3: dynamic
                         "title": {"type": "string"},
                         "slots": {
                             "type": "object",
@@ -477,7 +543,17 @@ async def unified_generate(
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
+        NARRATIVE_CONTENT_RULES=NARRATIVE_CONTENT_RULES,
     )
+
+    # v3: Inject template (after .format(), before LLM call)
+    if _template.is_active():
+        from ..wiki.project_templates import inject_template_into_prompt
+        base_prompt = inject_template_into_prompt(base_prompt, _template)
+        _logger.info(
+            "[unified_generate] template injected: id=%s chars=%d",
+            _template.template_id, _template.total_chars()
+        )
 
     response_dict = await _call_with_slot_retry(
         provider=provider,
@@ -521,11 +597,21 @@ async def unified_generate(
     for p in filled_pages:
         title = p.get("title", "")
         slug = _slugify(title) or p.get("id", "")
+
+        # v3: PageType fallback instead of continue
         try:
             page_type = PageType(p.get("type"))
         except ValueError:
-            _logger.warning(f"Unknown page type: {p.get('type')}")
-            continue
+            # Fallback to ENTITY instead of dropping the page
+            page_type, status = _resolve_page_type_with_fallback(
+                p.get("type"),
+                getattr(paths, '_template_custom_types', None)
+            )
+            if status == "fallback":
+                _logger.warning(
+                    "[unified_generate] unknown page type '%s', fallback to %s for slug=%s",
+                    p.get("type"), page_type.value, slug
+                )
 
         # Deterministic source-page slug
         if source_slug_map and page_type == PageType.SOURCE:
@@ -704,6 +790,20 @@ async def generate_from_candidate(
     """
     import time as _time
 
+    # v3: Get project template for custom types + prompt injection
+    _template = _get_template_for_paths(paths)
+    if _template.custom_types:
+        paths._template_custom_types = _template.custom_types
+        _logger.info(
+            "[generate_from_candidate] template loaded: id=%s custom_types=%s",
+            _template.template_id, [t.name for t in _template.custom_types]
+        )
+
+    # v3: Dynamic enum for response_format
+    _allowed_types = _template.allowed_page_types() if _template.is_active() else [
+        "source", "entity", "concept", "synthesis"
+    ]
+
     # Build quality feedback from lint cache if previous_slugs provided
     _quality_feedback = ""
     if previous_slugs:
@@ -746,7 +846,7 @@ async def generate_from_candidate(
                     "type": "object",
                     "properties": {
                         "id": {"type": "string"},
-                        "type": {"type": "string", "enum": ["source", "entity", "concept", "synthesis"]},
+                        "type": {"type": "string", "enum": _allowed_types},  # v3: dynamic
                         "title": {"type": "string"},
                         "slots": {
                             "type": "object",
@@ -800,6 +900,15 @@ async def generate_from_candidate(
         PAGE_TEMPLATES=_render_template_section(paths.root),
     )
 
+    # v3: Inject template (after .format(), before LLM call)
+    if _template.is_active():
+        from ..wiki.project_templates import inject_template_into_prompt
+        base_prompt = inject_template_into_prompt(base_prompt, _template)
+        _logger.info(
+            "[generate_from_candidate] template injected: id=%s chars=%d",
+            _template.template_id, _template.total_chars()
+        )
+
     response_dict = await _call_with_slot_retry(
         provider=provider,
         base_prompt=base_prompt,
@@ -847,11 +956,20 @@ async def generate_from_candidate(
         title = p.get("title", candidate.title)
         slug = _slugify(title) or p.get("id", "")
 
+        # v3: PageType fallback instead of continue
         try:
             page_type = PageType(p.get("type"))
         except ValueError:
-            _logger.warning(f"Unknown page type: {p.get('type')}")
-            continue
+            # Fallback to ENTITY instead of dropping the page
+            page_type, status = _resolve_page_type_with_fallback(
+                p.get("type"),
+                getattr(paths, '_template_custom_types', None)
+            )
+            if status == "fallback":
+                _logger.warning(
+                    "[generate_from_candidate] unknown page type '%s', fallback to %s for slug=%s",
+                    p.get("type"), page_type.value, slug
+                )
 
         # Deterministic source-page slug
         if source_slug_map and page_type == PageType.SOURCE and candidate.source_id:
@@ -937,6 +1055,20 @@ async def generate_from_knowledge_object(
     """
     import time as _time
 
+    # v3: Get project template for custom types + prompt injection
+    _template = _get_template_for_paths(paths)
+    if _template.custom_types:
+        paths._template_custom_types = _template.custom_types
+        _logger.info(
+            "[generate_from_knowledge_object] template loaded: id=%s custom_types=%s",
+            _template.template_id, [t.name for t in _template.custom_types]
+        )
+
+    # v3: Dynamic enum for response_format
+    _allowed_types = _template.allowed_page_types() if _template.is_active() else [
+        "source", "entity", "concept", "synthesis"
+    ]
+
     # Build quality feedback from lint cache if previous_slugs provided
     _quality_feedback = ""
     if previous_slugs:
@@ -978,7 +1110,7 @@ async def generate_from_knowledge_object(
                     "type": "object",
                     "properties": {
                         "id": {"type": "string"},
-                        "type": {"type": "string", "enum": ["source", "entity", "concept", "synthesis"]},
+                        "type": {"type": "string", "enum": _allowed_types},  # v3: dynamic
                         "title": {"type": "string"},
                         "slots": {
                             "type": "object",
@@ -1031,6 +1163,15 @@ async def generate_from_knowledge_object(
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
     )
+
+    # v3: Inject template (after .format(), before LLM call)
+    if _template.is_active():
+        from ..wiki.project_templates import inject_template_into_prompt
+        base_prompt = inject_template_into_prompt(base_prompt, _template)
+        _logger.info(
+            "[generate_from_knowledge_object] template injected: id=%s chars=%d",
+            _template.template_id, _template.total_chars()
+        )
 
     response_dict = await _call_with_slot_retry(
         provider=provider,
@@ -1268,6 +1409,7 @@ async def generate(
         PAGE_TEMPLATES=_render_template_section(paths.root),
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
         few_shot_examples=GENERATOR_SLOT_EXAMPLE,
+        NARRATIVE_CONTENT_RULES=NARRATIVE_CONTENT_RULES,
     )
 
     response_dict = await _call_with_slot_retry(
@@ -1338,18 +1480,21 @@ async def generate(
             type_from_analyzer.get(slug)
             or p.get("type")
         )
+
+        # v3: PageType fallback with custom types support
         try:
             page_type = PageType(raw_type)
         except ValueError:
-            _logger.warning(
-                f"Unknown page type for slug={slug!r}: {raw_type!r}; "
-                "falling back to LLM's raw value"
+            # First fallback: try the LLM's raw value
+            page_type, status = _resolve_page_type_with_fallback(
+                raw_type,
+                getattr(paths, '_template_custom_types', None)
             )
-            try:
-                page_type = PageType(p.get("type"))
-            except ValueError:
-                _logger.warning(f"Unknown page type: {p.get('type')}")
-                continue
+            if status == "fallback":
+                _logger.warning(
+                    "[generator] unknown page type '%s' for slug=%s, fallback to %s",
+                    raw_type, slug, page_type.value
+                )
 
         # Enforce deterministic source-page slug: the source_slug_map is
         # guaranteed correct ({stem}-{md5[:8]}), while the LLM may emit

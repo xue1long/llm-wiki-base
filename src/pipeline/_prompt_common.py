@@ -69,6 +69,42 @@ When the source truly lacks information for a required slot, use:
 - ALL OTHERS            → `"来源未详述此方面"` (not empty, not placeholder)"""
 
 # ---------------------------------------------------------------------------
+# Narrative content handling (novels, stories, fiction)
+# ---------------------------------------------------------------------------
+
+NARRATIVE_CONTENT_RULES = """## Narrative/Fiction Content Handling
+When the source is a NOVEL, STORY, or NARRATIVE text (not a tutorial/knowledge article):
+
+1. **DO NOT skip** — Always extract at minimum:
+   - Characters (entities): names, roles, relationships
+   - Settings (entities): locations, organizations, worlds
+   - Plot elements (events): key scenes, conflicts, resolutions
+   - Concepts: techniques, systems, rules unique to the story world
+
+2. **Character extraction** (entity pages):
+   - name: character's full name
+   - characteristics: personality traits, abilities, appearance
+   - related: connections to other characters/settings
+   - Use `相关/人物` tag for characters
+
+3. **Setting extraction** (entity pages):
+   - name: location/organization name
+   - characteristics: description, significance in story
+   - related: connected characters/events
+   - Use `题材/世界观` tag for settings
+
+4. **Source pages for fiction**:
+   - summary: 2-3 sentence plot overview (NOT empty)
+   - key_points: Main plot beats, NOT tutorial steps
+   - extracted_concepts: Characters/settings as `[[wikilinks]]`
+   - Use `题材/小说` tag for fiction sources
+
+5. **NEVER return empty pages** — Even for pure fiction:
+   - Extract SOMETHING: characters, locations, plot points
+   - Use grade=C if extraction is thin
+   - Empty extraction = pipeline failure"""
+
+# ---------------------------------------------------------------------------
 # Relation types (17 built-in + custom)
 # ---------------------------------------------------------------------------
 
