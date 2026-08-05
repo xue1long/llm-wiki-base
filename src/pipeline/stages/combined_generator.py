@@ -183,8 +183,11 @@ class CombinedGeneratorStage:
         # Generate ID if not provided
         page_id = frontmatter.get("id") or generate_page_id(frontmatter.get("title", "untitled"))
 
-        # Build body markdown
-        body = self._build_body(body_data, page_type)
+        # Get source text for fallback
+        source_text = ctx.collector_result.content if ctx.collector_result else ""
+
+        # Build body markdown with fallback
+        body = self._build_body(body_data, page_type, source_text)
 
         return WikiPage(
             id=page_id,
@@ -198,10 +201,18 @@ class CombinedGeneratorStage:
             relations=self._parse_relations(body_data.get("relations", [])),
         )
 
-    def _build_body(self, body_data: dict, page_type: PageType) -> str:
-        """Build body markdown from slots."""
+    def _build_body(self, body_data: dict, page_type: PageType, source_text: str = "") -> str:
+        """Build body markdown from slots with fallback for empty content.
+
+        When LLM returns empty summary/content (common for short sources),
+        extract basic information from source text as fallback.
+        """
         summary = body_data.get("summary", "")
         content = body_data.get("content", "")
+
+        # Fallback: if both empty, extract from source text
+        if not summary and not content and source_text:
+            summary, content = self._extract_fallback_content(source_text, page_type)
 
         parts = []
         if summary:
@@ -210,6 +221,54 @@ class CombinedGeneratorStage:
             parts.append(content)
 
         return "\n".join(parts) if parts else ""
+
+    def _extract_fallback_content(self, source_text: str, page_type: PageType) -> tuple[str, str]:
+        """Extract summary and content from source text when LLM output is empty.
+
+        Returns (summary, content) tuple.
+        """
+        import re
+
+        # Take first 500 chars as summary source
+        text_sample = source_text[:500]
+
+        # Try to extract a meaningful summary
+        summary = ""
+
+        # Extract title-like content (first heading or first line)
+        title_match = re.search(r'^#\s+(.+)$', text_sample, re.MULTILINE)
+        if title_match:
+            summary = title_match.group(1).strip()
+        else:
+            # Use first non-empty line
+            first_line = next((line.strip() for line in text_sample.split('\n') if line.strip()), "")
+            if first_line and len(first_line) < 100:
+                summary = first_line
+
+        # If still no summary, use generic fallback
+        if not summary:
+            summary = "（系统生成：LLM未返回摘要，请人工补充）"
+
+        # Extract content: key headings and bullet points
+        content_parts = []
+
+        # Find headings (## 某某)
+        headings = re.findall(r'^#{1,3}\s+(.+)$', source_text[:3000], re.MULTILINE)
+        if headings:
+            content_parts.append("## 主要内容\n")
+            for h in headings[:5]:
+                content_parts.append(f"- {h.strip()}")
+        else:
+            # Find bullet points or numbered items
+            items = re.findall(r'^[\-\*\d]+[、.．]\s*(.{10,100})$', source_text[:3000], re.MULTILINE)
+            if items:
+                content_parts.append("## 主要内容\n")
+                for item in items[:5]:
+                    content_parts.append(f"- {item.strip()}")
+
+        content = "\n".join(content_parts) if content_parts else ""
+
+        return summary, content
 
     def _parse_relations(self, relations: list) -> list:
         """Parse relations from LLM response."""

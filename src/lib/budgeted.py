@@ -7,8 +7,11 @@ auto-splits.
 Token metrics: records prompt/completion tokens and retry counts to
 .index/metrics/ for optimization analysis.
 """
+from __future__ import annotations
+
 import asyncio
 import logging
+import os
 import time
 from typing import Any, Optional, Union
 
@@ -32,6 +35,11 @@ DEFAULT_MODEL_WINDOWS = {
 # Safety: only use 60% of window for input (40% reserved for output)
 SAFETY_FACTOR = 0.6
 SINGLE_CALL_THRESHOLD = 0.8
+
+# Configurable timeout for LLM calls
+# MiniMax users should set RUFLO_LLM_TIMEOUT=120
+# OpenAI/Anthropic users can use default 60
+DEFAULT_LLM_TIMEOUT = int(os.environ.get("RUFLO_LLM_TIMEOUT", "60"))
 
 
 def get_model_context_window(model: str) -> int:
@@ -199,4 +207,5 @@ class BudgetedLLM:
             messages=messages,
             response_format=response_format,
             system=system,
+            timeout=DEFAULT_LLM_TIMEOUT,
         )

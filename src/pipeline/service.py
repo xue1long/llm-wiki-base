@@ -384,12 +384,23 @@ class PipelineService:
         return comparison
 
 
-def _extract_pages_summary(result: dict | None) -> list[dict]:
-    """Extract page summaries for comparison report."""
+def _extract_pages_summary(result) -> list[dict]:
+    """Extract page summaries for comparison report.
+
+    Handles both dict and object payloads from different stages.
+    """
     if not result:
         return []
 
-    pages = result.get("pages", [])
+    # Handle both dict and object payloads
+    if isinstance(result, dict):
+        pages = result.get("pages", [])
+    elif hasattr(result, 'pages'):
+        # Handle KnowledgeCandidate or similar objects
+        pages = result.pages if isinstance(result.pages, list) else []
+    else:
+        return []
+
     summary = []
     for page in pages:
         if hasattr(page, 'id'):
