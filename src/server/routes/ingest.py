@@ -49,9 +49,9 @@ async def ingest(project_id: str, body: IngestRequest):
         except ValueError as e:
             raise HTTPException(400, f"Invalid source: {e}")
 
-    # Enqueue
+    # Enqueue (async)
     try:
-        return ingest_service.enqueue_source(project_id, body.source, body.folderContext, count=body.count)
+        return await ingest_service.enqueue_source_async(project_id, body.source, body.folderContext, count=body.count)
     except ProjectNotFoundError as e:
         raise HTTPException(404, str(e))
     except IngestPathError as e:
