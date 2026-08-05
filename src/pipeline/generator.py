@@ -587,6 +587,7 @@ async def unified_generate(
 
     now = int(_time.time() * 1000)
     pages: list[WikiPage] = []
+    seen_slugs: set[str] = set()  # Deduplicate pages by slug
     _source_title_to_slug: dict[str, str] = {}
     if source_slug_map:
         for raw_path, sl in source_slug_map.items():
@@ -666,6 +667,15 @@ async def unified_generate(
             if canon not in seen_targets:
                 seen_targets.add(canon)
                 deduped_relations.append(rel)
+
+        # Deduplicate pages by slug (LLM may return same ID multiple times)
+        if slug in seen_slugs:
+            _logger.warning(
+                "[unified_generate] skipping duplicate page with slug: %s",
+                slug
+            )
+            continue
+        seen_slugs.add(slug)
 
         pages.append(WikiPage(
             id=slug, title=p["title"], type=page_type,
@@ -939,6 +949,7 @@ async def generate_from_candidate(
 
     now = int(_time.time() * 1000)
     pages: list[WikiPage] = []
+    seen_slugs: set[str] = set()  # Deduplicate pages by slug
 
     # Build provenance payload from candidate evidence
     _first_ev = candidate.evidence[0] if candidate.evidence else {}
@@ -1011,6 +1022,15 @@ async def generate_from_candidate(
             if canon not in seen_targets:
                 seen_targets.add(canon)
                 deduped_relations.append(rel)
+
+        # Deduplicate pages by slug (LLM may return same ID multiple times)
+        if slug in seen_slugs:
+            _logger.warning(
+                "[generate_from_candidate] skipping duplicate page with slug: %s",
+                slug
+            )
+            continue
+        seen_slugs.add(slug)
 
         page = WikiPage(
             id=slug, title=title, type=page_type,
@@ -1202,6 +1222,7 @@ async def generate_from_knowledge_object(
 
     now = int(_time.time() * 1000)
     pages: list[WikiPage] = []
+    seen_slugs: set[str] = set()  # Deduplicate pages by slug
 
     # Build provenance payload from KO
     _prov = ko.provenance
@@ -1268,6 +1289,15 @@ async def generate_from_knowledge_object(
             if canon not in seen_targets:
                 seen_targets.add(canon)
                 deduped_relations.append(rel)
+
+        # Deduplicate pages by slug (LLM may return same ID multiple times)
+        if slug in seen_slugs:
+            _logger.warning(
+                "[generate_from_knowledge_object] skipping duplicate page with slug: %s",
+                slug
+            )
+            continue
+        seen_slugs.add(slug)
 
         page = WikiPage(
             id=slug, title=title, type=page_type,
@@ -1473,6 +1503,7 @@ async def generate(
 
     now = int(time.time() * 1000)
     pages: list[WikiPage] = []
+    seen_slugs: set[str] = set()  # Deduplicate pages by slug
     for p in filled_pages:
         title = p.get("title", "")
         slug = _slugify(title) or p.get("id", "")
@@ -1557,6 +1588,15 @@ async def generate(
             if canon not in seen_targets:
                 seen_targets.add(canon)
                 deduped_relations.append(rel)
+
+        # Deduplicate pages by slug (LLM may return same ID multiple times)
+        if slug in seen_slugs:
+            _logger.warning(
+                "[generator] skipping duplicate page with slug: %s",
+                slug
+            )
+            continue
+        seen_slugs.add(slug)
 
         pages.append(WikiPage(
             id=slug,
