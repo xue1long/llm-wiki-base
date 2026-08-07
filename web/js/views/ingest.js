@@ -73,10 +73,63 @@
     // Reingest handler (delegated)
     document.getElementById("ingestFileList").addEventListener("click", (e) => {
       const btn = e.target.closest(".reingest-btn");
-      if (!btn) return;
-      const path = btn.dataset.path;
-      if (!confirm(`重新摄取将删除此文档的所有 wiki 页面和向量后重新生成，确定继续？\n\n${path}`)) return;
-      doReingest(path);
+      if (btn) {
+        const path = btn.dataset.path;
+        if (!confirm(`重新摄取将删除此文档的所有 wiki 页面和向量后重新生成，确定继续？\n\n${path}`)) return;
+        doReingest(path);
+        return;
+      }
+      // Quality button click → modal
+      const qbtn = e.target.closest(".quality-btn");
+      if (qbtn) {
+        const path = qbtn.dataset.path;
+        showQualityModal(path);
+      }
+    });
+
+    // Quality tooltip on hover (delegated)
+    document.getElementById("ingestFileList").addEventListener("mouseenter", (e) => {
+      // Clean up stale tooltips
+      document.querySelectorAll(".quality-tooltip").forEach(el => el.remove());
+    }, true);
+
+    document.getElementById("ingestFileList").addEventListener("mouseover", async (e) => {
+      const qbtn = e.target.closest(".quality-btn");
+      // Remove any existing tooltip not on this button
+      document.querySelectorAll(".quality-tooltip").forEach(el => {
+        if (el._target !== qbtn) el.remove();
+      });
+      if (!qbtn || qbtn.disabled) return;
+      if (qbtn._loading) return;
+      // Check if tooltip already exists for this button
+      if (qbtn.querySelector(".quality-tooltip") || qbtn._tooltip) return;
+
+      qbtn._loading = true;
+      const path = qbtn.dataset.path;
+      try {
+        const url = `/api/v1/projects/${App.state.projectId}/quality?source_path=${encodeURIComponent(path)}`;
+        const res = await fetch(url);
+        if (!res.ok) { qbtn._loading = false; return; }
+        const data = await res.json();
+        qbtn._loading = false;
+        if (!data) return;
+        renderTooltip(qbtn, data);
+      } catch (e) {
+        qbtn._loading = false;
+      }
+    });
+
+    document.getElementById("ingestFileList").addEventListener("mouseout", (e) => {
+      const qbtn = e.target.closest(".quality-btn");
+      if (!qbtn) {
+        // Moving off the button entirely — remove tooltip after a short delay
+        // so the user can move into the tooltip itself
+        setTimeout(() => {
+          document.querySelectorAll(".quality-tooltip").forEach(el => {
+            if (!el.matches(":hover")) el.remove();
+          });
+        }, 200);
+      }
     });
 
     async function loadRawFiles() {
@@ -116,6 +169,7 @@
             <span class="ingest-file-date">${dateStr}</span>
             <span class="ingest-file-size">${App.formatSize(f.size)}</span>
             <button class="btn-sm reingest-btn" data-path="${App.escapeHtml(f.path)}">重新摄取</button>
+            <button class="quality-btn" data-path="${App.escapeHtml(f.path)}">质</button>
           </div>`;
         }
         return `<div class="ingest-file-row">
@@ -361,6 +415,199 @@
       } finally {
         btn.disabled = false; btn.textContent = "提交摄取";
       }
+    }
+
+    // ── Quality helpers ──────────────────────────────────────────────
+
+    function renderTooltipContent(data) {
+      const passed = data.passed;
+      const exists = data.exists;
+      const report = data.report || {};
+      const verdict = report.verdict || "—";
+      const warnings = (report.warnings || []).length;
+      const pages = report.pages_total ?? "—";
+      const confidence = report.candidate_confidence != null
+        ? (report.candidate_confidence * 100).toFixed(0) + "%"
+        : "—";
+      const reviewCount = (data.review_items || []).length;
+      const quarantineCount = (data.quarantine || []).length;
+      const verdictReason = report.verdict_reason || "";
+
+      let color = exists ? (passed ? "var(--success)" : "var(--danger)") : "var(--text-muted)";
+      let statusText = exists ? (passed ? "✓ 质检通过" : "✗ 质检未通过") : "无质检报告";
+
+      let lines = [
+        `<span style="color:${color};font-weight:600;">${statusText}</span>`,
+        `判决: ${App.escapeHtml(verdict)}`,
+        `页数: ${pages}`,
+        `置信度: ${confidence}`,
+      ];
+      if (warnings) lines.push(`警告: ${warnings} 条`);
+      if (reviewCount) lines.push(`审查项: ${reviewCount} 条`);
+      if (quarantineCount) lines.push(`隔离页: ${quarantineCount} 条`);
+      if (verdictReason) lines.push(`原因: ${App.escapeHtml(verdictReason)}`);
+
+      return lines.join("<br>");
+    }
+
+    function renderTooltip(btn, data) {
+      // Remove any existing tooltip
+      document.querySelectorAll(".quality-tooltip").forEach(el => el.remove());
+      const tip = document.createElement("div");
+      tip.className = "quality-tooltip";
+      tip._target = btn;
+      tip.innerHTML = renderTooltipContent(data);
+      // Position below the button
+      const rect = btn.getBoundingClientRect();
+      tip.style.left = Math.max(4, rect.left + rect.width / 2 - 120) + "px";
+      tip.style.top = (rect.bottom + 4) + "px";
+      document.body.appendChild(tip);
+      btn._tooltip = tip;
+      // Remove tooltip on mouse leave of the tooltip itself
+      tip.addEventListener("mouseleave", () => {
+        tip.remove();
+        btn._tooltip = null;
+      });
+    }
+
+    function showQualityModal(path) {
+      // Remove existing modal
+      document.querySelectorAll(".quality-modal-overlay").forEach(el => el.remove());
+
+      const overlay = document.createElement("div");
+      overlay.className = "quality-modal-overlay";
+      overlay.innerHTML = `
+        <div class="quality-modal-card">
+          <div class="quality-modal-header">
+            <h3>质检报告</h3>
+            <button class="quality-modal-close">&times;</button>
+          </div>
+          <div class="quality-modal-body">
+            <div class="quality-modal-loading">加载中...</div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const close = () => overlay.remove();
+      overlay.querySelector(".quality-modal-close").addEventListener("click", close);
+      overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+
+      // Fetch data
+      const bodyEl = overlay.querySelector(".quality-modal-body");
+      (async () => {
+        try {
+          const url = `/api/v1/projects/${App.state.projectId}/quality?source_path=${encodeURIComponent(path)}`;
+          const res = await fetch(url);
+          if (!res.ok) {
+            bodyEl.innerHTML = `<div class="banner-err">加载失败: ${res.status}</div>`;
+            return;
+          }
+          const data = await res.json();
+          renderQualityModalBody(bodyEl, data);
+        } catch (e) {
+          bodyEl.innerHTML = `<div class="banner-err">请求失败: ${App.escapeHtml(e.message)}</div>`;
+        }
+      })();
+    }
+
+    function renderQualityModalBody(el, data) {
+      const passed = data.passed;
+      const exists = data.exists;
+      const report = data.report || {};
+      const reviewItems = data.review_items || [];
+      const quarantine = data.quarantine || [];
+
+      const verdict = report.verdict || "—";
+      const verdictReason = report.verdict_reason || "";
+      const pagesTotal = report.pages_total ?? "—";
+      const pagesByType = report.pages_by_type || {};
+      const confidence = report.candidate_confidence != null
+        ? (report.candidate_confidence * 100).toFixed(0) + "%"
+        : "—";
+      const warnings = report.warnings || [];
+      const sourceBytes = report.source_bytes ?? "—";
+      const chunksCount = report.chunks_count ?? "—";
+      const claimsCount = report.claims_count ?? "—";
+      const evidenceCount = report.evidence_count ?? "—";
+      const durationMs = report.duration_ms ?? null;
+      const finishedAt = report.finished_at ? new Date(report.finished_at).toLocaleString() : "—";
+
+      let passColor = exists ? (passed ? "var(--success)" : "var(--danger)") : "var(--text-muted)";
+      let passText = exists ? (passed ? "✓ 通过" : "✗ 未通过") : "无报告";
+
+      let html = `
+        <div class="qm-summary">
+          <span class="qm-badge" style="color:${passColor};font-weight:700;font-size:18px;">${passText}</span>
+          <span class="qm-verdict">判决: ${App.escapeHtml(verdict)}</span>
+        </div>
+      `;
+
+      if (verdictReason) {
+        html += `<div class="qm-section"><div class="qm-section-title">判决原因</div><div class="qm-value">${App.escapeHtml(verdictReason)}</div></div>`;
+      }
+
+      html += `<div class="qm-section">
+        <div class="qm-section-title">基本信息</div>
+        <table class="qm-table">
+          <tr><td>源文件大小</td><td>${App.formatSize(sourceBytes)}</td></tr>
+          <tr><td>分块数</td><td>${chunksCount}</td></tr>
+          <tr><td>声明数</td><td>${claimsCount}</td></tr>
+          <tr><td>证据数</td><td>${evidenceCount}</td></tr>
+          <tr><td>置信度</td><td>${confidence}</td></tr>
+          <tr><td>总页数</td><td>${pagesTotal}</td></tr>
+      `;
+      for (const [type, count] of Object.entries(pagesByType)) {
+        html += `<tr><td>— ${App.escapeHtml(type)}</td><td>${count}</td></tr>`;
+      }
+      if (durationMs) {
+        html += `<tr><td>耗时</td><td>${(durationMs / 1000).toFixed(1)}s</td></tr>`;
+      }
+      html += `<tr><td>完成时间</td><td>${App.escapeHtml(finishedAt)}</td></tr>`;
+      html += `</table></div>`;
+
+      // Warnings
+      if (warnings.length) {
+        html += `<div class="qm-section">
+          <div class="qm-section-title">警告 (${warnings.length})</div>
+          <ul class="qm-list">${warnings.map(w => `<li class="qm-warn">${App.escapeHtml(w)}</li>`).join("")}</ul>
+        </div>`;
+      }
+
+      // Review items
+      if (reviewItems.length) {
+        html += `<div class="qm-section">
+          <div class="qm-section-title">审查项 (${reviewItems.length})</div>
+          <ul class="qm-list">${reviewItems.map(ri => `
+            <li class="qm-review-item">
+              <strong>${App.escapeHtml(ri.title || "")}</strong>
+              <span class="qm-tag qm-tag-${ri.status || "open"}">${App.escapeHtml(ri.status || "open")}</span>
+              ${ri.detail ? `<br><span class="qm-detail">${App.escapeHtml(ri.detail)}</span>` : ""}
+            </li>
+          `).join("")}</ul>
+        </div>`;
+      }
+
+      // Quarantine
+      if (quarantine.length) {
+        html += `<div class="qm-section">
+          <div class="qm-section-title">隔离页 (${quarantine.length})</div>
+          <ul class="qm-list">${quarantine.map(q => `
+            <li class="qm-quarantine-item">
+              <strong>${App.escapeHtml(q.page_id || "")}</strong>
+              <span class="qm-tag qm-tag-${q.verdict === "pass" ? "pass" : "reject"}">${App.escapeHtml(q.verdict || "")}</span>
+              <span class="qm-score">分数: ${q.total_score != null ? q.total_score.toFixed(2) : "—"}</span>
+              ${(q.issues || []).length ? `<br><span class="qm-detail">问题: ${App.escapeHtml(q.issues.join("; "))}</span>` : ""}
+            </li>
+          `).join("")}</ul>
+        </div>`;
+      }
+
+      if (!exists) {
+        html += `<div class="qm-section" style="color:var(--text-muted);">该文件尚未摄取或尚无质检报告。</div>`;
+      }
+
+      el.innerHTML = html;
     }
   };
 })();

@@ -156,11 +156,12 @@ def test_schema_endpoint_unknown_project_returns_404(monkeypatch, tmp_path):
 # Import smoke layer (kept small) ----------------------------------------
 
 def test_routes_import_smoke():
-    """All 8 route modules importable and expose a router."""
+    """All 9 route modules importable and expose a router."""
     from src.server.routes import (
         health, projects, files, search, ingest, reviews, chat, schema,
+        quality,
     )
-    for mod in (health, projects, files, search, ingest, reviews, chat, schema):
+    for mod in (health, projects, files, search, ingest, reviews, chat, schema, quality):
         assert getattr(mod, "router", None) is not None
 
 
@@ -196,3 +197,4 @@ def test_all_routers_mounted():
     assert any(p.endswith("/api/v1/projects/{project_id}/reviews/{review_id}") for p in paths)
     assert any(p.endswith("/api/v1/projects/{project_id}/chat") for p in paths)
     assert any(p.endswith("/api/v1/projects/{project_id}/schema") for p in paths)
+    assert any(p.endswith("/api/v1/projects/{project_id}/quality") for p in paths)
