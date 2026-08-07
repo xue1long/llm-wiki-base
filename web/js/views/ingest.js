@@ -70,13 +70,13 @@
     document.getElementById("ingestFilterInput").addEventListener("input", () => renderFileList());
     document.getElementById("ingestStatusFilter").addEventListener("change", () => renderFileList());
 
-    // Reingest handler (delegated)
+    // Delete handler (delegated)
     document.getElementById("ingestFileList").addEventListener("click", (e) => {
       const btn = e.target.closest(".reingest-btn");
       if (btn) {
         const path = btn.dataset.path;
-        if (!confirm(`重新摄取将删除此文档的所有 wiki 页面和向量后重新生成，确定继续？\n\n${path}`)) return;
-        doReingest(path);
+        if (!confirm(`删除将移除此文档已编译的所有 wiki 页面和向量（原始文件保留），确定继续？\n\n${path}`)) return;
+        doDeleteSource(path);
         return;
       }
       // Quality button click → modal
@@ -168,7 +168,7 @@
             <span class="ingest-file-name">${App.escapeHtml(f.name)}</span>
             <span class="ingest-file-date">${dateStr}</span>
             <span class="ingest-file-size">${App.formatSize(f.size)}</span>
-            <button class="btn-sm reingest-btn" data-path="${App.escapeHtml(f.path)}">重新摄取</button>
+            <button class="btn-sm reingest-btn" data-path="${App.escapeHtml(f.path)}">删除</button>
             <button class="quality-btn" data-path="${App.escapeHtml(f.path)}">质</button>
           </div>`;
         }
@@ -271,79 +271,28 @@
       }
     }
 
-    async function doReingest(path) {
+    async function doDeleteSource(path) {
       const panel = document.getElementById("ingestProgressPanel");
       panel.innerHTML = `<div class="ingest-progress">
-        <div class="banner-warn">正在清理旧数据并重新摄取…</div>
+        <div class="banner-warn">正在删除已编译的 wiki 信息…</div>
         <div class="progress-row">
-          <div class="progress-bar"><div class="progress-fill" style="width:15%"></div></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:50%"></div></div>
           <span class="progress-status">deleting</span>
         </div>
-        <div class="progress-stages"></div>
       </div>`;
-      const fill = panel.querySelector(".progress-fill");
-      const statusEl = panel.querySelector(".progress-status");
-      const stagesEl = panel.querySelector(".progress-stages");
 
       try {
-        const r = await App.api(`/api/v1/projects/${App.state.projectId}/reingest`, {
+        const r = await App.api(`/api/v1/projects/${App.state.projectId}/delete-source`, {
           method: "POST",
           body: { source_path: path },
         });
-        if (r.status === "ignored") {
-          panel.innerHTML = `<div class="banner-warn">未入队（reason=${App.escapeHtml(r.reason || "Duplicate")}）</div>`;
-          return;
-        }
-        if (r.status !== "queued" || !r.taskId) {
-          panel.innerHTML = `<div class="banner-warn">未识别状态: ${App.escapeHtml(JSON.stringify(r))}</div>`;
-          return;
-        }
-        const cleaned = r.cleaned || {};
-        const nDel = (cleaned.deleted_pages || []).length;
-        const nUpd = (cleaned.updated_pages || []).length;
-        const nVec = cleaned.deleted_vectors ?? 0;
-        panel.innerHTML = `<div class="ingest-progress">
-          <div class="banner-ok">✓ 已清理旧数据（删除 ${nDel} 页，更新 ${nUpd} 页，清理 ${nVec} 条向量）并重新入队 (taskId=${App.escapeHtml(r.taskId)})</div>
-          <div class="progress-row">
-            <div class="progress-bar"><div class="progress-fill" style="width:30%"></div></div>
-            <span class="progress-status">queued</span>
-          </div>
-          <div class="progress-stages"></div>
-        </div>`;
-        fill = panel.querySelector(".progress-fill");
-        statusEl = panel.querySelector(".progress-status");
-        stagesEl = panel.querySelector(".progress-stages");
-
-        for (let i = 0; i < 240; i++) {
-          await new Promise(r2 => setTimeout(r2, 1500));
-          let rec;
-          try {
-            rec = await App.api(`/api/v1/projects/${App.state.projectId}/ingest/status/${encodeURIComponent(r.taskId)}`);
-          } catch (e) {
-            statusEl.textContent = "查询失败: " + e.message;
-            break;
-          }
-          statusEl.textContent = rec.status;
-          const stages = Array.isArray(rec.stages) ? rec.stages : [];
-          stagesEl.innerHTML = stages.length
-            ? stages.map(s => `<span class="stage-badge">${App.escapeHtml(s.name)}</span>`).join(" · ")
-            : "<span style='color:#9ca3af'>等待阶段事件...</span>";
-          const pct = ({
-            queued: 30, running: 55, finished: 100,
-            succeeded: 100, failed: 100, ignored: 100,
-          }[rec.status]) ?? (stages.length >= 3 ? 95 : stages.length === 2 ? 70 : stages.length === 1 ? 40 : 55);
-          fill.style.width = pct + "%";
-          if (rec.status === "succeeded" || rec.status === "failed") {
-            if (rec.status === "succeeded") {
-              panel.querySelector(".banner-ok").outerHTML = `<div class="banner-ok">✓ 重新摄取完成</div>`;
-            } else {
-              panel.querySelector(".banner-ok").outerHTML = `<div class="banner-err">✗ 重新摄取失败${rec.error ? ": " + App.escapeHtml(rec.error) : ""}</div>`;
-            }
-            break;
-          }
-        }
+        const nDel = (r.deleted_pages || []).length;
+        const nUpd = (r.updated_pages || []).length;
+        const nVec = r.deleted_vectors ?? 0;
+        panel.innerHTML = `<div class="banner-ok">✓ 已删除（删除 ${nDel} 页，更新 ${nUpd} 页，清理 ${nVec} 条向量）</div>`;
+        renderFileList();
       } catch (e) {
-        panel.innerHTML = `<div class="banner-err">重新摄取失败: ${App.escapeHtml(e.message)}</div>`;
+        panel.innerHTML = `<div class="banner-err">删除失败: ${App.escapeHtml(e.message)}</div>`;
       }
     }
 

@@ -390,3 +390,60 @@ def reingest_source(project_id: str, raw_path: str) -> dict:
         "deleted_vectors": deleted_vectors,
     }
     return enqueue_result
+
+
+def delete_source(project_id: str, raw_path: str) -> dict:
+    """Delete all compiled wiki information for a raw source — no re-ingest.
+
+    Removes the wiki source page (and cascades to any entity/concept/
+    synthesis pages that reference its sources) plus all LanceDB vectors
+    whose ``path`` column matches *raw_path*. Unlike ``reingest_source``,
+    it does NOT re-enqueue the source; the raw file is left untouched.
+
+    Args:
+        project_id: validated project UUID.
+        raw_path: project-relative path to the raw source file, e.g.
+            ``"raw/sources/01_新手入门/0_小说人物辅助设定.md"``.
+
+    Returns:
+        {"status": "deleted", "source_id", "deleted_pages",
+         "updated_pages", "deleted_vectors"}.
+
+    Raises:
+        ProjectNotFoundError: project_id does not resolve.
+        ValueError: no wiki source page found for *raw_path* (i.e. the
+            file was never ingested, or the wiki sources have been cleaned
+            manually).
+    """
+    from ..lib.project import resolve_project
+    from ..wiki.features.cascade_delete import cascade_delete
+    from ..vector.store import delete_by_source, init_vector_store_for_paths
+
+    ctx, paths = resolve_project(project_id, by_id_only=True)
+
+    source_id = _find_source_page_by_raw_path(paths.wiki_sources, raw_path)
+    if source_id is None:
+        raise ValueError(
+            f"No wiki source page found for {raw_path!r}; "
+            "the file may not have been ingested yet."
+        )
+
+    cascade_result = cascade_delete(paths, source_id)
+
+    init_vector_store_for_paths(paths)
+    deleted_vectors = delete_by_source(paths, raw_path)
+
+    _logger.info(
+        "[delete_source] source=%s source_id=%s deleted_vectors=%d updated=%s deleted=%s",
+        raw_path, source_id, deleted_vectors,
+        cascade_result.get("updated_pages", []),
+        cascade_result.get("deleted_pages", []),
+    )
+
+    return {
+        "status": "deleted",
+        "source_id": source_id,
+        "deleted_pages": cascade_result.get("deleted_pages", []),
+        "updated_pages": cascade_result.get("updated_pages", []),
+        "deleted_vectors": deleted_vectors,
+    }
