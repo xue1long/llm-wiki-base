@@ -112,6 +112,34 @@ def get_table(project_paths: "WikiPaths | None" = None):
     return table
 
 
+def delete_by_source(paths: WikiPaths, raw_path: str) -> int:
+    """Delete every vector whose ``path`` column matches ``raw_path``.
+
+    Used by reingest: before re-running ingestion of a source, its old
+    vectors must be removed so the search index does not serve stale
+    chunks. Matches on the exact ``path`` value (project-relative, forward
+    slashes) that the ingest pipeline stored at upsert time.
+
+    Args:
+        paths: WikiPaths for the target project.
+        raw_path: project-relative raw path stored in the ``path`` column.
+
+    Returns:
+        Number of deleted rows (0 if the project store is not initialised
+        or no rows matched).
+    """
+    if paths.root is None:
+        return 0
+    key = _project_key(paths)
+    if key not in _per_project:
+        return 0
+    table = _per_project[key][1]
+    # Escape single quotes so a path containing one cannot break the SQL
+    # predicate nor inject arbitrary filter logic.
+    escaped = raw_path.replace("'", "''")
+    return int(table.delete(f"path = '{escaped}'"))
+
+
 def current_project_paths() -> Optional[WikiPaths]:
     """Return the WikiPaths of the project most recently initialised."""
     if _current_project_key is None:

@@ -283,3 +283,110 @@ def run_ingest_pipeline(paths, source_path, source_text, provider, task_id="svc"
     import asyncio
     from ..pipeline.ingest import run_ingest
     return asyncio.run(run_ingest(paths, source_path, source_text, provider, task_id=task_id))
+
+
+def _find_source_page_by_raw_path(wiki_sources_dir: Path, raw_path: str) -> str | None:
+    """Find the source page ID whose frontmatter ``sources`` contains ``raw_path``.
+
+    Scans every ``.md`` file under *wiki_sources_dir*, parses the YAML
+    frontmatter, and returns the first page whose ``sources:`` list includes
+    *raw_path* (normalised to forward slashes).  Returns ``None`` when no
+    match is found.
+    """
+    raw_path = raw_path.replace("\\", "/")
+    if not wiki_sources_dir.is_dir():
+        return None
+    for md_file in wiki_sources_dir.glob("*.md"):
+        try:
+            text = md_file.read_text(encoding="utf-8")
+            lines = text.split("\n")
+            # Fast path: skip files that don't mention the raw path at all
+            if raw_path not in text:
+                continue
+            in_sources = False
+            page_id = None
+            for line in lines:
+                if line.startswith("id:"):
+                    page_id = line[3:].strip()
+                if line.startswith("sources:"):
+                    in_sources = True
+                    continue
+                if in_sources:
+                    if line.startswith("- "):
+                        val = line[2:].strip().replace("\\", "/")
+                        if val == raw_path:
+                            return page_id
+                    elif line and line[0] not in (" ", "\t", "-"):
+                        break
+        except Exception:
+            continue
+    return None
+
+
+def reingest_source(project_id: str, raw_path: str) -> dict:
+    """Re-ingest a previously processed raw source file.
+
+    Workflow:
+        1. Resolve project and validate it exists.
+        2. Find the wiki source page whose frontmatter ``sources`` contains
+           *raw_path*.
+        3. Call ``cascade_delete`` to remove all wiki pages generated from
+           this source.
+        4. Delete all LanceDB vectors whose ``path`` column matches the
+           raw source path.
+        5. Re-enqueue the source for ingestion via ``enqueue_source``.
+
+    Args:
+        project_id: validated project UUID.
+        raw_path: project-relative path to the raw source file, e.g.
+            ``"raw/sources/01_新手入门/0_小说人物辅助设定.md"``.
+
+    Returns:
+        The same shape as ``enqueue_source``: ``{"status", "taskId", ...}``
+        with an extra ``"cleaned"`` field summarising what was deleted.
+
+    Raises:
+        ProjectNotFoundError: project_id does not resolve.
+        ValueError: no wiki source page found for *raw_path* (i.e. the
+            file was never ingested, or the wiki sources have been cleaned
+            manually).
+    """
+    from ..lib.project import resolve_project
+    from ..wiki.features.cascade_delete import cascade_delete
+    from ..vector.store import delete_by_source, init_vector_store_for_paths
+
+    ctx, paths = resolve_project(project_id, by_id_only=True)
+
+    # Step 2 — find the source page
+    source_id = _find_source_page_by_raw_path(paths.wiki_sources, raw_path)
+    if source_id is None:
+        raise ValueError(
+            f"No wiki source page found for {raw_path!r}; "
+            "the file may not have been ingested yet."
+        )
+
+    # Step 3 — cascade delete wiki pages
+    cascade_result = cascade_delete(paths, source_id)
+
+    # Step 4 — delete vectors
+    init_vector_store_for_paths(paths)
+    deleted_vectors = delete_by_source(paths, raw_path)
+
+    _logger.info(
+        "[reingest] source=%s source_id=%s deleted_vectors=%d updated=%s deleted=%s",
+        raw_path, source_id, deleted_vectors,
+        cascade_result.get("updated_pages", []),
+        cascade_result.get("deleted_pages", []),
+    )
+
+    # Step 5 — re-enqueue
+    enqueue_result = enqueue_source(project_id, raw_path)
+
+    # Merge results
+    enqueue_result["cleaned"] = {
+        "source_id": source_id,
+        "deleted_pages": cascade_result.get("deleted_pages", []),
+        "updated_pages": cascade_result.get("updated_pages", []),
+        "deleted_vectors": deleted_vectors,
+    }
+    return enqueue_result

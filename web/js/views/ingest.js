@@ -70,6 +70,15 @@
     document.getElementById("ingestFilterInput").addEventListener("input", () => renderFileList());
     document.getElementById("ingestStatusFilter").addEventListener("change", () => renderFileList());
 
+    // Reingest handler (delegated)
+    document.getElementById("ingestFileList").addEventListener("click", (e) => {
+      const btn = e.target.closest(".reingest-btn");
+      if (!btn) return;
+      const path = btn.dataset.path;
+      if (!confirm(`重新摄取将删除此文档的所有 wiki 页面和向量后重新生成，确定继续？\n\n${path}`)) return;
+      doReingest(path);
+    });
+
     async function loadRawFiles() {
       try {
         const data = await App.api(`/api/v1/projects/${App.state.projectId}/raw-files`);
@@ -100,13 +109,22 @@
 
       list.innerHTML = filtered.map((f, i) => {
         const dateStr = f.created_at ? new Date(f.created_at).toLocaleDateString() : "-";
-        return `<div class="ingest-file-row${f.ingested ? " ingested" : ""}">
-          <input type="checkbox" data-path="${App.escapeHtml(f.path)}" ${f.ingested ? "disabled" : ""} />
+        if (f.ingested) {
+          return `<div class="ingest-file-row ingested">
+            <span class="ingest-file-icon" style="margin-left:4px;">${iconForExt(f.ext)}</span>
+            <span class="ingest-file-name">${App.escapeHtml(f.name)}</span>
+            <span class="ingest-file-date">${dateStr}</span>
+            <span class="ingest-file-size">${App.formatSize(f.size)}</span>
+            <button class="btn-sm reingest-btn" data-path="${App.escapeHtml(f.path)}">重新摄取</button>
+          </div>`;
+        }
+        return `<div class="ingest-file-row">
+          <input type="checkbox" data-path="${App.escapeHtml(f.path)}" />
           <span class="ingest-file-icon">${iconForExt(f.ext)}</span>
           <span class="ingest-file-name">${App.escapeHtml(f.name)}</span>
           <span class="ingest-file-date">${dateStr}</span>
           <span class="ingest-file-size">${App.formatSize(f.size)}</span>
-          <span class="ingest-file-status">${f.ingested ? "✓ 已摄取" : ""}</span>
+          <span class="ingest-file-status"></span>
         </div>`;
       }).join("");
 
@@ -196,6 +214,82 @@
         if (i + CONCURRENCY < paths.length) {
           await new Promise(r => setTimeout(r, DELAY_MS));
         }
+      }
+    }
+
+    async function doReingest(path) {
+      const panel = document.getElementById("ingestProgressPanel");
+      panel.innerHTML = `<div class="ingest-progress">
+        <div class="banner-warn">正在清理旧数据并重新摄取…</div>
+        <div class="progress-row">
+          <div class="progress-bar"><div class="progress-fill" style="width:15%"></div></div>
+          <span class="progress-status">deleting</span>
+        </div>
+        <div class="progress-stages"></div>
+      </div>`;
+      const fill = panel.querySelector(".progress-fill");
+      const statusEl = panel.querySelector(".progress-status");
+      const stagesEl = panel.querySelector(".progress-stages");
+
+      try {
+        const r = await App.api(`/api/v1/projects/${App.state.projectId}/reingest`, {
+          method: "POST",
+          body: { source_path: path },
+        });
+        if (r.status === "ignored") {
+          panel.innerHTML = `<div class="banner-warn">未入队（reason=${App.escapeHtml(r.reason || "Duplicate")}）</div>`;
+          return;
+        }
+        if (r.status !== "queued" || !r.taskId) {
+          panel.innerHTML = `<div class="banner-warn">未识别状态: ${App.escapeHtml(JSON.stringify(r))}</div>`;
+          return;
+        }
+        const cleaned = r.cleaned || {};
+        const nDel = (cleaned.deleted_pages || []).length;
+        const nUpd = (cleaned.updated_pages || []).length;
+        const nVec = cleaned.deleted_vectors ?? 0;
+        panel.innerHTML = `<div class="ingest-progress">
+          <div class="banner-ok">✓ 已清理旧数据（删除 ${nDel} 页，更新 ${nUpd} 页，清理 ${nVec} 条向量）并重新入队 (taskId=${App.escapeHtml(r.taskId)})</div>
+          <div class="progress-row">
+            <div class="progress-bar"><div class="progress-fill" style="width:30%"></div></div>
+            <span class="progress-status">queued</span>
+          </div>
+          <div class="progress-stages"></div>
+        </div>`;
+        fill = panel.querySelector(".progress-fill");
+        statusEl = panel.querySelector(".progress-status");
+        stagesEl = panel.querySelector(".progress-stages");
+
+        for (let i = 0; i < 240; i++) {
+          await new Promise(r2 => setTimeout(r2, 1500));
+          let rec;
+          try {
+            rec = await App.api(`/api/v1/projects/${App.state.projectId}/ingest/status/${encodeURIComponent(r.taskId)}`);
+          } catch (e) {
+            statusEl.textContent = "查询失败: " + e.message;
+            break;
+          }
+          statusEl.textContent = rec.status;
+          const stages = Array.isArray(rec.stages) ? rec.stages : [];
+          stagesEl.innerHTML = stages.length
+            ? stages.map(s => `<span class="stage-badge">${App.escapeHtml(s.name)}</span>`).join(" · ")
+            : "<span style='color:#9ca3af'>等待阶段事件...</span>";
+          const pct = ({
+            queued: 30, running: 55, finished: 100,
+            succeeded: 100, failed: 100, ignored: 100,
+          }[rec.status]) ?? (stages.length >= 3 ? 95 : stages.length === 2 ? 70 : stages.length === 1 ? 40 : 55);
+          fill.style.width = pct + "%";
+          if (rec.status === "succeeded" || rec.status === "failed") {
+            if (rec.status === "succeeded") {
+              panel.querySelector(".banner-ok").outerHTML = `<div class="banner-ok">✓ 重新摄取完成</div>`;
+            } else {
+              panel.querySelector(".banner-ok").outerHTML = `<div class="banner-err">✗ 重新摄取失败${rec.error ? ": " + App.escapeHtml(rec.error) : ""}</div>`;
+            }
+            break;
+          }
+        }
+      } catch (e) {
+        panel.innerHTML = `<div class="banner-err">重新摄取失败: ${App.escapeHtml(e.message)}</div>`;
       }
     }
 
