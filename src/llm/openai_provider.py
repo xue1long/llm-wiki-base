@@ -134,18 +134,19 @@ class OpenAIProvider(LLMProvider):
         if kwargs.get("max_tokens") is not None:
             body["max_tokens"] = kwargs["max_tokens"]
         if response_format:
-            # Many OpenAI-compatible APIs (MiniMax, DeepSeek, Kimi, GLM,
-            # etc.) reject any ``response_format`` parameter — both the
-            # legacy ``{"type": "json_object"}`` form and the newer
-            # ``{"type": "object", "properties": ...}`` JSON-Schema form
-            # — with HTTP 400 "unknown response_format type". The
-            # structured-outputs API is OpenAI-specific and not generally
-            # replicated by OpenAI-compatible providers.
-            #
-            # Drop the parameter entirely for non-OpenAI endpoints so the
-            # LLM is still expected to return JSON in its content (the
-            # system prompt instructs it to) without breaking the request.
-            if self.base_url.startswith("https://api.openai.com"):
+            # Normalize response_format to a shape the endpoint accepts.
+            # The pipeline builds a non-standard {"type": "object",
+            # "properties": {...}} schema. OpenAI's native structured
+            # output uses {"type": "json_schema", "json_schema": {...}};
+            # many OpenAI-compatible providers (GLM, DeepSeek, Kimi,
+            # MiniMax) accept ONLY {"type": "json_object"} (or text/url/
+            # b64_json) and reject the schema form with HTTP 400. The JSON
+            # schema is already embedded in the prompt, so downgrading to
+            # plain json_object mode is sufficient enforcement everywhere.
+            rtype = response_format.get("type")
+            if rtype not in ("json_object", "json_schema", "text", "url", "b64_json"):
+                body["response_format"] = {"type": "json_object"}
+            else:
                 body["response_format"] = response_format
 
         # Two code paths:
@@ -333,7 +334,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                     "model": getattr(result, "model", self.model),
                 }
         else:
-            async with httpx.AsyncClient(timeout=self.timeout_seconds) as sess:
+            async with httpx.AsyncClient(timeout=self.timeout_seconds, trust_env=False) as sess:
                 r = await sess.post(
                     f"{self.endpoint}/embeddings",
                     headers=self._headers(),

@@ -1704,7 +1704,7 @@ def _auto_fill_deterministic_slots(
     url_str = url_match.group(0).rstrip(".") if url_match else ""
     # Try to extract download date
     date_match = _re.search(
-        r'下载时间[：:]\\s*(\\d{4}[-/]\\d{2}[-/]\\d{2})',
+        r'下载时间[：:]\s*(\d{4}[-/]\d{2}[-/]\d{2})',
         source_text[:500],
     )
     date_str = date_match.group(1) if date_match else ""
@@ -1727,7 +1727,7 @@ def _auto_fill_deterministic_slots(
             parts.append(f"平台: {platform_str}")
         if date_str:
             parts.append(f"下载时间: {date_str}")
-        source_meta_text = "\\n".join(parts)
+        source_meta_text = "\n".join(parts)
 
     # --- Walk pages and fill deterministic slots ---
     for p in pages:
@@ -1762,11 +1762,17 @@ def _auto_fill_deterministic_slots(
             if _slot_is_empty(slots.get("key_points")):
                 # Extract heading-prefixed lines as fallback key points
                 heading_lines = _re.findall(
-                    r'^#+\\s+(.+)', source_text[:3000], _re.MULTILINE,
+                    r'^#+\s+(.+)', source_text[:3000], _re.MULTILINE,
                 )
+                # Or Chinese-numbered headings (壹、贰、叁、...)
+                if not heading_lines:
+                    heading_lines = _re.findall(
+                        r'^[壹贰叁肆伍陆柒捌玖拾]+[：:]\s*(.+)',
+                        source_text[:3000], _re.MULTILINE,
+                    )
                 # Or numbered list items
                 numbered_items = _re.findall(
-                    r'^\\d+[、.．]\\s*(.{10,120})$', source_text[:5000], _re.MULTILINE,
+                    r'^\d+[、.．]\s*(.{10,120})$', source_text[:5000], _re.MULTILINE,
                 )
                 candidates = heading_lines[:5] or numbered_items[:5]
                 if candidates:
