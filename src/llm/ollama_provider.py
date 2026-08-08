@@ -8,6 +8,7 @@ instances are created. ``close()`` closes the cached client exactly once
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Optional
 
 import httpx
@@ -23,6 +24,15 @@ _logger = logging.getLogger(__name__)
 # Cleared on close(); shared across all OllamaProvider instances with the
 # same base URL. Keyed by base_url so different endpoints stay isolated.
 _CLIENT_CACHE: dict[str, httpx.AsyncClient] = {}
+
+# Reference count: base_url -> int.  Tracks how many active OllamaProvider
+# instances reference each cached client so close() only releases the
+# underlying transport when the last instance is done (Bug #13).
+_CLIENT_REFCOUNT: dict[str, int] = {}
+
+# Thread-safety lock for the module-level cache and refcount dicts.
+# Protects against concurrent access from multiple threads (Bug #12).
+_CLIENT_LOCK = threading.Lock()
 
 # Track the event-loop id each cached client was created on.  When
 # asyncio.run() creates a fresh loop (common in tests and CLI scripts),
@@ -42,33 +52,40 @@ def _get_or_create_client(base_url: str, timeout: float, headers: dict) -> httpx
     We detect the mismatch by comparing the identity of the current default
     event loop with the one stored at client-creation time.  On loop change,
     the old client is closed and a fresh one is created.
+
+    The whole cache/lookup is guarded by :data:`_CLIENT_LOCK` so concurrent
+    access from multiple threads is safe (Bug #12).
     """
     import asyncio
 
-    cached = _CLIENT_CACHE.get(base_url)
-    if cached is not None:
-        try:
-            current_loop_id = id(asyncio.get_event_loop())
-        except RuntimeError:
-            current_loop_id = 0
-        cached_loop_id = _CLIENT_LOOP_IDS.get(base_url)
-        if cached_loop_id and cached_loop_id != current_loop_id:
-            # Loop changed — old client is bound to a dead loop.
+    with _CLIENT_LOCK:
+        cached = _CLIENT_CACHE.get(base_url)
+        if cached is not None:
             try:
-                asyncio.get_event_loop().run_until_complete(cached.aclose())
-            except Exception:
+                current_loop_id = id(asyncio.get_event_loop())
+            except RuntimeError:
+                current_loop_id = 0
+            cached_loop_id = _CLIENT_LOOP_IDS.get(base_url)
+            if cached_loop_id and cached_loop_id != current_loop_id:
+                # Loop changed — old client is bound to a dead loop.
+                try:
+                    asyncio.get_event_loop().run_until_complete(cached.aclose())
+                except Exception:
+                    pass
+                cached = None
+
+        if cached is None:
+            cached = httpx.AsyncClient(timeout=timeout, headers=headers)
+            _CLIENT_CACHE[base_url] = cached
+            try:
+                _CLIENT_LOOP_IDS[base_url] = id(asyncio.get_event_loop())
+            except RuntimeError:
                 pass
-            cached = None
 
-    if cached is None:
-        cached = httpx.AsyncClient(timeout=timeout, headers=headers)
-        _CLIENT_CACHE[base_url] = cached
-        try:
-            _CLIENT_LOOP_IDS[base_url] = id(asyncio.get_event_loop())
-        except RuntimeError:
-            pass
+        # Increment the reference count for this base_url.
+        _CLIENT_REFCOUNT[base_url] = _CLIENT_REFCOUNT.get(base_url, 0) + 1
 
-    return cached
+        return cached
 
 
 class OllamaProvider(LLMProvider):
@@ -184,13 +201,24 @@ class OllamaProvider(LLMProvider):
             return {"ok": False, "detail": str(e), "version": None}
 
     async def close(self) -> None:
-        """Close the cached ``AsyncClient`` exactly once per base_url.
+        """Release this instance's reference to the cached ``AsyncClient``.
 
-        Idempotent: if ``close()`` is called a second time on a different
-        instance sharing the same URL (or after the cache was cleared by
-        a previous close), this is a no-op.
+        The cached client is only closed (its transport released) when the
+        last referencing instance calls ``close()`` — guarded by a reference
+        count keyed by ``base_url`` (Bug #13).  Idempotent: calling
+        ``close()`` again on the same instance (after the cache was already
+        cleared by the last close) is a no-op.
         """
-        client = _CLIENT_CACHE.pop(self.base_url, None)
-        if client is None:
-            return
-        await client.aclose()
+        with _CLIENT_LOCK:
+            remaining = _CLIENT_REFCOUNT.get(self.base_url, 0)
+            if remaining <= 1:
+                # This is the last reference — drop the refcount and evict
+                # the cached client so it is closed exactly once.
+                _CLIENT_REFCOUNT.pop(self.base_url, None)
+                client = _CLIENT_CACHE.pop(self.base_url, None)
+            else:
+                _CLIENT_REFCOUNT[self.base_url] = remaining - 1
+                client = None
+
+        if client is not None:
+            await client.aclose()

@@ -8,6 +8,8 @@ go through ``client.chat.completions.create``; the legacy
 """
 from __future__ import annotations
 
+import asyncio
+import inspect
 import logging
 import re
 from typing import Optional
@@ -73,7 +75,7 @@ class OpenAIProvider(LLMProvider):
 
     async def _post_json(self, url: str, payload: dict, timeout: Optional[float] = None) -> dict:
         effective_timeout = timeout if timeout is not None else self.timeout_seconds
-        async with httpx.AsyncClient(timeout=effective_timeout) as sess:
+        async with httpx.AsyncClient(timeout=effective_timeout, trust_env=False) as sess:
             r = await sess.post(url, headers=self._headers(), json=payload)
             try:
                 r.raise_for_status()
@@ -147,11 +149,22 @@ class OpenAIProvider(LLMProvider):
                 body["response_format"] = response_format
 
         # Two code paths:
-        #   - SDK present:  self._sdk.chat.completions.create(...)
+        #   - SDK present:  await self._sdk.chat.completions.create(...)
+        #     (the SDK may be the async ``AsyncOpenAI``/``AsyncAzureOpenAI``
+        #     client, in which case the call is awaited; a sync SDK client is
+        #     also supported by offloading to a worker thread so the event
+        #     loop is never blocked — see Bug #11)
         #   - else:         raw httpx POST to {base_url}/chat/completions
         if self._client_kind == "sdk":
             try:
-                result = self._sdk.chat.completions.create(**body)
+                create = self._sdk.chat.completions.create
+                if inspect.iscoroutinefunction(create):
+                    # Async SDK (openai.AsyncOpenAI) — await directly.
+                    result = await create(**body)
+                else:
+                    # Sync SDK (openai.OpenAI) — offload to a worker thread so
+                    # the event loop is never blocked (Bug #11).
+                    result = await asyncio.to_thread(create, **body)
                 # openai SDK returns a pydantic-like model; .model_dump() works
                 if hasattr(result, "model_dump"):
                     data = result.model_dump()
@@ -205,7 +218,11 @@ class OpenAIProvider(LLMProvider):
         """Probe the endpoint and return ``{"ok": bool, "detail": str}``."""
         if self._client_kind == "sdk":
             try:
-                await self._sdk.models.list()
+                models_list = self._sdk.models.list()
+                if inspect.isawaitable(models_list):
+                    await models_list
+                else:
+                    await asyncio.to_thread(models_list)
                 return {"ok": True, "detail": "models.list() OK"}
             except Exception as e:
                 return {"ok": False, "detail": f"models.list() failed: {e}"}
@@ -213,7 +230,7 @@ class OpenAIProvider(LLMProvider):
         # httpx mode — probe /models via GET (OpenAI-compatible endpoints
         # all support this). Fall back to the base URL if /models 404s.
         try:
-            async with httpx.AsyncClient(timeout=10) as sess:
+            async with httpx.AsyncClient(timeout=10, trust_env=False) as sess:
                 r = await sess.get(
                     f"{self.base_url}/models",
                     headers={k: v for k, v in self._headers().items()
@@ -295,7 +312,11 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
 
         if self._client_kind == "sdk":
             try:
-                result = self._sdk.embeddings.create(**body)
+                create = self._sdk.embeddings.create
+                if inspect.iscoroutinefunction(create):
+                    result = await create(**body)
+                else:
+                    result = await asyncio.to_thread(create, **body)
             except Exception as e:
                 raise RuntimeError(f"OpenAI embedding failed: {e}") from e
             if hasattr(result, "model_dump"):

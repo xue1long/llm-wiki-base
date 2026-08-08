@@ -155,6 +155,8 @@ class ReviewerStage:
         When the LLM uses 1-indexed refs, every max ref equals evidence_count
         instead of evidence_count-1. This normalizes by subtracting 1 from all
         refs when the pattern is detected.
+
+        Handles mixed-index cases: most claims 0-indexed but a few 1-indexed.
         """
         evidence_count = len(candidate.evidence)
         if evidence_count == 0:
@@ -169,13 +171,24 @@ class ReviewerStage:
             return
         max_ref = max(all_refs)
         min_ref = min(all_refs)
-        # Only normalize when the pattern is unambiguously 1-indexed:
-        # all refs >= 1 and max == evidence_count (not evidence_count-1)
+        # Pass 1: unambiguously 1-indexed — all refs >= 1 and max == evidence_count
         if min_ref >= 1 and max_ref == evidence_count:
             for claim in candidate.claims:
                 refs = claim.get("evidence_refs", [])
                 if refs:
                     claim["evidence_refs"] = [r - 1 for r in refs if isinstance(r, int)]
+
+        # Pass 2: mixed-index — most claims 0-indexed, but some claims
+        # independently 1-indexed.  Check each claim: if all its refs >= 1
+        # and its max == evidence_count, treat it as 1-indexed and fix it.
+        # Safe to run after Pass 1 because Pass 1 already zeroed all refs,
+        # so `all(r >= 1)` won't match any claim that was already normalized.
+        for claim in candidate.claims:
+            refs = claim.get("evidence_refs", [])
+            if not refs or not all(isinstance(r, int) for r in refs):
+                continue
+            if all(r >= 1 for r in refs) and max(refs) == evidence_count:
+                claim["evidence_refs"] = [r - 1 for r in refs]
 
     @staticmethod
     def _check_schema(

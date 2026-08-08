@@ -7,6 +7,8 @@ silently dropped (which was the previous behaviour).
 """
 from __future__ import annotations
 
+import asyncio
+import inspect
 import logging
 from typing import Optional
 
@@ -108,7 +110,14 @@ class AnthropicProvider(LLMProvider):
 
         if self._client_kind == "sdk":
             try:
-                result = self._sdk.messages.create(**body)
+                create = self._sdk.messages.create
+                if inspect.iscoroutinefunction(create):
+                    # Async SDK (anthropic.AsyncAnthropic) — await directly.
+                    result = await create(**body)
+                else:
+                    # Sync SDK (anthropic.Anthropic) — offload to a worker
+                    # thread so the event loop is never blocked (Bug #14).
+                    result = await asyncio.to_thread(create, **body)
                 if hasattr(result, "model_dump"):
                     data = result.model_dump()
                 elif isinstance(result, dict):
@@ -179,7 +188,11 @@ class AnthropicProvider(LLMProvider):
         try:
             # anthropic SDK doesn't have a generic models.list; use a minimal
             # messages probe via /v1/models which IS available on the API
-            await self._sdk.models.list(limit=1)  # type: ignore[attr-defined]
+            models_list = self._sdk.models.list(limit=1)
+            if inspect.iscoroutinefunction(models_list):
+                await models_list
+            else:
+                await asyncio.to_thread(models_list)
             return {"ok": True, "detail": "models.list() OK"}
         except Exception as e:
             return {"ok": False, "detail": f"models.list() failed: {e}"}

@@ -57,6 +57,16 @@ def list_providers() -> dict:
     }
 
 
+@router.get("/providers/{name}")
+def get_provider(name: str) -> dict:
+    """Get a single provider config (full API key for editing)."""
+    try:
+        config = ProviderRegistry.require(name)
+    except ProviderNotFoundError:
+        raise HTTPException(404, f"Provider not found: {name}")
+    return {"ok": True, "provider": _config_to_dict(config, redact_keys=False)}
+
+
 @router.post("/providers")
 def add_provider(body: AddProviderRequest) -> dict:
     """Add or update a provider."""
@@ -67,6 +77,15 @@ def add_provider(body: AddProviderRequest) -> dict:
     if body.type == "ollama" and not base_url:
         base_url = "http://127.0.0.1:11434"
 
+    # Preserve existing API key when updating and no new key provided
+    api_key = body.api_key
+    if not api_key:
+        try:
+            existing = ProviderRegistry.require(body.name)
+            api_key = existing.api_key
+        except ProviderNotFoundError:
+            pass  # new provider, keep empty
+
     models: dict[str, ModelInfo] = {}
     if body.chat_model:
         models[body.chat_model] = ModelInfo(name=body.chat_model)
@@ -75,7 +94,7 @@ def add_provider(body: AddProviderRequest) -> dict:
         name=body.name,
         type=body.type,
         base_url=base_url,
-        api_key=body.api_key,
+        api_key=api_key,
         models=models,
         default_chat_model=body.chat_model,
         default_embedding_model=body.embedding_model or body.chat_model,
