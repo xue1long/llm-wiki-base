@@ -93,6 +93,19 @@ class LLMProvider(ABC):
         """
         return {"ok": True, "detail": "no probe"}
 
+    async def check_response_format(self) -> dict:
+        """Probe whether the endpoint accepts the pipeline's non-standard
+        ``response_format`` shape (``{"type": "object", "properties": {...}}``).
+
+        Standardised contract mirroring :meth:`health_check`: return
+        ``{"ok": bool, "detail": str, ...}``. ``ok=False`` means the provider
+        would reject the pipeline's structured-output requests with HTTP 400
+        (→ permanent failure → source-only stub pages). Providers that do not
+        send ``response_format`` to the wire (Anthropic) or that map it to a
+        native construct (Ollama) return ``{"ok": True}`` by default.
+        """
+        return {"ok": True, "detail": "no probe"}
+
     async def close(self) -> None:
         """Release any unmanaged resources. Subclasses override; default is a no-op
         for stateless or per-call providers (OpenAI/Anthropic use httpx per-call)."""

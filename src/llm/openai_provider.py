@@ -215,8 +215,49 @@ class OpenAIProvider(LLMProvider):
         out = await self._embed_batch([text])
         return out[0]
 
+    async def check_response_format(self) -> dict:
+        """Probe whether the endpoint accepts the pipeline's non-standard
+        ``{"type": "object", "properties": {...}}`` response_format.
+
+        Sends a minimal chat completion with the raw schema shape that the
+        pipeline builds. If the provider returns HTTP 400 with
+        ``invalid response_format``, the check fails and the user would see
+        source-only stub pages after ingestion.
+
+        Returns ``{"ok": bool, "detail": str}`` matching the
+        :meth:`health_check` contract.
+        """
+        probe_body = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": "test"}],
+            "max_tokens": 1,
+            "response_format": {"type": "object", "properties": {"test": {"type": "string"}}},
+        }
+        try:
+            async with httpx.AsyncClient(timeout=10, trust_env=False) as sess:
+                r = await sess.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=self._headers(),
+                    json=probe_body,
+                )
+                if r.status_code == 400 and "response_format" in (r.text or "").lower():
+                    return {
+                        "ok": False,
+                        "detail": "HTTP 400: provider rejects non-standard response_format "
+                                   "(ingestion would produce empty stub pages)",
+                    }
+                # Any other status (including 200, 401, 404) means the
+                # response_format itself wasn't rejected — the endpoint
+                # either accepted it or failed for a different reason.
+                return {"ok": True, "detail": "response_format accepted"}
+        except Exception as e:
+            return {"ok": False, "detail": str(e)}
+
     async def health_check(self) -> dict:
-        """Probe the endpoint and return ``{"ok": bool, "detail": str}``."""
+        """Probe the endpoint, check response_format compatibility,
+        and return ``{"ok": bool, "detail": str, "response_format_ok": bool}``."""
+        # --- Step 1: reachability probe ---
+        base_result: dict
         if self._client_kind == "sdk":
             try:
                 models_list = self._sdk.models.list()
@@ -224,33 +265,42 @@ class OpenAIProvider(LLMProvider):
                     await models_list
                 else:
                     await asyncio.to_thread(models_list)
-                return {"ok": True, "detail": "models.list() OK"}
+                base_result = {"ok": True, "detail": "models.list() OK"}
             except Exception as e:
-                return {"ok": False, "detail": f"models.list() failed: {e}"}
+                base_result = {"ok": False, "detail": f"models.list() failed: {e}"}
+        else:
+            try:
+                async with httpx.AsyncClient(timeout=10, trust_env=False) as sess:
+                    r = await sess.get(
+                        f"{self.base_url}/models",
+                        headers={k: v for k, v in self._headers().items()
+                                 if k.lower() != "content-type"},
+                    )
+                    if r.status_code == 200:
+                        base_result = {"ok": True, "detail": "/models OK"}
+                    else:
+                        r2 = await sess.get(
+                            self.base_url,
+                            headers={k: v for k, v in self._headers().items()
+                                     if k.lower() != "content-type"},
+                        )
+                        if r2.status_code < 500:
+                            base_result = {"ok": True, "detail": f"base URL reachable (HTTP {r2.status_code})"}
+                        else:
+                            base_result = {"ok": False, "detail": f"HTTP {r2.status_code}"}
+            except Exception as e:
+                base_result = {"ok": False, "detail": str(e)}
 
-        # httpx mode — probe /models via GET (OpenAI-compatible endpoints
-        # all support this). Fall back to the base URL if /models 404s.
-        try:
-            async with httpx.AsyncClient(timeout=10, trust_env=False) as sess:
-                r = await sess.get(
-                    f"{self.base_url}/models",
-                    headers={k: v for k, v in self._headers().items()
-                             if k.lower() != "content-type"},
-                )
-                if r.status_code == 200:
-                    return {"ok": True, "detail": "/models OK"}
-                # Some providers don't expose /models; just checking the
-                # base URL is reachable is enough.
-                r2 = await sess.get(
-                    self.base_url,
-                    headers={k: v for k, v in self._headers().items()
-                             if k.lower() != "content-type"},
-                )
-                if r2.status_code < 500:
-                    return {"ok": True, "detail": f"base URL reachable (HTTP {r2.status_code})"}
-                return {"ok": False, "detail": f"HTTP {r2.status_code}"}
-        except Exception as e:
-            return {"ok": False, "detail": str(e)}
+        # --- Step 2: response_format probe (only if reachable) ---
+        if base_result.get("ok"):
+            rf_result = await self.check_response_format()
+            base_result["response_format_ok"] = rf_result.get("ok", False)
+            base_result["response_format_detail"] = rf_result.get("detail", "")
+        else:
+            base_result["response_format_ok"] = False
+            base_result["response_format_detail"] = "skipped (provider unreachable)"
+
+        return base_result
 
     async def close(self) -> None:
         """No-op for OpenAI: per-call httpx clients close themselves; SDK

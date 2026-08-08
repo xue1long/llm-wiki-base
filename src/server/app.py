@@ -171,6 +171,17 @@ def create_app() -> FastAPI:
                         health = await asyncio.wait_for(provider.health_check(), timeout=10)
                         if not health.get("ok"):
                             _logger.warning(f"[startup] provider {name!r} unreachable: {health.get('detail')}")
+                        # Also check response_format compatibility for OpenAI-compatible providers
+                        if health.get("ok"):
+                            try:
+                                rf = await asyncio.wait_for(provider.check_response_format(), timeout=10)
+                                if not rf.get("ok"):
+                                    _logger.warning(
+                                        f"[startup] provider {name!r} response_format incompatible: "
+                                        f"{rf.get('detail')} — ingestion will produce empty stub pages"
+                                    )
+                            except Exception as rf_exc:
+                                _logger.warning(f"[startup] provider {name!r} response_format check error: {rf_exc}")
                         await provider.close()
                     except asyncio.TimeoutError:
                         _logger.warning(f"[startup] provider {name!r} health-check timed out (10s)")

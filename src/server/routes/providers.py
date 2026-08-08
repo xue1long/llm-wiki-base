@@ -144,7 +144,12 @@ def test_provider(name: str) -> dict:
     async def _run():
         provider = _create_from_config(config)
         try:
-            return provider, await provider.health_check()
+            health = await provider.health_check()
+            if health.get("ok"):
+                rf = await provider.check_response_format()
+                health["response_format_ok"] = rf.get("ok", False)
+                health["response_format_detail"] = rf.get("detail", "")
+            return provider, health
         finally:
             await provider.close()
 
@@ -152,4 +157,9 @@ def test_provider(name: str) -> dict:
         _, health = asyncio.run(_run())
     except Exception as e:
         return {"ok": False, "error": str(e)}
-    return {"ok": health.get("ok", False), "detail": health.get("detail", "")}
+    result = {"ok": health.get("ok", False), "detail": health.get("detail", "")}
+    rf_ok = health.get("response_format_ok")
+    if rf_ok is not None:
+        result["response_format_ok"] = rf_ok
+        result["response_format_detail"] = health.get("response_format_detail", "")
+    return result
