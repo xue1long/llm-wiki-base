@@ -335,6 +335,12 @@ async def analyze(
     MAX_ATTEMPTS = 2
     _json_mode = True
     last_error: str | None = None
+
+    # If startup check already marked this provider incompatible, skip the
+    # response_format probe entirely on the first attempt.
+    if getattr(provider, "_response_format_ok", None) is False:
+        _json_mode = False
+
     for attempt in range(MAX_ATTEMPTS):
         extra = ""
         if attempt > 0:
@@ -348,10 +354,28 @@ async def analyze(
             )
 
         async with BudgetedLLM(model="gpt-4o-mini", op="analyzer", provider=provider) as bl:
-            llm_resp = await bl.call(
-                prompt=prompt + extra,
-                response_format=ANALYZER_RESPONSE_FORMAT if _json_mode else None,
-            )
+            try:
+                llm_resp = await bl.call(
+                    prompt=prompt + extra,
+                    response_format=ANALYZER_RESPONSE_FORMAT if _json_mode else None,
+                )
+            except RuntimeError as exc:
+                exc_str = str(exc)
+                if "response_format" in exc_str.lower() and "400" in exc_str:
+                    _al.warning(
+                        "[analyzer] response_format rejected on attempt %d/%d: %s",
+                        attempt + 1, MAX_ATTEMPTS, exc,
+                    )
+                    if attempt == MAX_ATTEMPTS - 1:
+                        raise
+                    _json_mode = False
+                    extra = (
+                        "\n\n## RETRY — RESPONSE FORMAT REJECTED\n"
+                        "The provider rejected the structured output format. "
+                        "Reply with the raw JSON object now:\n"
+                    )
+                    continue
+                raise
 
         try:
             response = _parse_llm_response(llm_resp)
@@ -489,6 +513,11 @@ async def _analyze_json(
     last_error: str | None = None
     response: dict | None = None
 
+    # If startup check already marked this provider incompatible, skip the
+    # response_format probe entirely on the first attempt.
+    if getattr(provider, "_response_format_ok", None) is False:
+        _json_mode = False
+
     for attempt in range(MAX_ATTEMPTS):
         extra = ""
         if attempt > 0:
@@ -502,10 +531,28 @@ async def _analyze_json(
             )
 
         async with BudgetedLLM(model="gpt-4o-mini", op="analyzer-json", provider=provider) as bl:
-            llm_resp = await bl.call(
-                prompt=prompt + extra,
-                response_format=_ANALYZER_JSON_RESPONSE_FORMAT if _json_mode else None,
-            )
+            try:
+                llm_resp = await bl.call(
+                    prompt=prompt + extra,
+                    response_format=_ANALYZER_JSON_RESPONSE_FORMAT if _json_mode else None,
+                )
+            except RuntimeError as exc:
+                exc_str = str(exc)
+                if "response_format" in exc_str.lower() and "400" in exc_str:
+                    _al.warning(
+                        "[analyzer-json] response_format rejected on attempt %d/%d: %s",
+                        attempt + 1, MAX_ATTEMPTS, exc,
+                    )
+                    if attempt == MAX_ATTEMPTS - 1:
+                        raise
+                    _json_mode = False
+                    extra = (
+                        "\n\n## RETRY — RESPONSE FORMAT REJECTED\n"
+                        "The provider rejected the structured output format. "
+                        "Reply with the raw JSON object now:\n"
+                    )
+                    continue
+                raise
 
         try:
             response = _parse_llm_response(llm_resp)

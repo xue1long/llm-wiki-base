@@ -22,8 +22,8 @@ if errorlevel 1 (
     echo [WARN] archive stage reported failures; the server will still start, but some content may be missing from the vector store.
 )
 
-echo [2/2] Starting HTTP API server on http://127.0.0.1:8765 (press Ctrl+C to stop)...
-python -m src.cli serve --host 127.0.0.1 --port 8765
+echo [2/2] Starting HTTP API server on http://127.0.0.1:8766 (press Ctrl+C to stop)...
+python -m src.cli serve --host 127.0.0.1 --port 8766
 if errorlevel 1 (
     echo.
     echo [ERROR] Server exited with code %errorlevel%.

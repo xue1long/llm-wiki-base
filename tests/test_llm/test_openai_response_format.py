@@ -111,3 +111,70 @@ def test_health_check_reports_response_format_rejected(monkeypatch):
     result = asyncio.run(p.health_check())
     assert result["ok"] is True
     assert result["response_format_ok"] is False
+
+
+def test_complete_auto_downgrades_after_incompatible_check(monkeypatch):
+    """After check_response_format() marks the provider incompatible, complete()
+    sends json_object instead of the non-standard schema (no HTTP 400 loop)."""
+    seen: list[dict] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        body = req.read().decode()
+        # The probe from check_response_format uses the non-standard schema.
+        if '"type":"object"' in body and '"test"' in body:
+            return httpx.Response(400, text='{"error": "invalid response_format"}')
+        # The real completion call must NOT carry the non-standard schema.
+        seen.append(req)
+        assert '"type":"object"' not in body, (
+            "complete() must not resend the non-standard schema after "
+            "check_response_format() marked it incompatible"
+        )
+        return httpx.Response(200, json={
+            "choices": [{"message": {"content": '{"pages": []}'}}],
+            "model": "gpt-4o-mini",
+        })
+
+    _mock_async_client(monkeypatch, handler)
+    p = _make_provider()
+    result = asyncio.run(p.check_response_format())
+    assert result["ok"] is False
+
+    resp = asyncio.run(p.complete(
+        messages=[{"role": "user", "content": "extract"}],
+        response_format={"type": "object", "properties": {"test": {"type": "string"}}},
+    ))
+    assert resp.content is not None
+    assert len(seen) == 1  # exactly one completion call, no 400 retry loop
+
+
+def test_complete_keeps_schema_when_compatible(monkeypatch):
+    """When check_response_format() passes, complete() normalizes the schema
+    to json_object (existing behaviour) — it does NOT drop it entirely."""
+    seen: list[dict] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        body = req.read().decode()
+        if '"type":"object"' in body and '"test"' in body:
+            return httpx.Response(200, json={
+                "choices": [{"message": {"content": "{}"}}], "model": "gpt-4o-mini",
+            })
+        seen.append(body)
+        return httpx.Response(200, json={
+            "choices": [{"message": {"content": '{"pages": []}'}}],
+            "model": "gpt-4o-mini",
+        })
+
+    _mock_async_client(monkeypatch, handler)
+    p = _make_provider()
+    result = asyncio.run(p.check_response_format())
+    assert result["ok"] is True
+
+    asyncio.run(p.complete(
+        messages=[{"role": "user", "content": "extract"}],
+        response_format={"type": "object", "properties": {"test": {"type": "string"}}},
+    ))
+    # The existing normalization converts {"type":"object"} → {"type":"json_object"}
+    # — the schema is NOT dropped, just normalized to a shape the endpoint accepts.
+    assert len(seen) == 1
+    assert '"response_format"' in seen[0]
+    assert '"type":"json_object"' in seen[0]

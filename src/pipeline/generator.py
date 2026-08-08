@@ -1519,6 +1519,11 @@ async def _call_with_slot_retry(
     last_response: dict = {}
     _json_mode = True  # first attempt uses response_format
 
+    # If startup check already marked this provider incompatible, skip the
+    # response_format probe entirely on the first attempt.
+    if getattr(provider, "_response_format_ok", None) is False:
+        _json_mode = False
+
     for attempt in range(MAX_GEN_ATTEMPTS):
         extra = ""
         if attempt > 0:
@@ -1574,6 +1579,19 @@ async def _call_with_slot_retry(
                     f"Generator LLM timed out after {MAX_GEN_ATTEMPTS} attempts: {exc}"
                 ) from exc
             continue
+        except RuntimeError as exc:
+            exc_str = str(exc)
+            if "response_format" in exc_str.lower() and "400" in exc_str:
+                _logger.warning(
+                    "[Generator] response_format rejected on attempt %d/%d: %s",
+                    attempt + 1, MAX_GEN_ATTEMPTS, exc,
+                )
+                _json_mode = False
+                if attempt == MAX_GEN_ATTEMPTS - 1:
+                    raise
+                continue
+            # Non-response_format RuntimeErrors propagate immediately
+            raise
 
         try:
             response_dict = _parse_llm_response(response)

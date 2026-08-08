@@ -54,6 +54,10 @@ class OpenAIProvider(LLMProvider):
         self.timeout_seconds = config.timeout_seconds
         self.extra_headers = dict(config.extra_headers or {})
 
+        # Cached response_format compatibility: None = unchecked,
+        # True = compatible, False = incompatible (will be skipped).
+        self._response_format_ok: bool | None = None
+
         # Prefer passing a pre-built SDK client (real or fake). Fall back to
         # constructing a thin httpx-based client on demand when no client is
         # provided. The factory passes a real client when present.
@@ -134,20 +138,28 @@ class OpenAIProvider(LLMProvider):
         if kwargs.get("max_tokens") is not None:
             body["max_tokens"] = kwargs["max_tokens"]
         if response_format:
-            # Normalize response_format to a shape the endpoint accepts.
-            # The pipeline builds a non-standard {"type": "object",
-            # "properties": {...}} schema. OpenAI's native structured
-            # output uses {"type": "json_schema", "json_schema": {...}};
-            # many OpenAI-compatible providers (GLM, DeepSeek, Kimi,
-            # MiniMax) accept ONLY {"type": "json_object"} (or text/url/
-            # b64_json) and reject the schema form with HTTP 400. The JSON
-            # schema is already embedded in the prompt, so downgrading to
-            # plain json_object mode is sufficient enforcement everywhere.
-            rtype = response_format.get("type")
-            if rtype not in ("json_object", "json_schema", "text", "url", "b64_json"):
-                body["response_format"] = {"type": "json_object"}
+            # Auto-downgrade: if startup check found this provider
+            # incompatible with the pipeline's non-standard schema, skip
+            # response_format entirely.  The JSON schema is already
+            # embedded in the prompt, so plain json_object mode is
+            # sufficient enforcement everywhere.
+            if self._response_format_ok is False:
+                response_format = {"type": "json_object"}
             else:
-                body["response_format"] = response_format
+                # Normalize response_format to a shape the endpoint accepts.
+                # The pipeline builds a non-standard {"type": "object",
+                # "properties": {...}} schema. OpenAI's native structured
+                # output uses {"type": "json_schema", "json_schema": {...}};
+                # many OpenAI-compatible providers (GLM, DeepSeek, Kimi,
+                # MiniMax) accept ONLY {"type": "json_object"} (or text/url/
+                # b64_json) and reject the schema form with HTTP 400. The JSON
+                # schema is already embedded in the prompt, so downgrading to
+                # plain json_object mode is sufficient enforcement everywhere.
+                rtype = response_format.get("type")
+                if rtype not in ("json_object", "json_schema", "text", "url", "b64_json"):
+                    body["response_format"] = {"type": "json_object"}
+                else:
+                    body["response_format"] = response_format
 
         # Two code paths:
         #   - SDK present:  await self._sdk.chat.completions.create(...)
@@ -224,6 +236,10 @@ class OpenAIProvider(LLMProvider):
         ``invalid response_format``, the check fails and the user would see
         source-only stub pages after ingestion.
 
+        Caches the result in ``self._response_format_ok`` so the
+        ``complete()`` method can auto-skip ``response_format`` on
+        incompatible providers.
+
         Returns ``{"ok": bool, "detail": str}`` matching the
         :meth:`health_check` contract.
         """
@@ -241,6 +257,7 @@ class OpenAIProvider(LLMProvider):
                     json=probe_body,
                 )
                 if r.status_code == 400 and "response_format" in (r.text or "").lower():
+                    self._response_format_ok = False
                     return {
                         "ok": False,
                         "detail": "HTTP 400: provider rejects non-standard response_format "
@@ -249,8 +266,10 @@ class OpenAIProvider(LLMProvider):
                 # Any other status (including 200, 401, 404) means the
                 # response_format itself wasn't rejected — the endpoint
                 # either accepted it or failed for a different reason.
+                self._response_format_ok = True
                 return {"ok": True, "detail": "response_format accepted"}
         except Exception as e:
+            self._response_format_ok = False
             return {"ok": False, "detail": str(e)}
 
     async def health_check(self) -> dict:
