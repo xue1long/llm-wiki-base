@@ -300,6 +300,8 @@ metadata:
 
 ## Things to know before editing
 
+- **WebUI 更新后同步更新文档。** 每次修改 `web/js/views/*.js` 中的按钮、事件绑定或 API 调用时，必须同步更新 [`docs/webui-buttons.md`](docs/webui-buttons.md)（按钮位置、功能、API 映射）。该文档是 WebUI 所有按钮的唯一参考手册。
+
 - **Event handlers register on import.** `src/pipeline/pipeline.py` and `src/orchestrator/orchestrator.py` attach handlers at module load. Adding a new pipeline stage means (a) emit a new event, (b) add a handler in `pipeline.py`, (c) optionally add a payload dataclass in `events/events.py`.
 - **Embedding provider is a process-global singleton.** `pipeline.librarian._embedding_provider` and `searcher.hybrid_search._embedding_provider` are independent globals — set both if you switch providers.
 - **CLI is CWD-sensitive.** `Path("Inbox")`, `Path("Notes")`, `Path("Knowledge")`, and `WikiPaths.root` resolve relative to the current working directory. Run from the repo root or pass `--path`/`--project`.

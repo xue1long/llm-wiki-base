@@ -16,6 +16,7 @@ if exist ".venv\Scripts\activate.bat" (
 )
 
 echo [1/2] Archiving wiki notes into the vector store (already-archived, unchanged notes are skipped)...
+echo        (Using local sentence-transformers embedding — no network required)
 python scripts/batch_build.py --root knowledge/novel-wiki --only archive
 if errorlevel 1 (
     echo [WARN] archive stage reported failures; the server will still start, but some content may be missing from the vector store.

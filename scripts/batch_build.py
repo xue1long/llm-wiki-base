@@ -146,7 +146,7 @@ def init_llm():
     return create_llm_provider(cfg.name)
 
 
-def init_embedding():
+async def init_embedding():
     """初始化 archive 用的 embedding provider（默认 minimax embo-01），与 app.py 启动逻辑一致。"""
     import os
 
@@ -172,11 +172,27 @@ def init_embedding():
             dimension=None,  # 由模型返回其原生维度（embo-01=1536，匹配 LanceDB）
         )
 
+    async def _try_build_and_verify(provider_type, api_key, endpoint, model):
+        """Try to build and test the provider. Returns a working provider or None."""
+        try:
+            provider = _build(provider_type, api_key, endpoint, model)
+            # Quick smoke test: embed a single word to verify the provider actually
+            # returns vectors. MiniMax embo-01 is deprecated and returns [] silently.
+            result = await provider.embed(["test"])
+            if not result or not result[0].embedding:
+                log.warning("远程 embedding provider 返回空向量（模型可能已废弃）")
+                return None
+            return provider
+        except Exception as e:
+            log.warning("远程 embedding provider 初始化失败 (%s)", e)
+            return None
+
     try:
         cfg = ProviderRegistry.get_default()
     except Exception:
         cfg = None
 
+    provider = None
     if cfg is not None:
         key = cfg.api_key or (os.environ.get(_env_map.get(cfg.name, "")) if _env_map.get(cfg.name) else None)
         model = cfg.default_embedding_model or (
@@ -185,15 +201,23 @@ def init_embedding():
         from src.llm.provider_factory import resolve_embedding_provider_type
 
         provider_type = resolve_embedding_provider_type(cfg.name, cfg.type)
-        provider = _build(provider_type, key, cfg.base_url or None, model)
-    else:
+        provider = await _try_build_and_verify(provider_type, key, cfg.base_url or None, model)
+
+    if provider is None:
         # 回落：minimax + 环境变量
-        provider = _build(
+        provider = await _try_build_and_verify(
             "minimax",
             os.environ.get("MINIMAX_API_KEY"),
             os.environ.get("MINIMAX_BASE_URL"),
             "embo-01",
         )
+
+    if provider is None:
+        log.warning("所有远程 embedding provider 均不可用，回落至本地 sentence-transformers")
+        from src.llm.local_embed import LocalEmbeddingProvider
+
+        provider = LocalEmbeddingProvider()
+
     set_embedding_provider(provider)
     return provider
 
@@ -310,7 +334,7 @@ async def phase_archive(root: Path, state: dict, args) -> dict:
         return stats
 
     # Reuse the same embedding provider across all notes (shared httpx client).
-    embed_provider = init_embedding()
+    embed_provider = await init_embedding()
     try:
         for n in notes:
             nkey = rel_state_key(n, root)

@@ -35,7 +35,7 @@ def test_phase_archive_skips_stub_pages(tmp_path, monkeypatch):
         archived.append(str(note_path))
         return "ok"
 
-    def _fake_init_embedding():
+    async def _fake_init_embedding():
         class _Provider:
             async def close(self):
                 pass

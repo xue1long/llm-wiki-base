@@ -122,7 +122,7 @@ async def archive(
             id=f"{task_id}-chunk-{i}",
             task_id=task_id,
             content=chunk,
-            embedding=embeddings[i] if i < len(embeddings) else [0.0] * 1536,
+            embedding=embeddings[i] if i < len(embeddings) else [0.0] * 384,
             path=normalize_source_path(str(note_path), paths.root),
             updated_at=int(datetime.now().timestamp()),
         )

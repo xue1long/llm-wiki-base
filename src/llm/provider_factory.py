@@ -65,7 +65,7 @@ def create_embedding_provider(
     dimension: int = 1536,
 ) -> EmbeddingProvider:
     """Legacy embedding-provider factory used by existing pipeline code."""
-    if provider == "openai":
+    if provider in ("openai", "openai-compatible"):
         from .openai_provider import OpenAIEmbeddingProvider
         return OpenAIEmbeddingProvider(
             api_key=api_key,
