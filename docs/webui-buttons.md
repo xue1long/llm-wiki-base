@@ -163,9 +163,42 @@
 
 ---
 
-## 7. 浏览页（Browse）
+## 7. 热度页（Heat）
 
-**文件：** [web/js/views/browse.js](../web/js/views/browse.js)
+**文件：** [web/js/views/heat.js](../web/js/views/heat.js)
+
+### 7.1 工具栏
+
+| 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
+|------|----------|------|----------|------|
+| **触发衰减** | 工具栏 | 触发热度衰减，降低长期未访问页面热度 | `POST /api/v1/projects/{id}/heat/decay` | 确认后执行，展示结果 toast |
+| **刷新** | 工具栏 | 刷新热度分布/Top/僵尸列表 | `GET /api/v1/projects/{id}/heat` | |
+
+### 7.2 僵尸页操作
+
+| 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
+|------|----------|------|----------|------|
+| **全选** | 僵尸列表 | 全选/取消全选僵尸页 | — | 纯前端行为 |
+| **恢复选中** | 僵尸列表 | 恢复选中僵尸页（heat=100, is_immutable=true） | `POST /api/v1/projects/{id}/heat/zombies/restore` | body: `{page_ids: [...]}` |
+| **归档选中** | 僵尸列表 | 归档选中僵尸页到 `_archive/` | `POST /api/v1/projects/{id}/heat/zombies/archive` | 确认后归档，body: `{page_ids: [...]}` |
+
+---
+
+## 8. 模板页（Templates）
+
+**文件：** [web/js/views/templates.js](../web/js/views/templates.js)
+
+| 按钮 | 功能 | 后端 API | 说明 |
+|------|------|----------|------|
+| **类型标签栏** | 切换模板类型（concept/entity/source/synthesis） | — | 纯前端行为 |
+| **编辑/自定义** | 编辑模板内容（prompt 弹窗） | `POST /api/v1/projects/{id}/templates/{type}` | body: `{content: ...}` |
+| **重置为默认** | 重置为内置默认模板 | `POST /api/v1/projects/{id}/templates/{type}/reset` | 确认后执行，备份原文件 |
+| **对比差异** | 对比自定义与内置模板差异 | `GET /api/v1/projects/{id}/templates/{type}/diff` | 展开 diff 面板 |
+| **刷新** | 刷新模板列表 | `GET /api/v1/projects/{id}/templates/{type}` | |
+
+---
+
+## 浏览页（Browse）
 
 | 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
 |------|----------|------|----------|------|
@@ -195,6 +228,8 @@
 | 搜索按钮 | `search.js` | `search\|qBtn\|搜索` |
 | 聊天按钮 | `chat.js` | `chat\|chatBtn\|发送` |
 | 图谱按钮 | `graph.js` | `graph\|zoom\|图谱` |
+| 热度管理 | `heat.js` | `heat\|decay\|zombie\|僵尸\|热度` |
+| 模板管理 | `templates.js` | `template\|diff\|reset\|模板` |
 | 设置按钮 | `settings.js` | `provider\|settings\|设置\|添加\|删除\|编辑` |
 | 状态页面 | `status.js` | `status\|refresh\|刷新\|queue\|review\|审查` |
 | 浏览文件 | `browse.js` | `browse\|tag\|浏览\|文件` |

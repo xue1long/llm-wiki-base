@@ -1238,6 +1238,59 @@ body {
 .no-md-fallback pre { white-space: pre-wrap; font-family: inherit; }
 
 /* ==================================================================== */
+/* ---------- Heat view ---------- */
+.heat-toolbar { display: flex; gap: 8px; }
+.heat-pools { margin-top: 12px; }
+.heat-empty { font-size: 13px; color: var(--text-secondary); padding: 12px 0; }
+.heat-distribution { display: flex; flex-direction: column; gap: 8px; }
+.heat-bar-row { display: flex; align-items: center; gap: 10px; }
+.heat-bar-label { width: 130px; font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+.heat-bar-track { flex: 1; height: 14px; background: var(--bg-app); border-radius: var(--radius-sm); overflow: hidden; }
+.heat-bar-fill { height: 100%; border-radius: var(--radius-sm); transition: width 0.3s ease; }
+.heat-bar-count { width: 40px; font-size: 12px; color: var(--text-primary); text-align: right; font-family: var(--font-mono); }
+.heat-top-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+.heat-top-table th { text-align: left; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+.heat-top-table td { padding: 6px 8px; border-bottom: 1px solid var(--border-light); }
+.heat-top-row { cursor: pointer; }
+.heat-top-row:hover { background: var(--bg-hover); }
+.heat-badge { display: inline-block; min-width: 26px; text-align: center; border-radius: 10px; color: #fff; font-size: 11px; padding: 2px 6px; font-family: var(--font-mono); }
+.heat-path { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+.heat-muted { font-size: 11px; color: var(--text-muted); }
+.zombie-actions { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-size: 13px; }
+.zombie-list { display: flex; flex-direction: column; gap: 4px; }
+.zombie-item { font-size: 13px; padding: 6px 8px; border: 1px solid var(--border-light); border-radius: var(--radius-sm); }
+.zombie-item label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.zombie-item .heat-path { margin-left: auto; }
+
+/* ==================================================================== */
+/* ---------- Templates view ---------- */
+.template-toolbar { display: flex; gap: 8px; }
+.template-type-tabs { display: flex; gap: 6px; margin: 12px 0; }
+.template-tab {
+  padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--text-secondary); cursor: pointer; font-size: 13px;
+}
+.template-tab:hover { background: var(--bg-hover); }
+.template-tab.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); font-weight: 500; }
+.template-meta { display: flex; gap: 20px; font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; }
+.template-preview { margin-bottom: 12px; }
+.template-code {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px; font-family: var(--font-mono); font-size: 12px; line-height: 1.5;
+  max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+}
+.template-actions { display: flex; gap: 8px; }
+.template-diff { margin-top: 12px; }
+.template-diff-content {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px; font-family: var(--font-mono); font-size: 12px; line-height: 1.5;
+  max-height: 400px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+}
+.diff-add { color: var(--success-text); background: var(--success-light); display: block; }
+.diff-remove { color: var(--danger-text); background: var(--danger-light); display: block; }
+.diff-hunk { color: var(--accent); font-weight: 600; display: block; }
+
+/* ==================================================================== */
 /* ---------- Responsive breakpoint skeletons (Phase 2.2) ---------- */
 @media (max-width: 1024px) {
   /* tablet: Agent default collapsed, sidebar narrower */
