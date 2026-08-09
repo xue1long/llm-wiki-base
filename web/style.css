@@ -670,6 +670,23 @@ body {
   background: var(--accent-light); color: var(--accent); border-radius: var(--radius-lg); font-size: 11px;
 }
 
+/* Task history list (P0) */
+.task-history-list { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
+.task-history-row {
+  display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 4px 6px;
+  border-radius: 4px; background: var(--bg-subtle); border: 1px solid var(--border);
+}
+.task-history-icon { font-family: var(--font-mono); width: 16px; text-align: center; }
+.task-history-row.ok .task-history-icon { color: var(--success); }
+.task-history-row.err .task-history-icon { color: var(--danger); }
+.task-history-row.run .task-history-icon { color: var(--accent); }
+.task-history-row.ign .task-history-icon { color: var(--text-muted); }
+.task-history-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.task-history-time { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.task-history-dur { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+.task-history-err { font-size: 11px; color: var(--danger); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+.task-history-empty { font-size: 12px; color: var(--text-muted); padding: 6px 0; }
+
 /* ==================================================================== */
 /* ---------- Chat ---------- */
 .chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 80px); }
@@ -780,6 +797,52 @@ body {
   font-family: var(--font-mono); font-size: 11px;
   background: var(--bg-app); padding: 1px 4px; border-radius: 3px;
 }
+
+/* Queue control card (P0) */
+.queue-card .queue-status-row {
+  display: flex; align-items: center; gap: 8px; margin: 8px 0 12px;
+}
+.queue-status-dot {
+  width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+}
+.queue-status-dot.running { background: var(--success); }
+.queue-status-dot.paused { background: var(--warning); }
+.queue-status-dot.open { background: var(--danger); }
+.queue-status-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.queue-breaker { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+.queue-metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;
+}
+.queue-metric {
+  background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 8px; text-align: center;
+}
+.queue-metric-value { font-size: 20px; font-weight: 700; color: var(--accent); font-family: var(--font-mono); }
+.queue-metric-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.queue-actions { display: flex; gap: 8px; }
+.queue-actions .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+.queue-error { font-size: 12px; color: var(--danger); margin: 8px 0; }
+
+/* Review queue interactive panel (P0) */
+.review-card .queue-error { margin-bottom: 8px; }
+.review-empty { font-size: 13px; color: var(--success); padding: 8px 0; }
+.review-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.review-item {
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px;
+  background: var(--bg-surface);
+}
+.review-item-head { display: flex; align-items: center; gap: 8px; }
+.review-type {
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  background: var(--accent-light); padding: 2px 6px; border-radius: 4px;
+  white-space: nowrap;
+}
+.review-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.review-detail { font-size: 12px; color: var(--text-secondary); margin-top: 6px; word-break: break-word; }
+.review-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.review-actions { display: flex; gap: 6px; margin-top: 8px; }
+.review-actions .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+.review-actions .btn-ghost:hover { background: var(--bg-hover); }
 
 /* ==================================================================== */
 /* ---------- Graph ---------- */

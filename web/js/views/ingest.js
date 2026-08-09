@@ -35,11 +35,16 @@
             <button id="ingBtn" class="btn-primary" style="margin-top:6px;">提交摄取</button>
             <div id="ingResult" style="margin-top:6px;"></div>
           </div>
+          <div class="ingest-task-history" id="ingestTaskHistory">
+            <h4 style="font-size:13px;margin:12px 0 6px;">历史任务</h4>
+            <div class="task-history-list" id="taskHistoryList"><div class="skeleton skeleton-line"></div></div>
+          </div>
         </div>
       </div>
     `;
 
     loadRawFiles();
+    loadTaskHistory();
 
     // Manual single-source ingest
     document.getElementById("ingBtn").addEventListener("click", manualSubmit);
@@ -70,11 +75,18 @@
     document.getElementById("ingestFilterInput").addEventListener("input", () => renderFileList());
     document.getElementById("ingestStatusFilter").addEventListener("change", () => renderFileList());
 
-    // Delete handler (delegated)
+    // Ingested file row actions (delegated)
     document.getElementById("ingestFileList").addEventListener("click", (e) => {
       const btn = e.target.closest(".reingest-btn");
       if (btn) {
         const path = btn.dataset.path;
+        if (!confirm(`「${path.split("/").pop()}」已编译过 wiki 页面，重新摄取将：\n\n1. 删除现有编译结果\n2. 重新执行完整流水线\n\n确认继续？`)) return;
+        doReingest(path);
+        return;
+      }
+      const delBtn = e.target.closest("[data-action='delete-source']");
+      if (delBtn) {
+        const path = delBtn.dataset.path;
         if (!confirm(`删除将移除此文档已编译的所有 wiki 页面和向量（原始文件保留），确定继续？\n\n${path}`)) return;
         doDeleteSource(path);
         return;
@@ -168,7 +180,8 @@
             <span class="ingest-file-name">${App.escapeHtml(f.name)}</span>
             <span class="ingest-file-date">${dateStr}</span>
             <span class="ingest-file-size">${App.formatSize(f.size)}</span>
-            <button class="btn-sm reingest-btn" data-path="${App.escapeHtml(f.path)}">删除</button>
+            <button class="btn-sm reingest-btn" data-path="${App.escapeHtml(f.path)}">重新摄取</button>
+            <button class="btn-sm" data-action="delete-source" data-path="${App.escapeHtml(f.path)}">删除</button>
             <button class="quality-btn" data-path="${App.escapeHtml(f.path)}">质</button>
           </div>`;
         }
@@ -271,6 +284,65 @@
       }
     }
 
+    async function doReingest(path) {
+      const panel = document.getElementById("ingestProgressPanel");
+      panel.innerHTML = `<div class="ingest-progress">
+        <div class="banner-warn">正在重新摄取（会先清理旧结果）…</div>
+        <div class="progress-row">
+          <div class="progress-bar"><div class="progress-fill" style="width:20%"></div></div>
+          <span class="progress-status">cleaning</span>
+        </div>
+      </div>`;
+
+      try {
+        const r = await App.api(`/api/v1/projects/${App.state.projectId}/reingest`, {
+          method: "POST",
+          body: { source_path: path },
+        });
+        if (r.status !== "queued" || !r.taskId) {
+          panel.innerHTML = `<div class="banner-warn">未识别状态: ${App.escapeHtml(JSON.stringify(r))}</div>`;
+          return;
+        }
+        // Poll the reingest task status (reuse ingestOneRaw's polling by
+        // wrapping the task id through a manual loop).
+        const poll = await pollTask(r.taskId);
+        if (poll) renderFileList();
+      } catch (e) {
+        panel.innerHTML = `<div class="banner-err">重新摄取失败: ${App.escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    async function pollTask(taskId) {
+      const panel = document.getElementById("ingestProgressPanel");
+      const statusEl = panel.querySelector(".progress-status");
+      const fill = panel.querySelector(".progress-fill");
+      for (let i = 0; i < 240; i++) {
+        await new Promise(res => setTimeout(res, 1500));
+        let rec;
+        try {
+          rec = await App.api(`/api/v1/projects/${App.state.projectId}/ingest/status/${encodeURIComponent(taskId)}`);
+        } catch (e) {
+          statusEl.textContent = "查询失败: " + e.message;
+          return false;
+        }
+        statusEl.textContent = rec.status;
+        const stages = Array.isArray(rec.stages) ? rec.stages : [];
+        const pct = ({ queued: 5, running: 30, finished: 100, succeeded: 100, failed: 100, ignored: 100 }[rec.status])
+          ?? (stages.length >= 3 ? 95 : stages.length === 2 ? 70 : stages.length === 1 ? 40 : 30);
+        fill.style.width = pct + "%";
+        if (rec.status === "succeeded") {
+          panel.innerHTML = `<div class="banner-ok">✓ 重新摄取完成</div>`;
+          return true;
+        }
+        if (rec.status === "failed") {
+          panel.innerHTML = `<div class="banner-err">✗ 重新摄取失败${rec.error ? ": " + App.escapeHtml(rec.error) : ""}</div>`;
+          return false;
+        }
+      }
+      panel.innerHTML = `<div class="banner-warn">重新摄取超时，请到任务历史查看。</div>`;
+      return false;
+    }
+
     async function doDeleteSource(path) {
       const panel = document.getElementById("ingestProgressPanel");
       panel.innerHTML = `<div class="ingest-progress">
@@ -293,6 +365,40 @@
         renderFileList();
       } catch (e) {
         panel.innerHTML = `<div class="banner-err">删除失败: ${App.escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    async function loadTaskHistory() {
+      const listEl = document.getElementById("taskHistoryList");
+      if (!listEl) return;
+      try {
+        const data = await App.api(`/api/v1/projects/${App.state.projectId}/ingest/tasks`);
+        const tasks = data.tasks || [];
+        if (!tasks.length) {
+          listEl.innerHTML = `<div class="task-history-empty">暂无任务</div>`;
+          return;
+        }
+        listEl.innerHTML = tasks.slice(0, 20).map(t => {
+          const name = (t.source_path || t.source || "").split("/").pop() || t.task_id || "";
+          const icon = ({ succeeded: "✓", failed: "✗", running: "⏳", queued: "⏳", ignored: "⏭" }[t.status]) || "•";
+          const cls = ({ succeeded: "ok", failed: "err", running: "run", queued: "run", ignored: "ign" }[t.status]) || "";
+          const started = t.started_at ? new Date(t.started_at).toLocaleTimeString() : "";
+          let duration = "";
+          if (t.finished_at && t.started_at) {
+            const s = (t.finished_at - t.started_at) / 1000;
+            duration = (s >= 60 ? (s / 60).toFixed(1) + "m" : s.toFixed(1) + "s");
+          }
+          const err = t.error ? " · " + App.escapeHtml(String(t.error).slice(0, 40)) : "";
+          return `<div class="task-history-row ${cls}" title="${App.escapeHtml(t.task_id || "")}">
+            <span class="task-history-icon">${icon}</span>
+            <span class="task-history-name">${App.escapeHtml(name)}</span>
+            <span class="task-history-time">${App.escapeHtml(started)}</span>
+            <span class="task-history-dur">${App.escapeHtml(duration)}</span>
+            <span class="task-history-err">${err}</span>
+          </div>`;
+        }).join("");
+      } catch (e) {
+        listEl.innerHTML = `<div class="task-history-empty">加载失败: ${App.escapeHtml(e.message)}</div>`;
       }
     }
 

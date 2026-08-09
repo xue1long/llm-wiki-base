@@ -29,8 +29,9 @@
 
 | 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
 |------|----------|------|----------|------|
-| **删除** | 行 171 | 删除此文档已编译的所有 wiki 页面和向量（原始文件保留，不重新摄取） | `POST /api/v1/projects/{id}/delete-source` | 级联删除 wiki 页面 + 清理向量 |
-| **质** | 行 172 | 查看质检报告（tooltip + modal） | `GET /api/v1/projects/{id}/quality?source_path=...` | 绿色=通过，红色=不通过 |
+| **重新摄取** | 行 166 | 删除编译结果后重新执行完整流水线 | `POST /api/v1/projects/{id}/reingest` | P0 新增；确认后执行，进度轮询 |
+| **删除** | 行 167 | 删除此文档已编译的所有 wiki 页面和向量（原始文件保留） | `POST /api/v1/projects/{id}/delete-source` | 级联删除 wiki 页面 + 清理向量 |
+| **质** | 行 168 | 查看质检报告（tooltip + modal） | `GET /api/v1/projects/{id}/quality?source_path=...` | 绿色=通过，红色=不通过 |
 
 ### 1.4 任务列表
 
@@ -38,7 +39,13 @@
 |------|----------|------|----------|------|
 | **重试** | 行 252 | 失败任务重新入队 | `POST /api/v1/projects/{id}/ingest` | 只在失败任务行显示 |
 
-### 1.5 质检模态框
+### 1.5 历史任务列表（P0 新增）
+
+| 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
+|------|----------|------|----------|------|
+| **历史任务列表** | 行 38 | 自动加载最近 20 条任务记录 | `GET /api/v1/projects/{id}/ingest/tasks` | 每行显示状态图标、文件名、时间、耗时、错误信息 |
+
+### 1.6 质检模态框
 
 | 按钮 | 位置行号 | 功能 | 说明 |
 |------|----------|------|------|
@@ -108,12 +115,40 @@
 
 **文件：** [web/js/views/status.js](../web/js/views/status.js)
 
+### 6.1 工具栏
+
 | 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
 |------|----------|------|----------|------|
-| **刷新** | 行 30 | 手动刷新所有状态面板 | 多个 API 并行调用 | 刷新后自动进入 15 秒轮询 |
+| **刷新** | 行 30 | 手动刷新所有状态面板 | 多个 API 并行调用 | 刷新后自动进入 30 秒轮询 |
 | **取消自动刷新** | 行 34 | 停止自动轮询 | — | 刷新后显示 |
 
-状态页展示的信息面板（无按钮，只读）：
+### 6.2 摄取队列面板（P0 新增）
+
+| 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
+|------|----------|------|----------|------|
+| **暂停** | queue 面板 | 暂停摄取队列，运行中的任务完成后停止 | `POST /api/v1/queue/pause` | 暂停状态下禁用 |
+| **恢复** | queue 面板 | 恢复摄取队列，继续处理待处理任务 | `POST /api/v1/queue/resume` | 运行状态下禁用 |
+| **刷新** | queue 面板 | 刷新队列统计 | `GET /api/v1/queue/status` | 同步刷新所有面板 |
+
+队列面板展示：
+- 状态指示灯：绿色=运行中，黄色=已暂停，红色=熔断
+- 统计卡片：待处理数 / 运行中数 / 失败数
+- Circuit Breaker 状态
+
+### 6.3 审查队列面板（P0 新增）
+
+| 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
+|------|----------|------|----------|------|
+| **批准** | review 面板 | 接受审查项，标记为已批准 | `PATCH /api/v1/projects/{id}/reviews/{id}` | 点击后该条目消失 |
+| **驳回** | review 面板 | 拒绝审查项，标记为已驳回 | `PATCH /api/v1/projects/{id}/reviews/{id}` | 点击后该条目消失 |
+| **跳过** | review 面板 | 跳过审查项，不做处理 | `PATCH /api/v1/projects/{id}/reviews/{id}` | 点击后该条目消失 |
+
+审查项列表展示：
+- 类型标签（缺页/重复页/不确定声明/待核实）
+- 标题 + 详情
+- 置信度 + 来源路径 + 创建日期
+
+### 6.4 信息面板（只读）
 
 | 面板 | 后端 API | 说明 |
 |------|----------|------|
@@ -122,7 +157,7 @@
 | 文件统计 | `GET /api/v1/projects/{id}/files?root=wiki` | wiki 文件数 |
 | 原始文件 | `GET /api/v1/projects/{id}/raw-files` | 原始素材文件列表 |
 | 知识图谱 | `GET /api/v1/projects/{id}/wiki/graph` | 图谱节点/边统计 |
-| 审核队列 | `GET /api/v1/projects/{id}/reviews?status=open` | 待审核条目 |
+| 审核队列 | `GET /api/v1/projects/{id}/reviews?status=open` | 待审核条目（交互式列表） |
 | 模式版本 | `GET /api/v1/projects/{id}/schema` | 当前 schema 版本 |
 | Lint 结果 | `GET /api/v1/projects/{id}/lint` | 代码检查结果 |
 
@@ -156,12 +191,12 @@
 
 | 想找什么 | 去哪个文件 | 搜索关键词 |
 |----------|-----------|-----------|
-| 摄取相关按钮 | `ingest.js` | `ingest\|reingest\|quality\|质` |
+| 摄取相关按钮 | `ingest.js` | `ingest\|reingest\|quality\|质\|taskHistory` |
 | 搜索按钮 | `search.js` | `search\|qBtn\|搜索` |
 | 聊天按钮 | `chat.js` | `chat\|chatBtn\|发送` |
 | 图谱按钮 | `graph.js` | `graph\|zoom\|图谱` |
 | 设置按钮 | `settings.js` | `provider\|settings\|设置\|添加\|删除\|编辑` |
-| 状态页面 | `status.js` | `status\|refresh\|刷新` |
+| 状态页面 | `status.js` | `status\|refresh\|刷新\|queue\|review\|审查` |
 | 浏览文件 | `browse.js` | `browse\|tag\|浏览\|文件` |
 | 后端 API 调用 | `api.js` | `App.api\|fetch` |
 | 样式 | `style.css` | 按钮类名 |
