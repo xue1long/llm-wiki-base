@@ -43,7 +43,7 @@ from ..lib.write_hooks import flush_pending_writes
 from ..wiki.features.indexer import append_to_index
 from ..wiki.features.logger import log_event
 from ..wiki.storage.page_writer import write_page
-from datetime import datetime
+
 # Resolve analyze/generate via the pipeline package namespace so
 # monkey-patches on `src.pipeline.pipeline.analyze` /
 # `src.pipeline.pipeline.generate` (set by tests like
@@ -234,7 +234,7 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
     except Exception:
         reg = None
 
-    now = datetime.now().strftime("%Y-%m-%d")
+    now = int(__import__("time").time() * 1000)
     for page in pages:
         if page.grade not in ("A", "B", "C"):
             page.grade = "B"
@@ -320,17 +320,20 @@ _logger = logging.getLogger(__name__)
 # src.pipeline package namespace, which is what propagates the patch.
 
 
-async def run_ingest(
+async def generate_ingest(
     paths: WikiPaths,
     source_path,
     source_text: str,
     provider,
     folder_context: str = "",
     task_id: str = "test",
-) -> list[WikiPage]:
-    """Run full 2-step pipeline + write pages + update index + log.
+) -> tuple[list[WikiPage], list[WikiPage], dict]:
+    """Phase 1 (NDG split): LLM processing only — ZERO disk writes.
 
-    Returns list of generated WikiPage objects.
+    Returns ``(pages, extra_pages, meta)`` where ``meta`` is a dict with
+    keys ``analysis``, ``source_slug``, ``source_page_id``, ``source_grade``,
+    ``downstream_count``, ``extra_pages_count``, ``rejected``, ``warnings``.
+    The caller is responsible for calling ``commit_ingest`` to persist.
     """
     # No pre-flight work needed: the 2026-07 cleanup removed the Inbox
     # staging layer. The collector reads ``raw/sources/<file>`` directly
@@ -630,8 +633,8 @@ async def run_ingest(
         grade=_source_grade,
         processing_depth="source",
         is_immutable=False,
-        created_at=datetime.now().strftime("%Y-%m-%d"),
-        updated_at=datetime.now().strftime("%Y-%m-%d"),
+        created_at=int(__import__("time").time() * 1000),
+        updated_at=int(__import__("time").time() * 1000),
     )
 
     # Fix A (2026-07-26): dedup before unconditional append.
@@ -833,8 +836,8 @@ async def run_ingest(
             grade="C",               # stub → lower grade than generated pages
             processing_depth="stub",
             is_immutable=False,
-            created_at=datetime.now().strftime("%Y-%m-%d"),
-            updated_at=datetime.now().strftime("%Y-%m-%d"),
+            created_at=int(__import__("time").time() * 1000),
+            updated_at=int(__import__("time").time() * 1000),
         ))
 
     # B13: compute reverse (inverse) edges in-memory so the relation graph
@@ -871,11 +874,44 @@ async def run_ingest(
     pages = [p for p in pages if p.id in _keep_ids]
     extra_pages = [p for p in extra_pages if p.id in _keep_ids]
 
-    # Atomic write all pages + index update + log
+    return pages, extra_pages, {
+        "analysis": analysis,
+        "source_slug": source_slug,
+        "source_page_id": source_slug,
+        "source_grade": _source_grade,
+        "downstream_count": _downstream_count,
+        "extra_pages_count": len(extra_pages),
+        "rejected": bool(_result.warnings),
+        "warnings": _result.warnings,
+    }
+
+
+async def commit_ingest(
+    paths: WikiPaths,
+    source_path,
+    pages: list[WikiPage],
+    extra_pages: list[WikiPage] | None = None,
+    task_id: str = "test",
+):
+    """Phase 2 (NDG split): write pages + index update + log.
+
+    The I/O half that was previously at the tail of ``run_ingest``.
+    ``extra_pages`` are pre-existing pages that gained inverse edges
+    (written to disk but NOT re-appended to the index).
+    """
+    from .quality_gate import check_pages
+    _extra = extra_pages or []
+    _gate = check_pages(pages + _extra)
+    for _pid, _reason in _gate.degraded.items():
+        _logger.warning("[run_ingest] quality gate: %s degraded — %s", _pid, _reason)
+    _keep_ids = {p.id for p in _gate.pages}
+    pages = [p for p in pages if p.id in _keep_ids]
+    _extra = [p for p in _extra if p.id in _keep_ids]
+
     with AtomicContext(flush_callback=flush_pending_writes):
         for page in pages:
             write_page(paths, page)
-        for page in extra_pages:
+        for page in _extra:
             write_page(paths, page)
         append_to_index(
             paths,
@@ -888,6 +924,34 @@ async def run_ingest(
             detail=f"generated {len(pages)} pages from {Path(str(source_path)).name}",
         )
 
+
+async def run_ingest(
+    paths: WikiPaths,
+    source_path,
+    source_text: str,
+    provider,
+    folder_context: str = "",
+    task_id: str = "test",
+) -> list[WikiPage]:
+    """Run full pipeline (generate + commit). Behaviour-preserving wrapper.
+
+    Returns list of generated WikiPage objects.
+    """
+    pages, extra_pages, _meta = await generate_ingest(
+        paths=paths,
+        source_path=source_path,
+        source_text=source_text,
+        provider=provider,
+        folder_context=folder_context,
+        task_id=task_id,
+    )
+    await commit_ingest(
+        paths=paths,
+        source_path=source_path,
+        pages=pages,
+        extra_pages=extra_pages,
+        task_id=task_id,
+    )
     return pages
 
 

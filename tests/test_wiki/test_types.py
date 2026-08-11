@@ -44,5 +44,5 @@ def test_review_item_normalized_title():
 def test_wiki_page_defaults():
     p = WikiPage(id="x", title="X", type=PageType.SOURCE)
     assert p.sources == []
-    assert p.created_at == ""
+    assert p.created_at == 0
     assert p.body == ""

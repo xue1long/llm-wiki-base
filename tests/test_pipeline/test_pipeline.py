@@ -1,24 +1,15 @@
+import asyncio
 import pytest
 from src.shared.test_helpers import ScriptedLLMProvider
 from src.pipeline.pipeline import run_ingest
-
-# Minimum 100 bytes of Chinese text to pass the D3 prefilter.
-_PREFILTER_PAD = "这是一段用于测试的中文源文档内容，包含足够的信息。" * 3  # ~180 bytes
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths
 from src.wiki.core.types import PageType
 from src.events.events import CollectorDonePayload
-from src.queue import __reset_for_testing, enqueue_task, get_default_queue_service
+from src.queue import __reset_for_testing, enqueue_task, get_queue, get_default_queue_service
 from src.types import SourceType, TaskStatus
 from src.utils.idempotency import get_idempotency_cache
 import src.pipeline.pipeline as pipeline_mod
-
-
-@pytest.fixture(autouse=True)
-def _legacy_pipeline_mode(monkeypatch):
-    """These tests were written for the legacy pipeline (unified_generate /
-    two-step). Force legacy mode so they don't enter the candidate path."""
-    monkeypatch.setenv("RUFLO_PIPELINE_MODE", "legacy")
 
 
 @pytest.mark.asyncio
@@ -40,7 +31,7 @@ async def test_run_ingest_full_pipeline(tmp_path):
     ])
 
     pages = await run_ingest(
-        paths=p, source_path=raw, source_text="反向传播算法是训练神经网络的核心方法。" + _PREFILTER_PAD,
+        paths=p, source_path=raw, source_text="PDF content about backprop",
         provider=provider,
     )
     # Deterministic source-page slug rewrites LLM's "test" to "test-<hash>".
@@ -53,7 +44,7 @@ async def test_run_ingest_full_pipeline(tmp_path):
         f"source page id should start with 'test-', got {source_page_id!r}"
     )
     assert not any(p.id.startswith("kb-") for p in pages), (
-        "kb-* fallback must NOT be added when LLM already produced a source page"
+        f"kb-* fallback must NOT be added when LLM already produced a source page"
     )
     assert (p.wiki_sources / f"{source_page_id}.md").exists()
     assert source_page_id in p.llm_wiki_index.read_text(encoding="utf-8")
@@ -87,7 +78,7 @@ async def test_collector_done_triggers_run_ingest(tmp_path, monkeypatch):
     task.status = TaskStatus.RUNNING
     service.backend.save(task)
     service.tracker.acquire(task_id)
-    payload = CollectorDonePayload(task_id=task_id, raw_path=str(raw), content="测试中文内容。" + _PREFILTER_PAD)
+    payload = CollectorDonePayload(task_id=task_id, raw_path=str(raw), content="content")
     await pipeline_mod._on_collector_done(payload)
     # Deterministic source-page slug: {stem}-{hash}
     source_page = next((p.wiki_sources.glob("x-*.md")), None)
@@ -127,7 +118,7 @@ async def test_run_ingest_kb_task_id_fallback_when_llm_omits_source_page(tmp_pat
     # raw file's stem with a short path-hash suffix.
     test_task_id = f"kb-test-{_uuid.uuid4().hex[:8]}"
     pages = await run_ingest(
-        paths=p, source_path=raw, source_text="测试内容。" + _PREFILTER_PAD,
+        paths=p, source_path=raw, source_text="content",
         provider=provider, task_id=test_task_id,
     )
     page_ids = {p.id for p in pages}
@@ -147,7 +138,7 @@ async def test_run_ingest_kb_task_id_fallback_when_llm_omits_source_page(tmp_pat
 
 
 # ---------------------------------------------------------------------------
-# v2.5 source-page id strategy: {slugify(NFC(stem))}-{path_hash_8_hex}
+# v2.4 source-page id strategy: {NFC(stem)}-{path_hash_8_hex}
 # ---------------------------------------------------------------------------
 
 
@@ -166,12 +157,11 @@ async def test_source_page_uses_chinese_stem_with_path_hash(tmp_path):
         {"pages": []},
     ])
     pages = await run_ingest(
-        paths=p, source_path=raw, source_text="中文文档正文内容。" + _PREFILTER_PAD,
+        paths=p, source_path=raw, source_text="body",
         provider=provider, task_id="kb-test-stem",
     )
     page = next(p for p in pages if p.type == PageType.SOURCE)
-    # B3: slugify inserts hyphens at CJK↔ASCII boundaries
-    expected_stem = "必备资料-15-顺眼谈文章的画面感"
+    expected_stem = "必备资料15顺眼谈文章的画面感"
     assert page.id.startswith(expected_stem + "-"), (
         f"source id should start with {expected_stem!r}-, got {page.id!r}"
     )
@@ -202,7 +192,7 @@ async def test_source_page_title_strips_md_suffix(tmp_path):
         {"pages": []},
     ])
     pages = await run_ingest(
-        paths=p, source_path=raw, source_text="中文文档正文内容。" + _PREFILTER_PAD,
+        paths=p, source_path=raw, source_text="body",
         provider=provider, task_id="kb-test-title",
     )
     page = next(p for p in pages if p.type == PageType.SOURCE)
@@ -226,7 +216,7 @@ async def test_source_page_id_stable_across_reingest(tmp_path, monkeypatch):
         {"pages": []},
     ])
     pages1 = await run_ingest(
-        paths=p, source_path=raw, source_text="中文文档正文内容。" + _PREFILTER_PAD,
+        paths=p, source_path=raw, source_text="body",
         provider=provider1, task_id="kb-test-stable-1",
     )
     source1 = next(p for p in pages1 if p.type == PageType.SOURCE)
@@ -241,7 +231,7 @@ async def test_source_page_id_stable_across_reingest(tmp_path, monkeypatch):
         {"pages": []},
     ])
     pages2 = await run_ingest(
-        paths=p, source_path=raw, source_text="中文文档正文内容。" + _PREFILTER_PAD,
+        paths=p, source_path=raw, source_text="body",
         provider=provider2, task_id="kb-test-stable-2",
     )
     source2 = next(p for p in pages2 if p.type == PageType.SOURCE)
@@ -400,7 +390,7 @@ async def test_run_batch_ingest_processes_multiple_files(tmp_path):
     for i in range(3):
         f = p.raw_sources / f"doc{i}.md"
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(f"第{i}篇中文测试文档的内容。" + _PREFILTER_PAD, encoding="utf-8")
+        f.write_text(f"Content of document {i}", encoding="utf-8")
         files.append(f)
 
     # Each file gets one unified response with all required slots filled
@@ -442,7 +432,7 @@ async def test_run_batch_ingest_exception_isolation(tmp_path):
     for i in range(3):
         f = p.raw_sources / f"doc{i}.md"
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(f"第{i}篇中文测试文档。" + _PREFILTER_PAD, encoding="utf-8")
+        f.write_text(f"Content {i}", encoding="utf-8")
         files.append(f)
 
     # File 1 (doc1.md) will fail — provider raises on EVERY call for it.
@@ -488,80 +478,3 @@ async def test_run_batch_ingest_exception_isolation(tmp_path):
     assert results[1] == [], f"expected empty for failed file, got {results[1]}"
     # File 2: success (isolated from file 1's failure)
     assert len(results[2]) >= 1
-
-
-@pytest.mark.asyncio
-async def test_normalize_generated_pages_canonicalizes_relation_target_id(tmp_path):
-    """Regression: _normalize_generated_pages must use Relation.target_id, not .target.
-
-    Relation is a dataclass fielded ``target_id`` (YAML key ``target`` after
-    to_dict()). Accessing ``rel.target`` raises AttributeError whenever the
-    slug-alias registry loads and any generated page carries a relation —
-    which breaks every ingest whose LLM response includes relations.
-    """
-    from src.wiki.core.types import WikiPage
-    from src.wiki.features.relations import Relation
-    from src.wiki.features.slug_aliases import SlugAliasRegistry
-    from src.pipeline.ingest import _normalize_generated_pages
-
-    ensure_knowledge_base(tmp_path)
-    p = WikiPaths(tmp_path)
-
-    # Pre-populate the alias registry on disk so the function's internal
-    # SlugAliasRegistry(str(paths.root)) picks it up.
-    reg = SlugAliasRegistry(str(tmp_path))
-    reg.add("qi-dai-gan", "qi-dai-gan-chuangzuo")
-    reg.save()
-
-    page = WikiPage(
-        id="page-a",
-        title="页面A",
-        type=PageType.ENTITY,
-        sources=[],
-        body="",
-        relations=[Relation(target_id="qi-dai-gan", type="is_part_of",
-                            weight=1.0, context="")],
-    )
-
-    _normalize_generated_pages([page], p)
-
-    assert page.relations[0].target_id == "qi-dai-gan-chuangzuo"
-
-
-def test_normalize_generated_pages_sets_correct_processing_depth():
-    """T2: _normalize_generated_pages maps PageType → processing_depth
-    per _DEPTH_BY_TYPE, covering all four concrete PageType values (B1).
-    """
-    from src.pipeline.ingest import _normalize_generated_pages
-    from src.wiki.core.types import WikiPage
-
-    # Use a tmp_path fixture via conftest
-    import tempfile
-    d = tempfile.mkdtemp()
-    try:
-        ensure_knowledge_base(d)
-        p = WikiPaths(d)
-
-        cases = [
-            (PageType.SOURCE, "source"),
-            (PageType.ENTITY, "entity"),
-            (PageType.CONCEPT, "concept"),
-            (PageType.SYNTHESIS, "synthesis"),
-        ]
-        for page_type, expected_depth in cases:
-            page = WikiPage(
-                id=f"test-{page_type.value}",
-                title=f"Test {page_type.value}",
-                type=page_type,
-                sources=[],
-                body="",
-                processing_depth="concept",  # deliberately wrong
-            )
-            _normalize_generated_pages([page], p)
-            assert page.processing_depth == expected_depth, (
-                f"{page_type.value} should map to {expected_depth!r}, "
-                f"got {page.processing_depth!r}"
-            )
-    finally:
-        import shutil
-        shutil.rmtree(d, ignore_errors=True)

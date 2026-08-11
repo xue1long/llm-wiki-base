@@ -89,7 +89,7 @@ def _resolve_wiki_paths(project_id: str | None = None):
 # --- re-exports for new consumers ---
 # ingest.py is loaded here; it does `from src.pipeline import _resolve_wiki_paths, _get_provider`
 # which resolves against the package namespace we just populated above.
-from .ingest import run_ingest
+from .ingest import run_ingest, generate_ingest, commit_ingest
 from .service import (
     PipelineService,
     PipelineContext,
@@ -134,6 +134,8 @@ class _PipelineCompatShim:
     positional argument and break calls like ``run_ingest(paths=...)``).
     """
     run_ingest = staticmethod(run_ingest)
+    generate_ingest = staticmethod(generate_ingest)
+    commit_ingest = staticmethod(commit_ingest)
     _resolve_wiki_paths = staticmethod(_resolve_wiki_paths)
     _get_provider = staticmethod(_get_provider)
     Path = Path

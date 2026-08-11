@@ -6,9 +6,12 @@ Verifies that:
 - `cmd_schema_backup restore` rejects a missing --name (exit 2 + stderr).
 """
 import json
+import sys
+from pathlib import Path
 
 import pytest
 
+from src.cli_ext import schema_cmd
 from src.cli_ext.schema_cmd import (
     cmd_schema_diff,
     cmd_schema_upgrade,

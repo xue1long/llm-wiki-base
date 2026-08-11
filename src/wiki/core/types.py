@@ -7,25 +7,6 @@ if TYPE_CHECKING:
     from ..features.relations import Relation
 
 
-def _ms_to_date(ms: int) -> str:
-    """Convert unix ms timestamp to YYYY-MM-DD string. Returns '' for 0."""
-    if not ms:
-        return ""
-    from datetime import datetime
-    return datetime.fromtimestamp(ms / 1000).strftime("%Y-%m-%d")
-
-
-def _date_to_ms(date_str: str) -> int:
-    """Convert YYYY-MM-DD string to unix ms timestamp. Returns 0 for empty/invalid."""
-    if not date_str:
-        return 0
-    try:
-        from datetime import datetime
-        return int(datetime.strptime(date_str, "%Y-%m-%d").timestamp() * 1000)
-    except (ValueError, TypeError):
-        return 0
-
-
 class PageType(str, Enum):
     SOURCE = "source"
     ENTITY = "entity"
@@ -55,8 +36,8 @@ class WikiPage:
     title: str
     type: PageType
     sources: list[str] = field(default_factory=list)
-    created_at: str = ""
-    updated_at: str = ""
+    created_at: int = 0
+    updated_at: int = 0
     body: str = ""
     relations: list["Relation"] = field(default_factory=list)
     # NEW v2.2 fields
@@ -65,8 +46,8 @@ class WikiPage:
     is_immutable: bool = False
     # NEW heat fields (wiki-heat-5pool T1)
     heat: int = 50
-    last_used_at: str = ""
-    zombie_since: str = ""
+    last_used_at: int = 0
+    zombie_since: int | None = None
     # Tags: controlled namespace prefixes (e.g. char/女主角, genre/都市)
     tags: list[str] = field(default_factory=list)
     # Taxonomy (v3.1): LLM-assigned classification, "" = unclassified
@@ -108,16 +89,16 @@ class WikiPage:
             title=d["title"],
             type=PageType(d["type"]),
             sources=list(d.get("sources", [])),
-            created_at=str(d.get("created_at", "") or ""),
-            updated_at=str(d.get("updated_at", "") or ""),
+            created_at=d.get("created_at", 0),
+            updated_at=d.get("updated_at", 0),
             body=body,
             relations=[Relation.from_dict(r) for r in d.get("relations", []) if isinstance(r, dict)],
             grade=d.get("grade", "B"),
             processing_depth=d.get("processing_depth", "concept"),
             is_immutable=d.get("is_immutable", False),
             heat=d.get("heat", 50),
-            last_used_at=str(d.get("last_used_at", "") or ""),
-            zombie_since=str(d.get("zombie_since", "") or ""),
+            last_used_at=d.get("last_used_at", 0),
+            zombie_since=d.get("zombie_since"),
             tags=list(d.get("tags", [])),
             category=d.get("category", ""),
             taxonomy_sub=d.get("taxonomy_sub", ""),

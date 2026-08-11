@@ -1,7 +1,9 @@
 # tests/test_cli_ext/test_cmd_schema.py
 import json
+from pathlib import Path
 
 # Import migrations to trigger auto-registration
+from src.schemas.migrations import v1_to_v2, v2_to_v2_1
 
 from src.cli_ext.schema_cmd import (
     cmd_schema_list,
@@ -36,6 +38,7 @@ def _reset_registry_with_real_migrations():
 
 def test_cmd_schema_list(tmp_path, monkeypatch, capsys):
     """schema list shows registered schemas + versions."""
+    from src.cli_ext import schema_cmd
     from src.schemas.registry import MigrationRegistry
     from src.schemas.migration import SchemaVersion
 

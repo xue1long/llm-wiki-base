@@ -5,15 +5,19 @@ Created via:
 - ProjectContext.from_path(path) — for explicit init / discovery
 - ProjectContext.resolve(project_arg) — for CLI entry points
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from ..utils.path import safe_resolve
 
 from .identity import ProjectIdentity, ensure_project_id
+from .paths import config_dir as _config_dir
+from .paths import last_project_path as _last_project_path
 from .registry import (
     GlobalRegistryStore,
     ProjectRegistryEntry,
+    registry_path as _registry_path,
 )
 
 
