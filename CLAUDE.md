@@ -420,3 +420,13 @@ After code changes are verified (dry-run, smoke test, or user says "OK"):
 3. Generate a commit message matching the repo style: `type(scope): 中文描述` or `type: English summary` — use the existing `git log --oneline -5` pattern
 4. `git commit`
 5. Ask: "要 push 吗?" — never push without explicit confirmation
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as GitHub issues, operated via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context layout — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
