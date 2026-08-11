@@ -18,7 +18,7 @@ class GeneratorStage:
     async def run(self, ctx: PipelineContext, prev_result) -> StageResult:
         if ctx.analysis_result is None:
             return StageResult(success=False, payload="missing analysis result")
-        generate_fn = getattr(_generator_module, "generate")
+        generate_fn = _generator_module.generate
         pages = await generate_fn(
             paths=ctx.paths,
             analysis=ctx.analysis_result,

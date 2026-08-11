@@ -31,6 +31,22 @@ class PageType(str, Enum):
     ENTITY = "entity"
     CONCEPT = "concept"
     SYNTHESIS = "synthesis"
+    CLAIM = "claim"
+    DECISION = "decision"
+    PROCEDURE = "procedure"
+    EVENT = "event"
+
+
+_TYPE_TO_DIR: dict[PageType, str] = {
+    PageType.SOURCE: "wiki_sources",
+    PageType.ENTITY: "wiki_entities",
+    PageType.CONCEPT: "wiki_concepts",
+    PageType.SYNTHESIS: "wiki_synthesis",
+    PageType.CLAIM: "wiki_claims",
+    PageType.DECISION: "wiki_decisions",
+    PageType.PROCEDURE: "wiki_concepts",
+    PageType.EVENT: "wiki_concepts",
+}
 
 
 @dataclass
@@ -56,9 +72,11 @@ class WikiPage:
     # Taxonomy (v3.1): LLM-assigned classification, "" = unclassified
     category: str = ""
     taxonomy_sub: str = ""
+    # C3: low-importance entity references inlined instead of creating stub pages
+    related_entities: list[str] = field(default_factory=list)
 
     def to_frontmatter_dict(self) -> dict:
-        return {
+        d = {
             "id": self.id,
             "title": self.title,
             "type": self.type.value,
@@ -75,7 +93,12 @@ class WikiPage:
             "tags": list(self.tags),
             "category": self.category,
             "taxonomy_sub": self.taxonomy_sub,
+            "related_entities": list(self.related_entities),
         }
+        ko_extra = getattr(self, "_ko_extra", None)
+        if isinstance(ko_extra, dict):
+            d["_ko_extra"] = ko_extra
+        return d
 
     @classmethod
     def from_dict(cls, d: dict, body: str = "") -> "WikiPage":
@@ -98,6 +121,7 @@ class WikiPage:
             tags=list(d.get("tags", [])),
             category=d.get("category", ""),
             taxonomy_sub=d.get("taxonomy_sub", ""),
+            related_entities=list(d.get("related_entities", [])),
         )
 
 

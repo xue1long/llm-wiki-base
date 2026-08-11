@@ -1,6 +1,5 @@
 """Typed relations between wiki pages (bidirectional)."""
-import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
@@ -117,7 +116,7 @@ class RelationSync:
         """Write relations to page; apply inverse relations to target pages."""
         from ..storage.page_writer import read_page, write_page
         from ..storage.page_writer import page_path_for
-        from ..core.types import PageType
+        from .relation_index import write_outgoing, write_backlinks_for_source
 
         report = SyncReport(page_id=page_id)
         # Load page
@@ -130,6 +129,10 @@ class RelationSync:
         page.relations = relations
         write_page(paths, page)
         report.added = relations
+        # Update adjacency index
+        rel_dicts = [r.to_dict() for r in relations]
+        write_outgoing(paths, page_id, rel_dicts)
+        write_backlinks_for_source(paths, page_id, rel_dicts)
         # Apply inverse to each target
         for rel in relations:
             inv = rel.inverse()
@@ -145,6 +148,11 @@ class RelationSync:
                 continue  # already has inverse
             target_page.relations.append(inv)
             write_page(paths, target_page)
+            # Update backlinks index for the target (the inverse points FROM target TO source)
+            inv_dicts = [r.to_dict() for r in target_page.relations]
+            from .relation_index import write_outgoing as _wo, write_backlinks_for_source as _wb
+            _wo(paths, rel.target_id, inv_dicts)
+            _wb(paths, rel.target_id, inv_dicts)
         return report
 
 
@@ -163,30 +171,21 @@ class RelationQuery:
 
     @staticmethod
     def find_backlinks(paths, page_id: str) -> list[Relation]:
-        """Scan all wiki pages for relations where target == page_id."""
-        from ..storage.page_writer import read_page
-        from ..core.types import PageType
-        backlinks: list[Relation] = []
-        for type_, dir_prop in [
-            (PageType.SOURCE, "wiki_sources"),
-            (PageType.ENTITY, "wiki_entities"),
-            (PageType.CONCEPT, "wiki_concepts"),
-            (PageType.SYNTHESIS, "wiki_synthesis"),
-        ]:
-            for f in getattr(paths, dir_prop).glob("*.md"):
-                page = read_page(f)
-                for rel in page.relations:
-                    if rel.target_id == page_id:
-                        backlinks.append(Relation(
-                            target_id=page.id, type=rel.type,
-                            weight=rel.weight, context=rel.context,
-                        ))
-        return backlinks
+        """Return relations pointing to page_id (from the backlinks index)."""
+        from .relation_index import read_backlinks
+        results = []
+        for b in read_backlinks(paths, page_id):
+            results.append(Relation(
+                target_id=b["source"], type=b["type"],
+                weight=b.get("weight", 1.0), context=b.get("context", ""),
+            ))
+        return results
 
     @staticmethod
     def find_neighbors(paths, page_id: str, depth: int = 1) -> list[tuple[str, str, float]]:
         """BFS up to `depth` hops. Returns (neighbor_id, via_relation, cumulative_weight)."""
         from collections import deque
+        from .relation_index import read_outgoing
         visited = {page_id}
         queue = deque([(page_id, [], 1.0)])
         results: list[tuple[str, str, float]] = []
@@ -194,33 +193,34 @@ class RelationQuery:
             current, path, weight = queue.popleft()
             if len(path) > depth:
                 continue
-            relations = RelationQuery.list_relations(paths, current)
-            for rel in relations:
-                if rel.target_id in visited:
+            for rel_dict in read_outgoing(paths, current):
+                target_id = rel_dict["target"]
+                if target_id in visited:
                     continue
-                visited.add(rel.target_id)
-                new_weight = weight * rel.weight
-                results.append((rel.target_id, rel.type, new_weight))
+                visited.add(target_id)
+                new_weight = weight * rel_dict.get("weight", 1.0)
+                results.append((target_id, rel_dict["type"], new_weight))
                 if len(path) + 1 < depth:
-                    queue.append((rel.target_id, path + [rel], new_weight))
+                    queue.append((target_id, path + [rel_dict], new_weight))
         return results
 
     @staticmethod
     def find_path(paths, source_id: str, target_id: str) -> list[tuple[str, str, str]]:
         """BFS shortest path. Returns [(from_id, to_id, relation_type), ...] edges."""
         from collections import deque
+        from .relation_index import read_outgoing
         if source_id == target_id:
             return []
         visited = {source_id}
         queue = deque([(source_id, [])])
         while queue:
             current, path = queue.popleft()
-            relations = RelationQuery.list_relations(paths, current)
-            for rel in relations:
-                if rel.target_id in visited:
+            for rel_dict in read_outgoing(paths, current):
+                tid = rel_dict["target"]
+                if tid in visited:
                     continue
-                if rel.target_id == target_id:
-                    return path + [(current, rel.target_id, rel.type)]
-                visited.add(rel.target_id)
-                queue.append((rel.target_id, path + [(current, rel.target_id, rel.type)]))
+                if tid == target_id:
+                    return path + [(current, tid, rel_dict["type"])]
+                visited.add(tid)
+                queue.append((tid, path + [(current, tid, rel_dict["type"])]))
         return []  # no path

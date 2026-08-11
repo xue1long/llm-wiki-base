@@ -1,6 +1,5 @@
 # ruflo-kb/tests/test_idempotency.py
-import pytest
-from src.utils.idempotency import IdempotencyCache, generate_task_hash, check_duplicate
+from src.utils.idempotency import IdempotencyCache, check_duplicate
 from src.types import SourceType
 
 def test_generate_hash():

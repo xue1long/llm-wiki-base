@@ -1,5 +1,9 @@
-"""stdio MCP server: 8 tools, all delegate to HTTP API."""
-import asyncio
+"""stdio MCP server: 8 legacy HTTP tools + 5 memory tools.
+
+Old tools (ruflo_kb_search, ruflo_kb_read_file, ruflo_kb_files, ruflo_kb_ingest,
+ruflo_kb_reviews, ruflo_kb_projects, ruflo_kb_set_project, ruflo_kb_status)
+delegate to HTTP API and are marked deprecated in favour of the memory API.
+"""
 import json
 
 from mcp.server import Server
@@ -7,6 +11,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
 from .api_client import RufloKbAPIClient
+from .memory_tools import register_memory_tools, MEMORY_TOOLS, _memory_handlers
 
 
 # ---------------------------------------------------------------------------
@@ -29,27 +34,29 @@ def _get_client() -> RufloKbAPIClient:
 
 def _build_tools() -> list[Tool]:
     return [
-        Tool(name="ruflo_kb_status", description="Health check + project list",
+        # -- legacy HTTP tools (deprecated in favour of the memory API) --
+        Tool(name="ruflo_kb_status", description="[deprecated] Health check + project list",
              inputSchema={"type": "object", "properties": {}}),
-        Tool(name="ruflo_kb_projects", description="List all projects",
+        Tool(name="ruflo_kb_projects", description="[deprecated] List all projects",
              inputSchema={"type": "object", "properties": {}}),
-        Tool(name="ruflo_kb_set_project", description="Pin this MCP session to one project",
+        Tool(name="ruflo_kb_set_project", description="[deprecated] Pin this MCP session to one project",
              inputSchema={"type": "object", "properties": {"project_id": {"type": "string"}}, "required": ["project_id"]}),
-        Tool(name="ruflo_kb_files", description="List wiki files",
+        Tool(name="ruflo_kb_files", description="[deprecated] List wiki files",
              inputSchema={"type": "object", "properties": {"project_id": {"type": "string"}, "root": {"type": "string"}}, "required": ["project_id"]}),
-        Tool(name="ruflo_kb_read_file", description="Read wiki file",
+        Tool(name="ruflo_kb_read_file", description="[deprecated] Read wiki file",
              inputSchema={"type": "object", "properties": {"project_id": {"type": "string"}, "path": {"type": "string"}}, "required": ["project_id", "path"]}),
-        Tool(name="ruflo_kb_search", description="Hybrid search",
+        Tool(name="ruflo_kb_search", description="[deprecated] Hybrid search",
              inputSchema={"type": "object", "properties": {"project_id": {"type": "string"}, "query": {"type": "string"}, "top_k": {"type": "integer"}}, "required": ["project_id", "query"]}),
-        Tool(name="ruflo_kb_ingest", description="Ingest a source",
+        Tool(name="ruflo_kb_ingest", description="[deprecated] Ingest a source",
              inputSchema={"type": "object", "properties": {"project_id": {"type": "string"}, "source": {"type": "string"}}, "required": ["project_id", "source"]}),
-        Tool(name="ruflo_kb_reviews", description="List reviews",
+        Tool(name="ruflo_kb_reviews", description="[deprecated] List reviews",
              inputSchema={"type": "object", "properties": {"project_id": {"type": "string"}, "status": {"type": "string"}}, "required": ["project_id"]}),
-    ]
+        # -- memory tools (current API) --
+    ] + MEMORY_TOOLS
 
 
 def list_tools() -> list[Tool]:
-    """Return the 8 tools advertised by this MCP server.
+    """Return all 13 tools (8 legacy HTTP + 5 memory) advertised by this MCP server.
 
     Kept as a plain function (not a coroutine) so unit tests can call it
     directly without spinning up an asyncio loop.
@@ -89,6 +96,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     elif name == "ruflo_kb_reviews":
         r = await client.reviews(arguments["project_id"], arguments.get("status", "open"))
         return [TextContent(type="text", text=json.dumps(r, indent=2))]
+    elif name in _memory_handlers:
+        return await _memory_handlers[name](arguments)
     else:
         return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
@@ -105,6 +114,17 @@ async def main():
     in production.
     """
     server = Server("ruflo-kb")
+
+    # Resolve active project for memory tool persistence
+    wiki_paths = None
+    try:
+        from pathlib import Path
+        from src.wiki.storage.ensure import ensure_knowledge_base
+        wiki_paths = ensure_knowledge_base(Path.cwd())
+    except Exception:
+        pass
+
+    register_memory_tools(server, wiki_paths=wiki_paths)
 
     @server.list_tools()
     async def _list_tools():

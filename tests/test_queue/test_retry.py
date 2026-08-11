@@ -6,9 +6,8 @@ The policy decides what happens after a task status change attempt:
 - APPROVED                                             → stays APPROVED
 - Other transitions                                   → stays as attempted
 """
-import pytest
 
-from src.queue.retry import DefaultRetryPolicy, RetryDecision, MAX_RETRIES
+from src.queue.retry import DefaultRetryPolicy, MAX_RETRIES
 from src.types import KnowledgeTask, SourceType, TaskStatus
 
 

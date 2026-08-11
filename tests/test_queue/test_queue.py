@@ -1,7 +1,4 @@
 # ruflo-kb/tests/test_queue/test_queue.py
-import pytest
-import tempfile
-import os
 from src.queue import generate_task_id, get_queue, pause_queue, resume_queue
 from src.utils.idempotency import get_idempotency_cache
 

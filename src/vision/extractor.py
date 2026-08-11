@@ -1,7 +1,6 @@
 """Image extraction from PDF (MVP); DOCX/PPTX/EPUB deferred to v2.0.1."""
 from __future__ import annotations
 from dataclasses import dataclass
-from io import BytesIO
 from pathlib import Path
 
 

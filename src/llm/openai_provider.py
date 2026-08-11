@@ -8,7 +8,8 @@ go through ``client.chat.completions.create``; the legacy
 """
 from __future__ import annotations
 
-import json
+import asyncio
+import inspect
 import logging
 import re
 from typing import Optional
@@ -53,6 +54,10 @@ class OpenAIProvider(LLMProvider):
         self.timeout_seconds = config.timeout_seconds
         self.extra_headers = dict(config.extra_headers or {})
 
+        # Cached response_format compatibility: None = unchecked,
+        # True = compatible, False = incompatible (will be skipped).
+        self._response_format_ok: bool | None = None
+
         # Prefer passing a pre-built SDK client (real or fake). Fall back to
         # constructing a thin httpx-based client on demand when no client is
         # provided. The factory passes a real client when present.
@@ -74,7 +79,7 @@ class OpenAIProvider(LLMProvider):
 
     async def _post_json(self, url: str, payload: dict, timeout: Optional[float] = None) -> dict:
         effective_timeout = timeout if timeout is not None else self.timeout_seconds
-        async with httpx.AsyncClient(timeout=effective_timeout) as sess:
+        async with httpx.AsyncClient(timeout=effective_timeout, trust_env=False) as sess:
             r = await sess.post(url, headers=self._headers(), json=payload)
             try:
                 r.raise_for_status()
@@ -133,26 +138,46 @@ class OpenAIProvider(LLMProvider):
         if kwargs.get("max_tokens") is not None:
             body["max_tokens"] = kwargs["max_tokens"]
         if response_format:
-            # Many OpenAI-compatible APIs (MiniMax, DeepSeek, Kimi, GLM,
-            # etc.) reject any ``response_format`` parameter — both the
-            # legacy ``{"type": "json_object"}`` form and the newer
-            # ``{"type": "object", "properties": ...}`` JSON-Schema form
-            # — with HTTP 400 "unknown response_format type". The
-            # structured-outputs API is OpenAI-specific and not generally
-            # replicated by OpenAI-compatible providers.
-            #
-            # Drop the parameter entirely for non-OpenAI endpoints so the
-            # LLM is still expected to return JSON in its content (the
-            # system prompt instructs it to) without breaking the request.
-            if self.base_url.startswith("https://api.openai.com"):
-                body["response_format"] = response_format
+            # Auto-downgrade: if startup check found this provider
+            # incompatible with the pipeline's non-standard schema, skip
+            # response_format entirely.  The JSON schema is already
+            # embedded in the prompt, so plain json_object mode is
+            # sufficient enforcement everywhere.
+            if self._response_format_ok is False:
+                response_format = {"type": "json_object"}
+            else:
+                # Normalize response_format to a shape the endpoint accepts.
+                # The pipeline builds a non-standard {"type": "object",
+                # "properties": {...}} schema. OpenAI's native structured
+                # output uses {"type": "json_schema", "json_schema": {...}};
+                # many OpenAI-compatible providers (GLM, DeepSeek, Kimi,
+                # MiniMax) accept ONLY {"type": "json_object"} (or text/url/
+                # b64_json) and reject the schema form with HTTP 400. The JSON
+                # schema is already embedded in the prompt, so downgrading to
+                # plain json_object mode is sufficient enforcement everywhere.
+                rtype = response_format.get("type")
+                if rtype not in ("json_object", "json_schema", "text", "url", "b64_json"):
+                    body["response_format"] = {"type": "json_object"}
+                else:
+                    body["response_format"] = response_format
 
         # Two code paths:
-        #   - SDK present:  self._sdk.chat.completions.create(...)
+        #   - SDK present:  await self._sdk.chat.completions.create(...)
+        #     (the SDK may be the async ``AsyncOpenAI``/``AsyncAzureOpenAI``
+        #     client, in which case the call is awaited; a sync SDK client is
+        #     also supported by offloading to a worker thread so the event
+        #     loop is never blocked — see Bug #11)
         #   - else:         raw httpx POST to {base_url}/chat/completions
         if self._client_kind == "sdk":
             try:
-                result = self._sdk.chat.completions.create(**body)
+                create = self._sdk.chat.completions.create
+                if inspect.iscoroutinefunction(create):
+                    # Async SDK (openai.AsyncOpenAI) — await directly.
+                    result = await create(**body)
+                else:
+                    # Sync SDK (openai.OpenAI) — offload to a worker thread so
+                    # the event loop is never blocked (Bug #11).
+                    result = await asyncio.to_thread(create, **body)
                 # openai SDK returns a pydantic-like model; .model_dump() works
                 if hasattr(result, "model_dump"):
                     data = result.model_dump()
@@ -202,38 +227,99 @@ class OpenAIProvider(LLMProvider):
         out = await self._embed_batch([text])
         return out[0]
 
+    async def check_response_format(self) -> dict:
+        """Probe whether the endpoint accepts the pipeline's non-standard
+        ``{"type": "object", "properties": {...}}`` response_format.
+
+        Sends a minimal chat completion with the raw schema shape that the
+        pipeline builds. If the provider returns HTTP 400 with
+        ``invalid response_format``, the check fails and the user would see
+        source-only stub pages after ingestion.
+
+        Caches the result in ``self._response_format_ok`` so the
+        ``complete()`` method can auto-skip ``response_format`` on
+        incompatible providers.
+
+        Returns ``{"ok": bool, "detail": str}`` matching the
+        :meth:`health_check` contract.
+        """
+        probe_body = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": "test"}],
+            "max_tokens": 1,
+            "response_format": {"type": "object", "properties": {"test": {"type": "string"}}},
+        }
+        try:
+            async with httpx.AsyncClient(timeout=10, trust_env=False) as sess:
+                r = await sess.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=self._headers(),
+                    json=probe_body,
+                )
+                if r.status_code == 400 and "response_format" in (r.text or "").lower():
+                    self._response_format_ok = False
+                    return {
+                        "ok": False,
+                        "detail": "HTTP 400: provider rejects non-standard response_format "
+                                   "(ingestion would produce empty stub pages)",
+                    }
+                # Any other status (including 200, 401, 404) means the
+                # response_format itself wasn't rejected — the endpoint
+                # either accepted it or failed for a different reason.
+                self._response_format_ok = True
+                return {"ok": True, "detail": "response_format accepted"}
+        except Exception as e:
+            self._response_format_ok = False
+            return {"ok": False, "detail": str(e)}
+
     async def health_check(self) -> dict:
-        """Probe the endpoint and return ``{"ok": bool, "detail": str}``."""
+        """Probe the endpoint, check response_format compatibility,
+        and return ``{"ok": bool, "detail": str, "response_format_ok": bool}``."""
+        # --- Step 1: reachability probe ---
+        base_result: dict
         if self._client_kind == "sdk":
             try:
-                await self._sdk.models.list()
-                return {"ok": True, "detail": "models.list() OK"}
+                models_list = self._sdk.models.list()
+                if inspect.isawaitable(models_list):
+                    await models_list
+                else:
+                    await asyncio.to_thread(models_list)
+                base_result = {"ok": True, "detail": "models.list() OK"}
             except Exception as e:
-                return {"ok": False, "detail": f"models.list() failed: {e}"}
+                base_result = {"ok": False, "detail": f"models.list() failed: {e}"}
+        else:
+            try:
+                async with httpx.AsyncClient(timeout=10, trust_env=False) as sess:
+                    r = await sess.get(
+                        f"{self.base_url}/models",
+                        headers={k: v for k, v in self._headers().items()
+                                 if k.lower() != "content-type"},
+                    )
+                    if r.status_code == 200:
+                        base_result = {"ok": True, "detail": "/models OK"}
+                    else:
+                        r2 = await sess.get(
+                            self.base_url,
+                            headers={k: v for k, v in self._headers().items()
+                                     if k.lower() != "content-type"},
+                        )
+                        if r2.status_code < 500:
+                            base_result = {"ok": True, "detail": f"base URL reachable (HTTP {r2.status_code})"}
+                        else:
+                            base_result = {"ok": False, "detail": f"HTTP {r2.status_code}"}
+            except Exception as e:
+                base_result = {"ok": False, "detail": str(e)}
 
-        # httpx mode — probe /models via GET (OpenAI-compatible endpoints
-        # all support this). Fall back to the base URL if /models 404s.
-        try:
-            async with httpx.AsyncClient(timeout=10) as sess:
-                r = await sess.get(
-                    f"{self.base_url}/models",
-                    headers={k: v for k, v in self._headers().items()
-                             if k.lower() != "content-type"},
-                )
-                if r.status_code == 200:
-                    return {"ok": True, "detail": "/models OK"}
-                # Some providers don't expose /models; just checking the
-                # base URL is reachable is enough.
-                r2 = await sess.get(
-                    self.base_url,
-                    headers={k: v for k, v in self._headers().items()
-                             if k.lower() != "content-type"},
-                )
-                if r2.status_code < 500:
-                    return {"ok": True, "detail": f"base URL reachable (HTTP {r2.status_code})"}
-                return {"ok": False, "detail": f"HTTP {r2.status_code}"}
-        except Exception as e:
-            return {"ok": False, "detail": str(e)}
+        # --- Step 2: response_format probe (only if reachable) ---
+        if base_result.get("ok"):
+            rf_result = await self.check_response_format()
+            base_result["response_format_ok"] = rf_result.get("ok", False)
+            base_result["response_format_detail"] = rf_result.get("detail", "")
+        else:
+            base_result["response_format_ok"] = False
+            base_result["response_format_detail"] = "skipped (provider unreachable)"
+
+        return base_result
 
     async def close(self) -> None:
         """No-op for OpenAI: per-call httpx clients close themselves; SDK
@@ -296,7 +382,11 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
 
         if self._client_kind == "sdk":
             try:
-                result = self._sdk.embeddings.create(**body)
+                create = self._sdk.embeddings.create
+                if inspect.iscoroutinefunction(create):
+                    result = await create(**body)
+                else:
+                    result = await asyncio.to_thread(create, **body)
             except Exception as e:
                 raise RuntimeError(f"OpenAI embedding failed: {e}") from e
             if hasattr(result, "model_dump"):
@@ -313,7 +403,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                     "model": getattr(result, "model", self.model),
                 }
         else:
-            async with httpx.AsyncClient(timeout=self.timeout_seconds) as sess:
+            async with httpx.AsyncClient(timeout=self.timeout_seconds, trust_env=False) as sess:
                 r = await sess.post(
                     f"{self.endpoint}/embeddings",
                     headers=self._headers(),

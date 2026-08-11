@@ -84,6 +84,8 @@ class QueueService:
         source_type: SourceType,
         task_hash: str,
         project_id: str | None = None,
+        folder_context: str | None = None,
+        batch_id: str | None = None,
     ) -> str:
         task_id: str = ""   # assigned inside lock; always overwritten before use
 
@@ -116,6 +118,8 @@ class QueueService:
                 updated_at=int(datetime.now().timestamp()),
                 retry_count=0,
                 project_id=project_id,
+                folder_context=folder_context,
+                batch_id=batch_id,
             )
             self.backend.enqueue(task)
             task_id = task.id
@@ -135,6 +139,8 @@ class QueueService:
         self,
         items: list[dict],
         project_id: str | None = None,
+        folder_context: str | None = None,
+        batch_id: str | None = None,
     ) -> list[str]:
         """Enqueue multiple sources in a single lock acquisition + single disk write.
 
@@ -168,6 +174,8 @@ class QueueService:
                     updated_at=int(datetime.now().timestamp()),
                     retry_count=0,
                     project_id=project_id,
+                    folder_context=folder_context,
+                    batch_id=batch_id,
                 )
                 tasks_to_add.append(task)
                 task_ids.append(task.id)
@@ -298,6 +306,8 @@ class QueueService:
             }
             if effective_project_id is not None:
                 payload["project_id"] = effective_project_id
+            if task.folder_context is not None:
+                payload["folder_context"] = task.folder_context
 
         # Outside the lock — emit
         self.emitter.emit("collector:start", payload)

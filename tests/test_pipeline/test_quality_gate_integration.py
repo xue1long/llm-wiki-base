@@ -1,10 +1,10 @@
 """Tests for QualityGate inline integration in run_ingest (P1 fix).
 
-Default OFF: QualitySettings.enabled=False → judge is NOT called, no
+Default OFF: QualitySettings mode="off" → judge is NOT called, no
 latency added. This locks in the Plan 19/20/21 audit principle that
 quality gates must not break the main flow.
 
-When enabled (via test fixture), the judge runs after generate() and:
+When active (via test fixture), the judge runs after generate() and:
 - Decision A1: judge LLM failure → log warning, pass pages through
 - Decision B1: existing judge does re-judge internally (deviation
   from strict B1 "re-generate" — noted in the 9-plan-bugfix plan;
@@ -15,17 +15,15 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 
 
 def test_default_settings_disabled_by_default() -> None:
-    """Sanity: QualitySettings().enabled is False out of the box (P1 Decision C)."""
+    """Sanity: QualitySettings() mode="off" out of the box (P1 Decision C)."""
     from src.quality.types import QualitySettings
     s = QualitySettings()
-    assert s.enabled is False, (
-        "QualitySettings must default to enabled=False; opt-in via project settings. "
+    assert s.is_active() is False, (
+        "QualitySettings must default to mode='off'; opt-in via project settings. "
         "Inline judge costs 5-15s per ingest; can't be the default."
     )
 
@@ -33,21 +31,17 @@ def test_default_settings_disabled_by_default() -> None:
 def test_judge_batch_not_called_when_settings_disabled(tmp_path: Path) -> None:
     """The judge.judge_batch function is patched and the patch is verified.
 
-    This proves the conditional `if _quality_settings.enabled` works
-    by checking that even if run_ingest had been called, the gate
-    would be skipped — we don't have to actually run the full pipeline.
+    This proves the conditional `is_active()` works by checking that even
+    if run_ingest had been called, the gate would be skipped.
     """
     from src.quality.types import QualitySettings
-    from src.quality.judge import QualityJudge
 
     s = QualitySettings()
-    assert s.enabled is False
-    # If we did call run_ingest with disabled, the gate is skipped.
-    # Verifying the gate logic itself is in src/pipeline/ingest.py:
+    assert s.is_active() is False
     with open("src/pipeline/ingest.py", encoding="utf-8") as f:
         body = f.read()
-    assert "if _quality_settings.enabled" in body, (
-        "run_ingest must guard the judge call with the enabled flag"
+    assert "is_active()" in body, (
+        "run_ingest must guard the judge call with is_active()"
     )
 
 
@@ -57,15 +51,14 @@ def test_pipeline_falls_back_on_judge_failure(tmp_path: Path, monkeypatch) -> No
     We simulate by directly invoking the guarded block via a fake
     pipeline context. This avoids mocking the full LLM chain.
     """
-    from src.wiki.core.paths import WikiPaths
     from src.wiki.storage.ensure import ensure_knowledge_base
     from src.quality.types import QualitySettings
     from src.quality.judge import QualityJudge
 
     paths = ensure_knowledge_base(tmp_path)
 
-    # Build a fake QualitySettings that says "enabled" + a judge that always raises
-    settings = QualitySettings(enabled=True)
+    # Build a fake QualitySettings that says "full" + a judge that always raises
+    settings = QualitySettings(mode="full")
     judge = QualityJudge(settings=settings)
 
     async def boom(*a, **kw):
@@ -89,8 +82,6 @@ def test_pipeline_falls_back_on_judge_failure(tmp_path: Path, monkeypatch) -> No
 
 def test_quarantine_removes_pages_from_write_list(tmp_path: Path) -> None:
     """When judge quarantines a page, it should NOT be in the pages-to-write list."""
-    from src.quality.types import QualitySettings
-    from src.wiki.core.paths import WikiPaths
     from src.wiki.storage.ensure import ensure_knowledge_base
     from src.wiki.core.types import PageType, WikiPage
     import time
@@ -112,3 +103,31 @@ def test_quarantine_removes_pages_from_write_list(tmp_path: Path) -> None:
     filtered = [p for p in pages if p.id not in quarantined_ids]
     assert len(filtered) == 1
     assert filtered[0].id == "p2"
+
+
+def test_loads_quality_settings_from_project_config(tmp_path: Path) -> None:
+    """_load_quality_settings reads mode from .index/quality_settings.json."""
+    import json
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.pipeline.ingest import _load_quality_settings
+
+    paths = ensure_knowledge_base(tmp_path)
+    cfg = paths.index / "quality_settings.json"
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    cfg.write_text(json.dumps({"mode": "full", "threshold_pass": 0.85}), encoding="utf-8")
+
+    settings = _load_quality_settings(paths)
+    assert settings.mode == "full"
+    assert settings.is_active() is True
+    assert settings.threshold_pass == 0.85
+
+
+def test_loads_quality_settings_defaults_when_file_missing(tmp_path: Path) -> None:
+    """_load_quality_settings returns defaults when config file is absent."""
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.pipeline.ingest import _load_quality_settings
+
+    paths = ensure_knowledge_base(tmp_path)
+    settings = _load_quality_settings(paths)
+    assert settings.mode == "off"
+    assert settings.is_active() is False

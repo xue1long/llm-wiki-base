@@ -1,4 +1,4 @@
-from src.wiki.core.types import PageType, WikiPage
+from src.wiki.core.types import PageType
 from src.wiki.features.indexer import append_to_index, read_index, _format_entry
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths

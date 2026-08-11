@@ -1,5 +1,4 @@
 """Tests for src/pipeline/quality_gate.py — check_pages() + helpers."""
-import pytest
 from src.pipeline.quality_gate import (
     check_pages,
     QualityGateResult,
@@ -174,6 +173,30 @@ class TestStubExemption:
         pages = [_make_page(id="concept-stub-1", title="concept-stub-ghost", processing_depth="stub")]
         result = check_pages(pages)
         assert "prefix_ghost" in result.degraded["concept-stub-1"]
+
+
+class TestSelfComparison:
+    """Regression: a page must never be flagged as a duplicate of itself."""
+
+    def test_same_page_twice_not_flagged_as_self_duplicate(self):
+        """When the same page (same id, same body) appears twice in the
+        input list, the second occurrence should be silently kept — not
+        logged as a duplicate of itself."""
+        body = "这是一段足够长的测试内容用于验证自我比对防护逻辑是否正确工作"
+        page = _make_page(id="same-id", title="Same Page", body=body)
+        result = check_pages([page, page])
+        # Both occurrences are kept (dedup logic ignores self-compare)
+        assert len(result.pages) == 2
+        assert "same-id" not in result.degraded
+
+    def test_same_id_same_body_different_objects_not_self_duplicate(self):
+        """Two distinct objects with the same id & body — not a self-dupe."""
+        body = "这是一段足够长的测试内容用于验证自我比对防护逻辑是否正确工作"
+        p1 = _make_page(id="same-id", title="Same Page", body=body)
+        p2 = _make_page(id="same-id", title="Same Page", body=body)
+        result = check_pages([p1, p2])
+        assert len(result.pages) == 2
+        assert "same-id" not in result.degraded
 
 
 class TestCombined:

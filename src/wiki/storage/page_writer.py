@@ -6,6 +6,7 @@ import yaml
 from ...lib.write_hooks import safe_write
 from ..core.paths import WikiPaths
 from ..core.types import PageType, WikiPage
+from ..features.tag_namespace import validate_tag_compliance
 
 
 _TYPE_TO_DIR: dict[PageType, str] = {
@@ -13,6 +14,10 @@ _TYPE_TO_DIR: dict[PageType, str] = {
     PageType.ENTITY: "wiki_entities",
     PageType.CONCEPT: "wiki_concepts",
     PageType.SYNTHESIS: "wiki_synthesis",
+    PageType.CLAIM: "wiki_claims",
+    PageType.DECISION: "wiki_decisions",
+    PageType.PROCEDURE: "wiki_concepts",
+    PageType.EVENT: "wiki_concepts",
 }
 
 
@@ -34,6 +39,27 @@ def page_path_for_stub(paths: WikiPaths, slug: str) -> Path:
     return paths.wiki_stubs / f"{slug}.md"
 
 
+def _snapshot_raw(paths: WikiPaths, page_id: str, file_path: Path) -> None:
+    """Save raw markdown content before overwrite, with retention (max 10)."""
+    import json
+    import time
+    import uuid
+
+    raw = file_path.read_text(encoding="utf-8")
+    version_dir = paths.index / "page_versions" / page_id
+    version_dir.mkdir(parents=True, exist_ok=True)
+    ts = int(time.time() * 1000)
+    uid = uuid.uuid4().hex[:8]
+    version_path = version_dir / f"{ts}_{uid}.json"
+    safe_write(
+        version_path,
+        json.dumps({"content": raw, "saved_at_ms": ts}, ensure_ascii=False),
+    )
+    files = sorted(version_dir.glob("*.json"))
+    for f in files[:-10]:
+        f.unlink()
+
+
 def write_page(paths: WikiPaths, page: WikiPage) -> None:
     """Write page to disk via safe_write (respects AtomicContext).
 
@@ -42,6 +68,10 @@ def write_page(paths: WikiPaths, page: WikiPage) -> None:
     """
     path = page_path_for(paths, page.type, page.id)
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        _snapshot_raw(paths, page.id, path)
+    else:
+        validate_tag_compliance(page.tags)
     fm = page.to_frontmatter_dict()
     fm_text = yaml.dump(fm, allow_unicode=True, sort_keys=False, default_flow_style=False)
     content = f"---\n{fm_text}---\n\n{page.body}"

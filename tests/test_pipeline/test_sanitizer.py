@@ -1,5 +1,4 @@
 """Tests for src/pipeline/sanitizer.py — SanitizerResult + sanitize()."""
-import pytest
 from src.pipeline.sanitizer import sanitize, SanitizerResult, SANITIZER_MAX_CHARS
 
 

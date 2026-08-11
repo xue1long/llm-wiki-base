@@ -4,7 +4,6 @@ After cutting over to CJK (2026-07-26), the slug generator must
 preserve Chinese characters rather than transliterate to pinyin.
 """
 import unicodedata
-import pytest
 from src.utils.slugify import slugify, ensure_unique_slug
 
 
@@ -111,3 +110,28 @@ def test_slugify_brackets_and_quotes_safe_for_wikilinks():
     assert "[" not in slugify("foo [bar]")
     assert "]" not in slugify("foo [bar]")
     assert "网络[" not in slugify("网络[文]")
+
+
+def test_slugify_idempotent():
+    """slugify(slugify(x)) == slugify(x) for all x — critical invariant
+    for slug unification (B3). If broken, duplicate entity stubs reappear.
+    """
+    cases = [
+        "网络文学",
+        "Hello World!",
+        "混Test合",
+        "必备资料15顺眼谈文章的画面感",
+        "审核上架1何为细腻的文笔",
+        "AI写作",
+        "foo--bar",
+        "  hello world  ",
+        "café",
+        "-家庭烧伤处理-",
+        "网络/文学",
+        "",
+        "   ",
+    ]
+    for s in cases:
+        once = slugify(s)
+        twice = slugify(once)
+        assert once == twice, f"slugify not idempotent for {s!r}: {once!r} != {twice!r}"

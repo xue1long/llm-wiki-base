@@ -1,14 +1,11 @@
 import pytest
-from pathlib import Path
 
 from src.project.context import ProjectContext, ProjectNotFoundError
-from src.project.registry import GlobalRegistryStore, ProjectRegistryEntry
 
 
 def test_resolve_by_id(tmp_path, monkeypatch):
     """resolve('uuid-xxx') returns entry from registry."""
     from src.project import paths, registry, context
-    from src.project.context import _registry_path
 
     config_dir = tmp_path / "config"
     config_dir.mkdir()

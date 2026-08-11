@@ -91,6 +91,7 @@
           <div class="provider-card-test" id="testBanner-${App.escapeHtml(p.name)}" style="display:none;"></div>
           <div class="provider-card-actions">
             <button class="btn-sm" data-action="test" data-name="${App.escapeHtml(p.name)}">测试</button>
+            <button class="btn-sm" data-action="edit" data-name="${App.escapeHtml(p.name)}">编辑</button>
             <button class="btn-sm btn-danger" data-action="remove" data-name="${App.escapeHtml(p.name)}">删除</button>
           </div>
         </div>`;
@@ -134,6 +135,20 @@
         });
       });
 
+      // Edit button
+      grid.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const name = btn.dataset.name;
+          try {
+            const r = await App.api("/api/v1/providers/" + encodeURIComponent(name));
+            if (!r.ok && r.provider === undefined) throw new Error(r.error || "加载失败");
+            showEditModal(r.provider);
+          } catch (e) {
+            App.toast("加载提供商失败: " + e.message, "error");
+          }
+        });
+      });
+
       // Delete button
       grid.querySelectorAll('[data-action="remove"]').forEach(btn => {
         btn.addEventListener("click", async () => {
@@ -162,6 +177,124 @@
         } catch (e) {
           result.textContent = "✗ " + e.message;
           result.style.color = "var(--danger)";
+        }
+      });
+    }
+
+    function showEditModal(provider) {
+      const existing = document.getElementById("addProviderModal");
+      if (existing) existing.remove();
+
+      const PROVIDER_PRESETS = {
+        "minimax": { base_url: "https://api.minimax.chat/v1", model: "MiniMax-Text-01", label: "MiniMax" },
+        "kimi": { base_url: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k", label: "Kimi / Moonshot" },
+        "deepseek": { base_url: "https://api.deepseek.com/v1", model: "deepseek-chat", label: "DeepSeek" },
+        "glm": { base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-plus", label: "GLM / 智谱" },
+        "openai": { base_url: "https://api.openai.com/v1", model: "gpt-4o", label: "OpenAI（官方）" },
+        "anthropic": { base_url: "", model: "", label: "Anthropic" },
+        "ollama": { base_url: "http://127.0.0.1:11434", model: "", label: "Ollama（本地）" },
+      };
+
+      const modal = document.createElement("div");
+      modal.id = "addProviderModal";
+      modal.className = "modal-overlay";
+      modal.innerHTML = `<div class="modal-card">
+        <div class="modal-header">
+          <h3>编辑提供商</h3>
+          <button class="modal-close" id="closeAddModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-field">
+            <label>名称</label>
+            <input id="modalProvName" value="${App.escapeHtml(provider.name)}" />
+          </div>
+          <div class="modal-field">
+            <label>预设</label>
+            <select id="modalProvPreset">
+              <option value="">（自定义）</option>
+              ${Object.entries(PROVIDER_PRESETS).map(([k, v]) =>
+                `<option value="${k}">${v.label}</option>`
+              ).join("")}
+            </select>
+          </div>
+          <div class="modal-field">
+            <label>类型</label>
+            <select id="modalProvType">
+              <option value="openai-compatible"${provider.type === "openai-compatible" ? " selected" : ""}>OpenAI 兼容</option>
+              <option value="openai"${provider.type === "openai" ? " selected" : ""}>OpenAI（官方）</option>
+              <option value="anthropic"${provider.type === "anthropic" ? " selected" : ""}>Anthropic</option>
+              <option value="ollama"${provider.type === "ollama" ? " selected" : ""}>Ollama</option>
+            </select>
+          </div>
+          <div class="modal-field">
+            <label>Base URL</label>
+            <input id="modalProvBaseUrl" value="${App.escapeHtml(provider.base_url || "")}" />
+          </div>
+          <div class="modal-field">
+            <label>API Key</label>
+            <input id="modalProvKey" type="password" placeholder="留空不修改" value="${provider.api_key ? "***" : ""}" />
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">留空保持原有值不变</div>
+          </div>
+          <div class="modal-field">
+            <label>默认模型</label>
+            <input id="modalProvModel" value="${App.escapeHtml(provider.default_chat_model || "")}" />
+          </div>
+          <div id="modalAddResult" style="margin-top:8px;"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-sm" id="cancelAddModal">取消</button>
+          <button class="btn-primary" id="confirmAddModal">保存</button>
+        </div>
+      </div>`;
+      document.body.appendChild(modal);
+
+      // Preset auto-fill
+      modal.querySelector("#modalProvPreset").addEventListener("change", () => {
+        const preset = PROVIDER_PRESETS[modal.querySelector("#modalProvPreset").value];
+        if (!preset) return;
+        const nameEl = document.getElementById("modalProvName");
+        if (!nameEl.value.trim() || nameEl.value === provider.name) nameEl.value = modal.querySelector("#modalProvPreset").value;
+        document.getElementById("modalProvBaseUrl").value = preset.base_url || "";
+        document.getElementById("modalProvModel").value = preset.model || "";
+        if (preset.label.includes("Anthropic")) {
+          document.getElementById("modalProvType").value = "anthropic";
+        } else if (preset.label.includes("Ollama")) {
+          document.getElementById("modalProvType").value = "ollama";
+        } else if (preset.label === "OpenAI（官方）") {
+          document.getElementById("modalProvType").value = "openai";
+        } else {
+          document.getElementById("modalProvType").value = "openai-compatible";
+        }
+      });
+
+      function closeModal() { modal.remove(); }
+      modal.querySelector("#closeAddModal").addEventListener("click", closeModal);
+      modal.querySelector("#cancelAddModal").addEventListener("click", closeModal);
+      modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+
+      modal.querySelector("#confirmAddModal").addEventListener("click", async () => {
+        const name = document.getElementById("modalProvName").value.trim();
+        const type = document.getElementById("modalProvType").value;
+        const api_key = document.getElementById("modalProvKey").value;
+        const base_url = document.getElementById("modalProvBaseUrl").value.trim();
+        const model = document.getElementById("modalProvModel").value.trim();
+        const result = document.getElementById("modalAddResult");
+        if (!name) { result.innerHTML = '<span class="banner-warn">请输入名称</span>'; return; }
+        result.innerHTML = "保存中...";
+        try {
+          // POST /providers 是 upsert 语义，直接覆盖
+          const body = { name, type, base_url, chat_model: model, embedding_model: model };
+          // 只有用户手动输入了新 key 才传，否则后端保持原有值
+          if (api_key && api_key !== "***") body.api_key = api_key;
+          await App.api("/api/v1/providers", {
+            method: "POST",
+            body: body,
+          });
+          closeModal();
+          loadSettings();
+          App.toast("提供商「" + name + "」已更新", "success");
+        } catch (e) {
+          result.innerHTML = '<span class="banner-err">失败: ' + App.escapeHtml(e.message) + '</span>';
         }
       });
     }

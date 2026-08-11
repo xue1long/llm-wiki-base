@@ -54,6 +54,10 @@
             <button id="ingBtn" class="btn-primary" style="margin-top:6px;">提交摄取</button>
             <div id="ingResult" style="margin-top:6px;"></div>
           </div>
+          <div class="ingest-task-history" id="ingestTaskHistory">
+            <h4 style="font-size:13px;margin:12px 0 6px;">历史任务</h4>
+            <div class="task-history-list" id="taskHistoryList"><div class="skeleton skeleton-line"></div></div>
+          </div>
         </div>
       </div>
       <div class="ingest-history">
@@ -233,8 +237,19 @@
 
       list.innerHTML = filtered.map((f, i) => {
         const dateStr = f.created_at ? new Date(f.created_at).toLocaleDateString() : "-";
-        return `<div class="ingest-file-row${f.ingested ? " ingested" : ""}">
-          <input type="checkbox" data-path="${App.escapeHtml(f.path)}" ${f.ingested ? "disabled" : ""} />
+        if (f.ingested) {
+          return `<div class="ingest-file-row ingested">
+            <span class="ingest-file-icon" style="margin-left:4px;">${iconForExt(f.ext)}</span>
+            <span class="ingest-file-name">${App.escapeHtml(f.name)}</span>
+            <span class="ingest-file-date">${dateStr}</span>
+            <span class="ingest-file-size">${App.formatSize(f.size)}</span>
+            <button class="btn-sm reingest-btn" data-path="${App.escapeHtml(f.path)}">重新摄取</button>
+            <button class="btn-sm" data-action="delete-source" data-path="${App.escapeHtml(f.path)}">删除</button>
+            <button class="quality-btn" data-path="${App.escapeHtml(f.path)}">质</button>
+          </div>`;
+        }
+        return `<div class="ingest-file-row">
+          <input type="checkbox" data-path="${App.escapeHtml(f.path)}" />
           <span class="ingest-file-icon">${iconForExt(f.ext)}</span>
           <span class="ingest-file-name">${App.escapeHtml(f.name)}</span>
           <span class="ingest-file-date">${dateStr}</span>
@@ -366,6 +381,124 @@
       loadQueueStatus();
     }
 
+    async function doReingest(path) {
+      const panel = document.getElementById("ingestProgressPanel");
+      panel.innerHTML = `<div class="ingest-progress">
+        <div class="banner-warn">正在重新摄取（会先清理旧结果）…</div>
+        <div class="progress-row">
+          <div class="progress-bar"><div class="progress-fill" style="width:20%"></div></div>
+          <span class="progress-status">cleaning</span>
+        </div>
+      </div>`;
+
+      try {
+        const r = await App.api(`/api/v1/projects/${App.state.projectId}/reingest`, {
+          method: "POST",
+          body: { source_path: path },
+        });
+        if (r.status !== "queued" || !r.taskId) {
+          panel.innerHTML = `<div class="banner-warn">未识别状态: ${App.escapeHtml(JSON.stringify(r))}</div>`;
+          return;
+        }
+        // Poll the reingest task status (reuse ingestOneRaw's polling by
+        // wrapping the task id through a manual loop).
+        const poll = await pollTask(r.taskId);
+        if (poll) renderFileList();
+      } catch (e) {
+        panel.innerHTML = `<div class="banner-err">重新摄取失败: ${App.escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    async function pollTask(taskId) {
+      const panel = document.getElementById("ingestProgressPanel");
+      const statusEl = panel.querySelector(".progress-status");
+      const fill = panel.querySelector(".progress-fill");
+      for (let i = 0; i < 240; i++) {
+        await new Promise(res => setTimeout(res, 1500));
+        let rec;
+        try {
+          rec = await App.api(`/api/v1/projects/${App.state.projectId}/ingest/status/${encodeURIComponent(taskId)}`);
+        } catch (e) {
+          statusEl.textContent = "查询失败: " + e.message;
+          return false;
+        }
+        statusEl.textContent = rec.status;
+        const stages = Array.isArray(rec.stages) ? rec.stages : [];
+        const pct = ({ queued: 5, running: 30, finished: 100, succeeded: 100, failed: 100, ignored: 100 }[rec.status])
+          ?? (stages.length >= 3 ? 95 : stages.length === 2 ? 70 : stages.length === 1 ? 40 : 30);
+        fill.style.width = pct + "%";
+        if (rec.status === "succeeded") {
+          panel.innerHTML = `<div class="banner-ok">✓ 重新摄取完成</div>`;
+          return true;
+        }
+        if (rec.status === "failed") {
+          panel.innerHTML = `<div class="banner-err">✗ 重新摄取失败${rec.error ? ": " + App.escapeHtml(rec.error) : ""}</div>`;
+          return false;
+        }
+      }
+      panel.innerHTML = `<div class="banner-warn">重新摄取超时，请到任务历史查看。</div>`;
+      return false;
+    }
+
+    async function doDeleteSource(path) {
+      const panel = document.getElementById("ingestProgressPanel");
+      panel.innerHTML = `<div class="ingest-progress">
+        <div class="banner-warn">正在删除已编译的 wiki 信息…</div>
+        <div class="progress-row">
+          <div class="progress-bar"><div class="progress-fill" style="width:50%"></div></div>
+          <span class="progress-status">deleting</span>
+        </div>
+      </div>`;
+
+      try {
+        const r = await App.api(`/api/v1/projects/${App.state.projectId}/delete-source`, {
+          method: "POST",
+          body: { source_path: path },
+        });
+        const nDel = (r.deleted_pages || []).length;
+        const nUpd = (r.updated_pages || []).length;
+        const nVec = r.deleted_vectors ?? 0;
+        panel.innerHTML = `<div class="banner-ok">✓ 已删除（删除 ${nDel} 页，更新 ${nUpd} 页，清理 ${nVec} 条向量）</div>`;
+        renderFileList();
+      } catch (e) {
+        panel.innerHTML = `<div class="banner-err">删除失败: ${App.escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    async function loadTaskHistory() {
+      const listEl = document.getElementById("taskHistoryList");
+      if (!listEl) return;
+      try {
+        const data = await App.api(`/api/v1/projects/${App.state.projectId}/ingest/tasks`);
+        const tasks = data.tasks || [];
+        if (!tasks.length) {
+          listEl.innerHTML = `<div class="task-history-empty">暂无任务</div>`;
+          return;
+        }
+        listEl.innerHTML = tasks.slice(0, 20).map(t => {
+          const name = (t.source_path || t.source || "").split("/").pop() || t.task_id || "";
+          const icon = ({ succeeded: "✓", failed: "✗", running: "⏳", queued: "⏳", ignored: "⏭" }[t.status]) || "•";
+          const cls = ({ succeeded: "ok", failed: "err", running: "run", queued: "run", ignored: "ign" }[t.status]) || "";
+          const started = t.started_at ? new Date(t.started_at).toLocaleTimeString() : "";
+          let duration = "";
+          if (t.finished_at && t.started_at) {
+            const s = (t.finished_at - t.started_at) / 1000;
+            duration = (s >= 60 ? (s / 60).toFixed(1) + "m" : s.toFixed(1) + "s");
+          }
+          const err = t.error ? " · " + App.escapeHtml(String(t.error).slice(0, 40)) : "";
+          return `<div class="task-history-row ${cls}" title="${App.escapeHtml(t.task_id || "")}">
+            <span class="task-history-icon">${icon}</span>
+            <span class="task-history-name">${App.escapeHtml(name)}</span>
+            <span class="task-history-time">${App.escapeHtml(started)}</span>
+            <span class="task-history-dur">${App.escapeHtml(duration)}</span>
+            <span class="task-history-err">${err}</span>
+          </div>`;
+        }).join("");
+      } catch (e) {
+        listEl.innerHTML = `<div class="task-history-empty">加载失败: ${App.escapeHtml(e.message)}</div>`;
+      }
+    }
+
     async function manualSubmit() {
       const src = document.getElementById("srcInput").value.trim();
       const out = document.getElementById("ingResult");
@@ -446,6 +579,199 @@
         loadTaskHistory();
         loadQueueStatus();
       }
+    }
+
+    // ── Quality helpers ──────────────────────────────────────────────
+
+    function renderTooltipContent(data) {
+      const passed = data.passed;
+      const exists = data.exists;
+      const report = data.report || {};
+      const verdict = report.verdict || "—";
+      const warnings = (report.warnings || []).length;
+      const pages = report.pages_total ?? "—";
+      const confidence = report.candidate_confidence != null
+        ? (report.candidate_confidence * 100).toFixed(0) + "%"
+        : "—";
+      const reviewCount = (data.review_items || []).length;
+      const quarantineCount = (data.quarantine || []).length;
+      const verdictReason = report.verdict_reason || "";
+
+      let color = exists ? (passed ? "var(--success)" : "var(--danger)") : "var(--text-muted)";
+      let statusText = exists ? (passed ? "✓ 质检通过" : "✗ 质检未通过") : "无质检报告";
+
+      let lines = [
+        `<span style="color:${color};font-weight:600;">${statusText}</span>`,
+        `判决: ${App.escapeHtml(verdict)}`,
+        `页数: ${pages}`,
+        `置信度: ${confidence}`,
+      ];
+      if (warnings) lines.push(`警告: ${warnings} 条`);
+      if (reviewCount) lines.push(`审查项: ${reviewCount} 条`);
+      if (quarantineCount) lines.push(`隔离页: ${quarantineCount} 条`);
+      if (verdictReason) lines.push(`原因: ${App.escapeHtml(verdictReason)}`);
+
+      return lines.join("<br>");
+    }
+
+    function renderTooltip(btn, data) {
+      // Remove any existing tooltip
+      document.querySelectorAll(".quality-tooltip").forEach(el => el.remove());
+      const tip = document.createElement("div");
+      tip.className = "quality-tooltip";
+      tip._target = btn;
+      tip.innerHTML = renderTooltipContent(data);
+      // Position below the button
+      const rect = btn.getBoundingClientRect();
+      tip.style.left = Math.max(4, rect.left + rect.width / 2 - 120) + "px";
+      tip.style.top = (rect.bottom + 4) + "px";
+      document.body.appendChild(tip);
+      btn._tooltip = tip;
+      // Remove tooltip on mouse leave of the tooltip itself
+      tip.addEventListener("mouseleave", () => {
+        tip.remove();
+        btn._tooltip = null;
+      });
+    }
+
+    function showQualityModal(path) {
+      // Remove existing modal
+      document.querySelectorAll(".quality-modal-overlay").forEach(el => el.remove());
+
+      const overlay = document.createElement("div");
+      overlay.className = "quality-modal-overlay";
+      overlay.innerHTML = `
+        <div class="quality-modal-card">
+          <div class="quality-modal-header">
+            <h3>质检报告</h3>
+            <button class="quality-modal-close">&times;</button>
+          </div>
+          <div class="quality-modal-body">
+            <div class="quality-modal-loading">加载中...</div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const close = () => overlay.remove();
+      overlay.querySelector(".quality-modal-close").addEventListener("click", close);
+      overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+
+      // Fetch data
+      const bodyEl = overlay.querySelector(".quality-modal-body");
+      (async () => {
+        try {
+          const url = `/api/v1/projects/${App.state.projectId}/quality?source_path=${encodeURIComponent(path)}`;
+          const res = await fetch(url);
+          if (!res.ok) {
+            bodyEl.innerHTML = `<div class="banner-err">加载失败: ${res.status}</div>`;
+            return;
+          }
+          const data = await res.json();
+          renderQualityModalBody(bodyEl, data);
+        } catch (e) {
+          bodyEl.innerHTML = `<div class="banner-err">请求失败: ${App.escapeHtml(e.message)}</div>`;
+        }
+      })();
+    }
+
+    function renderQualityModalBody(el, data) {
+      const passed = data.passed;
+      const exists = data.exists;
+      const report = data.report || {};
+      const reviewItems = data.review_items || [];
+      const quarantine = data.quarantine || [];
+
+      const verdict = report.verdict || "—";
+      const verdictReason = report.verdict_reason || "";
+      const pagesTotal = report.pages_total ?? "—";
+      const pagesByType = report.pages_by_type || {};
+      const confidence = report.candidate_confidence != null
+        ? (report.candidate_confidence * 100).toFixed(0) + "%"
+        : "—";
+      const warnings = report.warnings || [];
+      const sourceBytes = report.source_bytes ?? "—";
+      const chunksCount = report.chunks_count ?? "—";
+      const claimsCount = report.claims_count ?? "—";
+      const evidenceCount = report.evidence_count ?? "—";
+      const durationMs = report.duration_ms ?? null;
+      const finishedAt = report.finished_at ? new Date(report.finished_at).toLocaleString() : "—";
+
+      let passColor = exists ? (passed ? "var(--success)" : "var(--danger)") : "var(--text-muted)";
+      let passText = exists ? (passed ? "✓ 通过" : "✗ 未通过") : "无报告";
+
+      let html = `
+        <div class="qm-summary">
+          <span class="qm-badge" style="color:${passColor};font-weight:700;font-size:18px;">${passText}</span>
+          <span class="qm-verdict">判决: ${App.escapeHtml(verdict)}</span>
+        </div>
+      `;
+
+      if (verdictReason) {
+        html += `<div class="qm-section"><div class="qm-section-title">判决原因</div><div class="qm-value">${App.escapeHtml(verdictReason)}</div></div>`;
+      }
+
+      html += `<div class="qm-section">
+        <div class="qm-section-title">基本信息</div>
+        <table class="qm-table">
+          <tr><td>源文件大小</td><td>${App.formatSize(sourceBytes)}</td></tr>
+          <tr><td>分块数</td><td>${chunksCount}</td></tr>
+          <tr><td>声明数</td><td>${claimsCount}</td></tr>
+          <tr><td>证据数</td><td>${evidenceCount}</td></tr>
+          <tr><td>置信度</td><td>${confidence}</td></tr>
+          <tr><td>总页数</td><td>${pagesTotal}</td></tr>
+      `;
+      for (const [type, count] of Object.entries(pagesByType)) {
+        html += `<tr><td>— ${App.escapeHtml(type)}</td><td>${count}</td></tr>`;
+      }
+      if (durationMs) {
+        html += `<tr><td>耗时</td><td>${(durationMs / 1000).toFixed(1)}s</td></tr>`;
+      }
+      html += `<tr><td>完成时间</td><td>${App.escapeHtml(finishedAt)}</td></tr>`;
+      html += `</table></div>`;
+
+      // Warnings
+      if (warnings.length) {
+        html += `<div class="qm-section">
+          <div class="qm-section-title">警告 (${warnings.length})</div>
+          <ul class="qm-list">${warnings.map(w => `<li class="qm-warn">${App.escapeHtml(w)}</li>`).join("")}</ul>
+        </div>`;
+      }
+
+      // Review items
+      if (reviewItems.length) {
+        html += `<div class="qm-section">
+          <div class="qm-section-title">审查项 (${reviewItems.length})</div>
+          <ul class="qm-list">${reviewItems.map(ri => `
+            <li class="qm-review-item">
+              <strong>${App.escapeHtml(ri.title || "")}</strong>
+              <span class="qm-tag qm-tag-${ri.status || "open"}">${App.escapeHtml(ri.status || "open")}</span>
+              ${ri.detail ? `<br><span class="qm-detail">${App.escapeHtml(ri.detail)}</span>` : ""}
+            </li>
+          `).join("")}</ul>
+        </div>`;
+      }
+
+      // Quarantine
+      if (quarantine.length) {
+        html += `<div class="qm-section">
+          <div class="qm-section-title">隔离页 (${quarantine.length})</div>
+          <ul class="qm-list">${quarantine.map(q => `
+            <li class="qm-quarantine-item">
+              <strong>${App.escapeHtml(q.page_id || "")}</strong>
+              <span class="qm-tag qm-tag-${q.verdict === "pass" ? "pass" : "reject"}">${App.escapeHtml(q.verdict || "")}</span>
+              <span class="qm-score">分数: ${q.total_score != null ? q.total_score.toFixed(2) : "—"}</span>
+              ${(q.issues || []).length ? `<br><span class="qm-detail">问题: ${App.escapeHtml(q.issues.join("; "))}</span>` : ""}
+            </li>
+          `).join("")}</ul>
+        </div>`;
+      }
+
+      if (!exists) {
+        html += `<div class="qm-section" style="color:var(--text-muted);">该文件尚未摄取或尚无质检报告。</div>`;
+      }
+
+      el.innerHTML = html;
     }
   };
 })();

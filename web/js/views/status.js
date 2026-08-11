@@ -78,8 +78,9 @@
         reviews: App.api(`/api/v1/projects/${App.state.projectId}/reviews?status=open`).catch(e => ({ __err: e.message })),
         schema:  App.api(`/api/v1/projects/${App.state.projectId}/schema`).catch(e => ({ __err: e.message })),
         lint:    App.api(`/api/v1/projects/${App.state.projectId}/lint`).catch(e => ({ __err: e.message })),
+        queue:   App.api(`/api/v1/queue/status`).catch(e => ({ __err: e.message })),
       };
-      const [health, project, files, rawFiles, graph, reviews, schema, lint] = await Promise.all(Object.values(tasks));
+      const [health, project, files, rawFiles, graph, reviews, schema, lint, queue] = await Promise.all(Object.values(tasks));
 
       // Metric cards
       const wikiCount = files.__err ? "—" : (files.totalCount ?? "—");
@@ -119,6 +120,9 @@
         ["agent.streaming", healthIcon(!health.__err && health.agent && health.agent.streaming)],
       ]));
 
+      // ── Queue control card ──
+      renderQueueCard(queue);
+
       grid.insertAdjacentHTML("beforeend", statCard("项目", [
         ["name", project.__err ? "—" : (project.name || "—")],
         ["id", project.__err ? "—" : (project.id || "—")],
@@ -131,6 +135,9 @@
         ["wiki 页面总数", files.__err ? "—" : (files.totalCount ?? "—")],
         ["待审核数", reviews.__err ? "—" : (reviews.count ?? "—")],
       ]));
+
+      // ── Review queue interactive panel (P0) ──
+      renderReviewPanel(reviews);
 
       const migrations = (schema.__err || !Array.isArray(schema.schemas)) ? []
         : schema.schemas.map(s => `${s.schema} (${s.from}→${s.to})`);
@@ -172,6 +179,138 @@
       return `<div class="stat-card"><h3>${App.escapeHtml(title)}</h3>${rows.map(([k, v]) =>
         `<div class="stat-row"><span class="stat-key">${App.escapeHtml(k)}</span><span class="stat-val">${v}</span></div>`
       ).join("")}</div>`;
+    }
+
+    // ── Queue control card (P0) ─────────────────────────────────
+    function renderQueueCard(queue) {
+      const card = document.createElement("div");
+      card.className = "stat-card queue-card";
+      if (queue.__err) {
+        card.innerHTML = `<h3>摄取队列</h3><div class="queue-error">${App.escapeHtml(queue.__err)}</div>
+          <button class="btn-sm" id="queueRefreshBtn">重试</button>`;
+        grid.appendChild(card);
+        const btn = card.querySelector("#queueRefreshBtn");
+        if (btn) btn.addEventListener("click", () => loadAll());
+        return;
+      }
+      const paused = !!queue.paused;
+      const pending = queue.pending_count ?? 0;
+      const running = queue.running_count ?? 0;
+      const failed = queue.failed_count ?? 0;
+      const breaker = queue.circuit_breaker_state || "closed";
+      const statusLabel = paused ? "已暂停" : (breaker === "open" ? "熔断" : "运行中");
+      const statusClass = paused ? "paused" : (breaker === "open" ? "open" : "running");
+
+      card.innerHTML = `
+        <h3>摄取队列</h3>
+        <div class="queue-status-row">
+          <span class="queue-status-dot ${statusClass}"></span>
+          <span class="queue-status-label">${App.escapeHtml(statusLabel)}</span>
+          <span class="queue-breaker">breaker: ${App.escapeHtml(breaker)}</span>
+        </div>
+        <div class="queue-metrics">
+          <div class="queue-metric"><div class="queue-metric-value">${pending}</div><div class="queue-metric-label">待处理</div></div>
+          <div class="queue-metric"><div class="queue-metric-value">${running}</div><div class="queue-metric-label">运行中</div></div>
+          <div class="queue-metric"><div class="queue-metric-value">${failed}</div><div class="queue-metric-label">失败</div></div>
+        </div>
+        <div class="queue-actions">
+          <button class="btn-sm" id="queuePauseBtn" ${paused ? "disabled" : ""}>暂停</button>
+          <button class="btn-sm" id="queueResumeBtn" ${paused ? "" : "disabled"}>恢复</button>
+          <button class="btn-sm" id="queueRefreshBtn">刷新</button>
+        </div>
+      `;
+      grid.appendChild(card);
+
+      card.querySelector("#queuePauseBtn").addEventListener("click", async (e) => {
+        const btn = e.target; btn.disabled = true;
+        try {
+          await App.api("/api/v1/queue/pause", { method: "POST" });
+          App.toast("队列已暂停", "success");
+        } catch (err) {
+          App.toast("暂停失败: " + err.message, "error");
+        }
+        loadAll();
+      });
+      card.querySelector("#queueResumeBtn").addEventListener("click", async (e) => {
+        const btn = e.target; btn.disabled = true;
+        try {
+          await App.api("/api/v1/queue/resume", { method: "POST" });
+          App.toast("队列已恢复", "success");
+        } catch (err) {
+          App.toast("恢复失败: " + err.message, "error");
+        }
+        loadAll();
+      });
+      card.querySelector("#queueRefreshBtn").addEventListener("click", () => loadAll());
+    }
+
+    // ── Review queue interactive panel (P0) ────────────────────
+    function renderReviewPanel(reviews) {
+      const card = document.createElement("div");
+      card.className = "stat-card review-card";
+      if (reviews.__err) {
+        card.innerHTML = `<h3>审查队列</h3><div class="queue-error">${App.escapeHtml(reviews.__err)}</div>
+          <button class="btn-sm" id="reviewRetryBtn">重试</button>`;
+        grid.appendChild(card);
+        const btn = card.querySelector("#reviewRetryBtn");
+        if (btn) btn.addEventListener("click", () => loadAll());
+        return;
+      }
+      const items = reviews.reviews || [];
+      const typeLabels = {
+        "missing-page": "缺页", "duplicate-page": "重复页", "uncertain-claim": "不确定声明", "needs-verification": "待核实"
+      };
+      const actionLabels = {
+        skip: "已跳过", fixed: "已修复", merged: "已合并", accept: "已批准", reject: "已驳回"
+      };
+
+      if (!items.length) {
+        card.innerHTML = `<h3>审查队列</h3><div class="review-empty">✅ 所有审查项已处理</div>`;
+        grid.appendChild(card);
+        return;
+      }
+
+      const listHtml = items.map(i => {
+        const typeLabel = typeLabels[i.type] || i.type;
+        const conf = i.confidence != null ? (i.confidence * 100).toFixed(0) + "%" : "—";
+        const created = i.createdAt ? new Date(i.createdAt).toLocaleDateString() : "";
+        return `<div class="review-item" data-id="${App.escapeHtml(i.id)}">
+          <div class="review-item-head">
+            <span class="review-type">${App.escapeHtml(typeLabel)}</span>
+            <span class="review-title">${App.escapeHtml(i.title || "")}</span>
+          </div>
+          ${i.detail ? `<div class="review-detail">${App.escapeHtml(i.detail)}</div>` : ""}
+          <div class="review-meta">置信度: ${conf}${i.pagePath ? ` | ${App.escapeHtml(i.pagePath)}` : ""}${created ? ` | ${created}` : ""}</div>
+          <div class="review-actions">
+            <button class="btn-sm" data-action="accept">批准</button>
+            <button class="btn-sm" data-action="reject">驳回</button>
+            <button class="btn-sm btn-ghost" data-action="skip">跳过</button>
+          </div>
+        </div>`;
+      }).join("");
+
+      card.innerHTML = `<h3>审查队列 (${items.length})</h3><div class="review-list">${listHtml}</div>`;
+      grid.appendChild(card);
+
+      card.querySelectorAll(".review-actions button").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const action = btn.dataset.action;
+          const item = btn.closest(".review-item");
+          const id = item.dataset.id;
+          btn.disabled = true;
+          try {
+            await App.api(`/api/v1/projects/${App.state.projectId}/reviews/${encodeURIComponent(id)}`, {
+              method: "PATCH",
+              body: { resolved: true, action },
+            });
+            App.toast(`审查项已${actionLabels[action] || action}`, "success");
+            loadAll();
+          } catch (e) {
+            btn.disabled = false;
+            App.toast("处理失败: " + e.message, "error");
+          }
+        });
+      });
     }
 
     function formatTime(ms) {

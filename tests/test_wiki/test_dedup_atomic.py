@@ -4,7 +4,6 @@ Verifies I-pipeline-4 fix: DedupHistoryStore.record() should go through
 safe_write with DELETE_SENTINEL so deletions are deferred to commit time
 when called inside an AtomicContext.
 """
-import pytest
 
 from src.wiki.features.dedup_auto import DedupHistoryStore
 from src.wiki.core.types import PageType, WikiPage

@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 from src.schemas.backup import BackupManager
 

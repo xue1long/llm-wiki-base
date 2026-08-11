@@ -2,8 +2,22 @@
 import pytest
 from src.shared.test_helpers import ScriptedLLMProvider
 from src.pipeline.schemas import AnalysisResult, EntityMention, PageSpec
-from src.pipeline.generator import generate
-from src.wiki.core.types import PageType, WikiPage
+from src.pipeline.generator import generate, PROCESSING_DEPTH_VALUES
+from src.wiki.core.types import PageType
+
+
+def test_processing_depth_values_are_concept_and_memory_only():
+    """PROCESSING_DEPTH_VALUES must equal ['concept', 'memory'] and never
+    absorb page-type names (regression: the LLM response schema used to mix
+    page-type names into the processing_depth enum, inviting illegal values
+    from the model). 'concept' is the one page type that doubles as a valid
+    depth, so the guard is against every OTHER PageType value."""
+    assert PROCESSING_DEPTH_VALUES == ["concept", "memory"]
+    non_depth_page_types = {t.value for t in PageType} - {"concept"}
+    assert not (set(PROCESSING_DEPTH_VALUES) & non_depth_page_types), (
+        "PROCESSING_DEPTH_VALUES must not contain page-type names other than "
+        "the valid depth 'concept'"
+    )
 
 
 @pytest.mark.asyncio
@@ -323,6 +337,46 @@ async def test_generator_prompt_prohibits_chain_of_thought(tmp_path):
                 break
     assert forbid_found, (
         "GENERATOR_PROMPT must forbid chain-of-thought / hidden reasoning."
+    )
+
+
+@pytest.mark.asyncio
+async def test_generator_prompt_directs_ugc_tagging(tmp_path):
+    """GENERATOR_PROMPT must include MANDATORY_PAIRS tags as mandatory
+    via TAG_NAMESPACE_RULES (P0.4: UGC pairs moved from hardcoded prompts
+    to MANDATORY_PAIRS config, dynamically rendered by build_tag_prompt_section).
+    """
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="concept", slug="kb-1", title="T", reasoning="r"),
+        ],
+    )
+    provider = ScriptedLLMProvider([{
+        "pages": [{"id": "kb-1", "type": "concept", "title": "T",
+                    "slots": {"definition": "B",
+                              "characteristics": ["B"], "examples": ["B"],
+                              "related_concepts": ["B"], "references": ["B"]}}]
+    }])
+    await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="",
+        provider=provider,
+    )
+
+    prompt = provider.calls[0]["messages"][0]["content"]
+    assert "素材/ugc" in prompt, (
+        "GENERATOR_PROMPT must include 素材/ugc via TAG_NAMESPACE_RULES"
+    )
+    assert "可信度/ugc" in prompt, (
+        "GENERATOR_PROMPT must include 可信度/ugc via TAG_NAMESPACE_RULES"
+    )
+    assert "Mandatory tags" in prompt, (
+        "GENERATOR_PROMPT must include Mandatory tags section from build_tag_prompt_section"
     )
 
 
@@ -801,3 +855,139 @@ async def test_generate_prompt_handles_empty_source_slug_map(tmp_path):
     )
     prompt = provider.calls[0]["messages"][0]["content"]
     assert "no source pages produced by this run" in prompt
+
+
+# ---------------------------------------------------------------------------
+# _auto_fill_deterministic_slots — main_content: LLM body preferred,
+# denoised raw text only as fallback (empty / placeholder)
+# ---------------------------------------------------------------------------
+
+
+def test_auto_fill_preserves_llm_main_content():
+    """LLM-organized main_content must NOT be overwritten by raw source text."""
+    from src.pipeline.generator import _auto_fill_deterministic_slots
+    organized = "LLM整理后的正文\n- 去噪\n- 保留列表"
+    pages = [{"type": "source", "title": "测试", "slots": {"main_content": organized}}]
+    _auto_fill_deterministic_slots(
+        pages,
+        source_path="raw/sources/测试.md",
+        source_text="原始文本\n登录/注册\n评论（0）",
+    )
+    assert pages[0]["slots"]["main_content"] == organized
+
+
+def test_auto_fill_drops_empty_main_content():
+    """Empty main_content is NOT back-filled with the raw source — the full
+    text lives in raw/ (RAG: source pages carry summary+metadata, not a
+    duplicate full body). The slot is dropped so the optional 正文内容 section
+    is omitted from the rendered body."""
+    from src.pipeline.generator import _auto_fill_deterministic_slots
+    pages = [{"type": "source", "title": "测试", "slots": {}}]
+    _auto_fill_deterministic_slots(
+        pages,
+        source_path="raw/sources/测试.md",
+        source_text="正文开始\n登录/注册\n评论（0）\n正文结束",
+    )
+    assert "main_content" not in pages[0]["slots"]
+
+
+def test_auto_fill_drops_placeholder_main_content():
+    """A placeholder in the optional main_content slot is cleared (dropped),
+    not replaced with the raw source — no placeholder and no duplicate full
+    text lands in the body."""
+    from src.pipeline.generator import _auto_fill_deterministic_slots
+    pages = [{
+        "type": "source", "title": "测试",
+        "slots": {"main_content": "（系统占位：此项由系统补齐，请人工补充）"},
+    }]
+    _auto_fill_deterministic_slots(
+        pages,
+        source_path="raw/sources/测试.md",
+        source_text="真实内容\n正文",
+    )
+    assert "main_content" not in pages[0]["slots"]
+
+
+# ---------------------------------------------------------------------------
+# 0.5.2 — generated-id sanitisation (bad ids: tag-like / path-like /
+# type-prefix / `-entity`)
+# ---------------------------------------------------------------------------
+
+def test_sanitize_keeps_clean_id():
+    from src.pipeline.generator import _sanitize_generated_id
+    assert _sanitize_generated_id("tolkien") == "tolkien"
+    assert _sanitize_generated_id("穿越小说角色塑造套路") == "穿越小说角色塑造套路"
+    assert _sanitize_generated_id("expectation-悬念") == "expectation-悬念"
+
+
+def test_sanitize_strips_type_prefix():
+    from src.pipeline.generator import _sanitize_generated_id
+    assert _sanitize_generated_id("source-补充教程小说写作大纲的模版共享-a56031f5") == "补充教程小说写作大纲的模版共享-a56031f5"
+    assert _sanitize_generated_id("concept-穿越小说角色塑造套路") == "穿越小说角色塑造套路"
+
+
+def test_sanitize_strips_entity_suffix():
+    from src.pipeline.generator import _sanitize_generated_id
+    assert _sanitize_generated_id("琴帝-entity") == "琴帝"
+
+
+def test_sanitize_repairs_tag_prefix():
+    from src.pipeline.generator import _sanitize_generated_id
+    assert _sanitize_generated_id("func-教程") == "教程"
+    assert _sanitize_generated_id("题材-玄幻") == "玄幻"
+
+
+def test_sanitize_drops_path_like():
+    from src.pipeline.generator import _sanitize_generated_id
+    assert _sanitize_generated_id("raw-sources-01-新手入门--入门教程三十六种经典情节模式情节艺术-md-9163987c") is None
+    assert _sanitize_generated_id("女频男频--架空类小说恶俗桥段盘点-8a5397b6") is None
+
+
+def test_is_bad_id_slug_detects_pollution_forms():
+    from src.pipeline.generator import _is_bad_id_slug
+    assert _is_bad_id_slug("func-教程")
+    assert _is_bad_id_slug("题材-玄幻")
+    assert _is_bad_id_slug("source-补充教程")
+    assert _is_bad_id_slug("琴帝-entity")
+    assert _is_bad_id_slug("raw-sources-01-新手入门")
+    assert not _is_bad_id_slug("tolkien")
+    assert not _is_bad_id_slug("修真")
+    assert not _is_bad_id_slug("期望式悬念与突发式悬念")
+
+
+@pytest.mark.asyncio
+async def test_generate_sanitizes_bad_ids(tmp_path):
+    """0.5.2 wiring: a type-prefix title is repaired to its bare id; a
+    path-like title is dropped entirely. Source pages keep their
+    deterministic slug and are unaffected."""
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    analysis = AnalysisResult(
+        task_id="kb-1", source_path="raw/sources/x.pdf", summary="S",
+        suggested_pages=[
+            PageSpec(type="source", slug="kb-1", title="Article", reasoning="r"),
+            PageSpec(type="concept", slug="t", title="source-补充教程", reasoning="r"),
+            PageSpec(type="concept", slug="p", title="raw-sources-01-新手入门", reasoning="r"),
+        ],
+    )
+    provider = ScriptedLLMProvider([{
+        "pages": [
+            {"id": "kb-1", "type": "source", "title": "Article",
+             "slots": {"source_meta": "sm", "summary": "B",
+                       "key_points": ["B"], "extracted_concepts": ["B"]}},
+            {"id": "t", "type": "concept", "title": "source-补充教程",
+             "slots": _concept_slots()},
+            {"id": "p", "type": "concept", "title": "raw-sources-01-新手入门",
+             "slots": _concept_slots()},
+        ]
+    }])
+    pages = await generate(
+        paths=paths, analysis=analysis, existing_wiki_index="", provider=provider,
+    )
+    ids = {p.id for p in pages}
+    assert "article" in ids                     # source page survives
+    assert "补充教程" in ids                      # type-prefix repaired
+    assert not any("raw-sources" in i for i in ids)  # path-like dropped

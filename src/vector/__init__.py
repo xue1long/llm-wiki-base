@@ -19,4 +19,5 @@ __all__ = [
     "vector_delete_page",
     "vector_clear_chunks",
     "ChunkSearchResult",
+    "__reset_for_testing",
 ]

@@ -32,7 +32,7 @@
       content.innerHTML = `<div class="card">需要先注册项目。</div>`;
       return;
     }
-    const fn = { search: App.renderSearch, browse: App.renderBrowse, ingest: App.renderIngest, chat: App.renderChat, graph: App.renderGraph, status: App.renderStatus, settings: App.renderSettings }[name];
+    const fn = { search: App.renderSearch, browse: App.renderBrowse, ingest: App.renderIngest, chat: App.renderChat, graph: App.renderGraph, heat: App.renderHeat, templates: App.renderTemplates, status: App.renderStatus, settings: App.renderSettings }[name];
     if (fn) fn(content);
   };
 
@@ -40,7 +40,7 @@
   App.updateBreadcrumb = function updateBreadcrumb(path) {
     const bc = document.getElementById("breadcrumb");
     const view = App.state.currentView;
-    const labels = { search: "搜索", browse: "浏览", ingest: "摄取", chat: "对话", graph: "图谱", status: "状态", settings: "设置" };
+    const labels = { search: "搜索", browse: "浏览", ingest: "摄取", chat: "对话", graph: "图谱", heat: "热度", templates: "模板", status: "状态", settings: "设置" };
     let html = `<a data-nav="search">ruflo-kb</a>`;
     if (view !== "search") {
       html += `<span class="breadcrumb-sep">/</span><a data-nav="${view}">${labels[view] || view}</a>`;

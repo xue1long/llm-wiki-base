@@ -18,5 +18,5 @@
 - `is_immutable: true | false` makes the page zombie-resistant (default false)
 - `heat: 0..100` decay tracker (default 50); `last_used_at` (unix ms); `zombie_since` (int | None)
 - `relations[]` is typed links to other pages (17 built-in types + `x-*` user-defined)
-- `tags` uses controlled namespaces (`genre/`, `func/`, `char/`, `event/`, `mood/`, `entity/`, `scene_phase/`, `status/`)
+- `tags` uses controlled namespaces (`题材/`, `功能/`, `角色/`, `事件/`, `情绪/`, `实体/`, `场景阶段/`, `状态/`, `素材/`, `可信度/`)
 - Body uses `[[wikilink]]` syntax; cross-page references are resolved by the Generator

@@ -6,9 +6,8 @@ raising.
 """
 import json
 import os
-from pathlib import Path
 
-from src.lib.atomic_ctx import AtomicContext, is_suspended
+from src.lib.atomic_ctx import AtomicContext
 from src.lib.write_hooks import flush_pending_writes, get_pending_count
 from src.sync.snapshot_store import SnapshotStore
 

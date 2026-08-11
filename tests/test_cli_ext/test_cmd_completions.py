@@ -1,11 +1,8 @@
 """Tests for `completions install` and `print-words`."""
-import os
-from pathlib import Path
 
 from src.cli_ext.completions_cmd import (
     cmd_completions_install,
     cmd_completions_print_words,
-    COMPLETION_DIR,
 )
 
 

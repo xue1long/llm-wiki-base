@@ -1,6 +1,4 @@
 """Tests for SQLite persistence."""
-import time
-from pathlib import Path
 
 from src.metrics.persistence import (
     init_db, persist_counter, persist_gauge, cleanup_old,

@@ -21,7 +21,6 @@ These tests assert the new behaviour:
 import json
 from pathlib import Path
 
-import pytest
 
 from src.llm.registry import ProviderRegistry
 from src.llm.types import ProviderConfig

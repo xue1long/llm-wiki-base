@@ -3,11 +3,11 @@ import json
 import logging
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
-from ..storage.page_writer import read_page, write_page, page_path_for
-from ..core.types import PageType, WikiPage
+from ..storage.page_writer import read_page, page_path_for
+from ..core.types import PageType
 from ..core.paths import WikiPaths
 from ...lib.write_hooks import safe_write, DELETE_SENTINEL
 
@@ -57,11 +57,40 @@ class DedupHistoryStore:
 
 
 def dedup_auto(paths: WikiPaths, provider, threshold: str = "high") -> list[DedupMergeRecord]:
-    """Auto-merge high-confidence duplicates. Returns list of merge records."""
-    from .dedup import find_duplicates
-    duplicates = find_duplicates(paths, provider)
+    """Auto-merge high-confidence duplicates. Returns list of merge records.
+
+    High-confidence (slug match / title similarity) → auto-merge.
+    Medium-confidence (vector similarity) → review items.
+    """
+    from .dedup import find_duplicates, find_near_duplicates
+
     records: list[DedupMergeRecord] = []
+
+    # High confidence: auto-merge
+    duplicates = find_duplicates(paths, provider)
     for slug_a, slug_b in duplicates:
-        if threshold == "high":
-            records.append(DedupHistoryStore.record(paths, slug_a, [slug_b], "high"))
+        records.append(DedupHistoryStore.record(paths, slug_a, [slug_b], "high"))
+
+    # Medium confidence: create review items
+    if threshold in ("medium", "low"):
+        near = find_near_duplicates(paths, provider)
+        if near:
+            from .review import add_review
+            import time
+            for slug_a, slug_b, confidence in near:
+                try:
+                    page_a = read_page((paths.wiki_entities / f"{slug_a}.md"))
+                    page_b = read_page((paths.wiki_entities / f"{slug_b}.md"))
+                except Exception:
+                    continue
+                add_review(
+                    paths,
+                    type="duplicate-page",
+                    title=f"{page_a.title} ≈ {page_b.title}",
+                    detail=f"Vector similarity {confidence:.2f} between entity pages '{slug_a}' and '{slug_b}'.",
+                    confidence=confidence,
+                    page_path=str(paths.wiki_entities / f"{slug_a}.md"),
+                    created_at=int(time.time() * 1000),
+                )
+
     return records

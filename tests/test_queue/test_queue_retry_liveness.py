@@ -17,7 +17,7 @@ tmp_path (handled by the conftest autouse fixture).
 """
 from src.events.event_bus import event_bus
 from src.events.events import EventName
-from src.queue import __reset_for_testing, enqueue_task, get_default_queue_service, update_task_status
+from src.queue import __reset_for_testing, get_default_queue_service
 from src.types import SourceType, TaskStatus
 from src.utils.idempotency import get_idempotency_cache
 

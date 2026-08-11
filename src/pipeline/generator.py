@@ -21,24 +21,27 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from ..lib.budgeted import BudgetedLLM
 from ..utils.path import normalize_source_path
 from ..utils.slugify import slugify as _slugify
 from ..wiki.core.paths import WikiPaths
 from ..wiki.features.relations import parse_relations_from_response
-from ..wiki.features.tag_namespace import is_valid as is_valid_tag
+from ..wiki.features.tag_namespace import TAG_PREFIXES, is_valid as is_valid_tag, build_tag_prompt_section
 from ..wiki.core.types import PageType, WikiPage
 from ..wiki.templates import (
-    Template,
     compute_slot_fill_status,
     list_resolved,
     render_body,
     required_slot_names,
 )
-from ._pipeline_common import clean_source_text, parse_llm_json
+from ..knowledge.core.candidate import KnowledgeCandidate
+from ..knowledge.core.object import KnowledgeObject
+from ._pipeline_common import parse_llm_json
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
 
+# Dynamic tag namespace rules — built from TAG_VALUES and MANDATORY_PAIRS.
+# Used in all generator prompts so the LLM knows which tag values are valid.
+TAG_NAMESPACE_RULES = build_tag_prompt_section()
 
 _logger = logging.getLogger(__name__)
 
@@ -64,6 +67,61 @@ _DEPTH_BY_TYPE: dict[PageType, str] = {
     PageType.CONCEPT: "concept",
     PageType.SYNTHESIS: "synthesis",
 }
+
+# Valid values for WikiPage.processing_depth (see src/wiki/core/types.py).
+# Deliberately NOT the page-type enum — this constrains the LLM to the two
+# real processing depths so it cannot emit a page-type name here.
+PROCESSING_DEPTH_VALUES = ["concept", "memory"]
+
+
+# ---------------------------------------------------------------------------
+# 0.5.2 — generated-id hygiene. Page ids are derived from the LLM's title
+# (`slug = _slugify(title)`), so a title that is a tag name, a raw path, a
+# type-prefixed id, or an `-entity` suffix becomes a polluted page id.
+# Source pages are exempt — their slug is the deterministic on-disk one
+# from source_slug_map.
+# ---------------------------------------------------------------------------
+_ID_TAG_NS = tuple(TAG_PREFIXES) + (
+    "genre", "func", "char", "event", "mood", "scene_phase", "status",
+)
+_ID_TYPE_PREFIXES = ("source", "concept", "synthesis", "entity")
+
+
+def _is_bad_id_slug(slug: str) -> bool:
+    """True if *slug* is tag-like, path-like, type-prefixed, or carries an
+    ``-entity`` suffix — i.e. not a valid page id."""
+    if slug.endswith("-entity"):
+        return True
+    if any(slug.startswith(p + "-") for p in _ID_TAG_NS):
+        return True
+    if any(slug.startswith(p + "-") for p in _ID_TYPE_PREFIXES):
+        return True
+    if slug.startswith("raw-") or "--" in slug or "-md-" in slug:
+        return True
+    return False
+
+
+def _sanitize_generated_id(slug: str) -> str | None:
+    """Repair or reject a generated page id.
+
+    - Clean id: returned unchanged.
+    - Type-prefix / ``-entity`` / tag-prefix: strip the bad affix, return rest.
+    - Path-like id: unrecoverable → ``None`` (caller drops the page).
+    """
+    if not _is_bad_id_slug(slug):
+        return slug
+    if slug.startswith("raw-") or "--" in slug or "-md-" in slug:
+        return None
+    for p in _ID_TAG_NS + _ID_TYPE_PREFIXES:
+        if slug.startswith(p + "-"):
+            rest = slug[len(p) + 1:]
+            if rest:
+                return rest
+    if slug.endswith("-entity"):
+        rest = slug[:-len("-entity")]
+        if rest:
+            return rest
+    return None
 
 
 _logger = logging.getLogger(__name__)
@@ -129,9 +187,8 @@ Strict rules — schema is enforced. Empty slots = retry = wasted tokens.
   when you have nothing to put; either omit the property entirely or
   return `[]`.
 - Each slot value must be ≥ 1 character after trim. Lists: ≥ 1 substantive item.
-- **System-filled slot**: `main_content` on SOURCE pages is filled by the
-  pipeline with the raw source text. Do NOT fill it — omit it or leave it
-  empty. The retry loop skips optional slots, so there is no penalty.
+- **main_content**: 不再是 SOURCE 页的槽——完整原文保留在 raw/（`sources`
+  字段溯源），wiki 不存全文副本。摘要/概述由 `summary` slot 承担。
 
 Slot minimums and fallbacks (DO NOT leave these required slots empty):
   `references`           → At LEAST `- [[<source-page-slug>]]`
@@ -188,18 +245,7 @@ listed in `## Existing wiki index`.  Example:
   BAD:  - 《必备资料11月28号创酷中文网女频现言讲课记录》
 
 ## Tags guidance (受控命名空间)
-每个输出页可带 0-N 个 `tags` (分类检索用). 每个 tag 必须是 `前缀/名称` 形式, 前缀
-只能是以下 8 个受控值之一 (名称用中文或英文, 不要含空格):
-- genre/       题材类型   (如 genre/现言, genre/玄幻)
-- func/        功能类型   (如 func/教程, func/案例)
-- char/        角色类型   (如 char/总裁, char/女主)
-- event/       事件类型   (如 event/签约, event/冲突)
-- mood/        情绪氛围   (如 mood/甜宠, mood/悬疑)
-- entity/      是什么(What) (如 entity/创酷中文网, entity/起点)
-- scene_phase/ 何时用(When) (如 scene_phase/开篇, scene_phase/高潮)
-- status/      生命周期   (如 status/草稿, status/完结)
-不要使用这 8 个以外的前缀, 也不要写裸标签(无 `/`). 来源/概念页至少给 1-2 个最贴切的 tag.
-(若本页在分析阶段已给出 tags 建议, 你可直接沿用或按其内容调整.)
+(若本页在分析阶段已给出 tags 建议, 你可直接沿用或按其内容调整. 详细规则见下方 Tag namespace rules.)
 
 ## Task
 For each suggested page, fill its slots. Output strict JSON:
@@ -217,7 +263,7 @@ For each suggested page, fill its slots. Output strict JSON:
         {{"target": "<other-slug>", "type": "<one of the 17 built-in relation types below>",
           "weight": 0.0-1.0, "context": "<why>"}}
       ],
-      "tags": ["genre/现言", "func/教程"]     // optional; 受控命名空间前缀 (见 Tags guidance)
+      "tags": ["题材/现言", "功能/教程"]     // optional; 受控命名空间前缀 (见 Tags guidance)
       "category": "",                          // optional; 一级分类
       "taxonomy_sub": "",                      // optional; 二级分类
       "processing_depth": "concept"            // optional; concept|memory
@@ -234,6 +280,7 @@ You may also use `x-<name>` for any user-registered type. Do not invent
 relation type names outside this set.
 
 {WIKI_RULES_SUMMARY}
+{TAG_NAMESPACE_RULES}
 
 ## Language (re-asserted — applies to ALL output below)
 默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
@@ -298,11 +345,10 @@ Slugs may be CJK or ASCII kebab-case — keep the concept's natural form, no for
 - Never use placeholder text ("...", "（空）", "TBD", "placeholder", "（系统占位...）").
 - Optional slots (`<!-- slot:NAME? -->`): omit when empty.
 - Each slot: ≥ 1 char after trim. Lists: ≥ 1 substantive item.
-- **System-filled slots**: The `main_content` slot on SOURCE-type pages is
-  pre-filled by the system with the raw source text. Do NOT fill it — omit
-  `main_content` from your slots for source pages, or leave it empty.
-  The system always overwrites it anyway. The retry loop ignores optional slots,
-  so empty `main_content` does not trigger a retry.
+**main_content**: 不再是 SOURCE 页的槽——完整原文保留在 raw/（`sources`
+字段溯源），wiki 不存全文副本。摘要/概述由 `summary` slot 承担。
+- 素材类文档(列表/表格)必须逐条完整保留。
+- 缺失时系统会用原文兜底, 但请务必主动提供整理结果。
 
 **Slot-specific minimums (enforced — do NOT leave these empty)**:
 SLOT                  | PAGE TYPE   | MINIMUM ACCEPTABLE CONTENT
@@ -349,8 +395,7 @@ will fail to parse and a slower fallback pipeline runs instead.
 **Subject boundary**: Keep claims attached to their exact subject. Do NOT
 transfer a claim about one entity to another just because they share terms.
 
-**Tags**: `prefix/name` format, 8 allowed prefixes:
-genre/ func/ char/ event/ mood/ entity/ scene_phase/ status/
+**Tags**: `prefix/name` format — see Tag namespace rules below.
 
 **Relation types** (17 built-in + `x-*` custom):
 is_part_of contains references referenced_by causes caused_by contradicts
@@ -358,6 +403,7 @@ supports supported_by supersedes superseded_by depends_on required_by
 analogous_to opposite_of derived_from derives
 
 {WIKI_RULES_SUMMARY}
+{TAG_NAMESPACE_RULES}
 
 ## Task
 Read the source text. Identify entities, concepts, key facts, and synthesize
@@ -371,7 +417,7 @@ knowledge into structured wiki pages. Output strict JSON:
       "title": "<中文标题>",
       "slots": {{"<slot_name>": "<content or list of strings>"}},
       "relations": [{{"target": "<slug>", "type": "<relation_type>", "weight": 0.0-1.0, "context": "<why>"}}],
-      "tags": ["genre/现言", "func/教程"],
+      "tags": ["题材/现言", "功能/教程"],
       "grade": "A|B|C",
       "category": "",
       "taxonomy_sub": "",
@@ -396,11 +442,16 @@ async def unified_generate(
 ) -> list[WikiPage]:
     """Single-pass: analyze source text + render wiki pages in one LLM call.
 
-    Replaces the two-step Analyze→Generate pipeline.  Latency drops ~50 %;
-    quality may improve because the model reads the full source in one
-    context window (no intermediate JSON to drop entities or mangle slugs).
+    Deprecated: use the candidate pipeline path instead
+    (RUFLO_PIPELINE_MODE=candidate). The legacy unified_generate will be
+    removed in a future version.
     """
-    import json as _json
+    import warnings as _warnings
+    _warnings.warn(
+        "unified_generate is deprecated. Use RUFLO_PIPELINE_MODE=candidate.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     import time as _time
     import re as _re
 
@@ -454,7 +505,7 @@ async def unified_generate(
                         "grade": {"type": "string", "enum": ["A", "B", "C"]},
                         "category": {"type": "string"},
                         "taxonomy_sub": {"type": "string"},
-                        "processing_depth": {"type": "string", "enum": ["concept", "memory"]},
+                        "processing_depth": {"type": "string", "enum": PROCESSING_DEPTH_VALUES},
                     },
                     "required": ["id", "type", "title", "slots"],
                 },
@@ -469,6 +520,7 @@ async def unified_generate(
         source_text=source_text,
         existing_wiki_index=existing_wiki_index or "(empty)",
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
+        TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
     )
@@ -527,6 +579,17 @@ async def unified_generate(
             if map_slug:
                 slug = map_slug
 
+        # 0.5.2: reject/repair bad generated ids (tag-like, path-like,
+        # type-prefix, `-entity`). Source pages keep their deterministic slug.
+        if page_type != PageType.SOURCE:
+            slug = _sanitize_generated_id(slug)
+            if slug is None:
+                _logger.warning(
+                    "[unified_generate] dropping page with unrecoverable id: %r",
+                    p.get("id"),
+                )
+                continue
+
         template = resolved_templates.get(page_type)
         if template is None:
             body_md = ""
@@ -541,10 +604,10 @@ async def unified_generate(
         # Fix broken source-page wikilinks in rendered body
         if source_slug_map and body_md:
             _known_source_slugs: set[str] = set(source_slug_map.values())
-            def _replace_broken_wl(m):
+            def _replace_broken_wl(m, _slugs=_known_source_slugs):  # noqa: B023
                 target = m.group(1).split("|")[0].split("#")[0].strip()
                 canon = _slugify(target) or target
-                for real_slug in _known_source_slugs:
+                for real_slug in _slugs:
                     if (_slugify(real_slug) or real_slug) == canon:
                         alias = m.group(1)[len(target):]
                         return f"[[{real_slug}{alias}]]"
@@ -589,6 +652,549 @@ def _resolve_page_tags_unified(page: dict) -> list[str]:
     return [t for t in raw if isinstance(t, str) and is_valid_tag(t)]
 
 
+# ---------------------------------------------------------------------------
+# Candidate → WikiPage rendering prompt
+# ---------------------------------------------------------------------------
+
+CANDIDATE_RENDER_PROMPT = """You are rendering wiki pages from structured knowledge claims
+that were already extracted by a prior analysis step. Do NOT extract new
+information — only organize and render the claims provided below.
+
+## CRITICAL — JSON Format
+1. Output ONLY the raw JSON object — no markdown fences (```), no
+   introductory text, no concluding remarks.
+2. Your response MUST start with `{{` and end with `}}`.
+3. Do NOT wrap the JSON in ```json ... ``` blocks.
+4. All strings must be properly escaped (double quotes, not single quotes).
+
+## Candidate metadata
+- Type: {candidate_type}
+- Title: {candidate_title}
+- Confidence: {candidate_confidence}
+
+## Extracted Claims
+{claims_text}
+
+## Evidence Excerpts
+{evidence_text}
+
+## Source page id for THIS run
+{SOURCE_SLUG_MAP}
+
+## Existing wiki index (reuse slugs exactly as listed)
+{existing_wiki_index}
+
+## Page Templates
+{PAGE_TEMPLATES}
+
+## Rules (all mandatory)
+
+**Language**: 简体中文 for all user-visible text (title, slots, relations[].context).
+Slugs may be CJK or ASCII kebab-case — keep the concept's natural form, no forced pinyin.
+
+**Slug reuse**: Use EXISTING slugs from the wiki index verbatim. Never invent variants.
+
+**RENDER, don't extract**: The claims below were already extracted from the source
+by a prior analyzer. Your job is to RENDER them into well-structured wiki pages.
+Use the exact claim statements and evidence quotes — do not paraphrase or invent
+facts not present in the claims.
+
+**Page budget**: Create 1-3 pages from the claims below. Focus on quality over
+quantity. At minimum, create ONE page for the primary concept/entity in the title.
+
+**Slot filling — CRITICAL: NO EMPTY SLOTS ALLOWED**:
+- Every `<!-- slot:NAME -->` (no `?`) is REQUIRED and MUST have substantive content.
+- Never use placeholder text ("...", "（空）", "TBD", "placeholder").
+- Optional slots (`<!-- slot:NAME? -->`): omit when empty.
+- Each slot: >= 1 char after trim. Lists: >= 1 substantive item.
+
+**Slot-specific minimums (enforced)**:
+SLOT                  | PAGE TYPE   | MINIMUM ACCEPTABLE CONTENT
+----------------------|-------------|----------------------------------------------------
+`references`          | concept     | At LEAST one `[[wikilink]]` to the source page
+`source_meta`         | source      | MUST include: 来源(URL/平台), 下载时间, 发布组织
+`related_concepts`    | concept     | At LEAST 2 `[[wikilinks]]` to other concept/entity pages
+`related`             | entity      | At LEAST 1 `[[wikilink]]` to the source page or parent entity
+`key_points`          | source      | At LEAST 3 bullet points from the claims
+`extracted_concepts`  | source      | At LEAST 3 `[[wikilinks]]` to concept/entity pages
+`comparison_dimensions`| synthesis  | At LEAST 2 dimensions being compared
+`overview`            | synthesis   | At LEAST 1 paragraph summarising the comparison
+
+**FALLBACKS — when claims truly lack info, use these instead of empty/placeholder**:
+- `references`    → Write `- [[<source-page-slug>]]`
+- `source_meta`   → Write "来源: [文件名]; 格式: Markdown; 下载时间: 见原始文件头部"
+- `related_concepts` → List other concept/entity slugs from THIS response
+- `related`       → Write `- [[<source-page-slug>]]`
+- `examples`      → Write "来源未提供具体例子" (invent NOTHING)
+- ALL OTHERS      → Write "来源未详述此方面" (not empty, not placeholder)
+
+**Factuality**: Copy facts EXACTLY from the claims. Do NOT invent titles, names,
+or statistics. When a claim has no example, write "来源未提供例子".
+
+**Tags**: `prefix/name` format, 10 allowed prefixes:
+题材/ 功能/ 角色/ 事件/ 情绪/ 实体/ 场景阶段/ 状态/ 素材/ 可信度/
+
+**Relation types** (17 built-in + `x-*` custom):
+is_part_of contains references referenced_by causes caused_by contradicts
+supports supported_by supersedes superseded_by depends_on required_by
+analogous_to opposite_of derived_from derives
+
+{WIKI_RULES_SUMMARY}
+{TAG_NAMESPACE_RULES}
+
+## Task
+Render the claims above into structured wiki pages. Output strict JSON:
+
+{{
+  "pages": [
+    {{
+      "id": "<slug>",
+      "type": "source|entity|concept|synthesis",
+      "title": "<中文标题>",
+      "slots": {{"<slot_name>": "<content or list of strings>"}},
+      "relations": [{{"target": "<slug>", "type": "<relation_type>", "weight": 0.0-1.0, "context": "<why>"}}],
+      "tags": ["题材/现言", "功能/教程"],
+      "grade": "A|B|C",
+      "category": "",
+      "taxonomy_sub": "",
+      "processing_depth": "concept|memory"
+    }}
+  ]
+}}
+
+Every slot in the template for each page type MUST be filled.
+Use [[other-slug]] for cross-references within slot content.
+"""
+
+
+async def generate_from_candidate(
+    candidate: KnowledgeCandidate,
+    paths: WikiPaths,
+    existing_wiki_index: str,
+    provider,
+    source_slug_map: Optional["dict[str, str]"] = None,
+    source_text: str = "",
+) -> list[WikiPage]:
+    """Render wiki pages from a validated KnowledgeCandidate.
+
+    The LLM is instructed to RENDER the candidate's claims into
+    well-structured wiki pages — it must NOT extract new information.
+    Frontmatter fields (type, title, grade) are sourced from the
+    candidate; only body content comes from the LLM.
+    """
+    import time as _time
+
+    # Format claims for the prompt
+    _claims_lines: list[str] = []
+    for i, claim in enumerate(candidate.claims):
+        statement = claim.get("statement", "")
+        conf = claim.get("confidence", 0.0)
+        refs = claim.get("evidence_refs", [])
+        _claims_lines.append(
+            f"{i + 1}. [{conf:.0%}] {statement}  (evidence: {refs})"
+        )
+    claims_text = "\n".join(_claims_lines) if _claims_lines else "(no claims)"
+
+    # Format evidence for the prompt
+    _ev_lines: list[str] = []
+    for i, ev in enumerate(candidate.evidence):
+        src = ev.get("source_path", "")
+        quote = ev.get("quote", "")
+        _ev_lines.append(f"[{i}] {src}\n    > {quote}")
+    evidence_text = "\n".join(_ev_lines) if _ev_lines else "(no evidence)"
+
+    # Resolve templates (same as generate())
+    resolved_templates = {t.type: t for t in list_resolved(paths.root)}
+    required_slots_by_type: dict[PageType, list[str]] = {
+        pt: required_slot_names(resolved_templates[pt])
+        for pt in PageType
+        if pt in resolved_templates
+    }
+
+    response_format = {
+        "type": "object",
+        "properties": {
+            "pages": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "type": {"type": "string", "enum": ["source", "entity", "concept", "synthesis"]},
+                        "title": {"type": "string"},
+                        "slots": {
+                            "type": "object",
+                            "additionalProperties": {"type": "string", "minLength": 1},
+                            "minProperties": 1,
+                        },
+                        "relations": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "target": {"type": "string"}, "type": {"type": "string"},
+                                    "weight": {"type": "number"}, "context": {"type": "string"},
+                                },
+                                "required": ["target", "type"],
+                            },
+                        },
+                        "tags": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                        "grade": {"type": "string", "enum": ["A", "B", "C"]},
+                        "category": {"type": "string"},
+                        "taxonomy_sub": {"type": "string"},
+                        "processing_depth": {"type": "string", "enum": PROCESSING_DEPTH_VALUES},
+                    },
+                    "required": ["id", "type", "title", "slots"],
+                },
+            },
+        },
+        "required": ["pages"],
+    }
+
+    # Derive grade from candidate confidence
+    _conf = candidate.confidence
+    _derived_grade = "A" if _conf >= 0.7 else "B" if _conf >= 0.5 else "C"
+
+    base_prompt = CANDIDATE_RENDER_PROMPT.format(
+        candidate_type=candidate.type.value,
+        candidate_title=candidate.title,
+        candidate_confidence=_conf,
+        claims_text=claims_text,
+        evidence_text=evidence_text,
+        SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
+        existing_wiki_index=existing_wiki_index or "(empty)",
+        WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
+        TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
+        PAGE_TEMPLATES=_render_template_section(paths.root),
+    )
+
+    response_dict = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt=base_prompt,
+        response_format=response_format,
+        required_slots_by_type=required_slots_by_type,
+        timeout=600.0,
+    )
+
+    raw_pages = response_dict.get("pages", [])
+
+    # Auto-fill deterministic slots before placeholder fallback
+    raw_pages = _auto_fill_deterministic_slots(
+        raw_pages,
+        source_path=candidate.source_id,
+        source_text=source_text,
+        source_slug_map=source_slug_map,
+    )
+
+    filled_pages, missing_summary = _ensure_required_slots_filled(
+        raw_pages,
+        required_slots_by_type=required_slots_by_type,
+    )
+    if missing_summary:
+        _logger.warning(
+            "[generate_from_candidate] required slots still missing after retry+auto-fill, "
+            "filled with placeholder: %s", missing_summary,
+        )
+
+    now = int(_time.time() * 1000)
+    pages: list[WikiPage] = []
+
+    # Build provenance payload from candidate evidence
+    _first_ev = candidate.evidence[0] if candidate.evidence else {}
+    _prov_page = _first_ev.get("page")
+    _prov_quote = str(_first_ev.get("quote", ""))[:200]
+    _provenance_payload = {
+        "source_path": candidate.source_id,
+        "page": _prov_page,
+        "quote": _prov_quote,
+        "ingested_at": now,
+        "ingestor_version": "2.0.0",
+    }
+
+    for p in filled_pages:
+        title = p.get("title", candidate.title)
+        slug = _slugify(title) or p.get("id", "")
+
+        try:
+            page_type = PageType(p.get("type"))
+        except ValueError:
+            _logger.warning(f"Unknown page type: {p.get('type')}")
+            continue
+
+        # Deterministic source-page slug
+        if source_slug_map and page_type == PageType.SOURCE and candidate.source_id:
+            map_slug = source_slug_map.get(candidate.source_id)
+            if map_slug:
+                slug = map_slug
+
+        # Sanitize generated ids (skip source pages with deterministic slug)
+        if page_type != PageType.SOURCE:
+            cleaned = _sanitize_generated_id(slug)
+            if cleaned is None:
+                _logger.warning(
+                    "[generate_from_candidate] dropping page with unrecoverable id: %r",
+                    p.get("id"),
+                )
+                continue
+            slug = cleaned
+
+        template = resolved_templates.get(page_type)
+        if template is None:
+            body_md = ""
+        else:
+            body_md = render_body(
+                template_body=template.body_markdown,
+                slots=p.get("slots", {}) or {},
+                page_type=page_type,
+                template_version=template.version or "",
+            )
+
+        # Relation dedup by slugified target
+        raw_relations = p.get("relations", []) or []
+        deduped_relations: list[dict] = []
+        seen_targets: set = set()
+        for rel in sorted(raw_relations, key=lambda r: r.get("weight", 1.0), reverse=True):
+            tgt = rel.get("target", "")
+            if not tgt:
+                continue
+            canon = _slugify(tgt) or tgt
+            if canon not in seen_targets:
+                seen_targets.add(canon)
+                deduped_relations.append(rel)
+
+        page = WikiPage(
+            id=slug, title=title, type=page_type,
+            sources=[normalize_source_path(candidate.source_id, paths.root)],
+            created_at=now, updated_at=now, body=body_md,
+            grade=p.get("grade", _derived_grade),
+            processing_depth=p.get("processing_depth") or _DEPTH_BY_TYPE.get(page_type, "concept"),
+            is_immutable=p.get("is_immutable", False),
+            relations=parse_relations_from_response(deduped_relations),
+            tags=_resolve_page_tags_unified(p),
+            category=p.get("category", ""),
+            taxonomy_sub=p.get("taxonomy_sub", ""),
+        )
+        page._ko_extra = {"provenance": _provenance_payload}
+        pages.append(page)
+
+    return pages
+
+
+async def generate_from_knowledge_object(
+    ko: "KnowledgeObject",
+    candidate: KnowledgeCandidate,
+    paths: WikiPaths,
+    existing_wiki_index: str,
+    provider,
+    source_slug_map: Optional["dict[str, str]"] = None,
+    source_text: str = "",
+) -> list[WikiPage]:
+    """Render wiki pages from a KnowledgeObject with frontmatter enforcement.
+
+    Frontmatter fields (type, title, grade, confidence, sources) are sourced
+    from the KnowledgeObject — the LLM is told to RENDER the candidate's
+    claims into body slots only.  GeneratorOutputValidator invariants are
+    applied after rendering.
+    """
+    import time as _time
+
+    # Format claims for the LLM prompt (same as generate_from_candidate)
+    _claims_lines: list[str] = []
+    for i, claim in enumerate(candidate.claims):
+        statement = claim.get("statement", "")
+        conf = claim.get("confidence", 0.0)
+        refs = claim.get("evidence_refs", [])
+        _claims_lines.append(
+            f"{i + 1}. [{conf:.0%}] {statement}  (evidence: {refs})"
+        )
+    claims_text = "\n".join(_claims_lines) if _claims_lines else "(no claims)"
+
+    _ev_lines: list[str] = []
+    for i, ev in enumerate(candidate.evidence):
+        src = ev.get("source_path", "")
+        quote = ev.get("quote", "")
+        _ev_lines.append(f"[{i}] {src}\n    > {quote}")
+    evidence_text = "\n".join(_ev_lines) if _ev_lines else "(no evidence)"
+
+    # Resolve templates
+    resolved_templates = {t.type: t for t in list_resolved(paths.root)}
+    required_slots_by_type: dict[PageType, list[str]] = {
+        pt: required_slot_names(resolved_templates[pt])
+        for pt in PageType
+        if pt in resolved_templates
+    }
+
+    response_format = {
+        "type": "object",
+        "properties": {
+            "pages": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "type": {"type": "string", "enum": ["source", "entity", "concept", "synthesis"]},
+                        "title": {"type": "string"},
+                        "slots": {
+                            "type": "object",
+                            "additionalProperties": {"type": "string", "minLength": 1},
+                            "minProperties": 1,
+                        },
+                        "relations": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "target": {"type": "string"}, "type": {"type": "string"},
+                                    "weight": {"type": "number"}, "context": {"type": "string"},
+                                },
+                                "required": ["target", "type"],
+                            },
+                        },
+                        "tags": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                        "grade": {"type": "string", "enum": ["A", "B", "C"]},
+                        "category": {"type": "string"},
+                        "taxonomy_sub": {"type": "string"},
+                        "processing_depth": {"type": "string", "enum": PROCESSING_DEPTH_VALUES},
+                    },
+                    "required": ["id", "type", "title", "slots"],
+                },
+            },
+        },
+        "required": ["pages"],
+    }
+
+    # KO-derived frontmatter values (these override LLM output)
+    _ko_grade = ko.grade or "B"
+    _ko_type_str = ko.type.value
+
+    base_prompt = CANDIDATE_RENDER_PROMPT.format(
+        candidate_type=_ko_type_str,
+        candidate_title=ko.title,
+        candidate_confidence=ko.confidence,
+        claims_text=claims_text,
+        evidence_text=evidence_text,
+        SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
+        existing_wiki_index=existing_wiki_index or "(empty)",
+        WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
+        TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
+        PAGE_TEMPLATES=_render_template_section(paths.root),
+    )
+
+    response_dict = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt=base_prompt,
+        response_format=response_format,
+        required_slots_by_type=required_slots_by_type,
+        timeout=600.0,
+    )
+
+    raw_pages = response_dict.get("pages", [])
+
+    raw_pages = _auto_fill_deterministic_slots(
+        raw_pages,
+        source_path=ko.provenance.source_path if ko.provenance else candidate.source_id,
+        source_text=source_text,
+        source_slug_map=source_slug_map,
+    )
+
+    filled_pages, missing_summary = _ensure_required_slots_filled(
+        raw_pages,
+        required_slots_by_type=required_slots_by_type,
+    )
+    if missing_summary:
+        _logger.warning(
+            "[generate_from_knowledge_object] required slots still missing after retry+auto-fill, "
+            "filled with placeholder: %s", missing_summary,
+        )
+
+    now = int(_time.time() * 1000)
+    pages: list[WikiPage] = []
+
+    # Build provenance payload from KO
+    _prov = ko.provenance
+    _provenance_payload = {
+        "source_path": _prov.source_path if _prov else candidate.source_id,
+        "page": _prov.page if _prov else None,
+        "quote": _prov.quote if _prov else "",
+        "ingested_at": _prov.ingested_at if _prov else now,
+        "ingestor_version": _prov.ingestor_version if _prov else "2.0.0",
+    }
+
+    # KO source path for WikiPage.sources
+    _ko_source_path = _prov.source_path if _prov else candidate.source_id
+
+    for p in filled_pages:
+        # === Frontmatter from KO (LLM cannot override) ===
+        title = ko.title
+
+        # Page id: use KO.id as base, slugified
+        slug = _slugify(ko.id) or p.get("id", "")
+
+        # Type from KO — use constraint mapping to collapse extended types
+        # (claim/decision/procedure/event) into standard PageTypes
+        from .generator_constraint import KO_TYPE_TO_PAGE_TYPE
+        page_type = KO_TYPE_TO_PAGE_TYPE.get(ko.type, PageType.CONCEPT)
+
+        # Deterministic source-page slug
+        if source_slug_map and page_type == PageType.SOURCE and _ko_source_path:
+            map_slug = source_slug_map.get(_ko_source_path)
+            if map_slug:
+                slug = map_slug
+
+        if page_type != PageType.SOURCE:
+            cleaned = _sanitize_generated_id(slug)
+            if cleaned is None:
+                _logger.warning(
+                    "[generate_from_knowledge_object] dropping page with unrecoverable id: %r",
+                    p.get("id"),
+                )
+                continue
+            slug = cleaned
+
+        # Render body from LLM slots
+        template = resolved_templates.get(page_type)
+        if template is None:
+            body_md = ""
+        else:
+            body_md = render_body(
+                template_body=template.body_markdown,
+                slots=p.get("slots", {}) or {},
+                page_type=page_type,
+                template_version=template.version or "",
+            )
+
+        # Relation dedup
+        raw_relations = p.get("relations", []) or []
+        deduped_relations: list[dict] = []
+        seen_targets: set = set()
+        for rel in sorted(raw_relations, key=lambda r: r.get("weight", 1.0), reverse=True):
+            tgt = rel.get("target", "")
+            if not tgt:
+                continue
+            canon = _slugify(tgt) or tgt
+            if canon not in seen_targets:
+                seen_targets.add(canon)
+                deduped_relations.append(rel)
+
+        page = WikiPage(
+            id=slug, title=title, type=page_type,
+            sources=[normalize_source_path(_ko_source_path, paths.root)],
+            created_at=now, updated_at=now, body=body_md,
+            grade=_ko_grade,
+            processing_depth=p.get("processing_depth") or _DEPTH_BY_TYPE.get(page_type, "concept"),
+            is_immutable=ko.is_immutable if hasattr(ko, "is_immutable") else False,
+            relations=parse_relations_from_response(deduped_relations),
+            tags=_resolve_page_tags_unified(p),
+            category=p.get("category", ""),
+            taxonomy_sub=p.get("taxonomy_sub", ""),
+        )
+        page._ko_extra = {"provenance": _provenance_payload}
+        pages.append(page)
+
+    return pages
+
+
 async def generate(
     paths: WikiPaths,
     analysis: AnalysisResult,
@@ -616,7 +1222,8 @@ async def generate(
     ingested in earlier runs already appear in the wiki index and
     don't need to be listed here.
     """
-    import json, time
+    import json
+    import time
 
     # 0. Resolve the 4 active templates for this project (bundled /
     #    user-global / project-local in priority order). Mapping needed
@@ -683,11 +1290,11 @@ async def generate(
                         "tags": {
                             "type": "array",
                             "items": {"type": "string", "minLength": 1},
-                            "description": "controlled-namespace tags, each 'prefix/name' with prefix in {genre,func,char,event,mood,entity,scene_phase,status}",
+                            "description": "controlled-namespace tags, each 'prefix/name' with prefix in {题材,功能,角色,事件,情绪,实体,场景阶段,状态,素材,可信度}",
                         },
                         "category": {"type": "string"},
                         "taxonomy_sub": {"type": "string"},
-                        "processing_depth": {"type": "string", "enum": ["concept", "memory"]},
+                        "processing_depth": {"type": "string", "enum": PROCESSING_DEPTH_VALUES},
                     },
                     "required": ["id", "type", "title", "slots"],
                 },
@@ -701,6 +1308,7 @@ async def generate(
         analysis_json=analysis_json,
         existing_wiki_index=existing_wiki_index or "(empty)",
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
+        TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
     )
@@ -794,6 +1402,17 @@ async def generate(
             if map_slug:
                 slug = map_slug
 
+        # 0.5.2: reject/repair bad generated ids (tag-like, path-like,
+        # type-prefix, `-entity`). Source pages keep their deterministic slug.
+        if page_type != PageType.SOURCE:
+            slug = _sanitize_generated_id(slug)
+            if slug is None:
+                _logger.warning(
+                    "[generator] dropping page with unrecoverable id: %r",
+                    p.get("id"),
+                )
+                continue
+
         template = resolved_templates.get(page_type)
         if template is None:
             body_md = ""
@@ -811,10 +1430,10 @@ async def generate(
         # whose slugified form matches a known source-page slug.
         if source_slug_map and body_md:
             _known_source_slugs: set[str] = set(source_slug_map.values())
-            def _replace_broken_source_wikilink(m: object) -> str:
+            def _replace_broken_source_wikilink(m: object, _slugs=_known_source_slugs) -> str:  # noqa: B023
                 target = m.group(1).split("|")[0].split("#")[0].strip()
                 canon = _slugify(target) or target
-                for real_slug in _known_source_slugs:
+                for real_slug in _slugs:
                     if (_slugify(real_slug) or real_slug) == canon:
                         alias = m.group(1)[len(target):]  # |alias or #fragment
                         return f"[[{real_slug}{alias}]]"
@@ -900,6 +1519,11 @@ async def _call_with_slot_retry(
     last_response: dict = {}
     _json_mode = True  # first attempt uses response_format
 
+    # If startup check already marked this provider incompatible, skip the
+    # response_format probe entirely on the first attempt.
+    if getattr(provider, "_response_format_ok", None) is False:
+        _json_mode = False
+
     for attempt in range(MAX_GEN_ATTEMPTS):
         extra = ""
         if attempt > 0:
@@ -955,6 +1579,19 @@ async def _call_with_slot_retry(
                     f"Generator LLM timed out after {MAX_GEN_ATTEMPTS} attempts: {exc}"
                 ) from exc
             continue
+        except RuntimeError as exc:
+            exc_str = str(exc)
+            if "response_format" in exc_str.lower() and "400" in exc_str:
+                _logger.warning(
+                    "[Generator] response_format rejected on attempt %d/%d: %s",
+                    attempt + 1, MAX_GEN_ATTEMPTS, exc,
+                )
+                _json_mode = False
+                if attempt == MAX_GEN_ATTEMPTS - 1:
+                    raise
+                continue
+            # Non-response_format RuntimeErrors propagate immediately
+            raise
 
         try:
             response_dict = _parse_llm_response(response)
@@ -1085,7 +1722,7 @@ def _auto_fill_deterministic_slots(
     url_str = url_match.group(0).rstrip(".") if url_match else ""
     # Try to extract download date
     date_match = _re.search(
-        r'下载时间[：:]\\s*(\\d{4}[-/]\\d{2}[-/]\\d{2})',
+        r'下载时间[：:]\s*(\d{4}[-/]\d{2}[-/]\d{2})',
         source_text[:500],
     )
     date_str = date_match.group(1) if date_match else ""
@@ -1108,7 +1745,7 @@ def _auto_fill_deterministic_slots(
             parts.append(f"平台: {platform_str}")
         if date_str:
             parts.append(f"下载时间: {date_str}")
-        source_meta_text = "\\n".join(parts)
+        source_meta_text = "\n".join(parts)
 
     # --- Walk pages and fill deterministic slots ---
     for p in pages:
@@ -1143,20 +1780,33 @@ def _auto_fill_deterministic_slots(
             if _slot_is_empty(slots.get("key_points")):
                 # Extract heading-prefixed lines as fallback key points
                 heading_lines = _re.findall(
-                    r'^#+\\s+(.+)', source_text[:3000], _re.MULTILINE,
+                    r'^#+\s+(.+)', source_text[:3000], _re.MULTILINE,
                 )
+                # Or Chinese-numbered headings (壹、贰、叁、...)
+                if not heading_lines:
+                    heading_lines = _re.findall(
+                        r'^[壹贰叁肆伍陆柒捌玖拾]+[：:]\s*(.+)',
+                        source_text[:3000], _re.MULTILINE,
+                    )
                 # Or numbered list items
                 numbered_items = _re.findall(
-                    r'^\\d+[、.．]\\s*(.{10,120})$', source_text[:5000], _re.MULTILINE,
+                    r'^\d+[、.．]\s*(.{10,120})$', source_text[:5000], _re.MULTILINE,
                 )
                 candidates = heading_lines[:5] or numbered_items[:5]
                 if candidates:
                     slots["key_points"] = "\n".join(f"- {c}" for c in candidates)
-            # main_content: always overwrite with full source text.
-            # This slot is system-filled — the LLM may have incorrectly
-            # filled it with a summary; the summary slot handles that.
-            if source_text:
-                slots["main_content"] = clean_source_text(source_text)
+            # main_content is OPTIONAL (RAG: the full source text lives in
+            # raw/ and is reachable via `sources`; embedding a duplicate full
+            # body in the wiki layer dilutes retrieval). Never back-fill it
+            # with the raw source. If the LLM left it empty or wrote a
+            # placeholder, drop the key so the optional section is omitted
+            # (no placeholder, no duplicate full text in the body).
+            _mc = slots.get("main_content")
+            _mc_empty = _slot_is_empty(_mc) or (
+                isinstance(_mc, str) and "系统占位" in _mc
+            )
+            if _mc_empty:
+                slots.pop("main_content", None)
 
     return pages
 

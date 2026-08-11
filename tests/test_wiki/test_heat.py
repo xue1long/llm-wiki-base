@@ -1,7 +1,7 @@
 """Tests for src/wiki/heat.py."""
 import time
 
-from src.wiki.features.heat import HeatTracker, HeatEvent
+from src.wiki.features.heat import HeatTracker
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths

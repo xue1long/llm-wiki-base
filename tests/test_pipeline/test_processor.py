@@ -1,5 +1,4 @@
 # ruflo-kb/tests/test_pipeline/test_processor.py
-import pytest
 from src.pipeline.processor import calculate_quality_metrics
 
 def test_calculate_quality_metrics():

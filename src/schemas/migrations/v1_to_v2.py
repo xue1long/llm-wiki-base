@@ -2,10 +2,8 @@
 """v1.0 → v2.0: Refactored as Migration class (was function-based)."""
 import json
 import logging
-from pathlib import Path
 
 from ..migration import Migration, MigrationContext, MigrationPlan, MigrationResult, SchemaVersion
-from ..base import ForwardCompatModel
 
 
 _logger = logging.getLogger(__name__)

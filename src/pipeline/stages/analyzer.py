@@ -11,7 +11,7 @@ class AnalyzerStage:
     async def run(self, ctx: PipelineContext, prev_result) -> StageResult:
         if ctx.collector_result is None:
             return StageResult(success=False, payload="missing collector result")
-        analyze_fn = getattr(_analyzer_module, "analyze")
+        analyze_fn = _analyzer_module.analyze
         analysis = await analyze_fn(
             source_text=ctx.collector_result.content,
             source_ext=ctx.source_path or "",

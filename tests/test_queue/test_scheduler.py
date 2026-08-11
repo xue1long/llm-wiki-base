@@ -6,12 +6,10 @@ The scheduler picks the next task to dispatch:
 - otherwise: pick the earliest PENDING task not in flight.
 - returns None if no candidate matches.
 """
-import pytest
 
 from src.queue.scheduler import select_next_task
 from src.queue.in_flight import InMemoryInFlightTracker
 from src.types import KnowledgeTask, SourceType, TaskStatus
-from datetime import datetime
 
 
 class FakeBackend:

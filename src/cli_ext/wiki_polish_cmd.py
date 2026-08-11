@@ -1,13 +1,9 @@
 """Wiki v2.1 polish CLI: stubs / dedup --auto / lint --cache-ttl."""
-import argparse
 import asyncio
 import sys
-from ..wiki.features.dedup_auto import dedup_auto
+from ..services.wiki_analysis import run_dedup_auto, run_stub_promotion, run_lint
 from ..wiki.features.lint_cache import cache_key, get as cache_get, put as cache_put, invalidate_all, DEFAULT_TTL
-from ..wiki.features.stubs import StubMaterializerWorker
-from ..wiki.features.lint import lint_wiki
 from ..wiki.storage.page_writer import read_page
-from ..wiki.core.types import PageType
 from ..project.context import ProjectNotFoundError
 from ..lib.project import resolve_project
 
@@ -45,13 +41,13 @@ def _provider():
 
 def cmd_stubs_promote(args):
     _, paths = _resolve_ctx(args.project)
-    materialized = asyncio.run(StubMaterializerWorker(paths, _provider()).run_once())
+    materialized = run_stub_promotion(paths, _provider())
     print(f"Materialized {len(materialized)} stubs")
 
 
 def cmd_dedup_auto(args):
     _, paths = _resolve_ctx(args.project)
-    result = dedup_auto(paths, _provider(), threshold=args.threshold)
+    result = run_dedup_auto(paths, _provider(), threshold=args.threshold)
     records = asyncio.run(result) if hasattr(result, "__await__") else result
     print(f"Auto-merged {len(records)} duplicate groups")
 
@@ -72,7 +68,7 @@ def cmd_lint(args):
         if cached is not None:
             print(f"Using cached lint result ({len(cached.get('findings', []))} issues)")
             return
-    report = lint_wiki(paths, project_id=ctx.id)
+    report = run_lint(paths, project_id=ctx.id)
     print(f"Found {len(report.issues)} issues")
     for issue in report.issues:
         print(f"  [{issue.severity.value}] {issue.code}: {issue.message}")

@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .types import PageType
+    pass
 
 
 _log = logging.getLogger(__name__)

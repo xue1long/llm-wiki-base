@@ -97,7 +97,12 @@ def cmd_llm_providers_test(args: argparse.Namespace) -> None:
     async def _run():
         provider = _create_from_config(config)
         try:
-            return provider, await provider.health_check()
+            health = await provider.health_check()
+            if health.get("ok"):
+                rf = await provider.check_response_format()
+                health["response_format_ok"] = rf.get("ok", False)
+                health["response_format_detail"] = rf.get("detail", "")
+            return provider, health
         finally:
             await provider.close()
 
@@ -113,6 +118,16 @@ def cmd_llm_providers_test(args: argparse.Namespace) -> None:
     version = health.get("version")
     version_str = f" (version {version})" if version else ""
     print(f"✓ {args.name}: reachable ({health.get('detail')}){version_str}")
+
+    # Show response_format check result
+    rf_ok = health.get("response_format_ok")
+    if rf_ok is not None:
+        rf_detail = health.get("response_format_detail", "")
+        if rf_ok:
+            print(f"  ✓ response_format: {rf_detail}")
+        else:
+            print(f"  ⚠ response_format: {rf_detail}")
+            print(f"    → 详见 docs/guides/troubleshooting-ingest-empty-body.md")
 
 
 def cmd_llm_providers_set_default(args: argparse.Namespace) -> None:

@@ -24,7 +24,6 @@ Invariants:
 from __future__ import annotations
 
 import argparse
-import asyncio
 import hashlib
 import shutil
 import sys
@@ -181,7 +180,7 @@ def _list_raws(paths) -> list[Path]:
 
 def _run_reingest(paths, raws: list[Path]) -> dict[str, int]:
     """Re-ingest each raw via run_ingest(). Returns ``{raw_name: pages}``."""
-    from ..pipeline.pipeline import run_ingest
+    from ..services.ingest import run_ingest_pipeline
     from ..llm.registry import ProviderRegistry
     from ..llm.provider_factory import create_llm_provider
 
@@ -193,13 +192,13 @@ def _run_reingest(paths, raws: list[Path]) -> dict[str, int]:
         text = raw.read_text(encoding="utf-8")
         task_id = f"cleanup-{hashlib.md5(str(raw).encode()).hexdigest()[:8]}"
         try:
-            pages = asyncio.run(run_ingest(
+            pages = run_ingest_pipeline(
                 paths=paths,
                 source_path=raw,
                 source_text=text,
                 provider=provider,
                 task_id=task_id,
-            ))
+            )
             out[raw.name] = len(pages)
             print(f"  re-ingested {raw.name}: {len(pages)} page(s)")
         except Exception as e:

@@ -27,12 +27,18 @@ def _service():
     return get_default_queue_service()
 
 
-def enqueue_task(source, source_type, task_hash, project_id=None):
-    return _service().enqueue(source, source_type, task_hash, project_id=project_id)
+def enqueue_task(source, source_type, task_hash, project_id=None,
+                 folder_context=None, batch_id=None):
+    return _service().enqueue(source, source_type, task_hash,
+                              project_id=project_id,
+                              folder_context=folder_context,
+                              batch_id=batch_id)
 
 
-def enqueue_batch(items, project_id=None):
-    return _service().enqueue_batch(items, project_id=project_id)
+def enqueue_batch(items, project_id=None, folder_context=None, batch_id=None):
+    return _service().enqueue_batch(items, project_id=project_id,
+                                    folder_context=folder_context,
+                                    batch_id=batch_id)
 
 
 def update_task_status(task_id, status, error=None):
@@ -61,4 +67,5 @@ __all__ = [
     "resume_queue",
     "generate_task_id",
     "get_default_queue_service",
+    "__reset_for_testing",
 ]

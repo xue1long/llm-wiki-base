@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from fastapi import APIRouter
+    pass
 
 # Module-level router reference; populated by `get_router()` on first use.
 _router = None

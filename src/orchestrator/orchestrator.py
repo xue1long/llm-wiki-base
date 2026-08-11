@@ -1,6 +1,5 @@
 # ruflo-kb/src/orchestrator/orchestrator.py
 import logging
-from pathlib import Path
 
 from ..events.event_bus import event_bus
 from ..events.events import EventName, ProcessorDonePayload, LibrarianDonePayload
@@ -8,7 +7,6 @@ from ..queue import enqueue_task, update_task_status
 from ..types import TaskStatus
 from .router import route_task, parse_source, TaskIntent
 from .audit_hard import run_hard_audit
-from .state_machine import can_transition, get_next_status
 
 logger = logging.getLogger(__name__)
 

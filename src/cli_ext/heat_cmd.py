@@ -3,8 +3,7 @@ import argparse
 import shutil
 import sys
 
-from ..wiki.features.heat import HeatTracker
-from ..wiki.features.zombie import ZombieDetector
+from ..services.wiki_analysis import get_heat_tracker, get_zombie_detector
 from ..wiki.storage.page_writer import read_page, write_page, page_path_for
 from ..wiki.core.types import PageType
 from ..project.context import ProjectNotFoundError
@@ -70,7 +69,7 @@ def cmd_heat_cold(args: argparse.Namespace) -> None:
 
 def cmd_heat_decay(args: argparse.Namespace) -> None:
     ctx, paths = _resolve_ctx(args.project)
-    tracker = HeatTracker(paths)
+    tracker = get_heat_tracker(paths)
     if args.dry_run:
         print("(dry run; no writes)")
         return
@@ -80,7 +79,7 @@ def cmd_heat_decay(args: argparse.Namespace) -> None:
 
 def cmd_heat_zombies(args: argparse.Namespace) -> None:
     ctx, paths = _resolve_ctx(args.project)
-    zombies = ZombieDetector.list_zombies(paths)
+    zombies = get_zombie_detector().list_zombies(paths)
     for z in zombies:
         print(f"  {z['id']}  (zombie since {z['zombie_since']})")
 

@@ -44,6 +44,19 @@ def _create_from_config(config: ProviderConfig, model_override: str | None = Non
     raise ValueError(f"Unknown provider type: {config.type}")
 
 
+def resolve_embedding_provider_type(name: str, provider_type: str) -> str:
+    """Map a registry entry to the embedding-provider class key.
+
+    MiniMax registers with ``type="openai"`` for its OpenAI-compatible chat
+    API, but its embedding endpoint is MiniMax-native (``vectors`` not
+    ``data``), so it must use ``MiniMaxEmbeddingProvider`` regardless of the
+    chat type. Without this special case the server built an OpenAI-compatible
+    embedding provider pointed at MiniMax, which raised ``IndexError`` reading
+    ``data[0]`` and silently degraded semantic search to keyword-only.
+    """
+    return "minimax" if name == "minimax" else provider_type
+
+
 def create_embedding_provider(
     provider: str = "openai",
     api_key=None,
@@ -52,7 +65,7 @@ def create_embedding_provider(
     dimension: int = 1536,
 ) -> EmbeddingProvider:
     """Legacy embedding-provider factory used by existing pipeline code."""
-    if provider == "openai":
+    if provider in ("openai", "openai-compatible"):
         from .openai_provider import OpenAIEmbeddingProvider
         return OpenAIEmbeddingProvider(
             api_key=api_key,

@@ -6,25 +6,30 @@ keyed by base_url — many OllamaProvider instances pointing at the same URL
 share one client; close() closes the cached client exactly once.
 """
 import asyncio
-import httpx
 
 import pytest
 
 from src.llm.registry import ProviderRegistry
 from src.llm.types import ProviderConfig
-from src.llm.ollama_provider import OllamaProvider
-from src.llm.base import LLMResponse
+from src.llm.ollama_provider import (
+    OllamaProvider,
+    _CLIENT_CACHE,
+    _CLIENT_REFCOUNT,
+    _CLIENT_LOOP_IDS,
+)
 
 
 @pytest.fixture(autouse=True)
 def _reset_client_cache():
-    """Reset both the global AsyncClient cache and tracked-provider set."""
-    if hasattr(OllamaProvider, "_client_cache"):
-        OllamaProvider._client_cache.clear()  # type: ignore[attr-defined]
+    """Reset the global AsyncClient cache, refcount, and loop-ids dicts."""
+    _CLIENT_CACHE.clear()
+    _CLIENT_REFCOUNT.clear()
+    _CLIENT_LOOP_IDS.clear()
     ProviderRegistry._loaded_providers.clear()
     yield
-    if hasattr(OllamaProvider, "_client_cache"):
-        OllamaProvider._client_cache.clear()  # type: ignore[attr-defined]
+    _CLIENT_CACHE.clear()
+    _CLIENT_REFCOUNT.clear()
+    _CLIENT_LOOP_IDS.clear()
     ProviderRegistry._loaded_providers.clear()
 
 
@@ -36,7 +41,9 @@ def test_ollama_provider_caches_singleton_per_url():
     p1 = OllamaProvider(cfg)
     p2 = OllamaProvider(cfg)
     assert p1.client is p2.client
-    assert OllamaProvider._client_cache["http://x"] is p1.client  # type: ignore[attr-defined]
+    assert _CLIENT_CACHE["http://x"] is p1.client
+    # Two instances share one cached client → refcount is 2.
+    assert _CLIENT_REFCOUNT["http://x"] == 2
 
 
 def test_ollama_provider_different_urls_separate_clients():
@@ -50,7 +57,10 @@ def test_ollama_provider_different_urls_separate_clients():
     p1 = OllamaProvider(cfg1)
     p2 = OllamaProvider(cfg2)
     assert p1.client is not p2.client
-    assert len(OllamaProvider._client_cache) == 2  # type: ignore[attr-defined]
+    assert len(_CLIENT_CACHE) == 2
+    # Each provider gets its own refcount entry.
+    assert _CLIENT_REFCOUNT["http://a"] == 1
+    assert _CLIENT_REFCOUNT["http://b"] == 1
 
 
 def test_close_clears_cache_and_is_idempotent():
@@ -72,7 +82,8 @@ def test_close_clears_cache_and_is_idempotent():
 
     asyncio.run(p.close())  # closes
     assert len(captured) == 1
-    assert "http://x" not in OllamaProvider._client_cache  # type: ignore[attr-defined]
+    assert "http://x" not in _CLIENT_CACHE
+    assert _CLIENT_REFCOUNT.get("http://x") is None   # refcount also cleaned up
 
     # Second close — cache empty, no aclose on (now closed) client
     asyncio.run(p.close())

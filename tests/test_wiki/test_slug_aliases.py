@@ -7,13 +7,11 @@ because the LLM emitted inconsistent slug variants across ingests
 maps such variants to a canonical slug so the resolver can find them.
 """
 import json
-import pytest
 from src.wiki.features.slug_aliases import (
     SlugAliasRegistry,
     _resolve_project_root,
 )
 from src.wiki.storage.ensure import ensure_knowledge_base
-from src.wiki.core.paths import WikiPaths
 
 
 def test_resolve_project_root_returns_str(tmp_path):

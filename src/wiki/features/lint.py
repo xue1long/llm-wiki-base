@@ -1,7 +1,8 @@
-"""Wiki lint (A4) — runs 6 non-LLM checks across all wiki pages.
+"""Wiki lint (A4) — runs 9 non-LLM checks across all wiki pages.
 
 Detects: LINT-MISSING-ID, LINT-MISSING-TITLE, LINT-EMPTY-BODY,
-LINT-MISSING-SECTION, LINT-ORPHAN, LINT-DUPLICATE.
+LINT-MISSING-SECTION, LINT-ORPHAN, LINT-DUPLICATE, LINT-RAW-PASTE,
+LINT-MISSING-SOURCES, LINT-UGC-CRED.
 
 LINT-MISSING-SECTION (Plan 27 / wiki v2.3 schema) is **version-gated**:
 only pages whose leading HTML comment declares
@@ -15,6 +16,7 @@ report shape. Public entry point is ``lint_wiki``.
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -22,8 +24,11 @@ from pathlib import Path
 
 from ..storage.ensure import ensure_knowledge_base
 from .indexer import read_index
+
+logger = logging.getLogger(__name__)
 from ..storage.page_writer import read_page
 from ..core.paths import WikiPaths
+from ..core.types import PageType
 from ..templates import list_resolved, required_slot_names
 
 
@@ -36,6 +41,34 @@ _TEMPLATE_VERSION_RE = re.compile(
 # Heading lines emitted in the rendered body so we can extract exactly
 # which sections are present vs missing per the active template.
 _BODY_HEADING_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
+# Fenced code block delimiters. Lines between two such markers are exempt
+# from LINT-RAW-PASTE (they are intentionally verbatim).
+_FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
+# List-item markers: "- ", "* " (unordered) or "1. " / "1) " (ordered),
+# with optional leading indentation. Also catches "+ " / "• " variants.
+_LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+•]\s|\d+[.)]\s)")
+
+# A plain-text run longer than this many characters is treated as a raw
+# paste rather than curated wiki prose.
+_RAW_PASTE_THRESHOLD = 300
+
+# NDG Phase 2 — dual threshold for RAW-PASTE (source vs non-source).
+# Source pages carry distilled summaries, not full text; a source page
+# body that balloons past T_source is likely raw paste.  Non-source pages
+# use a tighter threshold.  These are fallback defaults; the authoritative
+# values live in ``.index/quality_settings.json`` under the ``raw_paste``
+# key (written by Phase 0 calibration).
+_DEFAULT_T_SOURCE = 2000   # chars — generous; source-page summaries are ~300-800
+_DEFAULT_T_NON = 300       # chars — same as the old single threshold
+
+# NDG Phase 2 — full-text section heading detector.
+# A source page that still has a "full text" / "transcript" / "original"
+# section is carrying verbatim raw content and must be flagged regardless
+# of run length.
+_FULLTEXT_SECTION_RE = re.compile(
+    r"^#{1,6}\s*(正文内容|转录内容|原文|全文|完整文本)\s*$",
+    re.MULTILINE,
+)
 
 
 class LintSeverity(str, Enum):
@@ -60,6 +93,72 @@ class LintReport:
     scanned_pages: int = 0
 
 
+# ---------------------------------------------------------------------------
+# Page-level predicates (single source of truth)
+# ---------------------------------------------------------------------------
+# The NDG gate (P1/P3/P4) and ``cli lint`` share these decision predicates so
+# the two never diverge.  Each returns a plain answer about one page; the
+# callers wrap it in their own issue type / severity.
+
+_READABILITY_PLACEHOLDERS = {"(empty)", "(无内容)", "(占位)", "(placeholder)"}
+
+
+def _readability_violation(page) -> str | None:
+    """Return the first readability violation, or ``None`` for a clean page.
+
+    Order of checks (first match wins, mirroring the gate's P1):
+    ``empty_id`` → ``empty_title`` → ``empty_body`` → ``placeholder``.
+    """
+    if not page.id or not page.id.strip():
+        return "empty_id"
+    if not page.title or not page.title.strip():
+        return "empty_title"
+    if not page.body or not page.body.strip():
+        return "empty_body"
+    if page.body.strip() in _READABILITY_PLACEHOLDERS:
+        return "placeholder"
+    return None
+
+
+def _missing_sources(page) -> bool:
+    """True when the page lists no sources and no derivation relation."""
+    rel_types = {
+        r.type if isinstance(r.type, str) else r.type.value
+        for r in (page.relations or [])
+    }
+    return not page.sources and not (
+        rel_types & {"derived_from", "supported_by"}
+    )
+
+
+def _missing_ugc_cred(page) -> bool:
+    """True when the page is UGC-tagged but lacks the credibility tag."""
+    return "素材/ugc" in page.tags and "可信度/ugc" not in page.tags
+
+
+# UGC carrier detection (R3-1 / D5).  A raw file is a "UGC carrier" when its
+# first ~4000 characters reference a known UGC platform (feishu.cn,
+# mp.weixin.qq.com, 飞书云文档, 公众号, 论坛, 知乎, 豆瓣, 简书, QQ群).
+# Shared by the phase4 auto-tag step and the NDG gate's P4b check so the two
+# never diverge.
+_UGC_CARRIER_RE = re.compile(
+    r"feishu\.cn|mp\.weixin\.qq\.com|飞书云文档|公众号|论坛|知乎|豆瓣|简书|QQ群",
+    re.IGNORECASE,
+)
+
+
+def _is_ugc_carrier(header: str) -> bool:
+    """True when *header* (a raw file's first ~4000 chars) is a UGC carrier.
+
+    Deterministic, zero LLM cost.  Case- and whitespace-tolerant: whitespace
+    is compacted out of the input before the regex runs, so ``" 飞 书 云 文 档 "``
+    and ``"FEISHU.CN"`` both hit.
+    """
+    if not header:
+        return False
+    return _UGC_CARRIER_RE.search("".join(header.split())) is not None
+
+
 def _parse_version(version_str: str) -> tuple[int, ...]:
     """Parse a dotted version string into a comparable tuple.
 
@@ -77,8 +176,90 @@ def _parse_version(version_str: str) -> tuple[int, ...]:
     return tuple(parts[:3])
 
 
+def _long_raw_text_run(body: str) -> int:
+    """Length of the longest run of "plain prose" lines in ``body``.
+
+    A plain-prose line is non-empty and is NOT a blockquote, NOT a list
+    item, and NOT inside a fenced code block. Blank lines, blockquotes,
+    list items, and fence boundaries all reset the current run. The
+    returned value is the character length of the longest qualifying run.
+    """
+    longest = 0
+    current = 0
+    in_fence = False
+    for line in body.split("\n"):
+        stripped = line.strip()
+        if _FENCE_RE.match(stripped):
+            in_fence = not in_fence
+            current = 0
+            continue
+        if in_fence or not stripped:
+            current = 0
+            continue
+        if stripped.startswith(">") or _LIST_ITEM_RE.match(stripped):
+            current = 0
+            continue
+        current += len(stripped)
+        if current > longest:
+            longest = current
+    return longest
+
+
+def _has_fulltext_section(body: str) -> bool:
+    """True if *body* contains a full-text / transcript section heading.
+
+    Only matches headings that appear **outside** fenced code blocks
+    (same fence-awareness as ``_long_raw_text_run``) so that a
+    documentation page that *mentions* ``## 正文内容`` inside a code
+    sample is not falsely flagged.
+    """
+    in_fence = False
+    for line in body.split("\n"):
+        stripped = line.strip()
+        if _FENCE_RE.match(stripped):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        if _FULLTEXT_SECTION_RE.match(stripped):
+            return True
+    return False
+
+
+def _load_raw_paste_thresholds(paths: WikiPaths) -> tuple[int, int]:
+    """Return ``(T_source, T_non)`` from the project quality-settings file.
+
+    Reads ``.index/quality_settings.json``, key ``raw_paste`` with
+    sub-keys ``source_threshold`` and ``non_source_threshold``.  Falls
+    back to :data:`_DEFAULT_T_SOURCE` / :data:`_DEFAULT_T_NON` when the
+    file or keys are absent, corrupt, or contain invalid values.
+    """
+    import json as _json
+
+    settings_path = paths.index / "quality_settings.json"
+    try:
+        data = _json.loads(settings_path.read_text(encoding="utf-8"))
+    except (OSError, _json.JSONDecodeError):
+        return _DEFAULT_T_SOURCE, _DEFAULT_T_NON
+
+    rp = data.get("raw_paste", {}) if isinstance(data, dict) else {}
+    if not isinstance(rp, dict):
+        return _DEFAULT_T_SOURCE, _DEFAULT_T_NON
+
+    try:
+        ts = int(rp.get("source_threshold", _DEFAULT_T_SOURCE))
+    except (TypeError, ValueError):
+        ts = _DEFAULT_T_SOURCE
+    try:
+        tn = int(rp.get("non_source_threshold", _DEFAULT_T_NON))
+    except (TypeError, ValueError):
+        tn = _DEFAULT_T_NON
+
+    return ts, tn
+
+
 def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
-    """Run all 6 lint checks against the wiki at ``paths``.
+    """Run all 9 lint checks against the wiki at ``paths``.
 
     Scans wiki_sources / wiki_entities / wiki_concepts / wiki_synthesis (skips
     stubs). Returns a LintReport with the collected issues and the page count.
@@ -111,7 +292,8 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
             page = read_page(Path(md_file))
             pages_seen.add(page.id)
 
-            if not page.id or not page.id.strip():
+            _read_violation = _readability_violation(page)
+            if _read_violation == "empty_id":
                 issues.append(
                     LintIssue(
                         code="LINT-MISSING-ID",
@@ -120,8 +302,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
                         page_id=md_file.stem,
                     )
                 )
-
-            if not page.title.strip():
+            elif _read_violation == "empty_title":
                 issues.append(
                     LintIssue(
                         code="LINT-MISSING-TITLE",
@@ -130,8 +311,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
                         page_id=page.id or md_file.stem,
                     )
                 )
-
-            if not page.body.strip():
+            elif _read_violation == "empty_body":
                 issues.append(
                     LintIssue(
                         code="LINT-EMPTY-BODY",
@@ -145,6 +325,120 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
             if page.body.strip():
                 content_hash = hashlib.md5(page.body.encode("utf-8")).hexdigest()
                 body_hashes.setdefault(content_hash, []).append(page.id)
+
+            # LINT-RAW-PASTE (NDG Phase 2): source pages are NO LONGER
+            # exempt.  The source template now produces distilled summaries,
+            # not full text.  Two independent checks:
+            #
+            #   Source pages: fulltext-section heading  →  flag
+            #                 raw-run > T_source        →  flag
+            #   Non-source:   raw-run > T_non           →  flag
+            #
+            # Thresholds are loaded from .index/quality_settings.json so
+            # Phase 0 calibration can tune them per-project; fall back to
+            # internal constants when the file is absent.
+            T_source, T_non = _load_raw_paste_thresholds(paths)
+            raw_run = _long_raw_text_run(page.body)
+
+            if page.type == PageType.SOURCE:
+                # Check 1: fulltext-section heading (unconditionally flag).
+                if _has_fulltext_section(page.body):
+                    issues.append(
+                        LintIssue(
+                            code="LINT-RAW-PASTE",
+                            severity=LintSeverity.WARNING,
+                            message=(
+                                "Source page body contains a full-text / "
+                                "transcript section heading (e.g. 正文内容, "
+                                "转录内容, 原文, 全文, 完整文本) — raw text "
+                                "should live in raw/sources/, not the wiki."
+                            ),
+                            page_id=page.id,
+                            suggestion=(
+                                "Re-ingest the source so the Generator produces "
+                                "a distilled summary instead of echoing the "
+                                "full document."
+                            ),
+                        )
+                    )
+                # Check 2: long raw run past the source threshold.
+                elif raw_run > T_source:
+                    issues.append(
+                        LintIssue(
+                            code="LINT-RAW-PASTE",
+                            severity=LintSeverity.WARNING,
+                            message=(
+                                f"Source page body contains a {raw_run}-char "
+                                f"run of unstructured plain text (threshold "
+                                f"{T_source}) — possible raw paste instead of "
+                                f"distilled summary."
+                            ),
+                            page_id=page.id,
+                            suggestion=(
+                                "Re-ingest with the updated source template "
+                                "so the Generator writes a short summary, "
+                                "not the full document body."
+                            ),
+                        )
+                    )
+            else:
+                if raw_run > T_non:
+                    issues.append(
+                        LintIssue(
+                            code="LINT-RAW-PASTE",
+                            severity=LintSeverity.WARNING,
+                            message=(
+                                f"Page body contains a {raw_run}-char run of "
+                                "unstructured plain text (possible raw paste)"
+                            ),
+                            page_id=page.id,
+                            suggestion=(
+                                "Split the prose into sections, list items, or "
+                                "blockquotes, or move the verbatim text into the "
+                                "page's source file."
+                            ),
+                        )
+                    )
+
+            # LINT-MISSING-SOURCES: a page should either list its raw source
+            # file(s) or declare a derivation relation (derived_from /
+            # supported_by). A synthesis page that enumerates its sources is
+            # fine; only a page with neither signal is flagged.
+            if _missing_sources(page):
+                issues.append(
+                    LintIssue(
+                        code="LINT-MISSING-SOURCES",
+                        severity=LintSeverity.WARNING,
+                        message=(
+                            f"Page has no sources and no derived/supported "
+                            f"relation: {page.id}"
+                        ),
+                        page_id=page.id,
+                        suggestion=(
+                            "Add the raw source path(s) to the page's sources, "
+                            "or add a derived_from / supported_by relation."
+                        ),
+                    )
+                )
+
+            # LINT-UGC-CRED: UGC-sourced material (素材/ugc) must also carry a
+            # credibility tag (可信度/ugc) so readers know how it was verified.
+            if _missing_ugc_cred(page):
+                issues.append(
+                    LintIssue(
+                        code="LINT-UGC-CRED",
+                        severity=LintSeverity.WARNING,
+                        message=(
+                            f"Page tagged 素材/ugc but missing the 可信度/ugc "
+                            f"credibility tag: {page.id}"
+                        ),
+                        page_id=page.id,
+                        suggestion=(
+                            "Add the 可信度/ugc tag to record how the UGC "
+                            "material was verified."
+                        ),
+                    )
+                )
 
             # LINT-MISSING-SECTION: v2+ template pages must include every
             # required heading. The parser strips the leading comment from

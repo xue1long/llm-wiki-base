@@ -8,8 +8,6 @@ import pytest
 from src.queue.service import QueueService
 from src.queue.retry import DefaultRetryPolicy
 from src.types import SourceType, TaskStatus
-from .conftest import FakeQueueBackend, FakeEventEmitter
-from src.queue.in_flight import InMemoryInFlightTracker
 
 
 @pytest.fixture
@@ -245,7 +243,7 @@ class TestRecoveryTimer:
 
     def test_recovery_timer_scheduled_when_breaker_open(self, queue_service, monkeypatch):
         """When advance() finds breaker OPEN, it schedules a recovery timer."""
-        from datetime import datetime, timedelta
+        from datetime import datetime
         from src.circuit_breaker import CircuitState
 
         breaker = queue_service._breaker()

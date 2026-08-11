@@ -48,7 +48,7 @@ def check_pages(pages: list[WikiPage]) -> QualityGateResult:
         # --- INTRA_BATCH_DUPE ---
         body = page.body or ""
         h = hashlib.md5(body.encode("utf-8")).hexdigest()
-        if h in seen_hashes and page.processing_depth != "stub":
+        if h in seen_hashes and page.processing_depth != "stub" and seen_hashes[h] != page.id:
             degraded[page.id] = f"duplicate of {seen_hashes[h]}"
             continue
         if page.processing_depth != "stub":

@@ -18,7 +18,6 @@ ownership boundary.
 import asyncio
 import json
 
-import pytest
 
 from src.llm.provider_factory import create_llm_provider
 from src.llm.openai_provider import OpenAIProvider

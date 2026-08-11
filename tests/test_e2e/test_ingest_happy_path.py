@@ -65,6 +65,10 @@ def stub_llm_pipeline(monkeypatch):
     produce so the test can assert against it."""
     from src.pipeline import pipeline as pipeline_module
 
+    # Force legacy mode — the new candidate path (default) bypasses the
+    # monkeypatched analyze/generate and would need a real LLM provider.
+    monkeypatch.setenv("RUFLO_PIPELINE_MODE", "legacy")
+
     canned_page = WikiPage(
         id="card_e2e_smoke_001",
         title="E2E Smoke Test",
@@ -120,7 +124,6 @@ def reset_queue(monkeypatch):
     """Reset the queue and circuit breaker between tests so each starts clean."""
     from src.circuit_breaker import CircuitState
     from src.queue import __reset_for_testing, get_default_queue_service
-    from src.queue.retry import MAX_RETRIES
 
     __reset_for_testing()
     service = get_default_queue_service()
@@ -146,7 +149,6 @@ def test_post_ingest_produces_wiki_page_end_to_end(
 
     from src.server.app import create_app
     from src.queue import get_default_queue_service, get_queue
-    from src.types import KnowledgeTask
 
     # --- Arrange --------------------------------------------------------
     project_root = fresh_project.path

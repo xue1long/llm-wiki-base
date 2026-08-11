@@ -19,7 +19,7 @@ from ...lib.write_hooks import DELETE_SENTINEL, safe_write
 from ..storage.atomic_ctx_helpers import atomic_pipeline_op
 
 from ..storage.ensure import ensure_knowledge_base
-from .indexer import append_to_index, read_index
+from .indexer import read_index
 from ..storage.page_writer import read_page, write_page, page_path_for
 from ..core.paths import WikiPaths
 from ..core.types import WikiPage

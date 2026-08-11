@@ -5,7 +5,6 @@ import pytest
 
 from src.llm.registry import (
     ProviderRegistry,
-    ProviderNotFoundError,
     RegistryCorruptError,
 )
 
@@ -79,7 +78,6 @@ def test_empty_env_var_falls_back(monkeypatch, tmp_path):
 
 def test_load_raises_on_corrupt_existing_file(monkeypatch, tmp_path):
     """If the registry file exists but is invalid JSON, raise RegistryCorruptError."""
-    from src.llm import registry as reg
 
     _isolated_registry(monkeypatch, tmp_path, content="{this is not json")
     with pytest.raises(RegistryCorruptError):

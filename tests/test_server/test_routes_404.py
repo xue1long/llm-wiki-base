@@ -22,7 +22,6 @@ ProjectNotFound, so it's not re-tested here.
 """
 from unittest.mock import patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 from src.project.context import ProjectNotFoundError
@@ -55,7 +54,7 @@ def test_ingest_returns_404_when_project_not_found():
 def test_search_returns_404_when_project_not_found():
     """POST /projects/<missing>/search -> 404."""
     async def _async_pnf(*args, **kwargs):
-        raise ProjectNotFoundError(f"Project not found")
+        raise ProjectNotFoundError("Project not found")
 
     with patch("src.server.routes.search.search_service.search", side_effect=_async_pnf):
         r = client.post(
@@ -71,7 +70,7 @@ def test_search_returns_404_when_project_not_found():
 def test_chat_returns_404_when_project_not_found():
     """POST /projects/<missing>/chat -> 404 (before AgentRunFailed handling)."""
     async def _async_pnf(*args, **kwargs):
-        raise ProjectNotFoundError(f"Project not found")
+        raise ProjectNotFoundError("Project not found")
 
     with patch("src.server.routes.chat.chat_service.run_chat", side_effect=_async_pnf):
         r = client.post(

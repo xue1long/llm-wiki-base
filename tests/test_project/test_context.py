@@ -1,9 +1,7 @@
 # tests/test_project/test_context.py
-from pathlib import Path
 
 from src.project.context import ProjectContext
-from src.project.identity import ProjectIdentity
-from src.project.registry import GlobalRegistryStore, ProjectRegistryEntry
+from src.project.registry import GlobalRegistryStore
 
 
 def test_from_path_creates_new_project(tmp_path, monkeypatch):
@@ -36,7 +34,6 @@ def test_from_path_creates_new_project(tmp_path, monkeypatch):
 def test_from_path_returns_existing(tmp_path, monkeypatch):
     """from_path() on existing project returns same UUID."""
     from src.project import paths, registry
-    from src.project.context import _registry_path
 
     config_dir = tmp_path / "config"
     config_dir.mkdir()

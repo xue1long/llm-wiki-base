@@ -3,7 +3,6 @@
 Verifies I-pipeline-3 fix: stub removal goes through safe_write + DELETE_SENTINEL
 so it's batched into the AtomicContext commit point (no premature os.unlink).
 """
-import pytest
 
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.features.stubs import StubMaterializerWorker

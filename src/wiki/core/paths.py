@@ -60,6 +60,14 @@ class WikiPaths:
         return self.root / "wiki" / "synthesis"
 
     @property
+    def wiki_claims(self) -> Path:
+        return self.root / "wiki" / "claims"
+
+    @property
+    def wiki_decisions(self) -> Path:
+        return self.root / "wiki" / "decisions"
+
+    @property
     def wiki_stubs(self) -> Path:
         return self.root / "wiki" / "_stubs"
 

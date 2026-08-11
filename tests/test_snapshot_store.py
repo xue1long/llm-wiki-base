@@ -1,4 +1,3 @@
-import pytest
 import tempfile
 from pathlib import Path
 from src.sync.snapshot_store import SnapshotStore

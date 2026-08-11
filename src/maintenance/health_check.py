@@ -10,7 +10,7 @@ from time import time
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    pass
 
 
 class CheckSeverity(str, Enum):

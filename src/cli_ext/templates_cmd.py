@@ -1,7 +1,6 @@
 """Templates CLI."""
 import argparse
 import sys
-from pathlib import Path
 
 from ..lib.write_hooks import safe_write
 from ..templates.loader import load, list_bundled

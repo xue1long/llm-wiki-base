@@ -36,6 +36,9 @@ class KnowledgeTask:
     # resolve the correct project's WikiPaths rather than the CWD-relative
     # default. Persisted on disk so it survives queue reloads.
     project_id: Optional[str] = None
+    # Phase 2.2: folder_context for idempotency + batch_id for tracking.
+    folder_context: Optional[str] = None
+    batch_id: Optional[str] = None
 
 @dataclass
 class ProcessedNote:

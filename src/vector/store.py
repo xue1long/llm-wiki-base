@@ -21,6 +21,9 @@ from ..wiki.core.paths import WikiPaths
 import lancedb
 import pyarrow as pa
 
+import logging
+_logger = logging.getLogger(__name__)
+
 
 # ---------------------------------------------------------------------------
 # Per-project state
@@ -45,7 +48,7 @@ def _build_schema():
         ("id", pa.string()),
         ("task_id", pa.string()),
         ("content", pa.string()),
-        ("embedding", pa.list_(pa.float32(), 1536)),
+        ("embedding", pa.list_(pa.float32(), 384)),
         ("path", pa.string()),
         ("updated_at", pa.int64()),
     ])
@@ -64,6 +67,12 @@ def init_vector_store_for_paths(paths: WikiPaths) -> None:
     * Otherwise the handle is opened freshly and added to ``_per_project``.
     Other projects' handles are left untouched.
 
+    When the existing table schema has a different embedding dimension
+    (e.g. old 1536-dim data when the code now expects 384-dim), the table
+    is dropped and recreated automatically. This handles the migration
+    from remote embedding providers (1536-dim) to the local
+    sentence-transformers provider (384-dim).
+
     LanceDB files are persisted at ``paths.index / "lancedb"``.
     """
     global _current_project_key
@@ -73,9 +82,44 @@ def init_vector_store_for_paths(paths: WikiPaths) -> None:
         db_dir.mkdir(parents=True, exist_ok=True)
 
         db = lancedb.connect(str(db_dir))
+
+        # Detect stale dimension and drop + recreate if needed.
+        _migrate_schema_if_needed(db)
+
         table = db.create_table("chunks", schema=_build_schema(), exist_ok=True)
         _per_project[key] = (db, table)
     _current_project_key = key
+
+
+def _migrate_schema_if_needed(db: lancedb.LanceDB) -> None:
+    """Drop the ``chunks`` table if its embedding dimension differs from 384.
+
+    This handles the migration from 1536-dim remote providers (OpenAI,
+    MiniMax) to 384-dim local sentence-transformers.  Silent no-op when
+    the table does not exist, the dimension already matches, or the
+    check fails for any reason.
+    """
+    expected_dim = 384
+    try:
+        existing = db.open_table("chunks")
+        sample = existing.head(1)
+        if len(sample) > 0:
+            old_dim = len(sample["embedding"][0])
+            if old_dim == expected_dim:
+                return
+            _logger.info(
+                "[vector] detected schema dimension change: %d → %d; "
+                "dropping and recreating table",
+                old_dim, expected_dim,
+            )
+        else:
+            _logger.info(
+                "[vector] existing table has no rows; recreating with "
+                "new schema (384-dim)"
+            )
+        db.drop_table("chunks")
+    except Exception:
+        pass  # table doesn't exist or can't be sampled — nothing to migrate
 
 
 def get_table(project_paths: "WikiPaths | None" = None):
@@ -110,6 +154,34 @@ def get_table(project_paths: "WikiPaths | None" = None):
         raise RuntimeError("Vector store not initialized")
     _, table = _per_project[_current_project_key]
     return table
+
+
+def delete_by_source(paths: WikiPaths, raw_path: str) -> int:
+    """Delete every vector whose ``path`` column matches ``raw_path``.
+
+    Used by reingest: before re-running ingestion of a source, its old
+    vectors must be removed so the search index does not serve stale
+    chunks. Matches on the exact ``path`` value (project-relative, forward
+    slashes) that the ingest pipeline stored at upsert time.
+
+    Args:
+        paths: WikiPaths for the target project.
+        raw_path: project-relative raw path stored in the ``path`` column.
+
+    Returns:
+        Number of deleted rows (0 if the project store is not initialised
+        or no rows matched).
+    """
+    if paths.root is None:
+        return 0
+    key = _project_key(paths)
+    if key not in _per_project:
+        return 0
+    table = _per_project[key][1]
+    # Escape single quotes so a path containing one cannot break the SQL
+    # predicate nor inject arbitrary filter logic.
+    escaped = raw_path.replace("'", "''")
+    return table.delete(f"path = '{escaped}'").num_deleted_rows
 
 
 def current_project_paths() -> Optional[WikiPaths]:

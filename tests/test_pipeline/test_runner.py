@@ -4,11 +4,9 @@ The stage tests in this file verify the protocol contract is satisfied
 and that each stage can be constructed and called with a PipelineContext.
 The end-to-end runner tests are added in Task 9.
 """
-import pytest
 
 from src.pipeline.ports import PipelineStage, StageResult, PipelineContext
 from src.pipeline.stages import CollectorStage, AnalyzerStage, GeneratorStage
-from src.pipeline.stages.collector import CollectorStage as CStage
 from src.types import SourceType, TaskStatus
 
 

@@ -36,7 +36,7 @@ ID_PATTERN = re.compile(
 )
 WIKILINK_PATTERN = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
 VALID_TAG_PREFIXES = {
-    "genre", "func", "char", "event", "mood", "entity", "scene_phase", "status",
+    "题材", "功能", "角色", "事件", "情绪", "实体", "场景阶段", "状态", "素材", "可信度",
 }
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n(.*)$", re.DOTALL)
 

@@ -25,7 +25,7 @@ def test_enqueue_url_source(monkeypatch, tmp_path):
     _stub_resolve(monkeypatch, project_dir)
 
     # Audit I5: ingest service now passes project_id through to enqueue_task.
-    monkeypatch.setattr(ingest_service, "enqueue_task", lambda source, stype, thash, project_id=None: "task-123")
+    monkeypatch.setattr(ingest_service, "enqueue_task", lambda source, stype, thash, project_id=None, **kw: "task-123")
 
     result = ingest_service.enqueue_source("u", "https://example.com/page")
     assert result["status"] == "queued"
@@ -40,7 +40,7 @@ def test_enqueue_file_source_detected(monkeypatch, tmp_path):
     _stub_resolve(monkeypatch, project_dir)
 
     captured = {}
-    def fake_enqueue(source, stype, thash, project_id=None):
+    def fake_enqueue(source, stype, thash, project_id=None, **kw):
         captured["source"] = source
         captured["stype"] = stype
         return "task-456"
@@ -62,11 +62,11 @@ def test_enqueue_folder_source(monkeypatch, tmp_path):
     _stub_resolve(monkeypatch, project_dir)
 
     captured = {}
-    def fake_enqueue_batch(items, project_id=None):
+    def fake_enqueue_batch(items, project_id=None, **kw):
         captured["items"] = items
         return ["task-789"]
     monkeypatch.setattr(ingest_service, "enqueue_batch", fake_enqueue_batch)
-    monkeypatch.setattr(ingest_service, "enqueue_task", lambda source, stype, thash, project_id=None: "task-789")
+    monkeypatch.setattr(ingest_service, "enqueue_task", lambda source, stype, thash, project_id=None, **kw: "task-789")
     # Stub the queue service advance() to avoid triggering pipeline handlers.
     monkeypatch.setattr(
         ingest_service, "get_default_queue_service",
@@ -85,7 +85,7 @@ def test_enqueue_duplicate_returns_ignored(monkeypatch, tmp_path):
     project_dir.mkdir()
     _stub_resolve(monkeypatch, project_dir)
 
-    monkeypatch.setattr(ingest_service, "enqueue_task", lambda source, stype, thash, project_id=None: "")
+    monkeypatch.setattr(ingest_service, "enqueue_task", lambda source, stype, thash, project_id=None, **kw: "")
 
     result = ingest_service.enqueue_source("u", "https://example.com/dup")
     assert result["status"] == "ignored"

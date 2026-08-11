@@ -1,6 +1,5 @@
 """LLM provider type definitions."""
 from dataclasses import asdict, dataclass, field
-from typing import Optional
 
 
 @dataclass

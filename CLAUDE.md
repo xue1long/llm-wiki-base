@@ -24,7 +24,7 @@ Setup (from repo root):
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
   pip install -e ".[dev]"
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
-  pip install watchdog tavily-python pypdf
+  pip install tavily-python pypdf
 
 # Offline install for the two heavy native packages (pyarrow + lancedb):
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
@@ -51,8 +51,6 @@ PYTHONPATH=. pytest tests/test_wiki/ tests/test_cli_ext/ tests/test_pipeline/ te
 Run a single test file or test node:
 
 ```
-pytest tests/test_file_watcher.py -v
-pytest tests/test_file_watcher.py::test_scan_once_detects_new_file -v
 pytest tests/test_vector/ -v                  # one test package
 pytest -k idempotency -v                       # by keyword
 ```
@@ -120,7 +118,7 @@ Supported source formats (extracted by `src/utils/extract/`): PDF (pypdf), DOCX 
 
 Alternative ingestion paths:
 - **MCP** (`python -m src.cli mcp`) — stdio server exposes `ingest` as an MCP tool for Claude Desktop
-- **Programmatic** — `from src.pipeline.pipeline import run_ingest` runs Collector → Analyzer → Generator → atomic write synchronously (no queue); `from src.wiki.features.folder_ingest import collect_files` enumerates files in a folder for batch processing
+- **Programmatic** — `from src.pipeline.ingest import run_ingest` runs the full candidate pipeline (Collector → Analyzer → Reviewer → Promoter → Generator → Writer) synchronously (no queue); `from src.wiki.features.folder_ingest import collect_files` enumerates files in a folder for batch processing
 
 Verify results:
 ```bash
@@ -188,18 +186,23 @@ to delete stale entries. All cache/log/staging directories can be cleaned
 safely — wiki pages are the source of truth. The server also runs cleanup
 hourly in the background.
 
-### Pipeline (Analyzer → Generator → Writer)
+### Pipeline (Collector → Analyzer → Reviewer → Promoter → Generator → Writer)
 
-`src/pipeline/pipeline.py` registers event handlers at import time. The flow is:
+The default pipeline mode (`RUFLO_PIPELINE_MODE=candidate`, the default) uses the new candidate path:
 
-```
-collector:start → Collector → collector:done
-  → Analyzer (LLM extracts AnalysisResult)
-  → Generator (LLM renders WikiPage list)
-  → atomic: write_page + append_to_index + log_event
-```
+1. **Collector** — reads raw source files
+2. **Analyzer** (JSON mode) — LLM extracts KnowledgeCandidate (claims + evidence)
+3. **ReviewerStage** — 4 rule checks (schema, evidence, references, confidence)
+   - REJECTED → task FAILED + quarantine
+   - NEEDS_HUMAN_REVIEW → creates ReviewItem
+   - VALIDATED → continues
+4. **CandidatePromoter** — promotes KnowledgeCandidate → KnowledgeObject (lifecycle=PROCESSING)
+5. **Generator** (`generate_from_knowledge_object`) — LLM renders body slots only; frontmatter (type, title, grade, provenance) sourced from KnowledgeObject
+6. **Writer** — atomic: write_page + append_to_index + log_event
 
-`run_ingest(paths, source_path, source_text, provider, ...)` is the new pure function entry point. EventBus (`src/events/event_bus.py`) is a singleton; handlers register via `event_bus.on(name, handler)`. `AtomicContext` batches writes via `safe_write` (which buffers to `_pending_writes` and flushes on context exit). For deletions use the `DELETE_SENTINEL` mechanism in `src/lib/write_hooks.py` so cascade operations are atomic.
+The legacy path (`RUFLO_PIPELINE_MODE=legacy`) uses the old Analyzer (markdown) → Generator (`unified_generate` or two-step `analyze`→`generate`) flow and is deprecated. Shadow mode (`RUFLO_SHADOW_MODE=true`) runs both paths and writes a comparison report to `.index/shadow/<task_id>/`.
+
+`run_ingest(paths, source_path, source_text, provider, ...)` is the public entry point. `generate_ingest` returns pages without disk writes; `commit_ingest` persists them. EventBus (`src/events/event_bus.py`) is a singleton; handlers register via `event_bus.on(name, handler)`. `AtomicContext` batches writes via `safe_write` (which buffers to `_pending_writes` and flushes on context exit). For deletions use the `DELETE_SENTINEL` mechanism in `src/lib/write_hooks.py` so cascade operations are atomic.
 
 ### Critical gotcha: `ProjectContext.path` vs `WikiPaths`
 
@@ -241,7 +244,7 @@ def _resolve_ctx(proj_arg):
 - **Queue** (`src/queue/queue.py`) — module-level `_queue`, JSON-persisted to `.kb-queue.json`. `MAX_RETRIES = 3`, then dead-letter.
 - **Idempotency** (`src/utils/idempotency.py`) — md5-keyed dedup, in-memory TTL 7 days.
 - **Schemas** (`src/schemas/`) — Migration framework. `Migration` ABC with `up`/`down`/`preview`. MigrationRegistry indexes by `(schema_name, from_version, to_version)`.
-- **Sync** (`src/sync/`) — `SnapshotStore` JSON, `FileSyncWatcher` watchdog observer. `start_watch` / `stop` are **deprecated** (no current callers; remove in 1.0).
+- **Sync** (`src/sync/`) — `SnapshotStore` JSON snapshot-based change detection.
 - **Vector store** (`src/vector/`) — `LanceDB` singleton, 1536-dim float32. `init_vector_store_for_paths(WikiPaths)` must be called before any upsert/search; the legacy `init_vector_store(db_path)` parent-walking heuristic was removed (use `WikiPaths(root)` to construct the canonical path object).
 - **Service layer** (`src/services/`) — business logic between HTTP routes and core domain. Routes are thin adapters; services are unit-testable without HTTP. 7 modules: `files`, `projects`, `schema`, `reviews`, `ingest`, `search`, `chat`.
 - **Project resolution** (`src/lib/project.py`) — single entry point. `resolve_project(arg, by_id_only) -> (ProjectContext, WikiPaths)`; `resolve_ctx_only(...)` for the no-paths case. Replaces 9 hand-rolled `_resolve_ctx` copies.
@@ -297,7 +300,8 @@ metadata:
 
 ## Things to know before editing
 
-- **Two import styles coexist.** Modules under `src/` generally use relative imports (`from .types import ...`, `from ..events.event_bus import event_bus`). `src/sync/file_watcher.py` is the exception: it uses absolute `from src.sync.snapshot_store import SnapshotStore`.
+- **WebUI 更新后同步更新文档。** 每次修改 `web/js/views/*.js` 中的按钮、事件绑定或 API 调用时，必须同步更新 [`docs/webui-buttons.md`](docs/webui-buttons.md)（按钮位置、功能、API 映射）。该文档是 WebUI 所有按钮的唯一参考手册。
+
 - **Event handlers register on import.** `src/pipeline/pipeline.py` and `src/orchestrator/orchestrator.py` attach handlers at module load. Adding a new pipeline stage means (a) emit a new event, (b) add a handler in `pipeline.py`, (c) optionally add a payload dataclass in `events/events.py`.
 - **Embedding provider is a process-global singleton.** `pipeline.librarian._embedding_provider` and `searcher.hybrid_search._embedding_provider` are independent globals — set both if you switch providers.
 - **CLI is CWD-sensitive.** `Path("Inbox")`, `Path("Notes")`, `Path("Knowledge")`, and `WikiPaths.root` resolve relative to the current working directory. Run from the repo root or pass `--path`/`--project`.
@@ -321,7 +325,6 @@ In a single cleanup pass, the following changes landed on `feat/continue-impleme
 - `src/knowledge_base.py` deleted (107 lines) — old `Inbox/Notes/Knowledge` layout; superseded by `src/wiki/storage/ensure.py`
 - `InboxManager.clear_processing`, `IdempotencyCache.remove`, `EntityMention.to_dict` + `from_dict` removed
 - `src/schemas/__init__.py: CURRENT_VERSION / MIGRATIONS` back-compat shims removed
-- `FileSyncWatcher.start_watch / .stop` marked `DeprecationWarning` (no current callers; remove in 1.0)
 
 **Bug fixes surfaced by the audit**:
 - `OllamaProvider.close()` was not called by any business code → `httpx.AsyncClient` leak. Fixed via `ProviderRegistry._loaded_providers` + `aclose_all()` + FastAPI lifespan shutdown hook.

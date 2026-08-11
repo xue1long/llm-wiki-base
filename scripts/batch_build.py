@@ -49,6 +49,8 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from src.utils.path import migrate_state_paths, normalize_source_path, safe_resolve
+
 # 尽早加载 .env（含 MINIMAX_API_KEY 等）；src/__init__ 也会再加载一次 ~/.config/ruflo-kb/env
 try:
     from dotenv import load_dotenv
@@ -75,6 +77,13 @@ NOTE_DIRS = ["sources", "concepts", "entities", "synthesis"]
 META_FILES = {"index.md", "log.md"}
 
 
+def rel_state_key(p: Path, root: Path) -> str:
+    """Project-relative posix key for state files — location-independent, so
+    the batch_build_state survives device moves (the old ``f.resolve().as_posix()``
+    absolute keys went stale whenever the project lived at a new path)."""
+    return normalize_source_path(str(p), root)
+
+
 def sha256_file(p: Path) -> str:
     h = hashlib.sha256()
     with p.open("rb") as f:
@@ -90,15 +99,25 @@ def sha256_text(t: str) -> str:
 def load_state(state_path: Path) -> dict:
     if state_path.exists():
         try:
-            return json.loads(state_path.read_text(encoding="utf-8"))
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            # 状态文件可能由别的工具写入（如 phase4 只写 batch_N 键）；
+            # 补齐本脚本依赖的三个分区，同时保留已有键。
+            state.setdefault("ingested", {})
+            state.setdefault("archived", {})
+            state.setdefault("failed", {})
+            return state
         except Exception:
             log.warning("状态文件损坏，已重置: %s", state_path)
     return {"ingested": {}, "archived": {}, "failed": {}}
 
 
 def save_state(state_path: Path, state: dict) -> None:
+    """原子写状态文件（tmp + os.replace），避免中断产生半截 JSON——与
+    phase4_batch._save_state 对齐。"""
     state_path.parent.mkdir(parents=True, exist_ok=True)
-    state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp = state_path.with_suffix(state_path.suffix + ".tmp")
+    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(str(tmp), str(state_path))
 
 
 def resolve_root(project_id: str | None) -> Path:
@@ -127,7 +146,7 @@ def init_llm():
     return create_llm_provider(cfg.name)
 
 
-def init_embedding():
+async def init_embedding():
     """初始化 archive 用的 embedding provider（默认 minimax embo-01），与 app.py 启动逻辑一致。"""
     import os
 
@@ -153,26 +172,52 @@ def init_embedding():
             dimension=None,  # 由模型返回其原生维度（embo-01=1536，匹配 LanceDB）
         )
 
+    async def _try_build_and_verify(provider_type, api_key, endpoint, model):
+        """Try to build and test the provider. Returns a working provider or None."""
+        try:
+            provider = _build(provider_type, api_key, endpoint, model)
+            # Quick smoke test: embed a single word to verify the provider actually
+            # returns vectors. MiniMax embo-01 is deprecated and returns [] silently.
+            result = await provider.embed(["test"])
+            if not result or not result[0].embedding:
+                log.warning("远程 embedding provider 返回空向量（模型可能已废弃）")
+                return None
+            return provider
+        except Exception as e:
+            log.warning("远程 embedding provider 初始化失败 (%s)", e)
+            return None
+
     try:
         cfg = ProviderRegistry.get_default()
     except Exception:
         cfg = None
 
+    provider = None
     if cfg is not None:
         key = cfg.api_key or (os.environ.get(_env_map.get(cfg.name, "")) if _env_map.get(cfg.name) else None)
         model = cfg.default_embedding_model or (
             "embo-01" if cfg.name == "minimax" else "text-embedding-3-small"
         )
-        provider_type = "minimax" if cfg.name == "minimax" else cfg.type
-        provider = _build(provider_type, key, cfg.base_url or None, model)
-    else:
+        from src.llm.provider_factory import resolve_embedding_provider_type
+
+        provider_type = resolve_embedding_provider_type(cfg.name, cfg.type)
+        provider = await _try_build_and_verify(provider_type, key, cfg.base_url or None, model)
+
+    if provider is None:
         # 回落：minimax + 环境变量
-        provider = _build(
+        provider = await _try_build_and_verify(
             "minimax",
             os.environ.get("MINIMAX_API_KEY"),
             os.environ.get("MINIMAX_BASE_URL"),
             "embo-01",
         )
+
+    if provider is None:
+        log.warning("所有远程 embedding provider 均不可用，回落至本地 sentence-transformers")
+        from src.llm.local_embed import LocalEmbeddingProvider
+
+        provider = LocalEmbeddingProvider()
+
     set_embedding_provider(provider)
     return provider
 
@@ -209,14 +254,14 @@ async def phase_ingest(root: Path, raw_dir: Path, state: dict, args) -> dict:
     if args.dry_run:
         for f in files:
             digest = sha256_file(f)
-            if f.resolve().as_posix() in state["ingested"] and state["ingested"][f.resolve().as_posix()] == digest:
+            if rel_state_key(f, root) in state["ingested"] and state["ingested"][rel_state_key(f, root)] == digest:
                 log.info("  (dry) skip (已存在且未改动): %s", f.name)
             else:
                 log.info("  (dry) WOULD ingest: %s", f.name)
         return stats
 
     for f in files:
-        fkey = f.resolve().as_posix()
+        fkey = rel_state_key(f, root)
         digest = sha256_file(f)
         if fkey in state["ingested"] and state["ingested"][fkey] == digest and not args.force:
             stats["skip"] += 1
@@ -246,6 +291,18 @@ async def phase_ingest(root: Path, raw_dir: Path, state: dict, args) -> dict:
     return stats
 
 
+def _is_stub_note(path: Path) -> bool:
+    """占位页（frontmatter ``processing_depth: stub``）不应被建向量；
+    复用 read_page 作为 frontmatter 的唯一事实源。"""
+    try:
+        from src.wiki.storage.page_writer import read_page
+
+        return read_page(path).processing_depth == "stub"
+    except Exception:  # noqa: BLE001
+        # 解析失败按普通笔记处理，由 archive 阶段报错兜底
+        return False
+
+
 async def phase_archive(root: Path, state: dict, args) -> dict:
     from src.pipeline.librarian import archive
     from src.vector.store import init_vector_store_for_paths
@@ -262,23 +319,25 @@ async def phase_archive(root: Path, state: dict, args) -> dict:
     # 只扫笔记子目录，不扫 wiki 根：真实生成的笔记一律在
     # sources/concepts/entities/synthesis 下；wiki 根的 index.md/log.md
     # 是索引元数据，不是待归档笔记。
+    # 跳过占位页（processing_depth: stub），避免被向量化污染检索结果。
+    notes = [n for n in notes if not _is_stub_note(n)]
 
     log.info("[archive] 找到 %d 个待归档笔记", len(notes))
     stats = {"ok": 0, "skip": 0, "fail": 0}
     if args.dry_run:
         for n in notes:
             digest = sha256_file(n)
-            if n.resolve().as_posix() in state["archived"] and state["archived"][n.resolve().as_posix()] == digest:
+            if rel_state_key(n, root) in state["archived"] and state["archived"][rel_state_key(n, root)] == digest:
                 log.info("  (dry) skip (已归档且未改动): %s", n.name)
             else:
                 log.info("  (dry) WOULD archive: %s", n.name)
         return stats
 
     # Reuse the same embedding provider across all notes (shared httpx client).
-    embed_provider = init_embedding()
+    embed_provider = await init_embedding()
     try:
         for n in notes:
-            nkey = n.resolve().as_posix()
+            nkey = rel_state_key(n, root)
             digest = sha256_file(n)
             if nkey in state["archived"] and state["archived"][nkey] == digest and not args.force:
                 stats["skip"] += 1
@@ -304,14 +363,15 @@ async def phase_archive(root: Path, state: dict, args) -> dict:
 
 async def run(args: argparse.Namespace) -> int:
     if args.root:
-        root = Path(args.root).resolve()
+        root = safe_resolve(args.root)
     else:
         if not args.project_id:
             sys.exit("必须提供 --project-id 或 --root 之一")
-        root = resolve_root(args.project_id)
-    raw_dir = Path(args.raw_dir).resolve() if args.raw_dir else (root / "raw" / "sources")
+        root = safe_resolve(resolve_root(args.project_id))
+    raw_dir = safe_resolve(args.raw_dir) if args.raw_dir else (root / "raw" / "sources")
     state_path = root / ".index" / "batch_build_state.json"
-    state = load_state(state_path)
+    # 迁移历史绝对路径键 -> 项目相对键(换设备后旧绝对键会 stale)
+    state = migrate_state_paths(load_state(state_path), root)
 
     log.info("项目根: %s", root)
     log.info("raw 目录: %s", raw_dir)

@@ -1,36 +1,37 @@
 """Verify the service-level lock invariant under concurrent enqueue.
 
 The legacy queue.py used a module-global threading.Lock; the refactored
-QueueService uses per-instance threading.Lock. The invariant under
-test is the same: 8 threads × 50 enqueues each must produce 400 unique
-task IDs and exactly 400 tasks in the snapshot.
+QueueService uses per-instance threading.Lock. The invariant under test:
+8 threads × 50 enqueue attempts over 50 distinct task hashes must produce
+exactly 50 unique task IDs — the shared hashes deduplicate under the
+lock, and no attempt is lost or double-inserted.
 
-After the queue refactor (Tasks 1-7), the production code path is
-through QueueService.enqueue, which serializes the snapshot +
-acquire + emit + save sequence under a single service-level lock.
+The service is constructed directly with in-memory fakes and a no-op
+event emitter, so the test exercises only the queue's lock/dedup
+invariant and never triggers the pipeline's global "collector:start"
+handler (which, via the process-wide PipelineService singleton, would
+run the real pipeline and hang on a cross-loop asyncio.Semaphore).
 """
 import threading
 
-from src.queue import enqueue_task, get_queue
-from src.queue import __reset_for_testing
+from src.queue.service import QueueService
+from src.queue.retry import DefaultRetryPolicy
 from src.types import SourceType
-from src.utils.idempotency import get_idempotency_cache
 
 
-def setup_function(_):
-    get_idempotency_cache().clear()
-    __reset_for_testing()
-
-
-def test_concurrent_enqueue_preserves_unique_tasks(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    __reset_for_testing()
+def test_concurrent_enqueue_preserves_unique_tasks(fake_backend, fake_tracker, fake_emitter):
+    service = QueueService(
+        backend=fake_backend,
+        tracker=fake_tracker,
+        emitter=fake_emitter,
+        retry_policy=DefaultRetryPolicy(),
+    )
     errors = []
 
     def fire():
         try:
             for i in range(50):
-                enqueue_task(f"t{i}", SourceType.FILE, f"hash-{i}")
+                service.enqueue(f"t{i}", SourceType.FILE, f"hash-{i}")
         except Exception as exc:
             errors.append(exc)
 
@@ -41,4 +42,4 @@ def test_concurrent_enqueue_preserves_unique_tasks(tmp_path, monkeypatch):
         thread.join()
 
     assert not errors
-    assert len({task.id for task in get_queue()}) == 50
+    assert len({task.id for task in service.get_queue()}) == 50

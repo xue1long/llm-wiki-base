@@ -7,7 +7,7 @@ import yaml
 
 from ..wiki.core.id_generator import is_valid_id
 from ..wiki.storage.page_writer import read_page
-from ..wiki.features.tag_namespace import validate_tags
+from ..services.tags import validate_tags_for_page
 from ..lib.project import resolve_project
 
 
@@ -106,7 +106,7 @@ def cmd_tags_validate(args: argparse.Namespace) -> None:
             page = None
         page_id = page.id if page else pp.stem
         tags = _read_tags_from_frontmatter(pp)
-        invalid = validate_tags(tags)
+        invalid = validate_tags_for_page(tags)
         if invalid:
             all_invalid.append((page_id, invalid))
     if all_invalid:

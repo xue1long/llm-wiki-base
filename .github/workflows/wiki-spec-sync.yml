@@ -1,0 +1,71 @@
+name: wiki-spec-sync
+
+on:
+  pull_request:
+    paths:
+      - 'docs/guides/wiki-spec.md'
+      - 'src/pipeline/wiki_rules_prompt.py'
+      - 'scripts/sync_wiki_spec.py'
+      - '.github/workflows/wiki-spec-sync.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/guides/wiki-spec.md'
+      - 'src/pipeline/wiki_rules_prompt.py'
+      - 'scripts/sync_wiki_spec.py'
+      - '.github/workflows/wiki-spec-sync.yml'
+
+jobs:
+  anti-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PyYAML
+        run: python -m pip install "pyyaml>=6.0"
+
+      - name: Validate spec frontmatter (fail-soft guard)
+        # sync_wiki_spec.py returns exit 0 on malformed YAML (fail-soft so an
+        # unrelated commit is never blocked), which would let a broken spec
+        # through the drift check silently. Reuse its own parser so this
+        # validation can't drift from the real parsing, but let exceptions
+        # propagate (non-zero exit) to fail the build.
+        run: |
+          python - <<'EOF'
+          import importlib.util, sys
+          spec = importlib.util.spec_from_file_location("_sync_spec", "scripts/sync_wiki_spec.py")
+          m = importlib.util.module_from_spec(spec)
+          sys.modules["_sync_spec"] = m
+          spec.loader.exec_module(m)
+          data = m._parse_frontmatter(m.SPEC_PATH.read_text(encoding="utf-8"))
+          if not isinstance(data, dict) or "rules" not in data:
+              raise SystemExit("wiki-spec.md frontmatter missing required 'rules' key")
+          print("spec frontmatter valid")
+          EOF
+
+      - name: Regenerate prompt module
+        run: python scripts/sync_wiki_spec.py
+
+      - name: Verify generated module is valid Python
+        # The generated module is pure constant definitions; py_compile checks
+        # syntax without importing the src.pipeline package (whose __init__
+        # pulls in the full pipeline dependency chain).
+        run: python -m py_compile src/pipeline/wiki_rules_prompt.py
+
+      - name: Detect drift (generated file must match committed file)
+        run: |
+          if git diff --exit-code src/pipeline/wiki_rules_prompt.py; then
+            echo "In sync: src/pipeline/wiki_rules_prompt.py matches docs/guides/wiki-spec.md"
+          else
+            echo "::error::src/pipeline/wiki_rules_prompt.py is out of sync with docs/guides/wiki-spec.md"
+            git diff --stat src/pipeline/wiki_rules_prompt.py
+            echo "Fix: run 'python scripts/sync_wiki_spec.py' and commit the regenerated file."
+            exit 1
+          fi

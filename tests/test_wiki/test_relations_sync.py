@@ -1,5 +1,4 @@
 """Tests for RelationSync (bidirectional) + RelationQuery (list/backlinks/neighbors/path)."""
-import pytest
 
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.storage.page_writer import page_path_for, read_page, write_page
@@ -71,28 +70,20 @@ def test_find_backlinks(tmp_path):
     """find_backlinks returns relations across all wiki subdirs targeting page_id."""
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
-    # Create target page in entities
     _make_page(p, "target", PageType.ENTITY)
-    # Create source pages referencing it from different subdirs
-    _make_page(
-        p, "source_a", PageType.SOURCE,
-        body="placeholder",
-    )
+    _make_page(p, "source_a", PageType.SOURCE, body="placeholder")
     _make_page(p, "source_b", PageType.ENTITY)
     _make_page(p, "source_c", PageType.CONCEPT)
 
-    # Manually add relations pointing at "target"
-    sa = read_page(page_path_for(p, PageType.SOURCE, "source_a"))
-    sa.relations.append(Relation(target_id="target", type="references", weight=0.5))
-    write_page(p, sa)
-
-    sb = read_page(page_path_for(p, PageType.ENTITY, "source_b"))
-    sb.relations.append(Relation(target_id="target", type="supports", weight=0.8))
-    write_page(p, sb)
-
-    sc = read_page(page_path_for(p, PageType.CONCEPT, "source_c"))
-    sc.relations.append(Relation(target_id="target", type="derived_from", weight=0.3))
-    write_page(p, sc)
+    RelationSync.sync_page(p, "source_a", [
+        Relation(target_id="target", type="references", weight=0.5),
+    ])
+    RelationSync.sync_page(p, "source_b", [
+        Relation(target_id="target", type="supports", weight=0.8),
+    ])
+    RelationSync.sync_page(p, "source_c", [
+        Relation(target_id="target", type="derived_from", weight=0.3),
+    ])
 
     backlinks = RelationQuery.find_backlinks(p, "target")
     sources = sorted(r.target_id for r in backlinks)
@@ -110,17 +101,15 @@ def test_find_neighbors(tmp_path):
     _make_page(p, "c", PageType.SOURCE)
     _make_page(p, "d", PageType.SOURCE)
 
-    # a → b (references, weight 0.5)
+    # a → b (references, weight 0.5), a → d (causes, weight 0.7)
     # b → c (supports, weight 0.4)
-    # a → d (causes, weight 0.7)
-    page_a = read_page(page_path_for(p, PageType.SOURCE, "a"))
-    page_a.relations.append(Relation(target_id="b", type="references", weight=0.5))
-    page_a.relations.append(Relation(target_id="d", type="causes", weight=0.7))
-    write_page(p, page_a)
-
-    page_b = read_page(page_path_for(p, PageType.SOURCE, "b"))
-    page_b.relations.append(Relation(target_id="c", type="supports", weight=0.4))
-    write_page(p, page_b)
+    RelationSync.sync_page(p, "a", [
+        Relation(target_id="b", type="references", weight=0.5),
+        Relation(target_id="d", type="causes", weight=0.7),
+    ])
+    RelationSync.sync_page(p, "b", [
+        Relation(target_id="c", type="supports", weight=0.4),
+    ])
 
     # Depth 1: only b and d
     neighbors_1 = RelationQuery.find_neighbors(p, "a", depth=1)
@@ -152,17 +141,9 @@ def test_find_path(tmp_path):
     _make_page(p, "d", PageType.SOURCE)
 
     # a → b, b → c, c → d
-    page_a = read_page(page_path_for(p, PageType.SOURCE, "a"))
-    page_a.relations.append(Relation(target_id="b", type="references"))
-    write_page(p, page_a)
-
-    page_b = read_page(page_path_for(p, PageType.SOURCE, "b"))
-    page_b.relations.append(Relation(target_id="c", type="supports"))
-    write_page(p, page_b)
-
-    page_c = read_page(page_path_for(p, PageType.SOURCE, "c"))
-    page_c.relations.append(Relation(target_id="d", type="causes"))
-    write_page(p, page_c)
+    RelationSync.sync_page(p, "a", [Relation(target_id="b", type="references")])
+    RelationSync.sync_page(p, "b", [Relation(target_id="c", type="supports")])
+    RelationSync.sync_page(p, "c", [Relation(target_id="d", type="causes")])
 
     # Same source/target → empty
     assert RelationQuery.find_path(p, "a", "a") == []

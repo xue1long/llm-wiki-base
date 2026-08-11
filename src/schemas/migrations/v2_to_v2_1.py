@@ -57,7 +57,7 @@ class V2ToV2_1WikiPageMigration(Migration):
             if "schema_version: v2.1" in text:
                 # Remove relations: [] line
                 lines = text.split("\n")
-                lines = [l for l in lines if l.strip() != "relations: []"]
+                lines = [line for line in lines if line.strip() != "relations: []"]
                 text = "\n".join(lines).replace("schema_version: v2.1", "schema_version: v2.0")
                 f.write_text(text, encoding="utf-8")
                 result.files_changed += 1

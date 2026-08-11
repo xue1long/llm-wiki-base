@@ -70,7 +70,10 @@ def create_app() -> FastAPI:
         # ``None`` and silently fell back to zero-vector / keyword-only.
         try:
             from ..llm.registry import ProviderRegistry
-            from ..llm.provider_factory import create_embedding_provider
+            from ..llm.provider_factory import (
+                create_embedding_provider,
+                resolve_embedding_provider_type,
+            )
             from ..llm.embedding_runtime import set_embedding_provider
             from ..vector.store import init_vector_store_for_paths
             from ..wiki.storage.ensure import ensure_knowledge_base
@@ -90,17 +93,41 @@ def create_app() -> FastAPI:
                               len(discovered), [c.name for c in discovered])
 
             # Initialise embedding provider from the default registry entry.
+            # Falls back to the offline local sentence-transformers provider
+            # when no remote provider is usable (no key, deprecated model,
+            # unreachable endpoint) so startup never depends on the network.
+            provider = None
             try:
                 default = ProviderRegistry.get_default()
-                provider = create_embedding_provider(
-                    provider=default.type,
+                candidate = create_embedding_provider(
+                    provider=resolve_embedding_provider_type(default.name, default.type),
                     api_key=default.api_key or None,
                     endpoint=default.base_url or None,
                     model=default.default_embedding_model or None,
                 )
-                set_embedding_provider(provider)
+                # Smoke test: verify the provider actually returns vectors.
+                # MiniMax embo-01 is deprecated and returns [] silently.
+                test_result = await candidate.embed(["test"])
+                if test_result and test_result[0].embedding:
+                    provider = candidate
+                    set_embedding_provider(provider)
+                    _logger.info("[startup] embedding provider: %s", type(candidate).__name__)
+                else:
+                    _logger.warning("[startup] remote embedding provider returned empty vectors (deprecated model?)")
             except Exception as e:
-                _logger.warning("[startup] embedding provider init failed: %s", e)
+                _logger.warning(
+                    "[startup] remote embedding provider init failed (%s); "
+                    "falling back to local sentence-transformers", e
+                )
+
+            if provider is None:
+                try:
+                    from ..llm.local_embed import LocalEmbeddingProvider
+                    provider = LocalEmbeddingProvider()
+                    set_embedding_provider(provider)
+                    _logger.info("[startup] embedding provider: local sentence-transformers")
+                except Exception as le:
+                    _logger.warning("[startup] local embedding fallback also failed: %s", le)
 
             # Initialise the vector store for the active project (best-effort;
             # resolved from CWD; adjust if the API gains a project selector).
@@ -109,20 +136,59 @@ def create_app() -> FastAPI:
                 project_root = Path.cwd()
                 paths = ensure_knowledge_base(project_root)
                 init_vector_store_for_paths(paths)
+                # Wire DecayBridge so heat decay triggers lifecycle transitions
+                try:
+                    from ..knowledge.core.lifecycle import LifecycleEngine
+                    from ..knowledge.lifecycle.decay import DecayBridge
+                    from ..wiki.features.heat import set_decay_bridge
+                    engine = LifecycleEngine()
+                    bridge = DecayBridge(engine)
+                    set_decay_bridge(bridge)
+                except Exception:
+                    pass
+
+                # Initialize KnowledgeKernel for the active project so
+                # lifecycle events (knowledge.created / knowledge.updated)
+                # are emitted on the global EventBus singleton.
+                try:
+                    from ..knowledge.kernel import get_kernel
+                    get_kernel(project_root)
+                except Exception:
+                    pass
             except Exception as e:
                 _logger.warning("[startup] vector store init failed: %s", e)
 
             # Health-check loop (preserved from prior behaviour).
+            # Each provider gets a 10-second timeout so a single unreachable
+            # provider (e.g. OpenAI behind a TLS-blocking proxy) cannot hang
+            # the entire startup sequence.
             try:
+                import asyncio
                 from ..llm.provider_factory import _create_from_config
                 for name, config in ProviderRegistry.load().items():
-                    provider = _create_from_config(config)
-                    health = await provider.health_check()
-                    if not health.get("ok"):
-                        _logger.warning(f"[startup] provider {name!r} unreachable: {health.get('detail')}")
-                    await provider.close()
+                    try:
+                        provider = _create_from_config(config)
+                        health = await asyncio.wait_for(provider.health_check(), timeout=10)
+                        if not health.get("ok"):
+                            _logger.warning(f"[startup] provider {name!r} unreachable: {health.get('detail')}")
+                        # Also check response_format compatibility for OpenAI-compatible providers
+                        if health.get("ok"):
+                            try:
+                                rf = await asyncio.wait_for(provider.check_response_format(), timeout=10)
+                                if not rf.get("ok"):
+                                    _logger.warning(
+                                        f"[startup] provider {name!r} response_format incompatible: "
+                                        f"{rf.get('detail')} — ingestion will produce empty stub pages"
+                                    )
+                            except Exception as rf_exc:
+                                _logger.warning(f"[startup] provider {name!r} response_format check error: {rf_exc}")
+                        await provider.close()
+                    except asyncio.TimeoutError:
+                        _logger.warning(f"[startup] provider {name!r} health-check timed out (10s)")
+                    except Exception as exc:
+                        _logger.warning(f"[startup] provider {name!r} health-check error: {exc}")
             except Exception as e:
-                _logger.warning(f"[startup] health check failed: {e}")
+                _logger.warning(f"[startup] health check loop error: {e}")
         finally:
             pass
 
@@ -181,10 +247,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    from .routes import health, projects, files, search, ingest, reviews, chat, schema, agent_cli, analysis, providers, tags
+    from .routes import health, projects, files, search, ingest, reviews, chat, schema, agent_cli, analysis, providers, tags, quality, heat, templates
     for router in [health.router, projects.router, files.router, search.router,
                    ingest.router, reviews.router, chat.router, schema.router, agent_cli.router,
-                   analysis.router, providers.router, tags.router]:
+                   analysis.router, providers.router, tags.router, quality.router, heat.router, templates.router]:
         app.include_router(router)
 
     # Mount /metrics endpoint (Plan 7 fix; previously dead code).

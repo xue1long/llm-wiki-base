@@ -9,7 +9,7 @@ The ``embo-01`` model outputs 1536-dimensional vectors, which matches the
 LanceDB schema used by ruflo-kb — so no index rebuild is required.
 """
 import logging
-from typing import List, Optional
+from typing import List
 
 import httpx
 

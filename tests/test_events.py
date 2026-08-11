@@ -1,5 +1,4 @@
 # ruflo-kb/tests/test_events.py
-import pytest
 from src.events.event_bus import EventBus
 
 def test_event_bus_register_and_call():

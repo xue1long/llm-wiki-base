@@ -85,7 +85,6 @@ def auto_register_on_first_run() -> list[ProjectContext]:
 
     Returns list of newly registered ProjectContexts (may be empty).
     """
-    from .paths import registry_path as _registry_path
     from .registry import registry_path as _default_registry_path
 
     kb_paths = discover_existing_kbs()

@@ -1,6 +1,5 @@
 # src/server/routes/providers.py
 """HTTP routes for LLM provider management."""
-import json
 import os
 from pathlib import Path
 from typing import Any
@@ -58,6 +57,16 @@ def list_providers() -> dict:
     }
 
 
+@router.get("/providers/{name}")
+def get_provider(name: str) -> dict:
+    """Get a single provider config (full API key for editing)."""
+    try:
+        config = ProviderRegistry.require(name)
+    except ProviderNotFoundError:
+        raise HTTPException(404, f"Provider not found: {name}")
+    return {"ok": True, "provider": _config_to_dict(config, redact_keys=False)}
+
+
 @router.post("/providers")
 def add_provider(body: AddProviderRequest) -> dict:
     """Add or update a provider."""
@@ -68,6 +77,15 @@ def add_provider(body: AddProviderRequest) -> dict:
     if body.type == "ollama" and not base_url:
         base_url = "http://127.0.0.1:11434"
 
+    # Preserve existing API key when updating and no new key provided
+    api_key = body.api_key
+    if not api_key:
+        try:
+            existing = ProviderRegistry.require(body.name)
+            api_key = existing.api_key
+        except ProviderNotFoundError:
+            pass  # new provider, keep empty
+
     models: dict[str, ModelInfo] = {}
     if body.chat_model:
         models[body.chat_model] = ModelInfo(name=body.chat_model)
@@ -76,7 +94,7 @@ def add_provider(body: AddProviderRequest) -> dict:
         name=body.name,
         type=body.type,
         base_url=base_url,
-        api_key=body.api_key,
+        api_key=api_key,
         models=models,
         default_chat_model=body.chat_model,
         default_embedding_model=body.embedding_model or body.chat_model,
@@ -126,7 +144,12 @@ def test_provider(name: str) -> dict:
     async def _run():
         provider = _create_from_config(config)
         try:
-            return provider, await provider.health_check()
+            health = await provider.health_check()
+            if health.get("ok"):
+                rf = await provider.check_response_format()
+                health["response_format_ok"] = rf.get("ok", False)
+                health["response_format_detail"] = rf.get("detail", "")
+            return provider, health
         finally:
             await provider.close()
 
@@ -134,4 +157,9 @@ def test_provider(name: str) -> dict:
         _, health = asyncio.run(_run())
     except Exception as e:
         return {"ok": False, "error": str(e)}
-    return {"ok": health.get("ok", False), "detail": health.get("detail", "")}
+    result = {"ok": health.get("ok", False), "detail": health.get("detail", "")}
+    rf_ok = health.get("response_format_ok")
+    if rf_ok is not None:
+        result["response_format_ok"] = rf_ok
+        result["response_format_detail"] = health.get("response_format_detail", "")
+    return result

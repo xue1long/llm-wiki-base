@@ -84,7 +84,7 @@ def test_get_default_raises_when_empty(monkeypatch, tmp_path):
         ProviderRegistry.get_default()
 
 
-def _make_cfg(name: str, ptype: str, model: str = "default-model") -> "ProviderConfig":
+def _make_cfg(name: str, ptype: str, model: str = "default-model") -> "ProviderConfig":  # noqa: F821
     from src.llm.types import ProviderConfig
     return ProviderConfig(
         name=name,

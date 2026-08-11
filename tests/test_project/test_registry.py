@@ -1,5 +1,4 @@
 from src.project.registry import (
-    GlobalRegistry,
     GlobalRegistryStore,
     ProjectRegistryEntry,
 )

@@ -4,11 +4,10 @@ Verifies that the non-suspended path uses *.tmp + os.replace (so a crash mid-wri
 never produces a torn target file), while the suspended path keeps buffered semantics.
 """
 import os
-from pathlib import Path
 
 from src.lib.atomic_ctx import AtomicContext, __reset_for_testing
 from src.lib import write_hooks
-from src.lib.write_hooks import safe_write, flush_pending_writes, get_pending_count
+from src.lib.write_hooks import safe_write, get_pending_count
 
 
 def setup_function(_):

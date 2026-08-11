@@ -43,7 +43,7 @@ def test_h1_fails_on_missing_source(tmp_path):
 def test_h1_absolute_paths_checked(tmp_path):
     (tmp_path / "wiki" / "sources").mkdir(parents=True)
     (tmp_path / "wiki" / "sources" / "abs.md").write_text(
-        f"---\nid: abs\nsources: [/nonexistent/path/file.pdf]\n---\nbody\n",
+        "---\nid: abs\nsources: [/nonexistent/path/file.pdf]\n---\nbody\n",
         encoding="utf-8",
     )
 

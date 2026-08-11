@@ -1,5 +1,4 @@
 """Tests for tag index endpoint (1.2.1) and include_tags extension (1.2.2)."""
-import pytest
 
 from src.services import tags as tags_service
 from src.services import files as files_service
@@ -42,11 +41,11 @@ class TestBuildTagIndex:
     def test_aggregates_tags_by_namespace(self, monkeypatch, tmp_path):
         project_dir, wiki_dir = _make_project(tmp_path)
         (wiki_dir / "concepts" / "a.md").write_text(
-            "---\ntags:\n  - genre/玄幻\n  - mood/爽文\n---\n# A\n",
+            "---\ntags:\n  - 题材/玄幻\n  - 情绪/爽文\n---\n# A\n",
             encoding="utf-8",
         )
         (wiki_dir / "concepts" / "b.md").write_text(
-            "---\ntags:\n  - genre/玄幻\n  - func/写作技巧\n---\n# B\n",
+            "---\ntags:\n  - 题材/玄幻\n  - 功能/写作技巧\n---\n# B\n",
             encoding="utf-8",
         )
         monkeypatch.setattr(
@@ -55,23 +54,23 @@ class TestBuildTagIndex:
         )
         result = tags_service.build_tag_index("u")
         ns = result["namespaces"]
-        assert "genre" in ns
-        assert ns["genre"]["label"] == "题材类型"
-        genre_tags = {t["name"]: t["count"] for t in ns["genre"]["tags"]}
+        assert "题材" in ns
+        assert ns["题材"]["label"] == "题材类型"
+        genre_tags = {t["name"]: t["count"] for t in ns["题材"]["tags"]}
         assert genre_tags["玄幻"] == 2
 
-        assert "mood" in ns
-        mood_tags = {t["name"]: t["count"] for t in ns["mood"]["tags"]}
+        assert "情绪" in ns
+        mood_tags = {t["name"]: t["count"] for t in ns["情绪"]["tags"]}
         assert mood_tags["爽文"] == 1
 
-        assert "func" in ns
-        func_tags = {t["name"]: t["count"] for t in ns["func"]["tags"]}
+        assert "功能" in ns
+        func_tags = {t["name"]: t["count"] for t in ns["功能"]["tags"]}
         assert func_tags["写作技巧"] == 1
 
     def test_skips_invalid_tags(self, monkeypatch, tmp_path):
         project_dir, wiki_dir = _make_project(tmp_path)
         (wiki_dir / "concepts" / "a.md").write_text(
-            "---\ntags:\n  - genre/玄幻\n  - bareword\n  - invalid/foo\n---\n# A\n",
+            "---\ntags:\n  - 题材/玄幻\n  - bareword\n  - invalid/foo\n---\n# A\n",
             encoding="utf-8",
         )
         monkeypatch.setattr(
@@ -80,8 +79,8 @@ class TestBuildTagIndex:
         )
         result = tags_service.build_tag_index("u")
         ns = result["namespaces"]
-        # Only genre should appear; bareword and invalid/foo are skipped
-        assert "genre" in ns
+        # Only 题材 should appear; bareword and invalid/foo are skipped
+        assert "题材" in ns
         # invalid/foo: "invalid" is not a known prefix
         assert "invalid" not in ns
 
@@ -92,7 +91,7 @@ class TestListFilesIncludeTags:
     def test_include_tags_false_by_default(self, monkeypatch, tmp_path):
         project_dir, wiki_dir = _make_project(tmp_path)
         (wiki_dir / "concepts" / "a.md").write_text(
-            "---\ntags:\n  - genre/玄幻\n---\n# A\n",
+            "---\ntags:\n  - 题材/玄幻\n---\n# A\n",
             encoding="utf-8",
         )
         monkeypatch.setattr(
@@ -106,7 +105,7 @@ class TestListFilesIncludeTags:
     def test_include_tags_true_returns_tags(self, monkeypatch, tmp_path):
         project_dir, wiki_dir = _make_project(tmp_path)
         (wiki_dir / "concepts" / "a.md").write_text(
-            "---\ntags:\n  - genre/玄幻\n  - mood/爽文\n---\n# A\n",
+            "---\ntags:\n  - 题材/玄幻\n  - 情绪/爽文\n---\n# A\n",
             encoding="utf-8",
         )
         monkeypatch.setattr(
@@ -116,7 +115,7 @@ class TestListFilesIncludeTags:
         result = files_service.list_files("u", include_tags=True)
         files = result["files"]
         assert len(files) == 1
-        assert set(files[0]["tags"]) == {"genre/玄幻", "mood/爽文"}
+        assert set(files[0]["tags"]) == {"题材/玄幻", "情绪/爽文"}
 
     def test_include_tags_no_frontmatter_returns_empty(self, monkeypatch, tmp_path):
         project_dir, wiki_dir = _make_project(tmp_path)

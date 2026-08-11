@@ -23,7 +23,7 @@ env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
 
 # 可选:联网搜索 / 文件监听
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
-  pip install watchdog tavily-python pypinyin
+  pip install tavily-python pypinyin
 ```
 
 完整安装说明见 [`docs/environment/SETUP.md`](docs/environment/SETUP.md)。

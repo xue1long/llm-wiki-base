@@ -1,7 +1,5 @@
 """Tests for src/server/routes/chat.py — HTTP chat endpoint uses AgentRuntime."""
-from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 from src.server.app import create_app

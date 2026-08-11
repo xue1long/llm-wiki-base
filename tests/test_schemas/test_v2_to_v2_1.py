@@ -1,8 +1,6 @@
 # tests/test_schemas/test_v2_to_v2_1.py
-import json
-from pathlib import Path
 
-from src.schemas.migration import MigrationContext, SchemaVersion
+from src.schemas.migration import MigrationContext
 from src.schemas.migrations.v2_to_v2_1 import V2ToV2_1WikiPageMigration
 
 

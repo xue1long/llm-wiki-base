@@ -1,0 +1,153 @@
+"""Shadow mode: dual-run comparison between pipeline modes.
+
+When RUFLO_SHADOW_MODE=true, the main path (candidate) writes to wiki as
+usual, and the shadow path (legacy) writes to .index/shadow/<task_id>/.
+A JSON comparison report is generated alongside.
+"""
+
+from __future__ import annotations
+import json
+import logging
+import os
+import time as _time
+from pathlib import Path
+
+_logger = logging.getLogger(__name__)
+
+
+async def run_shadow_ingest(
+    paths,
+    source_path,
+    source_text: str,
+    provider,
+    folder_context: str = "",
+    task_id: str = "test",
+    shadow_mode: str = "legacy",
+):
+    """Run ingest in *shadow_mode* and write results to .index/shadow/<task_id>/.
+
+    Returns (shadow_pages, shadow_meta) or (None, None) on failure.
+    Shadow failure must never block the main path.
+    """
+    from .ingest import generate_ingest
+
+    old_mode = os.environ.get("RUFLO_PIPELINE_MODE")
+    try:
+        os.environ["RUFLO_PIPELINE_MODE"] = shadow_mode
+        shadow_pages, shadow_extra, shadow_meta = await generate_ingest(
+            paths=paths,
+            source_path=source_path,
+            source_text=source_text,
+            provider=provider,
+            folder_context=folder_context,
+            task_id=task_id,
+        )
+    except Exception as exc:
+        _logger.warning(
+            "[shadow] shadow ingest failed for %s: %s", task_id, exc,
+        )
+        return None, None
+    finally:
+        if old_mode is None:
+            os.environ.pop("RUFLO_PIPELINE_MODE", None)
+        else:
+            os.environ["RUFLO_PIPELINE_MODE"] = old_mode
+
+    # Write shadow output
+    shadow_dir = paths.index / "shadow" / task_id
+    shadow_dir.mkdir(parents=True, exist_ok=True)
+
+    shadow_payload = {
+        "task_id": task_id,
+        "source_path": str(source_path),
+        "mode": shadow_mode,
+        "timestamp": int(_time.time() * 1000),
+        "page_count": len(shadow_pages),
+        "extra_count": len(shadow_extra),
+        "meta": {k: v for k, v in shadow_meta.items() if k != "analysis"},
+        "pages": [
+            {
+                "id": p.id,
+                "type": p.type.value,
+                "title": p.title,
+                "grade": p.grade,
+                "body_len": len(p.body),
+            }
+            for p in shadow_pages
+        ],
+    }
+    (shadow_dir / "output.json").write_text(
+        json.dumps(shadow_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    _logger.info(
+        "[shadow] wrote %d shadow pages to %s", len(shadow_pages), shadow_dir,
+    )
+    return shadow_pages, shadow_meta
+
+
+def write_comparison_report(
+    shadow_dir: Path,
+    main_pages: list,
+    shadow_pages: list | None,
+    main_meta: dict,
+    shadow_meta: dict | None,
+    task_id: str,
+) -> Path:
+    """Write a comparison report between main and shadow runs.
+
+    Returns path to the report file.
+    """
+    shadow_dir.mkdir(parents=True, exist_ok=True)
+
+    # Main stats
+    main_types = {}
+    main_grades = {}
+    for p in main_pages:
+        main_types[p.type.value] = main_types.get(p.type.value, 0) + 1
+        main_grades[p.grade] = main_grades.get(p.grade, 0) + 1
+
+    # Shadow stats (if available)
+    shadow_types = {}
+    shadow_grades = {}
+    if shadow_pages:
+        for p in shadow_pages:
+            shadow_types[p.type.value] = shadow_types.get(p.type.value, 0) + 1
+            shadow_grades[p.grade] = shadow_grades.get(p.grade, 0) + 1
+
+    report = {
+        "task_id": task_id,
+        "timestamp": int(_time.time() * 1000),
+        "main": {
+            "page_count": len(main_pages),
+            "type_distribution": main_types,
+            "grade_distribution": main_grades,
+            "rejected": main_meta.get("rejected", False),
+            "needs_review": main_meta.get("needs_review", False),
+        },
+        "shadow": {
+            "page_count": len(shadow_pages) if shadow_pages else 0,
+            "type_distribution": shadow_types,
+            "grade_distribution": shadow_grades,
+            "rejected": shadow_meta.get("rejected", False) if shadow_meta else None,
+            "needs_review": shadow_meta.get("needs_review", False) if shadow_meta else None,
+            "available": shadow_pages is not None,
+        },
+        "comparison": {
+            "page_count_delta": (
+                len(main_pages) - len(shadow_pages)
+                if shadow_pages else None
+            ),
+            "shared_types": sorted(set(main_types) & set(shadow_types)),
+            "main_only_types": sorted(set(main_types) - set(shadow_types)),
+            "shadow_only_types": sorted(set(shadow_types) - set(main_types)),
+        },
+    }
+
+    report_path = shadow_dir / "comparison.json"
+    report_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    _logger.info("[shadow] comparison report written to %s", report_path)
+    return report_path

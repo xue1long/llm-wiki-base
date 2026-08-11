@@ -9,7 +9,6 @@ from __future__ import annotations
 import unicodedata
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any
 
 from ._pipeline_common import _ZERO_WIDTH_RE, _MULTI_BLANK_RE
 

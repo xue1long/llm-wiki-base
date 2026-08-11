@@ -7,7 +7,6 @@ in tracker.snapshot() is excluded from select_next_task. The contract is:
 - is_in_flight(task_id) reflects current state
 - snapshot() returns a copy of the set (caller-side mutation is safe)
 """
-import pytest
 
 from src.queue.in_flight import InMemoryInFlightTracker
 

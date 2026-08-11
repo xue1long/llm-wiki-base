@@ -24,10 +24,8 @@ Two tests exercise this:
   a thread with no running loop, asserts the task reaches APPROVED,
   `_in_flight` is cleared, and no coroutine is left unawaited.
 """
-import asyncio
 import warnings
 
-import pytest
 
 from src.circuit_breaker import get_circuit_breaker, CircuitState
 from src.events.event_bus import event_bus

@@ -1,6 +1,5 @@
 """Backup manager — timestamped backups + latest/ symlink for migrations."""
 import logging
-import os
 import shutil
 import time
 from dataclasses import dataclass

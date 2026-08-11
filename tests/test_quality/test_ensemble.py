@@ -4,7 +4,7 @@ import json
 
 from src.llm.base import LLMResponse
 from src.quality.ensemble import EnsembleJudge, _safe_scores
-from src.quality.types import QualitySettings, JudgmentScores
+from src.quality.types import QualitySettings
 
 
 class FakeProvider:
@@ -26,15 +26,11 @@ class FakeProvider:
         pass
 
 
-GOOD_SCORES = {k: 0.9 for k in [
-    "source_type_appropriateness", "factuality", "completeness",
-    "clarity", "readability", "searchability",
-]}
+GOOD_SCORES = dict.fromkeys(["source_type_appropriateness", "factuality", "completeness", "clarity", "readability", "searchability"], 0.9)
 
 
 def test_ensemble_default_2_judges(monkeypatch):
     """Both providers exist in registry → 2 judges participate."""
-    from src.llm import registry as reg
     providers_calls: list[str] = []
 
     def fake_create(name, model_override=None):
@@ -55,7 +51,6 @@ def test_ensemble_default_2_judges(monkeypatch):
 
 def test_ensemble_veto_on_low_factuality(monkeypatch):
     """One judge scores factuality=0.1 → verdict=reject (no second chance)."""
-    from src.llm import registry as reg
     def fake_create(name, model_override=None):
         if name == "openai":
             bad = dict(GOOD_SCORES)
@@ -74,14 +69,8 @@ def test_ensemble_veto_on_low_factuality(monkeypatch):
 
 def test_ensemble_aggregation_mean(monkeypatch):
     """Mean of two votes per dimension."""
-    scores_a = {k: 0.6 for k in [
-        "source_type_appropriateness", "factuality", "completeness",
-        "clarity", "readability", "searchability",
-    ]}
-    scores_b = {k: 0.8 for k in [
-        "source_type_appropriateness", "factuality", "completeness",
-        "clarity", "readability", "searchability",
-    ]}
+    scores_a = dict.fromkeys(["source_type_appropriateness", "factuality", "completeness", "clarity", "readability", "searchability"], 0.6)
+    scores_b = dict.fromkeys(["source_type_appropriateness", "factuality", "completeness", "clarity", "readability", "searchability"], 0.8)
 
     def fake_create(name, model_override=None):
         if name == "openai":

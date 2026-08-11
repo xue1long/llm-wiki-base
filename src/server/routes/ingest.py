@@ -16,6 +16,10 @@ class IngestRequest(BaseModel):
     count: int | None = None   # max files to enqueue (folder only)
 
 
+class ReingestRequest(BaseModel):
+    source_path: str   # project-relative raw path, e.g. "raw/sources/foo.md"
+
+
 @router.post("/projects/{project_id}/ingest")
 async def ingest(project_id: str, body: IngestRequest):
     """Enqueue a URL or folder path for ingestion."""
@@ -28,6 +32,48 @@ async def ingest(project_id: str, body: IngestRequest):
         # raises this for absolute paths outside the project root.
         # Surface as HTTP 400 (client error) rather than the default
         # 500 the unhandled exception would produce.
+        raise HTTPException(400, str(e))
+
+
+@router.post("/projects/{project_id}/reingest")
+async def reingest(project_id: str, body: ReingestRequest):
+    """Delete all wiki pages and vectors for a source, then re-ingest it.
+
+    Body:
+        ``source_path``: project-relative path to the raw source file,
+        e.g. ``"raw/sources/01_新手入门/0_小说人物辅助设定.md"``.
+
+    Returns the same shape as ``POST /ingest`` with an extra ``cleaned``
+    field summarising what was deleted.
+    """
+    try:
+        return ingest_service.reingest_source(project_id, body.source_path)
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except IngestPathError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/projects/{project_id}/delete-source")
+async def delete_source(project_id: str, body: ReingestRequest):
+    """Delete all compiled wiki pages and vectors for a source — no re-ingest.
+
+    Body:
+        ``source_path``: project-relative path to the raw source file,
+        e.g. ``"raw/sources/01_新手入门/0_小说人物辅助设定.md"``.
+
+    Returns ``{"status": "deleted", "source_id", "deleted_pages",
+    "updated_pages", "deleted_vectors"}``.
+    """
+    try:
+        return ingest_service.delete_source(project_id, body.source_path)
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except IngestPathError as e:
         raise HTTPException(400, str(e))
 
 

@@ -11,10 +11,12 @@ from typing import TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..vector.search import ChunkSearchResult
+    from ..wiki.core.paths import WikiPaths
 
 from ..llm.embedding_runtime import (
     get_embedding_provider as _runtime_get_embedding_provider,
 )
+from ..utils.path import normalize_source_path
 from ..vector.search import vector_search_chunks
 
 logger = logging.getLogger(__name__)
@@ -127,8 +129,11 @@ async def hybrid_search(
             vector_results: list["ChunkSearchResult"] = vector_search_chunks(query_embedding, top_k, paths)
 
             for r in vector_results:
+                # Stored vector paths are project-relative now; normalize any
+                # legacy absolute-inside-root rows so semantic + keyword sides
+                # share the SAME path key for RRF fusion.
                 semantic_results.append(SearchResult(
-                    path=r.path,
+                    path=normalize_source_path(r.path, paths.root) if paths is not None else r.path,
                     title=Path(r.path).stem,
                     content=r.content[:300],
                     score=r.score,
@@ -212,7 +217,7 @@ async def _keyword_search(
             title_match = 2 if query_lower in file.stem.lower() else 0
 
             results.append(SearchResult(
-                path=str(file),
+                path=file.relative_to(paths.root).as_posix() if paths is not None else str(file),
                 title=file.stem,
                 content=content[:300],
                 score=float(matches + title_match),

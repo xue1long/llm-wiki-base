@@ -12,7 +12,6 @@ from src.utils.extract import EncryptedDocumentError
 
 def test_encrypted_zipfile_raises_typed_error(tmp_path, monkeypatch):
     """Simulate python-docx raising zipfile.BadZipFile on a corrupt .docx."""
-    from src.utils import extract as _extract_pkg
     from src.utils.extract import office
 
     fake = tmp_path / "corrupt.docx"

@@ -1,10 +1,6 @@
 """Test that src/cli_ext/research_cmd.py uses WikiPaths(ctx.path) correctly."""
-import sys
 from argparse import Namespace
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 
 
 def test_cmd_research_show_uses_paths(tmp_path, monkeypatch):

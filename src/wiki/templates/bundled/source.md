@@ -16,7 +16,3 @@
 ## 抽取的概念
 
 <!-- slot:extracted_concepts -->
-
-## 正文内容
-
-<!-- slot:main_content? -->

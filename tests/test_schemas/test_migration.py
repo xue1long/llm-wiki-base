@@ -1,6 +1,4 @@
 # tests/test_schemas/test_migration.py
-import json
-from dataclasses import dataclass
 from pathlib import Path
 
 import pytest

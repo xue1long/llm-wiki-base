@@ -33,12 +33,28 @@ ACTIVE_TASKS = MetricsRegistry.gauge(
     "ruflo_active_tasks", "Number of currently active tasks",
     label_names=["status"],
 )
+INGEST_CANDIDATE_REJECTED_TOTAL = MetricsRegistry.counter(
+    "ruflo_ingest_candidate_rejected_total",
+    "Number of candidates rejected during ingest",
+    label_names=["reason"],
+)
+INGEST_DURATION_SECONDS = MetricsRegistry.histogram(
+    "ruflo_ingest_duration_seconds", "Duration of ingest operations in seconds",
+    label_names=["verdict"],
+    buckets=(30, 60, 90, 120, 180, 300, 600, float("inf")),
+)
+INGEST_VERDICT_TOTAL = MetricsRegistry.counter(
+    "ruflo_ingest_verdict_total", "Total number of ingest operations by verdict",
+    label_names=["verdict", "reason"],
+)
 
 
 __all__ = [
     "Counter", "Gauge", "Histogram", "MetricsRegistry",
     "prometheus_format",
-    "INGEST_TOTAL", "CHAT_TOTAL", "LLM_CALL_DURATION",
+    "INGEST_TOTAL", "INGEST_CANDIDATE_REJECTED_TOTAL",
+    "INGEST_DURATION_SECONDS", "INGEST_VERDICT_TOTAL",
+    "CHAT_TOTAL", "LLM_CALL_DURATION",
     "LLM_COST_USD_TOTAL", "ACTIVE_TASKS",
     "DEFAULT_BUCKETS",
 ]

@@ -1,6 +1,5 @@
 """Tests for agent type definitions."""
 import json
-import pytest
 
 from src.agent.types import AgentLoopAction, AgentEvent, AgentConfig
 

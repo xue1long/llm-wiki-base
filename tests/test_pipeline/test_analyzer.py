@@ -1,9 +1,8 @@
 # tests/test_pipeline/test_analyzer.py
-import json
 import pytest
 from src.shared.test_helpers import ScriptedLLMProvider
-from src.pipeline.schemas import AnalysisResult, EntityMention
-from src.pipeline.analyzer import analyze
+from src.pipeline.analyzer import ANALYZER_PROMPT, analyze
+from src.wiki.core.types import PageType
 
 
 @pytest.mark.asyncio
@@ -52,7 +51,7 @@ async def test_analyze_parses_v22_fields_from_llm():
                 "grade": "A",
                 "processing_depth": "memory",
                 "is_immutable": True,
-                "tags": ["genre/noir", "func/reference"],
+                "tags": ["题材/noir", "功能/reference"],
             },
         ],
         "links_to_existing": [],
@@ -69,7 +68,7 @@ async def test_analyze_parses_v22_fields_from_llm():
     assert sp.grade == "A"
     assert sp.processing_depth == "memory"
     assert sp.is_immutable is True
-    assert sp.tags == ["genre/noir", "func/reference"]
+    assert sp.tags == ["题材/noir", "功能/reference"]
 
 
 @pytest.mark.asyncio
@@ -174,3 +173,23 @@ async def test_analyzer_prompt_prohibits_chain_of_thought():
         "ANALYZER_PROMPT must include a directive forbidding chain-of-thought "
         "/ hidden reasoning / thinking transcripts."
     )
+
+
+def test_analyzer_prompt_page_types_derived_from_page_type():
+    """ANALYZER_PROMPT's suggested_pages type list must be derived from the
+    PageType enum (the 4 page-layer values), not a hardcoded string."""
+    page_types = "|".join(
+        t.value for t in PageType
+        if t in (PageType.SOURCE, PageType.ENTITY, PageType.CONCEPT, PageType.SYNTHESIS)
+    )
+    rendered = ANALYZER_PROMPT.format(
+        source_path="s",
+        folder_context="",
+        existing_wiki_index="",
+        source_text="",
+        tag_namespace_rules="",
+        page_types=page_types,
+    )
+    # The suggested_pages type segment must carry exactly the 4 page-layer values.
+    assert f'"type": "{page_types}"' in rendered
+    assert set(page_types.split("|")) == {"source", "entity", "concept", "synthesis"}
