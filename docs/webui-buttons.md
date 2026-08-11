@@ -31,7 +31,7 @@
 |------|----------|------|----------|------|
 | **重新摄取** | 行 166 | 删除编译结果后重新执行完整流水线 | `POST /api/v1/projects/{id}/reingest` | P0 新增；确认后执行，进度轮询 |
 | **删除** | 行 167 | 删除此文档已编译的所有 wiki 页面和向量（原始文件保留） | `POST /api/v1/projects/{id}/delete-source` | 级联删除 wiki 页面 + 清理向量 |
-| **质** | 行 248/257 | 查看质检报告（modal） | `GET /api/v1/projects/{id}/raw-file-quality?path=...` | 在已摄取行显示为按钮，未摄取行显示为质量徽章 |
+| **质** | 行 248/257 | 查看质检报告（modal） | `GET /api/v1/projects/{id}/quality?source_path=...` | 聚合 grade + issue + verdict + review_items + quarantine |
 
 ### 1.4 任务列表
 
