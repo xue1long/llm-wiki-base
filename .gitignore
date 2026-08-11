@@ -52,3 +52,17 @@ metrics.db
 # Log files (runtime artifacts)
 *.log
 .server.log.*
+
+# --- agent/tool runtime dirs ---
+.agents/
+.codebuddy/
+.minimax/
+.trae/
+.venv/
+
+# one-off debug / scratch scripts
+_check_*.py
+_fix_*.py
+_revert_*.py
+_test_output.txt
+_revert_files.txt

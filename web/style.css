@@ -1207,6 +1207,10 @@ body {
   background: var(--bg-surface); border-radius: var(--radius-lg);
   box-shadow: var(--shadow-elevated); width: 440px; max-width: 90vw;
 }
+.modal-card-wide {
+  background: var(--bg-surface); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated); width: 640px; max-width: 90vw;
+}
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 20px; border-bottom: 1px solid var(--border);

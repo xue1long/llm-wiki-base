@@ -45,15 +45,6 @@ async def raw_files(project_id: str):
         raise HTTPException(404, str(e))
 
 
-@router.get("/projects/{project_id}/raw-file-quality")
-async def raw_file_quality(project_id: str, path: str):
-    """Quality report for a raw file's wiki source page."""
-    try:
-        return files_service.raw_file_quality(project_id, path)
-    except ProjectNotFoundError as e:
-        raise HTTPException(404, str(e))
-
-
 @router.post("/projects/{project_id}/upload")
 async def upload_file(project_id: str, file: UploadFile = File(...)):
     """Upload a raw source file to ``raw/sources/``.

@@ -273,7 +273,7 @@
     async function showQualityReport(path) {
       const overlay = document.createElement("div");
       overlay.className = "modal-overlay";
-      overlay.innerHTML = `<div class="modal-card">
+      overlay.innerHTML = `<div class="modal-card modal-card-wide">
         <div class="modal-header"><h3>质检报告</h3><button class="modal-close">×</button></div>
         <div class="modal-body"><div class="spinner"></div>质检中...</div>
       </div>`;
@@ -283,16 +283,29 @@
 
       const body = overlay.querySelector(".modal-body");
       try {
-        const r = await App.api(`/api/v1/projects/${App.state.projectId}/raw-file-quality?path=${encodeURIComponent(path)}`);
+        const r = await App.api(`/api/v1/projects/${App.state.projectId}/quality?source_path=${encodeURIComponent(path)}`);
         const clazz = qualityClass(r.grade);
         const gradeLabel = r.grade === "A" ? "通过" : r.grade === "C" ? "未通过" : "未质检";
+        const passedIcon = r.passed ? "✅" : "❌";
+        const verdictLabel = r.report ? (r.report.verdict || "—") : "无报告";
         body.innerHTML = `
           <div class="modal-field"><label>文件</label><div class="text-code">${App.escapeHtml(path)}</div></div>
           <div class="modal-field"><label>标题</label><div>${App.escapeHtml(r.title || "—")}</div></div>
+          <div class="modal-field"><label>综合判定</label><span>${passedIcon} ${r.passed ? "通过" : "未通过"}</span></div>
           <div class="modal-field"><label>质检结果</label><span class="quality-badge quality-${clazz}" style="cursor:default">${App.escapeHtml(gradeLabel)}</span></div>
+          <div class="modal-field"><label>Pipeline 裁决</label><div class="text-code">${App.escapeHtml(verdictLabel)}</div></div>
           ${r.issues && r.issues.length
             ? `<div class="modal-field"><label>问题</label><ul class="lint-list">${r.issues.map(i => `<li><code>${App.escapeHtml(i)}</code></li>`).join("")}</ul></div>`
             : `<div class="modal-field"><label>问题</label><div style="color:var(--success-text)">无</div></div>`}
+          ${r.review_items && r.review_items.length
+            ? `<div class="modal-field"><label>待审查项 (${r.review_items.length})</label><ul class="lint-list">${r.review_items.map(ri => `<li><span class="tag">${App.escapeHtml(ri.type)}</span> <strong>${App.escapeHtml(ri.title)}</strong>${ri.detail ? ` — ${App.escapeHtml(ri.detail)}` : ""} <span class="text-muted">${App.escapeHtml(ri.status)}</span></li>`).join("")}</ul></div>`
+            : ""}
+          ${r.quarantine && r.quarantine.length
+            ? `<div class="modal-field"><label>隔离页 (${r.quarantine.length})</label><ul class="lint-list">${r.quarantine.map(q => `<li><code>${App.escapeHtml(q.page_id)}</code> — ${App.escapeHtml(q.verdict)} (${q.total_score})${q.issues?.length ? ": " + q.issues.join(", ") : ""}</li>`).join("")}</ul></div>`
+            : ""}
+          ${r.report?.warnings?.length
+            ? `<div class="modal-field"><label>警告</label><ul class="lint-list">${r.report.warnings.map(w => `<li><code>${App.escapeHtml(w)}</code></li>`).join("")}</ul></div>`
+            : ""}
         `;
       } catch (e) {
         body.innerHTML = `<div class="banner-err">质检失败: ${App.escapeHtml(e.message)}</div>`;
@@ -589,6 +602,6 @@
     // (single quality report function — see showQualityReport above)
     // Old showQualityModal / renderQualityModalBody / renderTooltipContent
     // / renderTooltip removed in 2026-08-11 cleanup.  Unified on
-    // showQualityReport() + GET /raw-file-quality?path=.
+    // showQualityReport() + GET /quality?source_path=.
   };
 })();

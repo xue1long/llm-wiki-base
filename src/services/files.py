@@ -296,39 +296,6 @@ def list_raw_files(project_id: str) -> dict:
     return {"files": files}
 
 
-def raw_file_quality(project_id: str, raw_path: str) -> dict:
-    """Report the quality grade + issues for one raw file's wiki source page.
-
-    Looks up the wiki/sources page whose frontmatter ``sources`` references
-    ``raw_path``, then returns its grade and any rule-based degradation
-    reasons (a lightweight re-check of the quality gate rules).
-    """
-    ctx, paths = resolve_project(project_id, by_id_only=True)
-    key = raw_path.replace("\\", "/")
-
-    if paths.wiki_sources.exists():
-        for md_file in paths.wiki_sources.iterdir():
-            if not md_file.suffix == ".md" or not md_file.is_file():
-                continue
-            try:
-                text = md_file.read_text(encoding="utf-8")
-            except Exception:
-                continue
-            if not text.startswith("---\n"):
-                continue
-            end = text.find("\n---", 4)
-            if end < 0:
-                continue
-            try:
-                fm = yaml.safe_load(text[4:end]) or {}
-            except yaml.YAMLError:
-                continue
-            sources = fm.get("sources", [])
-            if isinstance(sources, list) and key in [str(s).replace("\\", "/") for s in sources]:
-                return _quality_report(fm, text)
-    return {"grade": None, "title": None, "issues": []}
-
-
 class UnsupportedFileTypeError(Exception):
     """Uploaded file's extension is not in the supported ingest set."""
 
@@ -368,31 +335,3 @@ def upload_file(project_id: str, filename: str, content: bytes) -> dict:
 
     rel = f"raw/sources/{name}"
     return {"path": rel, "size": len(content), "name": name}
-
-
-def _quality_report(fm: dict, text: str) -> dict:
-    """Build a quality report dict from a wiki source page's frontmatter+body."""
-    from ..pipeline.quality_gate import _meaningful_length, _has_type_prefix
-
-    grade = fm.get("grade", "B")
-    issues: list[str] = []
-    page_id = str(fm.get("id", ""))
-    title = str(fm.get("title", ""))
-
-    # Strip frontmatter to get the body for meaningful-length check
-    body = text
-    if text.startswith("---\n"):
-        end = text.find("\n---", 4)
-        if end >= 0:
-            body = text[end + 5:]
-
-    if _has_type_prefix(page_id) or _has_type_prefix(title):
-        issues.append(f"prefix_ghost: {title}")
-    if _meaningful_length(body) < 20:
-        issues.append("empty_body")
-
-    return {
-        "grade": grade,
-        "title": title,
-        "issues": issues,
-    }

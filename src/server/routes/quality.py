@@ -8,6 +8,7 @@ The endpoint aggregates:
 1. The most recent :class:`IngestReport` (verdict, warnings, etc.)
 2. Open :class:`ReviewItem` entries whose ``source_task_id`` matches
 3. Quarantine judgments (from the task's quarantine directory)
+4. The wiki source page frontmatter (grade, title, body-level issues)
 """
 from __future__ import annotations
 
@@ -15,11 +16,13 @@ import json
 import logging
 from pathlib import Path
 
+import yaml
 from fastapi import APIRouter, HTTPException, Query
 
 from ...lib.project import resolve_project
 from ...project.context import ProjectNotFoundError
 from ...pipeline.ingest_report import IngestReport, REPORTS_DIR
+from ...pipeline.quality_gate import _meaningful_length, _has_type_prefix
 from ...wiki.features.review import load_reviews
 
 _logger = logging.getLogger(__name__)
@@ -115,6 +118,52 @@ def _compute_overall_pass(report: dict | None, review_items: list, quarantine: l
     return True
 
 
+def _read_wiki_page_frontmatter(paths, source_path: str) -> dict:
+    """Read grade + title + body-level issues from the wiki source page for *source_path*."""
+    key = source_path.replace("\\", "/")
+    grade = "B"
+    title = None
+    issues: list[str] = []
+
+    if paths.wiki_sources.exists():
+        for md_file in paths.wiki_sources.iterdir():
+            if not md_file.suffix == ".md" or not md_file.is_file():
+                continue
+            try:
+                text = md_file.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            if not text.startswith("---\n"):
+                continue
+            end = text.find("\n---", 4)
+            if end < 0:
+                continue
+            try:
+                fm = yaml.safe_load(text[4:end]) or {}
+            except yaml.YAMLError:
+                continue
+            sources = fm.get("sources", [])
+            if isinstance(sources, list) and key in [str(s).replace("\\", "/") for s in sources]:
+                grade = fm.get("grade", "B")
+                title = fm.get("title")
+                page_id = str(fm.get("id", ""))
+
+                # Body checks (same as _quality_report in files.py)
+                body = text
+                if text.startswith("---\n"):
+                    end2 = text.find("\n---", 4)
+                    if end2 >= 0:
+                        body = text[end2 + 5:]
+
+                if _has_type_prefix(page_id) or _has_type_prefix(title or ""):
+                    issues.append(f"prefix_ghost: {title}")
+                if _meaningful_length(body) < 20:
+                    issues.append("empty_body")
+                break
+
+    return {"grade": grade, "title": title, "issues": issues}
+
+
 @router.get("/projects/{project_id}/quality")
 async def quality_report(
     project_id: str,
@@ -122,11 +171,14 @@ async def quality_report(
 ):
     """Return the quality report for a single ingested source file.
 
-    The frontend calls this when the user hovers over or clicks the "质"
-    button.  Returns a JSON object with:
+    The frontend calls this when the user clicks the "质" button.
+    Returns a JSON object with:
 
     - ``exists``: whether any report was found
     - ``passed``: overall pass/fail (green/red)
+    - ``grade``: wiki page grade (A/B/C)
+    - ``title``: wiki page title
+    - ``issues``: body-level issues (prefix_ghost, empty_body)
     - ``report``: the IngestReport dict, or ``None``
     - ``review_items``: open ReviewItems for this task
     - ``quarantine``: quarantine judgments for this task
@@ -148,10 +200,14 @@ async def quality_report(
         quarantine = _load_quarantine_summary(paths.root, task_id)
 
     passed = _compute_overall_pass(report, review_items, quarantine)
+    page = _read_wiki_page_frontmatter(paths, source_path)
 
     result: dict = {
         "exists": report is not None,
         "passed": passed,
+        "grade": page["grade"],
+        "title": page["title"],
+        "issues": page["issues"],
         "report": report,
         "review_items": review_items,
         "quarantine": quarantine,
