@@ -7,31 +7,30 @@ if TYPE_CHECKING:
     from ..features.relations import Relation
 
 
+def _ms_to_date(ms: int) -> str:
+    """Convert unix ms timestamp to YYYY-MM-DD string. Returns '' for 0."""
+    if not ms:
+        return ""
+    from datetime import datetime
+    return datetime.fromtimestamp(ms / 1000).strftime("%Y-%m-%d")
+
+
+def _date_to_ms(date_str: str) -> int:
+    """Convert YYYY-MM-DD string to unix ms timestamp. Returns 0 for empty/invalid."""
+    if not date_str:
+        return 0
+    try:
+        from datetime import datetime
+        return int(datetime.strptime(date_str, "%Y-%m-%d").timestamp() * 1000)
+    except (ValueError, TypeError):
+        return 0
+
+
 class PageType(str, Enum):
     SOURCE = "source"
     ENTITY = "entity"
     CONCEPT = "concept"
     SYNTHESIS = "synthesis"
-
-
-class EventName:
-    TASK_CREATED = "task:created"
-    TASK_STATUS_CHANGED = "task:status:changed"
-    COLLECTOR_DONE = "collector:done"
-    ANALYZER_DONE = "analyzer:done"
-    GENERATOR_DONE = "generator:done"
-    QUALITY_JUDGED = "quality:judged"
-    LIBRARIAN_DONE = "librarian:done"
-    REVIEW_RESOLVED = "review:resolved"
-
-
-class TaskStatus(str, Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    FAILED = "failed"
-    ARCHIVED = "archived"
 
 
 @dataclass
@@ -40,8 +39,8 @@ class WikiPage:
     title: str
     type: PageType
     sources: list[str] = field(default_factory=list)
-    created_at: int = 0
-    updated_at: int = 0
+    created_at: str = ""
+    updated_at: str = ""
     body: str = ""
     relations: list["Relation"] = field(default_factory=list)
     # NEW v2.2 fields
@@ -50,8 +49,8 @@ class WikiPage:
     is_immutable: bool = False
     # NEW heat fields (wiki-heat-5pool T1)
     heat: int = 50
-    last_used_at: int = 0
-    zombie_since: int | None = None
+    last_used_at: str = ""
+    zombie_since: str = ""
     # Tags: controlled namespace prefixes (e.g. char/女主角, genre/都市)
     tags: list[str] = field(default_factory=list)
     # Taxonomy (v3.1): LLM-assigned classification, "" = unclassified
@@ -86,35 +85,20 @@ class WikiPage:
             title=d["title"],
             type=PageType(d["type"]),
             sources=list(d.get("sources", [])),
-            created_at=d.get("created_at", 0),
-            updated_at=d.get("updated_at", 0),
+            created_at=str(d.get("created_at", "") or ""),
+            updated_at=str(d.get("updated_at", "") or ""),
             body=body,
             relations=[Relation.from_dict(r) for r in d.get("relations", []) if isinstance(r, dict)],
             grade=d.get("grade", "B"),
             processing_depth=d.get("processing_depth", "concept"),
             is_immutable=d.get("is_immutable", False),
             heat=d.get("heat", 50),
-            last_used_at=d.get("last_used_at", 0),
-            zombie_since=d.get("zombie_since"),
+            last_used_at=str(d.get("last_used_at", "") or ""),
+            zombie_since=str(d.get("zombie_since", "") or ""),
             tags=list(d.get("tags", [])),
             category=d.get("category", ""),
             taxonomy_sub=d.get("taxonomy_sub", ""),
         )
-
-
-@dataclass
-class KnowledgeTask:
-    id: str
-    source: str
-    source_type: str
-    status: TaskStatus
-    task_hash: str
-    created_at: int
-    updated_at: int
-    retry_count: int = 0
-    error: Optional[str] = None
-    wiki_pages: list[str] = field(default_factory=list)
-    folder_context: str = ""
 
 
 @dataclass

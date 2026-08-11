@@ -18,11 +18,8 @@ from .core.id_generator import ID_PATTERN, generate_page_id, is_valid_id
 from .core.page_model import WikiPage
 from .core.paths import WikiPaths
 from .core.types import (
-    EventName,
-    KnowledgeTask,
     PageType,
     ReviewItem,
-    TaskStatus,
     make_review_item,
 )
 from .features.relations import (
@@ -50,10 +47,7 @@ from .storage.page_writer import (
 __all__ = [
     # Core data and paths
     "PageType",
-    "EventName",
-    "TaskStatus",
     "WikiPage",
-    "KnowledgeTask",
     "ReviewItem",
     "make_review_item",
     "WikiPaths",
