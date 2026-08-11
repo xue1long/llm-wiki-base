@@ -618,7 +618,7 @@ body {
 .ingest-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ingest-file-date { font-size: 11px; color: var(--text-muted); width: 80px; text-align: right; }
 .ingest-file-size { font-size: 11px; color: var(--text-muted); width: 60px; text-align: right; }
-.ingest-file-status { font-size: 11px; color: var(--success); width: 60px; text-align: right; }
+.ingest-file-status { font-size: 11px; color: var(--success); width: 60px; text-align: right; display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
 .ingest-file-icon { width: 20px; text-align: center; }
 
 .ingest-right {
@@ -655,6 +655,48 @@ body {
 .ingest-hint { font-size: 12px; color: var(--text-secondary); margin-top: 12px; }
 .ingest-result { margin-top: 16px; }
 
+/* Upload drop zone */
+.upload-zone {
+  border: 2px dashed var(--border-hover); border-radius: var(--radius);
+  padding: 18px 16px; text-align: center; cursor: pointer;
+  background: var(--bg-subtle); transition: border-color .15s, background .15s;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: var(--accent); background: var(--accent-light);
+}
+.upload-zone.dragover .upload-hint { color: var(--accent); }
+.upload-zone.disabled { opacity: .5; pointer-events: none; }
+.upload-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.upload-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.upload-list { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.upload-row {
+  display: flex; align-items: center; gap: 8px; font-size: 12px;
+  padding: 4px 8px; border-radius: var(--radius-sm); background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+}
+.upload-row-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-row-status { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.upload-row-status.ok { color: var(--success); }
+.upload-row-status.err { color: var(--danger); }
+
+/* Queue status bar */
+.queue-status {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 12px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.queue-status .qs-label { font-size: 12px; color: var(--text-muted); }
+.queue-status .qs-val { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.queue-status .qs-val.paused { color: var(--warning); }
+.queue-status .qs-actions { margin-left: auto; display: flex; gap: 6px; }
+.queue-status .qs-actions button {
+  padding: 4px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg-surface); color: var(--text-secondary); cursor: pointer;
+  font-family: inherit; font-size: 12px;
+}
+.queue-status .qs-actions button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.queue-status .qs-actions button:disabled { opacity: .5; cursor: not-allowed; }
+
 .ingest-progress { margin-top: 12px; }
 .progress-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
 .progress-bar { flex: 1; height: 8px; background: var(--bg-hover); border-radius: var(--radius-sm); overflow: hidden; }
@@ -667,6 +709,80 @@ body {
 .stage-badge {
   display: inline-block; padding: 2px 8px; margin: 2px 2px 2px 0;
   background: var(--accent-light); color: var(--accent); border-radius: var(--radius-lg); font-size: 11px;
+}
+
+/* ---------- Ingest task history ---------- */
+.ingest-history {
+  margin-top: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.ingest-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.ingest-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.task-row {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  background: var(--bg-subtle);
+}
+.task-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.task-badge {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+}
+.task-badge-succeeded { color: var(--success-text); background: var(--success-light); border-color: var(--success-border); }
+.task-badge-failed    { color: var(--danger-text);  background: var(--danger-light);  border-color: var(--danger-border); }
+.task-badge-running   { color: var(--accent);       background: var(--accent-light); border-color: var(--accent-border, var(--border)); }
+.task-badge-queued    { color: var(--text-secondary); }
+.task-badge-unknown   { color: var(--text-muted); }
+.task-id {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.task-stages {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.task-err {
+  color: var(--danger-text);
 }
 
 /* ==================================================================== */
@@ -854,6 +970,19 @@ body {
   font-size: 11px;
   font-weight: 500;
 }
+
+/* Quality badge — "质" indicator */
+.quality-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 3px;
+  font-size: 11px; font-weight: 600; cursor: pointer;
+  user-select: none; line-height: 1;
+  transition: opacity var(--transition-fast);
+}
+.quality-badge:hover { opacity: 0.75; }
+.quality-none { background: var(--bg-hover); color: var(--text-muted); }
+.quality-pass { background: var(--success-light); color: var(--success-text); }
+.quality-fail { background: var(--danger-light); color: var(--danger-text); }
 .badge-err {
   display: inline-block;
   padding: 2px 10px;
@@ -948,6 +1077,17 @@ body {
 .project-dropdown-item .proj-del:hover {
   background: var(--danger-light);
   color: var(--danger);
+}
+.proj-current-tag {
+  flex-shrink: 0;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10px;
+  line-height: 1.5;
+  border-radius: 999px;
+  background: var(--accent-light);
+  color: var(--accent);
+  border: 1px solid var(--accent-border, var(--border));
 }
 #newProjectBtn {
   padding: 3px 8px;

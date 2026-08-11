@@ -88,6 +88,54 @@ def test_files_content_rejects_directory(monkeypatch, tmp_path):
     assert "directory" in r.json()["detail"].lower()
 
 
+def test_upload_file_returns_200_and_path(monkeypatch, tmp_path):
+    """POST /api/v1/projects/x/upload with a multipart file returns 200."""
+    from src.services import files as files_service
+    from src.project.context import ProjectContext
+    from src.wiki.core.paths import WikiPaths
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    identity = type("I", (), {"id": "u"})()
+    monkeypatch.setattr(
+        files_service, "resolve_project",
+        lambda pid, by_id_only=True: (
+            ProjectContext(identity=identity, path=project_dir, name="p", schema_version="v2.0"),
+            WikiPaths(project_dir),
+        ),
+    )
+
+    r = client.post(
+        "/api/v1/projects/x/upload",
+        files={"file": ("test.md", b"# hello", "text/markdown")},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["path"] == "raw/sources/test.md"
+
+
+def test_upload_file_rejects_bad_extension(monkeypatch, tmp_path):
+    """POST /api/v1/projects/x/upload with .exe returns 400."""
+    from src.services import files as files_service
+    from src.project.context import ProjectContext
+    from src.wiki.core.paths import WikiPaths
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    identity = type("I", (), {"id": "u"})()
+    monkeypatch.setattr(
+        files_service, "resolve_project",
+        lambda pid, by_id_only=True: (
+            ProjectContext(identity=identity, path=project_dir, name="p", schema_version="v2.0"),
+            WikiPaths(project_dir),
+        ),
+    )
+
+    r = client.post(
+        "/api/v1/projects/x/upload",
+        files={"file": ("evil.exe", b"\x00", "application/octet-stream")},
+    )
+    assert r.status_code == 400
+
+
 # 4. schema --------------------------------------------------------------
 
 def test_schema_endpoint_returns_list(monkeypatch, tmp_path):

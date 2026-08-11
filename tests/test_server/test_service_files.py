@@ -281,6 +281,70 @@ def test_list_raw_files_filters_non_raw_extensions(monkeypatch, tmp_path):
     assert "c.py" not in names
 
 
+def test_upload_file_writes_to_raw_sources(monkeypatch, tmp_path):
+    """upload_file persists bytes to raw/sources/<name> and returns path."""
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id": "u", "name": "p", "created_at": 1000, "schema_version": "v2.0"}',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "src.services.files.resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+
+    result = files_service.upload_file("u", "note.md", b"# hello")
+    assert result["path"] == "raw/sources/note.md"
+    assert result["size"] == 7
+    dest = project_dir / "raw" / "sources" / "note.md"
+    assert dest.read_bytes() == b"# hello"
+
+
+def test_upload_file_sanitizes_basename(monkeypatch, tmp_path):
+    """upload_file strips path separators to prevent traversal."""
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id": "u", "name": "p", "created_at": 1000, "schema_version": "v2.0"}',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "src.services.files.resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+
+    result = files_service.upload_file("u", "../../../evil.txt", b"x")
+    # Written under raw/sources/, not outside the project
+    assert result["path"] == "raw/sources/evil.txt"
+    assert (project_dir / "raw" / "sources" / "evil.txt").exists()
+    assert not (project_dir / "evil.txt").exists()
+
+
+def test_upload_file_rejects_unsupported_ext(monkeypatch, tmp_path):
+    """upload_file raises UnsupportedFileTypeError for non-raw extensions."""
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id": "u", "name": "p", "created_at": 1000, "schema_version": "v2.0"}',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "src.services.files.resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+
+    import pytest
+    with pytest.raises(files_service.UnsupportedFileTypeError):
+        files_service.upload_file("u", "script.exe", b"\x00")
+
+
 def _fake_resolve(project_dir):
     """Build a (ProjectContext, WikiPaths) pair pointing at project_dir."""
     from src.project.context import ProjectContext

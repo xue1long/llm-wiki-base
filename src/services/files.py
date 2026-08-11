@@ -225,6 +225,31 @@ def list_raw_files(project_id: str) -> dict:
     # (e.g. kb-20260726-xxxx.md) that never match raw file names.
     referenced_paths = _collect_referenced_raw_paths(paths.wiki_sources)
 
+    # Build raw_path → wiki page frontmatter map for quality info
+    raw_to_wiki_page: dict[str, dict] = {}
+    if paths.wiki_sources.exists():
+        for md_file in paths.wiki_sources.iterdir():
+            if not md_file.suffix == ".md" or not md_file.is_file():
+                continue
+            try:
+                text = md_file.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            if not text.startswith("---\n"):
+                continue
+            end = text.find("\n---", 4)
+            if end < 0:
+                continue
+            try:
+                fm = yaml.safe_load(text[4:end]) or {}
+            except yaml.YAMLError:
+                continue
+            sources = fm.get("sources", [])
+            if isinstance(sources, list):
+                for s in sources:
+                    key = str(s).replace("\\", "/")
+                    raw_to_wiki_page[key] = fm
+
     files = []
     for f in raw_dir.rglob("*"):
         if not f.is_file():
@@ -251,6 +276,12 @@ def list_raw_files(project_id: str) -> dict:
             or batch_match     # batch state exists and confirms this file
         )
 
+        # quality = grade from the wiki source page frontmatter
+        quality = None
+        if ingested and rel in raw_to_wiki_page:
+            wp = raw_to_wiki_page[rel]
+            quality = wp.get("grade", "B")  # default B = "未质检"
+
         files.append({
             "path": rel,
             "name": f.name,
@@ -258,7 +289,110 @@ def list_raw_files(project_id: str) -> dict:
             "size": f.stat().st_size,
             "created_at": int(f.stat().st_ctime * 1000),
             "ingested": ingested,
+            "quality": quality,
         })
 
     files.sort(key=lambda f: f["name"])
     return {"files": files}
+
+
+def raw_file_quality(project_id: str, raw_path: str) -> dict:
+    """Report the quality grade + issues for one raw file's wiki source page.
+
+    Looks up the wiki/sources page whose frontmatter ``sources`` references
+    ``raw_path``, then returns its grade and any rule-based degradation
+    reasons (a lightweight re-check of the quality gate rules).
+    """
+    ctx, paths = resolve_project(project_id, by_id_only=True)
+    key = raw_path.replace("\\", "/")
+
+    if paths.wiki_sources.exists():
+        for md_file in paths.wiki_sources.iterdir():
+            if not md_file.suffix == ".md" or not md_file.is_file():
+                continue
+            try:
+                text = md_file.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            if not text.startswith("---\n"):
+                continue
+            end = text.find("\n---", 4)
+            if end < 0:
+                continue
+            try:
+                fm = yaml.safe_load(text[4:end]) or {}
+            except yaml.YAMLError:
+                continue
+            sources = fm.get("sources", [])
+            if isinstance(sources, list) and key in [str(s).replace("\\", "/") for s in sources]:
+                return _quality_report(fm, text)
+    return {"grade": None, "title": None, "issues": []}
+
+
+class UnsupportedFileTypeError(Exception):
+    """Uploaded file's extension is not in the supported ingest set."""
+
+
+def upload_file(project_id: str, filename: str, content: bytes) -> dict:
+    """Persist an uploaded raw file to ``raw/sources/``.
+
+    The filename is sanitised to a bare basename (no path separators or
+    traversal) and written under ``<project>/raw/sources/`` so the existing
+    ingest pipeline — which resolves paths relative to that directory — can
+    pick it up unchanged.
+
+    Args:
+        project_id: validated project (ProjectNotFound if absent).
+        filename: original upload filename; only its basename is used.
+        content: raw file bytes.
+
+    Returns:
+        {"path": "raw/sources/<name>", "size": int, "name": str}
+
+    Raises:
+        UnsupportedFileTypeError: extension not in ``_RAW_EXTS``.
+    """
+    ctx, paths = resolve_project(project_id, by_id_only=True)
+
+    name = Path(filename or "upload").name
+    ext = Path(name).suffix.lower()
+    if ext not in _RAW_EXTS:
+        raise UnsupportedFileTypeError(
+            f"unsupported file type {ext!r}; supported: {sorted(_RAW_EXTS)}"
+        )
+
+    raw_dir = paths.root / "raw" / "sources"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    dest = raw_dir / name
+    dest.write_bytes(content)
+
+    rel = f"raw/sources/{name}"
+    return {"path": rel, "size": len(content), "name": name}
+
+
+def _quality_report(fm: dict, text: str) -> dict:
+    """Build a quality report dict from a wiki source page's frontmatter+body."""
+    from ..pipeline.quality_gate import _meaningful_length, _has_type_prefix
+
+    grade = fm.get("grade", "B")
+    issues: list[str] = []
+    page_id = str(fm.get("id", ""))
+    title = str(fm.get("title", ""))
+
+    # Strip frontmatter to get the body for meaningful-length check
+    body = text
+    if text.startswith("---\n"):
+        end = text.find("\n---", 4)
+        if end >= 0:
+            body = text[end + 5:]
+
+    if _has_type_prefix(page_id) or _has_type_prefix(title):
+        issues.append(f"prefix_ghost: {title}")
+    if _meaningful_length(body) < 20:
+        issues.append("empty_body")
+
+    return {
+        "grade": grade,
+        "title": title,
+        "issues": issues,
+    }

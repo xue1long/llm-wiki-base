@@ -22,6 +22,25 @@
           </div>
         </div>
         <div class="ingest-right">
+          <!-- Upload drop zone -->
+          <div class="upload-zone" id="uploadZone">
+            <div class="upload-title">📤 上传文件</div>
+            <div class="upload-hint">拖拽文件到此处，或点击选择</div>
+            <div class="upload-list" id="uploadList"></div>
+            <input type="file" id="uploadInput" multiple hidden accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.txt,.md,.html,.xml,.json" />
+          </div>
+          <!-- Queue status -->
+          <div class="queue-status" id="queueStatus">
+            <span class="qs-label">队列</span>
+            <span class="qs-val" id="qsPending">0</span><span class="qs-label">待处理</span>
+            <span class="qs-val" id="qsRunning">0</span><span class="qs-label">运行中</span>
+            <span class="qs-val" id="qsFailed">0</span><span class="qs-label">失败</span>
+            <span class="qs-actions">
+              <button id="qsPauseBtn" title="暂停队列">⏸</button>
+              <button id="qsResumeBtn" title="恢复队列">▶</button>
+              <button id="qsRefreshBtn" title="刷新">⟳</button>
+            </span>
+          </div>
           <div class="ingest-actions">
             <button id="ingestSelectedBtn" class="btn-primary" disabled>提取选中 (0)</button>
             <button id="ingestAllBtn" class="btn-primary">全部提取</button>
@@ -37,9 +56,44 @@
           </div>
         </div>
       </div>
+      <div class="ingest-history">
+        <div class="ingest-history-header">
+          <h4 style="margin:0;font-size:14px;">摄取任务历史</h4>
+          <button id="ingestHistoryRefresh" class="btn-sm">刷新</button>
+        </div>
+        <div class="ingest-history-list" id="ingestHistoryList">
+          <div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div>
+        </div>
+      </div>
     `;
 
     loadRawFiles();
+    loadTaskHistory();
+    loadQueueStatus();
+    document.getElementById("ingestHistoryRefresh").addEventListener("click", loadTaskHistory);
+
+    // Upload drop zone
+    const zone = document.getElementById("uploadZone");
+    const input = document.getElementById("uploadInput");
+    zone.addEventListener("click", () => input.click());
+    input.addEventListener("change", () => handleFiles(input.files));
+    zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("dragover"); });
+    zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+    zone.addEventListener("drop", e => {
+      e.preventDefault(); zone.classList.remove("dragover");
+      handleFiles(e.dataTransfer.files);
+    });
+
+    // Queue status
+    document.getElementById("qsPauseBtn").addEventListener("click", async () => {
+      try { await App.api("/api/v1/queue/pause", { method: "POST" }); loadQueueStatus(); }
+      catch (e) { App.setBanner("暂停失败: " + e.message); }
+    });
+    document.getElementById("qsResumeBtn").addEventListener("click", async () => {
+      try { await App.api("/api/v1/queue/resume", { method: "POST" }); loadQueueStatus(); }
+      catch (e) { App.setBanner("恢复失败: " + e.message); }
+    });
+    document.getElementById("qsRefreshBtn").addEventListener("click", loadQueueStatus);
 
     // Manual single-source ingest
     document.getElementById("ingBtn").addEventListener("click", manualSubmit);
@@ -70,6 +124,34 @@
     document.getElementById("ingestFilterInput").addEventListener("input", () => renderFileList());
     document.getElementById("ingestStatusFilter").addEventListener("change", () => renderFileList());
 
+    async function handleFiles(files) {
+      if (!files || !files.length) return;
+      const list = document.getElementById("uploadList");
+      const zone = document.getElementById("uploadZone");
+      zone.classList.add("disabled");
+      for (const f of files) {
+        const row = document.createElement("div");
+        row.className = "upload-row";
+        row.innerHTML = `<span class="upload-row-name">${App.escapeHtml(f.name)}</span><span class="upload-row-status">上传中...</span>`;
+        list.appendChild(row);
+        const st = row.querySelector(".upload-row-status");
+        try {
+          const form = new FormData();
+          form.append("file", f);
+          const res = await fetch(`/api/v1/projects/${App.state.projectId}/upload`, { method: "POST", body: form });
+          if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+          st.textContent = "✓ 已上传";
+          st.className = "upload-row-status ok";
+          loadRawFiles();
+        } catch (e) {
+          st.textContent = "✗ " + e.message;
+          st.className = "upload-row-status err";
+        }
+      }
+      zone.classList.remove("disabled");
+      input.value = "";
+    }
+
     async function loadRawFiles() {
       try {
         const data = await App.api(`/api/v1/projects/${App.state.projectId}/raw-files`);
@@ -78,6 +160,57 @@
       } catch (e) {
         document.getElementById("ingestFileList").innerHTML = `<div class="banner-err">加载失败: ${App.escapeHtml(e.message)}</div>`;
       }
+    }
+
+    async function loadQueueStatus() {
+      try {
+        const q = await App.api("/api/v1/queue/status");
+        document.getElementById("qsPending").textContent = q.pending_count ?? "?";
+        document.getElementById("qsRunning").textContent = q.running_count ?? "?";
+        document.getElementById("qsFailed").textContent = q.failed_count ?? "?";
+      } catch { /* best-effort */ }
+    }
+
+    // Ingest task history — GET /api/v1/projects/{id}/ingest/tasks
+    async function loadTaskHistory() {
+      const listEl = document.getElementById("ingestHistoryList");
+      if (!listEl) return;
+      try {
+        const data = await App.api(`/api/v1/projects/${App.state.projectId}/ingest/tasks`);
+        const tasks = (data && data.tasks) || [];
+        if (!tasks.length) {
+          listEl.innerHTML = `<div class="empty-state"><div class="empty-state-icon" style="font-size:28px;margin-bottom:6px;">🗂️</div><div class="empty-state-title">暂无摄取任务记录</div><div class="empty-state-desc">提交摄取后这里会显示历史</div></div>`;
+          return;
+        }
+        listEl.innerHTML = tasks.map(t => {
+          const st = t.status || "unknown";
+          const started = t.started_at ? new Date(t.started_at).toLocaleString() : "—";
+          const finished = t.finished_at ? new Date(t.finished_at).toLocaleString() : "—";
+          const stages = Array.isArray(t.stages) ? t.stages.map(s => s && s.name).filter(Boolean).join(" → ") : "";
+          const shortId = App.escapeHtml((t.task_id || "").slice(0, 8));
+          const err = t.error ? App.escapeHtml(String(t.error)) : "";
+          return `<div class="task-row">
+            <div class="task-main">
+              <span class="task-badge task-badge-${App.escapeHtml(st)}">${App.escapeHtml(st)}</span>
+              <span class="task-id" title="${App.escapeHtml(t.task_id || "")}">#${shortId}</span>
+              ${stages ? `<span class="task-stages">${App.escapeHtml(stages)}</span>` : ""}
+            </div>
+            <div class="task-meta">
+              <span>开始 ${App.escapeHtml(started)}</span>
+              <span>结束 ${App.escapeHtml(finished)}</span>
+              ${err ? `<span class="task-err">⚠ ${err}</span>` : ""}
+            </div>
+          </div>`;
+        }).join("");
+      } catch (e) {
+        listEl.innerHTML = `<div class="banner-err">历史加载失败: ${App.escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function qualityClass(grade) {
+      if (grade === "A") return "pass";
+      if (grade === "C") return "fail";
+      return "none";  // "B" or any other → gray
     }
 
     function renderFileList() {
@@ -93,7 +226,7 @@
         list.innerHTML = `<div class="empty-state">
           <div class="empty-state-icon">📁</div>
           <div class="empty-state-title">raw/sources 目录为空</div>
-          <div class="empty-state-desc">将文件放入 raw/sources 目录后刷新</div>
+          <div class="empty-state-desc">上传文件到此处，或放入 raw/sources 目录后刷新</div>
         </div>`;
         return;
       }
@@ -106,14 +239,46 @@
           <span class="ingest-file-name">${App.escapeHtml(f.name)}</span>
           <span class="ingest-file-date">${dateStr}</span>
           <span class="ingest-file-size">${App.formatSize(f.size)}</span>
-          <span class="ingest-file-status">${f.ingested ? "✓ 已摄取" : ""}</span>
+          <span class="ingest-file-status">${f.ingested ? "✓ 已摄取" : ""}${f.quality !== undefined ? `<span class="quality-badge quality-${qualityClass(f.quality)}" data-path="${App.escapeHtml(f.path)}">质</span>` : ""}</span>
         </div>`;
       }).join("");
 
       list.querySelectorAll("input[type='checkbox']").forEach(cb => {
         cb.addEventListener("change", () => updateSelectedCount());
       });
+      list.querySelectorAll(".quality-badge").forEach(b => {
+        b.addEventListener("click", () => showQualityReport(b.dataset.path));
+      });
       updateSelectedCount();
+    }
+
+    async function showQualityReport(path) {
+      const overlay = document.createElement("div");
+      overlay.className = "modal-overlay";
+      overlay.innerHTML = `<div class="modal-card">
+        <div class="modal-header"><h3>质检报告</h3><button class="modal-close">×</button></div>
+        <div class="modal-body"><div class="spinner"></div>质检中...</div>
+      </div>`;
+      document.body.appendChild(overlay);
+      overlay.querySelector(".modal-close").addEventListener("click", () => overlay.remove());
+      overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+
+      const body = overlay.querySelector(".modal-body");
+      try {
+        const r = await App.api(`/api/v1/projects/${App.state.projectId}/raw-file-quality?path=${encodeURIComponent(path)}`);
+        const clazz = qualityClass(r.grade);
+        const gradeLabel = r.grade === "A" ? "通过" : r.grade === "C" ? "未通过" : "未质检";
+        body.innerHTML = `
+          <div class="modal-field"><label>文件</label><div class="text-code">${App.escapeHtml(path)}</div></div>
+          <div class="modal-field"><label>标题</label><div>${App.escapeHtml(r.title || "—")}</div></div>
+          <div class="modal-field"><label>质检结果</label><span class="quality-badge quality-${clazz}" style="cursor:default">${App.escapeHtml(gradeLabel)}</span></div>
+          ${r.issues && r.issues.length
+            ? `<div class="modal-field"><label>问题</label><ul class="lint-list">${r.issues.map(i => `<li><code>${App.escapeHtml(i)}</code></li>`).join("")}</ul></div>`
+            : `<div class="modal-field"><label>问题</label><div style="color:var(--success-text)">无</div></div>`}
+        `;
+      } catch (e) {
+        body.innerHTML = `<div class="banner-err">质检失败: ${App.escapeHtml(e.message)}</div>`;
+      }
     }
 
     function updateSelectedCount() {
@@ -197,6 +362,8 @@
           await new Promise(r => setTimeout(r, DELAY_MS));
         }
       }
+      loadTaskHistory();
+      loadQueueStatus();
     }
 
     async function manualSubmit() {
@@ -248,10 +415,20 @@
           stagesEl.innerHTML = stages.length
             ? stages.map(s => `<span class="stage-badge">${App.escapeHtml(s.name)}</span>`).join(" · ")
             : "<span style='color:#9ca3af'>等待阶段事件...</span>";
-          const pct = ({
-            queued: 5, running: 30, finished: 100,
-            succeeded: 100, failed: 100, ignored: 100,
-          }[rec.status]) ?? (stages.length >= 3 ? 95 : stages.length === 2 ? 70 : stages.length === 1 ? 40 : 30);
+          const pct = (() => {
+            // Terminal states always show full bar.
+            if (["succeeded", "failed", "finished", "ignored"].includes(rec.status)) {
+              return 100;
+            }
+            // queued → 5%
+            if (rec.status === "queued") {
+              return 5;
+            }
+            // running (or any in-flight): interpolate by completed stage count
+            // 0 stages → 5%, 1 (collector) → 35%, 2 (processor) → 70%, 3+ → 100%
+            const stagePct = [5, 35, 70, 100];
+            return stagePct[Math.min(stages.length, 3)];
+          })();
           fill.style.width = pct + "%";
           if (rec.status === "succeeded" || rec.status === "failed") {
             if (rec.status === "succeeded") {
@@ -266,6 +443,8 @@
         out.innerHTML = `<div class="banner-err">摄取失败: ${App.escapeHtml(e.message)}</div>`;
       } finally {
         btn.disabled = false; btn.textContent = "提交摄取";
+        loadTaskHistory();
+        loadQueueStatus();
       }
     }
   };
