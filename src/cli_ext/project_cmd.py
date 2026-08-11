@@ -13,12 +13,114 @@ from ..project.registry import (
 
 
 def cmd_project_init(args: argparse.Namespace) -> None:
-    """Initialize a new project at the given path."""
+    """Initialize a new project at the given path.
+
+    Creates the KB directory tree + scaffold files, writes project identity,
+    and registers the project in the global registry. Refuses to overwrite an
+    existing project root (mirrors the Rust create_project_impl behavior).
+    """
     project_path = safe_resolve(args.path)
+
+    # Refuse to overwrite an existing project (matches §1.2 ① of the WebUI flow).
+    if project_path.exists() and any(project_path.iterdir()):
+        print(
+            f"Refusing to initialize: directory already exists and is not empty: {project_path}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     name = args.name or project_path.name
+
+    # Scaffold the directory tree + base files (idempotent; safe on re-init).
+    from ..wiki.storage.ensure import ensure_knowledge_base
+    from ..lib.write_hooks import safe_write
+
+    paths = ensure_knowledge_base(project_path)
+    _write_scaffold_files(paths)
+
+    # Apply template (if requested) — schema.md / purpose.md get overwritten
+    # by the template's copies, just like the WebUI's front-end writeFile.
+    if getattr(args, "template", None):
+        from ..templates.loader import load
+        try:
+            tmpl = load(args.template)
+        except FileNotFoundError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(2)
+        for rel_path, content in tmpl.files.items():
+            dest = paths.root / rel_path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            safe_write(dest, content)
+
+    # Registry + identity (creates .llm-wiki/project.json).
     ctx = ProjectContext.from_path(project_path, name=name)
     print(f"Initialized project '{ctx.name}' ({ctx.id})")
     print(f"Path: {ctx.path}")
+
+
+_DEFAULT_SCHEMA = """# Wiki Schema Routing
+
+## Page Types
+
+| type | directory |
+|------|-----------|
+| source | wiki/sources |
+| entity | wiki/entities |
+| concept | wiki/concepts |
+| synthesis | wiki/synthesis |
+| claim | wiki/claims |
+| decision | wiki/decisions |
+
+## Conventions
+- Every wiki page MUST have frontmatter `id`, `title`, `type`, `sources`, `created_at`, `updated_at`.
+- `sources[]` holds relative paths into `raw/sources/`.
+- `grade: A | B | C` (default B); `processing_depth: concept | memory` (default concept).
+- Body uses `[[wikilink]]` syntax.
+"""
+
+_DEFAULT_PURPOSE = """# Purpose: {name}
+
+## Goals
+- Build a structured knowledge base from ingested sources.
+
+## Key Questions
+- What are the core concepts and entities in this domain?
+"""
+
+
+def _write_scaffold_files(paths) -> None:
+    """Write the base wiki scaffold files (index/log/overview/schema/purpose)."""
+    from datetime import date
+    from ..lib.write_hooks import safe_write
+
+    today = date.today().isoformat()
+    name = paths.root.name
+
+    index = (
+        "# Index\n\n"
+        "## Pages\n\n"
+        "| id | type | title |\n"
+        "|----|------|-------|\n"
+    )
+    log = f"# Log\n\n- {today} - Project created\n"
+    overview = (
+        "---\n"
+        "type: overview\n"
+        "id: overview\n"
+        "title: Overview\n"
+        "sources: []\n"
+        "created_at: 0\n"
+        "updated_at: 0\n"
+        "---\n\n"
+        f"# {name}\n\n"
+        "Overview of this knowledge base.\n"
+    )
+    safe_write(paths.llm_wiki_index, index)
+    safe_write(paths.llm_wiki_log, log)
+    safe_write(paths.wiki / "overview.md", overview)
+    # schema.md / purpose.md are defaults; a template overwrites them above.
+    safe_write(paths.root / "schema.md", _DEFAULT_SCHEMA)
+    safe_write(paths.root / "purpose.md", _DEFAULT_PURPOSE.format(name=name))
 
 
 def cmd_project_list(args: argparse.Namespace) -> None:

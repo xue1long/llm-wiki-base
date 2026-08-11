@@ -100,6 +100,7 @@ def main():
     p_init = p_project_sub.add_parser("init", help="Initialize new project")
     p_init.add_argument("path", help="Project root directory")
     p_init.add_argument("--name", help="Project name (default: path basename)")
+    p_init.add_argument("--template", default=None, help="Template name (e.g. research, reading, personal, business, general)")
     p_init.set_defaults(func=cmd_project_init)
 
     p_list = p_project_sub.add_parser("list", help="List registered projects")

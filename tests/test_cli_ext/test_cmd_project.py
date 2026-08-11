@@ -32,6 +32,83 @@ def test_cmd_project_init_creates_project(tmp_path, monkeypatch, capsys):
     assert "Initialized" in captured.out or "myproject" in captured.out
 
 
+def test_cmd_project_init_creates_scaffold(tmp_path, monkeypatch):
+    """cmd_project_init writes the wiki scaffold + template files."""
+    from src.cli_ext import project_cmd
+    from src.project import paths, registry
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    project_dir = tmp_path / "myproj"
+
+    monkeypatch.setattr(paths, "config_dir", lambda: config_dir)
+    monkeypatch.setattr(registry, "_default_registry_path", lambda: config_dir / "registry.json")
+    monkeypatch.setattr("src.cli_ext.project_cmd._registry_path", lambda: config_dir / "registry.json", raising=False)
+    monkeypatch.setattr("src.cli_ext.project_cmd._config_dir", lambda: config_dir, raising=False)
+
+    args = type("Args", (), {"path": str(project_dir), "name": None, "template": None})()
+    project_cmd.cmd_project_init(args)
+
+    # Scaffold dirs + files
+    for rel in ["wiki/sources", "wiki/entities", "wiki/concepts", "wiki/synthesis",
+                "wiki/claims", "wiki/decisions", "raw/sources", ".index"]:
+        assert (project_dir / rel).is_dir(), rel
+    for rel in ["wiki/index.md", "wiki/log.md", "wiki/overview.md", "schema.md", "purpose.md",
+                ".llm-wiki/project.json"]:
+        assert (project_dir / rel).is_file(), rel
+    assert "# Index" in (project_dir / "wiki" / "index.md").read_text()
+
+
+def test_cmd_project_init_applies_template(tmp_path, monkeypatch):
+    """cmd_project_init with --template applies the template's schema/purpose."""
+    from src.cli_ext import project_cmd
+    from src.project import paths, registry
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    project_dir = tmp_path / "research_proj"
+
+    monkeypatch.setattr(paths, "config_dir", lambda: config_dir)
+    monkeypatch.setattr(registry, "_default_registry_path", lambda: config_dir / "registry.json")
+    monkeypatch.setattr("src.cli_ext.project_cmd._registry_path", lambda: config_dir / "registry.json", raising=False)
+    monkeypatch.setattr("src.cli_ext.project_cmd._config_dir", lambda: config_dir, raising=False)
+
+    args = type("Args", (), {"path": str(project_dir), "name": None, "template": "research"})()
+    project_cmd.cmd_project_init(args)
+
+    schema = (project_dir / "schema.md").read_text(encoding="utf-8")
+    assert "synthesis" in schema  # template overwrote the default
+    purpose = (project_dir / "purpose.md").read_text(encoding="utf-8")
+    assert "Research" in purpose
+
+
+def test_cmd_project_init_refuses_nonempty_dir(tmp_path, monkeypatch, capsys):
+    """cmd_project_init refuses to overwrite an existing non-empty dir."""
+    from src.cli_ext import project_cmd
+    from src.project import paths, registry
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    project_dir = tmp_path / "existing"
+    project_dir.mkdir()
+    (project_dir / "keep.txt").write_text("x")
+
+    monkeypatch.setattr(paths, "config_dir", lambda: config_dir)
+    monkeypatch.setattr(registry, "_default_registry_path", lambda: config_dir / "registry.json")
+    monkeypatch.setattr("src.cli_ext.project_cmd._registry_path", lambda: config_dir / "registry.json", raising=False)
+    monkeypatch.setattr("src.cli_ext.project_cmd._config_dir", lambda: config_dir, raising=False)
+
+    args = type("Args", (), {"path": str(project_dir), "name": None, "template": None})()
+    try:
+        project_cmd.cmd_project_init(args)
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("expected SystemExit for non-empty dir")
+
+    assert (project_dir / "keep.txt").exists()
+
+
 def test_cmd_project_list_shows_registered(tmp_path, monkeypatch, capsys):
     """cmd_project_list shows all registered projects."""
     from src.cli_ext import project_cmd
