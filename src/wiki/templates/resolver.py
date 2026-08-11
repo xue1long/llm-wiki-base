@@ -26,7 +26,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.wiki.core.types import PageType
+from src.wiki import PageType
 
 from .parser import validate_type_header
 from .types import (

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from src.wiki.core.types import PageType
+from src.wiki import PageType
 
 
 # ---------------------------------------------------------------------------

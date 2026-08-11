@@ -36,6 +36,7 @@ from .features.relations import (
     SyncReport,
     parse_relations_from_response,
 )
+from .features.slug_aliases import SlugAliasRegistry
 from .storage.atomic_ctx_helpers import atomic_pipeline_op
 from .storage.ensure import ensure_knowledge_base
 from .storage.page_writer import (
@@ -78,4 +79,5 @@ __all__ = [
     "INVERSE_RELATIONS",
     "SYMMETRIC_RELATIONS",
     "USER_TYPE_PREFIX",
+    "SlugAliasRegistry",
 ]

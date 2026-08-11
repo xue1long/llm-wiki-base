@@ -51,8 +51,7 @@ class StubMaterializerWorker:
         # Deferred imports — keep src/pipeline/__init__.py out of the import graph
         # until we actually need generator/analyzer/schemas (which require pypdf,
         # lancedb, etc. at package init).
-        from src.pipeline.generator import generate
-        from src.pipeline.schemas import AnalysisResult, EntityMention
+        from src.pipeline import generate, AnalysisResult, EntityMention
 
         stub_path = self.paths.wiki_stubs / f"{stub_id}.md"
         if not stub_path.exists():

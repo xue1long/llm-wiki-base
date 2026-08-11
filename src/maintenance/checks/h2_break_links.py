@@ -33,14 +33,15 @@ class H2BreakLinksCheck(Check):
                 target = match.group(1).strip()
                 stats["links_checked"] += 1
                 if target not in id_to_path and not self._is_intentional_stub(target):
-                    issues.append(CheckIssue(
-                        severity=CheckSeverity.ERROR,
-                        code="H2-BROKEN-WIKILINK",
-                        message=f"Wikilink target not found: {target}",
-                        page_id=page_id,
-                        target=target,
-                    ))
-                    stats["broken"] += 1
+                    if not self._resolve_via_aliases(target, id_to_path):
+                        issues.append(CheckIssue(
+                            severity=CheckSeverity.ERROR,
+                            code="H2-BROKEN-WIKILINK",
+                            message=f"Wikilink target not found: {target}",
+                            page_id=page_id,
+                            target=target,
+                        ))
+                        stats["broken"] += 1
 
             for relation in fm.get("relations", []):
                 if not isinstance(relation, dict):
@@ -50,14 +51,15 @@ class H2BreakLinksCheck(Check):
                     continue
                 stats["links_checked"] += 1
                 if target not in id_to_path:
-                    issues.append(CheckIssue(
-                        severity=CheckSeverity.ERROR,
-                        code="H2-BROKEN-RELATION",
-                        message=f"Relation target not found: {target}",
-                        page_id=page_id,
-                        target=target,
-                    ))
-                    stats["broken"] += 1
+                    if not self._resolve_via_aliases(target, id_to_path):
+                        issues.append(CheckIssue(
+                            severity=CheckSeverity.ERROR,
+                            code="H2-BROKEN-RELATION",
+                            message=f"Relation target not found: {target}",
+                            page_id=page_id,
+                            target=target,
+                        ))
+                        stats["broken"] += 1
 
         passed = len([i for i in issues if i.severity == CheckSeverity.ERROR]) == 0
         return CheckResult(
@@ -72,3 +74,12 @@ class H2BreakLinksCheck(Check):
     def _is_intentional_stub(self, target: str) -> bool:
         stubs_dir = self.project_path / "wiki" / "_stubs"
         return (stubs_dir / f"{target}.md").exists()
+
+    def _resolve_via_aliases(self, target: str, id_to_path: dict) -> bool:
+        try:
+            from src.wiki import SlugAliasRegistry
+            reg = SlugAliasRegistry(str(self.project_path))
+            canonical = reg.get_canonical(target)
+            return canonical is not None and canonical in id_to_path
+        except Exception:
+            return False

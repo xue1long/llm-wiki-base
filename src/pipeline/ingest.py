@@ -43,6 +43,7 @@ from ..lib.write_hooks import flush_pending_writes
 from ..wiki.features.indexer import append_to_index
 from ..wiki.features.logger import log_event
 from ..wiki.storage.page_writer import write_page
+from datetime import datetime
 # Resolve analyze/generate via the pipeline package namespace so
 # monkey-patches on `src.pipeline.pipeline.analyze` /
 # `src.pipeline.pipeline.generate` (set by tests like
@@ -228,12 +229,12 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
     """Post-process LLM-generated pages: enforce valid enums, canonicalize relation targets."""
     import time
     try:
-        from src.wiki.features.slug_aliases import SlugAliasRegistry
+        from src.wiki import SlugAliasRegistry
         reg = SlugAliasRegistry(str(paths.root))
     except Exception:
         reg = None
 
-    now_ms = int(time.time() * 1000)
+    now = datetime.now().strftime("%Y-%m-%d")
     for page in pages:
         if page.grade not in ("A", "B", "C"):
             page.grade = "B"
@@ -244,14 +245,14 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
         if page.title:
             page.title = page.title.strip()
         if not page.created_at:
-            page.created_at = now_ms
+            page.created_at = now
         if not page.updated_at:
-            page.updated_at = now_ms
+            page.updated_at = now
         if reg is not None:
             for rel in page.relations:
-                canonical = reg.get_canonical(rel.target)
-                if canonical and canonical != rel.target:
-                    rel.target = canonical
+                canonical = reg.get_canonical(rel.target_id)
+                if canonical and canonical != rel.target_id:
+                    rel.target_id = canonical
     return pages
 
 
@@ -629,8 +630,8 @@ async def run_ingest(
         grade=_source_grade,
         processing_depth="source",
         is_immutable=False,
-        created_at=int(_time.time() * 1000),
-        updated_at=int(_time.time() * 1000),
+        created_at=datetime.now().strftime("%Y-%m-%d"),
+        updated_at=datetime.now().strftime("%Y-%m-%d"),
     )
 
     # Fix A (2026-07-26): dedup before unconditional append.
@@ -832,8 +833,8 @@ async def run_ingest(
             grade="C",               # stub → lower grade than generated pages
             processing_depth="stub",
             is_immutable=False,
-            created_at=int(_time.time() * 1000),
-            updated_at=int(_time.time() * 1000),
+            created_at=datetime.now().strftime("%Y-%m-%d"),
+            updated_at=datetime.now().strftime("%Y-%m-%d"),
         ))
 
     # B13: compute reverse (inverse) edges in-memory so the relation graph

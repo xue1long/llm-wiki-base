@@ -92,12 +92,12 @@ def _resolve_wiki_paths(project_id: str | None = None):
 from .ingest import run_ingest
 from .service import (
     PipelineService,
+    PipelineContext,
     get_default_pipeline_service,
-    register_stages,
+    _register_event_handlers,
 )
-from .runner import PipelineRunner
-from .stages import AnalyzerStage, CollectorStage, GeneratorStage
-from .ports import PipelineContext, StageResult, PipelineStage
+from .generator import generate
+from .schemas import AnalysisResult, EntityMention
 
 
 def _register_event_handlers_if_needed() -> None:
@@ -112,27 +112,10 @@ _register_event_handlers_if_needed()
 
 # --- compat shim for old src.pipeline.pipeline imports ---
 
-# Also alias the old submodule paths to the new stages/ package, BUT the
-# legacy src/pipeline/collector.py / analyzer.py / generator.py still
-# exist (deleted in Task 11) and define the canonical `collect`, `analyze`,
-# `generate` functions. Eagerly load them so the compat shim can resolve
-# those names. (After Task 11 deletes the legacy files, the shim's
-# __getattr__ will fall back to ``setdefault``-aliased stages modules,
-# which expose PipelineStage classes instead of bare functions — at that
-# point external code that calls ``pipeline_mod.collect(...)`` will need
-# to be migrated. For now, keep the legacy modules authoritative.)
+# Eagerly load the legacy modules so the compat shim can resolve them.
 import src.pipeline.collector as _legacy_collector  # noqa: F401
 import src.pipeline.analyzer as _legacy_analyzer    # noqa: F401
 import src.pipeline.generator as _legacy_generator  # noqa: F401
-from .stages import collector as _collector_module
-from .stages import analyzer as _analyzer_module
-from .stages import generator as _generator_module
-# setdefault only kicks in if no entry exists yet — the imports above
-# already populated sys.modules with the legacy modules, so the stages
-# aliases never overwrite them.
-sys.modules.setdefault("src.pipeline.collector", _collector_module)
-sys.modules.setdefault("src.pipeline.analyzer", _analyzer_module)
-sys.modules.setdefault("src.pipeline.generator", _generator_module)
 
 
 class _PipelineCompatShim:
@@ -208,14 +191,10 @@ sys.modules.setdefault("src.pipeline.pipeline", _pipeline_compat_shim)
 
 __all__ = [
     "PipelineService",
-    "PipelineRunner",
-    "PipelineStage",
     "PipelineContext",
-    "StageResult",
-    "CollectorStage",
-    "AnalyzerStage",
-    "GeneratorStage",
     "run_ingest",
+    "generate",
+    "AnalysisResult",
+    "EntityMention",
     "get_default_pipeline_service",
-    "register_stages",
 ]
