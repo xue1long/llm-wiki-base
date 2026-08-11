@@ -16,7 +16,7 @@ ruflo-kb — a Python 3.11+ multi-agent knowledge-base platform. Ingest URLs / f
 > any test is failing unexpectedly — it covers the four pitfalls that are
 > not obvious from reading the code alone.**
 
-Setup (from repo root):
+Setup (from repo root). Note: `env -u VAR` is Unix/Git-Bash syntax — in PowerShell remove the proxy vars with `Remove-Item Env:HTTP_PROXY` etc. instead:
 
 ```
 # Quick online install (fast path; on this host, bypass the 127.0.0.1:7897
@@ -42,7 +42,6 @@ Run all tests:
 #                             different test_X/ directories don't collide
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
   PYTHONPATH=. python -m pytest --import-mode=importlib
-# → 748 passed in ~25s on Python 3.14 / Windows
 
 # Touched areas only:
 PYTHONPATH=. pytest tests/test_wiki/ tests/test_cli_ext/ tests/test_pipeline/ tests/test_server/ tests/test_agent/ -v
@@ -61,7 +60,7 @@ CLI (entry is `src/cli.py`, run from the repo root — paths like `Inbox/`, `Not
 python -m src.cli project init <path>          # multi-project layout (current)
 python -m src.cli project list | current | info | select | import | forget
 # Ingestion is via the HTTP API (see "Ingesting raw documents" below)
-python -m src.cli llm-providers add <name> <type>          # <type>=openai|anthropic|ollama
+python -m src.cli llm-providers add <name> <type>          # <type>=openai|anthropic|ollama|openai-compatible
 python -m src.cli llm-providers set-default <name>
 python -m src.cli relations {list|backlinks|neighbors|path|types|add-type}
 python -m src.cli fields validate <page> --project <id>
@@ -73,7 +72,7 @@ python -m src.cli lint [--cache-ttl N] [--no-cache] --project <id>
 python -m src.cli lint-cache-clear --project <id>
 python -m src.cli schema {list|diff|upgrade|downgrade|backup}
 python -m src.cli serve [--host H] [--port P] [--daemon]
-python -m src.cli mcp                          # stdio MCP server (8 tools)
+python -m src.cli mcp                          # stdio MCP server (13 tools: 8 legacy HTTP + 5 memory)
 ```
 
 There is no linter, formatter, type checker, or build target configured (no `Makefile`, `tox.ini`, `ruff.toml`, `mypy.ini`). `pyproject.toml` declares only the package metadata and `setuptools` as build backend.
@@ -86,11 +85,15 @@ There is **no** top-level `python -m src.cli ingest` command — it was removed 
 # 1. Initialize a project (one-time; creates wiki/, .llm-wiki/, .index/)
 python -m src.cli project init <project_path>
 
-# 2. Configure an LLM provider (Anthropic / OpenAI / Ollama)
+# 2. Configure an LLM provider (Anthropic / OpenAI / Ollama / openai-compatible)
 python -m src.cli llm-providers add openai-prov openai --api-key $OPENAI_API_KEY
 python -m src.cli llm-providers set-default openai-prov
 python -m src.cli llm-providers add ollama-prov ollama --base-url http://127.0.0.1:11434
 python -m src.cli llm-providers set-default ollama-prov
+# OpenAI-compatible endpoints (MiniMax / Kimi / DeepSeek / GLM) — there is no
+# env-var auto-mapping for these, so always pass --api-key explicitly:
+python -m src.cli llm-providers add minimax openai-compatible \
+  --base-url "$MINIMAX_BASE_URL" --model "$MINIMAX_CHAT_MODEL" --api-key "$MINIMAX_API_KEY"
 
 # 3. Start the server
 python -m src.cli serve --host 127.0.0.1 --port 8765
@@ -109,16 +112,15 @@ curl -X POST http://127.0.0.1:8765/api/v1/projects/$PROJECT/ingest \
   -d '{"source": "/abs/path/to/notes.docx"}'                       # file (absolute path; resolved to the project's wiki tree)
 ```
 
-> **Note:** Folder ingestion (`{"source": {"folder": ...}}`) is not yet wired up — the route handler accepts the shape but does not enumerate directory contents. Use a single-file loop, or call `src.pipeline.folder_ingest.collect_files` programmatically until folder support lands.
-```
+> **Note:** Folder ingestion (`{"source": {"folder": ...}}`) is not yet wired up — the route handler accepts the shape but does not enumerate directory contents. Use a single-file loop, or call `src.wiki.features.folder_ingest.collect_files` programmatically until folder support lands.
 
-The route handler (`src/server/routes/ingest.py`) calls `services.ingest.enqueue_source`, which validates the project exists and pushes a task onto `src/queue/queue.py`. Processing is async — `enqueue_task` returns `{status, taskId}` immediately; the Collector → Analyzer → Generator pipeline runs in the background. Idempotency is by md5(source + folder_context) with a 7-day TTL (`src/utils/idempotency.py`).
+The route handler (`src/server/routes/ingest.py`) calls `services.ingest.enqueue_source`, which validates the project exists and pushes a task onto `src/queue/queue.py`. Processing is async — `enqueue_task` returns `{status, taskId}` immediately; the Collector → Analyzer → Generator pipeline runs in the background. Ingestion is idempotent (md5 dedup — see Cross-cutting concerns).
 
-Supported source formats (extracted by `src/utils/extract/`): PDF (pypdf), DOCX (python-docx), XLSX (openpyxl), MD, TXT, plus HTML **when the source is a URL** (the local-file branch raises `Unsupported file type` for `.html`). Vector embeddings are 1536-dim float32 in LanceDB (`src/vector/`); upsert requires `init_vector_store_for_paths(WikiPaths)` to have been called for the project (the server's lifespan does this automatically).
+Supported source formats (extracted by `src/utils/extract/`): PDF (pypdf), DOCX (python-docx), XLSX (openpyxl), MD, TXT, plus HTML **when the source is a URL** (the local-file branch raises `Unsupported file type` for `.html`). Embedding upsert requires `init_vector_store_for_paths(WikiPaths)` to have been called for the project (the server's lifespan does this automatically).
 
 Alternative ingestion paths:
-- **MCP** (`python -m src.cli mcp`) — stdio server exposes `ingest` as an MCP tool for Claude Desktop
-- **Programmatic** — `from src.pipeline.ingest import run_ingest` runs the full candidate pipeline (Collector → Analyzer → Reviewer → Promoter → Generator → Writer) synchronously (no queue); `from src.wiki.features.folder_ingest import collect_files` enumerates files in a folder for batch processing
+- **MCP** (`python -m src.cli mcp`) — stdio server; the legacy `ruflo_kb_ingest` tool is deprecated — prefer the HTTP API or the memory tools
+- **Programmatic** — `from src.pipeline.ingest import run_ingest` runs the full candidate pipeline synchronously (no queue); `from src.wiki.features.folder_ingest import collect_files` enumerates files in a folder for batch processing
 
 Verify results:
 ```bash
@@ -222,20 +224,11 @@ def _resolve_ctx(proj_arg):
     return resolve_project(proj_arg, by_id_only=True)
 ```
 
-4 of the 9 historical `_resolve_ctx` copies have been migrated to the helpers (`heat_cmd`, `wiki_polish_cmd`, `fields_cmd`, `relations_cmd`); the other 5 are eliminated by routing through the service layer. **Do not** access `ctx.paths.X` — that attribute does not exist.
+**Do not** access `ctx.paths.X` — that attribute does not exist; all historical `_resolve_ctx` copies route through these helpers or the service layer.
 
 ### Test infrastructure
 
-`pytest` collection fails on heavy deps (platformdirs, lancedb, pyarrow, pypdf, docx, openpyxl, mcp, tavily) when not installed. Per-directory `conftest.py` files stub them so that tests can be collected even when those packages are missing:
-
-- `tests/test_pipeline/conftest.py`
-- `tests/test_server/conftest.py`
-- `tests/test_cli_ext/conftest.py`
-- `tests/test_wiki/conftest.py`
-- `tests/test_llm/conftest.py`
-- `tests/test_lib/conftest.py`
-
-`sys.modules.setdefault` is global to the pytest session, so an alphabetically-later conftest can re-stub a module after an earlier conftest has restored it. The four conftests under `tests/test_{project,vector,searcher,mcp_server}/` work around this; the full pattern is documented in [`docs/environment/SETUP.md`](docs/environment/SETUP.md) §4. When adding a new test directory that imports from `src/`, copy an existing `conftest.py` and, if the new directory actually needs the real heavy module, also copy the "restore real module" pattern.
+Heavy deps (platformdirs, lancedb, pyarrow, pypdf, docx, openpyxl, mcp, tavily) are stubbed by per-directory `conftest.py` files so collection works even when they are not installed. `sys.modules.setdefault` is session-global, so an alphabetically-later conftest can re-stub a module an earlier one restored — the full pattern and workaround conftests are documented in [`docs/environment/SETUP.md`](docs/environment/SETUP.md) §4. When adding a new test directory that imports from `src/`, copy an existing `conftest.py` (plus the "restore real module" pattern if the directory needs the real heavy module).
 
 ## Cross-cutting concerns
 
@@ -246,7 +239,7 @@ def _resolve_ctx(proj_arg):
 - **Schemas** (`src/schemas/`) — Migration framework. `Migration` ABC with `up`/`down`/`preview`. MigrationRegistry indexes by `(schema_name, from_version, to_version)`.
 - **Sync** (`src/sync/`) — `SnapshotStore` JSON snapshot-based change detection.
 - **Vector store** (`src/vector/`) — `LanceDB` singleton, 1536-dim float32. `init_vector_store_for_paths(WikiPaths)` must be called before any upsert/search; the legacy `init_vector_store(db_path)` parent-walking heuristic was removed (use `WikiPaths(root)` to construct the canonical path object).
-- **Service layer** (`src/services/`) — business logic between HTTP routes and core domain. Routes are thin adapters; services are unit-testable without HTTP. 7 modules: `files`, `projects`, `schema`, `reviews`, `ingest`, `search`, `chat`.
+- **Service layer** (`src/services/`) — business logic between HTTP routes and core domain. Routes are thin adapters; services are unit-testable without HTTP. Modules: `files`, `projects`, `schema`, `reviews`, `ingest`, `search`, `chat`, `quality`, `tags`, `wiki_analysis`.
 - **Project resolution** (`src/lib/project.py`) — single entry point. `resolve_project(arg, by_id_only) -> (ProjectContext, WikiPaths)`; `resolve_ctx_only(...)` for the no-paths case. Replaces 9 hand-rolled `_resolve_ctx` copies.
 - **LLM providers** (`src/llm/registry.py`) — `ProviderRegistry` loads from `~/.config/ruflo-kb/llm-providers.json`. `OllamaProvider.__init__` auto-registers in `_loaded_providers`; `ProviderRegistry.aclose_all()` is called from FastAPI lifespan shutdown to release `httpx.AsyncClient` resources.
 
@@ -264,39 +257,17 @@ Commit prefixes on `feat/continue-implementation`: `feat(scope):` for new featur
 
 ## Automatic Memory Capture
 
-After each significant event, capture learnings to `.memory/` so future sessions can fast-start.
+After each significant event, capture learnings to `.memory/` so future sessions can fast-start. Entry format: `.memory/TEMPLATE.md`. Index all entries in `.memory/MEMORY.md`.
 
-**Trigger conditions — capture to `.memory/` when:**
-- Discovering a bug, workaround, or regression → write a `feedback-*.md` entry
-- Completing a multi-step task (especially via subagent-driven-development) → write a `feedback-*.md` entry
-- Learning a non-obvious constraint, configuration detail, or path structure → write a `feedback-*.md` or `arch-*.md` entry
-- Starting a new project type or initializing a new knowledge base → write a `quickstart-*.md` entry
-- Completing a plan → update `.superpowers/sdd/progress.md` ledger
-
-**File naming convention:**
-- `feedback-<short-name>.md` — bug workarounds, regression findings, non-obvious gotchas
-- `arch-<topic>.md` — architecture constraints, directory conventions, config loading
-- `quickstart-<topic>.md` — step-by-step runbook for recurring setup tasks
-- `project-<name>.md` — project-specific facts (IDs, commands, known issues)
-- `user-preferences.md` — collaboration style, user habits
-
-**Format:**
-```markdown
----
-name: <short-kebab-case-slug>
-description: <one-line summary for future relevance check>
-metadata:
-  type: <user|feedback|project|reference>
----
-
-# Title
-
-**When:** [what triggered this learning]
-**Why:** [the root cause or design reason]
-**How to apply:** [what to do in future sessions]
-```
-
-**Index:** All entries are listed in `.memory/MEMORY.md`.
+| Trigger | Write |
+|---|---|
+| Bug, workaround, or regression discovered | `feedback-<name>.md` |
+| Multi-step task completed | `feedback-<name>.md` |
+| Non-obvious constraint, config detail, or path structure learned | `feedback-<name>.md` or `arch-<topic>.md` |
+| New project type / KB initialized, recurring setup runbook | `quickstart-<topic>.md` |
+| Project-specific facts (IDs, commands, known issues) | `project-<name>.md` |
+| Collaboration style, user habits | `user-preferences.md` |
+| Plan completed | update `.superpowers/sdd/progress.md` ledger |
 
 ## Things to know before editing
 
@@ -308,54 +279,31 @@ metadata:
 - **Tests mirror `src/` layout one level deep.** `tests/test_<module>.py` for top-level modules; `tests/test_<package>/test_<file>.py` for sub-packages (e.g. `tests/test_vector/test_store.py`).
 - **WikiPage frontmatter must round-trip cleanly.** When adding a field to `WikiPage`, update BOTH `to_frontmatter_dict()` and `from_dict()` (use `.get(key, default)` for backwards compat with older pages).
 - **`safe_write` buffers; `os.unlink` does not.** Multi-step atomic operations (cascade_delete, export/import) must defer deletions through the `DELETE_SENTINEL` mechanism in `safe_write` or the atomic guarantee is broken.
+- **`src/wiki/` uses layered paths — old flat module paths are NOT aliased.** `from src.wiki.ensure import X` is broken (no `sys.modules` shim). Use `src.wiki.core.*` / `src.wiki.storage.*` / `src.wiki.features.*` (e.g. `src.wiki.core.paths`, `src.wiki.storage.ensure`, `src.wiki.features.relations`). `src.wiki.__init__` re-exports common symbols (`WikiPage`, `WikiPaths`, ...).
 - **Server runtime is not covered by tests.** No test imports `src.server.app` or `src.cli serve`. Import-time crashes in the lifespan hook (e.g. the `from ..wiki.ensure import …` regression that broke `python -m src.cli serve` after the wiki split) only surface when the server is actually started. After any refactor that touches `src/server/`, `src/cli.py`, or top-level imports of `src/wiki/`, run `python -m src.cli serve --port <free>` and curl `/health` to confirm the lifespan completes.
 
 ## Plans (in `docs/superpowers/plans/`)
 
 Plans are completed in dependency order. Check `.superpowers/sdd/progress.md` for current status. When picking up a plan, read it once for global constraints, then dispatch one implementer subagent per task with `superpowers:subagent-driven-development`.
 
-Known finished plans: wiki-v2, wiki-relations, wiki-fields-v22, wiki-heat-5pool, wiki-v21-polish, http-api-mcp, web-search-deep-research, chat-agent, schemas-v3, atomic-ctx+budgeted-llm, multi-provider-llm, project-multi-instancing, plus the 2026-07-23 cleanup trio (`full-audit-fix`, `followup-carryovers`, `cleanup-final-minors`).
+## 分段接力工作流（dev-relay）
 
-## Recent architectural changes (cleanup series, 2026-07-22 → 2026-07-23)
+本项目采用 mattpocock/skills + ponytail **分段接力**开发，两套技能禁止同时全局常驻。阶段路由、切换约束与避坑清单见 `.claude/skills/dev-relay/`；方案进入编码前的强制两轮自我审查见 `.claude/skills/plan-audit/`。
 
-In a single cleanup pass, the following changes landed on `feat/continue-implementation`:
+- 阶段分工：需求澄清/领域建模/架构设计用 mattpocock 系（ponytail 关闭）→ 编码实现用 ponytail full → 评审切回 mattpocock 系（`/code-review`）。
+- 阶段切换由用户指令驱动，不擅自切换模式。
+- 优先级排序：`PROJECT_SOP.md` > 已确认的架构方案 > ponytail 内置规则 > mattpocock 默认规则 > 本文件行为准则。
+- 模块化永久约束：模块内部逻辑私有，仅通过模块内 `api.ts` / `types.ts` 对外暴露；禁止跨模块导入 service/model/utils 内部文件。
+- 方案审查门：方案初稿完成后必须通过 plan-audit 两轮审查 + 人工复核整改，方可进入编码阶段。
+- 重大架构决策写入 `docs/adr/`；领域术语统一维护在 `CONTEXT.md`。
 
-**Dead code removal**:
-- `src/timeout.py` deleted (131 lines) — `with_timeout`, `run_with_timeout`, `TimeoutTracker`, `TaskTimeoutError`, `TaskTimeoutConfig` had zero callers
-- `src/knowledge_base.py` deleted (107 lines) — old `Inbox/Notes/Knowledge` layout; superseded by `src/wiki/storage/ensure.py`
-- `InboxManager.clear_processing`, `IdempotencyCache.remove`, `EntityMention.to_dict` + `from_dict` removed
-- `src/schemas/__init__.py: CURRENT_VERSION / MIGRATIONS` back-compat shims removed
+## Behavioral Guidelines
 
-**Bug fixes surfaced by the audit**:
-- `OllamaProvider.close()` was not called by any business code → `httpx.AsyncClient` leak. Fixed via `ProviderRegistry._loaded_providers` + `aclose_all()` + FastAPI lifespan shutdown hook.
-- Test isolation bug: `test_cmd_schema_upgrade` failed when run with `test_schemas/` due to `MigrationRegistry` not being cleared after tests.
-
-**2026-07-23 follow-up audits** extended the cleanup: `atomic_ctx` exception rollback (atomic guarantee was previously broken on handler errors); `LLM.complete(messages)` call-site fixes; `health_check` response shape normalization; vector store project-isolation (no cross-project bleed); `pipeline` provider selection now respects project config; `safe_write` enforcement at remaining call sites; `schema` 404 returns proper status; `hybrid_search` exception classification (logs class + reason, no longer silent swallow); `Registry.save` uses `safe_write` for atomic write-hook compliance; env-sourced LLM providers persist with empty `api_key` (not stored).
-
-**Service layer (P0)** — `src/services/`:
-- 7 new modules: `files.py`, `projects.py`, `schema.py`, `reviews.py`, `ingest.py`, `search.py`, `chat.py`
-- Each service has a corresponding test file under `tests/test_server/test_service_*.py`
-- HTTP routes in `src/server/routes/` are now thin adapters (Pydantic validation + service call + HTTP status mapping)
-- CLI handlers in `src/cli_ext/` can call services directly without HTTP machinery
-
-**`src/lib/project.py`**: central `resolve_project` / `resolve_ctx_only` helpers. 4 of 9 `_resolve_ctx` copies migrated; the other 5 are eliminated by routing through the service layer.
-
-**`src/wiki/` split** (commit `4645664`):
-- `core/` — types, paths, page model, id generator
-- `storage/` — page_writer, ensure, atomic_ctx_helpers
-- `features/` — relations, heat, review, lint, dedup, stubs, zombie, tag_namespace, import, export, cascade_delete, indexer, wikilink, folder_ingest, schema_routing, logger
-- `src/wiki/__init__.py` re-exports the most commonly used *symbols* (functions/classes) for convenience (`from src.wiki import WikiPage, WikiPaths, ensure_knowledge_base, ...`).
-- **Old module paths are NOT aliased.** `from src.wiki.ensure import X` is broken — there is no `sys.modules` shim for `src.wiki.<old_module>`. All production code must use the layered paths (`src.wiki.core.paths`, `src.wiki.storage.ensure`, `src.wiki.features.relations`, ...). A grep for `from (\.\.|src\.)wiki\.(ensure|page_writer|types|paths|...)` should return zero matches outside `tests/` and `docs/superpowers/{specs,plans}/`.
-
-**`src/cli.py` slimmed** (511 → 407 lines): 7 legacy `cmd_*` deleted (`init`/`status`/`pause`/`resume`/`ingest`/`search`/`configure`), each superseded by `src/cli_ext/*` modules.
-
-# CLAUDE.md
-
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+Behavioral guidelines to reduce common LLM coding mistakes.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
-## 1. Think Before Coding
+### 1. Think Before Coding
 
 **Don't assume. Don't hide confusion. Surface tradeoffs.**
 
@@ -365,7 +313,7 @@ Before implementing:
 - If a simpler approach exists, say so. Push back when warranted.
 - If something is unclear, stop. Name what's confusing. Ask.
 
-## 2. Simplicity First
+### 2. Simplicity First
 
 **Minimum code that solves the problem. Nothing speculative.**
 
@@ -377,7 +325,7 @@ Before implementing:
 
 Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
-## 3. Surgical Changes
+### 3. Surgical Changes
 
 **Touch only what you must. Clean up only your own mess.**
 
@@ -393,7 +341,7 @@ When your changes create orphans:
 
 The test: Every changed line should trace directly to the user's request.
 
-## 4. Goal-Driven Execution
+### 4. Goal-Driven Execution
 
 **Define success criteria. Loop until verified.**
 
