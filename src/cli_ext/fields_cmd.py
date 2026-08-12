@@ -8,7 +8,7 @@ import yaml
 from ..wiki.core.id_generator import is_valid_id
 from ..wiki.storage.page_writer import read_page
 from ..services.tags import validate_tags_for_page
-from ..lib.project import resolve_project
+from ..lib.project import resolve_cli_project
 
 
 def _resolve_ctx(project_arg):
@@ -17,7 +17,7 @@ def _resolve_ctx(project_arg):
     Delegates to the centralised helper; preserves the (ctx, paths) tuple
     interface for the two cmd_* callers.
     """
-    return resolve_project(project_arg)
+    return resolve_cli_project(project_arg)
 
 
 def cmd_fields_validate(args: argparse.Namespace) -> None:

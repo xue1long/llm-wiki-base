@@ -30,8 +30,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from ..lib.project import resolve_project
-from ..project.context import ProjectNotFoundError
+from ..lib.project import resolve_cli_project
 from ..utils.path import safe_resolve
 
 
@@ -41,11 +40,7 @@ _WIKI_TOP_LEVEL_FILES = ("index.md", "log.md")
 
 
 def _resolve(project_arg):
-    try:
-        return resolve_project(project_arg, by_id_only=True)
-    except ProjectNotFoundError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(2)
+    return resolve_cli_project(project_arg)
 
 
 def _list_wiki_files(wiki_root: Path) -> list[Path]:

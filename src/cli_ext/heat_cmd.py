@@ -6,8 +6,7 @@ import sys
 from ..services.wiki_analysis import get_heat_tracker, get_zombie_detector
 from ..wiki.storage.page_writer import read_page, write_page, page_path_for
 from ..wiki.core.types import PageType
-from ..project.context import ProjectNotFoundError
-from ..lib.project import resolve_project
+from ..lib.project import resolve_cli_project
 
 
 def _resolve_ctx(project_arg):
@@ -16,11 +15,7 @@ def _resolve_ctx(project_arg):
     Thin wrapper over resolve_project that converts ProjectNotFoundError to
     a CLI-friendly stderr message + sys.exit(2).
     """
-    try:
-        return resolve_project(project_arg, by_id_only=True)
-    except ProjectNotFoundError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(2)
+    return resolve_cli_project(project_arg)
 
 
 def _infer_type(paths, slug):

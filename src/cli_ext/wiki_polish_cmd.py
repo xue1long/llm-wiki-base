@@ -4,16 +4,11 @@ import sys
 from ..services.wiki_analysis import run_dedup_auto, run_stub_promotion, run_lint
 from ..wiki.features.lint_cache import cache_key, get as cache_get, put as cache_put, invalidate_all, DEFAULT_TTL
 from ..wiki.storage.page_writer import read_page
-from ..project.context import ProjectNotFoundError
-from ..lib.project import resolve_project
+from ..lib.project import resolve_cli_project
 
 
 def _resolve_ctx(project_arg):
-    try:
-        return resolve_project(project_arg, by_id_only=True)
-    except ProjectNotFoundError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(2)
+    return resolve_cli_project(project_arg)
 
 
 def cmd_stubs_list(args):

@@ -30,8 +30,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-from ..lib.project import resolve_project
-from ..project.context import ProjectNotFoundError
+from ..lib.project import resolve_cli_project
 from ..wiki.storage.page_writer import read_page
 
 
@@ -42,11 +41,7 @@ _ID_FIELD_RE = re.compile(r'^(\s*id:\s*)(.+?)(\s*)$', re.MULTILINE)
 
 
 def _resolve(project_arg):
-    try:
-        return resolve_project(project_arg, by_id_only=True)
-    except ProjectNotFoundError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(2)
+    return resolve_cli_project(project_arg)
 
 
 def _extract_raw_path_from_page(page_md_text: str) -> str | None:

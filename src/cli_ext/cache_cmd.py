@@ -4,16 +4,11 @@ import sys
 
 from ..maintenance.cache_cleanup import cleanup_all
 from ..maintenance.checks.h5_cache_health import H5CacheHealthCheck
-from ..project.context import ProjectNotFoundError
-from ..lib.project import resolve_project
+from ..lib.project import resolve_cli_project
 
 
 def _resolve_ctx(project_arg):
-    try:
-        return resolve_project(project_arg, by_id_only=True)
-    except ProjectNotFoundError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(2)
+    return resolve_cli_project(project_arg)
 
 
 def cmd_cache_status(args: argparse.Namespace) -> None:

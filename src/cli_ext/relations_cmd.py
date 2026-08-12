@@ -10,8 +10,8 @@ from ..services.wiki_analysis import (
     get_neighbors, find_path_between,
 )
 from ..wiki.core.paths import WikiPaths
-from ..project.context import ProjectContext, ProjectNotFoundError
-from ..lib.project import resolve_ctx_only
+from ..project.context import ProjectContext
+from ..lib.project import resolve_cli_project
 from ..lib.write_hooks import safe_write
 
 
@@ -94,10 +94,7 @@ def cmd_relations_add_type(args: argparse.Namespace) -> None:
 
 
 def _resolve(project_id):
-    try:
-        return resolve_ctx_only(project_id, by_id_only=True)
-    except ProjectNotFoundError as e:
-        print(f"Error: {e}", file=sys.stderr); sys.exit(2)
+    return resolve_cli_project(project_id, with_paths=False)
 
 
 def _settings_path():
