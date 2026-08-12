@@ -13,6 +13,7 @@ import zipfile
 from pathlib import Path
 
 from .exceptions import EncryptedDocumentError, UnsupportedFormat
+from .errors import looks_like_encryption_error
 
 
 def extract_office_text(file_path: str) -> str:
@@ -109,7 +110,7 @@ def _raise_if_encrypted(exc: Exception, suffix: str) -> None:
 
     # Heuristic: python-docx raises a generic Exception with "decrypt" /
     # "password" / "encrypted" in the message for encrypted files.
-    if any(token in msg for token in ("decrypt", "password", "encrypted")):
+    if looks_like_encryption_error(exc):
         raise EncryptedDocumentError(
             f"{suffix} file is encrypted or password-protected"
         ) from exc

@@ -6,6 +6,7 @@ Encrypted PDFs (or PDFs that pypdf cannot decrypt) are surfaced as
 from pypdf / pycryptodome.
 """
 from .exceptions import EncryptedDocumentError
+from .errors import looks_like_encryption_error
 
 
 def extract_pdf_text(file_path: str) -> str:
@@ -55,17 +56,12 @@ def extract_pdf_text(file_path: str) -> str:
 def _raise_if_encrypted(exc: Exception, suffix: str) -> None:
     """Inspect the exception and raise EncryptedDocumentError if it looks
     like an encryption / decryption failure."""
-    name = type(exc).__name__
-    msg = str(exc).lower()
-
-    # Cryptocode / pycryptodome raise Unknown when the PDF claims to be
-    # encrypted but we cannot decrypt it (wrong / missing password).
-    if name in ("Unknown", "PyCryptodomeWarning"):
+    if type(exc).__name__ in ("Unknown", "PyCryptodomeWarning"):
         raise EncryptedDocumentError(
             "PDF is encrypted and cannot be decrypted (Unknown encryption algorithm)"
         ) from exc
 
-    if any(token in msg for token in ("decrypt", "password", "encrypted", "not been decrypted")):
+    if looks_like_encryption_error(exc):
         raise EncryptedDocumentError(
             f"{suffix} is encrypted or password-protected"
         ) from exc
