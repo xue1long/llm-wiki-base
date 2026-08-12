@@ -6,6 +6,7 @@ Uses platformdirs to follow OS conventions:
 - macOS: ~/Library/Application Support/ruflo-kb/
 - Windows: %APPDATA%/ruflo-kb/
 """
+import os
 from pathlib import Path
 
 from platformdirs import user_config_dir
@@ -22,6 +23,9 @@ def config_dir() -> Path:
 
     Override via _OVERRIDE_CONFIG_DIR (set by CLI for RUFLO_CONFIG_DIR env var).
     """
+    env_dir = os.environ.get("RUFLO_CONFIG_DIR")
+    if env_dir:
+        return Path(env_dir)
     if _OVERRIDE_CONFIG_DIR:
         return _OVERRIDE_CONFIG_DIR
     return Path(user_config_dir(_APP_NAME, _APP_AUTHOR))

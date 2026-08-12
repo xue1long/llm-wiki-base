@@ -1,6 +1,8 @@
 import hashlib
 from pathlib import Path
 
+import pytest
+
 from src.utils.hashing import sha256_file
 
 
@@ -24,3 +26,8 @@ def test_sha256_file_accepts_path_objects(tmp_path):
     file_path.write_text("hello", encoding="utf-8")
 
     assert sha256_file(file_path) == hashlib.sha256(b"hello").hexdigest()
+
+
+def test_sha256_file_rejects_non_positive_chunk_size(tmp_path):
+    with pytest.raises(ValueError, match="chunk_size"):
+        sha256_file(tmp_path / "note.md", chunk_size=0)

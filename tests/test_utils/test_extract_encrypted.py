@@ -23,6 +23,10 @@ def test_shared_encryption_classifier_rejects_unrelated_error():
     assert not looks_like_encryption_error(ValueError("invalid header"))
 
 
+def test_shared_encryption_classifier_does_not_match_bare_password_text():
+    assert not looks_like_encryption_error(ValueError("invalid password field"))
+
+
 def test_encrypted_zipfile_raises_typed_error(tmp_path, monkeypatch):
     """Simulate python-docx raising zipfile.BadZipFile on a corrupt .docx."""
     from src.utils.extract import office

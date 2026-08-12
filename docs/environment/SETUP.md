@@ -21,6 +21,24 @@ The project also runs on Python 3.12 (the alternative interpreter installed at
 listed below are cp314-only, so for 3.12 you will need to re-download matching
 wheels.
 
+### Windows recovery when `python` is not on PATH
+
+This repository can use the project-local environment managed by `uv`:
+
+```powershell
+$env:UV_CACHE_DIR = "$PWD\.tmp-uv-cache"
+uv venv --clear .venv --python 3.12
+uv pip install --python .venv\Scripts\python.exe -e ".[dev]"
+```
+
+Run tests with the project-local interpreter. If the system Temp directory is
+not writable, keep pytest's temporary files inside the repository:
+
+```powershell
+$env:PYTHONPATH = "."
+.venv\Scripts\python.exe -m pytest --import-mode=importlib --basetemp .tmp-pytest
+```
+
 ## 2. Install
 
 ### Quick path (online)

@@ -11,6 +11,11 @@ def test_config_dir_returns_path():
     assert p.name == "ruflo-kb" or "ruflo-kb" in str(p)
 
 
+def test_config_dir_honors_environment_override(tmp_path, monkeypatch):
+    monkeypatch.setenv("RUFLO_CONFIG_DIR", str(tmp_path / "config"))
+    assert config_dir() == tmp_path / "config"
+
+
 def test_registry_path_under_config_dir():
     """registry_path() lives under config_dir()."""
     p = registry_path()
