@@ -97,7 +97,12 @@ def auto_register_on_first_run() -> list[ProjectContext]:
             _logger.warning(f"[discovery] failed to register {kb_path}: {e}")
 
     # Set last_project to most recently modified if registry was freshly created
-    if not _default_registry_path().exists() and contexts:
+    try:
+        registry_is_missing = not _default_registry_path().exists()
+    except PermissionError as e:
+        _logger.warning(f"[discovery] registry inaccessible; skipping last-project selection: {e}")
+        registry_is_missing = False
+    if registry_is_missing and contexts:
         contexts.sort(key=lambda c: c.path.stat().st_mtime, reverse=True)
         GlobalRegistryStore.save_last_project(
             id=contexts[0].id,

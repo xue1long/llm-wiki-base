@@ -117,3 +117,17 @@ def test_auto_register_no_op_when_registry_exists(tmp_path, monkeypatch):
     # Registry file untouched
     assert pre_registry.read_text(encoding="utf-8") == original_content
     assert contexts == []
+
+
+def test_auto_register_tolerates_unreadable_registry(tmp_path, monkeypatch):
+    """A registry permission error must not abort server startup."""
+    from src.project import registry
+
+    monkeypatch.setattr("src.project.discovery.discover_existing_kbs", lambda: [])
+    monkeypatch.setattr(
+        registry,
+        "registry_path",
+        lambda: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+
+    assert auto_register_on_first_run() == []

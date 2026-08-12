@@ -147,3 +147,20 @@ def test_get_project_not_found(monkeypatch, tmp_path):
 
     with __import__("pytest").raises(projects_service.ProjectNotFound):
         projects_service.get_project("does-not-exist")
+
+
+def test_create_project_initializes_knowledge_base_layout(monkeypatch, tmp_path):
+    """New projects are immediately usable by ingestion and wiki services."""
+    from src.project import paths as project_paths
+
+    cfg = tmp_path / "cfg"
+    cfg.mkdir()
+    monkeypatch.setattr(project_paths, "_OVERRIDE_CONFIG_DIR", cfg)
+    monkeypatch.chdir(tmp_path)
+
+    result = projects_service.create_project("new-kb")
+    root = tmp_path / "knowledge" / "new-kb"
+
+    assert result["path"] == str(root)
+    for relative in ("wiki/sources", "wiki/entities", "wiki/concepts", "wiki/synthesis", "raw/sources", ".index", ".llm-wiki"):
+        assert (root / relative).is_dir(), relative

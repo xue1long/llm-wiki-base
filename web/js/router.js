@@ -237,8 +237,10 @@
           const data = await App.api("/api/v1/scenario-templates");
           const templates = data.templates || [];
           const choices = templates.map((t, i) => `${i + 1}. ${t.icon || ""}${t.name}`).join("\n");
-          const selected = window.prompt(`选择知识库模板（输入编号，默认 1）：\n${choices}`, "1");
-          const index = Math.max(1, Number.parseInt(selected || "1", 10)) - 1;
+          const defaultTemplate = templates.find(t => t.id === "novel-writing") || templates[0];
+          const defaultIndex = Math.max(0, templates.indexOf(defaultTemplate));
+          const selected = window.prompt(`选择知识库模板（输入编号，默认 ${defaultIndex + 1}）：\n${choices}`, String(defaultIndex + 1));
+          const index = Math.max(1, Number.parseInt(selected || String(defaultIndex + 1), 10)) - 1;
           const chosen = templates[index] || templates[0];
           await createProject(name.trim(), chosen && chosen.id);
         } catch (e) {

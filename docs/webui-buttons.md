@@ -11,7 +11,7 @@
 
 | 按钮 | 位置 | 功能 | 后端 API |
 |------|------|------|----------|
-| **新建项目 +** | 项目选择器顶部 | 输入项目名称并选择知识库场景模板后创建 | `GET /api/v1/scenario-templates` + `POST /api/v1/projects` |
+| **新建项目 +** | 项目选择器顶部 | 输入项目名称并选择知识库场景模板后创建；默认优先选择 `novel-writing` | `GET /api/v1/scenario-templates` + `POST /api/v1/projects` |
 
 ## 1. 摄取页（Ingest）
 

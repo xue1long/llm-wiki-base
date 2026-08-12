@@ -98,6 +98,8 @@ def create_project(name: str) -> dict:
     project_root = safe_resolve(knowledge_base / name)
     if not str(project_root).startswith(str(knowledge_base) + str(knowledge_base._flavour.sep)):
         raise ValueError("Project path escapes knowledge directory")
+    from ..wiki.storage.ensure import ensure_knowledge_base
+    ensure_knowledge_base(project_root)
     ctx = ProjectContext.from_path(project_root, name=name)
     entry = GlobalRegistryStore.by_id(ctx.id)
     return {
