@@ -11,6 +11,7 @@ from difflib import SequenceMatcher
 from ..core.paths import WikiPaths
 from ..storage.page_writer import read_page
 from ...utils.slugify import slugify
+from ...utils.similarity import cosine_similarity
 
 
 _logger = logging.getLogger(__name__)
@@ -28,14 +29,7 @@ def _title_similarity(a: str, b: str) -> float:
 
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
     """Compute cosine similarity between two equal-length vectors."""
-    if not a or not b or len(a) != len(b):
-        return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
-    norm_a = sum(x * x for x in a) ** 0.5
-    norm_b = sum(x * x for x in b) ** 0.5
-    if norm_a == 0.0 or norm_b == 0.0:
-        return 0.0
-    return dot / (norm_a * norm_b)
+    return cosine_similarity(a, b)
 
 
 def find_duplicates(paths: WikiPaths, provider=None) -> list[tuple[str, str]]:
