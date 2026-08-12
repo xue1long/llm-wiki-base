@@ -30,7 +30,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-from ..lib.project import resolve_cli_project
+from .project_resolve import resolve_cli_project
 from ..wiki.storage.page_writer import read_page
 
 

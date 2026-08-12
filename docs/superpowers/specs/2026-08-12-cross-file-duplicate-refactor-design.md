@@ -37,7 +37,7 @@ Add `src/utils/extract/errors.py::looks_like_encryption_error(exc) -> bool` for 
 
 ### CLI project seam
 
-Extend `src/lib/project.py` with `resolve_cli_project(project_arg, *, with_paths=True)`. It preserves the existing `resolve_project` / `resolve_ctx_only` distinction and maps `ProjectNotFoundError` to the existing `Error: ...` stderr output and `SystemExit(2)`. Existing module-local `_resolve*` functions remain as wrappers until all call sites and tests are migrated.
+Add `src/cli_ext/project_resolve.py::resolve_cli_project(project_arg, *, with_paths=True, by_id_only=True)`. The CLI adapter owns stderr and `SystemExit(2)` handling; `src/lib/project.py` remains a pure project-resolution module exposing `resolve_project` and `resolve_ctx_only`. Existing module-local `_resolve*` functions remain as wrappers until all call sites and tests are migrated.
 
 ### Script logging seam
 

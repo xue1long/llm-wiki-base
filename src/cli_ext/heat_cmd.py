@@ -6,7 +6,7 @@ import sys
 from ..services.wiki_analysis import get_heat_tracker, get_zombie_detector
 from ..wiki.storage.page_writer import read_page, write_page, page_path_for
 from ..wiki.core.types import PageType
-from ..lib.project import resolve_cli_project
+from .project_resolve import resolve_cli_project
 
 
 def _resolve_ctx(project_arg):

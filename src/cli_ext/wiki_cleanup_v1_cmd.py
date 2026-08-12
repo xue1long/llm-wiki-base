@@ -30,7 +30,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from ..lib.project import resolve_cli_project
+from .project_resolve import resolve_cli_project
 from ..utils.path import safe_resolve
 
 

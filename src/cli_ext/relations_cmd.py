@@ -11,7 +11,7 @@ from ..services.wiki_analysis import (
 )
 from ..wiki.core.paths import WikiPaths
 from ..project.context import ProjectContext
-from ..lib.project import resolve_cli_project
+from .project_resolve import resolve_cli_project
 from ..lib.write_hooks import safe_write
 
 

@@ -4,7 +4,7 @@ import sys
 
 from ..maintenance.cache_cleanup import cleanup_all
 from ..maintenance.checks.h5_cache_health import H5CacheHealthCheck
-from ..lib.project import resolve_cli_project
+from .project_resolve import resolve_cli_project
 
 
 def _resolve_ctx(project_arg):

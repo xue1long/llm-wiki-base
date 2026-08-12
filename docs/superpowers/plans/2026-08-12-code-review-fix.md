@@ -16,7 +16,7 @@ Do not touch the refactor commits or user-owned uncommitted files. Verify the re
 
 ## Task 2: Restore explicit CLI resolver compatibility
 
-Update `resolve_cli_project(project_arg, *, with_paths=True, by_id_only=True)` to pass the explicit resolution mode through to `resolve_project` and `resolve_ctx_only`. Keep the existing CLI error contract at the seam, but test both return shapes, both resolution modes, and `SystemExit(2)` with stderr output. Existing command wrappers remain thin adapters.
+Add `src/cli_ext/project_resolve.py::resolve_cli_project(project_arg, *, with_paths=True, by_id_only=True)` so CLI error handling stays in the adapter layer. Keep `src/lib/project.py` pure. Pass the explicit resolution mode through to `resolve_project` and `resolve_ctx_only`; test both return shapes, both resolution modes, and `SystemExit(2)` with stderr output. Existing command wrappers remain thin adapters.
 
 Add direct tests under `tests/test_lib/` and a focused CLI wrapper regression test. Do not alter command output or aliases.
 

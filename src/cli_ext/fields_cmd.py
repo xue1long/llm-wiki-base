@@ -8,7 +8,7 @@ import yaml
 from ..wiki.core.id_generator import is_valid_id
 from ..wiki.storage.page_writer import read_page
 from ..services.tags import validate_tags_for_page
-from ..lib.project import resolve_cli_project
+from .project_resolve import resolve_cli_project
 
 
 def _resolve_ctx(project_arg):

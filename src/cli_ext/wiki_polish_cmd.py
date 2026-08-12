@@ -4,7 +4,7 @@ import sys
 from ..services.wiki_analysis import run_dedup_auto, run_stub_promotion, run_lint
 from ..wiki.features.lint_cache import cache_key, get as cache_get, put as cache_put, invalidate_all, DEFAULT_TTL
 from ..wiki.storage.page_writer import read_page
-from ..lib.project import resolve_cli_project
+from .project_resolve import resolve_cli_project
 
 
 def _resolve_ctx(project_arg):
