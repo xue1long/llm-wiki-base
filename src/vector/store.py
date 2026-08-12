@@ -91,7 +91,7 @@ def init_vector_store_for_paths(paths: WikiPaths) -> None:
     _current_project_key = key
 
 
-def _migrate_schema_if_needed(db: lancedb.LanceDB) -> None:
+def _migrate_schema_if_needed(db: Any) -> None:
     """Drop the ``chunks`` table if its embedding dimension differs from 384.
 
     This handles the migration from 1536-dim remote providers (OpenAI,

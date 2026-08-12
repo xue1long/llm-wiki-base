@@ -11,6 +11,7 @@ import tempfile
 
 import pytest
 from fastapi.testclient import TestClient
+from src.services.ingest import IngestInProgressError
 
 
 
@@ -61,3 +62,18 @@ def test_ingest_absolute_path_outside_project_returns_400(client_with_project):
     assert "outside project root" in body.get("detail", ""), (
         f"error body must mention the path validation failure; got: {body!r}"
     )
+
+
+def test_reingest_active_source_returns_409(client_with_project, monkeypatch):
+    monkeypatch.setattr(
+        "src.server.routes.ingest.ingest_service.reingest_source",
+        lambda *args: (_ for _ in ()).throw(
+            IngestInProgressError("source is already active")
+        ),
+    )
+    resp = client_with_project.post(
+        "/api/v1/projects/u/reingest",
+        json={"source_path": "raw/sources/book.md"},
+    )
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "source is already active"

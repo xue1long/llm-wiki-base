@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import threading
 import time
+import json
+import os
 from typing import Any
 
 from ..events.event_bus import event_bus
@@ -24,10 +26,57 @@ from ..events.events import EventName
 _tasks: dict[str, dict] = {}
 _lock = threading.Lock()
 _initialized = False
+_TASKS_FILENAME = "ingest_tasks.json"
 
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
+
+
+def _tasks_path(project_id: str | None):
+    if not project_id:
+        return None
+    try:
+        from ..lib.project import resolve_project
+        _, paths = resolve_project(project_id, by_id_only=True)
+        return paths.index / _TASKS_FILENAME
+    except Exception:
+        return None
+
+
+def _persist_task(task_id: str) -> None:
+    with _lock:
+        rec = dict(_tasks.get(task_id) or {})
+    if not rec:
+        return
+    path = _tasks_path(rec.get("project_id"))
+    if path is None:
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        data[task_id] = rec
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        os.replace(tmp, path)
+    except (OSError, TypeError, ValueError):
+        return
+
+
+def _load_project_tasks(project_id: str | None) -> None:
+    path = _tasks_path(project_id)
+    if path is None or not path.exists():
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError):
+        return
+    if not isinstance(data, dict):
+        return
+    with _lock:
+        for task_id, rec in data.items():
+            if isinstance(rec, dict):
+                _tasks.setdefault(task_id, rec)
 
 
 def init_tracker() -> None:
@@ -56,6 +105,7 @@ def init_tracker() -> None:
                 if rec["status"] == "queued":
                     rec["status"] = "running"
                 rec["stages"].append({"name": stage, "at": _now_ms()})
+            _persist_task(task_id)
 
     event_bus.on(EventName.TASK_CREATED, _on_created)
     event_bus.on(EventName.TASK_STATUS_CHANGED, _on_status)
@@ -83,6 +133,7 @@ def _on_created(p: Any) -> None:
             "error": None,
             "project_id": getattr(p, "project_id", None),
         }
+    _persist_task(task_id)
 
 
 def _on_status(p: Any) -> None:
@@ -109,6 +160,7 @@ def _on_status(p: Any) -> None:
         elif rec["status"] in ("failed", "timeout", "dead_letter"):
             rec["status"] = "failed"
             rec["finished_at"] = _now_ms()
+    _persist_task(task_id)
 
 
 def _on_dead_letter(p: Any) -> None:
@@ -122,6 +174,7 @@ def _on_dead_letter(p: Any) -> None:
         rec["status"] = "failed"
         rec["error"] = getattr(p, "error", None) or "dead letter"
         rec["finished_at"] = _now_ms()
+    _persist_task(task_id)
 
 
 def _touch_stage(p: Any, stage_name: str) -> None:
@@ -137,10 +190,13 @@ def _touch_stage(p: Any, stage_name: str) -> None:
             rec["status"] = "running"
         # Append stage event (allow duplicate stage names for repeated runs)
         rec["stages"].append({"name": stage_name, "at": _now_ms()})
+    _persist_task(task_id)
 
 
-def get_task(task_id: str) -> dict | None:
+def get_task(task_id: str, project_id: str | None = None) -> dict | None:
     """Return a copy of the record for task_id, or None if unknown."""
+    if project_id is not None:
+        _load_project_tasks(project_id)
     with _lock:
         rec = _tasks.get(task_id)
         return dict(rec) if rec else None
@@ -148,6 +204,7 @@ def get_task(task_id: str) -> dict | None:
 
 def list_tasks(project_id: str | None = None) -> list[dict]:
     """Return all tracked tasks (optionally filtered by project_id)."""
+    _load_project_tasks(project_id)
     with _lock:
         items = list(_tasks.values())
     if project_id is not None:

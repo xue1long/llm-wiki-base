@@ -46,9 +46,46 @@ def test_enqueue_file_source_detected(monkeypatch, tmp_path):
         return "task-456"
     monkeypatch.setattr(ingest_service, "enqueue_task", fake_enqueue)
 
-    result = ingest_service.enqueue_source("u", "/some/file/path.md")
+    result = ingest_service.enqueue_source("u", "some/file/path.md")
     assert result["status"] == "queued"
     assert captured["stype"] == "file"
+
+
+def test_reingest_rejects_active_source_before_cleanup(monkeypatch, tmp_path):
+    """An active source task must not be deleted and then ignored on requeue."""
+    project_dir = tmp_path / "kb"
+    (project_dir / "wiki" / "sources").mkdir(parents=True)
+    monkeypatch.setattr(
+        "src.lib.project.resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+
+    active = type("Task", (), {
+        "source": "raw/sources/book.md",
+        "project_id": "u",
+        "status": type("Status", (), {"value": "running"})(),
+    })()
+    monkeypatch.setattr(
+        ingest_service,
+        "get_default_queue_service",
+        lambda: type("Queue", (), {"get_queue": lambda self: [active]})(),
+    )
+    monkeypatch.setattr(
+        ingest_service,
+        "_find_source_page_by_raw_path",
+        lambda *args: "source-1",
+    )
+    monkeypatch.setattr(
+        "src.wiki.features.cascade_delete.cascade_delete",
+        lambda *args: (_ for _ in ()).throw(AssertionError("must not clean active source")),
+    )
+
+    try:
+        ingest_service.reingest_source("u", "raw/sources/book.md")
+    except ingest_service.IngestInProgressError:
+        pass
+    else:
+        raise AssertionError("active reingest should be rejected")
 
 
 def test_enqueue_folder_source(monkeypatch, tmp_path):

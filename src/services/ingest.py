@@ -38,6 +38,23 @@ class IngestPathError(ValueError):
     """
 
 
+class IngestInProgressError(ValueError):
+    """Raised when a source already has a pending or running task."""
+
+
+def _has_active_source_task(project_id: str, source: str) -> bool:
+    source = source.replace("\\", "/")
+    for task in get_default_queue_service().get_queue():
+        status = getattr(getattr(task, "status", None), "value", getattr(task, "status", None))
+        if (
+            getattr(task, "project_id", None) == project_id
+            and str(getattr(task, "source", "")).replace("\\", "/") == source
+            and status in {"pending", "running"}
+        ):
+            return True
+    return False
+
+
 def _normalize_absolute_path(
     project_root: Path, raw: str,
 ) -> str:
@@ -358,6 +375,11 @@ def reingest_source(project_id: str, raw_path: str) -> dict:
     ctx, paths = resolve_project(project_id, by_id_only=True)
 
     # Step 2 — find the source page
+    raw_path = _normalize_absolute_path(paths.root, raw_path)
+    if _has_active_source_task(project_id, raw_path):
+        raise IngestInProgressError(
+            f"source {raw_path!r} already has an active ingest task"
+        )
     source_id = _find_source_page_by_raw_path(paths.wiki_sources, raw_path)
     if source_id is None:
         raise ValueError(

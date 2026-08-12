@@ -6,6 +6,10 @@ REM  Server runs in the foreground; press Ctrl+C to stop it.
 REM ============================================================
 cd /d "%~dp0"
 
+REM Keep launcher state in the project so a locked Windows user-config folder
+REM cannot make the window disappear before the server starts.
+set "RUFLO_CONFIG_DIR=%~dp0.llm-wiki"
+
 REM Activate a local venv if one exists
 if exist ".venv\Scripts\activate.bat" (
     call .venv\Scripts\activate.bat
@@ -15,6 +19,11 @@ if exist ".venv\Scripts\activate.bat" (
 
 REM Start the HTTP API server (foreground)
 python -m src.cli serve --host 127.0.0.1 --port 19828
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Server exited with code %errorlevel%.
+    pause
+)
 
 REM ---- Alternatives (uncomment to use) ----
 REM Daemon mode (runs in the background):

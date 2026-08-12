@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Union
 from ...project.context import ProjectNotFoundError
 from ...services import ingest as ingest_service
-from ...services.ingest import IngestPathError
+from ...services.ingest import IngestInProgressError, IngestPathError
 from ..ingest_tracker import get_task, list_tasks
 
 router = APIRouter(prefix="/api/v1", tags=["ingest"])
@@ -50,6 +50,8 @@ async def reingest(project_id: str, body: ReingestRequest):
         return ingest_service.reingest_source(project_id, body.source_path)
     except ProjectNotFoundError as e:
         raise HTTPException(404, str(e))
+    except IngestInProgressError as e:
+        raise HTTPException(409, str(e))
     except ValueError as e:
         raise HTTPException(400, str(e))
     except IngestPathError as e:
@@ -89,7 +91,7 @@ async def ingest_status(project_id: str, task_id: str):
     queue refuses to enqueue them in the first place — the frontend should
     treat such a response as terminal without polling.
     """
-    rec = get_task(task_id)
+    rec = get_task(task_id, project_id=project_id)
     if rec is None:
         raise HTTPException(404, f"task {task_id!r} not found (or already pruned)")
     # Sanity-check project ownership (do not leak other projects' task IDs).
