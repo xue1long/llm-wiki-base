@@ -217,6 +217,29 @@
       return "none";  // "B" or any other → gray
     }
 
+    // Full pipeline stage sequence for the step indicator.
+    const STAGES = [
+      { name: "collector", label: "Collector", icon: "📥" },
+      { name: "analyzer", label: "Analyzer", icon: "🧠" },
+      { name: "generator", label: "Generator", icon: "💾" },
+    ];
+
+    // Render the step indicator given the stage names recorded so far
+    // (in start order — the last recorded stage is the one currently running).
+    function renderStageSteps(completedNames, allDone) {
+      const lastIdx = (completedNames || []).length - 1;
+      return STAGES.map((s, i) => {
+        let cls = "pending";
+        if (allDone) cls = "completed";
+        else if (i < lastIdx) cls = "completed";
+        else if (i === lastIdx) cls = "active";
+        const connector = i < STAGES.length - 1
+          ? `<span class="stage-connector ${(i < lastIdx || allDone) ? "done" : ""}">→</span>`
+          : "";
+        return `<span class="stage-step ${cls}"><span class="stage-icon">${cls === "completed" ? "✔" : cls === "active" ? s.icon : "▢"}</span>${App.escapeHtml(s.label)}</span>${connector}`;
+      }).join("");
+    }
+
     function renderFileList() {
       const list = document.getElementById("ingestFileList");
       const filterText = (document.getElementById("ingestFilterInput").value || "").toLowerCase();
@@ -385,7 +408,12 @@
             (rec) => {
               const stages = Array.isArray(rec.stages) ? rec.stages : [];
               const stageName = stages.length ? stages[stages.length - 1].name : rec.status;
-              statusEl.textContent = stageName || rec.status;
+              const stageLabel = STAGES.find(s => s.name === stageName);
+              if (stageLabel) {
+                statusEl.textContent = stageLabel.icon + " " + stageLabel.label;
+              } else {
+                statusEl.textContent = stageName || rec.status;
+              }
             }
           );
         }));
@@ -429,6 +457,13 @@
       const panel = document.getElementById("ingestProgressPanel");
       const statusEl = panel.querySelector(".progress-status");
       const fill = panel.querySelector(".progress-fill");
+      // Add a stages area if it doesn't exist
+      let stagesEl = panel.querySelector(".poll-stages");
+      if (!stagesEl) {
+        stagesEl = document.createElement("div");
+        stagesEl.className = "progress-stages poll-stages";
+        panel.appendChild(stagesEl);
+      }
       for (let i = 0; i < 240; i++) {
         await new Promise(res => setTimeout(res, 1500));
         let rec;
@@ -440,6 +475,10 @@
         }
         statusEl.textContent = rec.status;
         const stages = Array.isArray(rec.stages) ? rec.stages : [];
+        const terminal = ["succeeded", "failed", "finished", "ignored"].includes(rec.status);
+        stagesEl.innerHTML = stages.length || terminal
+          ? `<div class="stage-steps">${renderStageSteps(stages.map(s => s.name), terminal)}</div>`
+          : "";
         const pct = ({ queued: 5, running: 30, finished: 100, succeeded: 100, failed: 100, ignored: 100 }[rec.status])
           ?? (stages.length >= 3 ? 95 : stages.length === 2 ? 70 : stages.length === 1 ? 40 : 30);
         fill.style.width = pct + "%";
@@ -561,8 +600,9 @@
           }
           statusEl.textContent = rec.status;
           const stages = Array.isArray(rec.stages) ? rec.stages : [];
-          stagesEl.innerHTML = stages.length
-            ? stages.map(s => `<span class="stage-badge">${App.escapeHtml(s.name)}</span>`).join(" · ")
+          const terminal = ["succeeded", "failed", "finished", "ignored"].includes(rec.status);
+          stagesEl.innerHTML = stages.length || terminal
+            ? `<div class="stage-steps">${renderStageSteps(stages.map(s => s.name), terminal)}</div>`
             : "<span style='color:#9ca3af'>等待阶段事件...</span>";
           const pct = (() => {
             // Terminal states always show full bar.

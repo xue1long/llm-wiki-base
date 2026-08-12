@@ -5,6 +5,14 @@
 
 ---
 
+## 0. 项目选择器
+
+**文件：** [web/js/router.js](../web/js/router.js)
+
+| 按钮 | 位置 | 功能 | 后端 API |
+|------|------|------|----------|
+| **新建项目 +** | 项目选择器顶部 | 输入项目名称并选择知识库场景模板后创建 | `GET /api/v1/scenario-templates` + `POST /api/v1/projects` |
+
 ## 1. 摄取页（Ingest）
 
 **文件：** [web/js/views/ingest.js](../web/js/views/ingest.js)

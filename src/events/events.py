@@ -13,6 +13,9 @@ class EventName:
     LIBRARIAN_MERGED = "librarian:merged"
     SEARCHER_QUERY = "searcher:query"
     SEARCHER_RESULT = "searcher:result"
+    # Pipeline stage lifecycle — emitted by PipelineRunner before each stage.
+    # Payload: {"task_id": str, "stage": str}
+    STAGE_STARTED = "stage:started"
 
 @dataclass
 class TaskCreatedPayload:

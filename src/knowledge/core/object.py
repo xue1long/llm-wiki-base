@@ -66,3 +66,4 @@ class KnowledgeObject:
     versions: list[VersionRef] = field(default_factory=list)
     created_at: int = 0
     updated_at: int = 0
+    custom_type: str = ""

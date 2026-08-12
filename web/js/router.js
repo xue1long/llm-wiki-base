@@ -163,10 +163,10 @@
   }
 
   // ---------- New project ----------
-  async function createProject(name) {
+  async function createProject(name, template) {
     const result = await App.api("/api/v1/projects", {
       method: "POST",
-      body: { name },
+      body: { name, template },
     });
     const newProject = { id: result.id, name: result.name, path: result.path, last_opened: Date.now() };
     App.state.projects.unshift(newProject);
@@ -234,7 +234,13 @@
         const name = window.prompt("输入项目名称：");
         if (!name || !name.trim()) return;
         try {
-          await createProject(name.trim());
+          const data = await App.api("/api/v1/scenario-templates");
+          const templates = data.templates || [];
+          const choices = templates.map((t, i) => `${i + 1}. ${t.icon || ""}${t.name}`).join("\n");
+          const selected = window.prompt(`选择知识库模板（输入编号，默认 1）：\n${choices}`, "1");
+          const index = Math.max(1, Number.parseInt(selected || "1", 10)) - 1;
+          const chosen = templates[index] || templates[0];
+          await createProject(name.trim(), chosen && chosen.id);
         } catch (e) {
           App.setBanner("创建失败: " + e.message, "err");
         }

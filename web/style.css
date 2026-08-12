@@ -712,6 +712,35 @@ body {
   background: var(--accent-light); color: var(--accent); border-radius: var(--radius-lg); font-size: 11px;
 }
 
+/* ---------- Stage steps indicator ---------- */
+.stage-steps {
+  display: flex; align-items: center; gap: 0; margin: 8px 0;
+  font-size: 12px; font-family: var(--font-mono);
+}
+.stage-step {
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: var(--radius-sm);
+  color: var(--text-muted); background: transparent;
+  transition: all 0.3s ease;
+}
+.stage-step .stage-icon { font-size: 13px; }
+.stage-step.completed { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+.stage-step.active {
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 600;
+}
+.stage-step.active .stage-icon {
+  display: inline-block; animation: stage-pulse 1.2s ease-in-out infinite;
+}
+@keyframes stage-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.stage-connector {
+  color: var(--text-muted); font-size: 11px; padding: 0 2px; user-select: none;
+}
+.stage-connector.done { color: var(--success); }
+
 /* ---------- Ingest task history ---------- */
 .ingest-history {
   margin-top: 16px;

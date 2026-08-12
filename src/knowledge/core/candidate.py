@@ -62,3 +62,4 @@ class KnowledgeCandidate:
     status: CandidateStatus = field(default=CandidateStatus.PENDING)
     chunk_index: int | None = None
     chunk_total: int | None = None
+    custom_type: str = ""

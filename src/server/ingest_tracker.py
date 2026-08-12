@@ -45,12 +45,25 @@ def init_tracker() -> None:
     def _on_librarian_done(p: Any):
         _touch_stage(p, "librarian")
 
+    def _on_stage_started(p: Any):
+        task_id = getattr(p, "task_id", None) or (p.get("task_id") if isinstance(p, dict) else None)
+        stage = getattr(p, "stage", None) or (p.get("stage") if isinstance(p, dict) else None)
+        if task_id and stage:
+            with _lock:
+                rec = _tasks.get(task_id)
+                if rec is None:
+                    return
+                if rec["status"] == "queued":
+                    rec["status"] = "running"
+                rec["stages"].append({"name": stage, "at": _now_ms()})
+
     event_bus.on(EventName.TASK_CREATED, _on_created)
     event_bus.on(EventName.TASK_STATUS_CHANGED, _on_status)
     event_bus.on(EventName.TASK_DEAD_LETTER, _on_dead_letter)
     event_bus.on(EventName.COLLECTOR_DONE, _on_collector_done)
     event_bus.on(EventName.PROCESSOR_DONE, _on_processor_done)
     event_bus.on(EventName.LIBRARIAN_DONE, _on_librarian_done)
+    event_bus.on(EventName.STAGE_STARTED, _on_stage_started)
 
     _initialized = True
 
@@ -62,6 +75,7 @@ def _on_created(p: Any) -> None:
     with _lock:
         _tasks[task_id] = {
             "task_id": task_id,
+            "source": getattr(p, "source", None),
             "status": "queued",
             "stages": [],
             "started_at": _now_ms(),
