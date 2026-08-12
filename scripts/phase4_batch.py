@@ -29,6 +29,8 @@ import sys
 import time
 from pathlib import Path
 
+from _common import log_message
+
 PROJECT_ID = "8dd46257-e46d-4bf8-b8d8-ba60b2aea54d"
 ROOT = Path("knowledge/novel-wiki")
 MANIFEST = ROOT / ".index" / "reingest_backlog.json"
@@ -48,10 +50,7 @@ BATCH_WARN_SECONDS = 60 * 60
 
 
 def _log(msg: str) -> None:
-    line = f"[{time.strftime('%H:%M:%S')}] {msg}"
-    print(line, flush=True)
-    with REPORT.open("a", encoding="utf-8") as f:
-        f.write(line + "\n")
+    log_message(msg, REPORT)
 
 
 def _load_state() -> dict:
