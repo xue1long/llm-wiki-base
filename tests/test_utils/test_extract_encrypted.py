@@ -8,6 +8,19 @@ import zipfile
 import pytest
 
 from src.utils.extract import EncryptedDocumentError
+from src.utils.extract.errors import looks_like_encryption_error
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [Exception("password required"), Exception("document is encrypted"), type("Unknown", (Exception,), {})()],
+)
+def test_shared_encryption_classifier_detects_known_signals(exc):
+    assert looks_like_encryption_error(exc)
+
+
+def test_shared_encryption_classifier_rejects_unrelated_error():
+    assert not looks_like_encryption_error(ValueError("invalid header"))
 
 
 def test_encrypted_zipfile_raises_typed_error(tmp_path, monkeypatch):

@@ -17,7 +17,7 @@ def _resolve_ctx(project_arg):
     Delegates to the centralised helper; preserves the (ctx, paths) tuple
     interface for the two cmd_* callers.
     """
-    return resolve_cli_project(project_arg)
+    return resolve_cli_project(project_arg, by_id_only=False)
 
 
 def cmd_fields_validate(args: argparse.Namespace) -> None:

@@ -1,10 +1,16 @@
 # ruflo-kb/tests/test_utils/test_similarity.py
 import pytest
 from src.utils.similarity import cosine_similarity, string_similarity
+from src.wiki.features.dedup import _cosine_similarity
 
 def test_cosine_similarity():
     assert cosine_similarity([1, 2, 3], [1, 2, 3]) == pytest.approx(1.0)
     assert cosine_similarity([1, 0, 0], [0, 1, 0]) == pytest.approx(0.0)
+
+
+@pytest.mark.parametrize("left,right", [([], []), ([1.0], [1.0, 2.0]), ([0.0], [1.0])])
+def test_dedup_cosine_wrapper_preserves_edge_cases(left, right):
+    assert _cosine_similarity(left, right) == cosine_similarity(left, right) == 0.0
 
 def test_string_similarity():
     assert string_similarity("hello", "hello") == 1.0

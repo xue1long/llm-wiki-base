@@ -45,9 +45,16 @@ def resolve_ctx_only(
     return ProjectContext.resolve(project_id, by_id_only=by_id_only)
 
 
-def resolve_cli_project(project_arg: str | None, *, with_paths: bool = True):
+def resolve_cli_project(
+    project_arg: str | None,
+    *,
+    with_paths: bool = True,
+    by_id_only: bool = True,
+):
     try:
-        return resolve_project(project_arg, by_id_only=True) if with_paths else resolve_ctx_only(project_arg, by_id_only=True)
+        if with_paths:
+            return resolve_project(project_arg, by_id_only=by_id_only)
+        return resolve_ctx_only(project_arg, by_id_only=by_id_only)
     except ProjectNotFoundError as exc:
         import sys
         print(f"Error: {exc}", file=sys.stderr)
