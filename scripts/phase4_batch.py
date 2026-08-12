@@ -29,7 +29,10 @@ import sys
 import time
 from pathlib import Path
 
-from _common import log_message
+try:
+    from scripts._common import log_message
+except ImportError:  # direct `python scripts/phase4_batch.py` execution
+    from _common import log_message
 
 PROJECT_ID = "8dd46257-e46d-4bf8-b8d8-ba60b2aea54d"
 ROOT = Path("knowledge/novel-wiki")
