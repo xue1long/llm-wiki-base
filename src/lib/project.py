@@ -43,5 +43,3 @@ def resolve_ctx_only(
     `resolve_project` which returns both halves together.
     """
     return ProjectContext.resolve(project_id, by_id_only=by_id_only)
-
-
