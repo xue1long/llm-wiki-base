@@ -13,6 +13,7 @@ from ..wiki.storage.page_writer import read_page
 def build_content_health(paths: WikiPaths) -> dict:
     """Summarize page counts and recent triage failures without modifying data."""
     pages = []
+    check_errors = []
     page_ids: set[str] = set()
     targets: set[str] = set()
     inbound: set[str] = set()
@@ -28,6 +29,7 @@ def build_content_health(paths: WikiPaths) -> dict:
             for target in re.findall(r"\[\[([^\]|#]+)", page.body):
                 targets.add(target.strip())
         except Exception:
+            check_errors.append({"path": str(path), "error": "invalid page"})
             continue
 
     triage_failures = 0
@@ -53,4 +55,5 @@ def build_content_health(paths: WikiPaths) -> dict:
         ),
         "dangling_link_count": len(targets - page_ids),
         "triage_non_process_count": triage_failures,
+        "check_errors": check_errors,
     }

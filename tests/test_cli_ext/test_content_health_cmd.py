@@ -18,3 +18,14 @@ def test_content_health_cli_json(tmp_path, capsys):
 
     report = json.loads(capsys.readouterr().out)
     assert report["page_count"] == 1
+
+
+def test_content_health_cli_text_includes_quality_counts(tmp_path, capsys):
+    ensure_knowledge_base(tmp_path)
+    cmd_content_health(argparse.Namespace(project=str(tmp_path), json=False))
+
+    output = capsys.readouterr().out
+    assert "Orphans:" in output
+    assert "Dangling links:" in output
+    assert "C-grade:" in output
+    assert "Stubs:" in output

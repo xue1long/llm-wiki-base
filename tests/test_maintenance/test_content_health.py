@@ -28,3 +28,15 @@ def test_build_content_health_summarizes_pages_and_triage(tmp_path):
     assert report["dangling_link_count"] == 1
     assert report["orphan_count"] == 1
     assert report["triage_non_process_count"] == 1
+
+
+def test_build_content_health_reports_unreadable_pages(tmp_path):
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    broken = paths.wiki_concepts / "broken.md"
+    broken.write_text("---\nnot: [valid\n---\nbody", encoding="utf-8")
+
+    report = build_content_health(paths)
+
+    assert report["page_count"] == 0
+    assert report["check_errors"] == [{"path": str(broken), "error": "invalid page"}]

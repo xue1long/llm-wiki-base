@@ -2,15 +2,18 @@
 from __future__ import annotations
 
 import json
+import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
 from .prefilter import prefilter
 from ..wiki.core.paths import WikiPaths
+from ..lib.write_hooks import safe_write
 
 TriageAction = Literal["process", "skip", "source_only", "reference_list"]
 _RULE_VERSION = "triage-v1"
+_LOG_LOCK = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -49,17 +52,10 @@ def triage(
 def write_triage_result(paths: WikiPaths, result: TriageResult) -> None:
     """Append one triage event, suppressing exact duplicate events."""
     log_path = Path(paths.index) / "triage.log"
-    log_path.parent.mkdir(parents=True, exist_ok=True)
     record = asdict(result)
     encoded = json.dumps(record, ensure_ascii=False, sort_keys=True)
-    existing: set[str] = set()
-    if log_path.exists():
-        existing = {
-            line.strip()
-            for line in log_path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        }
-    if encoded in existing:
-        return
-    with log_path.open("a", encoding="utf-8", newline="\n") as handle:
-        handle.write(encoded + "\n")
+    with _LOG_LOCK:
+        previous = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+        if encoded in {line.strip() for line in previous.splitlines() if line.strip()}:
+            return
+        safe_write(log_path, previous + encoded + "\n")
