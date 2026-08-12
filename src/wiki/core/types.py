@@ -42,7 +42,7 @@ class WikiPage:
     relations: list["Relation"] = field(default_factory=list)
     # NEW v2.2 fields
     grade: str = "B"                       # "A" | "B" | "C"
-    processing_depth: str = "concept"      # "concept" | "memory"
+    processing_depth: str = "concept"      # "concept" | "memory" | "operation"
     is_immutable: bool = False
     # NEW heat fields (wiki-heat-5pool T1)
     heat: int = 50
@@ -55,6 +55,10 @@ class WikiPage:
     taxonomy_sub: str = ""
     # C3: low-importance entity references inlined instead of creating stub pages
     related_entities: list[str] = field(default_factory=list)
+    # Custom page type name (from schema.md), e.g. "thesis". Empty for
+    # built-in types. When set, the page routes to wiki/<custom>/ instead
+    # of the base type's dir; ``type`` stays the base enum for rendering.
+    custom_type: str = ""
 
     def to_frontmatter_dict(self) -> dict:
         d = {
@@ -75,6 +79,7 @@ class WikiPage:
             "category": self.category,
             "taxonomy_sub": self.taxonomy_sub,
             "related_entities": list(self.related_entities),
+            "custom_type": self.custom_type,
         }
         ko_extra = getattr(self, "_ko_extra", None)
         if isinstance(ko_extra, dict):
@@ -103,6 +108,7 @@ class WikiPage:
             category=d.get("category", ""),
             taxonomy_sub=d.get("taxonomy_sub", ""),
             related_entities=list(d.get("related_entities", [])),
+            custom_type=str(d.get("custom_type", "")),
         )
 
 

@@ -11,6 +11,7 @@ router = APIRouter(prefix="/api/v1", tags=["projects"])
 
 class CreateProjectRequest(BaseModel):
     name: str
+    template: str | None = None
 
     @validator("name")
     def name_must_be_safe(cls, v: str) -> str:
@@ -32,7 +33,13 @@ async def list_projects(base: str | None = None):
 async def create_project(body: CreateProjectRequest):
     """Create a new project under CWD /knowledge/<name>."""
     try:
+        if body.template:
+            from ...templates import load
+            load(body.template)  # validate before registering a new project
         result = projects_service.create_project(body.name)
+        if body.template:
+            from ...templates import apply_template
+            apply_template(body.template, result["path"], force=True)
         return result
     except Exception as e:
         raise HTTPException(400, str(e))

@@ -6,6 +6,19 @@ from src.pipeline.analyzer import (
     ANALYZER_JSON_PROMPT,
     analyze,
 )
+
+
+def test_parser_keeps_only_declared_custom_type():
+    raw = {
+        "source_id": "raw/sources/x.md",
+        "type": "concept",
+        "custom_type": "thesis",
+        "title": "T",
+        "claims": [{"statement": "C", "confidence": 0.9, "evidence_refs": []}],
+    }
+    parser = AnalyzerOutputParser()
+    assert parser.parse(raw, allowed_custom_types={"thesis"}).custom_type == "thesis"
+    assert parser.parse(raw, allowed_custom_types={"finding"}).custom_type == ""
 from src.pipeline.schemas import AnalysisResult
 from src.knowledge.core.candidate import (
     KnowledgeCandidate,

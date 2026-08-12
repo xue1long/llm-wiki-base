@@ -1,4 +1,4 @@
-# Wiki Schema Routing
+# Wiki Schema Routing — Research
 
 ## Page Types
 
@@ -8,6 +8,9 @@
 | entity | wiki/entities |
 | concept | wiki/concepts |
 | synthesis | wiki/synthesis |
+| thesis | wiki/thesis |
+| methodology | wiki/methodology |
+| finding | wiki/findings |
 
 ## Conventions
 - All wiki pages MUST have frontmatter `id`, `title`, `type`, `sources`, `created_at`, `updated_at`.

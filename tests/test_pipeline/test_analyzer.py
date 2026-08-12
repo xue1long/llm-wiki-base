@@ -34,6 +34,39 @@ async def test_analyze_returns_analysis_result():
 
 
 @pytest.mark.asyncio
+async def test_analyze_injects_schema_purpose_and_custom_page_type():
+    provider = ScriptedLLMProvider([{
+        "summary": "S", "key_facts": [], "entities": [], "concepts": [],
+        "suggested_pages": [], "links_to_existing": [],
+    }])
+    await analyze(
+        source_text="body", source_ext=".md", existing_wiki_index="",
+        folder_context="", provider=provider,
+        schema_content="| type | directory |\n| thesis | wiki/thesis |",
+        purpose_content="Prefer research arguments.",
+    )
+    prompt = provider.calls[0]["messages"][0]["content"]
+    assert "thesis" in prompt
+    assert "Prefer research arguments." in prompt
+
+
+@pytest.mark.asyncio
+async def test_analyze_injects_project_taxonomy():
+    provider = ScriptedLLMProvider([{
+        "summary": "S", "key_facts": [], "entities": [], "concepts": [],
+        "suggested_pages": [], "links_to_existing": [],
+    }])
+    await analyze(
+        source_text="body", source_ext=".md", existing_wiki_index="",
+        folder_context="", provider=provider,
+        taxonomy_content="# Taxonomy\n\n## Engineering\n- Python",
+    )
+    prompt = provider.calls[0]["messages"][0]["content"]
+    assert "## Engineering" in prompt
+    assert "- Python" in prompt
+
+
+@pytest.mark.asyncio
 async def test_analyze_parses_v22_fields_from_llm():
     """When the LLM response includes v2.2 fields per suggested_page,
     the Analyzer must round-trip them into the resulting PageSpec."""

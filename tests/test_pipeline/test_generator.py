@@ -6,13 +6,13 @@ from src.pipeline.generator import generate, PROCESSING_DEPTH_VALUES
 from src.wiki.core.types import PageType
 
 
-def test_processing_depth_values_are_concept_and_memory_only():
+def test_processing_depth_values_include_operation():
     """PROCESSING_DEPTH_VALUES must equal ['concept', 'memory'] and never
     absorb page-type names (regression: the LLM response schema used to mix
     page-type names into the processing_depth enum, inviting illegal values
     from the model). 'concept' is the one page type that doubles as a valid
     depth, so the guard is against every OTHER PageType value."""
-    assert PROCESSING_DEPTH_VALUES == ["concept", "memory"]
+    assert PROCESSING_DEPTH_VALUES == ["concept", "memory", "operation"]
     non_depth_page_types = {t.value for t in PageType} - {"concept"}
     assert not (set(PROCESSING_DEPTH_VALUES) & non_depth_page_types), (
         "PROCESSING_DEPTH_VALUES must not contain page-type names other than "
@@ -177,6 +177,17 @@ def test_render_template_section_compact_with_optional_annotations(tmp_path):
     # The render-for-prompt path is compact: no blank line between
     # heading and its slot markers.
     assert "## 定义\n<!-- slot:definition -->" in out
+
+
+def test_render_template_section_includes_operation_template(tmp_path):
+    """Operation depth is represented by a separate, non-PageType template."""
+    from src.pipeline.generator import _render_operation_template_section
+
+    out = _render_operation_template_section(tmp_path)
+
+    assert "### operation" in out
+    assert "<!-- slot:steps -->" in out
+    assert "<!-- slot:verification -->" in out
 
 
 def test_render_template_section_falls_back_when_no_bundled(tmp_path, monkeypatch):

@@ -1,0 +1,6 @@
+{
+  "name": "Research",
+  "description": "学术研究、假设追踪和方法论笔记",
+  "icon": "🔬",
+  "extra_dirs": ["wiki/thesis", "wiki/methodology", "wiki/findings"]
+}

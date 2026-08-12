@@ -43,6 +43,10 @@ class WikiPaths:
     def wiki(self) -> Path:
         return self.root / "wiki"
 
+    def get_custom_dir(self, name: str) -> Path:
+        """Return a schema-defined page directory under ``wiki/``."""
+        return self.wiki / name
+
     @property
     def wiki_sources(self) -> Path:
         return self.root / "wiki" / "sources"

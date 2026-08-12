@@ -14,6 +14,8 @@ import logging
 from typing import Sequence
 
 from ..types import TaskStatus
+from ..events.event_bus import event_bus
+from ..events.events import EventName
 from .ports import PipelineContext, PipelineStage, StageResult
 
 _logger = logging.getLogger(__name__)
@@ -34,6 +36,10 @@ class PipelineRunner:
         try:
             for stage in stages:
                 _logger.debug("Running stage %s for task %s", stage.name, ctx.task_id)
+                event_bus.emit(EventName.STAGE_STARTED, {
+                    "task_id": ctx.task_id,
+                    "stage": stage.name,
+                })
                 result = await stage.run(ctx, prev_result)
                 prev_result = result
                 if not result.success:

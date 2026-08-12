@@ -81,6 +81,11 @@ class GeneratorOutputValidator:
                 f"(from KnowledgeType.{ko.type.value}), "
                 f"got PageType.{wp.type.value}"
             )
+        if wp.custom_type != ko.custom_type:
+            return (
+                f"custom_type mismatch: expected {ko.custom_type!r}, "
+                f"got {wp.custom_type!r}"
+            )
         return None
 
     @staticmethod

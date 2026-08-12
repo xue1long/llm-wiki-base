@@ -20,6 +20,13 @@ import re
 from typing import Any
 
 from ..lib.project import resolve_project
+from ..maintenance.content_health import build_content_health
+
+
+def content_health(project_id: str) -> dict:
+    """Return the read-only aggregate content health summary."""
+    _ctx, paths = resolve_project(project_id, by_id_only=True)
+    return build_content_health(paths)
 
 # ---- frontmatter helpers ---------------------------------------------------
 

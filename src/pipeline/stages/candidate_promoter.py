@@ -74,6 +74,7 @@ class CandidatePromoter:
             ],
             created_at=now_ms,
             updated_at=now_ms,
+            custom_type=candidate.custom_type,
         )
 
         # Mutate candidate status to PROMOTED (terminal)

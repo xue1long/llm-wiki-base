@@ -1,0 +1,13 @@
+# Wiki Schema
+
+## Page Types
+
+| type | directory |
+|------|-----------|
+| source | wiki/sources |
+| entity | wiki/entities |
+| concept | wiki/concepts |
+| synthesis | wiki/synthesis |
+
+## Conventions
+- 页面使用 YAML frontmatter 和 `[[wikilink]]` 交叉引用。

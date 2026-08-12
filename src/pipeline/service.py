@@ -16,6 +16,8 @@ from typing import Sequence
 
 from ..queue.service import get_default_queue_service
 from ..types import SourceType, TaskStatus
+from ..events.event_bus import event_bus
+from ..events.events import EventName
 # NOTE: `src.pipeline.pipeline` (the compat shim) is NOT imported at module
 # top — it triggers a circular import because `__init__.py` hasn't
 # finished registering the shim when this service module loads. Instead,
@@ -105,6 +107,9 @@ class PipelineService:
                 project_id=project_id,
             )
             for stage in self._stages[:1]:  # only CollectorStage
+                event_bus.emit(EventName.STAGE_STARTED, {
+                    "task_id": task_id, "stage": stage.name,
+                })
                 result = await stage.run(ctx, prev_result=None)
                 if not result.success:
                     self.queue_service.update_status(
@@ -125,6 +130,9 @@ class PipelineService:
             provider = _pipeline_mod._get_provider(project_id=project_id)
             # raw_path is a str (CollectorDonePayload.raw_path). Wrap
             # in Path so run_ingest can call .suffix / .name on it.
+            event_bus.emit(EventName.STAGE_STARTED, {
+                "task_id": task_id, "stage": "analyzer",
+            })
             await _pipeline_mod.run_ingest(
                 paths=paths,
                 source_path=_Path(ctx.collector_result.raw_path),
@@ -133,6 +141,9 @@ class PipelineService:
                 folder_context=folder_context or "",
                 task_id=task_id,
             )
+            event_bus.emit(EventName.STAGE_STARTED, {
+                "task_id": task_id, "stage": "writer",
+            })
             self.queue_service.update_status(task_id, status=TaskStatus.APPROVED)
         except Exception as exc:
             _logger.exception("ingest failed for %s", task_id)

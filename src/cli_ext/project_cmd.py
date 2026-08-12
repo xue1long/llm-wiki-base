@@ -41,16 +41,12 @@ def cmd_project_init(args: argparse.Namespace) -> None:
     # Apply template (if requested) — schema.md / purpose.md get overwritten
     # by the template's copies, just like the WebUI's front-end writeFile.
     if getattr(args, "template", None):
-        from ..templates.loader import load
+        from ..templates.loader import apply_template
         try:
-            tmpl = load(args.template)
-        except FileNotFoundError as e:
+            apply_template(args.template, paths.root, force=True)
+        except (FileNotFoundError, ValueError) as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(2)
-        for rel_path, content in tmpl.files.items():
-            dest = paths.root / rel_path
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            safe_write(dest, content)
 
     # Registry + identity (creates .llm-wiki/project.json).
     ctx = ProjectContext.from_path(project_path, name=name)

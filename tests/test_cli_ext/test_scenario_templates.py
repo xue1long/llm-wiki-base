@@ -1,0 +1,52 @@
+import json
+
+import pytest
+
+from src.templates import apply_template, create, list_templates, load, update_content, update_metadata
+from src.templates import loader
+
+
+def test_bundled_scenarios_and_general_page_templates():
+    names = {t.name for t in list_templates()}
+    assert {"general", "research", "reading", "personal", "business"} <= names
+    general = load("general")
+    assert ".wiki-templates/source.md" in general.files
+    assert ".wiki-templates/entity.md" in general.files
+    assert ".wiki-templates/concept.md" in general.files
+    assert ".wiki-templates/synthesis.md" in general.files
+    assert "taxonomy.md" in load("personal").files
+
+
+def test_apply_template_creates_extra_dirs_and_preserves_existing(tmp_path):
+    (tmp_path / "purpose.md").write_text("keep", encoding="utf-8")
+    written = apply_template("research", tmp_path)
+    assert (tmp_path / "schema.md").exists()
+    assert (tmp_path / "wiki" / "thesis").is_dir()
+    assert (tmp_path / "purpose.md").read_text(encoding="utf-8") == "keep"
+    assert len(written) >= 2
+
+
+def test_custom_template_can_be_created_and_updated(tmp_path, monkeypatch):
+    monkeypatch.setattr(loader, "USER_DIR", tmp_path / "templates")
+    created = create("my-template", source="general")
+    assert created.builtin is False
+    update_metadata("my-template", description="Changed")
+    assert load("my-template").description == "Changed"
+    assert json.loads((tmp_path / "templates" / "my-template" / "template.json").read_text(encoding="utf-8"))["description"] == "Changed"
+
+
+def test_custom_template_can_add_taxonomy_content(tmp_path, monkeypatch):
+    monkeypatch.setattr(loader, "USER_DIR", tmp_path / "templates")
+    create("my-template", source="general")
+
+    update_content(
+        "my-template",
+        {"taxonomy.md": "# Taxonomy\n\n## Engineering\n- Python"},
+    )
+
+    assert "## Engineering" in load("my-template").files["taxonomy.md"]
+
+
+def test_bundled_template_cannot_be_updated_or_deleted():
+    with pytest.raises(PermissionError):
+        update_metadata("general", description="no")

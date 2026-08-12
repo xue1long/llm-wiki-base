@@ -34,6 +34,7 @@ from .features.relations import (
     parse_relations_from_response,
 )
 from .features.slug_aliases import SlugAliasRegistry
+from .taxonomy_registry import TaxonomyRegistry
 from .storage.atomic_ctx_helpers import atomic_pipeline_op
 from .storage.ensure import ensure_knowledge_base
 from .storage.page_writer import (
@@ -74,4 +75,5 @@ __all__ = [
     "SYMMETRIC_RELATIONS",
     "USER_TYPE_PREFIX",
     "SlugAliasRegistry",
+    "TaxonomyRegistry",
 ]

@@ -36,6 +36,7 @@ import unicodedata
 from pathlib import Path
 
 from ..wiki.core.paths import WikiPaths
+from ..wiki.schema_registry import SchemaRegistry
 from ..utils.path import normalize_source_path
 from ..wiki.core.types import PageType, WikiPage
 from ..lib.atomic_ctx import AtomicContext
@@ -53,7 +54,12 @@ from ..wiki.storage.page_writer import write_page
 # at call time, after the test patch has run.
 from . import analyzer as _analyzer_module
 from . import generator as _generator_module
-from ._pipeline_common import clean_source_text
+from ._pipeline_common import (
+    clean_source_text,
+    _read_purpose_text,
+    _read_schema_text,
+    _read_taxonomy_text,
+)
 
 # ---------------------------------------------------------------------------
 # Stub quality gate (P2 optimization — 2026-07-29).
@@ -238,7 +244,7 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
     for page in pages:
         if page.grade not in ("A", "B", "C"):
             page.grade = "B"
-        if page.processing_depth not in ("concept", "memory", "stub"):
+        if page.processing_depth not in ("concept", "memory", "operation", "stub"):
             page.processing_depth = "concept"
         if page.id:
             page.id = page.id.strip()
@@ -327,6 +333,7 @@ async def generate_ingest(
     provider,
     folder_context: str = "",
     task_id: str = "test",
+    schema_registry: SchemaRegistry | None = None,
 ) -> tuple[list[WikiPage], list[WikiPage], dict]:
     """Phase 1 (NDG split): LLM processing only — ZERO disk writes.
 
@@ -335,15 +342,29 @@ async def generate_ingest(
     ``downstream_count``, ``extra_pages_count``, ``rejected``, ``warnings``.
     The caller is responsible for calling ``commit_ingest`` to persist.
     """
-    # No pre-flight work needed: the 2026-07 cleanup removed the Inbox
-    # staging layer. The collector reads ``raw/sources/<file>`` directly
-    # and the wiki page's ``sources:`` field references that same
-    # project-relative path.
-    _ = paths  # keep the parameter for callers
+    # Resolve schema registry once and pass to all downstream calls.
+    if schema_registry is None:
+        schema_registry = SchemaRegistry.from_project(paths.root)
+    # Read schema/purpose text for prompt injection
+    _schema_text = _read_schema_text(paths)
+    _purpose_text = _read_purpose_text(paths)
+    _taxonomy_text = _read_taxonomy_text(paths)
 
     from .sanitizer import sanitize
+    from .triage import triage
 
     _result = sanitize(source_text)
+    _source_file = Path(str(source_path))
+    try:
+        _file_size = _source_file.stat().st_size
+    except OSError:
+        _file_size = len(source_text.encode("utf-8"))
+    _triage = triage(
+        str(source_path),
+        _result.text,
+        file_size=_file_size,
+        sanitizer_score=_result.quality_score,
+    )
 
     if _result.warnings:
         _logger.warning(
@@ -402,6 +423,9 @@ async def generate_ingest(
             existing_wiki_index=_existing_wiki_index,
             provider=provider,
             source_slug_map=_source_slug_map,
+            schema_registry=schema_registry,
+            purpose_content=_purpose_text,
+            taxonomy_content=_taxonomy_text,
         )
         _logger.info(
             "[run_ingest] unified path produced %d pages for %s",
@@ -423,6 +447,9 @@ async def generate_ingest(
             provider=provider,
             task_id=task_id,
             source_path=str(source_path),
+            schema_content=_schema_text,
+            purpose_content=_purpose_text,
+            taxonomy_content=_taxonomy_text,
         )
         pages = await _generate(
             paths=paths,
@@ -431,6 +458,8 @@ async def generate_ingest(
             provider=provider,
             source_slug_map=_source_slug_map,
             source_text=_sanitized_source_text,
+            schema_registry=schema_registry,
+            taxonomy_content=_taxonomy_text,
         )
 
     # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.
@@ -879,6 +908,14 @@ async def generate_ingest(
         "source_slug": source_slug,
         "source_page_id": source_slug,
         "source_grade": _source_grade,
+        "triage": {
+            "source_id": _triage.source_id,
+            "grade": _triage.grade,
+            "action": _triage.action,
+            "reason": _triage.reason,
+            "rule_version": _triage.rule_version,
+            "metadata": _triage.metadata,
+        },
         "downstream_count": _downstream_count,
         "extra_pages_count": len(extra_pages),
         "rejected": bool(_result.warnings),
@@ -892,6 +929,7 @@ async def commit_ingest(
     pages: list[WikiPage],
     extra_pages: list[WikiPage] | None = None,
     task_id: str = "test",
+    triage_result=None,
 ):
     """Phase 2 (NDG split): write pages + index update + log.
 
@@ -900,7 +938,10 @@ async def commit_ingest(
     (written to disk but NOT re-appended to the index).
     """
     from .quality_gate import check_pages
+    from .triage import TriageResult, write_triage_result
     _extra = extra_pages or []
+    if isinstance(triage_result, dict):
+        triage_result = TriageResult(**triage_result)
     _gate = check_pages(pages + _extra)
     for _pid, _reason in _gate.degraded.items():
         _logger.warning("[run_ingest] quality gate: %s degraded — %s", _pid, _reason)
@@ -923,6 +964,8 @@ async def commit_ingest(
             task_id=task_id,
             detail=f"generated {len(pages)} pages from {Path(str(source_path)).name}",
         )
+    if triage_result is not None:
+        write_triage_result(paths, triage_result)
 
 
 async def run_ingest(
@@ -951,6 +994,7 @@ async def run_ingest(
         pages=pages,
         extra_pages=extra_pages,
         task_id=task_id,
+        triage_result=_meta.get("triage"),
     )
     return pages
 

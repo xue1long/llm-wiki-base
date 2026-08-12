@@ -289,6 +289,29 @@ async def test_unified_generate_produces_pages(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_unified_generate_injects_wiki_purpose(tmp_path):
+    """The default one-pass ingestion path must receive purpose.md text."""
+    from src.pipeline.generator import unified_generate
+    from src.wiki.storage.ensure import ensure_knowledge_base
+
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    provider = ScriptedLLMProvider([{"pages": []}])
+
+    await unified_generate(
+        source_text="source",
+        source_path="test.md",
+        folder_context="",
+        paths=p,
+        existing_wiki_index="",
+        provider=provider,
+        purpose_content="Prefer evidence-backed research notes.",
+    )
+
+    assert "Prefer evidence-backed research notes." in str(provider.calls[0])
+
+
+@pytest.mark.asyncio
 async def test_unified_generate_truncates_large_source(tmp_path):
     """Source text > MAX_SOURCE_CHARS should be truncated to control prompt size."""
     from src.pipeline.generator import unified_generate

@@ -468,3 +468,28 @@ def _dump_failed_json(content: str) -> None:
         _logger.warning(
             "[parse_llm_json] failed to write debug dump", exc_info=True,
         )
+
+
+def _read_schema_text(paths) -> str:
+    """Read schema.md content from project root, or ``"(未配置)"`` if missing."""
+    try:
+        schema_path = Path(paths.root) / "schema.md"
+        return schema_path.read_text(encoding="utf-8") or "(未配置)"
+    except (FileNotFoundError, OSError):
+        return "(未配置)"
+
+
+def _read_purpose_text(paths) -> str:
+    """Read purpose.md content from project root, or ``"(未配置)"`` if missing."""
+    try:
+        purpose_path = Path(paths.root) / "purpose.md"
+        return purpose_path.read_text(encoding="utf-8") or "(未配置)"
+    except (FileNotFoundError, OSError):
+        return "(未配置)"
+
+
+def _read_taxonomy_text(paths) -> str:
+    """Read the project taxonomy through the shared registry boundary."""
+    from ..wiki.taxonomy_registry import TaxonomyRegistry
+
+    return TaxonomyRegistry.from_project(Path(paths.root)).injection_text

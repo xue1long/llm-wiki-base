@@ -1,0 +1,6 @@
+{
+  "name": "Business",
+  "description": "会议、决策、项目和利益相关者上下文",
+  "icon": "💼",
+  "extra_dirs": ["wiki/meetings", "wiki/decisions", "wiki/projects", "wiki/stakeholders"]
+}

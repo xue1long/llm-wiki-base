@@ -36,7 +36,10 @@ from .cli_ext.schema_cmd import (
 )
 from .cli_ext.atomic_cmd import cmd_atomic_status, cmd_budget_estimate, cmd_budget_check
 from .cli_ext.completions_cmd import cmd_completions
-from .cli_ext.templates_cmd import cmd_templates_list, cmd_templates_show, cmd_templates_apply
+from .cli_ext.templates_cmd import (
+    cmd_templates_list, cmd_templates_show, cmd_templates_apply,
+    cmd_templates_create, cmd_templates_edit, cmd_templates_delete,
+)
 from .cli_ext.metrics_cmd import cmd_metrics_show, cmd_metrics_reset, cmd_metrics_export, cmd_metrics_cost
 from .cli_ext.llm_providers_cmd import (
     cmd_llm_providers_list, cmd_llm_providers_show,
@@ -44,6 +47,7 @@ from .cli_ext.llm_providers_cmd import (
     cmd_llm_providers_test, cmd_llm_providers_set_default,
 )
 from .cli_ext.health_cmd import cmd_health
+from .cli_ext.content_health_cmd import cmd_content_health
 from .cli_ext.quality_cmd import (
     cmd_quality_score, cmd_quality_config_show, cmd_quality_config_set,
 )
@@ -213,7 +217,22 @@ def main():
     p_tmpl_apply = p_tmpl_sub.add_parser("apply")
     p_tmpl_apply.add_argument("name", help="Template name")
     p_tmpl_apply.add_argument("--project", help="Project to apply to (UUID/name)")
+    p_tmpl_apply.add_argument("--force", action="store_true", help="Overwrite existing template files")
     p_tmpl_apply.set_defaults(func=cmd_templates_apply)
+    p_tmpl_create = p_tmpl_sub.add_parser("create")
+    p_tmpl_create.add_argument("name")
+    p_tmpl_create.add_argument("--from", dest="source", default="general")
+    p_tmpl_create.add_argument("--description")
+    p_tmpl_create.add_argument("--icon")
+    p_tmpl_create.set_defaults(func=cmd_templates_create)
+    p_tmpl_edit = p_tmpl_sub.add_parser("edit")
+    p_tmpl_edit.add_argument("name")
+    p_tmpl_edit.add_argument("--description")
+    p_tmpl_edit.add_argument("--icon")
+    p_tmpl_edit.set_defaults(func=cmd_templates_edit)
+    p_tmpl_delete = p_tmpl_sub.add_parser("delete")
+    p_tmpl_delete.add_argument("name")
+    p_tmpl_delete.set_defaults(func=cmd_templates_delete)
 
     # Metrics
     p_metrics = subparsers.add_parser("metrics", help="Metrics utilities")
@@ -261,6 +280,13 @@ def main():
     p_health.add_argument("--json", action="store_true", help="JSON output")
     p_health.add_argument("--project", help="Project path (default: cwd)")
     p_health.set_defaults(func=cmd_health)
+
+    p_content_health = subparsers.add_parser(
+        "content-health", help="Show read-only aggregate wiki content health"
+    )
+    p_content_health.add_argument("--json", action="store_true", help="JSON output")
+    p_content_health.add_argument("--project", help="Project path (default: cwd)")
+    p_content_health.set_defaults(func=cmd_content_health)
 
     # Quality
     p_quality = subparsers.add_parser("quality", help="Quality gate")

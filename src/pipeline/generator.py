@@ -27,6 +27,7 @@ from ..wiki.core.paths import WikiPaths
 from ..wiki.features.relations import parse_relations_from_response
 from ..wiki.features.tag_namespace import TAG_PREFIXES, is_valid as is_valid_tag, build_tag_prompt_section
 from ..wiki.core.types import PageType, WikiPage
+from ..wiki.schema_registry import SchemaRegistry
 from ..wiki.templates import (
     compute_slot_fill_status,
     list_resolved,
@@ -69,9 +70,8 @@ _DEPTH_BY_TYPE: dict[PageType, str] = {
 }
 
 # Valid values for WikiPage.processing_depth (see src/wiki/core/types.py).
-# Deliberately NOT the page-type enum — this constrains the LLM to the two
-# real processing depths so it cannot emit a page-type name here.
-PROCESSING_DEPTH_VALUES = ["concept", "memory"]
+# Deliberately NOT the page-type enum — these are content processing depths.
+PROCESSING_DEPTH_VALUES = ["concept", "memory", "operation"]
 
 
 # ---------------------------------------------------------------------------
@@ -206,6 +206,9 @@ When source truly lacks info for a required slot, write "来源未详述此方�
 
 {PAGE_TEMPLATES}
 
+## Operation template (used when processing_depth=operation)
+{OPERATION_TEMPLATE}
+
 ## Entity pages are REQUIRED
 Every entity listed in `suggested_pages` (type=entity) MUST have a
 corresponding entry in your `pages` output. The wiki knowledge graph
@@ -253,7 +256,7 @@ For each suggested page, fill its slots. Output strict JSON:
   "pages": [
     {{
       "id": "<slug>",
-      "type": "source|entity|concept|synthesis",
+      "type": "source|entity|concept|synthesis|{custom_types}",
       "title": "<title>",
       "slots": {{
         "<slot_name>": "<content>",            // or a list of strings
@@ -266,7 +269,7 @@ For each suggested page, fill its slots. Output strict JSON:
       "tags": ["题材/现言", "功能/教程"]     // optional; 受控命名空间前缀 (见 Tags guidance)
       "category": "",                          // optional; 一级分类
       "taxonomy_sub": "",                      // optional; 二级分类
-      "processing_depth": "concept"            // optional; concept|memory
+      "processing_depth": "concept"            // optional; concept|memory|operation
     }}
   ]
 }}
@@ -281,6 +284,14 @@ relation type names outside this set.
 
 {WIKI_RULES_SUMMARY}
 {TAG_NAMESPACE_RULES}
+
+## Project Schema
+
+{SCHEMA_SECTION}
+
+## Project Taxonomy
+
+{TAXONOMY_SECTION}
 
 ## Language (re-asserted — applies to ALL output below)
 默认使用中文 (Simplified Chinese) 撰写所有用户可见的字符串字段:
@@ -322,6 +333,18 @@ extract structured knowledge, and render wiki pages in ONE pass.
 
 ## Page Templates
 {PAGE_TEMPLATES}
+
+## Operation template (used when processing_depth=operation)
+{OPERATION_TEMPLATE}
+
+## Project Schema
+{SCHEMA_SECTION}
+
+## Project Taxonomy
+{TAXONOMY_SECTION}
+
+## Wiki Purpose
+{PURPOSE_SECTION}
 
 ## Rules (all mandatory)
 
@@ -413,7 +436,7 @@ knowledge into structured wiki pages. Output strict JSON:
   "pages": [
     {{
       "id": "<slug>",
-      "type": "source|entity|concept|synthesis",
+      "type": "{page_types}",
       "title": "<中文标题>",
       "slots": {{"<slot_name>": "<content or list of strings>"}},
       "relations": [{{"target": "<slug>", "type": "<relation_type>", "weight": 0.0-1.0, "context": "<why>"}}],
@@ -421,7 +444,7 @@ knowledge into structured wiki pages. Output strict JSON:
       "grade": "A|B|C",
       "category": "",
       "taxonomy_sub": "",
-      "processing_depth": "concept|memory"
+      "processing_depth": "concept|memory|operation"
     }}
   ]
 }}
@@ -439,6 +462,9 @@ async def unified_generate(
     existing_wiki_index: str,
     provider,
     source_slug_map: Optional["dict[str, str]"] = None,
+    schema_registry: Optional["SchemaRegistry"] = None,
+    purpose_content: str = "",
+    taxonomy_content: str = "",
 ) -> list[WikiPage]:
     """Single-pass: analyze source text + render wiki pages in one LLM call.
 
@@ -483,7 +509,7 @@ async def unified_generate(
                     "type": "object",
                     "properties": {
                         "id": {"type": "string"},
-                        "type": {"type": "string", "enum": ["source", "entity", "concept", "synthesis"]},
+                        "type": {"type": "string", "enum": _custom_type_enum(schema_registry)},
                         "title": {"type": "string"},
                         "slots": {
                             "type": "object",
@@ -522,7 +548,15 @@ async def unified_generate(
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
+        OPERATION_TEMPLATE=_render_operation_template_section(paths.root),
+        SCHEMA_SECTION=_render_schema_section(schema_registry),
+        PURPOSE_SECTION=purpose_content or "(未配置)",
+        TAXONOMY_SECTION=taxonomy_content or "(未配置)",
+        page_types="|".join(_custom_type_enum(schema_registry)),
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
+        custom_types="|".join(schema_registry.all_custom_type_names())
+        if schema_registry and schema_registry.all_custom_type_names()
+        else "(none)",
     )
 
     response_dict = await _call_with_slot_retry(
@@ -567,9 +601,8 @@ async def unified_generate(
     for p in filled_pages:
         title = p.get("title", "")
         slug = _slugify(title) or p.get("id", "")
-        try:
-            page_type = PageType(p.get("type"))
-        except ValueError:
+        page_type = _resolve_page_type(p.get("type"), schema_registry)
+        if page_type is None:
             _logger.warning(f"Unknown page type: {p.get('type')}")
             continue
 
@@ -638,6 +671,7 @@ async def unified_generate(
             tags=_resolve_page_tags_unified(p),
             category=p.get("category", ""),
             taxonomy_sub=p.get("taxonomy_sub", ""),
+            custom_type=_get_custom_type_name(p.get("type", ""), schema_registry),
         ))
     return pages
 
@@ -686,6 +720,15 @@ information — only organize and render the claims provided below.
 
 ## Page Templates
 {PAGE_TEMPLATES}
+
+## Operation template (used when processing_depth=operation)
+{OPERATION_TEMPLATE}
+
+## Project Schema
+{SCHEMA_SECTION}
+
+## Project Taxonomy
+{TAXONOMY_SECTION}
 
 ## Rules (all mandatory)
 
@@ -749,7 +792,7 @@ Render the claims above into structured wiki pages. Output strict JSON:
   "pages": [
     {{
       "id": "<slug>",
-      "type": "source|entity|concept|synthesis",
+      "type": "{page_types}",
       "title": "<中文标题>",
       "slots": {{"<slot_name>": "<content or list of strings>"}},
       "relations": [{{"target": "<slug>", "type": "<relation_type>", "weight": 0.0-1.0, "context": "<why>"}}],
@@ -774,6 +817,8 @@ async def generate_from_candidate(
     provider,
     source_slug_map: Optional["dict[str, str]"] = None,
     source_text: str = "",
+    schema_registry: Optional["SchemaRegistry"] = None,
+    taxonomy_content: str = "",
 ) -> list[WikiPage]:
     """Render wiki pages from a validated KnowledgeCandidate.
 
@@ -820,7 +865,7 @@ async def generate_from_candidate(
                     "type": "object",
                     "properties": {
                         "id": {"type": "string"},
-                        "type": {"type": "string", "enum": ["source", "entity", "concept", "synthesis"]},
+                        "type": {"type": "string", "enum": _custom_type_enum(schema_registry)},
                         "title": {"type": "string"},
                         "slots": {
                             "type": "object",
@@ -866,6 +911,10 @@ async def generate_from_candidate(
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
+        OPERATION_TEMPLATE=_render_operation_template_section(paths.root),
+        SCHEMA_SECTION=_render_schema_section(schema_registry),
+        TAXONOMY_SECTION=taxonomy_content or "(未配置)",
+        page_types="|".join(_custom_type_enum(schema_registry)),
     )
 
     response_dict = await _call_with_slot_retry(
@@ -915,9 +964,11 @@ async def generate_from_candidate(
         title = p.get("title", candidate.title)
         slug = _slugify(title) or p.get("id", "")
 
-        try:
-            page_type = PageType(p.get("type"))
-        except ValueError:
+        if candidate.custom_type and schema_registry and schema_registry.is_custom(candidate.custom_type):
+            page_type = schema_registry.get_base_type(candidate.custom_type)
+        else:
+            page_type = _resolve_page_type(p.get("type"), schema_registry)
+        if page_type is None:
             _logger.warning(f"Unknown page type: {p.get('type')}")
             continue
 
@@ -973,6 +1024,7 @@ async def generate_from_candidate(
             tags=_resolve_page_tags_unified(p),
             category=p.get("category", ""),
             taxonomy_sub=p.get("taxonomy_sub", ""),
+            custom_type=candidate.custom_type,
         )
         page._ko_extra = {"provenance": _provenance_payload}
         pages.append(page)
@@ -988,6 +1040,8 @@ async def generate_from_knowledge_object(
     provider,
     source_slug_map: Optional["dict[str, str]"] = None,
     source_text: str = "",
+    schema_registry: Optional["SchemaRegistry"] = None,
+    taxonomy_content: str = "",
 ) -> list[WikiPage]:
     """Render wiki pages from a KnowledgeObject with frontmatter enforcement.
 
@@ -1033,7 +1087,7 @@ async def generate_from_knowledge_object(
                     "type": "object",
                     "properties": {
                         "id": {"type": "string"},
-                        "type": {"type": "string", "enum": ["source", "entity", "concept", "synthesis"]},
+                        "type": {"type": "string", "enum": _custom_type_enum(schema_registry)},
                         "title": {"type": "string"},
                         "slots": {
                             "type": "object",
@@ -1066,7 +1120,7 @@ async def generate_from_knowledge_object(
 
     # KO-derived frontmatter values (these override LLM output)
     _ko_grade = ko.grade or "B"
-    _ko_type_str = ko.type.value
+    _ko_type_str = ko.custom_type or ko.type.value
 
     base_prompt = CANDIDATE_RENDER_PROMPT.format(
         candidate_type=_ko_type_str,
@@ -1079,6 +1133,10 @@ async def generate_from_knowledge_object(
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
+        OPERATION_TEMPLATE=_render_operation_template_section(paths.root),
+        SCHEMA_SECTION=_render_schema_section(schema_registry),
+        TAXONOMY_SECTION=taxonomy_content or "(未配置)",
+        page_types="|".join(_custom_type_enum(schema_registry)),
     )
 
     response_dict = await _call_with_slot_retry(
@@ -1134,7 +1192,10 @@ async def generate_from_knowledge_object(
         # Type from KO — use constraint mapping to collapse extended types
         # (claim/decision/procedure/event) into standard PageTypes
         from .generator_constraint import KO_TYPE_TO_PAGE_TYPE
-        page_type = KO_TYPE_TO_PAGE_TYPE.get(ko.type, PageType.CONCEPT)
+        if ko.custom_type and schema_registry and schema_registry.is_custom(ko.custom_type):
+            page_type = schema_registry.get_base_type(ko.custom_type)
+        else:
+            page_type = KO_TYPE_TO_PAGE_TYPE.get(ko.type, PageType.CONCEPT)
 
         # Deterministic source-page slug
         if source_slug_map and page_type == PageType.SOURCE and _ko_source_path:
@@ -1188,6 +1249,7 @@ async def generate_from_knowledge_object(
             tags=_resolve_page_tags_unified(p),
             category=p.get("category", ""),
             taxonomy_sub=p.get("taxonomy_sub", ""),
+            custom_type=ko.custom_type,
         )
         page._ko_extra = {"provenance": _provenance_payload}
         pages.append(page)
@@ -1203,6 +1265,8 @@ async def generate(
     model: str = "gpt-4o-mini",
     source_slug_map: Optional["dict[str, str]"] = None,
     source_text: str = "",
+    schema_registry: Optional["SchemaRegistry"] = None,
+    taxonomy_content: str = "",
 ) -> list[WikiPage]:
     """Step 2: LLM call → list of WikiPage objects.
 
@@ -1259,7 +1323,7 @@ async def generate(
                         "id": {"type": "string"},
                         "type": {
                             "type": "string",
-                            "enum": ["source", "entity", "concept", "synthesis"],
+                            "enum": _custom_type_enum(schema_registry),
                         },
                         "title": {"type": "string"},
                         "slots": {
@@ -1310,7 +1374,13 @@ async def generate(
         WIKI_RULES_SUMMARY=WIKI_RULES_SUMMARY,
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
+        OPERATION_TEMPLATE=_render_operation_template_section(paths.root),
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
+        SCHEMA_SECTION=_render_schema_section(schema_registry),
+        TAXONOMY_SECTION=taxonomy_content or "(未配置)",
+        custom_types="|".join(schema_registry.all_custom_type_names())
+        if schema_registry and schema_registry.all_custom_type_names()
+        else "(none)",
     )
 
     response_dict = await _call_with_slot_retry(
@@ -1381,16 +1451,10 @@ async def generate(
             type_from_analyzer.get(slug)
             or p.get("type")
         )
-        try:
-            page_type = PageType(raw_type)
-        except ValueError:
-            _logger.warning(
-                f"Unknown page type for slug={slug!r}: {raw_type!r}; "
-                "falling back to LLM's raw value"
-            )
-            try:
-                page_type = PageType(p.get("type"))
-            except ValueError:
+        page_type = _resolve_page_type(raw_type, schema_registry)
+        if page_type is None:
+            page_type = _resolve_page_type(p.get("type"), schema_registry)
+            if page_type is None:
                 _logger.warning(f"Unknown page type: {p.get('type')}")
                 continue
 
@@ -1471,6 +1535,7 @@ async def generate(
             tags=_resolve_page_tags(p, slug, analyzer_tags),
             category=p.get("category", ""),
             taxonomy_sub=p.get("taxonomy_sub", ""),
+            custom_type=_get_custom_type_name(raw_type, schema_registry),
         ))
     return pages
 
@@ -1898,16 +1963,83 @@ def _render_template_section(project_root: Path) -> str:
     return "\n".join(parts).rstrip()
 
 
+def _render_operation_template_section(project_root: Path) -> str:
+    """Load the operation-depth template without treating it as a PageType.
+
+    ``operation`` is a processing depth, so it must not be added to the
+    ``PageType`` enum or the page-template resolver. It is nevertheless a
+    user-editable template asset and needs to reach the LLM prompt.
+    """
+    from ..wiki.templates.types import BUNDLED_DIR, USER_TEMPLATE_DIR
+
+    candidates = [
+        project_root / ".wiki-templates" / "operation.md",
+        USER_TEMPLATE_DIR / "operation.md",
+        BUNDLED_DIR / "operation.md",
+    ]
+    for path in candidates:
+        try:
+            if path.is_file():
+                return "### operation\n" + path.read_text(encoding="utf-8").strip()
+        except OSError as exc:  # pragma: no cover - permission edge case
+            _logger.warning("Could not load operation template %s: %s", path, exc)
+    return "(no operation template available)"
+
+
+def _render_schema_section(registry: SchemaRegistry | None) -> str:
+    """Render the schema routing section for the prompt (or ``(未配置)``)."""
+    if not registry:
+        return "(未配置)"
+    lines = [
+        "## Project Schema and Routing (AUTHORITATIVE)",
+        "",
+        "Custom page types declared in this project's schema.md. Route pages"
+        " of these types to their declared directory (not the base type's dir).",
+        "",
+    ]
+    if registry.schema_text.strip():
+        lines.extend([registry.schema_text.strip(), ""])
+    for name in registry.all_custom_type_names():
+        d = registry.get_def(name)
+        if d:
+            lines.append(f"- `{d.name}` → `wiki/{d.directory}/` (extends `{d.extends.value}`)")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _resolve_page_type(raw_type: str, registry: SchemaRegistry | None = None) -> PageType | None:
+    """Resolve a page type string to PageType, falling back to registry for custom types."""
+    try:
+        return PageType(raw_type)
+    except ValueError:
+        if registry is not None and registry.is_custom(raw_type):
+            return registry.get_base_type(raw_type)
+        return None
+
+
+def _custom_type_enum(registry: SchemaRegistry | None) -> list[str]:
+    """Return the ``type`` enum for ``response_format``, extended with custom types."""
+    base = ["source", "entity", "concept", "synthesis"]
+    if registry is None:
+        return base
+    return base + [n for n in registry.all_custom_type_names() if n not in base]
+
+
+def _get_custom_type_name(raw_type: str, registry: SchemaRegistry | None) -> str:
+    """Return the custom type name if *raw_type* is a schema-declared custom type."""
+    if registry is not None and registry.is_custom(raw_type):
+        return raw_type
+    return ""
+
+
 def _format_source_slug_map(
     source_slug_map: Optional[dict],
 ) -> str:
     """Render the ``{SOURCE_SLUG_MAP}`` prompt section.
-
     Lists every source-page slug created by THIS ingest run. Source
     pages from earlier runs are already visible in the wiki index
     included earlier in the prompt — only newly-produced slugs need
     to be listed explicitly.
-
     Without this section the LLM has to guess what slug a freshly-
     produced source page will have on disk. Plan 27 + Plan v2.4
     made the slug deterministic (``{NFC stem}-{md5(path)[:8]}``),

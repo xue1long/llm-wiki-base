@@ -247,10 +247,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    from .routes import health, projects, files, search, ingest, reviews, chat, schema, agent_cli, analysis, providers, tags, quality, heat, templates
+    from .routes import health, projects, files, search, ingest, reviews, chat, schema, agent_cli, analysis, providers, tags, quality, heat, templates, scenario_templates
     for router in [health.router, projects.router, files.router, search.router,
                    ingest.router, reviews.router, chat.router, schema.router, agent_cli.router,
-                   analysis.router, providers.router, tags.router, quality.router, heat.router, templates.router]:
+                   analysis.router, providers.router, tags.router, quality.router, heat.router, templates.router, scenario_templates.router]:
         app.include_router(router)
 
     # Mount /metrics endpoint (Plan 7 fix; previously dead code).

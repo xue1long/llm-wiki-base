@@ -7,6 +7,8 @@ from ...lib.write_hooks import safe_write
 from ..core.paths import WikiPaths
 from ..core.types import PageType, WikiPage
 from ..features.tag_namespace import validate_tag_compliance
+from ..schema_registry import SchemaRegistry
+from ..taxonomy_registry import TaxonomyRegistry
 
 
 _TYPE_TO_DIR: dict[PageType, str] = {
@@ -25,8 +27,21 @@ class PageNotFoundError(Exception):
     pass
 
 
-def page_path_for(paths: WikiPaths, type_: PageType, slug: str) -> Path:
-    """Return canonical path for (type, slug)."""
+def page_path_for(
+    paths: WikiPaths, type_: PageType, slug: str,
+    registry: SchemaRegistry | None = None,
+    custom_type: str = "",
+) -> Path:
+    """Return canonical path for (type, slug).
+
+    When *registry* is given and *custom_type* names a schema-declared type,
+    the path goes to ``wiki/<custom_dir>/<slug>.md`` instead of the base
+    type's directory.
+    """
+    if registry is not None:
+        cdir = registry.get_directory(custom_type or type_.value)
+        if cdir:
+            return paths.get_custom_dir(cdir) / f"{slug}.md"
     if type_ not in _TYPE_TO_DIR:
         raise ValueError(
             f"Stub pages should use page_path_for_stub instead of {type_}"
@@ -66,7 +81,26 @@ def write_page(paths: WikiPaths, page: WikiPage) -> None:
     The page title lives in frontmatter only — we don't prepend a `# title`
     header so the body round-trips cleanly.
     """
-    path = page_path_for(paths, page.type, page.id)
+    import logging
+    import os
+
+    custom_type = getattr(page, "custom_type", "") or ""
+    taxonomy_errors = TaxonomyRegistry.from_project(paths.root).validate(
+        page.category, page.taxonomy_sub
+    )
+    if taxonomy_errors:
+        message = "taxonomy validation failed: " + "; ".join(taxonomy_errors)
+        if os.environ.get("RUFLO_TAXONOMY_VALIDATION", "warn").lower() == "strict":
+            raise ValueError(message)
+        logging.getLogger(__name__).warning(message)
+    registry = None
+    if custom_type:
+        registry = SchemaRegistry.from_project(paths.root)
+        if not registry.is_custom(custom_type):
+            raise ValueError(
+                f"Custom page type {custom_type!r} is not declared in schema.md"
+            )
+    path = page_path_for(paths, page.type, page.id, registry, custom_type)
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
         _snapshot_raw(paths, page.id, path)

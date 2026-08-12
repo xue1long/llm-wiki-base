@@ -1,0 +1,50 @@
+"""Public behavior tests for project taxonomy.md support."""
+
+from src.wiki.taxonomy_registry import TaxonomyRegistry
+
+
+def test_parse_taxonomy_headings_and_aliases():
+    registry = TaxonomyRegistry.from_text(
+        """# Taxonomy
+
+## Engineering
+- Python（aliases: py, Python 语言）
+- Testing
+## Product
+- Research
+"""
+    )
+
+    assert registry.categories == {"Engineering": ["Python", "Testing"], "Product": ["Research"]}
+    assert registry.aliases == {"py": "Python", "Python 语言": "Python"}
+    assert registry.validate("Engineering", "Python") == []
+    assert registry.validate("Product", "Python") == ["unknown taxonomy_sub: Python"]
+
+
+def test_missing_taxonomy_is_empty_and_compatible(tmp_path):
+    registry = TaxonomyRegistry.from_project(tmp_path)
+
+    assert registry.is_empty
+    assert registry.injection_text == "(未配置)"
+    assert registry.validate("anything", "anything") == []
+
+
+def test_malformed_taxonomy_warns_without_blocking(tmp_path):
+    path = tmp_path / "taxonomy.md"
+    path.write_text("not a taxonomy", encoding="utf-8")
+
+    registry = TaxonomyRegistry.from_project(tmp_path, strict=False)
+
+    assert registry.is_empty
+    assert registry.errors
+
+
+def test_malformed_taxonomy_is_rejected_in_strict_mode(tmp_path):
+    (tmp_path / "taxonomy.md").write_text("not a taxonomy", encoding="utf-8")
+
+    try:
+        TaxonomyRegistry.from_project(tmp_path, strict=True)
+    except ValueError as exc:
+        assert "taxonomy" in str(exc).lower()
+    else:
+        raise AssertionError("strict taxonomy parsing must reject malformed input")

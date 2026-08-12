@@ -1,0 +1,6 @@
+{
+  "name": "Reading",
+  "description": "读书笔记、人物、主题和章节追踪",
+  "icon": "📚",
+  "extra_dirs": ["wiki/characters", "wiki/themes", "wiki/chapters"]
+}

@@ -31,6 +31,18 @@ def test_health_returns_expected_shape():
     assert isinstance(body["agent"], dict)
 
 
+def test_content_health_returns_read_only_aggregate(monkeypatch):
+    from src.services import wiki_analysis
+
+    expected = {"page_count": 3, "grades": {"A": 3}}
+    monkeypatch.setattr(wiki_analysis, "content_health", lambda project_id: expected)
+
+    r = client.get("/api/v1/projects/demo/content-health")
+
+    assert r.status_code == 200
+    assert r.json() == expected
+
+
 # 2. projects -------------------------------------------------------------
 
 def test_projects_list_with_empty_registry(monkeypatch, tmp_path):
@@ -246,3 +258,4 @@ def test_all_routers_mounted():
     assert any(p.endswith("/api/v1/projects/{project_id}/chat") for p in paths)
     assert any(p.endswith("/api/v1/projects/{project_id}/schema") for p in paths)
     assert any(p.endswith("/api/v1/projects/{project_id}/quality") for p in paths)
+    assert any(p.endswith("/api/v1/projects/{project_id}/content-health") for p in paths)

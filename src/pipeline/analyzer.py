@@ -8,6 +8,7 @@ from ..knowledge.core.object import KnowledgeType
 from ..lib.budgeted import BudgetedLLM
 from ..wiki.features.tag_namespace import build_tag_prompt_section
 from ..wiki.core.types import PageType
+from ..wiki.schema_registry import SchemaRegistry
 from ._pipeline_common import parse_llm_json
 from .schemas import AnalysisResult, ConceptMention, EntityMention, PageSpec
 
@@ -40,6 +41,15 @@ ASCII kebab-case — 保留概念的自然字面，**禁止拼音转写**。专�
 - Existing wiki index:
 {existing_wiki_index}
 
+## Project Schema (page types available — map source content to schema-defined types when it fits)
+__PROJECT_SCHEMA__
+
+## Wiki Purpose (for context)
+__WIKI_PURPOSE__
+
+## Project Taxonomy (classification constraints)
+__PROJECT_TAXONOMY__
+
 ## Source text
 {source_text}
 
@@ -64,7 +74,7 @@ Extract structured analysis. Output strict JSON:
       "title": "...",
       "reasoning": "...",
       "grade": "A|B|C",                    // optional; default B
-      "processing_depth": "concept|memory", // optional; default concept
+      "processing_depth": "concept|memory|operation", // optional; default concept
       "is_immutable": false,               // optional; default false
       "tags": ["题材/现言", "功能/教程"]      // optional; default []
       // 受控命名空间: 前缀只能是 题材/ 功能/ 角色/ 事件/ 情绪/ 实体/ 场景阶段/ 状态/ 素材/ 可信度/ 之一,
@@ -98,6 +108,15 @@ Slugs 使用中文 (CJK) 或 ASCII kebab-case — 保留概念的自然字面，
 - Existing wiki index:
 {existing_wiki_index}
 
+## Project Schema (page types available — map source content to schema-defined types when it fits)
+__PROJECT_SCHEMA__
+
+## Wiki Purpose (for context)
+__WIKI_PURPOSE__
+
+## Project Taxonomy (classification constraints)
+__PROJECT_TAXONOMY__
+
 ## Source text
 {chunk_context}{source_text}
 
@@ -111,6 +130,7 @@ Extract structured knowledge claims as a JSON object matching this schema:
 {{
   "source_id": "<source path>",
   "type": "{knowledge_types}",
+  "custom_type": "<one of __CUSTOM_PAGE_TYPES__, or empty>",
   "title": "<candidate title>",
   "claims": [
     {{"statement": "<claim text>", "confidence": 0.0-1.0, "evidence_refs": [0, 1]}}  // 0-based: valid range 0 to len(evidence)-1, never use len(evidence)
@@ -123,6 +143,7 @@ Extract structured knowledge claims as a JSON object matching this schema:
 Rules:
 - source_id: the path of the source document being analyzed
 - type: one of {knowledge_types}
+- custom_type: use a schema-defined page type when it fits; otherwise empty
 - title: a concise title summarizing the main topic (3-15 words)
 - claims: 3-10 factual claims extracted from the source. Each claim must have:
   - statement: the claim text (one sentence, self-contained)
@@ -170,6 +191,7 @@ class AnalyzerOutputParser:
         source_path: str = "",
         chunk_index: int | None = None,
         chunk_total: int | None = None,
+        allowed_custom_types: set[str] | None = None,
     ) -> KnowledgeCandidate:
         """Validate *raw* dict and return a KnowledgeCandidate.
 
@@ -254,6 +276,11 @@ class AnalyzerOutputParser:
             status=status,
             chunk_index=chunk_index,
             chunk_total=chunk_total,
+            custom_type=(
+                str(raw.get("custom_type", ""))
+                if str(raw.get("custom_type", "")) in (allowed_custom_types or set())
+                else ""
+            ),
         )
 
 
@@ -273,6 +300,9 @@ async def analyze(
     output_format: str = "markdown",
     chunk_index: int | None = None,
     chunk_total: int | None = None,
+    schema_content: str = "",
+    purpose_content: str = "",
+    taxonomy_content: str = "",
 ) -> AnalysisResult | KnowledgeCandidate:
     """Step 1: LLM call -> AnalysisResult or KnowledgeCandidate.
 
@@ -303,6 +333,9 @@ async def analyze(
             _al=_al,
             chunk_index=chunk_index,
             chunk_total=chunk_total,
+            schema_content=schema_content,
+            purpose_content=purpose_content,
+            taxonomy_content=taxonomy_content,
         )
 
     prompt = ANALYZER_PROMPT.format(
@@ -314,10 +347,12 @@ async def analyze(
         # Page-layer only: claim/decision/procedure/event are knowledge-layer
         # and fold to concept downstream (see wiki-spec-sync plan §0.2).
         page_types="|".join(
-            t.value for t in PageType
-            if t in (PageType.SOURCE, PageType.ENTITY, PageType.CONCEPT, PageType.SYNTHESIS)
+            ["source", "entity", "concept", "synthesis"]
+            + SchemaRegistry.from_schema_text(schema_content).all_custom_type_names()
         ),
-    )
+    ).replace("__PROJECT_SCHEMA__", schema_content or "(未配置)").replace(
+        "__WIKI_PURPOSE__", purpose_content or "(未配置)"
+    ).replace("__PROJECT_TAXONOMY__", taxonomy_content or "(未配置)")
 
     ANALYZER_RESPONSE_FORMAT = {
         "type": "object",
@@ -446,6 +481,7 @@ _ANALYZER_JSON_RESPONSE_FORMAT = {
     "properties": {
         "source_id": {"type": "string"},
         "type": {"type": "string"},
+        "custom_type": {"type": "string"},
         "title": {"type": "string"},
         "claims": {
             "type": "array",
@@ -483,6 +519,9 @@ async def _analyze_json(
     _al: logging.Logger,
     chunk_index: int | None = None,
     chunk_total: int | None = None,
+    schema_content: str = "",
+    purpose_content: str = "",
+    taxonomy_content: str = "",
 ) -> KnowledgeCandidate:
     """JSON mode: LLM call -> KnowledgeCandidate with 3-tier validation.
 
@@ -506,6 +545,12 @@ async def _analyze_json(
         source_text=source_text,
         chunk_context=_chunk_ctx,
         knowledge_types="|".join(t.value for t in KnowledgeType),
+    ).replace("__PROJECT_SCHEMA__", schema_content or "(未配置)").replace(
+        "__WIKI_PURPOSE__", purpose_content or "(未配置)"
+    ).replace("__PROJECT_TAXONOMY__", taxonomy_content or "(未配置)").replace(
+        "__CUSTOM_PAGE_TYPES__",
+        "|".join(SchemaRegistry.from_schema_text(schema_content).all_custom_type_names())
+        or "(none)",
     )
 
     MAX_ATTEMPTS = 2
@@ -583,7 +628,15 @@ async def _analyze_json(
 
     # JSON parse succeeded — run 3-tier validation
     parser = AnalyzerOutputParser()
-    return parser.parse(response, source_path=source_path, chunk_index=chunk_index, chunk_total=chunk_total)
+    return parser.parse(
+        response,
+        source_path=source_path,
+        chunk_index=chunk_index,
+        chunk_total=chunk_total,
+        allowed_custom_types=set(
+            SchemaRegistry.from_schema_text(schema_content).all_custom_type_names()
+        ),
+    )
 
 
 def _parse_llm_response(llm_resp) -> dict:

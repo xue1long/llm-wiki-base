@@ -1,0 +1,6 @@
+{
+  "name": "Personal Growth",
+  "description": "目标、习惯、反思和成长记录",
+  "icon": "🌱",
+  "extra_dirs": ["wiki/goals", "wiki/habits", "wiki/reflections", "wiki/journal"]
+}

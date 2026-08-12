@@ -109,6 +109,26 @@ def _minimal_concept_response():
 # ---------------------------------------------------------------------------
 
 class TestGenerateFromKnowledgeObject:
+    def test_custom_type_comes_from_knowledge_object(self, sample_ko, sample_candidate, sample_paths):
+        from src.pipeline.generator import generate_from_knowledge_object
+        from src.wiki.schema_registry import SchemaRegistry
+        import asyncio
+
+        sample_candidate.custom_type = "thesis"
+        sample_ko.custom_type = "thesis"
+        response = _minimal_concept_response()
+        response["pages"][0]["type"] = "thesis"
+        registry = SchemaRegistry.from_schema_text(
+            "| type | directory |\n| thesis | wiki/thesis |"
+        )
+        pages = asyncio.run(generate_from_knowledge_object(
+            ko=sample_ko, candidate=sample_candidate, paths=sample_paths,
+            existing_wiki_index="", provider=_make_mock_provider(response),
+            schema_registry=registry,
+        ))
+        assert pages[0].type == PageType.CONCEPT
+        assert pages[0].custom_type == "thesis"
+
     def test_returns_list_of_wiki_pages(self, sample_ko, sample_candidate, sample_paths):
         """Happy path: KO + candidate → WikiPage list."""
         provider = _make_mock_provider(_minimal_concept_response())

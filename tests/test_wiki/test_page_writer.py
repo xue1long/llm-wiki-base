@@ -88,3 +88,17 @@ def test_write_page_allows_valid_tags(tmp_path):
                     tags=["题材/现言", "状态/完结", "素材/ugc", "可信度/ugc"])
     write_page(p, page)
     assert page_path_for(p, PageType.ENTITY, "foo").exists()
+
+
+def test_write_page_rejects_taxonomy_in_strict_mode(tmp_path, monkeypatch):
+    ensure_knowledge_base(tmp_path)
+    monkeypatch.setenv("RUFLO_TAXONOMY_VALIDATION", "strict")
+    (tmp_path / "taxonomy.md").write_text(
+        "# Taxonomy\n\n## Engineering\n- Python\n", encoding="utf-8"
+    )
+    page = WikiPage(
+        id="taxonomy-bad", title="Bad", type=PageType.CONCEPT,
+        category="Engineering", taxonomy_sub="Unknown", body="body",
+    )
+    with pytest.raises(ValueError, match="taxonomy"):
+        write_page(WikiPaths(tmp_path), page)

@@ -1,5 +1,8 @@
 # Purpose: Research Wiki
 
+## Research Question
+- 
+
 ## Goals
 - Build a structured knowledge base of academic papers, articles, and research notes
 - Enable quick lookup of concepts, methods, and citations

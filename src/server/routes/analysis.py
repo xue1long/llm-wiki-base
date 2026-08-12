@@ -27,3 +27,12 @@ async def lint(project_id: str):
         return analysis_service.lint(project_id)
     except ProjectNotFoundError as e:
         raise HTTPException(404, str(e))
+
+
+@router.get("/projects/{project_id}/content-health")
+async def content_health(project_id: str):
+    """Return a read-only aggregate of wiki content and triage state."""
+    try:
+        return analysis_service.content_health(project_id)
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))

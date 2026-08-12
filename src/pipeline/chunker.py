@@ -236,6 +236,12 @@ def merge_candidates(
         type_counts[c.type] = type_counts.get(c.type, 0) + 1
     ctype = max(type_counts, key=lambda k: type_counts[k])
 
+    custom_counts: dict[str, int] = {}
+    for c in candidates:
+        if c.custom_type:
+            custom_counts[c.custom_type] = custom_counts.get(c.custom_type, 0) + 1
+    custom_type = max(custom_counts, key=custom_counts.get) if custom_counts else ""
+
     # Confidence: weighted average by claims count
     total_claims = sum(len(c.claims) for c in candidates)
     if total_claims > 0:
@@ -258,4 +264,5 @@ def merge_candidates(
         evidence=merged_evidence,
         raw_llm_output={"merged": True, "chunk_count": len(candidates)},
         status=CandidateStatus.PENDING,
+        custom_type=custom_type,
     )
