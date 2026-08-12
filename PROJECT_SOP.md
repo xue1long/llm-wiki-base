@@ -10,7 +10,7 @@
 ## 一、需求与方案阶段（brainstorming）
 ### 准入规则
 收到新功能、BUG修复、重构需求后，第一步执行本阶段，不直接编码。
-输出文件统一存放路径：`docs/plans/`
+方案文件统一存放路径：`docs/superpowers/plans/`；计划状态统一记录在`.superpowers/sdd/progress.md`。
 1. 梳理需求：明确功能目标、输入输出、边界场景、不做的功能（划定范围，防止无限蔓延）
 2. 架构影响评估：判断改动涉及哪些模块，会不会破坏现有模块边界，是否产生循环依赖
 3. 可选方案对比，记录风险点、依赖限制、兼容性问题
@@ -104,12 +104,12 @@ modules/xxx-module/
 - feature/xxx：功能开发分支
 - fix/xxx：缺陷修复分支
 2. Commit 强制格式
-`[类型](模块): 简短描述`
+`type(scope): 简短描述`
 类型可选：feat / fix / refactor / docs / test / chore
-示例：`[feat](user): 新增用户登录接口`
-3. 提交前自动化检查：格式化、静态代码检查、单元测试
-4. 切换设备前：完成当前任务，提交代码推送远程；禁止本地大量未提交代码跨设备迁移
-5. 合并至main前，完整运行一次全量测试
+示例：`feat(user): 新增用户登录接口`
+3. 提交前自动化检查：运行项目验证命令；CI 对 PR 和 main 执行全量测试与静态检查
+4. 切换设备前：提交当前可恢复状态并推送远程；未提交改动必须明确属于当前工作区，不跨设备搬运大量未提交代码
+5. 合并至main前，必须通过 CI 的全量测试和静态检查
 
 ## 九、文档维护规则
 1. 方案文档、架构文档跟随代码改动同步更新，不一次性写完永久搁置
@@ -156,7 +156,7 @@ modules/xxx-module/
 | `service/`（私有） | `src/<module>/service/` 内部实现，外部禁止导入 |
 | `core/` 公共层 | `src/lib/`、`src/events/`（事件总线） |
 | 事件总线交互 | `src/events/event_bus.py` + `src/pipeline/pipeline.py` 注册处理器 |
-| 方案文档 | `docs/plans/` |
+| 方案文档 | `docs/superpowers/plans/` |
 | 架构决策 | `docs/adr/` |
 | 测试 | `tests/test_<module>.py`，运行需 `PYTHONPATH=. pytest --import-mode=importlib` |
 | Commit 格式 | `type(scope): 描述`（feat/fix/refactor/docs/test/chore） |

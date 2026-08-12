@@ -153,6 +153,7 @@ The wiki is the **primary data model**. Legacy `Notes/<task_id>.md` output is pr
 | `heat` | int | 50 | Heat decay tracker (0-100) |
 | `last_used_at` | int | 0 | Heat: last AI retrieval timestamp |
 | `zombie_since` | int\|None | None | Heat: 0-heat timestamp |
+| `custom_type` | str | "" | Schema-declared subtype; routes through `schema.md` while `type` remains its base `PageType` |
 
 **Wiki 规范（含命名/Frontmatter/Body 规则）：** [`docs/guides/wiki-spec.md`](docs/guides/wiki-spec.md)
 
@@ -202,6 +203,12 @@ The default pipeline mode (`RUFLO_PIPELINE_MODE=candidate`, the default) uses th
 5. **Generator** (`generate_from_knowledge_object`) — LLM renders body slots only; frontmatter (type, title, grade, provenance) sourced from KnowledgeObject
 6. **Writer** — atomic: write_page + append_to_index + log_event
 
+At ingest start, the pipeline rereads project-root `schema.md` and
+`purpose.md`. Analyzer prompts receive both files; Generator prompts receive
+the authoritative schema. Types declared by the schema table are accepted by
+structured output, inherit a base `PageType` for slot rendering, and write to
+their declared `wiki/...` directory.
+
 The legacy path (`RUFLO_PIPELINE_MODE=legacy`) uses the old Analyzer (markdown) → Generator (`unified_generate` or two-step `analyze`→`generate`) flow and is deprecated. Shadow mode (`RUFLO_SHADOW_MODE=true`) runs both paths and writes a comparison report to `.index/shadow/<task_id>/`.
 
 `run_ingest(paths, source_path, source_text, provider, ...)` is the public entry point. `generate_ingest` returns pages without disk writes; `commit_ingest` persists them. EventBus (`src/events/event_bus.py`) is a singleton; handlers register via `event_bus.on(name, handler)`. `AtomicContext` batches writes via `safe_write` (which buffers to `_pending_writes` and flushes on context exit). For deletions use the `DELETE_SENTINEL` mechanism in `src/lib/write_hooks.py` so cascade operations are atomic.
@@ -245,15 +252,19 @@ Heavy deps (platformdirs, lancedb, pyarrow, pypdf, docx, openpyxl, mcp, tavily) 
 
 ## Implementation workflow
 
+Canonical workflow locations: plans live in `docs/superpowers/plans/`, status lives in `.superpowers/sdd/progress.md`, and relay/audit instructions live in `.agents/skills/dev-relay/` and `.agents/skills/plan-audit/`. If older instructions mention `.Codex/skills/` or `.claude/skills/`, use these canonical locations.
+
 For multi-step work (especially the plans in `docs/superpowers/plans/`), use `superpowers:subagent-driven-development`:
 
 1. **Read the plan** — `docs/superpowers/plans/<name>.md` lists tasks with `Files`, `Tests`, `Implementation guidance`.
-2. **TDD per task** — write test first (run, fail), implement (run, pass), commit (`feat: ...` or `fix: ...`).
+2. **TDD per task** — write test first (run, fail), implement (run, pass), then commit one logical slice (`type(scope): ...`). A task may require a follow-up fix commit.
 3. **Per-task review** — dispatch reviewer subagent after each task; fix Critical/Important findings before next task.
 4. **Final whole-branch review** — when plan is complete, dispatch one final review; fix any Important findings in one batch.
 5. **Durable progress** — update `.superpowers/sdd/progress.md` ledger after each task. The ledger is the recovery map after compaction.
 
-Commit prefixes on `feat/continue-implementation`: `feat(scope):` for new features, `fix(scope):` for fixes, `chore:` for project docs/infra, `refactor:` for restructuring. Scoped to a single concern.
+Commit format: `type(scope): summary`, using `feat`, `fix`, `refactor`, `docs`, `test`, or `chore`. Keep each commit to one logical concern.
+
+Plan status is tracked in `.superpowers/sdd/progress.md`; the plan file remains the source for scope, tasks, and acceptance evidence. Use [`docs/superpowers/PLAN_TEMPLATE.md`](docs/superpowers/PLAN_TEMPLATE.md) for new plans.
 
 ## Automatic Memory Capture
 
@@ -298,6 +309,8 @@ Plans are completed in dependency order. Check `.superpowers/sdd/progress.md` fo
 - 重大架构决策写入 `docs/adr/`；领域术语统一维护在 `CONTEXT.md`。
 
 ## Behavioral Guidelines
+
+Canonical override: use `.agents/skills/dev-relay/` and `.agents/skills/plan-audit/` for relay and audit instructions. The older path mentioned in the historical relay paragraph is retained only for provenance.
 
 Behavioral guidelines to reduce common LLM coding mistakes.
 
