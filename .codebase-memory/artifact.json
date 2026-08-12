@@ -1,0 +1,11 @@
+{
+    "schema_version": 2,
+    "commit": "a034b54eb8152564a72cbb9948c14beb0d456332",
+    "indexed_at": "2026-08-12T10:01:09Z",
+    "project": "LLM-Wiki",
+    "nodes": 16741,
+    "edges": 55796,
+    "original_size": 24248320,
+    "compressed_size": 5052731,
+    "compression_level": 9
+}
