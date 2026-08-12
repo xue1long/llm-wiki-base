@@ -8,6 +8,7 @@ import hashlib
 import importlib.util
 from pathlib import Path
 
+from src.utils.hashing import sha256_file
 from src.wiki.core.paths import WikiPaths
 
 _SCRIPT = Path(__file__).resolve().parent.parent.parent / "scripts" / "migrate_vector_paths.py"
@@ -69,3 +70,7 @@ def test_build_index_and_rebuild_state(tmp_path):
         root,
     )
     assert state["archived"] == {"wiki/sources/x.md": rel_to_digest["wiki/sources/x.md"]}
+
+
+def test_migrate_vector_paths_uses_shared_sha256_file():
+    assert mvp.sha256_file is sha256_file

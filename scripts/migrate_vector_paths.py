@@ -29,7 +29,6 @@ Note: ``table.update(values=...)`` stores plain strings as literals (LanceDB
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -38,6 +37,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from src.utils.hashing import sha256_file
 from src.utils.path import migrate_state_paths, normalize_source_path, safe_resolve
 from src.wiki.core.paths import WikiPaths
 
@@ -64,14 +64,6 @@ def migration_action(task_id: str, index: dict[str, str]):
     if rel is None:
         return "delete", None
     return "rewrite", rel
-
-
-def sha256_file(p: Path) -> str:
-    h = hashlib.sha256()
-    with p.open("rb") as f:
-        for chunk in iter(lambda: f.read(1 << 16), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def build_index(root: Path) -> tuple[dict[str, str], dict[str, str]]:

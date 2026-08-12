@@ -11,6 +11,7 @@ import os
 import pytest
 
 import scripts.batch_build as batch_build
+from src.utils.hashing import sha256_file
 
 
 # ---------------------------------------------------------------------------
@@ -98,3 +99,7 @@ def test_save_state_preserves_old_file_when_replace_fails(tmp_path, monkeypatch)
 
     # target file still holds the old complete content
     assert json.loads(sp.read_text(encoding="utf-8")) == old
+
+
+def test_batch_build_uses_shared_sha256_file():
+    assert batch_build.sha256_file is sha256_file

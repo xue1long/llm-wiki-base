@@ -49,6 +49,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from src.utils.hashing import sha256_file
 from src.utils.path import migrate_state_paths, normalize_source_path, safe_resolve
 
 # 尽早加载 .env（含 MINIMAX_API_KEY 等）；src/__init__ 也会再加载一次 ~/.config/ruflo-kb/env
@@ -82,14 +83,6 @@ def rel_state_key(p: Path, root: Path) -> str:
     the batch_build_state survives device moves (the old ``f.resolve().as_posix()``
     absolute keys went stale whenever the project lived at a new path)."""
     return normalize_source_path(str(p), root)
-
-
-def sha256_file(p: Path) -> str:
-    h = hashlib.sha256()
-    with p.open("rb") as f:
-        for chunk in iter(lambda: f.read(1 << 16), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def sha256_text(t: str) -> str:
