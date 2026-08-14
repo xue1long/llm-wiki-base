@@ -132,3 +132,49 @@ def test_quality_fails_on_rejected_verdict(tmp_path, monkeypatch):
     assert body["exists"] is True
     assert body["passed"] is False
     assert body["report"]["verdict"] == "rejected"
+
+
+def test_quality_collects_wiki_pages(tmp_path, monkeypatch):
+    """Returns pages collected from wiki/* frontmatter referencing the source."""
+    import json
+
+    proj_root = tmp_path / "proj3"
+    _register_project(monkeypatch, tmp_path, "pages-proj", proj_root)
+
+    # A page in wiki/concepts that references raw/sources/foo.md
+    concepts_dir = proj_root / "wiki" / "concepts"
+    concepts_dir.mkdir(parents=True)
+    (concepts_dir / "narrative-view.md").write_text(
+        "---\n"
+        "id: page_concept_narrative_view\n"
+        "title: 叙述视角\n"
+        "type: concept\n"
+        "grade: B\n"
+        'sources:\n  - "raw/sources/foo.md"\n'
+        "---\n"
+        "正文内容\n",
+        encoding="utf-8",
+    )
+    # A page in wiki/entities that references a different source — must be excluded
+    entities_dir = proj_root / "wiki" / "entities"
+    entities_dir.mkdir(parents=True)
+    (entities_dir / "other.md").write_text(
+        "---\n"
+        "id: page_entity_other\n"
+        "title: 其他\n"
+        "type: entity\n"
+        "grade: A\n"
+        'sources:\n  - "raw/sources/other.md"\n'
+        "---\n",
+        encoding="utf-8",
+    )
+
+    r = client.get("/api/v1/projects/pages-proj/quality", params={"source_path": "raw/sources/foo.md"})
+    assert r.status_code == 200
+    body = r.json()
+    pages = body["pages"]
+    assert len(pages) == 1
+    assert pages[0]["type"] == "concept"
+    assert pages[0]["page_id"] == "page_concept_narrative_view"
+    assert pages[0]["title"] == "叙述视角"
+    assert pages[0]["grade"] == "B"

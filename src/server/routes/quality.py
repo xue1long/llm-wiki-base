@@ -164,6 +164,53 @@ def _read_wiki_page_frontmatter(paths, source_path: str) -> dict:
     return {"grade": grade, "title": title, "issues": issues}
 
 
+def _collect_wiki_pages(paths, source_path: str) -> list[dict]:
+    """Collect the wiki pages generated from *source_path* across all typed dirs.
+
+    Returns a list of ``{type, page_id, title, grade}`` sorted by dirname then
+    filename.  Falls back to the raw basename for ``page_id`` when a page's
+    frontmatter has no ``id`` set.
+    """
+    key = source_path.replace("\\", "/")
+    pages: list[dict] = []
+    for node, ptype in (
+        (paths.wiki_sources, "source"),
+        (paths.wiki_entities, "entity"),
+        (paths.wiki_concepts, "concept"),
+        (paths.wiki_synthesis, "synthesis"),
+        (paths.wiki_claims, "claims"),
+        (paths.wiki_decisions, "decisions"),
+    ):
+        if not node.is_dir():
+            continue
+        for md_file in sorted(node.glob("*.md")):
+            try:
+                text = md_file.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            if not text.startswith("---\n"):
+                continue
+            end = text.find("\n---", 4)
+            if end < 0:
+                continue
+            try:
+                fm = yaml.safe_load(text[4:end]) or {}
+            except yaml.YAMLError:
+                continue
+            sources = fm.get("sources", [])
+            if not isinstance(sources, list):
+                continue
+            if key not in [str(s).replace("\\", "/") for s in sources]:
+                continue
+            pages.append({
+                "type": ptype,
+                "page_id": str(fm.get("id") or md_file.stem),
+                "title": fm.get("title") or md_file.stem,
+                "grade": fm.get("grade", "B"),
+            })
+    return pages
+
+
 @router.get("/projects/{project_id}/quality")
 async def quality_report(
     project_id: str,
@@ -201,6 +248,13 @@ async def quality_report(
 
     passed = _compute_overall_pass(report, review_items, quarantine)
     page = _read_wiki_page_frontmatter(paths, source_path)
+    pages = _collect_wiki_pages(paths, source_path)
+
+    # Merge report-level pages_by_type into the wiki pages list so the
+    # frontend gets a single authoritative ``pages`` array.
+    if report and report.get("pages_by_type"):
+        for p in pages:
+            p.setdefault("status", "已生成")
 
     result: dict = {
         "exists": report is not None,
@@ -211,5 +265,6 @@ async def quality_report(
         "report": report,
         "review_items": review_items,
         "quarantine": quarantine,
+        "pages": pages,
     }
     return result
