@@ -926,6 +926,38 @@ async def generate_ingest(
     }
 
 
+MAX_PAGES_PER_DOC = 15
+
+
+def _apply_page_cap_note(
+    pages: list[WikiPage],
+    source_name: str,
+    cap: int = MAX_PAGES_PER_DOC,
+) -> list[WikiPage]:
+    """Warn + annotate the source page when a doc generates too many pages.
+
+    batch-10/50 observation: per-doc page count varies 4-17 with no guard;
+    a 3.5KB doc produced 17 pages. This does NOT drop pages (stub
+    governance handles inflation) — it surfaces the anomaly in the source
+    page so operators can merge thin pages manually.
+    """
+    if len(pages) <= cap:
+        return pages
+    _logger.warning(
+        "[run_ingest] %s produced %d pages (cap %d) — likely over-split",
+        source_name, len(pages), cap,
+    )
+    for page in pages:
+        if page.type == PageType.SOURCE:
+            note = (
+                f"\n\n> ⚠️ **页面数超限**: 本文档生成了 {len(pages)} 页（上限 {cap}），"
+                f"可能过度拆分。建议人工检查并合并薄页。\n"
+            )
+            page.body = (page.body or "").rstrip() + note
+            break
+    return pages
+
+
 async def commit_ingest(
     paths: WikiPaths,
     source_path,
@@ -951,6 +983,9 @@ async def commit_ingest(
     _keep_ids = {p.id for p in _gate.pages}
     pages = [p for p in pages if p.id in _keep_ids]
     _extra = [p for p in _extra if p.id in _keep_ids]
+
+    # Page-count guard: surface over-splitting (batch-10: 3.5KB doc → 17 pages).
+    pages = _apply_page_cap_note(pages, Path(str(source_path)).name)
 
     with AtomicContext(flush_callback=flush_pending_writes):
         for page in pages:
