@@ -1176,3 +1176,58 @@ async def test_call_with_slot_retry_passes_max_tokens_forwards():
         max_tokens=4096,
     )
     assert provider.calls[0]["max_tokens"] == 4096
+
+
+async def test_call_with_slot_retry_no_escalation_on_empty_truncation():
+    """finish_reason=length with 0 content chars (sfkey quirk) must NOT
+    escalate max_tokens — escalating is useless when nothing was generated.
+    Regression from batch-50: ~10 wasted escalation retries on '0 chars'."""
+    from src.llm.base import LLMResponse
+    from src.pipeline.generator import _call_with_slot_retry
+
+    empty_truncated = LLMResponse(
+        content="", model="glm-5.2", truncated=True,
+    )
+    valid = LLMResponse(
+        content='{"pages": [{"id": "s", "type": "source", "title": "t"}]}',
+        model="glm-5.2", truncated=False,
+    )
+    provider = _make_tracking_provider([empty_truncated, valid])
+    result = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt="extract",
+        response_format={},
+        required_slots_by_type={},
+        max_tokens=8192,
+    )
+    # No escalation: both attempts use the base max_tokens.
+    assert provider.calls[0]["max_tokens"] == 8192
+    assert provider.calls[1]["max_tokens"] == 8192
+    assert result["pages"][0]["id"] == "s"
+
+
+async def test_call_with_slot_retry_escalation_still_applies_after_empty():
+    """An empty truncation followed by a content truncation still escalates."""
+    from src.llm.base import LLMResponse
+    from src.pipeline.generator import _call_with_slot_retry
+
+    empty_truncated = LLMResponse(content="", model="glm-5.2", truncated=True)
+    content_truncated = LLMResponse(
+        content='{"pages": [{"id": "s", "title": "未完成',
+        model="glm-5.2", truncated=True,
+    )
+    valid = LLMResponse(
+        content='{"pages": [{"id": "s", "type": "source", "title": "t"}]}',
+        model="glm-5.2", truncated=False,
+    )
+    provider = _make_tracking_provider([empty_truncated, content_truncated, valid])
+    await _call_with_slot_retry(
+        provider=provider,
+        base_prompt="extract",
+        response_format={},
+        required_slots_by_type={},
+        max_tokens=8192,
+    )
+    assert provider.calls[0]["max_tokens"] == 8192   # attempt 0: base
+    assert provider.calls[1]["max_tokens"] == 8192   # empty truncation: no escalation
+    assert provider.calls[2]["max_tokens"] == 16384  # content truncation: escalated

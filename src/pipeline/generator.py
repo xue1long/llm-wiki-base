@@ -1631,6 +1631,11 @@ async def _call_with_slot_retry(
     last_missing: dict[str, list[str]] = {}
     last_response: dict = {}
     _json_mode = True  # first attempt uses response_format
+    # max_tokens escalation level. Bumped on a NON-EMPTY truncation
+    # (finish_reason=length with content — the output cap was hit).
+    # An EMPTY truncation (sfkey quirk: length with 0 chars) does NOT bump:
+    # nothing was generated, so a bigger cap can't help.
+    _max_tokens_escalation = 0
 
     # If startup check already marked this provider incompatible, skip the
     # response_format probe entirely on the first attempt.
@@ -1639,7 +1644,7 @@ async def _call_with_slot_retry(
 
     for attempt in range(MAX_GEN_ATTEMPTS):
         extra = ""
-        attempt_max_tokens = max_tokens * (2 ** attempt)
+        attempt_max_tokens = max_tokens * (2 ** _max_tokens_escalation)
         if attempt > 0:
             if last_missing:
                 lines = [
@@ -1720,14 +1725,27 @@ async def _call_with_slot_retry(
                     f"Generator LLM response truncated after {MAX_GEN_ATTEMPTS} attempts "
                     f"(max_tokens {attempt_max_tokens}): {exc}"
                 ) from exc
+            # Escalate max_tokens only when the truncation had content —
+            # an empty response (sfkey finish_reason=length, 0 chars) can't
+            # be fixed by a bigger cap. Each content truncation bumps the
+            # cap one level (8192 → 16384 → 32768).
+            if exc.content_length > 0:
+                _max_tokens_escalation += 1
             _json_mode = False  # drop response_format on retry
-            extra = (
-                "\n\n## RETRY — PREVIOUS RESPONSE WAS TRUNCATED\n"
-                "Your previous response was cut off mid-output by the token "
-                "limit. Reply now with a COMPLETE JSON object. If the content "
-                "is large, make each page's slot values more concise so the "
-                "whole payload fits — do not omit pages.\n"
-            )
+            if exc.content_length == 0:
+                extra = (
+                    "\n\n## RETRY — PREVIOUS RESPONSE WAS EMPTY\n"
+                    "Your previous response contained no output at all. "
+                    "Reply now with the COMPLETE JSON object for the extraction.\n"
+                )
+            else:
+                extra = (
+                    "\n\n## RETRY — PREVIOUS RESPONSE WAS TRUNCATED\n"
+                    "Your previous response was cut off mid-output by the token "
+                    "limit. Reply now with a COMPLETE JSON object. If the content "
+                    "is large, make each page's slot values more concise so the "
+                    "whole payload fits — do not omit pages.\n"
+                )
             continue
         except (ValueError, Exception) as exc:
             _logger.warning(

@@ -10,7 +10,15 @@ class TruncatedResponseError(Exception):
     the truncation signature (unterminated string / missing delimiter at the
     very end). Callers should retry with a higher ``max_tokens`` or fail with
     a clear message — the response is NOT malformed JSON, it is incomplete.
+
+    ``content_length`` is the number of characters the endpoint did return.
+    A length of 0 (sfkey quirk: finish_reason=length with empty content) means
+    max_tokens escalation is useless — nothing was generated to truncate.
     """
+
+    def __init__(self, message: str, content_length: int = 0):
+        super().__init__(message)
+        self.content_length = content_length
 
 
 @dataclass

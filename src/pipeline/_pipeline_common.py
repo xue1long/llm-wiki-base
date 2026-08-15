@@ -292,7 +292,8 @@ def parse_llm_json(llm_resp: Any) -> dict:
     if getattr(llm_resp, "truncated", False) is True:
         raise TruncatedResponseError(
             f"LLM response truncated by max_tokens (finish_reason=length, "
-            f"{len(content)} chars received)"
+            f"{len(content)} chars received)",
+            content_length=len(content),
         )
     if not isinstance(content, str):
         # Last-ditch: stringify and parse (covers invalid mocks returning bytes/None).
@@ -329,7 +330,8 @@ def parse_llm_json(llm_resp: Any) -> dict:
         raise TruncatedResponseError(
             f"LLM response appears truncated (unterminated JSON near end, "
             f"{len(content)} chars): {strict_err.msg} at char {strict_err.pos} "
-            f"— likely exceeded max_tokens"
+            f"— likely exceeded max_tokens",
+            content_length=len(content),
         ) from strict_err
 
     # 2. Markdown-fenced JSON.
@@ -456,7 +458,8 @@ def parse_llm_json(llm_resp: Any) -> dict:
         raise TruncatedResponseError(
             f"LLM response appears truncated (unterminated JSON near end, "
             f"{len(content)} chars): {strict_err.msg} at char {strict_err.pos} "
-            f"— likely exceeded max_tokens"
+            f"— likely exceeded max_tokens",
+            content_length=len(content),
         ) from strict_err
 
     raise json.JSONDecodeError(
