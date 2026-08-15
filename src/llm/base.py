@@ -8,6 +8,10 @@ class LLMResponse:
     content: str
     model: str
     usage: Optional[dict] = None
+    # True when the endpoint reported finish_reason="length" (response was
+    # cut off mid-generation, e.g. by a max_tokens cap). JSON callers must
+    # treat the content as incomplete — retry with higher max_tokens.
+    truncated: bool = False
 
 @dataclass
 class EmbeddingResponse:

@@ -2,6 +2,17 @@
 from dataclasses import asdict, dataclass, field
 
 
+class TruncatedResponseError(Exception):
+    """LLM response was cut off mid-generation (max_tokens / finish_reason=length).
+
+    Raised by ``OpenAIProvider.complete`` callers via ``LLMResponse.truncated``
+    (exact endpoint signal) and by ``parse_llm_json`` when the response shows
+    the truncation signature (unterminated string / missing delimiter at the
+    very end). Callers should retry with a higher ``max_tokens`` or fail with
+    a clear message — the response is NOT malformed JSON, it is incomplete.
+    """
+
+
 @dataclass
 class ModelInfo:
     name: str

@@ -52,11 +52,16 @@ class BudgetedLLM:
         op: str = "general",
         provider: Any = None,
         context_window_tokens: Optional[int] = None,
+        max_output_tokens: int = 8192,
     ):
         self.model = model
         self.op = op
         self.provider = provider
         self.context_window = context_window_tokens or get_model_context_window(model)
+        # Output cap for each chunk call. Sent explicitly so the endpoint's
+        # default cap cannot truncate a large JSON payload mid-string
+        # (batch-10 regression — 11/11 "JSON parse failures" were truncations).
+        self.max_output_tokens = max_output_tokens
         self._chunks_processed: int = 0
 
     async def __aenter__(self) -> "BudgetedLLM":
@@ -102,4 +107,5 @@ class BudgetedLLM:
             messages=messages,
             response_format=response_format,
             system=system,
+            max_tokens=self.max_output_tokens,
         )

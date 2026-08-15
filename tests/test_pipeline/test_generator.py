@@ -1066,3 +1066,98 @@ def test_resolve_tags_uses_analyzer_fallback():
     assert "情绪/爽文" in tags
     assert "素材/ugc" in tags
     assert "可信度/ugc" in tags
+
+
+# ---------------------------------------------------------------------------
+# _call_with_slot_retry — max_tokens passthrough + truncation escalation
+# ---------------------------------------------------------------------------
+# Regression for the batch-10 observation: no max_tokens was sent, long
+# multi-page JSON responses got truncated by the endpoint's default cap,
+# and the retry loop wasted attempts on the misleading "JSON parse failed"
+# path instead of escalating max_tokens.
+
+
+def _make_tracking_provider(responses):
+    """Fake provider recording (max_tokens, response) per call."""
+    from src.llm.base import LLMResponse
+
+    class _Fake:
+        def __init__(self):
+            self.calls: list[dict] = []
+
+        async def complete(self, messages, *, response_format=None,
+                           system=None, timeout=None, **kwargs):
+            self.calls.append({
+                "max_tokens": kwargs.get("max_tokens"),
+                "response": responses[len(self.calls)],
+            })
+            resp = responses[len(self.calls) - 1]
+            if isinstance(resp, Exception):
+                raise resp
+            return resp
+
+    return _Fake()
+
+
+async def test_call_with_slot_retry_escalates_max_tokens_on_truncation():
+    from src.llm.base import LLMResponse
+    from src.pipeline.generator import _call_with_slot_retry
+
+    valid = LLMResponse(
+        content='{"pages": [{"id": "s", "type": "source", "title": "t"}]}',
+        model="glm-5.2", truncated=False,
+    )
+    truncated = LLMResponse(
+        content='{"pages": [{"id": "s", "type": "source", "title": "未完成',
+        model="glm-5.2", truncated=True,
+    )
+    provider = _make_tracking_provider([truncated, valid])
+    result = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt="extract",
+        response_format={},
+        required_slots_by_type={},
+        max_tokens=8192,
+    )
+    assert provider.calls[0]["max_tokens"] == 8192
+    assert provider.calls[1]["max_tokens"] == 16384  # escalated after truncation
+    assert result["pages"][0]["id"] == "s"
+
+
+async def test_call_with_slot_retry_raises_clear_error_after_all_truncated():
+    from src.llm.base import LLMResponse
+    from src.pipeline.generator import _call_with_slot_retry
+
+    truncated = LLMResponse(
+        content='{"pages": [{"id": "s", "title": "未完成',
+        model="glm-5.2", truncated=True,
+    )
+    provider = _make_tracking_provider([truncated, truncated, truncated])
+    with pytest.raises(RuntimeError, match="truncat"):
+        await _call_with_slot_retry(
+            provider=provider,
+            base_prompt="extract",
+            response_format={},
+            required_slots_by_type={},
+            max_tokens=8192,
+        )
+    assert [c["max_tokens"] for c in provider.calls] == [8192, 16384, 32768]
+
+
+async def test_call_with_slot_retry_passes_max_tokens_forwards():
+    from src.llm.base import LLMResponse
+    from src.pipeline.generator import _call_with_slot_retry
+
+    ok = LLMResponse(
+        content='{"pages": [{"id": "s", "type": "source", "title": "t"}]}',
+        model="glm-5.2", truncated=False,
+    )
+    provider = _make_tracking_provider([ok])
+    await _call_with_slot_retry(
+        provider=provider,
+        base_prompt="extract",
+        response_format={},
+        required_slots_by_type={},
+        max_tokens=4096,
+    )
+    assert provider.calls[0]["max_tokens"] == 4096

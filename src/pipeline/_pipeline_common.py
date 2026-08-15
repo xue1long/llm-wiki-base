@@ -16,6 +16,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from ..llm.types import TruncatedResponseError
+
 _logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -281,6 +283,17 @@ def parse_llm_json(llm_resp: Any) -> dict:
         return llm_resp
     # LLMResponse / any object exposing .content
     content = getattr(llm_resp, "content", llm_resp)
+    # Exact endpoint signal: finish_reason="length" → response was cut off
+    # mid-generation (max_tokens cap). Do NOT attempt to parse the partial
+    # content as malformed JSON — the caller should retry with a higher
+    # max_tokens (see _call_with_slot_retry).
+    # ``is True`` (identity) so test mocks (MagicMock auto-creates a truthy
+    # .truncated attribute) are not mistaken for a truncation signal.
+    if getattr(llm_resp, "truncated", False) is True:
+        raise TruncatedResponseError(
+            f"LLM response truncated by max_tokens (finish_reason=length, "
+            f"{len(content)} chars received)"
+        )
     if not isinstance(content, str):
         # Last-ditch: stringify and parse (covers invalid mocks returning bytes/None).
         content = str(content)
@@ -301,10 +314,23 @@ def parse_llm_json(llm_resp: Any) -> dict:
     s = _BARE_WIKILINK_RE.sub(_BARE_WIKILINK_SUB, s)
 
     # 1. Strict JSON.
+    strict_err: json.JSONDecodeError | None = None
     try:
         return json.loads(s)
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as e:
+        strict_err = e
+
+    # Early truncation detection: a response cut by max_tokens fails with
+    # "Unterminated string" / "Expecting ..." at the VERY END (batch-10:
+    # 11/11 "JSON parse failures" were this pattern). Report it BEFORE the
+    # lenient fragment-extraction strategies below, which could otherwise
+    # silently return a partial inner object from a truncated response.
+    if strict_err is not None and _looks_truncated(strict_err, s):
+        raise TruncatedResponseError(
+            f"LLM response appears truncated (unterminated JSON near end, "
+            f"{len(content)} chars): {strict_err.msg} at char {strict_err.pos} "
+            f"— likely exceeded max_tokens"
+        ) from strict_err
 
     # 2. Markdown-fenced JSON.
     fence = _FENCE_RE.search(s)
@@ -421,10 +447,39 @@ def parse_llm_json(llm_resp: Any) -> dict:
     #    and raise the error.
     _dump_failed_json(content)
 
+    # Distinguish truncation from malformed output: a response cut off by
+    # max_tokens fails with "Unterminated string" / "Expecting ..." at the
+    # VERY END of the content (batch-10: 11/11 failures were this pattern).
+    # Report the real cause instead of the misleading generic message so the
+    # caller can retry with a higher max_tokens.
+    if strict_err is not None and _looks_truncated(strict_err, s):
+        raise TruncatedResponseError(
+            f"LLM response appears truncated (unterminated JSON near end, "
+            f"{len(content)} chars): {strict_err.msg} at char {strict_err.pos} "
+            f"— likely exceeded max_tokens"
+        ) from strict_err
+
     raise json.JSONDecodeError(
         f"no JSON object/array found in LLM response ({len(content)} chars)",
         content, 0,
     )
+
+
+def _looks_truncated(err: json.JSONDecodeError, text: str) -> bool:
+    """True when *err* sits near the end of *text* with a truncation signature.
+
+    ``json.loads`` reports "Unterminated string starting at <pos>" /
+    "Expecting ..." where the JSON becomes invalid. For a max_tokens cut the
+    position is at the tail of the response (the string just stops); a genuine
+    mid-content syntax error keeps the position inside the body. Requiring the
+    tail keeps false positives out.
+    """
+    if not text:
+        return False
+    msg = err.msg or ""
+    if "Unterminated string" not in msg and not msg.startswith("Expecting"):
+        return False
+    return err.pos >= len(text) * 0.85
 
 
 def _dump_failed_json(content: str) -> None:

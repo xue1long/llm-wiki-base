@@ -186,6 +186,7 @@ async def _regen_page(
             messages=[{"role": "user", "content": prompt}],
             temperature=temperature,
             timeout=120.0,
+            max_tokens=4096,  # single-page markdown body; explicit cap avoids endpoint truncation
         )
     except Exception as exc:
         _logger.warning(

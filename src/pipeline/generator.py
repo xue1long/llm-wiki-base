@@ -41,6 +41,7 @@ from ..wiki.templates import (
 )
 from ..knowledge.core.candidate import KnowledgeCandidate
 from ..knowledge.core.object import KnowledgeObject
+from ..llm.types import TruncatedResponseError
 from ._pipeline_common import parse_llm_json
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
@@ -55,6 +56,12 @@ _logger = logging.getLogger(__name__)
 # prevent page-count explosion (observed: 34K source → 83 pages).
 # Reduced to 8000 for CPU Ollama — larger prompts time out at 180s.
 MAX_SOURCE_CHARS = 8000
+
+# Base max_tokens for generated JSON payloads. The endpoint's default cap
+# truncated long multi-page responses mid-string (batch-10: 11/11 JSON
+# "parse failures" were truncations) because no max_tokens was sent.
+# _call_with_slot_retry escalates this on TruncatedResponseError.
+DEFAULT_MAX_OUTPUT_TOKENS = 8192
 
 
 def _parse_llm_response(llm_resp) -> dict:
@@ -1600,8 +1607,14 @@ async def _call_with_slot_retry(
     response_format: dict,
     required_slots_by_type: dict[PageType, list[str]],
     timeout: float = 180.0,
+    max_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
 ) -> dict:
     """Call the LLM, retry once if any required slot is missing or the call times out.
+
+    ``max_tokens`` is the base output cap for the first attempt; each retry
+    triggered by a truncated response (``TruncatedResponseError``) doubles it
+    so a long multi-page JSON payload that got cut by the endpoint's cap can
+    complete on the next attempt (batch-10 regression).
 
     Returns the parsed response dict (with ``pages`` key).
     """
@@ -1619,6 +1632,7 @@ async def _call_with_slot_retry(
 
     for attempt in range(MAX_GEN_ATTEMPTS):
         extra = ""
+        attempt_max_tokens = max_tokens * (2 ** attempt)
         if attempt > 0:
             if last_missing:
                 lines = [
@@ -1661,6 +1675,7 @@ async def _call_with_slot_retry(
                 messages=[{"role": "user", "content": base_prompt + extra}],
                 response_format=response_format if _json_mode else None,
                 timeout=timeout,
+                max_tokens=attempt_max_tokens,
             )
         except (httpx.ReadTimeout, httpx.ConnectError) as exc:
             _logger.warning(
@@ -1688,6 +1703,25 @@ async def _call_with_slot_retry(
 
         try:
             response_dict = _parse_llm_response(response)
+        except TruncatedResponseError as exc:
+            _logger.warning(
+                "[Generator] LLM response truncated on attempt %d/%d: %s",
+                attempt + 1, MAX_GEN_ATTEMPTS, exc,
+            )
+            if attempt == MAX_GEN_ATTEMPTS - 1:
+                raise RuntimeError(
+                    f"Generator LLM response truncated after {MAX_GEN_ATTEMPTS} attempts "
+                    f"(max_tokens {attempt_max_tokens}): {exc}"
+                ) from exc
+            _json_mode = False  # drop response_format on retry
+            extra = (
+                "\n\n## RETRY — PREVIOUS RESPONSE WAS TRUNCATED\n"
+                "Your previous response was cut off mid-output by the token "
+                "limit. Reply now with a COMPLETE JSON object. If the content "
+                "is large, make each page's slot values more concise so the "
+                "whole payload fits — do not omit pages.\n"
+            )
+            continue
         except (ValueError, Exception) as exc:
             _logger.warning(
                 "[Generator] LLM JSON parse failed on attempt %d/%d: %s",

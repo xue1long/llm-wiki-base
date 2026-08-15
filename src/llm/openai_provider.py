@@ -211,10 +211,21 @@ class OpenAIProvider(LLMProvider):
 
         content = _strip_reasoning(content)
 
+        # finish_reason="length" means the endpoint cut the response off
+        # (max_tokens cap). Surface it so JSON callers can retry with a
+        # higher max_tokens instead of treating the partial content as a
+        # malformed response (batch-10: 11/11 "JSON parse failed" were
+        # actually truncated responses).
+        try:
+            finish_reason = data["choices"][0].get("finish_reason")
+        except (KeyError, IndexError, TypeError):
+            finish_reason = None
+
         return LLMResponse(
             content=content,
             model=data.get("model", model),
             usage=data.get("usage"),
+            truncated=finish_reason == "length",
         )
 
     async def chat(self, messages: list[dict], **kwargs) -> LLMResponse:
