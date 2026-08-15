@@ -25,7 +25,12 @@ from ..utils.path import normalize_source_path
 from ..utils.slugify import slugify as _slugify
 from ..wiki.core.paths import WikiPaths
 from ..wiki.features.relations import parse_relations_from_response
-from ..wiki.features.tag_namespace import TAG_PREFIXES, is_valid as is_valid_tag, build_tag_prompt_section
+from ..wiki.features.tag_namespace import (
+    MANDATORY_PAIRS,
+    TAG_PREFIXES,
+    build_tag_prompt_section,
+    is_valid_value,
+)
 from ..wiki.core.types import PageType, WikiPage
 from ..wiki.schema_registry import SchemaRegistry
 from ..wiki.templates import (
@@ -677,13 +682,36 @@ async def unified_generate(
 
 
 def _resolve_page_tags_unified(page: dict) -> list[str]:
-    """Resolve tags for the unified path (no analyzer fallback)."""
+    """Resolve tags for the unified path (no analyzer fallback).
+
+    Normalizes to the write_page gate: value-invalid tags are dropped and
+    mandatory pairs are appended once any valid tag survives (see
+    ``_normalize_tags``).
+    """
     raw = page.get("tags") or []
     if isinstance(raw, str):
         raw = [raw]
     if not isinstance(raw, (list, tuple)):
         return []
-    return [t for t in raw if isinstance(t, str) and is_valid_tag(t)]
+    return _normalize_tags(raw)
+
+
+def _normalize_tags(tags: list) -> list[str]:
+    """Enforce the tag namespace invariant the write_page gate expects.
+
+    ``validate_tag_compliance`` (src/wiki/features/tag_namespace.py) rejects
+    value-domain violations (e.g. ``题材/穿越`` — 穿越 not in the 题材 domain)
+    and missing mandatory pairs (``素材/ugc``, ``可信度/ugc``) once a page
+    carries any tag. Drop value-invalid tags and append any missing mandatory
+    pairs so the result always passes the gate; empty input stays empty.
+    """
+    valid = [t for t in tags if isinstance(t, str) and is_valid_value(t)]
+    if valid:
+        for prefix, value in MANDATORY_PAIRS:
+            mandatory = f"{prefix}/{value}"
+            if mandatory not in valid:
+                valid.append(mandatory)
+    return valid
 
 
 # ---------------------------------------------------------------------------
@@ -1548,16 +1576,16 @@ def _resolve_page_tags(
     """Resolve controlled-namespace tags for a generated page.
 
     Priority: generator-emitted ``tags`` -> analyzer-suggested tags for this
-    slug -> empty. Every returned tag is validated against the 8 controlled
-    prefixes (``tag_namespace.is_valid``); invalid tags are dropped so the
-    result always passes ``validate_tags``.
+    slug -> empty. Every returned tag is validated against the full value
+    domain (``tag_namespace.is_valid_value``) and mandatory pairs are
+    appended, so the result always passes ``validate_tag_compliance``.
     """
     raw = page.get("tags") or analyzer_tags.get(slug) or []
     if isinstance(raw, str):
         raw = [raw]
     if not isinstance(raw, (list, tuple)):
         return []
-    return [t for t in raw if isinstance(t, str) and is_valid_tag(t)]
+    return _normalize_tags(raw)
 
 
 # ---------------------------------------------------------------------------

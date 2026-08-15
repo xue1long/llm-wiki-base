@@ -1002,3 +1002,67 @@ async def test_generate_sanitizes_bad_ids(tmp_path):
     assert "article" in ids                     # source page survives
     assert "补充教程" in ids                      # type-prefix repaired
     assert not any("raw-sources" in i for i in ids)  # path-like dropped
+
+
+# ---------------------------------------------------------------------------
+# _resolve_page_tags / _resolve_page_tags_unified — tag namespace compliance
+# ---------------------------------------------------------------------------
+# Regression for the compile-flow blocker: the gate at write_page runs
+# validate_tag_compliance (value domain + mandatory pairs), but the tag
+# resolvers only dropped prefix-invalid tags, so value-invalid tags like
+# `题材/穿越` and missing mandatory pairs (`素材/ugc`, `可信度/ugc`) escaped
+# and every tagged page was rejected at commit. The resolvers must guarantee
+# the documented invariant: the result always passes validate_tag_compliance.
+
+
+def test_resolve_tags_unified_drops_value_invalid_keeps_valid():
+    from src.pipeline.generator import _resolve_page_tags_unified
+    tags = _resolve_page_tags_unified(
+        {"tags": ["题材/穿越", "题材/玄幻", "素材/ugc", "可信度/ugc"]}
+    )
+    assert "题材/穿越" not in tags   # 穿越 not in the 题材 value domain
+    assert "题材/玄幻" in tags
+    assert "素材/ugc" in tags
+    assert "可信度/ugc" in tags
+
+
+def test_resolve_tags_unified_appends_mandatory_pairs():
+    from src.pipeline.generator import _resolve_page_tags_unified
+    tags = _resolve_page_tags_unified({"tags": ["题材/玄幻"]})
+    assert "素材/ugc" in tags
+    assert "可信度/ugc" in tags
+
+
+def test_resolve_tags_unified_empty_and_all_invalid_stay_empty():
+    from src.pipeline.generator import _resolve_page_tags_unified
+    assert _resolve_page_tags_unified({"tags": []}) == []
+    # No valid tag survives -> empty -> compliance skips mandatory check.
+    assert _resolve_page_tags_unified({"tags": ["随意文本", "题材/穿越"]}) == []
+
+
+def test_resolve_tags_result_always_passes_compliance():
+    from src.pipeline.generator import _resolve_page_tags, _resolve_page_tags_unified
+    from src.wiki.features.tag_namespace import validate_tag_compliance
+
+    cases = [
+        ({"tags": ["题材/穿越"]}, {}),                        # value-invalid only
+        ({"tags": ["素材/ugc", "功能/教程", "状态/完结"]}, {}),  # valid but partial
+        ({"tags": []}, {}),                                   # empty
+        ({}, {"slug": ["情绪/爽文", "角色/总裁"]}),             # analyzer fallback
+        ({"tags": "情绪/爽文"}, {}),                           # string form
+    ]
+    for page, analyzer_tags in cases:
+        tags = _resolve_page_tags(page, "slug", analyzer_tags)
+        validate_tag_compliance(tags)  # must not raise
+
+    for page, _ in cases:
+        tags = _resolve_page_tags_unified(page)
+        validate_tag_compliance(tags)  # must not raise
+
+
+def test_resolve_tags_uses_analyzer_fallback():
+    from src.pipeline.generator import _resolve_page_tags
+    tags = _resolve_page_tags({}, "s", {"s": ["情绪/爽文"]})
+    assert "情绪/爽文" in tags
+    assert "素材/ugc" in tags
+    assert "可信度/ugc" in tags
