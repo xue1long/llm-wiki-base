@@ -38,57 +38,81 @@ MAX_REDIRECT_HOPS = 5
 
 # Encodings for double-encoding detection and fallback decode.
 # GBK/Big5 cover all Chinese content (Simplified + Traditional).
-_DOUBLE_ENCODE_CANDIDATES = ("gbk", "big5")
+# _DOUBLE_ENCODE_SOURCE_CODECS: single-byte codecs that original GBK/Big5
+# bytes may have been misinterpreted through before being re-saved as UTF-8.
+# latin-1 is the classic case; koi8-r/u cover the batch-50 586KB mojibake
+# (GBK bytes misread as KOI8-U → UTF-8). cp437/cp1251 cover other pipelines.
+_DOUBLE_ENCODE_SOURCE_CODECS = ("latin-1", "koi8-u", "koi8-r", "cp437", "cp1251")
+_DOUBLE_ENCODE_TARGET_ENCODINGS = ("gbk", "big5")
 _FALLBACK_ENCODINGS = ("gbk", "gb2312", "big5")
 
 
 def _repair_double_encoding(text: str) -> str | None:
     """If text looks double-encoded, try to repair it. Returns repaired text or None.
 
-    Detects CJK text where original GBK/Big5 bytes were misinterpreted as
-    Latin-1 and then encoded as UTF-8.  Tries both GBK and Big5 round-trips,
-    picks the one with the highest CJK character yield.
+    Detects CJK text where original GBK/Big5 bytes were misinterpreted through
+    a single-byte codec (latin-1, KOI8-U/KOI8-R, cp437, cp1251) and then
+    encoded as UTF-8.  Tries every source-codec × target-encoding round-trip
+    and picks the one with the highest CJK character yield at the lowest
+    byte-loss.
 
-    Three preconditions (avoid false positives on French/German/normal CJK):
-    1. High Latin-1 Supplement density (U+0080–U+00FF ≥ 35%)
-    2. Low ASCII density (< 20%) — rules out European languages
-    3. Low existing CJK density (< 2%) — already-valid CJK shouldn't be "repaired"
+    Preconditions (avoid false positives on Russian/French/valid CJK):
+    1. Low ASCII density (< 20%) — rules out European languages
+    2. Low existing CJK density (< 2%) — already-valid CJK shouldn't be "repaired"
+    3. The winning round-trip must produce strong CJK yield (> 40%) with
+       near-zero encoding loss — a garbled re-decode of Russian/French text
+       fails one of these guards
     """
     total = len(text)
     if total < 15:
         return None
 
-    # Precondition 1: Latin-1 Supplement density
-    latin1_supp = sum(1 for c in text if '\x80' <= c <= '\xff')
-    if latin1_supp / total < 0.35:
-        return None
-
-    # Precondition 2: ASCII density must be LOW (rules out French/German/etc.)
+    # Precondition 1: ASCII density must be LOW (rules out French/German/etc.)
     if sum(1 for c in text if ' ' <= c <= '~') / total > 0.20:
         return None
 
-    # Precondition 3: Existing CJK density must be LOW
+    # Precondition 2: Existing CJK density must be LOW
     if sum(1 for c in text if '一' <= c <= '鿿') / total > 0.02:
         return None
 
-    # Try candidate encodings — pick highest CJK yield.
+    # Try candidate codec × encoding combos — pick the highest CJK yield at
+    # the lowest byte-loss. `errors="replace"` tolerates chars outside the
+    # source codec (a file may mix two mojibake pipelines); the loss ratio
+    # penalises candidates that needed heavy replacement.
     best_score = 0.0
     best_text = None
 
-    for enc in _DOUBLE_ENCODE_CANDIDATES:
+    for codec in _DOUBLE_ENCODE_SOURCE_CODECS:
         try:
-            roundtripped = text.encode("latin-1").decode(enc)
-        except (UnicodeDecodeError, UnicodeEncodeError, LookupError):
+            encoded = text.encode(codec, errors="replace")
+        except (UnicodeEncodeError, LookupError):
             continue
-        rt_cjk = sum(1 for c in roundtripped if '一' <= c <= '鿿')
-        if rt_cjk == 0:
-            continue
-        score = rt_cjk / max(len(roundtripped), 1)
-        if score > best_score:
-            best_score = score
-            best_text = roundtripped
+        loss = encoded.count(b"?") / max(len(encoded), 1)
+        if loss > 0.10:
+            continue  # too much of the source couldn't round-trip
+        for enc in _DOUBLE_ENCODE_TARGET_ENCODINGS:
+            try:
+                roundtripped = encoded.decode(enc, errors="replace")
+            except (UnicodeDecodeError, LookupError):
+                continue
+            # A genuine CJK round-trip decodes almost cleanly (the 586KB
+            # batch-50 file had 0.02% U+FFFD across 265k chars). A high
+            # U+FFFD ratio means the bytes weren't valid for *enc* (wrong
+            # encoding guess, or Russian text misround-tripped via koi8-r
+            # into GBK garbage) — reject it.
+            if roundtripped.count("\ufffd") / max(len(roundtripped), 1) > 0.01:
+                continue
+            rt_cjk = sum(1 for c in roundtripped if '一' <= c <= '鿿')
+            if rt_cjk == 0:
+                continue
+            score = rt_cjk / max(len(roundtripped), 1) - loss
+            if score > best_score:
+                best_score = score
+                best_text = roundtripped
 
-    if best_score > 0.12 and best_text:
+    # Require a strong CJK yield (≥40%) so a random garble of Russian/French
+    # bytes is never "repaired" into pseudo-Chinese.
+    if best_score >= 0.40 and best_text:
         return best_text
     return None
 

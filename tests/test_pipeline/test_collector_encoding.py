@@ -117,3 +117,54 @@ class TestRepairDoubleEncodingEdgeCases:
         double_encoded = gbk_bytes.decode("latin-1")
         repaired = _repair_double_encoding(double_encoded)
         assert repaired == original
+
+
+class TestRepairKoi8DoubleEncoding:
+    """KOI8-U/KOI8-R double-encoding repair — the 586KB mojibake case.
+
+    Batch-50 regression: a GBK source file was misinterpreted as KOI8-U and
+    re-saved as UTF-8 (CJK density 0%, ASCII < 20%). The legacy repair only
+    handled the latin-1 chain, so the garbage was fed to the LLM unchanged.
+    """
+
+    def _double_encode_via(self, original: str, codec: str) -> str:
+        gbk_bytes = original.encode("gbk")
+        return gbk_bytes.decode(codec)
+
+    def test_koi8u_double_encoding_repair(self):
+        original = "奇幻写作指南（序）其实我是来为本版破处的"
+        mojibake = self._double_encode_via(original, "koi8-u")
+        assert mojibake != original
+        repaired = _repair_double_encoding(mojibake)
+        assert repaired == original
+
+    def test_koi8r_double_encoding_repair(self):
+        original = "武侠小说的写作方法共六百行"
+        mojibake = self._double_encode_via(original, "koi8-r")
+        repaired = _repair_double_encoding(mojibake)
+        assert repaired == original
+
+    def test_koi8u_utf8_file_roundtrip(self):
+        """Full round-trip: _decode_text_file detects and repairs KOI8-U double encoding."""
+        original = "人物塑造与人物关系，小说技法一章"
+        gbk_bytes = original.encode("gbk")
+        mojibake = gbk_bytes.decode("koi8-u")
+        raw = mojibake.encode("utf-8")
+        result = _decode_text_file(raw, "mojibake.md")
+        assert result == original
+
+    def test_koi8u_preferred_over_koi8r(self):
+        """When both round-trips produce CJK, the higher-yield (koi8-u) wins."""
+        original = "【ZT】奇幻写作指南（序）创作角色的二十个问题"
+        mojibake = original.encode("gbk").decode("koi8-u")
+        repaired = _repair_double_encoding(mojibake)
+        assert repaired == original
+
+    def test_russian_utf8_not_repaired(self):
+        """Legitimate Cyrillic UTF-8 text must NOT be 'repaired' into CJK garbage."""
+        text = "Привет мир, как дела? Это русский текст для проверки кодировки."
+        assert _repair_double_encoding(text) is None
+
+    def test_english_utf8_not_repaired(self):
+        """Plain ASCII text must not be repaired (ASCII density precondition)."""
+        assert _repair_double_encoding("Hello world, plain English text.") is None
