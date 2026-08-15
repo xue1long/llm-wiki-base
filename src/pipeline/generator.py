@@ -23,6 +23,7 @@ from typing import Optional
 
 from ..utils.path import normalize_source_path
 from ..utils.slugify import slugify as _slugify
+from ..wiki.core.id_generator import normalize_id_chars
 from ..wiki.core.paths import WikiPaths
 from ..wiki.features.relations import parse_relations_from_response
 from ..wiki.features.tag_namespace import (
@@ -116,10 +117,16 @@ def _is_bad_id_slug(slug: str) -> bool:
 def _sanitize_generated_id(slug: str) -> str | None:
     """Repair or reject a generated page id.
 
-    - Clean id: returned unchanged.
+    - Normalize to the id charset first (lowercase, invalid chars like
+      full-width parens / underscores → ``-``) — batch-50 H4 regression.
     - Type-prefix / ``-entity`` / tag-prefix: strip the bad affix, return rest.
     - Path-like id: unrecoverable → ``None`` (caller drops the page).
     """
+    if not isinstance(slug, str) or not slug.strip():
+        return None
+    slug = normalize_id_chars(slug)
+    if not slug:
+        return None
     if not _is_bad_id_slug(slug):
         return slug
     if slug.startswith("raw-") or "--" in slug or "-md-" in slug:

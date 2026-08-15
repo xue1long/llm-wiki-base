@@ -951,7 +951,22 @@ def test_sanitize_repairs_tag_prefix():
 def test_sanitize_drops_path_like():
     from src.pipeline.generator import _sanitize_generated_id
     assert _sanitize_generated_id("raw-sources-01-新手入门--入门教程三十六种经典情节模式情节艺术-md-9163987c") is None
-    assert _sanitize_generated_id("女频男频--架空类小说恶俗桥段盘点-8a5397b6") is None
+    # `--` alone is now normalized to `-` (id-charset normalization runs
+    # first), preserving the page with a compliant id instead of dropping it.
+    assert _sanitize_generated_id("女频男频--架空类小说恶俗桥段盘点-8a5397b6") == "女频男频-架空类小说恶俗桥段盘点-8a5397b6"
+
+
+def test_sanitize_normalizes_fullwidth_parens():
+    """batch-50 H4 regression: full-width parens in LLM ids must be repaired."""
+    from src.pipeline.generator import _sanitize_generated_id
+    assert _sanitize_generated_id("元素化-（-写作问题-）") == "元素化-写作问题"
+    assert _sanitize_generated_id("泰坦-（-普罗米修斯") == "泰坦-普罗米修斯"
+
+
+def test_sanitize_normalizes_underscore():
+    """Underscore in a generated id becomes '-' (id charset has no '_')."""
+    from src.pipeline.generator import _sanitize_generated_id
+    assert _sanitize_generated_id("大纲示例新人写大纲_7c8873") == "大纲示例新人写大纲-7c8873"
 
 
 def test_is_bad_id_slug_detects_pollution_forms():

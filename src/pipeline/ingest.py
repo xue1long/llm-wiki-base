@@ -36,6 +36,7 @@ import unicodedata
 from pathlib import Path
 
 from ..wiki.core.paths import WikiPaths
+from ..wiki.core.id_generator import normalize_id_chars
 from ..wiki.schema_registry import SchemaRegistry
 from ..utils.path import normalize_source_path
 from ..wiki.core.types import PageType, WikiPage
@@ -398,7 +399,9 @@ async def generate_ingest(
         Path(str(source_path)).stem
         if hasattr(source_path, "stem") else str(source_path)
     )
-    _norm_stem_for_slug = unicodedata.normalize("NFC", _raw_stem_for_slug)
+    _norm_stem_for_slug = normalize_id_chars(
+        unicodedata.normalize("NFC", _raw_stem_for_slug)
+    )
     _path_hash_for_slug = hashlib.md5(
         str(source_path).encode("utf-8")
     ).hexdigest()[:8]
@@ -542,7 +545,7 @@ async def generate_ingest(
         Path(str(source_path)).stem
         if hasattr(source_path, "stem") else str(source_path)
     )
-    norm_stem = unicodedata.normalize("NFC", raw_stem)
+    norm_stem = normalize_id_chars(unicodedata.normalize("NFC", raw_stem))
     path_hash = hashlib.md5(str(source_path).encode("utf-8")).hexdigest()[:8]
     source_slug = f"{norm_stem}-{path_hash}" if norm_stem else (
         task_id if task_id.startswith("kb-") else f"kb-{task_id}"

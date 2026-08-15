@@ -1,6 +1,45 @@
 """Tests for src/wiki/id_generator.py + WikiPage v2.2 fields."""
-from src.wiki.core.id_generator import generate_page_id, is_valid_id
+from src.wiki.core.id_generator import (
+    generate_page_id,
+    is_valid_id,
+    normalize_id_chars,
+)
 from src.wiki.core.types import PageType, WikiPage
+
+
+def test_normalize_id_chars_fullwidth_parens():
+    """Full-width parens （）(batch-50 H4 violations) become '-' and collapse."""
+    assert normalize_id_chars("元素化-（-写作问题-）") == "元素化-写作问题"
+    assert normalize_id_chars("泰坦-（-普罗米修斯") == "泰坦-普罗米修斯"
+    assert is_valid_id(normalize_id_chars("元素化-（-写作问题-）"))
+
+
+def test_normalize_id_chars_underscore_to_dash():
+    """Underscores (from filenames like xxx_7c8873) become '-'."""
+    assert normalize_id_chars("大纲示例新人写大纲_7c8873") == "大纲示例新人写大纲-7c8873"
+    assert is_valid_id(normalize_id_chars("大纲示例新人写大纲_7c8873"))
+
+
+def test_normalize_id_chars_lowercases_ascii():
+    """Uppercase ASCII is lowercased (kebab-case is lowercase only)."""
+    assert normalize_id_chars("Terry-Brooks") == "terry-brooks"
+    assert normalize_id_chars("OpenAI-写作") == "openai-写作"
+    assert is_valid_id(normalize_id_chars("OpenAI-写作"))
+
+
+def test_normalize_id_chars_book_brackets_and_misc():
+    """Book brackets 《》 and other invalid chars are stripped/normalized."""
+    assert normalize_id_chars("《-俄狄浦斯王-》") == "俄狄浦斯王"
+    assert normalize_id_chars("　带全角空格　") == "带全角空格"
+    assert normalize_id_chars("foo bar  baz") == "foo-bar-baz"
+
+
+def test_normalize_id_chars_clean_id_unchanged():
+    """Already-valid ids pass through unchanged."""
+    assert normalize_id_chars("tolkien") == "tolkien"
+    assert normalize_id_chars("网络文学") == "网络文学"
+    assert normalize_id_chars("写作-ai-网络") == "写作-ai-网络"
+    assert normalize_id_chars("") == ""
 
 
 def test_generate_id_format():
