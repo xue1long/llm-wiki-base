@@ -224,7 +224,8 @@ Slot minimums and fallbacks (DO NOT leave these required slots empty):
   `related`              → At LEAST 1 `[[wikilink]]`
   `key_points`           → At LEAST 3 bullets from source
   `extracted_concepts`   → At LEAST 3 `[[wikilinks]]`
-  `examples`             → If none: "来源未提供具体例子"
+  `examples`             → Prefer CONCRETE examples from the source; write
+                           "来源未提供具体例子" ONLY when the source truly has none
   `comparison_dimensions`→ At LEAST 2 dimensions
   `overview`             → At LEAST 1 paragraph
 
@@ -412,12 +413,23 @@ SLOT                  | PAGE TYPE   | MINIMUM ACCEPTABLE CONTENT
 `comparison_dimensions`| synthesis  | At LEAST 2 dimensions being compared
 `overview`            | synthesis   | At LEAST 1 paragraph summarising the comparison
 
+**Slot purpose notes — keep adjacent slots distinct, NO duplicate content**:
+- entity `basic_info` → ONE-LINE positioning: type/category/core attribute
+  (e.g. "一种网络小说题材"). Keep it short.
+- entity `summary`   → FULLER description: background, origin, role, notable
+  details. It must NOT repeat basic_info verbatim.
+- entity `aliases`   → alternative names only; omit when none exist.
+- concept `examples` → CONCRETE examples FROM THE SOURCE (numbers, book
+  titles, cases). The fallback "来源未提供具体例子" is a LAST RESORT — only
+  when the source truly has none.
+
 **FALLBACKS — when source truly lacks info, use these instead of empty/placeholder**:
 - `references` → Write `- [[<source-page-slug>]]` (the slug from `## Source page id` above)
 - `source_meta` → Write "来源: [文件名]; 格式: Markdown; 下载时间: 见原始文件头部"
 - `related_concepts` → List the concept/entity slugs you defined in other pages of THIS response
 - `related` → Write `- [[<source-page-slug>]]`
-- `examples` → Write "来源未提供具体例子" (invent NOTHING)
+- `examples` → Write "来源未提供具体例子" ONLY when the source truly has no
+  examples (invent NOTHING) — prefer real examples from the source first
 - ALL OTHERS → Write "来源未详述此方面" (not empty, not placeholder)
 
 **Entity pages are REQUIRED**: Every meaningful entity (person, org, work, platform,
