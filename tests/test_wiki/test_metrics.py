@@ -151,10 +151,30 @@ def test_metric_deep_reference_rate(mini_wiki: WikiPaths) -> None:
         snaps, raw_files, project_root=mini_wiki.root
     )
     assert total == 3
-    # a: via e1 (multi-source) + syn1 → deep; b: only self-produced c2 → NOT deep;
-    # c: via syn1 → deep. Expect 2/3.
+    # a: via syn1 (synthesis) + e1? e1 is single-source (not deep); a also
+    # deep via c1 body [[s-a]] (wikilink → source page rule)
+    # c: via syn1 → deep
+    # b: only self-produced c2 → NOT deep
+    # Expect a + c = 2/3.
     assert referenced == 2
     assert rate == pytest.approx(2 / 3)
+
+
+def test_metric_deep_reference_wikilink_to_source(mini_wiki: WikiPaths) -> None:
+    """Concept page linking its own source page counts as deep ref (0.2 rule)."""
+    snaps = census_wiki(mini_wiki)
+    raw_files = list((mini_wiki.root / "raw" / "sources").glob("*.md"))
+    # c2 (self-produced for b) gains a wikilink to source page s-a → b's
+    # source is a, so a stays; add a link to source page for b? There is no
+    # source page for b. Instead: c2 body already has "B body"; add a
+    # wikilink [[s-a]] so a is referenced by c2 as well (still deep via syn1).
+    c2 = next(s for s in snaps if s.id == "c2")
+    c2.body += "\n[[s-a]]\n"
+    rate, referenced, total = metric_deep_reference_rate(
+        snaps, raw_files, project_root=mini_wiki.root
+    )
+    # a now via syn1 + c2's wikilink; c via syn1; b still not deep.
+    assert referenced == 2
 
 
 def test_metric_deep_reference_rate_empty(mini_wiki: WikiPaths) -> None:

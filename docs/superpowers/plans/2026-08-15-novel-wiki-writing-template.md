@@ -54,6 +54,16 @@ Phase 0 基线复测 + 盲区统计（M1–M12 + B1–B12 + P0 验算）
   - B12 **断链消解路径分类（C3/压力测试）**：251 个 distinct targets 按"未摄入 raw 引用 / raw 名+幻觉 hash / 归一可对齐"分类——未摄入 raw 引用是缺口优先批次的正确对象（可直接匹配 raw），幻觉 hash 走 gap/suppressed；产出消解映射表供 Phase 4 批次规划。
   - **M2 可达性验算（C3 P0 加固）**：用 B12 分类 + 3–5 批实测推算 M2 深引用率是否可达 ≥80%；不可达则给出修订预案（改 M2 定义纳入"非 source 页 wikilink→source 页" / 放大 4.5 聚合 / 降阈值），在 Phase 0.2 结束时定稿 M2 口径。
 - **验收**：B1–B12 全部有数值或明确"未统计原因"；M2 可达性验算有结论（可达 or 修订口径已定）；硬预算数字定稿；B1/B5/B12 影响 Phase 4 批次规划。
+
+> **Phase 0.2 实测结论（2026-08-15）**：
+> - B1：1324 唯一 md 指纹；long_docs **94**（含整本书全文 20K–585K 字符，chunked 摄入为 Phase 4 独立决策）；tiny 64；duplicate_of 37；unhandled 3（download_progress.json）。
+> - B3：**165 stub / 39 页引用 stub**（1.3 对账转 gap 的量）；stub 自引用 + source_like stub（entity 形态 source 页）确认。
+> - B5：新前缀已部分采用（`素材/ugc` 12、`可信度/ugc` 12）；`情绪/` `场景阶段/` 存量值 0（全库旧前缀 205 页 → Phase 4 cascade 消解）。
+> - B6：slug_aliases **0 条**（无文件）。B9：taxonomy_sub `""` 239 页 + ~90 个长尾值（M3 枚举迁移量确认）。
+> - B11：**store 384-dim vs provider 默认 1536-dim，configured null → 冲突**（Phase 4 首次 upsert 前必须定 provider/dimension，P4）。
+> - B12：断链分类 **63 unreferenced_raw + 70 hallucinated_source_hash + 141 other**——前两类 133 个 slug 可直接对齐 raw（缺口优先批次对象）；141 幻觉概念走 gap/suppressed。
+> - **M2 可达性验算（C3 结论）**：原口径（仅 sources 多源聚合页）需 ≥1089 raw 进聚合、每页 ≥16 raw——现有 taxonomy_sub 长尾（每主题 1–2 页）**不可达**。**定稿修订口径：M2 计入"非 source 页 wikilink → source 页"引用**（concept 页 `参考来源` 槽 wikilink 到 source 页也算深引用，反映知识实际使用）——spec §6 已同步；目标维持 ≥80%，Phase 4.5 聚合为辅。
+> - **硬预算（B2 延后，保守上限）**：1361 raw × 平均 1.5 次 LLM 调用 × ~47K token/raw ≈ **6400 万 token 量级**；单批预算 ≤150 万 token、总预算 ≤1 亿 token（可配置 `.index/quality_settings.json`），Phase 3 首批实测后校准（M10b）。
 - **Commit**：`chore(novel-wiki): 盲区统计 B1-B12 + M2可达性验算 + 硬预算`
 
 ### 0.3 index 重建/对齐（B-O6，Phase 3 前置）
@@ -62,6 +72,8 @@ Phase 0 基线复测 + 盲区统计（M1–M12 + B1–B12 + P0 验算）
 - **Tests**：`tests/test_scripts/test_rebuild_index.py`（磁盘 382 页 → index 条目数一致；重建后 LINT-ORPHAN 归零）
 - **Implementation guidance**：实测 `wiki/index.md` 仅 15 条而磁盘 382 页（367 个 LINT-ORPHAN 噪声）——**必须先重建 index**，否则门禁全局 lint 第一步就被 orphan 淹没。重建后 lint LINT-ORPHAN 归零。（stub 页仍按常规页计入 index——stub 处置在 Phase 4，不阻塞本次对齐。）
 - **验收**：index 条目数 == 磁盘页数（382，含 stub）；lint LINT-ORPHAN 归零。
+
+> **Phase 0.3 实测（2026-08-15）**：rebuild_index.py 重建 index.md **15 → 382 条目**（含 stub 按常规页计入），367 个 LINT-ORPHAN 噪声源消除。
 - **Commit**：`chore(novel-wiki): index 重建对齐（清 LINT-ORPHAN 噪声）`
 
 ---

@@ -202,13 +202,17 @@ def metric_deep_reference_rate(
     raw_md_files: Iterable[Path],
     project_root: Path | None = None,
 ) -> tuple[float, int, int]:
-    """M2: share of raw .md files referenced by ≥1 deep-reference page.
+    """M2: share of raw .md files deeply referenced by wiki pages.
 
-    A page counts as a deep reference for its raw sources only when it is
-    NOT a raw's own self-produced page: ``len(sources) >= 2`` OR the page
-    type is ``synthesis`` (aggregation pages). A concept/entity page whose
-    ``sources`` lists exactly one raw is the product of that raw alone and
-    does not constitute a deep reference (spec §6, plan 0.1).
+    A raw R is deeply referenced when ANY non-source page
+    - lists R among ≥2 ``sources`` (multi-source page), OR
+    - is a synthesis page listing R, OR
+    - has a body wikilink pointing at R's source page (Phase 0.2 revised
+      definition — the concept page's 参考来源 slot counts as real use).
+
+    A concept/entity page whose ``sources`` lists exactly one raw is the
+    product of that raw alone and does NOT constitute a deep reference
+    (spec §6, plan 0.1/0.2).
 
     Returns ``(rate, referenced_raw_count, total_raw_count)``.
     """
@@ -223,28 +227,45 @@ def metric_deep_reference_rate(
             if absn.startswith(root_norm):
                 rel_forms.add(absn[len(root_norm):])
 
-    referenced: set[str] = set()  # stores matched absolute form when available
-    for snap in snapshots:
-        if snap.page_type == "source":
-            continue  # source pages do not count (F7)
-        if not snap.sources:
-            continue
-        is_deep = snap.page_type == "synthesis" or len(snap.sources) >= 2
-        if not is_deep:
+    def raw_hit(src: str) -> str | None:
+        """Return a canonical raw path matching a frontmatter source entry."""
+        norm = src.replace("\\", "/").lstrip("./")
+        if norm in raw_abs:
+            return norm
+        if norm in rel_forms:
+            return norm
+        for cand in raw_abs:
+            if cand.endswith(norm) or norm.endswith(cand):
+                return cand
+        return None
+
+    # source-page id → raw paths (for the wikilink→source-page rule)
+    source_raws: dict[str, set[str]] = {}
+    all_snaps = list(snapshots)
+    for snap in all_snaps:
+        if snap.page_type != "source":
             continue
         for src in snap.sources:
-            norm = src.replace("\\", "/").lstrip("./")
-            if norm in raw_abs:
-                referenced.add(norm)
-                continue
-            if norm in rel_forms:
-                referenced.add(norm)
-                continue
-            # Prefix match for path fragments.
-            for cand in raw_abs:
-                if cand.endswith(norm) or norm.endswith(cand):
-                    referenced.add(cand)
-                    break
+            hit = raw_hit(src)
+            if hit:
+                source_raws.setdefault(snap.id, set()).add(hit)
+
+    referenced: set[str] = set()
+    for snap in all_snaps:
+        if snap.page_type == "source":
+            continue  # source pages do not count (F7)
+        # (1) multi-source / synthesis sources
+        if snap.sources:
+            is_deep = snap.page_type == "synthesis" or len(snap.sources) >= 2
+            if is_deep:
+                for src in snap.sources:
+                    hit = raw_hit(src)
+                    if hit:
+                        referenced.add(hit)
+        # (2) wikilink → source page (Phase 0.2 revised definition)
+        for target in collect_wikilinks(snap):
+            if target in source_raws:
+                referenced.update(source_raws[target])
 
     total = len(raw_abs)
     if total == 0:

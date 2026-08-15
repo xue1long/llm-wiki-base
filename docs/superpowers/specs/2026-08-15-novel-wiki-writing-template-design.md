@@ -361,7 +361,7 @@
 | # | 指标 | 审计基线 | 目标 | 测量 |
 |---|---|---|---|---|
 | M1 | **未登记断链率**（body wikilink + relations target，解析集合 = 磁盘页 ∪ SlugAliasRegistry ∪ 索引；gap 不算断链） | 55.1%（584/1059） | 重摄入批内 0；全库 <5% | 对账脚本（1.8 批内测量 API） |
-| M2 | **深引用率**（被 ≥1 个**非 source 页** `sources` 引用的 raw 占比，**排除"同 raw 自产页"**——每 raw 生成的 entity/concept 页 `sources` 恒列自身 raw，计入则 M2 恒 ≈100% 成新重言式，复审 C 修订；source 页自身引用不计——原 tap rate 是重言式，F7 整改） | 0.5%（7/1364） | ≥80%（**或 0.2 验算后修订口径**，复审 F） | 对账脚本（metrics.py） |
+| M2 | **深引用率**（被 ≥1 个**非 source 页**引用、**排除"同 raw 自产页"**的 raw 占比；引用 = `sources` 多源条目 **或 body wikilink 指向该 raw 的 source 页**——Phase 0.2 验算定稿：纯 sources 多源口径不可达，纳入 wikilink→source 页；source 页自身引用不计——原 tap rate 是重言式，F7 整改） | 0.5%（7/1364） | ≥80%（**0.2 修订口径**，复审 F） | 对账脚本（metrics.py） |
 | M3 | taxonomy 覆盖（批内新页 category/sub 100% 枚举；存量豁免，门禁只查批内） | 40+ 自由值 | 100% | fields validate（批内） |
 | M4 | 必填槽通过率（lint MISSING-SECTION = 0 + 占位符检测 = 0；批内） | 覆盖零采纳（0/264） | 100% | lint（批内子集） |
 | M5 | 门禁批批通过率（写时 NDG + 批后新门禁，批内作用域） | 未测 | 100% | 批后校验 |
