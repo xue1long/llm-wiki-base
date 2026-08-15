@@ -327,6 +327,55 @@ _logger = logging.getLogger(__name__)
 # src.pipeline package namespace, which is what propagates the patch.
 
 
+async def _analyze_chunked(
+    *,
+    source_text: str,
+    source_ext: str,
+    existing_wiki_index: str,
+    folder_context: str,
+    provider,
+    task_id: str,
+    source_path: str,
+    schema_content: str,
+    purpose_content: str,
+    taxonomy_content: str,
+    chunk_size: int | None = None,
+) -> "AnalysisResult":
+    """Analyze a large source in chunks and merge the per-chunk results.
+
+    batch-50 regression: >MAX_SOURCE_CHARS sources were hard-truncated,
+    losing 65-97% of content. Splitting keeps the full document visible to
+    the analyzer (chunk_index/chunk_total are passed through) and the
+    merged AnalysisResult drives one generation pass.
+    """
+    from .generator import get_max_source_chars
+
+    chunk_size = chunk_size or get_max_source_chars()
+    chunks = _split_source_chunks(source_text, chunk_size)
+    _logger.info(
+        "[run_ingest] large source (%d chars) split into %d chunk(s) for analysis",
+        len(source_text), len(chunks),
+    )
+    results = []
+    for i, chunk in enumerate(chunks):
+        ar = await _analyze(
+            source_text=chunk,
+            source_ext=source_ext,
+            existing_wiki_index=existing_wiki_index,
+            folder_context=folder_context,
+            provider=provider,
+            task_id=task_id,
+            source_path=source_path,
+            schema_content=schema_content,
+            purpose_content=purpose_content,
+            taxonomy_content=taxonomy_content,
+            chunk_index=i,
+            chunk_total=len(chunks),
+        )
+        results.append(ar)
+    return _merge_analysis_results(results)
+
+
 async def generate_ingest(
     paths: WikiPaths,
     source_path,
@@ -413,57 +462,98 @@ async def generate_ingest(
     _source_slug_map = {str(source_path): _source_slug_for_map}
 
     # Unified path: single LLM call (Analyzer + Generator merged).
-    # Falls back to two-step on failure.
+    # Falls back to two-step on failure. For sources larger than
+    # MAX_SOURCE_CHARS, skip the truncating unified path entirely and use
+    # chunked analysis (S1 — batch-50 regression: 40% of the pool was
+    # truncated to 8000 chars, losing most content).
     analysis = None  # type: ignore[assignment]
     pages: list[WikiPage] = []
-    try:
-        from .generator import unified_generate
-        pages = await unified_generate(
-            source_text=_sanitized_source_text,
-            source_path=str(source_path),
-            folder_context=folder_context or "",
-            paths=paths,
-            existing_wiki_index=_existing_wiki_index,
-            provider=provider,
-            source_slug_map=_source_slug_map,
-            schema_registry=schema_registry,
-            purpose_content=_purpose_text,
-            taxonomy_content=_taxonomy_text,
-        )
-        _logger.info(
-            "[run_ingest] unified path produced %d pages for %s",
-            len(pages), source_path,
-        )
-        if not pages:
-            raise RuntimeError("unified path returned 0 pages")
-    except Exception as _unified_err:
-        _logger.warning(
-            "[run_ingest] unified path failed (%s), falling back to two-step",
-            _unified_err,
-        )
-        # Fallback: original two-step Analyze → Generate
-        analysis = await _analyze(
-            source_text=_sanitized_source_text,
-            source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
-            existing_wiki_index=_existing_wiki_index,
-            folder_context=folder_context,
-            provider=provider,
-            task_id=task_id,
-            source_path=str(source_path),
-            schema_content=_schema_text,
-            purpose_content=_purpose_text,
-            taxonomy_content=_taxonomy_text,
-        )
-        pages = await _generate(
-            paths=paths,
-            analysis=analysis,
-            existing_wiki_index=_existing_wiki_index,
-            provider=provider,
-            source_slug_map=_source_slug_map,
-            source_text=_sanitized_source_text,
-            schema_registry=schema_registry,
-            taxonomy_content=_taxonomy_text,
-        )
+    from .generator import get_max_source_chars as _get_max_source_chars
+    if len(_sanitized_source_text) > _get_max_source_chars():
+        try:
+            analysis = await _analyze_chunked(
+                source_text=_sanitized_source_text,
+                source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
+                existing_wiki_index=_existing_wiki_index,
+                folder_context=folder_context,
+                provider=provider,
+                task_id=task_id,
+                source_path=str(source_path),
+                schema_content=_schema_text,
+                purpose_content=_purpose_text,
+                taxonomy_content=_taxonomy_text,
+            )
+            pages = await _generate(
+                paths=paths,
+                analysis=analysis,
+                existing_wiki_index=_existing_wiki_index,
+                provider=provider,
+                source_slug_map=_source_slug_map,
+                source_text=_sanitized_source_text,
+                schema_registry=schema_registry,
+                taxonomy_content=_taxonomy_text,
+            )
+            _logger.info(
+                "[run_ingest] chunked path produced %d pages for %s",
+                len(pages), source_path,
+            )
+            if not pages:
+                raise RuntimeError("chunked path returned 0 pages")
+        except Exception as _chunked_err:
+            _logger.warning(
+                "[run_ingest] chunked path failed (%s), falling back to unified",
+                _chunked_err,
+            )
+            analysis = None
+    if analysis is None:
+        try:
+            from .generator import unified_generate
+            pages = await unified_generate(
+                source_text=_sanitized_source_text,
+                source_path=str(source_path),
+                folder_context=folder_context or "",
+                paths=paths,
+                existing_wiki_index=_existing_wiki_index,
+                provider=provider,
+                source_slug_map=_source_slug_map,
+                schema_registry=schema_registry,
+                purpose_content=_purpose_text,
+                taxonomy_content=_taxonomy_text,
+            )
+            _logger.info(
+                "[run_ingest] unified path produced %d pages for %s",
+                len(pages), source_path,
+            )
+            if not pages:
+                raise RuntimeError("unified path returned 0 pages")
+        except Exception as _unified_err:
+            _logger.warning(
+                "[run_ingest] unified path failed (%s), falling back to two-step",
+                _unified_err,
+            )
+            # Fallback: original two-step Analyze → Generate
+            analysis = await _analyze(
+                source_text=_sanitized_source_text,
+                source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
+                existing_wiki_index=_existing_wiki_index,
+                folder_context=folder_context,
+                provider=provider,
+                task_id=task_id,
+                source_path=str(source_path),
+                schema_content=_schema_text,
+                purpose_content=_purpose_text,
+                taxonomy_content=_taxonomy_text,
+            )
+            pages = await _generate(
+                paths=paths,
+                analysis=analysis,
+                existing_wiki_index=_existing_wiki_index,
+                provider=provider,
+                source_slug_map=_source_slug_map,
+                source_text=_sanitized_source_text,
+                schema_registry=schema_registry,
+                taxonomy_content=_taxonomy_text,
+            )
 
     # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.
     # Default OFF (QualitySettings.enabled=False) — must be explicitly
@@ -994,6 +1084,98 @@ def _rank_stub_candidates(
             continue
         kept.append(slug)
     return kept
+
+
+# ---------------------------------------------------------------------------
+# Large-doc chunked analysis (S1 — batch-50 regression).
+# >MAX_SOURCE_CHARS sources were hard-truncated to 8000 chars, losing
+# 65-97% of content. Split → analyze per chunk (the analyzer supports
+# chunk_index/chunk_total) → merge → generate from the merged analysis.
+# ---------------------------------------------------------------------------
+
+def _split_source_chunks(text: str, chunk_size: int) -> list[str]:
+    """Split *text* into whole-paragraph chunks of at most *chunk_size* chars.
+
+    Greedy paragraph packing: paragraphs (split on blank lines) accumulate
+    until adding the next would exceed the budget; oversized single
+    paragraphs are hard-split as a last resort so the whole document is
+    always covered.
+    """
+    if not text:
+        return []
+    if len(text) <= chunk_size:
+        return [text]
+
+    paragraphs = re.split(r"\n\s*\n", text)
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for para in paragraphs:
+        if current and current_len + len(para) + 2 > chunk_size:
+            chunks.append("\n\n".join(current))
+            current, current_len = [], 0
+        # A single paragraph longer than the budget: hard-split it.
+        if len(para) > chunk_size:
+            if current:
+                chunks.append("\n\n".join(current))
+                current, current_len = [], 0
+            for i in range(0, len(para), chunk_size):
+                chunks.append(para[i:i + chunk_size])
+            continue
+        current.append(para)
+        current_len += len(para) + 2
+    if current:
+        chunks.append("\n\n".join(current))
+    return chunks
+
+
+def _merge_analysis_results(results: list) -> "AnalysisResult":
+    """Merge per-chunk AnalysisResults into one (dedup by slug).
+
+    key_facts concatenate; entities/concepts/suggested_pages dedup by slug
+    keeping the highest confidence; links_to_existing union. The first
+    result's task_id/source_path are kept; summaries are joined.
+    """
+    from .schemas import AnalysisResult  # local import keeps module light
+
+    if not results:
+        raise ValueError("_merge_analysis_results requires >=1 result")
+    if len(results) == 1:
+        return results[0]
+
+    key_facts: list[str] = []
+    entities: dict[str, object] = {}
+    concepts: dict[str, object] = {}
+    pages: dict[tuple[str, str], object] = {}
+    links: set[str] = set()
+    summaries: list[str] = []
+
+    for ar in results:
+        summaries.append(ar.summary or "")
+        key_facts.extend(ar.key_facts or [])
+        for e in (ar.entities or []):
+            prev = entities.get(e.slug)
+            if prev is None or e.confidence > prev.confidence:
+                entities[e.slug] = e
+        for c in (ar.concepts or []):
+            prev = concepts.get(c.slug)
+            if prev is None or c.confidence > prev.confidence:
+                concepts[c.slug] = c
+        for p in (ar.suggested_pages or []):
+            pages.setdefault((p.type, p.slug), p)
+        links.update(ar.links_to_existing or [])
+
+    return AnalysisResult(
+        task_id=results[0].task_id,
+        source_path=results[0].source_path,
+        summary="\n".join(s for s in summaries if s),
+        key_facts=key_facts,
+        entities=list(entities.values()),
+        concepts=list(concepts.values()),
+        suggested_pages=list(pages.values()),
+        links_to_existing=sorted(links),
+        folder_context=results[0].folder_context,
+    )
 
 
 def _apply_page_cap_note(

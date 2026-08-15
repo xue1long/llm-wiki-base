@@ -17,6 +17,7 @@ This module is the single source of truth for wiki template enforcement.
 See docs/superpowers/plans/2026-07-26-wiki-schema-v23.md.
 """
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -55,8 +56,15 @@ _logger = logging.getLogger(__name__)
 
 # Truncate very large sources to keep prompt size manageable and
 # prevent page-count explosion (observed: 34K source → 83 pages).
-# Reduced to 8000 for CPU Ollama — larger prompts time out at 180s.
-MAX_SOURCE_CHARS = 8000
+# 8000 was tuned for CPU Ollama's 180s timeout; remote providers handle
+# larger prompts, so the default is 16000 (env RUFLO_MAX_SOURCE_CHARS).
+# Sources beyond the cap go through ingest.py's chunked-analysis path
+# (S1) instead of truncation.
+def get_max_source_chars() -> int:
+    return int(os.environ.get("RUFLO_MAX_SOURCE_CHARS", "16000"))
+
+
+MAX_SOURCE_CHARS = get_max_source_chars()
 
 # Base max_tokens for generated JSON payloads. The endpoint's default cap
 # truncated long multi-page responses mid-string (batch-10: 11/11 JSON
@@ -501,8 +509,8 @@ async def unified_generate(
     import re as _re
 
     _truncated = False
-    if len(source_text) > MAX_SOURCE_CHARS:
-        source_text = source_text[:MAX_SOURCE_CHARS] + "\n\n[... 文本过长，已截断 ...]"
+    if len(source_text) > get_max_source_chars():
+        source_text = source_text[:get_max_source_chars()] + "\n\n[... 文本过长，已截断 ...]"
         _truncated = True
 
     _logger.info(
