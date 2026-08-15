@@ -748,19 +748,24 @@ async def generate_ingest(
         return raw
 
     referenced_slugs: set[str] = set()
+    _ref_counts: dict[str, int] = {}
     for page in pages:
         for rel in (page.relations or []):
             # Relation dataclass field is ``target_id`` (the YAML key is
             # ``target`` after to_dict() — see src/wiki/features/relations.py).
             tgt = getattr(rel, "target_id", None) or getattr(rel, "target", None)
             if tgt:
-                referenced_slugs.add(_strip_type_prefix(_slugify(tgt) or tgt))
+                _canon = _strip_type_prefix(_slugify(tgt) or tgt)
+                referenced_slugs.add(_canon)
+                _ref_counts[_canon] = _ref_counts.get(_canon, 0) + 1
         for src in (page.sources or []):
             # Skip the source path itself — that's not a wiki slug.
             pass
     if _has_analysis:
         for link in (analysis.links_to_existing or []):
-            referenced_slugs.add(_strip_type_prefix(_slugify(link) or link))
+            _canon = _strip_type_prefix(_slugify(link) or link)
+            referenced_slugs.add(_canon)
+            _ref_counts[_canon] = _ref_counts.get(_canon, 0) + 1
 
     # B10: scan each generated page's body for [[wikilinks]] that are not
     # captured by the structured `relations` list above. `_extract_wikilink_targets`
@@ -769,7 +774,9 @@ async def generate_ingest(
     # that exist or will be produced this run; Fix E subtracts both sets below.
     for page in pages:
         for _tgt in _extract_wikilink_targets(page.body):
-            referenced_slugs.add(_strip_type_prefix(_slugify(_tgt) or _tgt))
+            _canon = _strip_type_prefix(_slugify(_tgt) or _tgt)
+            referenced_slugs.add(_canon)
+            _ref_counts[_canon] = _ref_counts.get(_canon, 0) + 1
 
     produced_slugs = {p.id for p in pages}
     # Existing wiki pages (across all four type directories) — reuse the
@@ -813,15 +820,26 @@ async def generate_ingest(
             )
         missing = filtered
 
-    # P2 quality gate: suppress excessive stub creation to avoid noise.
+    # P2 quality gate: rank stub candidates — drop document-title variants
+    # (stubs ending with the source page's hash) and keep at most
+    # ``_max_stubs`` by reference-count / analyzer-confidence, instead of the
+    # old all-or-nothing suppression (batch-50).
     _max_stubs = _get_max_stubs_per_ingest()
-    if len(missing) > _max_stubs:
+    _source_slug = next(
+        (p.id for p in pages if p.type == PageType.SOURCE), ""
+    )
+    _analyzer_named = set(_analyzer_name_map.keys())
+    _ranked_missing = _rank_stub_candidates(
+        missing, _max_stubs, _source_slug, _ref_counts, _analyzer_named,
+    )
+    if len(_ranked_missing) < len(missing):
         _logger.warning(
-            "[run_ingest] suppressing %d stub(s) (exceeds max %d): %s",
-            len(missing), _max_stubs,
-            ", ".join(sorted(missing)[:20]),
+            "[run_ingest] stub selection dropped %d of %d candidates "
+            "(cap %d, doc-title variants excluded): %s",
+            len(missing) - len(_ranked_missing), len(missing), _max_stubs,
+            ", ".join(sorted(missing - set(_ranked_missing))[:20]),
         )
-        missing = set()
+    missing = set(_ranked_missing)
 
     if missing:
         _logger.info(
@@ -927,6 +945,55 @@ async def generate_ingest(
 
 
 MAX_PAGES_PER_DOC = 15
+
+# Trailing 8-hex hash in deterministic source-page slugs (Fix B).
+_SOURCE_HASH_RE = re.compile(r"-([0-9a-f]{8})$")
+
+
+def _rank_stub_candidates(
+    missing: set[str],
+    max_stubs: int,
+    source_slug: str,
+    ref_counts: dict[str, int],
+    analyzer_named: set[str],
+) -> list[str]:
+    """Filter + rank stub candidates; return the stub slugs to create.
+
+    batch-50 regression:
+    - Document-title variants: the LLM sometimes references the source doc
+      under a differently-hyphenated slug (``必备资料-15-...-43c5df10`` vs the
+      source page ``必备资料15...-43c5df10``), creating a duplicate entity stub
+      for the document itself. Any stub ending with the SAME trailing hash as
+      the source page is such a variant — the source page already represents it.
+    - All-or-nothing suppression: over the cap the old code dropped ALL stubs.
+      Now keep the *max_stubs* highest-confidence ones, preferring slugs
+      referenced by more pages and slugs the analyzer named.
+    """
+    src_hash = _SOURCE_HASH_RE.search(source_slug or "")
+    src_suffix = src_hash.group(1) if src_hash else None
+
+    def _is_doc_variant(slug: str) -> bool:
+        if src_suffix is None:
+            return False
+        m = _SOURCE_HASH_RE.search(slug)
+        return bool(m) and m.group(1) == src_suffix
+
+    ranked = sorted(
+        missing,
+        key=lambda s: (
+            ref_counts.get(s, 0),        # more references first
+            1 if s in analyzer_named else 0,  # analyzer-named next
+        ),
+        reverse=True,
+    )
+    kept: list[str] = []
+    for slug in ranked:
+        if len(kept) >= max_stubs:
+            break
+        if _is_doc_variant(slug):
+            continue
+        kept.append(slug)
+    return kept
 
 
 def _apply_page_cap_note(
