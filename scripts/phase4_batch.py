@@ -501,6 +501,7 @@ async def _commit_all(
     gen_failed: list[str] | None = None,
     ok: int = 0,
     err: int = 0,
+    file_results: dict | None = None,
 ) -> tuple[dict, int]:
     """Commit reconciled batch pages grouped by raw file (R2-2).
 
@@ -508,6 +509,10 @@ async def _commit_all(
     time so tests can monkeypatch them.  Ownership of a raw file is decided
     by its SOURCE page: a raw_rel belongs to every SOURCE page whose
     ``sources`` field contains it (D1) — never by ``sources[0]`` (F5).
+
+    ``file_results`` (Phase 3 实测接线)：raw_rel → per-file result dict，
+    供 ``_missing_slugs_for`` 提取该 raw 的 ``meta["missing_slugs"]`` 透传
+    ``commit_ingest`` → knowledge_gaps.json（1.3 O6）。
 
     State is persisted atomically after every group commit (status
     ``committing``) so a crash mid-batch resumes at file granularity;
@@ -523,6 +528,16 @@ async def _commit_all(
     from src.wiki.core.types import PageType
     from src.wiki.features.indexer import read_index
     from src.wiki.storage.page_writer import page_path_for
+
+    def _missing_slugs_for(raw_rel: str) -> list | None:
+        """Extract this raw's unresolved references from its generate meta."""
+        if not file_results:
+            return None
+        res = file_results.get(raw_rel)
+        if not res:
+            return None
+        meta = res.get("meta") or {}
+        return meta.get("missing_slugs")
 
     batch_set = set(batch_files)
 
@@ -570,7 +585,13 @@ async def _commit_all(
     for raw_rel in group_order:
         spages = groups[raw_rel]
         try:
-            await commit_ingest(paths, root / raw_rel, spages, task_id=task_id)
+            await commit_ingest(
+                paths, root / raw_rel, spages, task_id=task_id,
+                # 1.3 O6：透传本 raw 的未解析引用 → knowledge_gaps.json
+                # （Phase 3 实测：此前未传，gap 账本在 batch 路径从未写入，
+                # 导致批内断链无法按 F2 语义归入 gap 而非计为 M1 断链）。
+                missing_slugs=_missing_slugs_for(raw_rel),
+            )
         except Exception as exc:
             failed.append(raw_rel)
             _log(f"  COMMIT FAIL {raw_rel}: {exc}")
@@ -863,6 +884,7 @@ async def main() -> int:
         gen_failed=[r for r, res in gen["file_results"].items()
                     if not res["ok"] and not res.get("permanent_failed")],
         ok=gen["ok"], err=gen["err"],
+        file_results=gen["file_results"],
     )
 
     if rc == 0:

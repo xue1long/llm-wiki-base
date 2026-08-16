@@ -633,3 +633,62 @@ async def test_generate_ingest_422_permanent_failure_bubbles(tmp_path):
     assert calls["n"] == 1, (
         "422 应首次 LLM 调用后立即冒泡，fallback 级联不得重发调用"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 实测接线：_commit_all 透传 missing_slugs → knowledge_gaps
+# ---------------------------------------------------------------------------
+
+
+def test_commit_all_passes_missing_slugs_to_commit_ingest(tmp_path, monkeypatch):
+    """1.3 O6 接线：phase4_batch 的 commit 必须把 raw 的未解析引用透传给
+    commit_ingest（→ knowledge_gaps.json）。
+
+    Phase 3 首批实测暴露：_commit_all 此前只传 paths/pages/task_id，
+    generate meta 的 missing_slugs 被丢弃 → gap 账本在 batch 路径从未写入，
+    批内断链无法按 F2 语义归入 gap。本测试锁定透传。
+    """
+    import scripts.phase4_batch as p4
+    from src.wiki.core.paths import WikiPaths
+    from src.wiki.core.types import PageType, WikiPage
+    from src.wiki.storage.ensure import ensure_knowledge_base
+
+    captured = {}
+
+    async def _fake_commit(*args, **kwargs):
+        captured.update(kwargs)
+        return None
+
+    # _commit_all 内部局部导入 commit_ingest —— monkeypatch src.pipeline.ingest
+    from src.pipeline import ingest as ingest_mod
+    monkeypatch.setattr(ingest_mod, "commit_ingest", _fake_commit)
+
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "gap-raw.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text("内容", encoding="utf-8")
+
+    now = int(__import__("time").time() * 1000)
+    page = WikiPage(
+        id="src-gap", title="gap", type=PageType.SOURCE,
+        sources=["raw/sources/gap-raw.md"], body="## 摘要\n\n摘要",
+        grade="A", created_at=now, updated_at=now,
+    )
+    file_results = {
+        "raw/sources/gap-raw.md": {
+            "ok": True,
+            "meta": {"missing_slugs": [{"slug": "幽灵概念", "referenced_by": ["src-gap"]}]},
+        },
+    }
+
+    entry, rc = asyncio.run(p4._commit_all(
+        paths=paths, pages=[page], extras=[], batch_key="batch_0",
+        batch_files=["raw/sources/gap-raw.md"], root=tmp_path,
+        task_id="b0", file_results=file_results,
+    ))
+    # POSTCHECK 依赖真实写盘（此处 commit_ingest 被 mock），rc 可能非 0；
+    # 本测试只锁 missing_slugs 透传，不依赖 POSTCHECK 结果。
+    assert captured.get("missing_slugs") == [
+        {"slug": "幽灵概念", "referenced_by": ["src-gap"]}
+    ], f"missing_slugs must reach commit_ingest, got: {captured.get('missing_slugs')}"
