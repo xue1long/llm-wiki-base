@@ -290,6 +290,52 @@ def test_lint_full_v2_page_clean(tmp_path):
     assert missing == []
 
 
+def test_lint_v2_page_clean_under_project_v3_template(tmp_path):
+    """Phase 3 实测回归：项目级 v3.0.0 模板存在时，2.0.0 存量页按 2.0.0
+    槽检查，不得被要求填 v3.0.0 新增槽（适用场景/反模式/证据强度）。
+
+    novel-wiki 首批实测暴露：lint MISSING-SECTION 用项目解析模板（v3.0.0）
+    的必填槽集检查所有页，导致声明 2.0.0 的存量页被误报缺失
+    v3.0.0 槽（H3 版本门语义 = 存量 2.0.0 页仍按 ≥2.0.0 检查）。
+    """
+    from src.wiki.templates.types import PROJECT_TEMPLATE_DIRNAME
+
+    p = ensure_knowledge_base(tmp_path)
+    # 项目级 v3.0.0 concept 模板（含 v3.0.0 新增槽）
+    tpl_dir = tmp_path / PROJECT_TEMPLATE_DIRNAME
+    tpl_dir.mkdir(parents=True, exist_ok=True)
+    (tpl_dir / "concept.md").write_text(
+        "<!-- wiki-template-version: 3.0.0 -->\n"
+        "<!-- wiki-template-type: concept -->\n\n"
+        "## 定义\n\n<!-- slot:definition -->\n\n"
+        "## 主要特点\n\n<!-- slot:characteristics -->\n\n"
+        "## 适用场景\n\n<!-- slot:context -->\n\n"
+        "## 反模式与常见错误\n\n<!-- slot:anti_patterns -->\n\n"
+        "## 证据强度\n\n<!-- slot:evidence -->\n\n"
+        "## 例子\n\n<!-- slot:examples -->\n\n"
+        "## 相关概念\n\n<!-- slot:related_concepts -->\n\n"
+        "## 参考来源\n\n<!-- slot:references -->\n",
+        encoding="utf-8",
+    )
+
+    # 2.0.0 存量页：只有 bundled 2.0.0 的 5 个槽
+    body = (
+        "## 定义\n\n定义内容。\n\n"
+        "## 主要特点\n\n要点 A。\n\n"
+        "## 例子\n\n例 1。\n\n"
+        "## 相关概念\n\n[[other-slug]]\n\n"
+        "## 参考来源\n\nfoo.md\n"
+    )
+    _write_page_with_version(p, "kb-20", "旧概念", PageType.CONCEPT, body, "2.0.0")
+    append_to_index(p, [("kb-20", PageType.CONCEPT, "旧概念")])
+
+    report = lint_wiki(p)
+    missing = [i for i in report.issues if i.code == "LINT-MISSING-SECTION"]
+    assert missing == [], (
+        f"2.0.0 存量页不得被要求 v3.0.0 新增槽，got: {[m.message for m in missing]}"
+    )
+
+
 def test_lint_version_with_three_components(tmp_path):
     """Version comparison handles 2.1, 2.0.1, 2.1.3 etc."""
     from src.wiki.features.lint import _parse_version

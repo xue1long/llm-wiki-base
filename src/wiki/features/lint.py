@@ -584,44 +584,58 @@ def lint_wiki(
                     continue
                 template = resolved_templates.get(page.type)
                 if template is not None:
-                    try:
-                        required = required_slot_names(template)
-                    except Exception:
-                        required = []
-                    if required:
-                        page_ver = _parse_version(vm.group(1))
-                        project_ver = _parse_version(template.version or "2.0.0")
-                        if page_ver >= project_ver:
-                            heading_map = _template_heading_map(template, page.type)
-                            template_headings = {
-                                heading_map.get(n, _heading_label(n, page.type))
-                                for n in required
-                            }
-                        else:
-                            template_headings = {
-                                _heading_label(n, page.type) for n in required
-                            }
-                        body_headings = set(_BODY_HEADING_RE.findall(page.body))
-                        missing = sorted(
-                            h for h in template_headings if h not in body_headings
-                        )
-                        if missing:
-                            issues.append(
-                                LintIssue(
-                                    code="LINT-MISSING-SECTION",
-                                    severity=LintSeverity.ERROR,
-                                    message=(
-                                        "Page is missing required sections "
-                                        f"(template version >= 2.0.0): {missing}"
-                                    ),
-                                    page_id=page.id,
-                                    suggestion=(
-                                        "Re-ingest the source so the page is "
-                                        "regenerated against the active template, "
-                                        "or add the missing sections manually."
-                                    ),
-                                )
+                    page_ver = _parse_version(vm.group(1))
+                    project_ver = _parse_version(template.version or "2.0.0")
+                    # H3 版本门（Phase 3 实测修复）：存量 2.0.0 页在项目级
+                    # v3.0.0 模板下仍按 **bundled 2.0.0** 模板的槽集检查，
+                    # 不得被要求填 v3.0.0 新增槽（适用场景/反模式/证据强度）。
+                    # 只有页声明版本 >= 项目解析模板版本才用项目模板槽集。
+                    if page_ver < project_ver:
+                        baseline = _bundled_template(page.type)
+                        if baseline is None:
+                            continue
+                        try:
+                            required = required_slot_names(baseline)
+                        except Exception:
+                            required = []
+                        if not required:
+                            continue
+                        template_headings = {
+                            _heading_label(n, page.type.value) for n in required
+                        }
+                    else:
+                        try:
+                            required = required_slot_names(template)
+                        except Exception:
+                            required = []
+                        if not required:
+                            continue
+                        heading_map = _template_heading_map(template, page.type)
+                        template_headings = {
+                            heading_map.get(n, _heading_label(n, page.type))
+                            for n in required
+                        }
+                    body_headings = set(_BODY_HEADING_RE.findall(page.body))
+                    missing = sorted(
+                        h for h in template_headings if h not in body_headings
+                    )
+                    if missing:
+                        issues.append(
+                            LintIssue(
+                                code="LINT-MISSING-SECTION",
+                                severity=LintSeverity.ERROR,
+                                message=(
+                                    "Page is missing required sections "
+                                    f"(template version >= 2.0.0): {missing}"
+                                ),
+                                page_id=page.id,
+                                suggestion=(
+                                    "Re-ingest the source so the page is "
+                                    "regenerated against the active template, "
+                                    "or add the missing sections manually."
+                                ),
                             )
+                        )
 
     # Orphans — pages on disk that are not listed in wiki/index.md
     indexed = {entry[0] for entry in read_index(paths)}
@@ -667,6 +681,22 @@ def _heading_label(slot_name: str, page_type: str = "") -> str:
     if page_type == "entity" and slot_name == "summary":
         return "简介"
     return _SLOT_TO_HEADING.get(slot_name, slot_name)
+
+
+def _bundled_template(page_type: PageType):
+    """Resolve the bundled (default 2.0.0) template for a PageType.
+
+    Phase 3 实测修复：lint 版本门对"页声明版本 < 项目模板版本"的存量页
+    （如项目级 v3.0.0 下的 2.0.0 页）需以 bundled 模板的必填槽为检查基准，
+    否则会被误要求填 v3.0.0 新增槽。resolve() 自身带 mtime-keyed LRU。
+    """
+    from ..templates import resolve as _resolve
+    from ..templates.types import BUNDLED_DIR
+
+    try:
+        return _resolve(page_type, BUNDLED_DIR)
+    except Exception:
+        return None
 
 
 def _template_heading_map(template, page_type: str) -> dict[str, str]:
