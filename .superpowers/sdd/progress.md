@@ -12,7 +12,7 @@
 | Phase 1 平台改造 | ✅ 10/10 | 见 handoff（1.1–1.9） |
 | **Phase 2 场景模板落地** | ✅ 2/2 | schema/purpose/taxonomy/taxonomy_tags 落盘 + 模板确认 |
 | **Phase 3 实测首轮** | ✅ **达标** | 首批 batch_001 全指标过（2026-08-16，含 10 个修复 commit） |
-| Phase 4 全量分批重摄入 | ⬜ | 未开始（执行模型重写：cascade/门禁 pre-commit/存量处置） |
+| **Phase 4 全量分批重摄入** | 🔄 进行中 | **batch 0 全量 20/20 完成**（6 缺陷修复，0.011 USD）；batch 1-68 待跑 |
 | Phase 4.5 synthesis 聚合 | ⬜ | 未开始 |
 | Phase 5 终验 | ⬜ | 未开始 |
 
@@ -64,9 +64,26 @@
 
 **试跑进展（2026-08-16 晚）**：
 - 单文件真实路径冒烟测试 ✅：`batch_executor --root knowledge/novel-wiki --batch 0`（1 raw）→ RC=0，provider(RetryLLMProvider/glm-5.2) 正常调用、pre-commit 门禁 PASS（6 页）、reingest cascade 删除旧产出 7 页 + 更新 1 页、commit 成功；向量 upsert 因 CLI 无 embedding provider 降级（WARN，search degrade，预期行为）
-- **待跑**：batch 0 全 20 文件（~25 分钟，~27 次 LLM 调用，真实费用）。命令：
-  `PYTHONPATH=. python scripts/batch_executor.py --root knowledge/novel-wiki --batch 0 --budget-usd 0.2`
-  （注意 batch 0 含 3 个测试夹具文件 ugc-test/ugc-test2/book-official——真实语料，走 UGC 标记路径）
+- **batch 0 全量 20/20 ✅**（2026-08-17，4 轮试跑，累计 0.011 USD）
+  - 三轮试跑暴露 6 个缺陷（A-F，均修复 + 测试），第四轮全面通过
+  - 产出的 5605 行新增 + 2998 行删除（cascade 重建 29 旧页 → 74 新页 + 存量更新）
+  - 门禁 PASS（pre-commit 零问题 + 整批复核 PASS）
+  - page_ids 持久化（14 页），gap 账本自动更新，budget 0.011 USD
+
+**Phase 4 试跑实测发现并修复的 6 个缺陷（均有测试）**：
+| # | commit | 缺陷 |
+|---|---|---|
+| A | `bd3d4133` | `_commit_raw` 丢弃 `meta["missing_slugs"]` → gap 账本在 batch 路径从未写入（同 Phase 3 修复 #3，batch_executor 新代码重犯） |
+| B | `bd3d4133` | `run_precommit_gate` 对 extras（存量 reverse-touch 旧英文 tag 页）检查新 tag/lint 标准 → 整批被拦（修复：extras 不参与批内判定） |
+| C | `b3318261` | batch_executor 缺 `_auto_tag_ugc` 步骤（phase4_batch 有）→ UGC carrier 派生页缺 素材/ugc + 可信度/ugc tag → P4b blocker |
+| D | `b3318261` | P7（extra-pages 覆盖保护）对占位符清洗后的 extras body 误判 destructive overwrite（修复：P7 放行"仅占位符清洗"差异，与写入路径同语义） |
+| E | `58598a1b` | `_rerun_gate_batch` 按 source 关联全扫磁盘页 → 存量 extras（东方玄幻 历史非法 relation contrasts）被误拦（修复：page_ids 过滤只查本批新页） |
+| F | `64dfef31` | glm-5.2（reasoning 模型）thinking 占满 max_tokens=8192 预算 → content 空 + finish_reason=length → 被误判为 0-char 空截断不升级 → 3 次全失败（修复：provider 检测 reasoning_content 并上报 content_length>0，解锁升级路径） |
+
+**关键运行事实（补充）**：
+- glm-5.2 是 reasoning 模型；对 6400+ chars 的源文件，thinking 独占总预算导致 0-char 空截断是特点，非 bug，修复后正确升级 max_tokens 自动解决
+- 2 个文件（借鉴素材小说主题分类的内容详细.md / 借鉴素材书籍如何商业化_8111d1.md）从 blocklist 中解封后第四轮成功生成
+- 累计消耗 0.011 USD（远低于 0.2 上限）
 
 **回归状态**：test_scripts 59+ 绿（4.1-4.6 全量）；test_services 绿；全树 3-5 个既存收集 ERROR + test_pipeline 4 个既存失败（均为兄弟 conftest 级联，基线一致，与 Phase 4 改动无关）。
 
