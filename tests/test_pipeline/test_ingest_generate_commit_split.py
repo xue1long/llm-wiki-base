@@ -576,3 +576,63 @@ async def test_generate_ingest_collects_extra_page_broken_refs(tmp_path: Path) -
     assert "幽灵存量引用" in missing, (
         f"extras 页的断链必须入 meta['missing_slugs']，got: {sorted(missing)}"
     )
+
+
+@pytest.mark.asyncio
+async def test_generate_ingest_filters_illegal_relations(tmp_path: Path) -> None:
+    """Phase 3 实测回归（M9）：非法 relation 类型（非 17 型 / 非 x-*）被过滤。
+
+    JSON schema enum 只约束新 LLM 输出；存量页（extras 反向边合并）可能携带
+    历史非法 relation（`related_to` / `contrasts` / `part_of` 等）。generate_ingest
+    必须对 pages + extras 统一过滤，保证批内页 lint LINT-ILLEGAL-RELATION = 0。
+    """
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    # 磁盘存量页：带非法 relation（模拟历史遗留）
+    from src.wiki.features.relations import Relation
+    write_page(paths, WikiPage(
+        id="存量带非法边", title="存量带非法边", type=PageType.CONCEPT,
+        sources=["raw/sources/a.md"], body="存量内容。",
+        relations=[
+            Relation(target_id="幽灵", type="references"),
+            Relation(target_id="另一个", type="related_to"),   # 非法
+            Relation(target_id="第三个", type="part_of"),      # 非法
+        ],
+    ))
+    raw = paths.raw_sources / "src3.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text("源内容。", encoding="utf-8")
+
+    script = [{
+        "pages": [{
+            "id": "新页2", "type": "concept", "title": "新页2",
+            "slots": {
+                "definition": "定义内容足够长。",
+                "characteristics": ["特征"],
+                "examples": ["例子"],
+                "related_concepts": ["[[存量带非法边]]"],
+                "references": ["[[source-补充教程]]"],
+            },
+            "relations": [{"target": "存量带非法边", "type": "references"}],
+        }],
+    }]
+    provider = ScriptedLLMProvider(script)
+
+    pages, extras, _meta = await generate_ingest(
+        paths=paths, source_path=raw, source_text="源内容。",
+        provider=provider, task_id="kb-m9",
+    )
+    # 本批新页 relations 无非法类型
+    from src.wiki.features.lint import _BUILTIN_RELATIONS
+    for p in pages:
+        for r in (p.relations or []):
+            assert r.type in _BUILTIN_RELATIONS or r.type.startswith("x-"), (
+                f"batch page {p.id} has illegal relation {r.type}"
+            )
+    # extras（存量页）的非法 relation 被清理，合法保留
+    extra = next(p for p in extras if p.id == "存量带非法边")
+    types = {r.type for r in (extra.relations or [])}
+    assert "related_to" not in types and "part_of" not in types, (
+        f"extras illegal relations must be filtered, got {types}"
+    )
+    assert "references" in types, "legal relation must be preserved"

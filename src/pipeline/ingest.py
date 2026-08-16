@@ -231,6 +231,8 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
         reg = None
 
     now = int(__import__("time").time() * 1000)
+    from src.pipeline.generator import RELATION_TYPES as _RELATION_TYPES
+    _valid_relation_types = set(_RELATION_TYPES)
     for page in pages:
         if page.grade not in ("A", "B", "C"):
             page.grade = "B"
@@ -244,6 +246,14 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
             page.created_at = now
         if not page.updated_at:
             page.updated_at = now
+        # M9（Phase 3 实测）：过滤非法 relation 类型——LLM 或历史页可能输出
+        # `related_to` / `contrasts` / `part_of` 等非 17 型（+ x-*）类型。
+        # JSON schema enum 只约束新 LLM 输出；存量页（extras）合并时也须清理。
+        if page.relations:
+            page.relations = [
+                r for r in page.relations
+                if r.type in _valid_relation_types or r.type.startswith("x-")
+            ]
         if reg is not None:
             for rel in page.relations:
                 canonical = reg.get_canonical(rel.target_id)
@@ -840,6 +850,18 @@ async def generate_ingest(
     # must have at most one relation per target_id (highest weight wins).
     # The Generator already deduplicates, but _compute_reverse_relations
     # may add inverse edges that collide with existing relations.
+    # M9（Phase 3 实测）：extras（存量页反向边合并）也可能携带历史非法 relation
+    # （如 `related_to` / `contrasts`）——与 pages 一起过滤，保证批内页 relation
+    # 类型合规（lint LINT-ILLEGAL-RELATION = 0）。
+    from src.pipeline.generator import RELATION_TYPES as _RELATION_TYPES
+    _valid_relation_types = set(_RELATION_TYPES)
+    for page in pages + extra_pages:
+        if page.relations:
+            page.relations = [
+                r for r in page.relations
+                if r.type in _valid_relation_types or r.type.startswith("x-")
+            ]
+
     for page in pages + extra_pages:
         if not page.relations:
             continue
