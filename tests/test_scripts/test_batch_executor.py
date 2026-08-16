@@ -382,3 +382,130 @@ def test_gate_accepts_valid_tags_and_rejects_invalid(gate_wiki) -> None:
     passed2, issues2 = run_precommit_gate([bad_tags], [], {}, paths)
     assert not passed2
     assert any("TAG-ENUM" in i for i in issues2)
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 试跑实测缺陷回归（2026-08-16 batch 0 全量试跑暴露）：
+#   A. gap 账本在 batch 路径未落盘 → pre-commit 门禁把本应豁免的
+#      本批新 gap 链接误判 BROKEN-LINK（零写入误拦整批）；
+#   B. extras（存量 reverse-touch 页）被新规范 tags/lint 误拦——
+#      存量旧英文 tag（func/genre/mood）是 M8 消解范围，不计入批内判定。
+# ---------------------------------------------------------------------------
+
+def test_precommit_gate_exempts_batch_pending_gap_slugs(gate_wiki) -> None:
+    """A：本批 generate 已采集的 missing_slugs 必须豁免 BROKEN-LINK。
+
+    试跑根因：_commit_raw 丢弃 meta['missing_slugs'] → gap 从未落盘；
+    且门禁在 commit 前运行，磁盘 gap 不含本批新增 → 误拦。修复后
+    run_precommit_gate 接收本批 pending gap slugs 并入豁免集。
+    """
+    import sys as _sys
+    if str(REPO_ROOT) not in _sys.path:
+        _sys.path.insert(0, str(REPO_ROOT))
+    from scripts.batch_executor import run_precommit_gate
+    from src.wiki.core.types import WikiPage, PageType
+    from src.wiki.core.paths import WikiPaths
+
+    paths = WikiPaths(gate_wiki)
+    _mk_page(gate_wiki, "wiki/sources/src-a.md",
+             "<!-- wiki-template-version: 2.0.0 -->\n## 摘要\n\ns\n",
+             depth="source")
+    _mk_page(gate_wiki, "wiki/concepts/c.md",
+             "<!-- wiki-template-version: 2.0.0 -->\n## 定义\n\nd\n",
+             depth="concept")
+
+    # 本批新页引用两个目标：c（可解析）+ ghost-1（本批已采集 pending gap）
+    page = WikiPage(
+        id="p1", title="批内页", type=PageType.CONCEPT,
+        sources=["raw/sources/a.md"], processing_depth="concept", grade="B",
+        body="<!-- wiki-template-version: 2.0.0 -->\n\n## 定义\n\n内容\n\n"
+             "## 主要特点\n\n- x\n\n## 例子\n\n[[ghost-1]]\n\n"
+             "## 相关概念\n\n[[c]]\n\n## 参考来源\n\n[[src-a]]\n",
+        tags=["素材/ugc", "可信度/ugc"],
+    )
+    # 未传 pending gap → ghost-1 判 BROKEN-LINK
+    passed, issues = run_precommit_gate([page], [], {}, paths)
+    assert not passed
+    assert any("BROKEN-LINK" in i and "ghost-1" in i for i in issues)
+
+    # 传入本批 pending gap slugs → 豁免（与磁盘 gap 同口径）
+    passed2, issues2 = run_precommit_gate(
+        [page], [], {}, paths, pending_gap_slugs={"ghost-1"})
+    assert passed2, issues2
+    assert not any("BROKEN-LINK" in i for i in issues2)
+
+
+def test_precommit_gate_ignores_legacy_tags_and_links_on_extras(gate_wiki) -> None:
+    """B：extras（存量 reverse-touch 页）不参与 fields/tags/lint 检查。
+
+    试跑根因：三章亮卖点法则/新人作者心态调整/悬念设置 是存量 2.0.0 页
+    （旧英文 tag func/genre/mood + 历史断链），被 reverse-touch 成 extras
+    后遭新规范误拦。按 phase3_accept 口径 extras 不计入批内 M1/M4/M9。
+    """
+    import sys as _sys
+    if str(REPO_ROOT) not in _sys.path:
+        _sys.path.insert(0, str(REPO_ROOT))
+    from scripts.batch_executor import run_precommit_gate
+    from src.wiki.core.types import WikiPage, PageType
+    from src.wiki.core.paths import WikiPaths
+
+    paths = WikiPaths(gate_wiki)
+    _mk_page(gate_wiki, "wiki/sources/src-a.md",
+             "<!-- wiki-template-version: 2.0.0 -->\n## 摘要\n\ns\n",
+             depth="source")
+
+    # 存量 extras：旧英文 tag + 历史断链（M8/M1 消解范围，本批只补反向边）
+    legacy_extra = WikiPage(
+        id="三章亮卖点法则", title="三章亮卖点法则", type=PageType.CONCEPT,
+        sources=["raw/sources/a.md"], processing_depth="concept", grade="B",
+        body="<!-- wiki-template-version: 2.0.0 -->\n\n## 定义\n\n内容\n\n"
+             "## 例子\n\n[[金手指]]\n",
+        tags=["func/法则", "genre/网文", "scene_phase/开篇", "mood/期待感"],
+    )
+    clean = WikiPage(
+        id="new-1", title="新页", type=PageType.CONCEPT,
+        sources=["raw/sources/a.md"], processing_depth="concept", grade="B",
+        body="<!-- wiki-template-version: 2.0.0 -->\n\n## 定义\n\n内容\n\n"
+             "## 主要特点\n\n- x\n\n## 例子\n\n- y\n\n"
+             "## 相关概念\n\n[[三章亮卖点法则]]\n\n## 参考来源\n\n[[src-a]]\n",
+        tags=["素材/ugc", "可信度/ugc"],
+    )
+    # 修复前：extras 的旧 tag + 断链 → TAG-ENUM + BROKEN-LINK 误拦整批
+    passed, issues = run_precommit_gate([clean], [legacy_extra], {}, paths)
+    assert passed, issues
+    assert not any("TAG-ENUM" in i for i in issues)
+    assert not any("BROKEN-LINK" in i for i in issues)
+
+
+def test_commit_raw_persists_missing_slugs_to_gap_ledger(mini_wiki: Path) -> None:
+    """A 全链路：_commit_raw 透传 meta['missing_slugs'] → KnowledgeGapStore 落盘。
+
+    试跑根因：_commit_raw 丢弃 meta → batch 路径 gap 账本从未写入（磁盘
+    只有存量条目），门禁读不到本批 gap → BROKEN-LINK 误拦整批。此测试
+    断言 commit 后 knowledge_gaps.json 包含本批新增 slug。
+    """
+    import sys as _sys
+    if str(REPO_ROOT) not in _sys.path:
+        _sys.path.insert(0, str(REPO_ROOT))
+    import asyncio
+    from scripts.batch_executor import _commit_raw
+    from src.wiki.core.types import WikiPage, PageType
+
+    raw_rel = "raw/sources/b.md"   # 无存量 source 页 → first_ingest 分支
+    page = WikiPage(
+        id="src-b", title="源B", type=PageType.SOURCE,
+        sources=[raw_rel], processing_depth="source", grade="B",
+        body="<!-- wiki-template-version: 2.0.0 -->\n\n## 摘要\n\n内容\n",
+    )
+    meta = {"missing_slugs": [{"slug": "ghost-落盘", "referenced_by": ["src-b"]}]}
+
+    async def _run() -> None:
+        from src.wiki.core.paths import WikiPaths
+        from src.wiki.features.knowledge_gaps import KnowledgeGapStore
+        paths = WikiPaths(mini_wiki)
+        await _commit_raw(paths, raw_rel, [page], [], "batch_0",
+                          task_id="t-1", meta=meta)
+        gaps = {g.slug for g in KnowledgeGapStore(mini_wiki).all()}
+        assert "ghost-落盘" in gaps, f"gap ledger missing new slug: {gaps}"
+
+    asyncio.run(_run())

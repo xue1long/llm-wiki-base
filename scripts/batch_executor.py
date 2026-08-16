@@ -276,11 +276,19 @@ def _wikilink_targets_of(page) -> list[str]:
     return [t for t in targets if t]
 
 
-def _gate_reconcile(pages, extra_pages, paths) -> list[str]:
+def _gate_reconcile(pages, extra_pages, paths,
+                    pending_gap_slugs: set[str] | None = None) -> list[str]:
     """对账（M1）：批内页 wikilink/relation 目标 vs 磁盘 ∪ 别名 ∪ 索引 ∪ gap。
 
     gap 已登记（open/suppressed）的目标不计断链（F2 语义）。批内产生的页
     互相解析；磁盘既有页也解析（对账到整库，非仅批内）。
+
+    ``pending_gap_slugs``（修复 A）：本批 generate 已采集、尚未落盘的 gap
+    slug——并入豁免集（磁盘 gap 账本在 commit 时才写入，门禁在 commit 前
+    运行；不并入则本批新 gap 全部误判 BROKEN-LINK 拦批）。
+
+    extras（存量 reverse-touch 页）不参与断链判定（修复 B：存量断链是
+    M1 历史遗留，由 Phase 4 cascade 重建消解；extras 仅作 produced 目标）。
     """
     from src.wiki.features.indexer import read_index
     from src.wiki.features.knowledge_gaps import KnowledgeGapStore
@@ -298,10 +306,14 @@ def _gate_reconcile(pages, extra_pages, paths) -> list[str]:
     known_norm = {normalize_reconcile_slug(s) for s in (disk | produced)}
     gap_slugs = {g.slug for g in KnowledgeGapStore(paths.root).all()
                  if g.status in ("open", "suppressed")}
+    if pending_gap_slugs:
+        gap_slugs |= set(pending_gap_slugs)
     gap_norm = {normalize_reconcile_slug(s) for s in gap_slugs}
 
     errs = []
-    for p in pages + (extra_pages or []):
+    # 修复 B：只对批内新产出 pages 判断链；extras 是存量 reverse-touch 页，
+    # 其历史断链由 cascade 重建消解（不计入批内 M1）。
+    for p in pages:
         for target in _wikilink_targets_of(p):
             canon = alias_canon(target) if alias_canon else target
             # get_canonical 对未知 slug 返回 None → 回退原 target（review 实测）
@@ -332,10 +344,23 @@ def _estimate_batch_cost(ok: int, err: int) -> float:
 
 
 def run_precommit_gate(pages, extra_pages, raw_headers, paths,
-                       allow_overwrite=False) -> tuple[bool, list[str]]:
+                       allow_overwrite=False,
+                       pending_gap_slugs: set[str] | None = None
+                       ) -> tuple[bool, list[str]]:
     """pre-commit 门禁：NDG + fields + tags + lint + 对账（失败 = 零写入）。
 
     Returns ``(passed, issues)``。任何一项 ERROR → 整批 block。
+
+    ``pending_gap_slugs``（Phase 4 试跑实测修复 A）：本批 generate 阶段
+    已采集、尚未落盘磁盘 gap 账本的 slug（_commit_raw 会把它们写入
+    KnowledgeGapStore；门禁在 commit 前运行，磁盘 gap 不含本批新增）。
+    若不并入豁免集，这些"本批已登记"的链接会被误判 BROKEN-LINK →
+    整批零写入误拦（试跑 22 个 issue 的主因）。
+
+    ``extra_pages``（Phase 4 试跑实测修复 B）：存量 reverse-touch 页
+    （旧 2.0.0 英文 tag / 历史断链是 M8/M1 消解范围，按 phase3_accept
+    口径不计入批内 M1/M4/M9 判定）——fields/tags/lint 只查本批新产出
+    ``pages``；extras 仅作为对账的已知目标（produced 集合），自身不拦批。
     """
     from src.wiki.features.ndg_gate import run_ndg_gate
 
@@ -350,12 +375,14 @@ def run_precommit_gate(pages, extra_pages, raw_headers, paths,
         if issue.is_blocker:
             issues.append(f"NDG-{issue.code}: {issue.page_id or '-'} {issue.message}")
 
-    # 2-5. fields / tags / lint / 对账
-    for p in pages + (extra_pages or []):
+    # 2-5. fields / tags / lint / 对账 —— 只查本批新产出 pages；
+    #      extras（存量 reverse-touch 页）不参与（修复 B）。
+    for p in pages:
         issues.extend(f"{e} [{p.id}]" for e in _gate_fields(p))
         issues.extend(f"TAG-ENUM {e} [{p.id}]" for e in _gate_tags(p))
         issues.extend(f"{e}" for e in _gate_lint(p, paths))
-    issues.extend(_gate_reconcile(pages, extra_pages, paths))
+    issues.extend(_gate_reconcile(pages, extra_pages, paths,
+                                  pending_gap_slugs=pending_gap_slugs))
 
     return not issues, issues
 
@@ -425,7 +452,8 @@ def _resolve_provider(args):
     return _get_provider(project_id)
 
 
-async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id) -> str:
+async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id,
+                      meta: dict | None = None) -> str:
     """Phase 3：按分支提交单个 raw。返回分支名（reingest / first_ingest）。
 
     C2：有 source 页 → reingest（记 pending_deletion → cascade_delete +
@@ -435,6 +463,11 @@ async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id) -> str:
     向量删除（I3 review）：降级首摄 / pending_deletion 续跑（probe=None）
     分支也必须幂等删除旧向量——崩溃发生在 cascade 与删向量之间时，旧 chunk
     不清理会让搜索命中陈旧内容。delete_by_source 幂等（无残留删 0 行）。
+
+    ``meta``（Phase 4 试跑实测修复 A）：generate 阶段返回的 dict，其中
+    ``missing_slugs`` 是本批采集的未解析引用——必须透传给 ``commit_ingest``
+    落盘 KnowledgeGapStore（此前丢弃 → gap 账本在 batch 路径从未写入，
+    且门禁在 commit 前读不到本批 gap → BROKEN-LINK 误拦整批）。
     """
     from src.services.ingest import probe_source_page
     from src.wiki.features.cascade_delete import cascade_delete
@@ -461,7 +494,9 @@ async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id) -> str:
         # 首摄/续跑分支：仍幂等清旧向量（I3 review）
         init_vector_store_for_paths(paths)
         delete_by_source(paths, raw_rel)
-    await commit_ingest(paths, Path(raw_rel), pages, extras, task_id=task_id)
+    missing_slugs = (meta or {}).get("missing_slugs")
+    await commit_ingest(paths, Path(raw_rel), pages, extras, task_id=task_id,
+                        missing_slugs=missing_slugs)
     set_raw_status(paths, batch_key, raw_rel, "done", branch=branch)
     return branch
 
@@ -652,9 +687,17 @@ async def run_batch(args) -> int:
     # ── Phase 2：pre-commit 门禁（内存页，失败 = 零写入）────────────
     all_pages = [p for pages, _, _ in generated.values() for p in pages]
     all_extras = [e for _, extras, _ in generated.values() for e in extras]
+    # 修复 A：门禁在 commit 前运行，磁盘 gap 不含本批新增 —— 收集本批
+    # generate 已采集的 missing_slugs 并入门禁豁免集，避免误拦整批。
+    pending_gap_slugs = {
+        m["slug"]
+        for _, _, meta in generated.values()
+        for m in (meta or {}).get("missing_slugs") or []
+    }
     gate_ok, gate_issues = run_precommit_gate(
         all_pages, all_extras, raw_headers, paths,
-        allow_overwrite=args.allow_overwrite)
+        allow_overwrite=args.allow_overwrite,
+        pending_gap_slugs=pending_gap_slugs)
     if not gate_ok:
         print(f"BATCH BLOCKED: pre-commit gate failed — zero wiki writes "
               f"({len(gate_issues)} issue(s))", flush=True)
@@ -674,7 +717,7 @@ async def run_batch(args) -> int:
         pages, extras, meta = generated[raw]
         try:
             branch = await _commit_raw(paths, raw, pages, extras, batch_key,
-                                       task_id=f"b{args.batch}")
+                                       task_id=f"b{args.batch}", meta=meta)
             ok += 1
             _update_fail_streak(paths, batch_key, raw, "done")
             _crash_at("commit")   # 提交后注入点（测试）
