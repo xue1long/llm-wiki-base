@@ -1,6 +1,7 @@
 """plan_reingest_batches.py — 全量分批重摄入清单生成（plan Phase 4 guidance #1）。
 
-产出 ``<root>/.index/reingest_plan.json``，供 ``batch_executor.py`` 消费：
+产出 ``<root>/.index/reingest_plan.json``，供 **Phase 4 的
+``scripts/batch_executor.py``**（本 Phase 后续任务新建）消费：
 
 - 全量 raw 扫描：只含 **.md**（扩展名白名单），排除 ``download_progress.json``
   等非文档文件（F3 同款黑名单 + 扩展名过滤双保险）。
@@ -8,9 +9,12 @@
   gap 账本顺序去重）→ **主题目录推进**（剩余 raw 按目录序 + 文件名序稳定排列）。
 - 每批 ≤20 个 .md 文件（``--batch-size`` 可调，默认 20）。
 
-清单结构与 phase4_batch 消费的 manifest 兼容（``batches[].files`` 为
-项目相对路径 posix 形式，如 ``raw/sources/01_新手入门/foo.md``），
-executor 直接按 ``batches[batch_no]`` 索引取文件。
+清单结构与 ``scripts/phase4_batch.py`` 消费的 manifest 兼容
+（``batches[].files`` 为项目相对路径 posix 形式，如
+``raw/sources/01_新手入门/foo.md``），executor 直接按 ``batches[batch_no]``
+索引取文件。注意：``phase4_batch.py`` 的 **默认** manifest 仍是
+``.index/reingest_backlog.json``（Phase 3 首批清单）；用本脚本的新清单跑
+phase4_batch 时须显式 ``--manifest .index/reingest_plan.json``。
 
 用法::
 
@@ -20,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -71,17 +74,35 @@ def _normalize_gap_hint(hint: str | None, root: Path) -> str | None:
     1. strip everything up to the first ``raw/sources/`` marker;
     2. fall back to ``normalize_source_path`` against the project root;
     3. return ``None`` when neither yields a path under ``raw/sources/``.
+
+    Contract enforcement (review I2): a hint is only accepted when the
+    normalized path
+    - stays under ``raw/sources/`` (no ``..`` traversal),
+    - has a whitelisted extension (``.md``),
+    - does not match the excluded-name blacklist (``download_progress`` …).
     """
     if not hint:
         return None
     h = hint.replace("\\", "/")
     idx = h.find(_RAW_SOURCES_MARKER)
     if idx != -1:
-        return h[idx:]
-    rel = normalize_source_path(h, root)
-    if rel.startswith(_RAW_SOURCES_MARKER):
-        return rel
-    return None
+        rel = h[idx:]
+    else:
+        rel = normalize_source_path(h, root)
+        if not rel.startswith(_RAW_SOURCES_MARKER):
+            return None
+
+    # Traversal guard: the hint must resolve inside raw/sources/.
+    candidate = (root / rel).resolve()
+    raw_root = (root / "raw" / "sources").resolve()
+    if not candidate.is_relative_to(raw_root):
+        return None
+    suffix = candidate.suffix.lower()
+    if suffix not in SUPPORTED_EXTENSIONS:
+        return None
+    if any(b in candidate.name for b in EXCLUDED_NAMES):
+        return None
+    return rel
 
 
 def load_gap_priority(root: Path) -> list[str]:
@@ -89,8 +110,8 @@ def load_gap_priority(root: Path) -> list[str]:
 
     Reads ``.index/knowledge_gaps.json``; only ``status == "open"`` gaps
     count (resolved/suppressed are not priority).  Returns raws that
-    actually exist on disk; missing hints are ignored (the executor will
-    pick them up by theme progression on a later plan run).
+    actually exist on disk and pass the hint contract (whitelist /
+    blacklist / traversal); malformed or wrong-shape entries are skipped.
     """
     gap_file = root / ".index" / "knowledge_gaps.json"
     if not gap_file.exists():
@@ -99,10 +120,12 @@ def load_gap_priority(root: Path) -> list[str]:
         data = json.loads(gap_file.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return []
+    if not isinstance(data, dict):
+        return []
     priority: list[str] = []
     seen: set[str] = set()
     for g in data.get("gaps") or []:
-        if g.get("status") != "open":
+        if not isinstance(g, dict) or g.get("status") != "open":
             continue
         rel = _normalize_gap_hint(g.get("raw_hint"), root)
         if rel is None or rel in seen:
@@ -134,11 +157,14 @@ def build_plan(root: Path, batch_size: int = DEFAULT_BATCH_SIZE) -> dict:
     batches: list[dict] = []
     for i in range(0, len(ordered), batch_size):
         chunk = ordered[i:i + batch_size]
-        first = Path(chunk[0])
-        theme = first.parent.name
+        # 1-based batch_no（与 plan_gap_first_batch 的 batch_no=1 对齐）。
+        batch_no = i // batch_size + 1
+        # theme：单目录批 → 目录名；跨目录批（缺口优先会跨主题）→ "mixed"。
+        dirs = {str(Path(f).parent) for f in chunk}
+        theme = Path(sorted(dirs)[0]).name if len(dirs) == 1 else "mixed"
         batches.append({
             "theme": theme,
-            "batch_no": len(batches),
+            "batch_no": batch_no,
             "files": chunk,
         })
 
@@ -176,7 +202,14 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     root = Path(args.root)
+    if not (root / "raw" / "sources").is_dir():
+        print(f"ERROR: no raw/sources under {root} — nothing to plan",
+              file=sys.stderr)
+        return 1
     plan = build_plan(root, batch_size=args.batch_size)
+    if plan["summary"]["raw_md_total"] == 0:
+        print(f"WARN: no .md raw files under {root}/raw/sources — empty plan",
+              file=sys.stderr)
     out = Path(args.out) if args.out else root / ".index" / "reingest_plan.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")

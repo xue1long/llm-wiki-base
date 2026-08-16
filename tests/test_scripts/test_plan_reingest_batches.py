@@ -125,6 +125,104 @@ def test_gap_hint_for_missing_raw_ignored(mini_wiki: Path) -> None:
     assert plan["summary"]["raw_md_total"] == 5
 
 
+# ── gap hint contract (review I2) ──────────────────────────────────
+
+def test_gap_hint_pointing_at_download_progress_rejected(mini_wiki: Path) -> None:
+    """黑名单文件（download_progress.json）不得经 gap hint 混入批次。"""
+    _write_gaps(mini_wiki, [
+        "raw/sources/02_进阶技巧/download_progress.json",
+    ])
+    plan = _build(mini_wiki)
+    assert plan["summary"]["gap_priority_raws"] == 0
+    all_files = [f for b in plan["batches"] for f in b["files"]]
+    assert not any("download_progress" in f for f in all_files)
+
+
+def test_gap_hint_with_traversal_rejected(mini_wiki: Path) -> None:
+    """含 .. 的 hint 不得越界（raw/sources 之外的文件不得入批）。"""
+    _write_gaps(mini_wiki, ["raw/sources/../wiki/index.md"])
+    plan = _build(mini_wiki)
+    assert plan["summary"]["gap_priority_raws"] == 0
+    all_files = [f for b in plan["batches"] for f in b["files"]]
+    assert not any("wiki/index" in f for f in all_files)
+    assert all(f.startswith("raw/sources/") for f in all_files)
+
+
+def test_gap_hint_with_non_md_rejected(mini_wiki: Path) -> None:
+    _write_gaps(mini_wiki, ["raw/sources/01_新手入门/notes.txt"])
+    plan = _build(mini_wiki)
+    assert plan["summary"]["gap_priority_raws"] == 0
+
+
+def test_gap_hint_dedup(mini_wiki: Path) -> None:
+    """同一 raw 被多个 gap 命中 → 只计一次。"""
+    _write_gaps(mini_wiki, [
+        "raw/sources/01_新手入门/乙入门.md",
+        "raw/sources/01_新手入门/乙入门.md",
+        "raw/sources/01_新手入门/乙入门.md",
+    ])
+    plan = _build(mini_wiki)
+    assert plan["summary"]["gap_priority_raws"] == 1
+    all_files = [f for b in plan["batches"] for f in b["files"]]
+    assert all_files.count("raw/sources/01_新手入门/乙入门.md") == 1
+
+
+def test_resolved_and_suppressed_gaps_not_priority(mini_wiki: Path) -> None:
+    """resolved/suppressed gap 不参与缺口优先。"""
+    g = _gap_file(mini_wiki)
+    g.parent.mkdir(parents=True, exist_ok=True)
+    g.write_text(json.dumps({"version": 1, "gaps": [
+        {"slug": "r", "raw_hint": "raw/sources/01_新手入门/乙入门.md",
+         "status": "resolved"},
+        {"slug": "s", "raw_hint": "raw/sources/01_新手入门/丙入门.md",
+         "status": "suppressed"},
+    ]}, ensure_ascii=False), encoding="utf-8")
+    plan = _build(mini_wiki)
+    assert plan["summary"]["gap_priority_raws"] == 0
+
+
+def test_wrong_shape_gap_file_degrades(mini_wiki: Path) -> None:
+    """wrong-shape（gaps 非 list / 条目非 dict）不得崩溃。"""
+    g = _gap_file(mini_wiki)
+    g.parent.mkdir(parents=True, exist_ok=True)
+    g.write_text(json.dumps({"version": 1, "gaps": [
+        "not-a-dict", {"slug": "ok", "status": "open",
+                       "raw_hint": "raw/sources/01_新手入门/乙入门.md"},
+    ]}, ensure_ascii=False), encoding="utf-8")
+    plan = _build(mini_wiki)
+    assert plan["summary"]["gap_priority_raws"] == 1
+
+
+def test_corrupt_gap_file_degrades(mini_wiki: Path) -> None:
+    _gap_file(mini_wiki).parent.mkdir(parents=True, exist_ok=True)
+    _gap_file(mini_wiki).write_text("{ not json !", encoding="utf-8")
+    plan = _build(mini_wiki)
+    assert plan["summary"]["gap_priority_raws"] == 0
+    assert plan["summary"]["raw_md_total"] == 5
+
+
+def test_batch_size_validation(mini_wiki: Path) -> None:
+    import pytest as _pytest
+    with _pytest.raises(ValueError, match="batch_size"):
+        _build(mini_wiki, batch_size=0)
+
+
+def test_batch_no_is_1_based(mini_wiki: Path) -> None:
+    plan = _build(mini_wiki)
+    assert [b["batch_no"] for b in plan["batches"]] == list(range(1, len(plan["batches"]) + 1))
+
+
+def test_theme_label_mixed_for_cross_dir_batch(mini_wiki: Path) -> None:
+    """缺口优先跨目录 → 该批 theme 标 mixed（诚实标签，不冒充单主题）。"""
+    _write_gaps(mini_wiki, [
+        "raw/sources/02_进阶技巧/戊进阶.md",
+        "raw/sources/01_新手入门/乙入门.md",
+    ])
+    plan = _build(mini_wiki, batch_size=2)
+    assert plan["batches"][0]["theme"] == "mixed"
+    assert plan["batches"][0]["batch_no"] == 1
+
+
 # ── theme progression ──────────────────────────────────────────────
 
 def test_theme_directory_progression(mini_wiki: Path) -> None:
