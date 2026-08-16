@@ -140,6 +140,38 @@ def test_metric_broken_links_rate(mini_wiki: WikiPaths) -> None:
     assert 0.0 < report.rate < 1.0
 
 
+def test_metric_broken_links_normalizes_slug_variants(mini_wiki: WikiPaths) -> None:
+    """Phase 3 实测回归：M1 判定必须归一 slug 变体（plan 1.3 统一归一语义）。
+
+    novel-wiki 首批实测暴露：页面引用 ``[[老作者补贴体系--华夏天空]]``（双横线）
+    而磁盘页 id 是 ``老作者补贴体系-华夏天空``（单横线）——精确匹配判为断链，
+    实为同一 slug 的连字符变体（假断链）。归一后应判为可解析。
+    """
+    from src.wiki.features.slug_utils import normalize_reconcile_slug
+
+    snaps = census_wiki(mini_wiki)
+    # 用真实中文带连字符 slug：磁盘页 id 单横线，引用双横线变体
+    disk_id = "老作者补贴体系-华夏天空"
+    variant = "老作者补贴体系--华夏天空"
+    known = {s.id for s in snaps} | {disk_id}
+    snaps[0].body += f"\n[[{variant}]]\n"
+
+    # 未归一：判为断链
+    report = metric_broken_links(snaps, known)
+    assert variant in report.broken_slugs
+
+    # 归一 known 集合后：可解析
+    known_norm = {normalize_reconcile_slug(s) for s in known}
+    report2 = metric_broken_links(snaps, known, known_norm=known_norm)
+    assert variant not in report2.broken_slugs, (
+        f"双横线变体应归一解析，got: {report2.broken_slugs}"
+    )
+    # 真实不存在断链仍被捕获
+    snaps[0].body += "\n[[真不存在的幽灵页]]\n"
+    report3 = metric_broken_links(snaps, known, known_norm=known_norm)
+    assert "真不存在的幽灵页" in report3.broken_slugs
+
+
 # ---------------------------------------------------------------------------
 # M2 deep reference rate
 # ---------------------------------------------------------------------------

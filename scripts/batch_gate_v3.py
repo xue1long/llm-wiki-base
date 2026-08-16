@@ -123,7 +123,11 @@ def gate_batch(wiki_root: Path, batch_ids: list[str], gap_store: KnowledgeGapSto
     except Exception:
         alias = None
     index_ids = {slug for slug, _, _ in read_index(paths)}
-    m1 = metric_broken_links(snaps, known_ids | index_ids, alias_canonical=alias)
+    # Phase 3 实测：M1 判定归一 slug 变体（双横线 vs 单横线等），避免假断链。
+    from src.wiki.features.slug_utils import normalize_reconcile_slug
+    known_norm = {normalize_reconcile_slug(s) for s in known_ids | index_ids}
+    m1 = metric_broken_links(snaps, known_ids | index_ids, alias_canonical=alias,
+                             known_norm=known_norm)
     gap_slugs = {g.slug for g in gap_store.all() if g.status in ("open", "suppressed")}
     unresolved = [s for s in m1.broken_slugs if s not in gap_slugs]
     if unresolved:

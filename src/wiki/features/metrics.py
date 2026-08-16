@@ -170,12 +170,22 @@ def metric_broken_links(
     snapshots: Iterable[PageSnapshot],
     known_slugs: set[str],
     alias_canonical: Callable[[str], str | None] | None = None,
+    known_norm: set[str] | None = None,
 ) -> BrokenLinksReport:
     """M1: links whose target ∉ known_slugs ∪ (alias-resolvable).
 
     ``known_slugs`` should be 磁盘页 id 集合 ∪ 索引 entries. Gap-registered
     slugs are subtracted by the caller (F2 semantics).
+
+    ``known_norm`` (Phase 3 实测修复): pre-normalised known-slug set via
+    ``normalize_reconcile_slug`` so link-target variants (e.g. the
+    double-hyphen ``老作者补贴体系--华夏天空`` vs the on-disk single-hyphen
+    ``老作者补贴体系-华夏天空``) resolve instead of being counted as broken.
+    When given, a target is resolvable if its normalised form is in
+    ``known_norm``.
     """
+    from .slug_utils import normalize_reconcile_slug
+
     report = BrokenLinksReport()
     seen: set[str] = set()
     for snap in snapshots:
@@ -185,6 +195,8 @@ def metric_broken_links(
                 continue
             seen.add(target)
             if target in known_slugs:
+                continue
+            if known_norm and normalize_reconcile_slug(target) in known_norm:
                 continue
             if alias_canonical and alias_canonical(target):
                 continue
