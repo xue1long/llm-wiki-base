@@ -721,6 +721,8 @@ async def run_batch(args) -> int:
 
     # ── Phase 3：commit（每 raw 分支）──────────────────────────────
     ok = err = perm = 0
+    committed_page_ids: list[str] = []
+    committed_raws: list[str] = []
     for raw in pending:
         if raw not in generated:
             continue
@@ -729,6 +731,12 @@ async def run_batch(args) -> int:
             branch = await _commit_raw(paths, raw, pages, extras, batch_key,
                                        task_id=f"b{args.batch}", meta=meta)
             ok += 1
+            # 记录本批实际写入页（pages + extras 的 id）——验收脚本与整批
+            # 复核依赖精确批内集合（Phase 3 口径；phase3_accept 首选
+            # page_ids 而非 mtime 窗口）。
+            committed_page_ids.extend(p.id for p in pages)
+            committed_page_ids.extend(p.id for p in extras)
+            committed_raws.append(raw)
             _update_fail_streak(paths, batch_key, raw, "done")
             _crash_at("commit")   # 提交后注入点（测试）
         except Exception as exc:
@@ -742,6 +750,19 @@ async def run_batch(args) -> int:
         err += 1
     for raw in perm_failed_raws:
         perm += 1
+    # 批级持久化：completed_files + page_ids（H① 锁纪律：经 update_batch_state）。
+    if committed_raws or committed_page_ids:
+        from src.services.batch_state import update_batch_state
+
+        def _record_committed(state: dict) -> dict:
+            entry = state.setdefault(batch_key, {})
+            entry["completed_files"] = sorted(
+                set(entry.get("completed_files", [])) | set(committed_raws))
+            entry["page_ids"] = sorted(
+                set(entry.get("page_ids", [])) | set(committed_page_ids))
+            return state
+
+        update_batch_state(paths, _record_committed)
 
     # ── 每批向量 upsert（guidance #9："每批后向量 upsert"）──────────
     # 直跑路径只删向量（_commit_raw），重建后必须 upsert 新 chunk，否则
