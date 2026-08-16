@@ -509,3 +509,39 @@ def test_commit_raw_persists_missing_slugs_to_gap_ledger(mini_wiki: Path) -> Non
         assert "ghost-落盘" in gaps, f"gap ledger missing new slug: {gaps}"
 
     asyncio.run(_run())
+
+
+def test_auto_tag_ugc_tags_carrier_derived_pages(gate_wiki: Path) -> None:
+    """C：UGC carrier raw 派生页在门禁前被确定性补 素材/ugc + 可信度/ugc。
+
+    试跑根因：batch_executor 缺 phase4_batch 的 R3-1/F2 auto-tag 步骤 →
+    NDG P4b 把 UGC 派生页缺 tag 列为 blocker → 整批零写入误拦。
+    """
+    import sys as _sys
+    if str(REPO_ROOT) not in _sys.path:
+        _sys.path.insert(0, str(REPO_ROOT))
+    from scripts.batch_executor import _auto_tag_ugc
+    from src.wiki.core.types import WikiPage, PageType
+
+    # UGC carrier header（lint _is_ugc_carrier 命中：QQ 群/分享 等特征）
+    carrier_header = (
+        "小白作者网文大学 QQ群 分享文件 写作教程 素材"
+    )
+    page = WikiPage(
+        id="src-ugc", title="源UGC", type=PageType.SOURCE,
+        sources=["raw/sources/ugc.md"], processing_depth="source", grade="B",
+        body="## 摘要\n\n内容\n", tags=[],
+    )
+    n = _auto_tag_ugc([page], {"raw/sources/ugc.md": carrier_header})
+    assert n == 1
+    assert "素材/ugc" in page.tags and "可信度/ugc" in page.tags
+
+    # 非 UGC carrier → 不动
+    page2 = WikiPage(
+        id="src-plain", title="源普通", type=PageType.SOURCE,
+        sources=["raw/sources/plain.md"], processing_depth="source", grade="B",
+        body="## 摘要\n\n内容\n", tags=[],
+    )
+    n2 = _auto_tag_ugc([page2], {"raw/sources/plain.md": "普通文档内容"})
+    assert n2 == 0
+    assert page2.tags == []

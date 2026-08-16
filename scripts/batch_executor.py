@@ -694,6 +694,12 @@ async def run_batch(args) -> int:
         for _, _, meta in generated.values()
         for m in (meta or {}).get("missing_slugs") or []
     }
+    # 修复 C（P4b）：UGC carrier 派生页确定性补 tag（门禁前，零 LLM 成本）。
+    if not _is_fake_mode():
+        _auto_tagged = _auto_tag_ugc(all_pages, raw_headers)
+        if _auto_tagged:
+            print(f"  [auto-tag] {_auto_tagged} UGC-carrier-derived "
+                  f"page(s) tagged 素材/ugc + 可信度/ugc", flush=True)
     gate_ok, gate_issues = run_precommit_gate(
         all_pages, all_extras, raw_headers, paths,
         allow_overwrite=args.allow_overwrite,
@@ -872,6 +878,43 @@ async def _rerun_gate_batch(paths, batch_key, files) -> bool:
 
 def _is_fake_mode() -> bool:
     return os.environ.get("RUFLO_EXECUTOR_FAKE_GENERATE") == "1"
+
+
+def _auto_tag_ugc(pages: list, raw_headers: dict[str, str]) -> int:
+    """R3-1 / F2：给 UGC carrier raw 派生页补 ``素材/ugc`` + ``可信度/ugc``。
+
+    与 phase4_batch 的 auto-tag 步骤同语义（Phase 4 试跑实测缺陷 C）：
+    pre-commit 门禁的 P4b（NDG）把"UGC 派生页缺 tag"列为 blocker——
+    此步骤在门禁前确定性补齐（零 LLM 成本），否则 UGC 语料整批被拦。
+
+    ``pages`` 是本批新产出（不含 extras——extras 是存量 reverse-touch 页，
+    不参与批内 tag 判定，修复 B）。stub 豁免。
+    """
+    from src.wiki.features.lint import _is_ugc_carrier
+
+    carrier_raws = {
+        raw for raw, header in (raw_headers or {}).items()
+        if _is_ugc_carrier(header)
+    }
+    if not carrier_raws:
+        return 0
+
+    tagged = 0
+    for p in pages:
+        if getattr(p, "processing_depth", "") == "stub":
+            continue
+        if not (set(p.sources or []) & carrier_raws):
+            continue
+        tags = list(p.tags or [])
+        changed = False
+        for tag in ("素材/ugc", "可信度/ugc"):
+            if tag not in tags:
+                tags.append(tag)
+                changed = True
+        if changed:
+            p.tags = tags
+            tagged += 1
+    return tagged
 
 
 def main(argv: list[str] | None = None) -> int:

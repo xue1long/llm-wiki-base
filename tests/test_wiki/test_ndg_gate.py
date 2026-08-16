@@ -307,6 +307,35 @@ def test_p7_extra_page_same_body_reverse_relation_ok(tmp_path: Path):
     issues = check_batch([], extra_pages=extra, paths=paths)
     assert not any(i.code == "P7" for i in issues)
 
+def test_p7_extra_page_cleaned_placeholder_not_destructive(tmp_path: Path):
+    """Phase 4 试跑实测修复 D：extras body 经占位符清洗（M4 归零）后与
+    磁盘不一致是设计内反向边更新（ingest.py 对 extras 调
+    _clean_placeholder_text），不是 destructive overwrite → P7 静默。"""
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+
+    from src.wiki.storage.page_writer import write_page
+    from src.pipeline.generator import _clean_placeholder_text
+    # 磁盘存量页 body 含占位符（如历史遗留「来源未提供具体例子」）
+    disk_body = "## 定义\n\n来源未提供具体例子。"
+    existing = WikiPage(id="段落过长问题", title="段落过长问题",
+                         type=PageType.CONCEPT,
+                         body=disk_body,
+                         processing_depth="concept",
+                         sources=["raw/a.txt"])
+    write_page(paths, existing)
+
+    # extras = 磁盘页 + 反向 relation + 占位符已清洗的 body（与写入路径一致）
+    extra = [WikiPage(id="段落过长问题", title="段落过长问题",
+                       type=PageType.CONCEPT,
+                       body=_clean_placeholder_text(disk_body),
+                       processing_depth="concept",
+                       sources=["raw/a.txt"],
+                       relations=[Relation(target_id="src-other",
+                                           type="referenced_by")])]
+    issues = check_batch([], extra_pages=extra, paths=paths)
+    assert not any(i.code == "P7" for i in issues)
+
 def test_p7_extra_page_different_body_allow_overwrite_warning(tmp_path: Path):
     """Destructive overwrite downgraded to warning under --allow-overwrite."""
     ensure_knowledge_base(tmp_path)

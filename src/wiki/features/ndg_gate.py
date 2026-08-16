@@ -314,6 +314,21 @@ def _check_p6_slug_conflict(
         slug_types[page.id] = page.type
 
 
+def _body_is_cleaned_placeholder_variant(disk_body: str, extra_body: str) -> bool:
+    """True when *extra_body* equals *disk_body* with lint-flagged placeholder
+    substrings neutralised — i.e. the difference is only the M4 placeholder
+    cleanup, not a destructive content overwrite.
+
+    Reuses ``generator._clean_placeholder_text`` (the exact cleanup ingest
+    applies to extras before write) so the P7 judgment can never diverge
+    from the write path.  Deferred import avoids a wiki→pipeline cycle at
+    module load (generator imports wiki.features.*).
+    """
+    from ...pipeline.generator import _clean_placeholder_text
+
+    return _clean_placeholder_text(disk_body) == extra_body
+
+
 def _check_p7_extra_pages(
     extra_pages: list[WikiPage] | None,
     paths: WikiPaths | None,
@@ -348,6 +363,11 @@ def _check_p7_extra_pages(
             if existing.body == ep.body:
                 # Body unchanged → reverse-relation back-edge update
                 # (B13), not a destructive overwrite.  Allow it.
+                continue
+            # Phase 4 试跑实测修复 D：ingest 对 extras 做占位符清洗
+            # （M4 归零，Phase 3 修复 #10 设计），清洗后 body 与磁盘不同
+            # 是预期的反向边更新，不是 destructive overwrite。
+            if _body_is_cleaned_placeholder_variant(existing.body, ep.body):
                 continue
         except Exception:
             pass
