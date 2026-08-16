@@ -129,7 +129,11 @@ def gate_batch(wiki_root: Path, batch_ids: list[str], gap_store: KnowledgeGapSto
     m1 = metric_broken_links(snaps, known_ids | index_ids, alias_canonical=alias,
                              known_norm=known_norm)
     gap_slugs = {g.slug for g in gap_store.all() if g.status in ("open", "suppressed")}
-    unresolved = [s for s in m1.broken_slugs if s not in gap_slugs]
+    # Phase 3 follow-up C：gap 剔除用归一化匹配（gap slug 可能是变体，
+    # 如双横线 vs 单横线），防止 gap 已登记但仍被计为 M1 断链。
+    gap_norm = {normalize_reconcile_slug(s) for s in gap_slugs}
+    unresolved = [s for s in m1.broken_slugs
+                  if s not in gap_slugs and normalize_reconcile_slug(s) not in gap_norm]
     if unresolved:
         report["passed"] = False
         report["issues"].append(
