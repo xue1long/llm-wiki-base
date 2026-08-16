@@ -268,3 +268,41 @@
 - **reverse-relation**: `b0` — generated 0 pages from (batch-reconcile)
 ## 2026-08-16T21:23:48.060568
 - **ingest**: `b0` — generated 5 pages from 借鉴素材小说大纲模版.md
+## 2026-08-17T01:00:00.260827
+- **ingest**: `b0` — generated 5 pages from 借鉴素材书籍如何商业化.md
+## 2026-08-17T01:00:00.355219
+- **ingest**: `b0` — generated 4 pages from book-official.md
+## 2026-08-17T01:00:00.414788
+- **ingest**: `b0` — generated 3 pages from ugc-test.md
+## 2026-08-17T01:00:00.553078
+- **ingest**: `b0` — generated 4 pages from ugc-test2.md
+## 2026-08-17T01:00:00.698776
+- **ingest**: `b0` — generated 7 pages from 必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md
+## 2026-08-17T01:00:00.823014
+- **ingest**: `b0` — generated 5 pages from 必备资料15顺眼谈文章的画面感.md
+## 2026-08-17T01:00:00.967901
+- **ingest**: `b0` — generated 5 pages from 必备资料20个签约条件新人必看2.md
+## 2026-08-17T01:00:01.056264
+- **ingest**: `b0` — generated 4 pages from 必备资料20仙侠类题材作品的创作要点及卖点.md
+## 2026-08-17T01:00:01.144979
+- **ingest**: `b0` — generated 5 pages from 必备资料22期待感让你的作品能够引人入胜1.md
+## 2026-08-17T01:00:01.228918
+- **ingest**: `b0` — generated 6 pages from 补充教程写作经验如何加强书的情节.md
+## 2026-08-17T01:00:01.335650
+- **ingest**: `b0` — generated 5 pages from 补充教程写穿越小说角色前要注意的十个问题.md
+## 2026-08-17T01:00:01.514478
+- **ingest**: `b0` — generated 1 pages from 补充教程小说写作大纲的模版共享.md
+## 2026-08-17T01:00:01.702399
+- **ingest**: `b0` — generated 6 pages from 补充教程小说写作新人网络小说的成神宝典精装版.md
+## 2026-08-17T01:00:01.920344
+- **ingest**: `b0` — generated 26 pages from 补充教程小说结局的十三种方式精.md
+## 2026-08-17T01:00:02.143545
+- **ingest**: `b0` — generated 6 pages from 帮助新手网文创作3.md
+## 2026-08-17T01:00:02.302373
+- **ingest**: `b0` — generated 6 pages from 借鉴素材20个签约条件新人必看.md
+## 2026-08-17T01:00:03.978587
+- **ingest**: `b0` — generated 3 pages from 借鉴素材人物描写必读.md
+## 2026-08-17T04:01:11.323915
+- **ingest**: `b0` — generated 6 pages from 借鉴素材小说主题分类的内容详细.md
+## 2026-08-17T04:01:14.416706
+- **ingest**: `b0` — generated 9 pages from 借鉴素材书籍如何商业化_8111d1.md

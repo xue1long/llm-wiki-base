@@ -2,36 +2,187 @@
   "batch_0": {
     "status": "committed",
     "files": [
-      "raw/sources/gap-raw.md"
+      "raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
+      "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
+      "raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "raw/sources/book-official.md",
+      "raw/sources/ugc-test.md",
+      "raw/sources/ugc-test2.md",
+      "raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md",
+      "raw/sources/必备资料15顺眼谈文章的画面感.md",
+      "raw/sources/必备资料20个签约条件新人必看2.md",
+      "raw/sources/必备资料20仙侠类题材作品的创作要点及卖点.md",
+      "raw/sources/必备资料22期待感让你的作品能够引人入胜1.md",
+      "raw/sources/补充教程写作经验如何加强书的情节.md",
+      "raw/sources/补充教程写穿越小说角色前要注意的十个问题.md",
+      "raw/sources/补充教程小说写作大纲的模版共享.md",
+      "raw/sources/补充教程小说写作新人网络小说的成神宝典精装版.md",
+      "raw/sources/补充教程小说结局的十三种方式精.md",
+      "raw/sources/01_基础教程/帮助新手网文创作3.md",
+      "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md",
+      "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md",
+      "raw/sources/01_新手入门/借鉴素材人物描写必读.md"
     ],
-    "ok": 1,
+    "ok": 2,
     "err": 0,
+    "perm": 0,
     "completed_files": [
-      "raw/sources/gap-raw.md"
+      "raw/sources/01_基础教程/帮助新手网文创作3.md",
+      "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md",
+      "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
+      "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md",
+      "raw/sources/01_新手入门/借鉴素材人物描写必读.md",
+      "raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
+      "raw/sources/book-official.md",
+      "raw/sources/ugc-test.md",
+      "raw/sources/ugc-test2.md",
+      "raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md",
+      "raw/sources/必备资料15顺眼谈文章的画面感.md",
+      "raw/sources/必备资料20个签约条件新人必看2.md",
+      "raw/sources/必备资料20仙侠类题材作品的创作要点及卖点.md",
+      "raw/sources/必备资料22期待感让你的作品能够引人入胜1.md",
+      "raw/sources/补充教程写作经验如何加强书的情节.md",
+      "raw/sources/补充教程写穿越小说角色前要注意的十个问题.md",
+      "raw/sources/补充教程小说写作大纲的模版共享.md",
+      "raw/sources/补充教程小说写作新人网络小说的成神宝典精装版.md",
+      "raw/sources/补充教程小说结局的十三种方式精.md"
     ],
-    "failed_files": [],
-    "missing": [
-      "src-gap"
+    "failed_files": [
+      "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md",
+      "raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md"
     ],
-    "missing_extras": false,
-    "page_ids": [
-      "src-gap"
-    ],
-    "ts": "2026-08-16T21:23:49",
-    "git_snapshot": "1534d906f08b069381babf0c24dbd7af733a4a14",
     "raw_states": {
       "raw/sources/01_新手入门/借鉴素材小说大纲模版.md": {
         "status": "done",
-        "ts": "2026-08-16T21:23:48",
-        "source_id": "借鉴素材小说大纲模版-4b1c91ca",
-        "branch": "reingest",
-        "fail_streak": 0
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false,
+        "ts": "2026-08-17T04:01:11",
+        "source_id": "借鉴素材小说主题分类的内容详细-23069167",
+        "branch": "reingest"
+      },
+      "raw/sources/book-official.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/ugc-test.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/ugc-test2.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/必备资料15顺眼谈文章的画面感.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/必备资料20个签约条件新人必看2.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/必备资料20仙侠类题材作品的创作要点及卖点.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/必备资料22期待感让你的作品能够引人入胜1.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/补充教程写作经验如何加强书的情节.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/补充教程写穿越小说角色前要注意的十个问题.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/补充教程小说写作大纲的模版共享.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/补充教程小说写作新人网络小说的成神宝典精装版.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/补充教程小说结局的十三种方式精.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/01_基础教程/帮助新手网文创作3.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
+      },
+      "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false,
+        "ts": "2026-08-17T04:01:14",
+        "source_id": "借鉴素材书籍如何商业化-8111d1-ec21fd6e",
+        "branch": "reingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材人物描写必读.md": {
+        "status": "done",
+        "fail_streak": 0,
+        "blocklisted": false
       }
     },
+    "ts": "2026-08-17T04:01:17",
+    "committed": true,
+    "git_snapshot": "64dfef31a0ca233359c4a2e1522f9ae1ffa883b0",
+    "page_ids": [
+      "仙侠小说",
+      "借鉴素材书籍如何商业化-8111d1-ec21fd6e",
+      "借鉴素材小说主题分类的内容详细-23069167",
+      "前-3-万字代入感法则",
+      "商业网文写作",
+      "天蚕土豆",
+      "小白作者网文大学",
+      "小说主题分类",
+      "开篇布局常见错误",
+      "斗破苍穹",
+      "玄幻小说",
+      "移动阅读基地",
+      "蜀山仙侠传",
+      "鱼人二代"
+    ],
     "permanent_failed": 0
   },
-  "schema_version": 2,
   "budget": {
-    "cumulative_usd": 0.0005
-  }
+    "cumulative_usd": 0.011
+  },
+  "schema_version": 2
 }

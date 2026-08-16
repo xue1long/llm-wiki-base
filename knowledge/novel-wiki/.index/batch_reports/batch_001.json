@@ -1,19 +1,25 @@
 {
-  "passed": true,
-  "issues": [],
+  "passed": false,
+  "issues": [
+    {
+      "code": "BATCH-MISSING-PAGE",
+      "severity": "error",
+      "message": "found 0/1 batch pages"
+    }
+  ],
   "metrics": {
-    "M1_broken_rate": 0.0068,
-    "M1_broken_links": 4,
-    "M1_links_total": 587,
-    "M2_deep_ref_rate": 0.0125,
+    "M1_broken_rate": 0.0,
+    "M1_broken_links": 0,
+    "M1_links_total": 0,
+    "M2_deep_ref_rate": 0.0,
     "M4_missing_sections": 0,
     "M4_placeholders": 0,
-    "M6_synthesis_pages": 2,
+    "M6_synthesis_pages": 1,
     "M7_source_fulltext": 0
   },
   "cost": {
     "llm_calls": 0,
     "tokens": 0
   },
-  "scanned_pages": 105
+  "scanned_pages": 0
 }

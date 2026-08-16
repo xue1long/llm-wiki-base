@@ -30,6 +30,15 @@
       "status": "open"
     },
     {
+      "slug": "人物塑造",
+      "raw_hint": "raw/sources/必备资料15顺眼谈文章的画面感.md",
+      "referenced_by": [
+        "单调对话描写"
+      ],
+      "created_at": 1786899600881,
+      "status": "open"
+    },
+    {
       "slug": "人物性格刻画",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
       "referenced_by": [
@@ -48,6 +57,24 @@
       "status": "open"
     },
     {
+      "slug": "功法",
+      "raw_hint": "raw/sources/ugc-test2.md",
+      "referenced_by": [
+        "三章亮卖点法则"
+      ],
+      "created_at": 1786899600609,
+      "status": "open"
+    },
+    {
+      "slug": "卖点",
+      "raw_hint": "raw/sources/ugc-test2.md",
+      "referenced_by": [
+        "三章亮卖点法则"
+      ],
+      "created_at": 1786899600609,
+      "status": "open"
+    },
+    {
       "slug": "历史主题",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
       "referenced_by": [
@@ -63,6 +90,15 @@
         "历史穿越"
       ],
       "created_at": 1786864346842,
+      "status": "open"
+    },
+    {
+      "slug": "吸引读者九法",
+      "raw_hint": "raw/sources/补充教程小说写作大纲的模版共享.md",
+      "referenced_by": [
+        "书名与简介的重要性"
+      ],
+      "created_at": 1786899601580,
       "status": "open"
     },
     {
@@ -221,12 +257,39 @@
       "status": "open"
     },
     {
+      "slug": "稳定更新",
+      "raw_hint": "raw/sources/ugc-test2.md",
+      "referenced_by": [
+        "更新速度的重要性"
+      ],
+      "created_at": 1786899600609,
+      "status": "open"
+    },
+    {
+      "slug": "简介写作技巧",
+      "raw_hint": "raw/sources/补充教程小说写作大纲的模版共享.md",
+      "referenced_by": [
+        "书名与简介的重要性"
+      ],
+      "created_at": 1786899601580,
+      "status": "open"
+    },
+    {
       "slug": "网文开篇七法则",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
       "referenced_by": [
         "三千字首章冲突法则"
       ],
       "created_at": 1786867070733,
+      "status": "open"
+    },
+    {
+      "slug": "网文成神论",
+      "raw_hint": "raw/sources/ugc-test2.md",
+      "referenced_by": [
+        "更新速度的重要性"
+      ],
+      "created_at": 1786899600609,
       "status": "open"
     },
     {
@@ -239,12 +302,39 @@
       "status": "open"
     },
     {
+      "slug": "网络文学",
+      "raw_hint": "raw/sources/必备资料15顺眼谈文章的画面感.md",
+      "referenced_by": [
+        "小说画面感"
+      ],
+      "created_at": 1786899600881,
+      "status": "open"
+    },
+    {
       "slug": "背景设定",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
       "referenced_by": [
         "人物设定三要素"
       ],
       "created_at": 1786867072034,
+      "status": "open"
+    },
+    {
+      "slug": "节奏与悬念",
+      "raw_hint": "raw/sources/补充教程写作经验如何加强书的情节.md",
+      "referenced_by": [
+        "延宕"
+      ],
+      "created_at": 1786899601262,
+      "status": "open"
+    },
+    {
+      "slug": "语言描写",
+      "raw_hint": "raw/sources/必备资料15顺眼谈文章的画面感.md",
+      "referenced_by": [
+        "单调对话描写"
+      ],
+      "created_at": 1786899600881,
       "status": "open"
     },
     {
@@ -284,6 +374,24 @@
         "都市重生"
       ],
       "created_at": 1786867169708,
+      "status": "open"
+    },
+    {
+      "slug": "金手指",
+      "raw_hint": "raw/sources/ugc-test2.md",
+      "referenced_by": [
+        "三章亮卖点法则"
+      ],
+      "created_at": 1786899600609,
+      "status": "open"
+    },
+    {
+      "slug": "长句问题",
+      "raw_hint": "raw/sources/必备资料15顺眼谈文章的画面感.md",
+      "referenced_by": [
+        "段落过长问题"
+      ],
+      "created_at": 1786899600881,
       "status": "open"
     },
     {
