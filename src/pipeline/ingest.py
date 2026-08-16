@@ -679,6 +679,23 @@ async def generate_ingest(
                 if _p.type == PageType.SOURCE:
                     _summary_text = _p.body or ""
                     break
+        # Phase 1.6 (F5): deterministic transcription-quality + credibility
+        # signals (no LLM). ASR marker comes from the pipeline denoise line;
+        # UGC-carrier detection reuses lint's header heuristic.
+        _asr_marker = "*此文档由 GPU 加速转录生成*" in source_text
+        transcription_quality_value = (
+            "ASR 转录（自动转写含错漏，需人工复核）"
+            if _asr_marker else "人工整理"
+        )
+        try:
+            from ..wiki.features.lint import _is_ugc_carrier
+            _ugc = _is_ugc_carrier(source_text[:4000])
+        except Exception:
+            _ugc = False
+        credibility_value = (
+            "UGC 网络来源（可信度/ugc）"
+            if _ugc else "未标注来源类型（默认按普通素材）"
+        )
         source_body = render_body(
             template_body=source_tpl.body_markdown,
             slots={
@@ -687,10 +704,13 @@ async def generate_ingest(
                     f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
                     f"- 任务 ID: `{task_id}`\n"
                 ),
+                "transcription_quality": transcription_quality_value,
                 "summary": _summary_text.strip() or "(无摘要)",
                 "key_points": key_points_value,
+                "credibility": credibility_value,
+                # extracted_concepts kept for bundled 2.0.0 templates;
+                # v3.0.0 project templates drop it via the slot renderer.
                 "extracted_concepts": extracted_concepts_value,
-                "main_content": clean_source_text(source_text),
             },
             page_type=PageType.SOURCE,
             template_version=source_tpl.version or "",

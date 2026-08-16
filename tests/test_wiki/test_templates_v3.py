@@ -70,6 +70,33 @@ def test_f3_no_marker_on_heading_lines(ptype: str) -> None:
             assert "# " not in line.lstrip("#"), f"F3 violation: trailing comment on heading: {line!r}"
 
 
+def test_render_v3_source_with_new_slots() -> None:
+    """v3.0.0 source template renders transcription_quality/credibility and
+    drops extracted_concepts (bundled-only slot) — plan 1.6 build output."""
+    from src.wiki.core.types import PageType
+    from src.wiki.templates import resolve
+    from src.wiki.templates.renderer import render_body
+
+    tpl = resolve(PageType.SOURCE, REPO_ROOT / "knowledge" / "novel-wiki")
+    slots = {
+        "source_meta": "- 路径: raw/a.md",
+        "transcription_quality": "ASR 转录（自动转写含错漏，需人工复核）",
+        "summary": "摘要",
+        "key_points": ["要点一"],
+        "credibility": "UGC 网络来源（可信度/ugc）",
+        "extracted_concepts": ["[[c1]]"],  # bundled-only → must be dropped
+    }
+    body = render_body(tpl.body_markdown, slots, PageType.SOURCE)
+    assert "## 转录质量" in body
+    assert "ASR 转录" in body
+    assert "## 可信度声明" in body
+    assert "## 关键观点" in body
+    # extracted_concepts has no marker in the v3.0.0 template → dropped
+    assert "抽取的概念" not in body
+    # no template comments leaked
+    assert "slot:" not in body
+
+
 def test_render_v3_roundtrip() -> None:
     """A slots dict renders every required heading in the spec order."""
     from src.wiki.core.types import PageType
