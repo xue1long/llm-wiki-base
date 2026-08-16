@@ -312,11 +312,18 @@ def _load_raw_paste_thresholds(paths: WikiPaths) -> tuple[int, int]:
     return ts, tn
 
 
-def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
-    """Run all 9 lint checks against the wiki at ``paths``.
+def lint_wiki(
+    paths: WikiPaths,
+    project_id: str = "default",
+    page_ids: set[str] | None = None,
+) -> LintReport:
+    """Run all lint checks against the wiki at ``paths``.
 
     Scans wiki_sources / wiki_entities / wiki_concepts / wiki_synthesis (skips
-    stubs). Returns a LintReport with the collected issues and the page count.
+    stubs). When *page_ids* is given, only pages whose ``id`` is in the set
+    are scanned — the batch-scope mode (plan 1.8) so the gate measures a
+    batch instead of the whole library (whole-library orphans / legacy noise
+    must not pollute batch verdicts). Returns a LintReport.
     """
     ensure_knowledge_base(paths.root)
 
@@ -342,8 +349,10 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
         if not sub.exists():
             continue
         for md_file in sub.glob("*.md"):
-            files_scanned += 1
             page = read_page(Path(md_file))
+            if page_ids is not None and page.id not in page_ids:
+                continue
+            files_scanned += 1
             pages_seen.add(page.id)
 
             # Read the raw file once for the template-version header (shared

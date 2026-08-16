@@ -26,6 +26,31 @@ def _make_page(paths, slug, page_type, body, *, sources=None, relations=None):
     return md_path
 
 
+def test_lint_page_subset_scope(tmp_path):
+    """plan 1.8: lint_wiki(page_ids=...) only scans the given pages.
+
+    A dirty legacy page outside the batch must not produce issues when the
+    batch scope excludes it; an in-scope page still gets flagged.
+    """
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    _make_page(p, "bad-1", PageType.CONCEPT,
+               "## 定义\n\n见下游概念页\n",
+               sources=["raw/sources/a.md"])
+    _make_page(p, "good-1", PageType.CONCEPT,
+               "## 定义\n\ndef\n\n## 主要特点\n\nc\n\n## 例子\n\ne\n\n"
+               "## 相关概念\n\n[[x]]\n\n## 参考来源\n\ns\n",
+               sources=["raw/sources/a.md"])
+    # Whole library: bad-1 flagged
+    report = lint_wiki(p)
+    assert any(i.code == "LINT-PLACEHOLDER" and i.page_id == "bad-1"
+               for i in report.issues)
+    # Batch scope = only good-1 → no placeholder issue, scanned == 1
+    scoped = lint_wiki(p, page_ids={"good-1"})
+    assert scoped.scanned_pages == 1
+    assert not [i for i in scoped.issues if i.code == "LINT-PLACEHOLDER"]
+
+
 def test_lint_placeholder_rule(tmp_path):
     """Placeholder substring in body → LINT-PLACEHOLDER ERROR."""
     ensure_knowledge_base(tmp_path)
