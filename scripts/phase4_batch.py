@@ -671,6 +671,7 @@ async def _commit_all(
             "failed_files": failed,
             "missing": missing,
             "missing_extras": _missing_extras,
+            "page_ids": batch_page_ids,
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
         }
     else:
@@ -681,6 +682,7 @@ async def _commit_all(
             "ok": ok, "err": err,
             "completed_files": completed,
             "failed_files": failed,
+            "page_ids": batch_page_ids,
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
         }
     state = _load_state()

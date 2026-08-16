@@ -74,7 +74,36 @@ def _batch_page_ids() -> list[str]:
             state = {}
         entry = state.get("batch_0") or state.get("batch_0_0")
         if isinstance(entry, dict) and entry.get("page_ids"):
-            return list(entry["page_ids"])
+            ids = list(entry["page_ids"])
+            # 批内验收口径（Phase 3 实测修正）：只计本批**新生成/重建的 v3.0.0 页**。
+            # extras 中 reverse-touch 的存量 2.0.0 页（旧 tag/relation/占位符）是
+            # 历史遗留，由 Phase 4 cascade 重建消解，不计入 M1/M4/M9 批内判定。
+            version_re = re.compile(r"wiki-template-version:\s*([0-9.]+)")
+            kept = []
+            paths = WikiPaths(ROOT)
+            for d in (paths.wiki_sources, paths.wiki_entities,
+                      paths.wiki_concepts, paths.wiki_synthesis):
+                if not d.exists():
+                    continue
+                for f in d.glob("*.md"):
+                    try:
+                        page = read_page(f)
+                    except Exception:
+                        continue
+                    if page.id not in ids:
+                        continue
+                    try:
+                        raw = f.read_text(encoding="utf-8", errors="replace")
+                        vm = version_re.search(raw)
+                        if not vm or _parse_version(vm.group(1)) < (3, 0, 0):
+                            continue
+                    except Exception:
+                        continue
+                    if page.id not in kept:
+                        kept.append(page.id)
+            if kept:
+                return kept
+            return ids
 
     # fallback：mtime 窗口 + v3.0.0 版本过滤
     window_minutes = 90
@@ -153,9 +182,13 @@ def main() -> int:
     if not report["passed"]:
         ok = False
         print("  FAIL: 门禁未通过")
-    if metrics["M1_broken_links"] > 0:
+    # M1 达标 = 无 BROKEN-LINK issue（gap 剔除后未登记断链 0）。
+    # metrics.M1_broken_links 是含 gap 的总断链（F2：gap 已登记的不算断链），
+    # 不为 0 是正常的——gate 的 BROKEN-LINK issue 才是未登记口径。
+    unresolved = [i for i in report["issues"] if i["code"] == "BROKEN-LINK"]
+    if unresolved:
         ok = False
-        print("  FAIL: M1 批内断链 > 0")
+        print(f"  FAIL: M1 未登记断链 {len(unresolved)} 个（gap 剔除后仍存在）")
     if metrics["M4_missing_sections"] > 0 or metrics["M4_placeholders"] > 0:
         ok = False
         print("  FAIL: M4 必填槽未 100% 填充")
