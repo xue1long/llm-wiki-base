@@ -463,3 +463,67 @@ async def test_run_ingest_blocklist_slug_not_in_gap(tmp_path: Path) -> None:
     )
     assert "source-补充教程" not in slugs
     assert "feishu" not in slugs, "legacy exact-match stub blocklist must carry into gaps"
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 实测发现：commit_ingest 必须接受 event 参数（extras 独立提交）
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_commit_ingest_accepts_event_kwarg(tmp_path: Path) -> None:
+    """Phase 4 extras 提交以 ``event="reverse-relation"`` 调用 commit_ingest。
+
+    Phase 3 首批实测暴露：phase4_batch._commit_all 的 extras 分支传了
+    ``event=`` 关键字，但 commit_ingest 签名从未支持它 → 反向关系页提交
+    必然失败（POSTCHECK exit 3）。本测试锁定 event 参数被接受并透传给
+    log_event（audit 日志出现 reverse-relation 事件）。
+    """
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "event-arg.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text("内容", encoding="utf-8")
+
+    now = int(time.time() * 1000)
+    pages = [
+        WikiPage(
+            id="src-event",
+            title="event-arg",
+            type=PageType.SOURCE,
+            sources=["raw/sources/event-arg.md"],
+            body="## 摘要\n\n摘要内容。",
+            grade="A",
+            created_at=now,
+            updated_at=now,
+        ),
+    ]
+    extras = [
+        WikiPage(
+            id="old-extra",
+            title="旧页",
+            type=PageType.CONCEPT,
+            sources=[],
+            body="旧页面。",
+            grade="C",
+            created_at=now,
+            updated_at=now,
+        ),
+    ]
+
+    await commit_ingest(
+        paths=paths,
+        source_path=raw,
+        pages=pages,
+        extra_pages=extras,
+        task_id="kb-event",
+        event="reverse-relation",
+    )
+
+    # extras 已写盘
+    assert (paths.wiki_concepts / "old-extra.md").exists()
+    # audit 日志记录了 reverse-relation 事件
+    log_text = paths.llm_wiki_log.read_text(encoding="utf-8")
+    assert "reverse-relation" in log_text, (
+        f"audit log must record the custom event, got: {log_text[-400:]}"
+    )

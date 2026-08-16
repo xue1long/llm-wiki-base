@@ -1078,6 +1078,7 @@ async def commit_ingest(
     task_id: str = "test",
     triage_result=None,
     missing_slugs: list | None = None,
+    event: str = "ingest",
 ):
     """Phase 2 (NDG split): write pages + index update + log.
 
@@ -1089,6 +1090,11 @@ async def commit_ingest(
     from the reconciliation — persisted to ``.index/knowledge_gaps.json``
     so Phase 4 gap-priority batches can resolve them by ingesting the
     referencing raw file.
+
+    ``event`` (Phase 3 实测修复): the audit-log event name.  Defaults to
+    ``"ingest"``; callers committing pre-existing extras (e.g.
+    phase4_batch's ``event="reverse-relation"``) pass a distinct event so
+    the log distinguishes them from fresh ingests.
     """
     from .quality_gate import check_pages
     from .triage import TriageResult, write_triage_result
@@ -1116,7 +1122,7 @@ async def commit_ingest(
         )
         log_event(
             paths,
-            event="ingest",
+            event=event,
             task_id=task_id,
             detail=f"generated {len(pages)} pages from {Path(str(source_path)).name}",
         )
