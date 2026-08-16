@@ -416,14 +416,17 @@ async def test_run_batch_ingest_processes_multiple_files(tmp_path):
         f.write_text(f"Content of document {i}", encoding="utf-8")
         files.append(f)
 
-    # Each file gets one unified response with all required slots filled
+    # Each file gets one unified response with all required slots filled.
+    # Wikilinks point at the batch's own produced page (self-resolvable) so
+    # the 1.3 missing-slug resolver does NOT fire a feedback retry that would
+    # consume the next scripted entry (ScriptedLLMProvider pops on retry).
     provider = ScriptedLLMProvider([
         {"pages": [{"id": f"concept-{i}", "type": "concept", "title": f"概念{i}",
                     "slots": {"definition": f"内容{i}。",
                               "characteristics": [f"特征{i}"],
                               "examples": [f"例子{i}"],
-                              "related_concepts": ["[[other]]"],
-                              "references": ["[[test]]"]}}]}
+                              "related_concepts": [f"[[concept-{i}]]"],
+                              "references": [f"[[concept-{i}]]"]}}]}
         for i in range(3)
     ])
 

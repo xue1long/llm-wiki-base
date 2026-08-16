@@ -73,6 +73,20 @@ def _blocklisted(slug: str) -> bool:
     return bool(_BLOCKLIST_RE.search(slug)) or _DOC_TITLE_HASH_RE.search(slug) is not None
 
 
+def is_raw_reference_blocklisted(raw: str) -> bool:
+    """Check a RAW (pre-normalization) referenced slug against the gap blocklist.
+
+    The reconciliation path normalizes references via ``normalize_reconcile_slug``
+    BEFORE storing a gap, which strips type prefixes (``source-补充教程`` →
+    ``补充教程``).  Checking only the normalized form would make the
+    ``^(source|concept|synthesis|entity)-`` and ``^(题材|角色|…)-`` branches of
+    ``_BLOCKLIST_RE`` unreachable.  Call this on the raw wikilink/relation
+    target BEFORE normalization so type-prefixed hallucinated references are
+    dropped, then store only the clean normalized slug.
+    """
+    return _blocklisted(raw)
+
+
 class KnowledgeGapStore:
     """Persistent gap ledger for one project (atomic writes via safe_write)."""
 
@@ -127,6 +141,7 @@ class KnowledgeGapStore:
         now: int | None = None,
         title_map: dict[str, str] | None = None,
         raw_hint: str | None = None,
+        referenced_by_map: dict[str, list[str]] | None = None,
     ) -> list[str]:
         """Register unresolved slugs, applying blocklist + cap + dedup.
 
@@ -138,9 +153,15 @@ class KnowledgeGapStore:
         gap entry so Phase 4 can promote it with the real title. ``raw_hint``
         is the raw source path that referenced the slug (Phase 4 gap-priority
         batches resolve gaps by ingesting that raw file).
+
+        ``referenced_by_map`` (per-gap attribution): ``{slug: [page_ids]}`` —
+        when provided, each entry's ``referenced_by`` is the page that
+        referenced it (not a batch-wide comma string). Falls back to
+        ``referenced_by`` for slugs absent from the map.
         """
         ts = now if now is not None else int(time.time() * 1000)
         added: list[str] = []
+        refs_map = referenced_by_map or {}
         for slug in dict.fromkeys(slugs):  # dedupe, keep order
             if not slug:
                 continue
@@ -148,16 +169,20 @@ class KnowledgeGapStore:
                 continue
             if len(added) >= max_entries:
                 break
+            page_refs: list[str] = refs_map.get(slug) or (
+                [referenced_by] if referenced_by else []
+            )
             existing = self._gaps.get(slug)
             if existing:
-                if referenced_by and referenced_by not in existing.referenced_by:
-                    existing.referenced_by.append(referenced_by)
+                for ref in page_refs:
+                    if ref and ref not in existing.referenced_by:
+                        existing.referenced_by.append(ref)
                 if raw_hint and not existing.raw_hint:
                     existing.raw_hint = raw_hint
                 continue
             self._gaps[slug] = KnowledgeGap(
                 slug=slug,
-                referenced_by=[referenced_by] if referenced_by else [],
+                referenced_by=page_refs,
                 title=(title_map or {}).get(slug),
                 raw_hint=raw_hint,
                 created_at=ts,

@@ -112,3 +112,30 @@ def test_collect_missing_slugs_excludes_resolvable(tmp_path):
     assert "现实概念" not in missing
     assert "p1" not in missing  # 本批产出
     assert missing == ["幽灵"]
+
+
+def test_collect_missing_slugs_blocks_type_prefix_before_normalize(tmp_path):
+    """类型前缀幻觉（source-补充教程）在归一剥前缀前被 blocklist 拦截。
+
+    回归：若先归一后查 blocklist，source-补充教程 → 补充教程 会绕过
+    `^(source|...)-` 正则（1.3 review Important-1）。
+    """
+    paths = _make_paths(tmp_path)
+    pages = [
+        _page("p1", relations=[_rel("source-补充教程"), _rel("正常概念")]),
+    ]
+    missing = [s for s, _ in collect_missing_slugs(pages, paths)]
+    assert "补充教程" not in missing, "type-prefixed reference must be blocked pre-normalization"
+    assert "source-补充教程" not in missing
+    assert "正常概念" in missing
+
+
+def test_collect_missing_slugs_blocks_legacy_exact_slugs(tmp_path):
+    """既有 stub blocklist 精确 slug（feishu 等）继承进 gap 判定。"""
+    paths = _make_paths(tmp_path)
+    pages = [
+        _page("p1", relations=[_rel("feishu"), _rel("真实缺口")]),
+    ]
+    missing = [s for s, _ in collect_missing_slugs(pages, paths)]
+    assert "feishu" not in missing
+    assert "真实缺口" in missing

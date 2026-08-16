@@ -424,7 +424,11 @@ async def test_run_ingest_same_raw_twice_no_duplicate_gap(tmp_path: Path) -> Non
 
 @pytest.mark.asyncio
 async def test_run_ingest_blocklist_slug_not_in_gap(tmp_path: Path) -> None:
-    """blocklist slug（如 source-xxx）不进 gap 账本。"""
+    """blocklist slug（类型前缀 source-xxx / 平台名 feishu）不进 gap 账本。
+
+    校验点：原始引用在归一剥前缀前被 blocklist 拦截——否则 source-补充教程
+    会归一成补充教程绕过 `^(source|...)-` 正则（1.3 review Important-1）。
+    """
     import json
 
     ensure_knowledge_base(tmp_path)
@@ -438,7 +442,7 @@ async def test_run_ingest_blocklist_slug_not_in_gap(tmp_path: Path) -> None:
             "id": "c1", "type": "concept", "title": "概念",
             "slots": {"definition": "定义内容足够长。", "characteristics": ["c"],
                       "examples": ["e"], "related_concepts": ["[[source-补充教程]]"],
-                      "references": ["[[source-补充教程]]"]},
+                      "references": ["[[feishu]]"]},
         }],
     }]
     provider = ScriptedLLMProvider(blocked_script)
@@ -447,7 +451,15 @@ async def test_run_ingest_blocklist_slug_not_in_gap(tmp_path: Path) -> None:
                      provider=provider, task_id="kb-blocked")
 
     gap_file = tmp_path / ".index" / "knowledge_gaps.json"
-    data = json.loads(gap_file.read_text(encoding="utf-8"))
-    assert all(g["slug"] != "source-补充教程" for g in data["gaps"]), (
-        "blocklisted slug must not enter the gap ledger"
+    # 全部引用被 blocklist 拦截 → 账本文件不存在或为空（无 gap 可记）
+    if gap_file.exists():
+        data = json.loads(gap_file.read_text(encoding="utf-8"))
+        slugs = {g["slug"] for g in data["gaps"]}
+    else:
+        slugs = set()
+    assert "补充教程" not in slugs, (
+        "type-prefixed source-补充教程 must be blocked BEFORE normalization "
+        "strips the prefix (1.3 review Important)"
     )
+    assert "source-补充教程" not in slugs
+    assert "feishu" not in slugs, "legacy exact-match stub blocklist must carry into gaps"

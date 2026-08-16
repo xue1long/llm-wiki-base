@@ -1131,11 +1131,13 @@ async def commit_ingest(
         _raw_hint = normalize_source_path(str(source_path), paths.root)
         _title_map = {m["slug"]: m.get("title") for m in missing_slugs
                       if m.get("title")}
+        # 逐 gap 归因：每个缺失 slug 记录引用它的页面 id（M-3）。
+        _refs_map: dict[str, list[str]] = {
+            m["slug"]: list(m.get("referenced_by") or []) for m in missing_slugs
+        }
         _added = _store.add_many(
             [m["slug"] for m in missing_slugs],
-            referenced_by=", ".join(
-                ref for m in missing_slugs for ref in (m.get("referenced_by") or [])
-            ),
+            referenced_by_map=_refs_map,
             title_map=_title_map,
             raw_hint=_raw_hint,
             max_entries=_get_max_stubs_per_ingest(),

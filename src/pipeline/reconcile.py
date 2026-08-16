@@ -53,6 +53,35 @@ def _collect_referenced_slugs(pages) -> list[str]:
     return out
 
 
+def _legacy_stub_blocklist() -> frozenset[str]:
+    """Inherit the legacy exact-match stub blocklist (platform/org names).
+
+    Plan 1.3-4: the gap ledger must keep the same quality guardrails as the
+    removed auto-stub machinery — blocklist, hard cap, doc-title variants.
+    This imports the (now otherwise orphaned) exact-match set from ingest.py
+    so ``feishu`` / ``lark`` etc. never enter the ledger either.
+    """
+    try:
+        from .ingest import _get_stub_blocklist
+        return _get_stub_blocklist()
+    except Exception:  # pragma: no cover — import guard
+        return frozenset()
+
+
+def _raw_is_blocklisted(raw: str) -> bool:
+    """True if the RAW referenced slug must never become a gap.
+
+    Checks both the legacy exact-match stub blocklist and the regex-based gap
+    blocklist — on the raw (pre-normalization) form so type-prefixed
+    hallucinated references (``source-补充教程``) are caught before the
+    normalizer strips the prefix.
+    """
+    if raw in _legacy_stub_blocklist():
+        return True
+    from ..wiki.features.knowledge_gaps import is_raw_reference_blocklisted
+    return is_raw_reference_blocklisted(raw)
+
+
 def _resolvable_set(paths: WikiPaths, produced_slugs: set[str]) -> set[str]:
     """Build the reconciliation set: produced ∪ disk ∪ alias-resolvable ∪ index.
 
@@ -112,7 +141,8 @@ def make_missing_slugs_resolver(
                 tgt = rel.get("target") or rel.get("target_id") or ""
                 if tgt:
                     norm = normalize_reconcile_slug(tgt)
-                    if norm and norm not in resolvable and norm not in seen:
+                    if (norm and norm not in resolvable and norm not in seen
+                            and not _raw_is_blocklisted(tgt)):
                         seen.add(norm)
                         missing.append(tgt)
             for slot in (p.get("slots") or {}).values():
@@ -123,7 +153,8 @@ def make_missing_slugs_resolver(
                     if isinstance(v, str):
                         for _t in _extract_wikilink_targets(v):
                             norm = normalize_reconcile_slug(_t)
-                            if norm and norm not in resolvable and norm not in seen:
+                            if (norm and norm not in resolvable and norm not in seen
+                                    and not _raw_is_blocklisted(_t)):
                                 seen.add(norm)
                                 missing.append(_t)
         return missing
@@ -149,6 +180,10 @@ def collect_missing_slugs(
     seen: set[str] = set()
     for p in pages:
         for raw in _collect_referenced_slugs([p]):
+            # 先查原始（未归一）形态的 blocklist——类型前缀等幻觉引用在归一
+            # 剥前缀前拦截（否则 source-补充教程 → 补充教程 绕过 blocklist）。
+            if _raw_is_blocklisted(raw):
+                continue
             norm = normalize_reconcile_slug(raw)
             if norm and norm not in resolvable and norm not in seen:
                 seen.add(norm)
