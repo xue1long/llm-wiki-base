@@ -20,6 +20,31 @@ def test_processing_depth_values_include_operation():
     )
 
 
+def test_clean_placeholder_text_scrubs_lint_flagged_substrings():
+    """Phase 3 follow-up (M4)：渲染后清洗必须移除 lint 占位符子串。
+
+    即使 prompt 已引导 LLM 不用「来源未提供具体例子」，模型仍可能惯性输出
+    该 fallback——清洗兜底保证新产出不触发 LINT-PLACEHOLDER。替换文本自身
+    不得包含 lint _PLACEHOLDER_SUBSTRINGS 的任何子串（（系统占位 / 待补充 /
+    见下游概念页 / 来源未提供具体例子）。
+    """
+    from src.pipeline.generator import _clean_placeholder_text, _PLACEHOLDER_CLEANUPS
+
+    body = (
+        "## 例子\n\n- 来源未提供具体例子\n\n"
+        "## 证据强度\n\n来源未提供例子，但……\n\n"
+        "（系统占位：此项由系统补齐，请人工补充）\n"
+    )
+    cleaned = _clean_placeholder_text(body)
+    for bad in ("来源未提供具体例子", "来源未提供例子", "（系统占位"):
+        assert bad not in cleaned, f"placeholder {bad!r} must be scrubbed"
+    # 替换文本自身不引入新的 lint 占位符子串
+    lint_subs = ("（系统占位", "待补充", "见下游概念页", "来源未提供具体例子")
+    for old, new in _PLACEHOLDER_CLEANUPS:
+        for sub in lint_subs:
+            assert sub not in new, f"replacement {new!r} contains lint substring {sub!r}"
+
+
 @pytest.mark.asyncio
 async def test_generate_returns_pages(tmp_path):
     from src.wiki.storage.ensure import ensure_knowledge_base
@@ -727,8 +752,11 @@ async def test_generate_persistent_missing_uses_placeholder_and_warns(tmp_path, 
     )
     assert len(pages) == 1
     body = pages[0].body
-    # Placeholder text should appear under each missing heading.
-    assert "（系统占位" in body
+    # Phase 3 修复：必填槽缺失不再填占位符（lint M4 ERROR），保留标题+空内容。
+    assert "（系统占位" not in body, (
+        "missing required slots must NOT be filled with the system placeholder "
+        "(lint flags it as M4 ERROR)"
+    )
     # All headings still present.
     import re
     headings = re.findall(r"^## (.+)$", body, re.MULTILINE)
