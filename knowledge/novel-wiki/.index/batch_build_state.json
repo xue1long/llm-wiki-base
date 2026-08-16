@@ -1,188 +1,293 @@
 {
   "batch_0": {
-    "status": "committed",
+    "status": "postcheck_failed",
     "files": [
-      "raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
-      "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
-      "raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
-      "raw/sources/book-official.md",
-      "raw/sources/ugc-test.md",
-      "raw/sources/ugc-test2.md",
-      "raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md",
-      "raw/sources/必备资料15顺眼谈文章的画面感.md",
-      "raw/sources/必备资料20个签约条件新人必看2.md",
-      "raw/sources/必备资料20仙侠类题材作品的创作要点及卖点.md",
-      "raw/sources/必备资料22期待感让你的作品能够引人入胜1.md",
-      "raw/sources/补充教程写作经验如何加强书的情节.md",
-      "raw/sources/补充教程写穿越小说角色前要注意的十个问题.md",
-      "raw/sources/补充教程小说写作大纲的模版共享.md",
-      "raw/sources/补充教程小说写作新人网络小说的成神宝典精装版.md",
-      "raw/sources/补充教程小说结局的十三种方式精.md",
-      "raw/sources/01_基础教程/帮助新手网文创作3.md",
-      "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md",
-      "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md",
-      "raw/sources/01_新手入门/借鉴素材人物描写必读.md"
+      "raw/sources/gap-raw.md"
     ],
-    "ok": 2,
+    "ok": 0,
     "err": 0,
-    "perm": 0,
     "completed_files": [
-      "raw/sources/01_基础教程/帮助新手网文创作3.md",
-      "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md",
-      "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
-      "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md",
-      "raw/sources/01_新手入门/借鉴素材人物描写必读.md",
-      "raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
-      "raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
-      "raw/sources/book-official.md",
-      "raw/sources/ugc-test.md",
-      "raw/sources/ugc-test2.md",
-      "raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md",
-      "raw/sources/必备资料15顺眼谈文章的画面感.md",
-      "raw/sources/必备资料20个签约条件新人必看2.md",
-      "raw/sources/必备资料20仙侠类题材作品的创作要点及卖点.md",
-      "raw/sources/必备资料22期待感让你的作品能够引人入胜1.md",
-      "raw/sources/补充教程写作经验如何加强书的情节.md",
-      "raw/sources/补充教程写穿越小说角色前要注意的十个问题.md",
-      "raw/sources/补充教程小说写作大纲的模版共享.md",
-      "raw/sources/补充教程小说写作新人网络小说的成神宝典精装版.md",
-      "raw/sources/补充教程小说结局的十三种方式精.md"
+      "raw/sources/gap-raw.md"
     ],
-    "failed_files": [
-      "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md",
-      "raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md"
+    "failed_files": [],
+    "missing": [
+      "src-gap"
     ],
-    "raw_states": {
-      "raw/sources/01_新手入门/借鉴素材小说大纲模版.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false,
-        "ts": "2026-08-17T04:01:11",
-        "source_id": "借鉴素材小说主题分类的内容详细-23069167",
-        "branch": "reingest"
-      },
-      "raw/sources/book-official.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/ugc-test.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/ugc-test2.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/必备资料15顺眼谈文章的画面感.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/必备资料20个签约条件新人必看2.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/必备资料20仙侠类题材作品的创作要点及卖点.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/必备资料22期待感让你的作品能够引人入胜1.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/补充教程写作经验如何加强书的情节.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/补充教程写穿越小说角色前要注意的十个问题.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/补充教程小说写作大纲的模版共享.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/补充教程小说写作新人网络小说的成神宝典精装版.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/补充教程小说结局的十三种方式精.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/01_基础教程/帮助新手网文创作3.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      },
-      "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false,
-        "ts": "2026-08-17T04:01:14",
-        "source_id": "借鉴素材书籍如何商业化-8111d1-ec21fd6e",
-        "branch": "reingest"
-      },
-      "raw/sources/01_新手入门/借鉴素材人物描写必读.md": {
-        "status": "done",
-        "fail_streak": 0,
-        "blocklisted": false
-      }
-    },
-    "ts": "2026-08-17T04:01:17",
-    "committed": true,
-    "git_snapshot": "64dfef31a0ca233359c4a2e1522f9ae1ffa883b0",
+    "missing_extras": false,
     "page_ids": [
-      "仙侠小说",
-      "借鉴素材书籍如何商业化-8111d1-ec21fd6e",
-      "借鉴素材小说主题分类的内容详细-23069167",
-      "前-3-万字代入感法则",
-      "商业网文写作",
-      "天蚕土豆",
-      "小白作者网文大学",
-      "小说主题分类",
-      "开篇布局常见错误",
-      "斗破苍穹",
-      "玄幻小说",
-      "移动阅读基地",
-      "蜀山仙侠传",
-      "鱼人二代"
+      "src-gap"
     ],
-    "permanent_failed": 0
+    "ts": "2026-08-17T04:27:49"
   },
   "budget": {
-    "cumulative_usd": 0.011
+    "cumulative_usd": 0.020999999999999998
   },
-  "schema_version": 2
+  "schema_version": 2,
+  "batch_1": {
+    "git_snapshot": "0608e5a9e89a6d29130c5a54a2eb2184c77b25d4",
+    "status": "committed",
+    "ts": "2026-08-17T04:50:04",
+    "raw_states": {
+      "raw/sources/01_新手入门/借鉴素材写作大纲经典都市写作大纲二十二条主线.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:28",
+        "fail_streak": 0,
+        "branch": "first_ingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材写作套路征文类别与主线设定.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:32",
+        "fail_streak": 0,
+        "source_id": "借鉴素材写作套路征文类别与主线设定-128c14b2",
+        "branch": "reingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材古代刺客的暗杀手段.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:35",
+        "fail_streak": 0,
+        "source_id": "借鉴素材古代刺客的暗杀手段-6281311b",
+        "branch": "reingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材大纲的重要性新文开篇.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:38",
+        "fail_streak": 0,
+        "source_id": "借鉴素材大纲的重要性新文开篇-562d564c",
+        "branch": "reingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材套路.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:38",
+        "fail_streak": 0,
+        "branch": "first_ingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材小白系列之对对子诗词精选片段第二期.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:41",
+        "fail_streak": 0,
+        "source_id": "借鉴素材小白系列之对对子诗词精选片段第二期-1406fefc",
+        "branch": "reingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细_89e8d6.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:42",
+        "fail_streak": 0,
+        "branch": "first_ingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材小说写作.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:44",
+        "fail_streak": 0,
+        "source_id": "借鉴素材小说写作-4f5fc3b7",
+        "branch": "reingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:44",
+        "fail_streak": 0,
+        "branch": "first_ingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材小说速成大纲.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:45",
+        "fail_streak": 0,
+        "branch": "first_ingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材常用急救小知识.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:45",
+        "fail_streak": 0,
+        "branch": "first_ingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材必备华夏天空作家福利.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:47",
+        "fail_streak": 0,
+        "source_id": "借鉴素材必备华夏天空作家福利-4c7de1bf",
+        "branch": "reingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材打斗七公式重要.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:49",
+        "fail_streak": 0,
+        "source_id": "借鉴素材打斗七公式重要-ccb79858",
+        "branch": "reingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材执梦文学社.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:51",
+        "fail_streak": 0,
+        "source_id": "借鉴素材执梦文学社-73d3f589",
+        "branch": "reingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材浅子小四素樱贱圣对对子精选片段.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:53",
+        "fail_streak": 0,
+        "source_id": "借鉴素材浅子小四素樱贱圣对对子精选片段-0183be6a",
+        "branch": "reingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材玄幻与仙侠.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:53",
+        "fail_streak": 0,
+        "branch": "first_ingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材玄幻与仙侠的区别.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:55",
+        "fail_streak": 0,
+        "source_id": "借鉴素材玄幻与仙侠的区别-871298c8",
+        "branch": "reingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材玄幻小说创作入门指南.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:57",
+        "fail_streak": 0,
+        "source_id": "借鉴素材玄幻小说创作入门指南-11a93e27",
+        "branch": "reingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材玄幻小说大纲表格.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:49:59",
+        "fail_streak": 0,
+        "source_id": "借鉴素材玄幻小说大纲表格-d4a046ef",
+        "branch": "reingest"
+      },
+      "raw/sources/01_新手入门/借鉴素材玄幻标签创作基金评定标准详解.md": {
+        "status": "done",
+        "ts": "2026-08-17T04:50:01",
+        "fail_streak": 0,
+        "source_id": "借鉴素材玄幻标签创作基金评定标准详解-1bc91a92",
+        "branch": "reingest"
+      }
+    },
+    "gate_issues": [
+      "LINT-PLACEHOLDER: 扩句法",
+      "LINT-PLACEHOLDER: 切割法-大纲扩展方法",
+      "LINT-PLACEHOLDER: 曲折法-大纲扩展方法"
+    ],
+    "completed_files": [
+      "raw/sources/01_新手入门/借鉴素材写作大纲经典都市写作大纲二十二条主线.md",
+      "raw/sources/01_新手入门/借鉴素材写作套路征文类别与主线设定.md",
+      "raw/sources/01_新手入门/借鉴素材古代刺客的暗杀手段.md",
+      "raw/sources/01_新手入门/借鉴素材大纲的重要性新文开篇.md",
+      "raw/sources/01_新手入门/借鉴素材套路.md",
+      "raw/sources/01_新手入门/借鉴素材小白系列之对对子诗词精选片段第二期.md",
+      "raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细_89e8d6.md",
+      "raw/sources/01_新手入门/借鉴素材小说写作.md",
+      "raw/sources/01_新手入门/借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6.md",
+      "raw/sources/01_新手入门/借鉴素材小说速成大纲.md",
+      "raw/sources/01_新手入门/借鉴素材常用急救小知识.md",
+      "raw/sources/01_新手入门/借鉴素材必备华夏天空作家福利.md",
+      "raw/sources/01_新手入门/借鉴素材打斗七公式重要.md",
+      "raw/sources/01_新手入门/借鉴素材执梦文学社.md",
+      "raw/sources/01_新手入门/借鉴素材浅子小四素樱贱圣对对子精选片段.md",
+      "raw/sources/01_新手入门/借鉴素材玄幻与仙侠.md",
+      "raw/sources/01_新手入门/借鉴素材玄幻与仙侠的区别.md",
+      "raw/sources/01_新手入门/借鉴素材玄幻小说创作入门指南.md",
+      "raw/sources/01_新手入门/借鉴素材玄幻小说大纲表格.md",
+      "raw/sources/01_新手入门/借鉴素材玄幻标签创作基金评定标准详解.md"
+    ],
+    "page_ids": [
+      "1vs1-公平对决",
+      "yy-小说第一定律",
+      "下毒",
+      "专诸",
+      "东方玄幻",
+      "中老年读者阅读心态",
+      "主角神秘身份套路",
+      "主角超强",
+      "主角路见不平与反杀套路",
+      "九王爷",
+      "人物设定三要素",
+      "仙侠与玄幻区别",
+      "仙侠升级平衡法则",
+      "仙侠小说",
+      "仙侠穿越设定",
+      "优美短文",
+      "低质量文",
+      "借鉴素材写作大纲经典都市写作大纲二十二条主线-31488b88",
+      "借鉴素材写作套路征文类别与主线设定-128c14b2",
+      "借鉴素材古代刺客的暗杀手段-6281311b",
+      "借鉴素材大纲的重要性新文开篇-562d564c",
+      "借鉴素材套路-81291264",
+      "借鉴素材套路-文档",
+      "借鉴素材小白系列之对对子诗词精选片段第二期-1406fefc",
+      "借鉴素材小说主题分类的内容详细-89e8d6-46f584d6",
+      "借鉴素材小说写作-4f5fc3b7",
+      "借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6-34f66af8",
+      "借鉴素材小说速成大纲-0c1ca43b",
+      "借鉴素材常用急救小知识-292676c2",
+      "借鉴素材必备华夏天空作家福利-4c7de1bf",
+      "借鉴素材打斗七公式重要-ccb79858",
+      "借鉴素材执梦文学社-73d3f589",
+      "借鉴素材浅子小四素樱贱圣对对子精选片段-0183be6a",
+      "借鉴素材玄幻与仙侠-0172f76e",
+      "借鉴素材玄幻与仙侠的区别-871298c8",
+      "借鉴素材玄幻小说创作入门指南-11a93e27",
+      "借鉴素材玄幻小说大纲表格-d4a046ef",
+      "借鉴素材玄幻标签创作基金评定标准详解-1bc91a92",
+      "冲量字数结算标准",
+      "冲量短篇",
+      "切割法",
+      "剑刺",
+      "匕首",
+      "北京圣东方国信科技有限公司",
+      "升级绝对化",
+      "古典仙侠",
+      "合同打印-寄送补贴",
+      "唐经风",
+      "四酱",
+      "图文标签内容禁忌",
+      "图文标签质量调整机制",
+      "大纲写法",
+      "大纲的重要性",
+      "奇幻修真",
+      "学生一族阅读心态",
+      "完本奖励",
+      "对对子素材",
+      "小白作者",
+      "小白作者培训学院",
+      "小白作者网文大学",
+      "小说主题分类",
+      "小说大纲模版结构",
+      "小面积烧烫伤处理",
+      "异术超能",
+      "异界大陆",
+      "总裁文设定雷区",
+      "打斗七公式",
+      "执梦文学社",
+      "扩句法",
+      "新作者福利计划",
+      "曲折法",
+      "洪荒封神",
+      "玄幻小说",
+      "玄幻小说创作入门指南",
+      "玄幻小说大纲表格",
+      "玄幻快速升级特征",
+      "现代修真",
+      "现言宠文类",
+      "现言宠文类设定雷区",
+      "签约有礼",
+      "精品短篇",
+      "素英",
+      "网文大学",
+      "网络对子",
+      "自嘲对子",
+      "茶话会若溪",
+      "血大",
+      "触电救治",
+      "质量文",
+      "都市上班族阅读心态",
+      "都市写作大纲二十二条主线",
+      "都市后宫配置",
+      "重生复仇爽文爽点设置",
+      "键盘补贴",
+      "频道责编"
+    ],
+    "ok": 20,
+    "err": 0,
+    "permanent_failed": 0
+  }
 }

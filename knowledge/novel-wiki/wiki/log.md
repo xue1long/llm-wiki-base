@@ -306,3 +306,43 @@
 - **ingest**: `b0` — generated 6 pages from 借鉴素材小说主题分类的内容详细.md
 ## 2026-08-17T04:01:14.416706
 - **ingest**: `b0` — generated 9 pages from 借鉴素材书籍如何商业化_8111d1.md
+## 2026-08-17T04:49:28.623773
+- **ingest**: `b1` — generated 6 pages from 借鉴素材写作大纲经典都市写作大纲二十二条主线.md
+## 2026-08-17T04:49:32.074785
+- **ingest**: `b1` — generated 4 pages from 借鉴素材写作套路征文类别与主线设定.md
+## 2026-08-17T04:49:35.249601
+- **ingest**: `b1` — generated 6 pages from 借鉴素材古代刺客的暗杀手段.md
+## 2026-08-17T04:49:38.191934
+- **ingest**: `b1` — generated 4 pages from 借鉴素材大纲的重要性新文开篇.md
+## 2026-08-17T04:49:38.349634
+- **ingest**: `b1` — generated 4 pages from 借鉴素材套路.md
+## 2026-08-17T04:49:41.660406
+- **ingest**: `b1` — generated 3 pages from 借鉴素材小白系列之对对子诗词精选片段第二期.md
+## 2026-08-17T04:49:41.907522
+- **ingest**: `b1` — generated 7 pages from 借鉴素材小说主题分类的内容详细_89e8d6.md
+## 2026-08-17T04:49:44.740137
+- **ingest**: `b1` — generated 5 pages from 借鉴素材小说写作.md
+## 2026-08-17T04:49:44.909992
+- **ingest**: `b1` — generated 7 pages from 借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6.md
+## 2026-08-17T04:49:45.098981
+- **ingest**: `b1` — generated 4 pages from 借鉴素材小说速成大纲.md
+## 2026-08-17T04:49:45.264714
+- **ingest**: `b1` — generated 4 pages from 借鉴素材常用急救小知识.md
+## 2026-08-17T04:49:47.474898
+- **ingest**: `b1` — generated 6 pages from 借鉴素材必备华夏天空作家福利.md
+## 2026-08-17T04:49:49.478284
+- **ingest**: `b1` — generated 3 pages from 借鉴素材打斗七公式重要.md
+## 2026-08-17T04:49:51.364824
+- **ingest**: `b1` — generated 8 pages from 借鉴素材执梦文学社.md
+## 2026-08-17T04:49:53.352028
+- **ingest**: `b1` — generated 5 pages from 借鉴素材浅子小四素樱贱圣对对子精选片段.md
+## 2026-08-17T04:49:53.530850
+- **ingest**: `b1` — generated 6 pages from 借鉴素材玄幻与仙侠.md
+## 2026-08-17T04:49:55.685355
+- **ingest**: `b1` — generated 9 pages from 借鉴素材玄幻与仙侠的区别.md
+## 2026-08-17T04:49:57.773313
+- **ingest**: `b1` — generated 4 pages from 借鉴素材玄幻小说创作入门指南.md
+## 2026-08-17T04:49:59.728057
+- **ingest**: `b1` — generated 3 pages from 借鉴素材玄幻小说大纲表格.md
+## 2026-08-17T04:50:01.778053
+- **ingest**: `b1` — generated 4 pages from 借鉴素材玄幻标签创作基金评定标准详解.md
