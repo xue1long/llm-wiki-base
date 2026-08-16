@@ -29,16 +29,25 @@ registry.json
 # The following are generated when the server runs or when ingest
 # happens; they belong to a specific project + machine and should not
 # be committed.
-# vector index dir
+# vector index dir (project-level: knowledge/<proj>/.index/, plus repo root)
 .index/*
+knowledge/*/.index/*
 # Phase 4 P1 P0 加固（plan guidance #6）：门禁/对账数据 git 跟踪——
 # 用 gitignore 例外规则白名单放行（钉死，非 force-add）。lancedb 不入 git
 # （不在例外列表），依赖"每批向量 upsert 可重放"。
+# 注意：gitignore 例外不能重新包含被忽略目录下的文件，因此对项目级
+# .index 用 knowledge/*/ 前缀重复白名单规则（.index/* 会忽略该目录全部，
+# 例外规则必须逐路径列出且父目录 knowledge/*/ 本身未被忽略）。
 !.index/batch_build_state.json
 !.index/knowledge_gaps.json
 !.index/batch_reports/
 !.index/batch_reports/*.json
 !.index/reingest_plan.json
+!knowledge/*/.index/batch_build_state.json
+!knowledge/*/.index/knowledge_gaps.json
+!knowledge/*/.index/batch_reports/
+!knowledge/*/.index/batch_reports/*.json
+!knowledge/*/.index/reingest_plan.json
 # LLM cache dir
 .llm-wiki
 # Obsidian vault (when this repo is opened in Obsidian)
