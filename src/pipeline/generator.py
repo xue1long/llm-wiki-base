@@ -226,7 +226,7 @@ Slot minimums and fallbacks (DO NOT leave these required slots empty):
   `key_points`           → At LEAST 3 bullets from source
   `extracted_concepts`   → At LEAST 3 `[[wikilinks]]`
   `examples`             → Prefer CONCRETE examples from the source; write
-                           "来源未提供具体例子" ONLY when the source truly has none
+                           "来源未详述此方面" ONLY when the source truly has none
   `comparison_dimensions`→ At LEAST 2 dimensions
   `overview`             → At LEAST 1 paragraph
 
@@ -435,7 +435,7 @@ template lacks them.
   details. It must NOT repeat basic_info verbatim.
 - entity `aliases`   → alternative names only; omit when none exist.
 - concept `examples` → CONCRETE examples FROM THE SOURCE (numbers, book
-  titles, cases). The fallback "来源未提供具体例子" is a LAST RESORT — only
+  titles, cases). The fallback "来源未详述此方面" is a LAST RESORT — only
   when the source truly has none.
 
 **FALLBACKS — when source truly lacks info, use these instead of empty/placeholder**:
@@ -443,7 +443,7 @@ template lacks them.
 - `source_meta` → Write "来源: [文件名]; 格式: Markdown; 下载时间: 见原始文件头部"
 - `related_concepts` → List the concept/entity slugs you defined in other pages of THIS response
 - `related` → Write `- [[<source-page-slug>]]`
-- `examples` → Write "来源未提供具体例子" ONLY when the source truly has no
+- `examples` → Write "来源未详述此方面" ONLY when the source truly has no
   examples (invent NOTHING) — prefer real examples from the source first
 - ALL OTHERS → Write "来源未详述此方面" (not empty, not placeholder)
 
@@ -853,7 +853,7 @@ template lacks them.
 - `source_meta`   → Write "来源: [文件名]; 格式: Markdown; 下载时间: 见原始文件头部"
 - `related_concepts` → List other concept/entity slugs from THIS response
 - `related`       → Write `- [[<source-page-slug>]]`
-- `examples`      → Write "来源未提供具体例子" (invent NOTHING)
+- `examples`      → Write "来源未详述此方面" (invent NOTHING)
 - ALL OTHERS      → Write "来源未详述此方面" (not empty, not placeholder)
 
 **Factuality**: Copy facts EXACTLY from the claims. Do NOT invent titles, names,
@@ -1739,7 +1739,7 @@ async def _call_with_slot_retry(
                 lines.append("  related          → - [[<source-page-slug>]]")
                 lines.append("  key_points       → 3+ facts from the source text")
                 lines.append("  extracted_concepts → [[wikilinks]] to concepts/entities below")
-                lines.append("  examples         → If none: \"来源未提供具体例子\"")
+                lines.append("  examples         → If none: \"来源未详述此方面\"")
                 lines.append("  ALL OTHERS       → \"来源未详述此方面\"")
                 lines.append("")
                 lines.append(

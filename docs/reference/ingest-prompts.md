@@ -167,7 +167,7 @@ Slot minimums and fallbacks (DO NOT leave these required slots empty):
   `related`              → At LEAST 1 `[[wikilink]]`
   `key_points`           → At LEAST 3 bullets from source
   `extracted_concepts`   → At LEAST 3 `[[wikilinks]]`
-  `examples`             → If none: "来源未提供具体例子"
+  `examples`             → If none: "来源未详述此方面"
   `comparison_dimensions`→ At LEAST 2 dimensions
   `overview`             → At LEAST 1 paragraph
 
@@ -348,7 +348,7 @@ SLOT                  | PAGE TYPE   | MINIMUM ACCEPTABLE CONTENT
 - `source_meta` → Write "来源: [文件名]; 格式: Markdown; 下载时间: 见原始文件头部"
 - `related_concepts` → List the concept/entity slugs you defined in other pages of THIS response
 - `related` → Write `- [[<source-page-slug>]]`
-- `examples` → Write "来源未提供具体例子" (invent NOTHING)
+- `examples` → Write "来源未详述此方面" (invent NOTHING)
 - ALL OTHERS → Write "来源未详述此方面" (not empty, not placeholder)
 
 **Entity pages are REQUIRED**: Every meaningful entity (person, org, work, platform,
