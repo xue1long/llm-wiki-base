@@ -323,6 +323,20 @@ def _find_source_page_by_raw_path(wiki_sources_dir: Path, raw_path: str) -> str 
     return None
 
 
+def probe_source_page(paths, raw_path: str) -> str | None:
+    """Return the source page ID for *raw_path*, or ``None`` (never raises).
+
+    Phase 4 per-raw branch (C2): the executor probes the wiki before
+    deciding reingest vs first ingest.  Returns ``None`` when the raw was
+    never ingested (or its source page was cleaned up) — the caller then
+    falls to the first-ingest branch.
+    """
+    try:
+        return _find_source_page_by_raw_path(paths.wiki_sources, raw_path)
+    except Exception:
+        return None
+
+
 def reingest_source(project_id: str, raw_path: str) -> dict:
     """Re-ingest a previously processed raw source file.
 
@@ -390,6 +404,87 @@ def reingest_source(project_id: str, raw_path: str) -> dict:
         "deleted_vectors": deleted_vectors,
     }
     return enqueue_result
+
+
+async def reingest_source_direct(
+    paths,
+    raw_path: str,
+    provider,
+    *,
+    batch_key: str,
+    task_id: str = "reingest",
+    resume_from_pending_deletion: bool = False,
+) -> dict:
+    """Phase 4 直跑重建分支（C2 P0 加固，plan guidance #3/#4）——不经队列。
+
+    直跑路径是 Phase 4 唯一执行路径（B6/C2 定死）：脚本进程内直接调用
+    ``run_ingest`` 重建，绝不 ``enqueue_source``（队列降级只读）。
+
+    每 raw 分支：
+    - **有 source 页** → cascade_delete 旧产出 + 删向量 + run_ingest 重建；
+    - **无 source 页** → 直接 run_ingest 首次摄入（首摄分支，不抛错）；
+    - cascade 时源页已被并发删除（FileNotFoundError）→ 降级首摄而非 failed。
+
+    补偿状态（plan guidance #4）：重建路径顺序 = 记 ``pending_deletion`` →
+    cascade_delete → 记 ``done``。崩溃在删除后、重建前 → 续跑时对
+    ``pending_deletion`` 文件重跑重建（``resume_from_pending_deletion=True``
+    时直接走首摄式重建，因旧 source 页已删）。禁止"先删后建"裸窗口。
+
+    Returns::
+
+        {"status": "done", "branch": "reingest"|"first_ingest",
+         "cleaned": {...}, "note": "..."}
+    """
+    from .batch_state import set_raw_status
+    from ..pipeline.ingest import run_ingest
+    from ..wiki.features.cascade_delete import cascade_delete
+    from ..vector.store import delete_by_source, init_vector_store_for_paths
+
+    source_id = probe_source_page(paths, raw_path)
+    branch = "reingest" if source_id is not None else "first_ingest"
+    note = ""
+    cascade_result: dict = {}
+
+    if source_id is not None:
+        # 重建调度成功（探到旧产出）→ 先记 pending_deletion，再删。
+        set_raw_status(paths, batch_key, raw_path, "pending_deletion",
+                       source_id=source_id)
+        try:
+            cascade_result = cascade_delete(paths, source_id)
+        except FileNotFoundError:
+            # 探到源页后、cascade 前被并发删除（或索引残留）→ 首摄分支。
+            branch = "first_ingest"
+            note = "deleted_between_probe_and_cascade"
+            cascade_result = {}
+        else:
+            init_vector_store_for_paths(paths)
+            deleted_vectors = delete_by_source(paths, raw_path)
+            cascade_result["deleted_vectors"] = deleted_vectors
+    else:
+        if resume_from_pending_deletion:
+            note = "resumed_from_pending_deletion"
+
+    # 直跑重建：run_ingest（generate + commit 一体），不经队列。
+    src = paths.root / raw_path
+    text = src.read_text(encoding="utf-8", errors="replace")
+    pages = await run_ingest(
+        paths=paths, source_path=Path(raw_path), source_text=text,
+        provider=provider, task_id=task_id,
+    )
+
+    set_raw_status(paths, batch_key, raw_path, "done", branch=branch)
+    return {
+        "status": "done",
+        "branch": branch,
+        "cleaned": {
+            "source_id": source_id,
+            "deleted_pages": cascade_result.get("deleted_pages", []),
+            "updated_pages": cascade_result.get("updated_pages", []),
+            "deleted_vectors": cascade_result.get("deleted_vectors", 0),
+        },
+        "note": note,
+        "pages": len(pages),
+    }
 
 
 def delete_source(project_id: str, raw_path: str) -> dict:
