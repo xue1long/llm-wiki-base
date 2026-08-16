@@ -139,3 +139,31 @@ def test_collect_missing_slugs_blocks_legacy_exact_slugs(tmp_path):
     missing = [s for s, _ in collect_missing_slugs(pages, paths)]
     assert "feishu" not in missing
     assert "真实缺口" in missing
+
+
+def test_collect_missing_slugs_covers_extra_pages(tmp_path):
+    """Phase 3 实测回归：反向边给存量页（extras）加的不存在 target 必须入 gap。
+
+    generate_ingest 的 missing_slugs 采集在 _compute_reverse_relations 之后
+    对 pages + extra_pages 一起执行——extras 页的反向 relation 可能引用
+    不存在页（如 `玄幻小说` 被 extras 反向引用 `玄幻与仙侠区分对比`），
+    若只 collect pages 则这些断链永远不入 gap 账本（M1 残留）。
+    """
+    paths = _make_paths(tmp_path)
+    # 磁盘存量页（extras）：含指向不存在页的反向 relation
+    write_page(paths, _page("存量页", relations=[_rel("幽灵反向目标")]))
+    # 本批新页引用存量页 → extras 会加载并合并反向边
+    pages = [
+        _page("新页", relations=[_rel("存量页")]),
+    ]
+    # 模拟 reverse 之后的最终集合：pages + extras 都进 collect
+    from src.wiki.storage.page_writer import read_page
+    extra_page = read_page(paths.wiki_concepts / "存量页.md")
+    missing = [s for s, _ in collect_missing_slugs(
+        pages + [extra_page], paths,
+        produced_slugs={p.id for p in pages} | {p.id for p in [extra_page]},
+    )]
+    assert "幽灵反向目标" in missing, (
+        f"extras 页的反向断链必须入 gap，got: {missing}"
+    )
+    assert "存量页" not in missing  # 磁盘页本身可解析

@@ -828,16 +828,7 @@ async def generate_ingest(
     # （在 commit 路径落盘；generate_ingest 保持零磁盘写）。判定集合 =
     # 产出 ∪ 磁盘页 ∪ SlugAliasRegistry 可解析 ∪ 索引，全部经统一归一函数
     # normalize_reconcile_slug 比对（B-H3，消解 CJK 顿号假断链）。
-    from .reconcile import collect_missing_slugs
-    _missing_gaps: list[tuple[str, str]] = collect_missing_slugs(
-        pages, paths, produced_slugs={p.id for p in pages},
-    )
-    _missing_slugs = [s for s, _ in _missing_gaps]
-    if _missing_slugs:
-        _logger.info(
-            f"[run_ingest] {len(_missing_slugs)} unresolved reference(s) → gap ledger: "
-            f"{_missing_slugs[:5]}{'...' if len(_missing_slugs) > 5 else ''}"
-        )
+    # 采集时机在 _compute_reverse_relations 之后（见下方 1.3 O6 注记）。
 
     # B13: compute reverse (inverse) edges in-memory so the relation graph
     # is bidirectional on disk. New pages are mutated in-place; pre-existing
@@ -859,6 +850,23 @@ async def generate_ingest(
                 seen.add(rel.target_id)
                 deduped.append(rel)
         page.relations = deduped
+
+    # 1.3 O6 (Phase 3 实测修复)：missing_slugs 采集必须在
+    # _compute_reverse_relations 之后——反向边会给存量页（extras）加上指向
+    # 不存在页的 relation（如 `玄幻小说` 被 extras 反向引用 `玄幻与仙侠区分对比`），
+    # 若在 reverse 之前 collect 则这些断链永远不入 gap 账本（M1 残留）。
+    # 对 pages + extra_pages 一起 collect，避免 extras 引入的断链漏检。
+    from .reconcile import collect_missing_slugs
+    _missing_gaps: list[tuple[str, str]] = collect_missing_slugs(
+        pages + extra_pages, paths,
+        produced_slugs={p.id for p in pages} | {p.id for p in extra_pages},
+    )
+    _missing_slugs = [s for s, _ in _missing_gaps]
+    if _missing_slugs:
+        _logger.info(
+            f"[run_ingest] {len(_missing_slugs)} unresolved reference(s) → gap ledger: "
+            f"{_missing_slugs[:5]}{'...' if len(_missing_slugs) > 5 else ''}"
+        )
 
     # Rule-based quality gate — catches ghost pages, empty bodies, intra-batch dupes.
     # Zero LLM cost; stub pages (processing_depth="stub") are exempt from

@@ -527,3 +527,52 @@ async def test_commit_ingest_accepts_event_kwarg(tmp_path: Path) -> None:
     assert "reverse-relation" in log_text, (
         f"audit log must record the custom event, got: {log_text[-400:]}"
     )
+
+
+@pytest.mark.asyncio
+async def test_generate_ingest_collects_extra_page_broken_refs(tmp_path: Path) -> None:
+    """Phase 3 实测回归：generate_ingest 的 missing_slugs 必须覆盖 extras
+    反向边引入的断链（collect 在 _compute_reverse_relations 之后执行）。
+
+    场景：磁盘有存量页 `存量目标`；新页 `新页` 引用它 → extras 加载存量页
+    并加反向边；若存量页自身（或反向边）引用了不存在页，该断链必须入
+    meta["missing_slugs"]（M1 不再残留）。
+    """
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    # 磁盘存量页：自身带指向不存在页的 relation
+    from src.wiki.features.relations import Relation
+    write_page(paths, WikiPage(
+        id="存量目标", title="存量目标", type=PageType.CONCEPT,
+        sources=["raw/sources/a.md"], body="存量内容。",
+        relations=[Relation(target_id="幽灵存量引用", type="references")],
+    ))
+    raw = paths.raw_sources / "src2.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text("新源内容。", encoding="utf-8")
+
+    script = [{
+        "pages": [{
+            "id": "新页", "type": "concept", "title": "新页",
+            "slots": {
+                "definition": "新页定义，内容足够长。",
+                "characteristics": ["特征"],
+                "examples": ["例子"],
+                "related_concepts": ["[[存量目标]]"],
+                "references": ["[[source-补充教程]]"],
+            },
+            "relations": [{"target": "存量目标", "type": "references"}],
+        }],
+    }]
+    provider = ScriptedLLMProvider(script)
+
+    pages, extras, meta = await generate_ingest(
+        paths=paths, source_path=raw, source_text="新源内容。",
+        provider=provider, task_id="kb-extra-gap",
+    )
+    assert any(p.id == "存量目标" for p in extras), "存量目标 应作为 extras 加载"
+    missing = {m["slug"] for m in (meta.get("missing_slugs") or [])}
+    # extras 页（存量目标）自身的幽灵引用必须被采集（Phase 3 实测修复）
+    assert "幽灵存量引用" in missing, (
+        f"extras 页的断链必须入 meta['missing_slugs']，got: {sorted(missing)}"
+    )
