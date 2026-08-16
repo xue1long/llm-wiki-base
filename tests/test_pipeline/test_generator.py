@@ -45,6 +45,28 @@ def test_clean_placeholder_text_scrubs_lint_flagged_substrings():
             assert sub not in new, f"replacement {new!r} contains lint substring {sub!r}"
 
 
+def test_clean_placeholder_text_scrubs_daibuchong_and_jianguyou():
+    """Phase 4 batch 1 实测新增：LLM 惯性输出「待补充」「见下游概念页」也是
+    高频 lint 占位符（扩句法/切割法/曲折法 三个页被 LINT-PLACEHOLDER 拦）。
+    清洗兜底必须覆盖它们，替换文本不得含占位符子串。"""
+    from src.pipeline.generator import (
+        _clean_placeholder_text, _PLACEHOLDER_CLEANUPS,
+    )
+
+    body = (
+        "## 定义\n\n该方法可用于待补充的内容。\n\n"
+        "## 证据\n\n见下游概念页懆述。\n"
+    )
+    cleaned = _clean_placeholder_text(body)
+    for bad in ("待补充", "见下游概念页"):
+        assert bad not in cleaned, f"placeholder {bad!r} must be scrubbed"
+    # 替换文本不得引入 lint 占位符子串
+    lint_subs = ("（系统占位", "待补充", "见下游概念页", "来源未提供具体例子")
+    for old, new in _PLACEHOLDER_CLEANUPS:
+        for sub in lint_subs:
+            assert sub not in new, f"replacement {new!r} contains lint substring {sub!r}"
+
+
 @pytest.mark.asyncio
 async def test_generate_returns_pages(tmp_path):
     from src.wiki.storage.ensure import ensure_knowledge_base
