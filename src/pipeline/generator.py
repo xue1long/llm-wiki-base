@@ -1841,8 +1841,8 @@ async def _call_with_slot_retry(
                 ) from exc
             # Escalate max_tokens only when the truncation had content —
             # an empty response (sfkey finish_reason=length, 0 chars) can't
-            # be fixed by a bigger cap. Each content truncation bumps the
-            # cap one level (8192 → 16384 → 32768).
+            # normally be fixed by a bigger cap. Each content truncation bumps
+            # the cap one level (8192 → 16384 → 32768).
             if exc.content_length > 0:
                 _max_tokens_escalation += 1
             _json_mode = False  # drop response_format on retry

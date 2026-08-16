@@ -102,3 +102,52 @@ def test_complete_forwards_max_tokens(monkeypatch):
     ))
     assert len(seen) == 1
     assert '"max_tokens":16384' in seen[0]
+
+
+def test_complete_reasoning_consumed_all_budget_sets_content_length(monkeypatch):
+    """Phase 4 缺陷 F（thinking 占满预算）：glm-5.2 等 reasoning 模型返回
+    reasoning_content 但 content 为空且 finish_reason=length → provider 应基
+   于 reasoning_content 长度设置 content_length > 0，避免下游调用方
+    （_call_with_slot_retry）误判为 0-char 空截断而不升级 max_tokens。"""
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={
+            "choices": [{
+                "message": {
+                    "content": "",
+                    "reasoning_content": "思考中思考中思考中" * 100,
+                },
+                "finish_reason": "length",
+            }],
+            "model": "glm-5.2",
+        })
+
+    _mock_async_client(monkeypatch, handler)
+    p = _make_provider(model="glm-5.2")
+    resp = asyncio.run(p.complete(messages=[{"role": "user", "content": "x"}]))
+    assert resp.truncated is True
+    assert resp.content == ""
+    assert resp.content_length > 0, (
+        "content_length must be >0 when reasoning_content consumed the budget"
+    )
+
+
+def test_complete_reasoning_not_truncated_ignores_content_length(monkeypatch):
+    """reasoning_content 存在但 finish_reason=stop（thinking 正常产出）→
+    content_length 保持 0（不干扰正常调用）。"""
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={
+            "choices": [{
+                "message": {
+                    "content": "{\"key\": \"value\"}",
+                    "reasoning_content": "思考过程",
+                },
+                "finish_reason": "stop",
+            }],
+            "model": "glm-5.2",
+        })
+
+    _mock_async_client(monkeypatch, handler)
+    p = _make_provider(model="glm-5.2")
+    resp = asyncio.run(p.complete(messages=[{"role": "user", "content": "x"}]))
+    assert resp.truncated is False
+    assert resp.content_length == 0  # 正常响应，不覆写

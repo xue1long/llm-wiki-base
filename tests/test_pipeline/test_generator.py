@@ -1262,9 +1262,77 @@ async def test_call_with_slot_retry_escalation_still_applies_after_empty():
     assert provider.calls[2]["max_tokens"] == 16384  # content truncation: escalated
 
 
+async def test_call_with_slot_retry_no_escalation_on_repeated_empty_truncation():
+    """连续 2 次纯空截断（无 reasoning_content）仍不升级——thinking 场景
+    已在 provider 层（openai_provider.py）通过 content_length 走正常升级
+    路径，纯空截断没有内容可生成，升级无用。"""
+    from src.llm.base import LLMResponse
+    from src.pipeline.generator import _call_with_slot_retry
+
+    empty_truncated = LLMResponse(
+        content="", model="glm-5.2", truncated=True,
+    )
+    valid = LLMResponse(
+        content='{"pages": [{"id": "s", "type": "source", "title": "t"}]}',
+        model="glm-5.2", truncated=False,
+    )
+    provider = _make_tracking_provider([empty_truncated, empty_truncated, valid])
+    result = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt="extract",
+        response_format={},
+        required_slots_by_type={},
+        max_tokens=8192,
+    )
+    # 纯空截断不升级，所有尝试都用 base max_tokens
+    for c in provider.calls:
+        assert c["max_tokens"] == 8192
+    assert result["pages"][0]["id"] == "s"
+
+
 # ---------------------------------------------------------------------------
 # 1.3 H6 — missing_slugs_resolver：单调用内闭环（引用-产出对账反馈）
 # ---------------------------------------------------------------------------
+
+async def test_call_with_slot_retry_escalates_when_reasoning_consumed_budget():
+    """Phase 4 缺陷 F 端到端：provider 对 thinking 占满预算的响应上报
+    content_length>0 → _call_with_slot_retry 视为非空截断 → 升级 max_tokens。
+    模拟真实 sfkey 返回（reasoning_content 非空、content 空、length）。
+    注：这里直接构造 provider 返回 TruncatedResponseError(content_length>0)
+    等价于 provider 层已正确上报，验证升级链路。"""
+    from src.llm.types import TruncatedResponseError
+    from src.pipeline.generator import _call_with_slot_retry
+
+    class _ReasoningProvider:
+        """Fake provider: first call returns LLMResponse with truncated=True
+        and content_length=4000 (thinking 占满预算等效), second returns valid."""
+        calls: list[dict] = []
+
+        async def complete(self, messages, **kwargs):
+            self.calls.append({"max_tokens": kwargs.get("max_tokens")})
+            if len(self.calls) == 1:
+                from src.llm.base import LLMResponse
+                return LLMResponse(
+                    content="", model="glm-5.2", truncated=True,
+                    content_length=4000,
+                )
+            return type(
+                "R", (), {
+                    "content": '{"pages": [{"id": "s", "type": "source", "title": "t"}]}',
+                    "truncated": False, "content_length": 0,
+                })()
+
+    provider = _ReasoningProvider()
+    result = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt="extract",
+        response_format={},
+        required_slots_by_type={},
+        max_tokens=8192,
+    )
+    assert provider.calls[0]["max_tokens"] == 8192
+    assert provider.calls[1]["max_tokens"] == 16384  # thinking 截断 → 升级
+    assert result["pages"][0]["id"] == "s"
 
 async def test_call_with_slot_retry_feeds_missing_slugs_back():
     """首次产出引用幽灵 slug → resolver 报缺失 → 反馈进 prompt → 二次产出修正。"""

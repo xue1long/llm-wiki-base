@@ -209,8 +209,6 @@ class OpenAIProvider(LLMProvider):
         except (KeyError, IndexError, TypeError) as e:
             raise RuntimeError(f"OpenAI returned malformed response: {e}") from e
 
-        content = _strip_reasoning(content)
-
         # finish_reason="length" means the endpoint cut the response off
         # (max_tokens cap). Surface it so JSON callers can retry with a
         # higher max_tokens instead of treating the partial content as a
@@ -221,11 +219,42 @@ class OpenAIProvider(LLMProvider):
         except (KeyError, IndexError, TypeError):
             finish_reason = None
 
+        # Phase 4 试跑实测缺陷 F（thinking 占满预算）：reasoning-capable
+        # 模型（glm-5.2）把 thinking 写入独立字段或包在 content 前的
+        # thinking... response 块里。max_tokens=8192 时 thinking 吃满预算 →
+        # content 为空但 finish_reason=length（sfkey 0-char 空截断）。
+        # 这里的修复：把 reasoning 内容计入 content_length，让调用方
+        # `_call_with_slot_retry` 把 0-char 截断正确识别为"需要更大预算"
+        # 而不是"升级无用"。thinking 本身不是产出，剥掉后返回给 JSON 解析。
+        reasoning_len = 0
+        try:
+            msg = data["choices"][0]["message"]
+            reasoning = msg.get("reasoning_content") or ""
+            if reasoning:
+                reasoning_len = len(reasoning)
+        except (KeyError, IndexError, TypeError):
+            pass
+
+        content = _strip_reasoning(content)
+        if not content and reasoning_len and finish_reason == "length":
+            # content 为空 = thinking 独占了整段响应（finish_reason 为
+            # length）。用 reasoning 长度标记非空截断，触发 max_tokens 升级。
+            content_length = reasoning_len
+            _logger.warning(
+                "[OpenAIProvider] response had only reasoning content "
+                "(%d chars, finish=%s) — thinking consumed the token budget; "
+                "escalate max_tokens",
+                reasoning_len, finish_reason,
+            )
+        else:
+            content_length = 0
+
         return LLMResponse(
             content=content,
             model=data.get("model", model),
             usage=data.get("usage"),
             truncated=finish_reason == "length",
+            content_length=content_length,
         )
 
     async def chat(self, messages: list[dict], **kwargs) -> LLMResponse:

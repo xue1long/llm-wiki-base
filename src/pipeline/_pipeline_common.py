@@ -290,10 +290,13 @@ def parse_llm_json(llm_resp: Any) -> dict:
     # ``is True`` (identity) so test mocks (MagicMock auto-creates a truthy
     # .truncated attribute) are not mistaken for a truncation signal.
     if getattr(llm_resp, "truncated", False) is True:
+        # Phase 4 缺陷 F：provider 可能上报 content_length（含 reasoning
+        # 独占总预算的场景）——优先用它，避免 0-char 截断被误判为"升级无用"。
+        resp_len = getattr(llm_resp, "content_length", 0) or len(content)
         raise TruncatedResponseError(
             f"LLM response truncated by max_tokens (finish_reason=length, "
-            f"{len(content)} chars received)",
-            content_length=len(content),
+            f"{resp_len} chars received)",
+            content_length=resp_len,
         )
     if not isinstance(content, str):
         # Last-ditch: stringify and parse (covers invalid mocks returning bytes/None).

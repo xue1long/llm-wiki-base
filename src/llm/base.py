@@ -12,6 +12,11 @@ class LLMResponse:
     # cut off mid-generation, e.g. by a max_tokens cap). JSON callers must
     # treat the content as incomplete — retry with higher max_tokens.
     truncated: bool = False
+    # Phase 4 试跑实测缺陷 F：reasoning 模型（glm-5.2）的 thinking 可能
+    # 占满 max_tokens 预算，导致 content 为空但 finish_reason=length。
+    # provider 在检测到 reasoning_content 时，把原始长度（含 reasoning）
+    # 写入此字段，避免 parse_llm_json 误判为 0-char 空截断。
+    content_length: int = 0
 
 @dataclass
 class EmbeddingResponse:
