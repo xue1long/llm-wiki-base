@@ -12,7 +12,7 @@
 | Phase 1 平台改造 | ✅ 10/10 | 见 handoff（1.1–1.9） |
 | **Phase 2 场景模板落地** | ✅ 2/2 | schema/purpose/taxonomy/taxonomy_tags 落盘 + 模板确认 |
 | **Phase 3 实测首轮** | ✅ **达标** | 首批 batch_001 全指标过（2026-08-16，含 10 个修复 commit） |
-| **Phase 4 全量分批重摄入** | 🔄 进行中 | **batch 0 全量 20/20 完成**（6 缺陷修复，0.011 USD）；batch 1-68 待跑 |
+| **Phase 4 全量分批重摄入** | 🔄 进行中 | **batch 0-1 全量 40/40 完成**（7 缺陷修复，0.021 USD）；batch 2-68 待跑 |
 | Phase 4.5 synthesis 聚合 | ⬜ | 未开始 |
 | Phase 5 终验 | ⬜ | 未开始 |
 
@@ -64,7 +64,7 @@
 
 **试跑进展（2026-08-16 晚）**：
 - 单文件真实路径冒烟测试 ✅：`batch_executor --root knowledge/novel-wiki --batch 0`（1 raw）→ RC=0，provider(RetryLLMProvider/glm-5.2) 正常调用、pre-commit 门禁 PASS（6 页）、reingest cascade 删除旧产出 7 页 + 更新 1 页、commit 成功；向量 upsert 因 CLI 无 embedding provider 降级（WARN，search degrade，预期行为）
-- **batch 0 全量 20/20 ✅**（2026-08-17，4 轮试跑，累计 0.011 USD）
+- **batch 0 全量 20/20 ✅** + **batch 1 全量 20/20 ✅**（2026-08-17，累计 0.021 USD，完整金句率~95%）
   - 三轮试跑暴露 6 个缺陷（A-F，均修复 + 测试），第四轮全面通过
   - 产出的 5605 行新增 + 2998 行删除（cascade 重建 29 旧页 → 74 新页 + 存量更新）
   - 门禁 PASS（pre-commit 零问题 + 整批复核 PASS）
@@ -79,6 +79,7 @@
 | D | `b3318261` | P7（extra-pages 覆盖保护）对占位符清洗后的 extras body 误判 destructive overwrite（修复：P7 放行"仅占位符清洗"差异，与写入路径同语义） |
 | E | `58598a1b` | `_rerun_gate_batch` 按 source 关联全扫磁盘页 → 存量 extras（东方玄幻 历史非法 relation contrasts）被误拦（修复：page_ids 过滤只查本批新页） |
 | F | `64dfef31` | glm-5.2（reasoning 模型）thinking 占满 max_tokens=8192 预算 → content 空 + finish_reason=length → 被误判为 0-char 空截断不升级 → 3 次全失败（修复：provider 检测 reasoning_content 并上报 content_length>0，解锁升级路径） |
+| G | `0608e5a9` | batch 1 清洗兜底缺「待补充」「见下游概念页」→ 扩句法/切割法/曲折法 3 页被 LINT-PLACEHOLDER 拦（修复：补清洗映射，渲染后自动替换） |
 
 **关键运行事实（补充）**：
 - glm-5.2 是 reasoning 模型；对 6400+ chars 的源文件，thinking 独占总预算导致 0-char 空截断是特点，非 bug，修复后正确升级 max_tokens 自动解决
