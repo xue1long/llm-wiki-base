@@ -9,6 +9,107 @@ from src.wiki.storage.page_writer import write_page
 from src.wiki.features.indexer import append_to_index
 
 
+# ---------------------------------------------------------------------------
+# Phase 1.2 new rules (plan 1.2: placeholder / illegal relation /
+# synthesis gate / RAW-PASTE severity)
+# ---------------------------------------------------------------------------
+
+def _make_page(paths, slug, page_type, body, *, sources=None, relations=None):
+    page = WikiPage(id=slug, title=slug, type=page_type, body=body,
+                    sources=sources or [], relations=relations or [])
+    write_page(paths, page)
+    from src.wiki.storage.page_writer import page_path_for
+    md_path = page_path_for(paths, page_type, slug)
+    with md_path.open("a", encoding="utf-8") as fh:
+        fh.write(f"\n<!-- wiki-template-version: 3.0.0 -->\n"
+                 f"<!-- wiki-template-type: {page_type.value} -->\n")
+    return md_path
+
+
+def test_lint_placeholder_rule(tmp_path):
+    """Placeholder substring in body → LINT-PLACEHOLDER ERROR."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    _make_page(p, "ph-1", PageType.CONCEPT,
+               "## 定义\n\n见下游概念页\n",
+               sources=["raw/sources/a.md"])
+    report = lint_wiki(p)
+    hits = [i for i in report.issues if i.code == "LINT-PLACEHOLDER"]
+    assert len(hits) == 1
+    assert hits[0].severity == LintSeverity.ERROR
+
+
+def test_lint_placeholder_clean(tmp_path):
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    _make_page(p, "ph-ok", PageType.CONCEPT,
+               "## 定义\n\n正常内容\n",
+               sources=["raw/sources/a.md"])
+    report = lint_wiki(p)
+    assert not [i for i in report.issues if i.code == "LINT-PLACEHOLDER"]
+
+
+def test_lint_illegal_relation(tmp_path):
+    """relations[].type outside 17 built-ins + x-* → LINT-ILLEGAL-RELATION."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    from src.wiki.features.relations import Relation
+    rel = Relation(target_id="x", type="related_to", weight=0.5)
+    _make_page(p, "rel-1", PageType.CONCEPT,
+               "## 定义\n\n内容\n",
+               sources=["raw/sources/a.md"], relations=[rel])
+    report = lint_wiki(p)
+    hits = [i for i in report.issues if i.code == "LINT-ILLEGAL-RELATION"]
+    assert len(hits) == 1
+    assert hits[0].severity == LintSeverity.ERROR
+    # x-* is allowed
+    rel2 = Relation(target_id="x", type="x-致敬", weight=0.5)
+    _make_page(p, "rel-2", PageType.CONCEPT,
+               "## 定义\n\n内容\n",
+               sources=["raw/sources/a.md"], relations=[rel2])
+    report2 = lint_wiki(p)
+    assert not [i for i in report2.issues
+                if i.code == "LINT-ILLEGAL-RELATION" and i.page_id == "rel-2"]
+
+
+def test_lint_synthesis_gate(tmp_path):
+    """v3.0.0 synthesis page with <2 viewpoint wikilinks → ERROR."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    # Sources page so the synthesis can link it.
+    _make_page(p, "s-a", PageType.SOURCE, "## 摘要\n\nx\n",
+               sources=["raw/sources/a.md"])
+    _make_page(p, "syn-bad", PageType.SYNTHESIS,
+               "## 议题\n\n话题\n\n## 各方观点\n\n- 观点一\n\n"
+               "## 共识\n\nc\n\n## 证据对比\n\ne\n\n## 待定与结论\n\nz\n",
+               sources=["raw/sources/a.md", "raw/sources/b.md"])
+    report = lint_wiki(p)
+    hits = [i for i in report.issues if i.code == "LINT-SYNTHESIS-GATE"]
+    assert len(hits) == 1
+    assert hits[0].severity == LintSeverity.ERROR
+    assert hits[0].page_id == "syn-bad"
+    # two wikilinks pass (check only the new page — syn-bad stays flagged)
+    _make_page(p, "syn-ok", PageType.SYNTHESIS,
+               "## 议题\n\n话题\n\n## 各方观点\n\n- [[s-a]] 观点一\n- [[s-a]] 观点二\n\n"
+               "## 共识\n\nc\n\n## 证据对比\n\ne\n\n## 待定与结论\n\nz\n",
+               sources=["raw/sources/a.md", "raw/sources/b.md"])
+    report2 = lint_wiki(p)
+    assert not [i for i in report2.issues
+                if i.code == "LINT-SYNTHESIS-GATE" and i.page_id == "syn-ok"]
+
+
+def test_lint_raw_paste_source_fulltext_is_error(tmp_path):
+    """Source page with 正文内容 section → RAW-PASTE ERROR (was WARNING)."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    _make_page(p, "src-1", PageType.SOURCE,
+               "## 来源元数据\n\nm\n\n## 摘要\n\ns\n\n## 正文内容\n\n全文\n",
+               sources=["raw/sources/a.md"])
+    report = lint_wiki(p)
+    hits = [i for i in report.issues if i.code == "LINT-RAW-PASTE"]
+    assert hits and hits[0].severity == LintSeverity.ERROR
+
+
 def test_lint_clean_wiki_no_issues(tmp_path):
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
@@ -102,7 +203,11 @@ def _write_page_with_version(paths, slug, title, page_type, body, version):
 
 
 def test_lint_missing_section_warns_v2_template(tmp_path):
-    """v2 template page missing required heading → LINT-MISSING-SECTION WARNING."""
+    """v2 template page missing required heading → LINT-MISSING-SECTION ERROR.
+
+    Severity upgraded from WARNING to ERROR in plan 1.2 (H2) so the gate
+    can enforce M4; the test name is kept for continuity.
+    """
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
 
@@ -118,7 +223,7 @@ def test_lint_missing_section_warns_v2_template(tmp_path):
     report = lint_wiki(p)
     missing = [i for i in report.issues if i.code == "LINT-MISSING-SECTION"]
     assert len(missing) == 1
-    assert missing[0].severity == LintSeverity.WARNING
+    assert missing[0].severity == LintSeverity.ERROR
     assert missing[0].page_id == "kb-1"
     # Message names the missing headings.
     msg = missing[0].message

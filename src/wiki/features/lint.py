@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -58,7 +59,9 @@ _RAW_PASTE_THRESHOLD = 300
 # use a tighter threshold.  These are fallback defaults; the authoritative
 # values live in ``.index/quality_settings.json`` under the ``raw_paste``
 # key (written by Phase 0 calibration).
-_DEFAULT_T_SOURCE = 2000   # chars — generous; source-page summaries are ~300-800
+# T_source tightened 2000 → 800 (v3.0.0 source template drops main_content;
+# summaries are 300–800 chars — F5×H7 follow-up, Phase 3 calibrates).
+_DEFAULT_T_SOURCE = 800    # chars — v3.0.0 source summaries ~300-800
 _DEFAULT_T_NON = 300       # chars — same as the old single threshold
 
 # NDG Phase 2 — full-text section heading detector.
@@ -101,6 +104,27 @@ class LintReport:
 # callers wrap it in their own issue type / severity.
 
 _READABILITY_PLACEHOLDERS = {"(empty)", "(无内容)", "(占位)", "(placeholder)"}
+
+# Placeholder substrings that must never appear in a rendered body
+# (substring match, unlike _READABILITY_PLACEHOLDERS' whole-body equality).
+_PLACEHOLDER_SUBSTRINGS = (
+    "（系统占位",
+    "待补充",
+    "见下游概念页",
+    "来源未提供具体例子",
+)
+
+# 17 built-in relation types (src/pipeline/generator.py) — anything else
+# (unless x-*) is illegal.
+_BUILTIN_RELATIONS = frozenset({
+    "is_part_of", "contains", "references", "referenced_by", "causes",
+    "caused_by", "contradicts", "supports", "supported_by", "supersedes",
+    "superseded_by", "depends_on", "required_by", "analogous_to",
+    "opposite_of", "derived_from", "derives",
+})
+
+# Heading under which the v3.0.0 synthesis template lists viewpoint rows.
+_VIEWPOINTS_HEADING = "各方观点"
 
 
 def _readability_violation(page) -> str | None:
@@ -226,6 +250,36 @@ def _has_fulltext_section(body: str) -> bool:
     return False
 
 
+def _count_viewpoint_links(body: str) -> int:
+    """Count [[wikilinks]] inside the synthesis 各方观点 section.
+
+    The section runs from its heading to the next ``## `` heading. Fenced
+    code blocks are skipped. This is the F1-correct gate: it counts
+    resolvable link targets (existence check is done by the caller/对账),
+    independent of the frontmatter ``sources`` count.
+    """
+    lines = body.split("\n")
+    in_section = False
+    in_fence = False
+    count = 0
+    for line in lines:
+        stripped = line.strip()
+        if _FENCE_RE.match(stripped):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        if stripped.startswith("## "):
+            if stripped.lstrip("#").strip() == _VIEWPOINTS_HEADING:
+                in_section = True
+                continue
+            if in_section:
+                break
+        if in_section:
+            count += len(re.findall(r"\[\[([^\]]+)\]\]", line))
+    return count
+
+
 def _load_raw_paste_thresholds(paths: WikiPaths) -> tuple[int, int]:
     """Return ``(T_source, T_non)`` from the project quality-settings file.
 
@@ -292,6 +346,14 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
             page = read_page(Path(md_file))
             pages_seen.add(page.id)
 
+            # Read the raw file once for the template-version header (shared
+            # by MISSING-SECTION and SYNTHESIS-GATE).
+            try:
+                raw = md_file.read_text(encoding="utf-8")
+            except OSError:
+                raw = ""
+            vm = _TEMPLATE_VERSION_RE.search(raw)
+
             _read_violation = _readability_violation(page)
             if _read_violation == "empty_id":
                 issues.append(
@@ -346,7 +408,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
                     issues.append(
                         LintIssue(
                             code="LINT-RAW-PASTE",
-                            severity=LintSeverity.WARNING,
+                            severity=LintSeverity.ERROR,
                             message=(
                                 "Source page body contains a full-text / "
                                 "transcript section heading (e.g. 正文内容, "
@@ -440,14 +502,74 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
                     )
                 )
 
+            # LINT-PLACEHOLDER: no placeholder substring may appear in a body
+            # (system placeholders / 待补充 / 见下游概念页 / 来源未提供具体例子).
+            # Substring match — complements _READABILITY_PLACEHOLDERS (whole-body).
+            if any(p in page.body for p in _PLACEHOLDER_SUBSTRINGS):
+                issues.append(
+                    LintIssue(
+                        code="LINT-PLACEHOLDER",
+                        severity=LintSeverity.ERROR,
+                        message=(
+                            f"Page body contains a placeholder substring: {page.id}"
+                        ),
+                        page_id=page.id,
+                        suggestion=(
+                            "Replace the placeholder with substantive content "
+                            "or a truthful '无相关引用' statement."
+                        ),
+                    )
+                )
+
+            # LINT-ILLEGAL-RELATION: relations[].type must be one of the 17
+            # built-ins or an x-* user type (M9 / plan 1.2-6).
+            for rel in (page.relations or []):
+                rtype = rel.type if isinstance(rel.type, str) else rel.type.value
+                if rtype not in _BUILTIN_RELATIONS and not rtype.startswith("x-"):
+                    issues.append(
+                        LintIssue(
+                            code="LINT-ILLEGAL-RELATION",
+                            severity=LintSeverity.ERROR,
+                            message=(
+                                f"Illegal relation type {rtype!r} on page {page.id}"
+                            ),
+                            page_id=page.id,
+                            suggestion=(
+                                "Use one of the 17 built-in relation types or "
+                                "register an x-<name> type."
+                            ),
+                        )
+                    )
+
+            # LINT-SYNTHESIS-GATE: v3.0.0 synthesis pages must carry at least
+            # 2 resolvable [[wikilinks]] inside the 各方观点 section (F1 — the
+            # gate must not rely on frontmatter `sources` count, which is
+            # always 1 for pipeline-generated pages).
+            if _parse_version(vm.group(1)) >= (3, 0, 0) if vm else False:
+                if page.type == PageType.SYNTHESIS:
+                    viewpoints_links = _count_viewpoint_links(page.body)
+                    if viewpoints_links < 2:
+                        issues.append(
+                            LintIssue(
+                                code="LINT-SYNTHESIS-GATE",
+                                severity=LintSeverity.ERROR,
+                                message=(
+                                    "Synthesis page has fewer than 2 wikilinks "
+                                    f"in the {_VIEWPOINTS_HEADING} section: "
+                                    f"{page.id}"
+                                ),
+                                page_id=page.id,
+                                suggestion=(
+                                    "Each viewpoint must cite a source page "
+                                    "via [[wikilink]]."
+                                ),
+                            )
+                        )
+
             # LINT-MISSING-SECTION: v2+ template pages must include every
             # required heading. The parser strips the leading comment from
-            # page.body, so we re-read the raw file to read it.
-            try:
-                raw = md_file.read_text(encoding="utf-8")
-            except OSError:
-                raw = ""
-            vm = _TEMPLATE_VERSION_RE.search(raw)
+            # page.body, so we re-read the raw file to read it (vm already
+            # captured above).
             if vm and _parse_version(vm.group(1)) >= (2, 0, 0):
                 if page.processing_depth == "stub":
                     continue
@@ -458,12 +580,18 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
                     except Exception:
                         required = []
                     if required:
-                        # Each required slot maps to a `## Heading` whose
-                        # label is the slot name as written in the bundled
-                        # template. We compare by literal heading text.
-                        template_headings = {
-                            _heading_label(name, page.type) for name in required
-                        }
+                        page_ver = _parse_version(vm.group(1))
+                        project_ver = _parse_version(template.version or "2.0.0")
+                        if page_ver >= project_ver:
+                            heading_map = _template_heading_map(template, page.type)
+                            template_headings = {
+                                heading_map.get(n, _heading_label(n, page.type))
+                                for n in required
+                            }
+                        else:
+                            template_headings = {
+                                _heading_label(n, page.type) for n in required
+                            }
                         body_headings = set(_BODY_HEADING_RE.findall(page.body))
                         missing = sorted(
                             h for h in template_headings if h not in body_headings
@@ -472,7 +600,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
                             issues.append(
                                 LintIssue(
                                     code="LINT-MISSING-SECTION",
-                                    severity=LintSeverity.WARNING,
+                                    severity=LintSeverity.ERROR,
                                     message=(
                                         "Page is missing required sections "
                                         f"(template version >= 2.0.0): {missing}"
@@ -480,7 +608,7 @@ def lint_wiki(paths: WikiPaths, project_id: str = "default") -> LintReport:
                                     page_id=page.id,
                                     suggestion=(
                                         "Re-ingest the source so the page is "
-                                        "regenerated against the v2.3 schema, "
+                                        "regenerated against the active template, "
                                         "or add the missing sections manually."
                                     ),
                                 )
@@ -532,29 +660,67 @@ def _heading_label(slot_name: str, page_type: str = "") -> str:
     return _SLOT_TO_HEADING.get(slot_name, slot_name)
 
 
+def _template_heading_map(template, page_type: str) -> dict[str, str]:
+    """slot-name → ## heading map derived from the resolved template AST.
+
+    Preferred over the hardcoded ``_SLOT_TO_HEADING`` for pages whose
+    declared template version matches the project-resolved template
+    (H1): v3.0.0 synthesis reuses slot ``conclusion`` under the heading
+    "待定与结论" while bundled 2.0.0 calls it "结论" — a single hardcoded
+    map cannot express both.
+    """
+    from ..templates.parser import parse as _parse_tpl
+
+    try:
+        ast = _parse_tpl(template.body_markdown, expected_type=PageType(page_type))
+    except Exception:
+        return {}
+    out: dict[str, str] = {}
+    for section in ast.sections:
+        for slot in section.slots:
+            # Strip the `## ` prefix so the map matches _BODY_HEADING_RE
+            # output ('定义', not '## 定义').
+            out[slot.name] = section.heading.lstrip("#").strip()
+    return out
+
+
 # Mapping from canonical bundled slot names to the literal heading used
 # in their ## sections. Single source of truth — keep in lock-step with
-# src/wiki/templates/bundled/*.md.
+# src/wiki/templates/bundled/*.md AND project-level v3.0.0 templates.
 _SLOT_TO_HEADING = {
-    # source.md
+    # source.md (bundled 2.0.0 + project v3.0.0)
     "source_meta": "来源元数据",
     "summary": "摘要",
     "main_content": "正文内容",
     "key_points": "关键观点",
     "extracted_concepts": "抽取的概念",
+    # project v3.0.0 additions
+    "transcription_quality": "转录质量",
+    "credibility": "可信度声明",
     # entity.md
     "basic_info": "基本信息",
     "related": "相关引用",
+    # project v3.0.0 additions
+    "craft_value": "写作价值",
     # concept.md
     "definition": "定义",
     "characteristics": "主要特点",
     "examples": "例子",
     "related_concepts": "相关概念",
     "references": "参考来源",
-    # synthesis.md
+    # project v3.0.0 additions
+    "context": "适用场景",
+    "anti_patterns": "反模式与常见错误",
+    "evidence": "证据强度",
+    # synthesis.md (bundled 2.0.0)
     "comparison_dimensions": "对比维度",
     "overview": "综述",
     "involved_concepts": "涉及的概念",
     "comparison": "对比表",
     "conclusion": "结论",
+    # project v3.0.0 synthesis (分歧汇聚) — note: conclusion is reused
+    "topic": "议题与分歧点",
+    "viewpoints": "各方观点",
+    "consensus": "共识",
+    "evidence_comparison": "证据对比",
 }
