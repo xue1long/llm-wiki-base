@@ -1104,6 +1104,7 @@ def _make_tracking_provider(responses):
                            system=None, timeout=None, **kwargs):
             self.calls.append({
                 "max_tokens": kwargs.get("max_tokens"),
+                "messages": messages,
                 "response": responses[len(self.calls)],
             })
             resp = responses[len(self.calls) - 1]
@@ -1231,3 +1232,98 @@ async def test_call_with_slot_retry_escalation_still_applies_after_empty():
     assert provider.calls[0]["max_tokens"] == 8192   # attempt 0: base
     assert provider.calls[1]["max_tokens"] == 8192   # empty truncation: no escalation
     assert provider.calls[2]["max_tokens"] == 16384  # content truncation: escalated
+
+
+# ---------------------------------------------------------------------------
+# 1.3 H6 — missing_slugs_resolver：单调用内闭环（引用-产出对账反馈）
+# ---------------------------------------------------------------------------
+
+async def test_call_with_slot_retry_feeds_missing_slugs_back():
+    """首次产出引用幽灵 slug → resolver 报缺失 → 反馈进 prompt → 二次产出修正。"""
+    from src.llm.base import LLMResponse
+    from src.pipeline.generator import _call_with_slot_retry
+
+    ghost = LLMResponse(
+        content='{"pages": [{"id": "a", "type": "concept", "title": "A",'
+                ' "relations": [{"target": "幽灵概念"}]}]}',
+        model="glm-5.2", truncated=False,
+    )
+    fixed = LLMResponse(
+        content='{"pages": [{"id": "a", "type": "concept", "title": "A",'
+                ' "relations": [{"target": "现实概念"}]}]}',
+        model="glm-5.2", truncated=False,
+    )
+    provider = _make_tracking_provider([ghost, fixed])
+
+    seen = []
+
+    def resolver(pages):
+        targets = [r.get("target") for p in pages
+                   for r in (p.get("relations") or []) if r.get("target")]
+        missing = [t for t in targets if t not in {"现实概念", "a"}]
+        seen.append(list(missing))
+        return missing
+
+    result = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt="extract",
+        response_format={},
+        required_slots_by_type={},
+        max_tokens=8192,
+        missing_slugs_resolver=resolver,
+    )
+    assert len(provider.calls) == 2
+    assert seen == [["幽灵概念"], []]  # 首轮报缺失，二轮已修正
+    # 二轮 prompt 必须包含缺失 slug 反馈（单调用内闭环的证据）
+    second_prompt = provider.calls[1]["messages"][0]["content"]
+    assert "幽灵概念" in second_prompt
+    assert "MISSING PAGES" in second_prompt
+    assert result["pages"][0]["relations"][0]["target"] == "现实概念"
+
+
+async def test_call_with_slot_retry_missing_slugs_exhausted_returns_last():
+    """重试预算耗尽后仍返回本次产出（缺失由调用方记 gap，不抛错）。"""
+    from src.llm.base import LLMResponse
+    from src.pipeline.generator import _call_with_slot_retry
+
+    always_ghost = LLMResponse(
+        content='{"pages": [{"id": "a", "type": "concept", "title": "A",'
+                ' "relations": [{"target": "幽灵概念"}]}]}',
+        model="glm-5.2", truncated=False,
+    )
+    provider = _make_tracking_provider([always_ghost, always_ghost, always_ghost])
+
+    def resolver(pages):
+        return ["幽灵概念"]
+
+    result = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt="extract",
+        response_format={},
+        required_slots_by_type={},
+        max_tokens=8192,
+        missing_slugs_resolver=resolver,
+    )
+    assert len(provider.calls) == 3  # 初始 + 2 次反馈重试
+    assert result["pages"][0]["relations"][0]["target"] == "幽灵概念"
+
+
+async def test_call_with_slot_retry_no_resolver_unaffected():
+    """未传 resolver 时行为与既有实现一致（单次调用返回）。"""
+    from src.llm.base import LLMResponse
+    from src.pipeline.generator import _call_with_slot_retry
+
+    ok = LLMResponse(
+        content='{"pages": [{"id": "s", "type": "source", "title": "t"}]}',
+        model="glm-5.2", truncated=False,
+    )
+    provider = _make_tracking_provider([ok])
+    result = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt="extract",
+        response_format={},
+        required_slots_by_type={},
+        max_tokens=8192,
+    )
+    assert len(provider.calls) == 1
+    assert result["pages"][0]["id"] == "s"

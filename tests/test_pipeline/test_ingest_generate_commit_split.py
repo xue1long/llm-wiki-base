@@ -351,3 +351,103 @@ async def test_generate_returns_extra_pages_without_writing_them(tmp_path: Path)
     )
     on_disk_after = read_page(paths.wiki_entities / "old-target.md")
     assert any(r.type == "referenced_by" for r in on_disk_after.relations)
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.3 — 引用-产出对账 → gap 账本（H6/O6/H9：废除自动建 stub）
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_run_ingest_records_gap_for_ghost_reference(tmp_path: Path) -> None:
+    """生成的页面引用幽灵 slug → run_ingest 后 gap 账本记录（含 raw_hint），
+    且不再自动创建 stub 页（H9）。"""
+    import json
+
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "ghost-ref.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text("这是一篇引用不存在概念的文章。", encoding="utf-8")
+
+    provider = ScriptedLLMProvider([dict(x) for x in _CONCEPT_SCRIPT])
+
+    await run_ingest(
+        paths=paths,
+        source_path=raw,
+        source_text="这是一篇引用不存在概念的文章。",
+        provider=provider,
+        task_id="kb-ghost",
+    )
+
+    # gap 账本记录了幽灵引用（[[其他]]）
+    gap_file = tmp_path / ".index" / "knowledge_gaps.json"
+    assert gap_file.exists(), "gap ledger must be written by run_ingest"
+    data = json.loads(gap_file.read_text(encoding="utf-8"))
+    slugs = {g["slug"] for g in data["gaps"]}
+    assert "其他" in slugs
+    entry = next(g for g in data["gaps"] if g["slug"] == "其他")
+    assert entry["status"] == "open"
+    assert entry["raw_hint"] == "raw/sources/ghost-ref.md"
+    assert entry["referenced_by"], "gap must record the referencing page id"
+
+    # 不再自动创建 stub 页
+    stubs = list((tmp_path / "wiki" / "_stubs").glob("*.md")) if (tmp_path / "wiki" / "_stubs").exists() else []
+    assert stubs == [], "auto-stub creation must be removed (H9)"
+
+
+@pytest.mark.asyncio
+async def test_run_ingest_same_raw_twice_no_duplicate_gap(tmp_path: Path) -> None:
+    """同一 raw 连跑两次：gap 账本不重复新增（dedup + referenced_by 累积）。"""
+    import json
+
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "twice.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text("第二次摄取相同的文档。", encoding="utf-8")
+
+    provider = ScriptedLLMProvider([dict(x) for x in _CONCEPT_SCRIPT])
+
+    await run_ingest(paths=paths, source_path=raw,
+                     source_text="第二次摄取相同的文档。", provider=provider,
+                     task_id="kb-twice-1")
+    await run_ingest(paths=paths, source_path=raw,
+                     source_text="第二次摄取相同的文档。", provider=provider,
+                     task_id="kb-twice-2")
+
+    gap_file = tmp_path / ".index" / "knowledge_gaps.json"
+    data = json.loads(gap_file.read_text(encoding="utf-8"))
+    count = sum(1 for g in data["gaps"] if g["slug"] == "其他")
+    assert count == 1, "same raw re-ingest must not duplicate gap entries"
+
+
+@pytest.mark.asyncio
+async def test_run_ingest_blocklist_slug_not_in_gap(tmp_path: Path) -> None:
+    """blocklist slug（如 source-xxx）不进 gap 账本。"""
+    import json
+
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "blocked.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text("内容", encoding="utf-8")
+
+    blocked_script = [{
+        "pages": [{
+            "id": "c1", "type": "concept", "title": "概念",
+            "slots": {"definition": "定义内容足够长。", "characteristics": ["c"],
+                      "examples": ["e"], "related_concepts": ["[[source-补充教程]]"],
+                      "references": ["[[source-补充教程]]"]},
+        }],
+    }]
+    provider = ScriptedLLMProvider(blocked_script)
+
+    await run_ingest(paths=paths, source_path=raw, source_text="内容",
+                     provider=provider, task_id="kb-blocked")
+
+    gap_file = tmp_path / ".index" / "knowledge_gaps.json"
+    data = json.loads(gap_file.read_text(encoding="utf-8"))
+    assert all(g["slug"] != "source-补充教程" for g in data["gaps"]), (
+        "blocklisted slug must not enter the gap ledger"
+    )

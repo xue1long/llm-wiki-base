@@ -75,6 +75,11 @@ def create_stub_if_missing(project_root: Path, target: str) -> Path | None:
     so we bypass ``write_page`` and write the markdown directly.
 
     Returns the path to the created stub, or None if a real page already exists.
+
+    .. deprecated:: 1.3 (plan 1.3-6 / O1)
+       Automatic stub creation is removed — unresolved references now go to the
+       ``.index/knowledge_gaps.json`` ledger (``KnowledgeGapStore``) instead of
+       creating stub pages.  Kept only for backward-compatible callers/tests.
     """
     if resolve_wikilink(project_root, target):
         return None

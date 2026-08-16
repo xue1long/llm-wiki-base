@@ -125,12 +125,19 @@ class KnowledgeGapStore:
         referenced_by: str = "",
         max_entries: int = 3,
         now: int | None = None,
+        title_map: dict[str, str] | None = None,
+        raw_hint: str | None = None,
     ) -> list[str]:
         """Register unresolved slugs, applying blocklist + cap + dedup.
 
         Returns the slugs actually added. ``max_entries`` is a per-call
         hard cap (plan 1.3-4 — hallucination floods must not balloon the
         ledger); caller decides the cap per ingest batch.
+
+        ``title_map`` (plan 1.3 O6): slug → display title, stored on the
+        gap entry so Phase 4 can promote it with the real title. ``raw_hint``
+        is the raw source path that referenced the slug (Phase 4 gap-priority
+        batches resolve gaps by ingesting that raw file).
         """
         ts = now if now is not None else int(time.time() * 1000)
         added: list[str] = []
@@ -145,9 +152,14 @@ class KnowledgeGapStore:
             if existing:
                 if referenced_by and referenced_by not in existing.referenced_by:
                     existing.referenced_by.append(referenced_by)
+                if raw_hint and not existing.raw_hint:
+                    existing.raw_hint = raw_hint
                 continue
             self._gaps[slug] = KnowledgeGap(
-                slug=slug, referenced_by=[referenced_by] if referenced_by else [],
+                slug=slug,
+                referenced_by=[referenced_by] if referenced_by else [],
+                title=(title_map or {}).get(slug),
+                raw_hint=raw_hint,
                 created_at=ts,
             )
             added.append(slug)

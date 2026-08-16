@@ -519,6 +519,7 @@ async def unified_generate(
     schema_registry: Optional["SchemaRegistry"] = None,
     purpose_content: str = "",
     taxonomy_content: str = "",
+    missing_slugs_resolver=None,
 ) -> list[WikiPage]:
     """Single-pass: analyze source text + render wiki pages in one LLM call.
 
@@ -619,6 +620,7 @@ async def unified_generate(
         response_format=response_format,
         required_slots_by_type=required_slots_by_type,
         timeout=600.0,
+        missing_slugs_resolver=missing_slugs_resolver,
     )
 
     raw_pages = response_dict.get("pages", [])
@@ -902,6 +904,7 @@ async def generate_from_candidate(
     source_text: str = "",
     schema_registry: Optional["SchemaRegistry"] = None,
     taxonomy_content: str = "",
+    missing_slugs_resolver=None,
 ) -> list[WikiPage]:
     """Render wiki pages from a validated KnowledgeCandidate.
 
@@ -1006,6 +1009,7 @@ async def generate_from_candidate(
         response_format=response_format,
         required_slots_by_type=required_slots_by_type,
         timeout=600.0,
+        missing_slugs_resolver=missing_slugs_resolver,
     )
 
     raw_pages = response_dict.get("pages", [])
@@ -1125,6 +1129,7 @@ async def generate_from_knowledge_object(
     source_text: str = "",
     schema_registry: Optional["SchemaRegistry"] = None,
     taxonomy_content: str = "",
+    missing_slugs_resolver=None,
 ) -> list[WikiPage]:
     """Render wiki pages from a KnowledgeObject with frontmatter enforcement.
 
@@ -1228,6 +1233,7 @@ async def generate_from_knowledge_object(
         response_format=response_format,
         required_slots_by_type=required_slots_by_type,
         timeout=600.0,
+        missing_slugs_resolver=missing_slugs_resolver,
     )
 
     raw_pages = response_dict.get("pages", [])
@@ -1350,6 +1356,7 @@ async def generate(
     source_text: str = "",
     schema_registry: Optional["SchemaRegistry"] = None,
     taxonomy_content: str = "",
+    missing_slugs_resolver=None,
 ) -> list[WikiPage]:
     """Step 2: LLM call → list of WikiPage objects.
 
@@ -1472,6 +1479,7 @@ async def generate(
         response_format=response_format,
         required_slots_by_type=required_slots_by_type,
         timeout=600.0,
+        missing_slugs_resolver=missing_slugs_resolver,
     )
 
     raw_pages = response_dict.get("pages", [])
@@ -1656,6 +1664,7 @@ async def _call_with_slot_retry(
     required_slots_by_type: dict[PageType, list[str]],
     timeout: float = 180.0,
     max_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
+    missing_slugs_resolver=None,
 ) -> dict:
     """Call the LLM, retry once if any required slot is missing or the call times out.
 
@@ -1663,6 +1672,16 @@ async def _call_with_slot_retry(
     triggered by a truncated response (``TruncatedResponseError``) doubles it
     so a long multi-page JSON payload that got cut by the endpoint's cap can
     complete on the next attempt (batch-10 regression).
+
+    ``missing_slugs_resolver`` (plan 1.3 H6): optional ``Callable[[list[dict]],
+    list[str]]``. After a successful parse, if the resolver returns non-empty
+    unresolved slug list (references to pages that do not exist in 产出 ∪ 磁盘 ∪
+    SlugAliasRegistry ∪ 索引), the missing slugs are fed back into the prompt
+    and the call retries — a single-call closed loop that fixes references
+    WITHOUT re-running the whole pipeline.  References that still fail after
+    the retry budget are recorded in the returned ``pages`` and surfaced by
+    the caller (gap ledger) — the resolver is consulted on every attempt so
+    the final state is visible.
 
     Returns the parsed response dict (with ``pages`` key).
     """
@@ -1675,6 +1694,7 @@ async def _call_with_slot_retry(
     # An EMPTY truncation (sfkey quirk: length with 0 chars) does NOT bump:
     # nothing was generated, so a bigger cap can't help.
     _max_tokens_escalation = 0
+    _last_missing_slugs: list[str] = []
 
     # If startup check already marked this provider incompatible, skip the
     # response_format probe entirely on the first attempt.
@@ -1685,7 +1705,25 @@ async def _call_with_slot_retry(
         extra = ""
         attempt_max_tokens = max_tokens * (2 ** _max_tokens_escalation)
         if attempt > 0:
-            if last_missing:
+            if _last_missing_slugs:
+                # 1.3 内容层（H6）：单调用内闭环——把缺失 slug 清单反馈给 LLM
+                # 修正引用，不整条流水线重跑（不倍增 token）。
+                lines = [
+                    "## RETRY — YOUR LAST RESPONSE REFERENCED MISSING PAGES",
+                    "",
+                    "These slugs were referenced but do NOT exist in the wiki "
+                    "(no page on disk, not in the index, not in this response):",
+                ]
+                for _s in _last_missing_slugs:
+                    lines.append(f"- `{_s}`")
+                lines.append("")
+                lines.append(
+                    "Fix EVERY reference: either link to a page you ARE defining "
+                    "in this response, or to an existing wiki page. Do NOT invent "
+                    "new missing slugs."
+                )
+                extra = "\n\n" + "\n".join(lines) + "\n"
+            elif last_missing:
                 lines = [
                     "## RETRY — YOUR LAST RESPONSE HAD EMPTY REQUIRED SLOTS",
                     "",
@@ -1835,8 +1873,28 @@ async def _call_with_slot_retry(
             response_dict.get("pages", []),
             required_slots_by_type=required_slots_by_type,
         )
-        if not last_missing:
-            return response_dict
+        if last_missing:
+            # 槽缺失 → 下一轮以槽反馈重试
+            continue
+
+        # 1.3 H6：引用-产出对账（单调用内闭环）。resolver 判定缺失 slug；
+        # 非空且还有尝试次数 → 反馈修正引用；耗尽后返回（由调用方记 gap）。
+        if missing_slugs_resolver is not None:
+            _last_missing_slugs = list(missing_slugs_resolver(
+                response_dict.get("pages", []),
+            ))
+            if _last_missing_slugs:
+                _logger.warning(
+                    "[Generator] %d unresolved reference(s) on attempt %d/%d: %s",
+                    len(_last_missing_slugs), attempt + 1, MAX_GEN_ATTEMPTS,
+                    ", ".join(_last_missing_slugs[:10]),
+                )
+                if attempt == MAX_GEN_ATTEMPTS - 1:
+                    # 重试预算耗尽：仍返回本次产出，missing 由调用方记入 gap 账本。
+                    return response_dict
+                continue
+
+        return response_dict
 
     return last_response
 

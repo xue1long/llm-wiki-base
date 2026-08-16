@@ -51,6 +51,26 @@ def test_dedup_and_reference_accumulation(store: KnowledgeGapStore) -> None:
     assert gap.referenced_by == ["p1", "p2"]
 
 
+def test_title_map_and_raw_hint(store: KnowledgeGapStore) -> None:
+    """plan 1.3 O6：gap 记录携带 title（Phase 4 promote 用）与 raw_hint（定位 raw）。"""
+    added = store.add_many(
+        ["装逼打脸", "力量体系"],
+        referenced_by="p1",
+        title_map={"装逼打脸": "装逼打脸", "力量体系": "力量体系"},
+        raw_hint="raw/sources/xxx.md",
+    )
+    assert added == ["装逼打脸", "力量体系"]
+    gap = store.get("力量体系")
+    assert gap.title == "力量体系"
+    assert gap.raw_hint == "raw/sources/xxx.md"
+    # 二次写入保留 title/raw_hint（已存在条目不回填覆盖，只补 referenced_by）
+    store.add_many(["力量体系"], referenced_by="p2")
+    gap2 = store.get("力量体系")
+    assert gap2.title == "力量体系"
+    assert gap2.raw_hint == "raw/sources/xxx.md"
+    assert gap2.referenced_by == ["p1", "p2"]
+
+
 def test_status_transitions(store: KnowledgeGapStore) -> None:
     store.add_many(["g1"], referenced_by="p1")
     assert store.resolve("g1") is True

@@ -470,6 +470,11 @@ async def generate_ingest(
     analysis = None  # type: ignore[assignment]
     pages: list[WikiPage] = []
     from .generator import get_max_source_chars as _get_max_source_chars
+    # 1.3 H6：单调用内闭环 resolver —— 缺失 slug 反馈进 generator，不整链重跑。
+    from .reconcile import make_missing_slugs_resolver
+    _missing_resolver = make_missing_slugs_resolver(
+        paths, produced_prefix={_source_slug_for_map},
+    )
     if len(_sanitized_source_text) > _get_max_source_chars():
         try:
             analysis = await _analyze_chunked(
@@ -493,6 +498,7 @@ async def generate_ingest(
                 source_text=_sanitized_source_text,
                 schema_registry=schema_registry,
                 taxonomy_content=_taxonomy_text,
+                missing_slugs_resolver=_missing_resolver,
             )
             _logger.info(
                 "[run_ingest] chunked path produced %d pages for %s",
@@ -524,6 +530,7 @@ async def generate_ingest(
                 schema_registry=schema_registry,
                 purpose_content=_purpose_text,
                 taxonomy_content=_taxonomy_text,
+                missing_slugs_resolver=_missing_resolver,
             )
             _logger.info(
                 "[run_ingest] unified path produced %d pages for %s",
@@ -562,6 +569,7 @@ async def generate_ingest(
                 source_text=_sanitized_source_text,
                 schema_registry=schema_registry,
                 taxonomy_content=_taxonomy_text,
+                missing_slugs_resolver=_missing_resolver,
             )
 
     # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.
@@ -826,188 +834,22 @@ async def generate_ingest(
     else:
         pages.append(source_page)
 
-    # Fix E: scan every relation target across all generated pages
-    # and create a stub entity page for any slug that has no matching
-    # wiki page. Without this, references like ``[[佛本是道]]`` end up
-    # as dangling wikilinks — the wiki graph can't be navigated to the
-    # referenced page, the search index doesn't include the entity,
-    # and Obsidian / downstream tools show broken links.
-    #
-    # Slug normalisation: slugify() strips leading/trailing hyphens
-    # (2026-07-30 fix), so ``[[-家庭烧伤处理-]]`` and a concept page
-    # with id ``家庭烧伤处理`` now share the same canonical slug and no
-    # longer produce duplicate entity stubs.
-    #
-    # Strategy:
-    #   1. Collect every slug referenced by any ``relations[].target``,
-    #      plus the source page slug, plus the analyzer's
-    #      ``links_to_existing`` (normalize through slugify so the same
-    #      comparison is consistent with how generator named pages).
-    #   2. Subtract the slugs that already have a page (either written
-    #      this run, or pre-existing on disk).
-    #   3. Emit a stub entity page for each remaining slug. Stubs are
-    #      marked ``grade=C``, ``processing_depth=stub``, body
-    #      explains that the entity was referenced but not described.
-    #   4. Future ingests that include this entity in
-    #      ``suggested_pages`` will replace the stub (write_page
-    #      overwrites by default).
-    from ..utils.slugify import slugify as _slugify
-
-    # The LLM may produce slugs with a type prefix (e.g.
-    # ``concept-穿越小说角色塑造套路``) because ``_format_wiki_index``
-    # renders the existing-wiki list as ``- type: slug``.  Strip those
-    # prefixes before stub-matching so we don't create bogus stubs with
-    # ids like ``concept-some-real-concept``.
-    _KNOWN_TYPE_PREFIXES = tuple(f"{pt.value}-" for pt in PageType)
-
-    def _strip_type_prefix(raw: str) -> str:
-        for _pfx in _KNOWN_TYPE_PREFIXES:
-            if raw.startswith(_pfx) and len(raw) > len(_pfx):
-                return raw[len(_pfx):]
-        return raw
-
-    referenced_slugs: set[str] = set()
-    _ref_counts: dict[str, int] = {}
-    for page in pages:
-        for rel in (page.relations or []):
-            # Relation dataclass field is ``target_id`` (the YAML key is
-            # ``target`` after to_dict() — see src/wiki/features/relations.py).
-            tgt = getattr(rel, "target_id", None) or getattr(rel, "target", None)
-            if tgt:
-                _canon = _strip_type_prefix(_slugify(tgt) or tgt)
-                referenced_slugs.add(_canon)
-                _ref_counts[_canon] = _ref_counts.get(_canon, 0) + 1
-        for src in (page.sources or []):
-            # Skip the source path itself — that's not a wiki slug.
-            pass
-    if _has_analysis:
-        for link in (analysis.links_to_existing or []):
-            _canon = _strip_type_prefix(_slugify(link) or link)
-            referenced_slugs.add(_canon)
-            _ref_counts[_canon] = _ref_counts.get(_canon, 0) + 1
-
-    # B10: scan each generated page's body for [[wikilinks]] that are not
-    # captured by the structured `relations` list above. `_extract_wikilink_targets`
-    # strips any `|alias` / `#section` suffix; slugify then makes the stub id
-    # match the page id (which is also slugified). Bodies may reference pages
-    # that exist or will be produced this run; Fix E subtracts both sets below.
-    for page in pages:
-        for _tgt in _extract_wikilink_targets(page.body):
-            _canon = _strip_type_prefix(_slugify(_tgt) or _tgt)
-            referenced_slugs.add(_canon)
-            _ref_counts[_canon] = _ref_counts.get(_canon, 0) + 1
-
-    produced_slugs = {p.id for p in pages}
-    # Existing wiki pages (across all four type directories) — reuse the
-    # index scanned at the top of run_ingest (_existing_wiki). The previous
-    # implementation built attribute names via f"wiki_{pt.value}s", which
-    # yields wiki_entitys / wiki_synthesiss (PageType values are singular)
-    # and raised AttributeError, silently swallowed, so ENTITY/SYNTHESIS
-    # slugs were never counted (B11).
-    existing_slugs: set[str] = set(_existing_wiki.keys())
-
-    # Build a lookup from slug → {name, context} so stub titles can use
-    # the original Chinese name from the analyzer rather than a mechanical
-    # slug→title transform (which yields pinyin for CJK terms).
-    _analyzer_name_map: dict[str, str] = {}
-    _analyzer_context_map: dict[str, str] = {}
-    if _has_analysis:
-        for e in (analysis.entities or []):
-            if e.slug:
-                _analyzer_name_map[e.slug] = e.name or ""
-                _analyzer_context_map[e.slug] = e.context or ""
-        for e in (analysis.concepts or []):
-            if e.slug:
-                _analyzer_name_map[e.slug] = e.name or e.concept or ""
-                _analyzer_context_map[e.slug] = e.context or ""
-        for p in (analysis.suggested_pages or []):
-            if p.slug:
-                _analyzer_name_map[p.slug] = p.title or ""
-                _analyzer_context_map[p.slug] = p.reasoning or ""
-
-    missing = referenced_slugs - produced_slugs - existing_slugs
-
-    # P2 quality gate: exclude non-domain slugs (platform names, org names).
-    _blocklist = _get_stub_blocklist()
-    if _blocklist:
-        filtered = missing - _blocklist  # type: ignore[operator]
-        if len(filtered) < len(missing):
-            _logger.info(
-                "[run_ingest] filtered %d blocklisted slug(s) from stubs: %s",
-                len(missing) - len(filtered),
-                ", ".join(sorted(missing & _blocklist)),
-            )
-        missing = filtered
-
-    # P2 quality gate: rank stub candidates — drop document-title variants
-    # (stubs ending with the source page's hash) and keep at most
-    # ``_max_stubs`` by reference-count / analyzer-confidence, instead of the
-    # old all-or-nothing suppression (batch-50).
-    _max_stubs = _get_max_stubs_per_ingest()
-    _source_slug = next(
-        (p.id for p in pages if p.type == PageType.SOURCE), ""
+    # ── 1.3 H9：引用-产出对账（替代旧的 Fix E 自动建 stub）──────────────
+    # 不再自动创建 stub entity 页（H9 整改——stub 与 gap 语义重叠，M11 门禁
+    # 会被 165 个存量 stub 淹没）。未解析的引用写入 KnowledgeGapStore
+    # （在 commit 路径落盘；generate_ingest 保持零磁盘写）。判定集合 =
+    # 产出 ∪ 磁盘页 ∪ SlugAliasRegistry 可解析 ∪ 索引，全部经统一归一函数
+    # normalize_reconcile_slug 比对（B-H3，消解 CJK 顿号假断链）。
+    from .reconcile import collect_missing_slugs
+    _missing_gaps: list[tuple[str, str]] = collect_missing_slugs(
+        pages, paths, produced_slugs={p.id for p in pages},
     )
-    _analyzer_named = set(_analyzer_name_map.keys())
-    _ranked_missing = _rank_stub_candidates(
-        missing, _max_stubs, _source_slug, _ref_counts, _analyzer_named,
-    )
-    if len(_ranked_missing) < len(missing):
-        _logger.warning(
-            "[run_ingest] stub selection dropped %d of %d candidates "
-            "(cap %d, doc-title variants excluded): %s",
-            len(missing) - len(_ranked_missing), len(missing), _max_stubs,
-            ", ".join(sorted(missing - set(_ranked_missing))[:20]),
-        )
-    missing = set(_ranked_missing)
-
-    if missing:
+    _missing_slugs = [s for s, _ in _missing_gaps]
+    if _missing_slugs:
         _logger.info(
-            f"[run_ingest] creating {len(missing)} stub entity page(s): "
-            f"{sorted(missing)[:5]}{'...' if len(missing) > 5 else ''}"
+            f"[run_ingest] {len(_missing_slugs)} unresolved reference(s) → gap ledger: "
+            f"{_missing_slugs[:5]}{'...' if len(_missing_slugs) > 5 else ''}"
         )
-    for slug in sorted(missing):
-        # Best-effort title: prefer the analyzer's original Chinese name
-        # (e.g. "总裁文"); fall back to mechanical slug→text transform.
-        analyzer_title = _analyzer_name_map.get(slug, "")
-        if analyzer_title and any('一' <= c <= '鿿' for c in analyzer_title):
-            # Analyzer gave us a real Chinese name — use it verbatim.
-            title = analyzer_title
-        elif analyzer_title:
-            title = analyzer_title
-        else:
-            slug_text = slug.replace("-", " ")
-            title = (
-                slug_text.title()
-                if all(c.islower() or c.isdigit() or c.isspace() for c in slug_text)
-                else slug_text
-            )
-
-        # Stub body: include analyzer context when available so the stub
-        # is at least somewhat informative.
-        analyzer_ctx = _analyzer_context_map.get(slug, "")
-        ctx_line = (
-            f"\n\n**分析器上下文:** {analyzer_ctx}"
-            if analyzer_ctx else ""
-        )
-        stub_body = (
-            f"## 占位条目\n\n"
-            f"此页面被其他页面引用（例如 `[[{slug}]]`），但本此摄取中 Generator 未生成"
-            f"该实体的独立页面。{ctx_line}\n\n"
-            f"来源摄取: `{source_path}` (task `{task_id}`)。\n\n"
-            f"下次摄取如果包含此实体的详细内容，系统会自动用真实内容替换本占位页。\n"
-        )
-        pages.append(WikiPage(
-            id=slug,
-            title=title,
-            type=PageType.ENTITY,
-            sources=[normalize_source_path(str(source_path), paths.root)],
-            body=stub_body,
-            grade="C",               # stub → lower grade than generated pages
-            processing_depth="stub",
-            is_immutable=False,
-            created_at=int(__import__("time").time() * 1000),
-            updated_at=int(__import__("time").time() * 1000),
-        ))
 
     # B13: compute reverse (inverse) edges in-memory so the relation graph
     # is bidirectional on disk. New pages are mutated in-place; pre-existing
@@ -1060,6 +902,10 @@ async def generate_ingest(
         "extra_pages_count": len(extra_pages),
         "rejected": bool(_result.warnings),
         "warnings": _result.warnings,
+        # 1.3 O6：未解析引用（commit 路径写 KnowledgeGapStore）
+        "missing_slugs": [
+            {"slug": s, "referenced_by": [r]} for s, r in _missing_gaps
+        ],
     }
 
 
@@ -1243,12 +1089,18 @@ async def commit_ingest(
     extra_pages: list[WikiPage] | None = None,
     task_id: str = "test",
     triage_result=None,
+    missing_slugs: list | None = None,
 ):
     """Phase 2 (NDG split): write pages + index update + log.
 
     The I/O half that was previously at the tail of ``run_ingest``.
     ``extra_pages`` are pre-existing pages that gained inverse edges
     (written to disk but NOT re-appended to the index).
+
+    ``missing_slugs`` (plan 1.3 O6): ``[{"slug", "referenced_by": [...]}]``
+    from the reconciliation — persisted to ``.index/knowledge_gaps.json``
+    so Phase 4 gap-priority batches can resolve them by ingesting the
+    referencing raw file.
     """
     from .quality_gate import check_pages
     from .triage import TriageResult, write_triage_result
@@ -1283,6 +1135,31 @@ async def commit_ingest(
     if triage_result is not None:
         write_triage_result(paths, triage_result)
 
+    # 1.3 O6：未解析引用 → gap 账本（原子写，继承 blocklist/上限/doc-title 过滤）。
+    if missing_slugs:
+        from ..wiki.features.knowledge_gaps import KnowledgeGapStore
+        _store = KnowledgeGapStore(paths.root)
+        # raw_hint 用规范化相对路径（raw/sources/...），Phase 4 按此定位 raw。
+        _raw_hint = normalize_source_path(str(source_path), paths.root)
+        _title_map = {m["slug"]: m.get("title") for m in missing_slugs
+                      if m.get("title")}
+        _added = _store.add_many(
+            [m["slug"] for m in missing_slugs],
+            referenced_by=", ".join(
+                ref for m in missing_slugs for ref in (m.get("referenced_by") or [])
+            ),
+            title_map=_title_map,
+            raw_hint=_raw_hint,
+            max_entries=_get_max_stubs_per_ingest(),
+        )
+        if _added:
+            _store.save()
+            _logger.info(
+                "[run_ingest] recorded %d gap(s) for %s: %s",
+                len(_added), Path(str(source_path)).name,
+                ", ".join(_added[:10]),
+            )
+
 
 async def run_ingest(
     paths: WikiPaths,
@@ -1311,6 +1188,7 @@ async def run_ingest(
         extra_pages=extra_pages,
         task_id=task_id,
         triage_result=_meta.get("triage"),
+        missing_slugs=_meta.get("missing_slugs"),
     )
     return pages
 
