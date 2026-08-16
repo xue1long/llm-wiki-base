@@ -11,8 +11,8 @@
 | Phase 0 基线+盲区+index | ✅ | 见 handoff（0.1/0.2/0.3） |
 | Phase 1 平台改造 | ✅ 10/10 | 见 handoff（1.1–1.9 + 1.3 对账 + 1.9 备注） |
 | **Phase 2 场景模板落地** | ✅ 2/2 | 2.1 + 2.2 已完成（2026-08-16） |
-| Phase 3 实测首轮 | ⬜ | 未开始 |
-| Phase 4 全量分批重摄入 | ⬜ | 未开始 |
+| Phase 3 实测首轮 | ⚠️ 部分达标 | 链路跑通 + 4 缺陷修复；M1/M4 残留 → **回 Phase 1 修**（见下） |
+| Phase 4 全量分批重摄入 | ⬜ | 未开始（等 Phase 1 follow-up） |
 | Phase 4.5 synthesis 聚合 | ⬜ | 未开始 |
 | Phase 5 终验 | ⬜ | 未开始 |
 
@@ -37,10 +37,38 @@
 - **确认**：4 模板与 spec §4.5 一致（concept 8 必填 / source 5 必填 / entity 4 必填+aliases? 可选 / synthesis 5 必填）；`wiki-templates list`（cwd=novel-wiki）全部 project 3.0.0 ok；lint 解析 3.0.0 槽集正确（与 test_templates_v3.py EXPECTED 一致）。
 - 旧 concept.md（ed2c6521 引入可选槽）已在 Phase 1.1 d5120d7c 被 v3.0.0 替换，无残留。
 
+## Phase 3 实测首轮记录（2026-08-16）⚠️ 部分达标，回 Phase 1 修
+
+**执行**：
+- `scripts/plan_gap_first_batch.py`（新建）：B12 缺口优先清单生成器（unreferenced_raw 63 + hallucinated 70 → 47 可对齐 raw → 取 ≤20 个 ≤8000 字符 .md，排除 download_progress/长文档），落盘 `.index/reingest_backlog.json`
+- `scripts/phase3_accept.py`（新建）：批内验收（mtime 窗口 + v3.0.0 版本双重过滤确定批内集合 → batch_gate_v3.gate_batch → 断言 M1/M4/M7/M6）
+- 实测：18 raw（跳过 2 个问题文件）→ 110 页 commit，`gate PASS`、`POSTCHECK 过`，~27 次 LLM 调用；gap 账本落地 10 条
+
+**Phase 3 实测发现的 4 个缺陷（已修复 + 提交）**：
+1. `fix(pipeline): commit_ingest 接受 event 参数`（fe2e484b）——extras 反向关系页提交必失败（phase4_batch 传 event= 但签名无此参数）
+2. `fix(lint): MISSING-SECTION 版本门——存量 2.0.0 页按 bundled 2.0.0 槽检查`（e601cc30）——项目级 v3.0.0 模板下 2.0.0 页被误要求 v3.0.0 槽
+3. `fix(scripts): phase4_batch 透传 missing_slugs → commit_ingest`（9c45665c）——gap 账本在 batch 路径从未写入（1.3 O6 接线缺口）
+4. `fix(wiki): M1 断链判定归一 slug 变体`（99480152）——双横线假断链
+
+**验收结论（`.index/batch_reports/batch_001.json`，不入 git）**：
+- ✅ 达标：M4 missing_sections=0、M7 全文污染=0、M6 synthesis 触发（1 页）、链路/门禁/POSTCHECK 全过
+- ❌ 不达标：M1 批内残留 2 个断链（`玄幻小说→[[玄幻与仙侠区分对比]]`、`都市重生→[[重生文]]`——collect_missing_slugs 覆盖缺口，存量重建页引用未捕获）、M4 占位符 17 个（generator prompt 教 LLM 填"来源未提供具体例子"与 lint ERROR 冲突）
+- 按 plan guidance 第 4 条：**任一不达标 → 回 Phase 1 修，不进入 Phase 4**
+
+**Phase 1 follow-up 待办**（下次会话起点）：
+- A. generator prompt 移除"来源未提供具体例子" fallback 指示（与 lint `_PLACEHOLDER_SUBSTRINGS` 对齐；改为省略空槽或改写）——M4 占位符归零
+- B. collect_missing_slugs 对存量重建页（--allow-overwrite 覆盖的旧页）的引用捕获覆盖——M1 归零
+- C. （可选）batch_gate_v3 的 gap 剔除用归一后匹配（当前精确匹配，gap 变体可能漏）
+
+**环境注记（追加）**：真实 LLM provider = `sfkey-glm`（glm-5.2 @ api.sfkey.cn，注册于 `%LOCALAPPDATA%\ruflo-kb\ruflo-kb\llm-providers.json`）；`~/.config/ruflo-kb/env` 的 `RUFLO_LLM_PROVIDER=sfkey-glm` 是旧壳。Ollama 不可达。
+
 ## 回归
 
-- `tests/test_wiki/` 399 passed；注入链路 + taxonomy/schema/tags 相关 57 passed。
+- `tests/test_wiki/` 399 passed；注入链路 + taxonomy/schema/tags 相关 57 passed；Phase 3 修复后 metrics/lint/retry/split 相关全绿。
 
 ## 下一步
 
-Phase 3 实测首轮（门）：首批 = 缺口优先（被引用但无 source 页的 raw，≤20 文件，只含 .md，过滤 download_progress.json 等），跑 1.5 门禁 + 0.1 基线断言；不达标回 Phase 1 修，不进入 Phase 4。
+**Phase 1 follow-up**（Phase 3 门槛未过，不进入 Phase 4）：
+- A. generator prompt 占位符 fallback 与 lint 对齐（M4）
+- B. collect_missing_slugs 存量重建页引用捕获（M1）
+- 修复后重跑 batch_001 验收，达标才进 Phase 4 执行模型重写。
