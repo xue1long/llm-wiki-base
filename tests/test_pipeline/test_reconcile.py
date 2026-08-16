@@ -84,6 +84,22 @@ def test_collect_missing_slugs_references_and_provenance(tmp_path):
     assert by_slug["另一个幽灵"] == "p2"
 
 
+def test_missing_slugs_resolver_scans_list_slots(tmp_path):
+    """槽值是 wikilink 数组（LLM 常见形态）时也要扫到幽灵引用。"""
+    paths = _make_paths(tmp_path)
+    resolver = make_missing_slugs_resolver(paths)
+    pages = [{
+        "id": "c1",
+        "relations": [],
+        "slots": {"related_concepts": ["[[现实概念]]", "[[幽灵A]]"], "references": "[[幽灵B]]"},
+    }]
+    missing = resolver(pages)
+    assert "幽灵A" in missing
+    assert "幽灵B" in missing
+    assert "现实概念" in missing  # 未产出且不在磁盘，确实缺失
+    assert "c1" not in missing    # 本批产出 id 可解析
+
+
 def test_collect_missing_slugs_excludes_resolvable(tmp_path):
     """产出/磁盘/别名/索引内目标不记 gap。"""
     paths = _make_paths(tmp_path)

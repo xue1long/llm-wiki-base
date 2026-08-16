@@ -116,12 +116,16 @@ def make_missing_slugs_resolver(
                         seen.add(norm)
                         missing.append(tgt)
             for slot in (p.get("slots") or {}).values():
-                if isinstance(slot, str):
-                    for _t in _extract_wikilink_targets(slot):
-                        norm = normalize_reconcile_slug(_t)
-                        if norm and norm not in resolvable and norm not in seen:
-                            seen.add(norm)
-                            missing.append(_t)
+                # 槽值可能是字符串或字符串数组（LLM 常把 wikilink 数组输出为
+                # ["[[a]]", "[[b]]"]）——两种形态都要扫。
+                values = slot if isinstance(slot, list) else [slot]
+                for v in values:
+                    if isinstance(v, str):
+                        for _t in _extract_wikilink_targets(v):
+                            norm = normalize_reconcile_slug(_t)
+                            if norm and norm not in resolvable and norm not in seen:
+                                seen.add(norm)
+                                missing.append(_t)
         return missing
 
     return resolver
