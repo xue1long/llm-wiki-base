@@ -22,8 +22,19 @@ def test_valid():
     assert is_valid("状态/完结")
     assert is_valid("素材/ugc")
     assert is_valid("可信度/book")
-    # All 10 prefixes registered
-    assert len(TAG_PREFIXES) == 10
+    # Phase 1.4 additions
+    assert is_valid("读者群/男频")
+    assert is_valid("平台/起点")
+    # All 12 prefixes registered
+    assert len(TAG_PREFIXES) == 12
+
+
+def test_new_prefix_values():
+    """读者群/平台 枚举约束（Q13）。"""
+    assert is_valid_value("读者群/女频")
+    assert is_valid_value("平台/晋江")
+    assert not is_valid_value("读者群/其它")
+    assert not is_valid_value("平台/其它站")
 
 
 def test_invalid():
