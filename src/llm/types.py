@@ -55,6 +55,7 @@ class ProviderConfig:
     default_embedding_model: str = ""
     timeout_seconds: int = 120
     extra_headers: dict[str, str] = field(default_factory=dict)
+    extra_body: dict[str, object] = field(default_factory=dict)
     # Runtime-only hint (NEVER serialised). True when the api_key was
     # materialised from os.environ by _default_providers() rather than
     # explicit user input via `llm-providers add`. Registry.save() uses
@@ -83,6 +84,7 @@ class ProviderConfig:
             "default_embedding_model": self.default_embedding_model,
             "timeout_seconds": self.timeout_seconds,
             "extra_headers": self.extra_headers,
+            "extra_body": self.extra_body,
         }
 
     @classmethod
@@ -100,4 +102,5 @@ class ProviderConfig:
             default_embedding_model=d.get("default_embedding_model", ""),
             timeout_seconds=d.get("timeout_seconds", 120),
             extra_headers=d.get("extra_headers", {}),
+            extra_body=d.get("extra_body", {}),
         )

@@ -137,6 +137,9 @@ class OpenAIProvider(LLMProvider):
         }
         if kwargs.get("max_tokens") is not None:
             body["max_tokens"] = kwargs["max_tokens"]
+        # 合并 extra_body（如 {"thinking": false} 禁用 reasoning 模型思考）
+        if self.config.extra_body:
+            body.update(self.config.extra_body)
         if response_format:
             # Auto-downgrade: if startup check found this provider
             # incompatible with the pipeline's non-standard schema, skip
