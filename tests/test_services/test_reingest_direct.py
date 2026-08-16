@@ -276,3 +276,96 @@ async def test_resume_pending_deletion_reruns_rebuild(paths, monkeypatch) -> Non
     assert result["status"] == "done"
     assert result["branch"] in ("first_ingest", "reingest")
     assert raw_status(load_batch_state(paths), "batch_1", "raw/sources/e.md") == "done"
+
+
+# ── review I1：续跑必须清理残留向量 ───────────────────────────────
+
+async def test_resume_cleans_stale_vectors(paths, monkeypatch) -> None:
+    """崩溃在 cascade 与 delete_by_source 之间 → 续跑（resume 分支）仍删旧向量。"""
+    _mk_raw(paths.root, "raw/sources/f.md")
+    set_raw_status(paths, "batch_1", "raw/sources/f.md", "pending_deletion")
+    calls = {"delete_vec": 0, "init": 0, "run_ingest": 0}
+
+    async def _fake_run_ingest(*a, **k):
+        calls["run_ingest"] += 1
+        return [WikiPage(id="f2", title="新", type=PageType.SOURCE,
+                         sources=["raw/sources/f.md"], body="新正文")]
+
+    def _fake_delete(paths, raw):
+        calls["delete_vec"] += 1
+        return 2
+
+    def _fake_init(paths, expected_dim=None):
+        calls["init"] += 1
+        return None
+
+    monkeypatch.setattr(_vec_mod, "delete_by_source", _fake_delete)
+    monkeypatch.setattr(_vec_mod, "init_vector_store_for_paths", _fake_init)
+    monkeypatch.setattr(_pi_mod, "run_ingest", _fake_run_ingest)
+
+    result = await reingest_source_direct(
+        paths, "raw/sources/f.md", provider=object(),
+        batch_key="batch_1", task_id="b1", resume_from_pending_deletion=True,
+    )
+    assert calls["init"] == 1
+    assert calls["delete_vec"] == 1          # 旧向量仍被清理（幂等）
+    assert calls["run_ingest"] == 1
+    assert result["status"] == "done"
+
+
+# ── review I2：重建失败契约（禁止 pending_deletion 悬空）──────────
+
+async def test_rebuild_failure_marks_failed(paths, monkeypatch) -> None:
+    """重建段异常 → 先落 failed 状态再抛（pending_deletion 不悬空）。"""
+    _mk_raw(paths.root, "raw/sources/g.md")
+    _mk_source_page(paths.root, "raw/sources/g.md", source_id="src-g")
+    calls = {"cascade": 0}
+
+    def _fake_cascade(paths, sid):
+        calls["cascade"] += 1
+        return {"deleted_pages": ["src-g"], "updated_pages": []}
+
+    async def _boom(*a, **k):
+        raise RuntimeError("provider down")
+
+    def _fake_init(paths, expected_dim=None):
+        return None
+
+    monkeypatch.setattr(_cd_mod, "cascade_delete", _fake_cascade)
+    monkeypatch.setattr(_pi_mod, "run_ingest", _boom)
+    monkeypatch.setattr(_vec_mod, "init_vector_store_for_paths", _fake_init)
+
+    import pytest as _pytest
+    with _pytest.raises(RuntimeError, match="provider down"):
+        await reingest_source_direct(
+            paths, "raw/sources/g.md", provider=object(),
+            batch_key="batch_1", task_id="b1",
+        )
+    state = load_batch_state(paths)
+    assert raw_status(state, "batch_1", "raw/sources/g.md") == "failed"
+    assert "provider down" in state["batch_1"]["raw_states"]["raw/sources/g.md"]["last_error"]
+
+
+async def test_rebuild_missing_raw_marks_permanent_failed(paths, monkeypatch) -> None:
+    """raw 文件缺失 → permanent_failed（非瞬态，不重投）。"""
+    _mk_raw(paths.root, "raw/sources/h.md")
+    _mk_source_page(paths.root, "raw/sources/h.md", source_id="src-h")
+    (paths.root / "raw/sources/h.md").unlink()   # raw 被删
+
+    def _fake_cascade(paths, sid):
+        return {"deleted_pages": ["src-h"], "updated_pages": []}
+
+    def _fake_init(paths, expected_dim=None):
+        return None
+
+    monkeypatch.setattr(_cd_mod, "cascade_delete", _fake_cascade)
+    monkeypatch.setattr(_vec_mod, "init_vector_store_for_paths", _fake_init)
+
+    import pytest as _pytest
+    with _pytest.raises(FileNotFoundError):
+        await reingest_source_direct(
+            paths, "raw/sources/h.md", provider=object(),
+            batch_key="batch_1", task_id="b1",
+        )
+    state = load_batch_state(paths)
+    assert raw_status(state, "batch_1", "raw/sources/h.md") == "permanent_failed"

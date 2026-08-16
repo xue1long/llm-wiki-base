@@ -233,25 +233,21 @@ def enqueue_source(
     dupe_skipped = len(items) - len(task_ids)
     skipped = already_skipped + dupe_skipped + count_limited
 
-    # Write batch tracking state
-    import json as _json
+    # Write batch tracking state — 统一 schema + 文件锁（H① 三写者契约）：
+    # 必须经 batch_state.update_batch_state（持锁读-改-写 + os.replace 原子写
+    # + schema_version），否则与 Phase 4 executor 的 set_raw_status 并发即
+    # 丢失更新（review C1）。
     import time as _time
-    _batch_state_file = paths.root / ".index" / "batch_build_state.json"
-    _batch_state: dict = {}
-    if _batch_state_file.exists():
-        try:
-            _batch_state = _json.loads(_batch_state_file.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    _batch_state[_batch_id] = {
-        "folder": folder_rel,
-        "total_files": len(supported),
-        "enqueued": len(task_ids),
-        "created_at": int(_time.time()),
-        "status": "in_progress",
-    }
-    _batch_state_file.parent.mkdir(parents=True, exist_ok=True)
-    _batch_state_file.write_text(_json.dumps(_batch_state, ensure_ascii=False, indent=2), encoding="utf-8")
+    from .batch_state import update_batch_state
+    update_batch_state(paths, lambda st: (
+        st.__setitem__(_batch_id, {
+            "folder": folder_rel,
+            "total_files": len(supported),
+            "enqueued": len(task_ids),
+            "created_at": int(_time.time()),
+            "status": "in_progress",
+        }),
+        st)[1])
 
     # Kick off initial pipeline workers (up to concurrency limit).
     # Subsequent tasks auto-advance via release_in_flight → advance().
@@ -414,6 +410,7 @@ async def reingest_source_direct(
     batch_key: str,
     task_id: str = "reingest",
     resume_from_pending_deletion: bool = False,
+    on_stage=None,
 ) -> dict:
     """Phase 4 直跑重建分支（C2 P0 加固，plan guidance #3/#4）——不经队列。
 
@@ -430,6 +427,10 @@ async def reingest_source_direct(
     ``pending_deletion`` 文件重跑重建（``resume_from_pending_deletion=True``
     时直接走首摄式重建，因旧 source 页已删）。禁止"先删后建"裸窗口。
 
+    ``on_stage``（executor 崩溃注入钩子，可选）：在每个可崩溃阶段回调
+    ``on_stage("generate"|"cascade"|"commit")`` —— 直跑执行器用它挂
+    kill -9 注入点，普通调用方省略。
+
     Returns::
 
         {"status": "done", "branch": "reingest"|"first_ingest",
@@ -439,6 +440,9 @@ async def reingest_source_direct(
     from ..pipeline.ingest import run_ingest
     from ..wiki.features.cascade_delete import cascade_delete
     from ..vector.store import delete_by_source, init_vector_store_for_paths
+
+    if on_stage is not None:
+        on_stage("generate")
 
     source_id = probe_source_page(paths, raw_path)
     branch = "reingest" if source_id is not None else "first_ingest"
@@ -460,19 +464,39 @@ async def reingest_source_direct(
             init_vector_store_for_paths(paths)
             deleted_vectors = delete_by_source(paths, raw_path)
             cascade_result["deleted_vectors"] = deleted_vectors
+        if on_stage is not None:
+            on_stage("cascade")
     else:
         if resume_from_pending_deletion:
             note = "resumed_from_pending_deletion"
+            # I1（review）：崩溃发生在 cascade_delete 与 delete_by_source 之间时，
+            # 续跑 probe 返回 None → 走此分支 —— 旧向量必须仍被清理（幂等，
+            # 无残留时删 0 行），否则重建页新 id 不覆盖旧行，搜索命中陈旧 chunk。
+            init_vector_store_for_paths(paths)
+            delete_by_source(paths, raw_path)
 
     # 直跑重建：run_ingest（generate + commit 一体），不经队列。
-    src = paths.root / raw_path
-    text = src.read_text(encoding="utf-8", errors="replace")
-    pages = await run_ingest(
-        paths=paths, source_path=Path(raw_path), source_text=text,
-        provider=provider, task_id=task_id,
-    )
+    # I2（review）：重建段必须有失败契约——失败先落状态再抛，禁止
+    # pending_deletion 悬空（否则续跑必然再次失败 → 无限重试）。
+    try:
+        src = paths.root / raw_path
+        text = src.read_text(encoding="utf-8", errors="replace")
+        pages = await run_ingest(
+            paths=paths, source_path=Path(raw_path), source_text=text,
+            provider=provider, task_id=task_id,
+        )
+    except FileNotFoundError:
+        # raw 文件本身缺失 → 非瞬态：permanent_failed（不重投）。
+        set_raw_status(paths, batch_key, raw_path, "permanent_failed",
+                       last_error=f"raw file missing: {raw_path}")
+        raise
+    except Exception as exc:
+        set_raw_status(paths, batch_key, raw_path, "failed", last_error=str(exc))
+        raise
 
     set_raw_status(paths, batch_key, raw_path, "done", branch=branch)
+    if on_stage is not None:
+        on_stage("commit")
     return {
         "status": "done",
         "branch": branch,

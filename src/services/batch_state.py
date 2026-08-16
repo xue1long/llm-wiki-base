@@ -177,15 +177,16 @@ def update_batch_state(paths: WikiPaths, mutator) -> dict:
     """Read-modify-write under the file lock.
 
     *mutator* receives the current state dict and returns the (possibly
-    new) state dict.  Returns the persisted state.  Serialises concurrent
-    writers across processes — the single writer pattern that prevents
-    lost updates (H①).
+    new) state dict.  Returns the **persisted** state (with
+    ``schema_version`` merged — M1 review).  Serialises concurrent writers
+    across processes — the single writer pattern that prevents lost
+    updates (H①).
     """
     with batch_state_lock(paths):
         state = load_batch_state(paths)
         new_state = mutator(state)
         save_batch_state(paths, new_state)
-        return new_state
+        return load_batch_state(paths)
 
 
 # ---------------------------------------------------------------------------
@@ -214,10 +215,14 @@ def set_raw_status(paths: WikiPaths, batch_key: str, raw_rel: str,
     def _mutate(state: dict) -> dict:
         raws = _ensure_raw_states(state, batch_key)
         entry = raws.setdefault(raw_rel, {})
+        # M6 review：status/ts 是状态机保留键，禁止被调用方 extra 覆盖。
+        protected = {"status", "ts"}
+        for k, v in extra.items():
+            if k in protected:
+                raise ValueError(f"cannot override reserved key {k!r}")
+            entry[k] = v
         entry["status"] = status
         entry["ts"] = time.strftime("%Y-%m-%dT%H:%M:%S")
-        for k, v in extra.items():
-            entry[k] = v
         return state
 
     update_batch_state(paths, _mutate)
