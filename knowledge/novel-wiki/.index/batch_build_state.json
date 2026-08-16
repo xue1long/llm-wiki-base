@@ -1,0 +1,37 @@
+{
+  "batch_0": {
+    "status": "committed",
+    "files": [
+      "raw/sources/gap-raw.md"
+    ],
+    "ok": 1,
+    "err": 0,
+    "completed_files": [
+      "raw/sources/gap-raw.md"
+    ],
+    "failed_files": [],
+    "missing": [
+      "src-gap"
+    ],
+    "missing_extras": false,
+    "page_ids": [
+      "src-gap"
+    ],
+    "ts": "2026-08-16T21:23:49",
+    "git_snapshot": "1534d906f08b069381babf0c24dbd7af733a4a14",
+    "raw_states": {
+      "raw/sources/01_新手入门/借鉴素材小说大纲模版.md": {
+        "status": "done",
+        "ts": "2026-08-16T21:23:48",
+        "source_id": "借鉴素材小说大纲模版-4b1c91ca",
+        "branch": "reingest",
+        "fail_streak": 0
+      }
+    },
+    "permanent_failed": 0
+  },
+  "schema_version": 2,
+  "budget": {
+    "cumulative_usd": 0.0005
+  }
+}

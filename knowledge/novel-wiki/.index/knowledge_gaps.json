@@ -1,0 +1,299 @@
+{
+  "version": 1,
+  "gaps": [
+    {
+      "slug": "5w-大纲设计法",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
+      "referenced_by": [
+        "大纲写法"
+      ],
+      "created_at": 1786867072034,
+      "status": "open"
+    },
+    {
+      "slug": "主角设定原则",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
+      "referenced_by": [
+        "人物设定三要素"
+      ],
+      "created_at": 1786867072034,
+      "status": "open"
+    },
+    {
+      "slug": "二十条签约条件分类综述",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
+      "referenced_by": [
+        "三千字首章冲突法则",
+        "三支线展开法则"
+      ],
+      "created_at": 1786867070733,
+      "status": "open"
+    },
+    {
+      "slug": "人物性格刻画",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
+      "referenced_by": [
+        "人物设定三要素"
+      ],
+      "created_at": 1786867072034,
+      "status": "open"
+    },
+    {
+      "slug": "分集情节大纲",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
+      "referenced_by": [
+        "大纲写法"
+      ],
+      "created_at": 1786867072034,
+      "status": "open"
+    },
+    {
+      "slug": "历史主题",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "历史穿越"
+      ],
+      "created_at": 1786864346842,
+      "status": "open"
+    },
+    {
+      "slug": "历史传奇",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "历史穿越"
+      ],
+      "created_at": 1786864346842,
+      "status": "open"
+    },
+    {
+      "slug": "大纲四要素",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
+      "referenced_by": [
+        "大纲写法"
+      ],
+      "created_at": 1786867072034,
+      "status": "open"
+    },
+    {
+      "slug": "大纲模板",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
+      "referenced_by": [
+        "大纲写法"
+      ],
+      "created_at": 1786867072034,
+      "status": "open"
+    },
+    {
+      "slug": "奇幻小说",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "玄幻小说"
+      ],
+      "created_at": 1786864346842,
+      "status": "open"
+    },
+    {
+      "slug": "小说主题",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
+      "referenced_by": [
+        "小说类型"
+      ],
+      "created_at": 1786870404634,
+      "status": "open"
+    },
+    {
+      "slug": "小说大纲",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
+      "referenced_by": [
+        "大纲写法",
+        "小说类型"
+      ],
+      "created_at": 1786867072034,
+      "status": "open"
+    },
+    {
+      "slug": "小说高潮",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
+      "referenced_by": [
+        "三千字首章冲突法则"
+      ],
+      "created_at": 1786867070733,
+      "status": "open"
+    },
+    {
+      "slug": "异世争霸",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "异界大陆"
+      ],
+      "created_at": 1786864346842,
+      "status": "open"
+    },
+    {
+      "slug": "成长道路曲折化",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
+      "referenced_by": [
+        "三支线展开法则"
+      ],
+      "created_at": 1786871786392,
+      "status": "open"
+    },
+    {
+      "slug": "战利品三件套",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
+      "referenced_by": [
+        "三支线展开法则"
+      ],
+      "created_at": 1786871786392,
+      "status": "open"
+    },
+    {
+      "slug": "支线",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
+      "referenced_by": [
+        "三支线展开法则"
+      ],
+      "created_at": 1786871786392,
+      "status": "open"
+    },
+    {
+      "slug": "时空穿梭",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "科幻小说主题分类"
+      ],
+      "created_at": 1786870403315,
+      "status": "open"
+    },
+    {
+      "slug": "星际战争",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "末世危机",
+        "科幻小说主题分类"
+      ],
+      "created_at": 1786864346842,
+      "status": "open"
+    },
+    {
+      "slug": "架空历史",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "历史穿越"
+      ],
+      "created_at": 1786864346842,
+      "status": "open"
+    },
+    {
+      "slug": "校园风云",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "都市小说"
+      ],
+      "created_at": 1786864346842,
+      "status": "open"
+    },
+    {
+      "slug": "武侠",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "古典仙侠"
+      ],
+      "created_at": 1786868640711,
+      "status": "open"
+    },
+    {
+      "slug": "热血青春",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "都市小说"
+      ],
+      "created_at": 1786864346842,
+      "status": "open"
+    },
+    {
+      "slug": "玄幻与仙侠区分对比",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "古典仙侠"
+      ],
+      "created_at": 1786868640711,
+      "status": "open"
+    },
+    {
+      "slug": "网文开篇七法则",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
+      "referenced_by": [
+        "三千字首章冲突法则"
+      ],
+      "created_at": 1786867070733,
+      "status": "open"
+    },
+    {
+      "slug": "网文题材通用性对比综述-p9q0r1s2",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
+      "referenced_by": [
+        "小说类型"
+      ],
+      "created_at": 1786870404634,
+      "status": "open"
+    },
+    {
+      "slug": "背景设定",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
+      "referenced_by": [
+        "人物设定三要素"
+      ],
+      "created_at": 1786867072034,
+      "status": "open"
+    },
+    {
+      "slug": "进化变异",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "末世危机",
+        "科幻小说主题分类"
+      ],
+      "created_at": 1786864346842,
+      "status": "open"
+    },
+    {
+      "slug": "都市异能",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "都市小说",
+        "都市小说主题分类"
+      ],
+      "created_at": 1786864346842,
+      "status": "open"
+    },
+    {
+      "slug": "都市激战",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "都市小说主题分类"
+      ],
+      "created_at": 1786870403315,
+      "status": "open"
+    },
+    {
+      "slug": "重生文",
+      "title": "重生文",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
+      "referenced_by": [
+        "都市重生"
+      ],
+      "created_at": 1786867169708,
+      "status": "open"
+    },
+    {
+      "slug": "题材推荐指南",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
+      "referenced_by": [
+        "小说类型"
+      ],
+      "created_at": 1786870404634,
+      "status": "open"
+    }
+  ]
+}

@@ -266,3 +266,5 @@
 - **ingest**: `b0` — generated 9 pages from 借鉴素材玄幻标签创作基金评定标准详解.md
 ## 2026-08-16T17:16:41.649391
 - **reverse-relation**: `b0` — generated 0 pages from (batch-reconcile)
+## 2026-08-16T21:23:48.060568
+- **ingest**: `b0` — generated 5 pages from 借鉴素材小说大纲模版.md
