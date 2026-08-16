@@ -1,0 +1,34 @@
+{
+  "generated_at": "2026-08-16T22:08:19.643860+00:00",
+  "project": "novel-wiki",
+  "metrics": {
+    "M1_broken_rate": 0.0986,
+    "M1_links_total": 2525,
+    "M1_broken_links": 249,
+    "M2_deep_ref_rate": 0.0419,
+    "M2_referenced_raw": 57,
+    "M2_total_raw": 1361,
+    "M6_synthesis_pages": 11,
+    "M7_source_fulltext": 6,
+    "M8_legacy_tag_pages": 142,
+    "M9_illegal_relation_pages": 19,
+    "M10a_raw_md": 1361
+  },
+  "counts": {
+    "raw_files": 1364,
+    "raw_md": 1361,
+    "wiki_pages_total": 382,
+    "per_type": {
+      "source": 47,
+      "entity": 64,
+      "concept": 260,
+      "synthesis": 11
+    },
+    "stub_pages": 0,
+    "grade_C": 84,
+    "empty_sources": 0,
+    "placeholder_pages": 0,
+    "dup_groups": 0,
+    "index_entries": 12
+  }
+}
