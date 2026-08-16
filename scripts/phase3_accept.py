@@ -57,18 +57,27 @@ def _completed_raw_files() -> list[str]:
 
 
 def _batch_page_ids() -> list[str]:
-    """批内页面 = 本批实际写入的 v3.0.0 新页/重建页。
+    """批内页面 = 本批实际写入的页面 id（pages + extras）。
 
-    phase4_batch 的 state 不记录页面清单（只记 raw 完成列表）。用
-    mtime 窗口 + 模板版本双重过滤：本批 generate+commit 的产物声明
-    ``wiki-template-version: 3.0.0`` 且 mtime 落在窗口内。存量 2.0.0
-    页即使被 extras reverse-relation touch（mtime 刷新）也不混入——
-    它们不是本批新产出，其历史 tag/relation 问题由 Phase 4 cascade 处置。
+    优先读 batch_build_state.json 的 batch_0.page_ids（phase4_batch 记录，
+    精确批内集合）；缺失时 fallback 到 mtime 窗口 + v3.0.0 版本过滤
+    （多次重跑后 mtime 口径会混入历史页，故 page_ids 是首选）。
     """
     import re
     from datetime import datetime, timedelta
 
-    window_minutes = 60  # 批运行窗口（generate ~15min + commit）
+    # 首选：state 精确 page_ids
+    if BATCH_STATE.exists():
+        try:
+            state = json.loads(BATCH_STATE.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            state = {}
+        entry = state.get("batch_0") or state.get("batch_0_0")
+        if isinstance(entry, dict) and entry.get("page_ids"):
+            return list(entry["page_ids"])
+
+    # fallback：mtime 窗口 + v3.0.0 版本过滤
+    window_minutes = 90
     cutoff = datetime.now() - timedelta(minutes=window_minutes)
     version_re = re.compile(r"wiki-template-version:\s*([0-9.]+)")
     ids: list[str] = []
@@ -84,7 +93,7 @@ def _batch_page_ids() -> list[str]:
                 raw = f.read_text(encoding="utf-8", errors="replace")
                 vm = version_re.search(raw)
                 if not vm or _parse_version(vm.group(1)) < (3, 0, 0):
-                    continue  # 存量 2.0.0 页（仅被 extras touch）→ 排除
+                    continue  # 存量 2.0.0 页 → 排除
                 page = read_page(f)
             except Exception:
                 continue

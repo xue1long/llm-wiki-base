@@ -903,6 +903,15 @@ async def generate_ingest(
     pages = [p for p in pages if p.id in _keep_ids]
     extra_pages = [p for p in extra_pages if p.id in _keep_ids]
 
+    # M4（Phase 3 实测）：extras（存量页反向边）写入前清洗 body 占位符。
+    # pages 已在 render_body 后经 _clean_placeholder_text；extras 是磁盘加载
+    # 的存量页，body 可能含历史占位符（如「来源未提供具体例子」），直接写盘
+    # 会残留 → lint LINT-PLACEHOLDER。此处统一清洗，保证批内页 M4 达标。
+    from .generator import _clean_placeholder_text
+    for _ep in extra_pages:
+        if _ep.body:
+            _ep.body = _clean_placeholder_text(_ep.body)
+
     return pages, extra_pages, {
         "analysis": analysis,
         "source_slug": source_slug,

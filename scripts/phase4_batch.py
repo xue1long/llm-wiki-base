@@ -569,6 +569,11 @@ async def _commit_all(
     completed: list[str] = list(prior_completed or [])
     failed: list[str] = list(gen_failed or [])
     committed_pages = 0
+    # Phase 3：记录本批实际写入的页面 id（pages + extras），供验收脚本
+    # 用精确批内集合而非 mtime 窗口（多次重跑后窗口口径会混入历史页）。
+    batch_page_ids: list[str] = sorted({
+        p.id for p in (pages or [])
+    } | {p.id for p in (extras or [])})
 
     def _save_committing() -> None:
         state = _load_state()
@@ -578,6 +583,7 @@ async def _commit_all(
             "ok": ok, "err": err,
             "completed_files": completed,
             "failed_files": failed,
+            "page_ids": batch_page_ids,
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
         }
         _save_state(state)
