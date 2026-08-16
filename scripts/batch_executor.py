@@ -700,6 +700,10 @@ async def run_batch(args) -> int:
         if _auto_tagged:
             print(f"  [auto-tag] {_auto_tagged} UGC-carrier-derived "
                   f"page(s) tagged 素材/ugc + 可信度/ugc", flush=True)
+    # 本批实际写入的**新页** id（pages，不含 extras）——整批复核只查这批。
+    # extras 是存量 reverse-touch 页（历史非法 relation/旧英文 tag 属
+    # M8/M9 消解范围），pre-commit 已豁免，整批复核必须同口径（修复 E）。
+    batch_page_ids = sorted({p.id for p in all_pages})
     gate_ok, gate_issues = run_precommit_gate(
         all_pages, all_extras, raw_headers, paths,
         allow_overwrite=args.allow_overwrite,
@@ -753,7 +757,13 @@ async def run_batch(args) -> int:
 
     # ── 整批门禁复核（C4：崩溃后续跑对整批——含已 done 文件——重跑门禁，
     #    杜绝门禁作用域收缩）──────────────────────────────────────────
-    whole_ok = await _rerun_gate_batch(paths, batch_key, files)
+    # Phase 4 试跑实测修复 E：整批复核只对本批**实际写入**的页面跑门禁
+    # （pages + 本轮 commit 的 extras），跳过磁盘上"source 关联但本批
+    # 未写入"的存量页——否则 reverse-touch 写回的存量 extras（其历史非法
+    # relation/旧英文 tag 是 M8/M9 消解范围）会被误拦（batch 0 实测：
+    # 东方玄幻 的存量 contrasts relation 使整批 gate_recheck_failed）。
+    whole_ok = await _rerun_gate_batch(paths, batch_key, files,
+                                       batch_page_ids=batch_page_ids)
     _crash_at("gate")   # 门禁后注入点（测试）
 
     # ── 预算累计 + 批状态 ───────────────────────────────────────────
@@ -842,17 +852,26 @@ async def _upsert_batch_vectors(paths, pages) -> int:
     return total
 
 
-async def _rerun_gate_batch(paths, batch_key, files) -> bool:
+async def _rerun_gate_batch(paths, batch_key, files,
+                            batch_page_ids=None) -> bool:
     """整批门禁复核（C4：崩溃后续跑对整批——含已 done 文件——重跑门禁）。
 
-    从磁盘读取本批 raw 关联的全部页面（含此前已 done 的文件），跑完整的
+    从磁盘读取本批实际写入的页面（``batch_page_ids`` 过滤），跑完整的
     NDG + fields/tags/lint/对账 门禁。失败 → 批状态 gate_failed（调用方
     决定是否回滚）。这是门禁作用域收缩的兜底：pre-commit 门禁只管本轮的
     内存页，复核把作用域钉回整批。
+
+    ``batch_page_ids``（Phase 4 试跑实测修复 E）：本批新写页 id。为空时
+    退化为旧行为（按 source 关联全扫）——但真实批次必须传入，否则
+    reverse-touch 写回的存量 extras（历史非法 relation/旧 tag 属 M8/M9
+    消解范围）会被误拦（batch 0 实测：东方玄幻 存量 contrasts → 整批
+    gate_recheck_failed）。
     """
     from src.wiki.storage.page_writer import read_page
 
-    batch_set = set(files)
+    if not batch_page_ids:
+        return True
+    id_set = set(batch_page_ids)
     pages = []
     for sub in (paths.wiki_sources, paths.wiki_entities,
                 paths.wiki_concepts, paths.wiki_synthesis):
@@ -863,8 +882,10 @@ async def _rerun_gate_batch(paths, batch_key, files) -> bool:
                 pg = read_page(f)
             except Exception:
                 continue
-            if set(pg.sources or []) & batch_set:
+            if pg.id in id_set:
                 pages.append(pg)
+    if not pages:
+        return True
     passed, issues = run_precommit_gate(pages, [], {}, paths,
                                         allow_overwrite=True)
     if not passed:

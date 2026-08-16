@@ -545,3 +545,63 @@ def test_auto_tag_ugc_tags_carrier_derived_pages(gate_wiki: Path) -> None:
     n2 = _auto_tag_ugc([page2], {"raw/sources/plain.md": "普通文档内容"})
     assert n2 == 0
     assert page2.tags == []
+
+
+def test_rerun_gate_batch_filters_to_batch_pages(gate_wiki: Path) -> None:
+    """E：整批复核只查本批新写页，跳过存量 extras（M8/M9 消解范围）。
+
+    试跑根因：reverse-touch 把存量页（东方玄幻，含历史非法 relation
+    contrasts）写回为 extras，旧 _rerun_gate_batch 按 source 关联全扫 →
+    存量非法 relation 使整批 gate_recheck_failed。修复后 page_ids 过滤
+    只复核本批 pages。
+    """
+    import sys as _sys
+    if str(REPO_ROOT) not in _sys.path:
+        _sys.path.insert(0, str(REPO_ROOT))
+    import asyncio
+    from scripts.batch_executor import _rerun_gate_batch
+    from src.wiki.core.types import Relation, WikiPage, PageType
+    from src.wiki.core.paths import WikiPaths
+    from src.wiki.storage.page_writer import write_page
+
+    paths = WikiPaths(gate_wiki)
+    # 目标 source 页（对账口径：磁盘 ∪ produced 需可解析，_mk_page 会
+    # append_to_index 登记到 wiki/index.md）
+    _mk_page(gate_wiki, "wiki/sources/src-a.md",
+             "<!-- wiki-template-version: 2.0.0 -->\n## 摘要\n\ns\n",
+             depth="source")
+    # 磁盘存量页（reverse-touch extras）：历史非法 relation contrasts
+    # （不在 17 内置 + 非 x-），M9 消解范围，不应在整批复核被拦。
+    legacy = WikiPage(
+        id="东方玄幻", title="东方玄幻", type=PageType.CONCEPT,
+        sources=["raw/sources/a.md"], processing_depth="concept", grade="B",
+        body="<!-- wiki-template-version: 2.0.0 -->\n\n## 定义\n\n内容\n\n"
+             "## 主要特点\n\n- x\n\n## 例子\n\n- y\n",
+        tags=["素材/ugc", "可信度/ugc"],
+        relations=[Relation(type="contrasts", target_id="仙侠小说")],
+    )
+    write_page(paths, legacy)
+
+    # 本批新页（干净；_mk_page 登记 index，body 引用 src-a 可解析）
+    _mk_page(
+        gate_wiki, "wiki/concepts/new-page.md",
+        "<!-- wiki-template-version: 2.0.0 -->\n\n## 定义\n\n内容\n\n"
+        "## 主要特点\n\n- x\n\n## 例子\n\n- y\n\n"
+        "## 相关概念\n\n[[src-a]]\n\n## 参考来源\n\n[[src-a]]\n",
+        depth="concept", tags=["素材/ugc", "可信度/ugc"],
+    )
+
+    async def _run() -> None:
+        # 只复核本批新页 → 存量 extras 不拦
+        ok = await _rerun_gate_batch(
+            paths, "batch_0", ["raw/sources/a.md"],
+            batch_page_ids=["new-page"])
+        assert ok is True
+
+        # 旧行为（无 page_ids / 含存量页）→ 非法 relation 被拦
+        ok2 = await _rerun_gate_batch(
+            paths, "batch_0", ["raw/sources/a.md"],
+            batch_page_ids=["new-page", "东方玄幻"])
+        assert ok2 is False
+
+    asyncio.run(_run())
