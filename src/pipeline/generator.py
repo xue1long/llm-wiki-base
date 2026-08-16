@@ -95,6 +95,16 @@ _DEPTH_BY_TYPE: dict[PageType, str] = {
 # Deliberately NOT the page-type enum — these are content processing depths.
 PROCESSING_DEPTH_VALUES = ["concept", "memory", "operation"]
 
+# 17 built-in relation types (mirror of lint._BUILTIN_RELATIONS) + x-* custom.
+# Phase 3 follow-up：relations[].type 的 JSON schema 加 enum 约束，防止 LLM
+# 输出 `mentions` / `related` / `interacts_with` 等非标准类型（M9 非法 relation）。
+RELATION_TYPES = [
+    "is_part_of", "contains", "references", "referenced_by", "causes",
+    "caused_by", "contradicts", "supports", "supported_by", "supersedes",
+    "superseded_by", "depends_on", "required_by", "analogous_to",
+    "opposite_of", "derived_from", "derives",
+]
+
 
 # ---------------------------------------------------------------------------
 # 0.5.2 — generated-id hygiene. Page ids are derived from the LLM's title
@@ -576,7 +586,7 @@ async def unified_generate(
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "target": {"type": "string"}, "type": {"type": "string"},
+                                    "target": {"type": "string"}, "type": {"type": "string", "enum": RELATION_TYPES},
                                     "weight": {"type": "number"}, "context": {"type": "string"},
                                 },
                                 "required": ["target", "type"],
@@ -963,7 +973,7 @@ async def generate_from_candidate(
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "target": {"type": "string"}, "type": {"type": "string"},
+                                    "target": {"type": "string"}, "type": {"type": "string", "enum": RELATION_TYPES},
                                     "weight": {"type": "number"}, "context": {"type": "string"},
                                 },
                                 "required": ["target", "type"],
@@ -1187,7 +1197,7 @@ async def generate_from_knowledge_object(
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "target": {"type": "string"}, "type": {"type": "string"},
+                                    "target": {"type": "string"}, "type": {"type": "string", "enum": RELATION_TYPES},
                                     "weight": {"type": "number"}, "context": {"type": "string"},
                                 },
                                 "required": ["target", "type"],
