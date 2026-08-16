@@ -89,6 +89,12 @@ def _is_present(value: object) -> bool:
 
 # 3+ blank-line collapse (skipping optional sections can introduce them).
 _BLANK_LINE_RE = re.compile(r"\n[ \t]*\n[ \t]*\n+(?=\S|\Z)")
+# Plain HTML comments (semantic hints in templates). The two wiki-template
+# header comments are re-injected separately by render_body and are not part
+# of section bodies, so stripping every comment here never loses the lint
+# version gate (O3 / F3 follow-up: template hints must not leak into the
+# rendered page body).
+_HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 
 
 def render_body(
@@ -158,12 +164,14 @@ def render_body(
         out.append(section.heading)
         out.append("")
 
-        # Replace markers in body template slot-by-slot.
+        # Replace markers in body template slot-by-slot, then strip any
+        # remaining plain HTML comments (semantic hints in the template).
         body = section.body_template
         for s in section.slots:
             value = slots.get(s.name)
             is_opt = s.is_optional or (s.name in optional_set)
             body = body.replace(s.raw_marker, _render_value(value, is_opt, missing_placeholder))
+        body = _HTML_COMMENT_RE.sub("", body)
 
         body = body.rstrip()
         if body:
