@@ -45,6 +45,7 @@ from ..knowledge.core.candidate import KnowledgeCandidate
 from ..knowledge.core.object import KnowledgeObject
 from ..llm.types import TruncatedResponseError
 from ._pipeline_common import parse_llm_json
+from .retry import RetryExhausted
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
 
@@ -1665,8 +1666,6 @@ async def _call_with_slot_retry(
 
     Returns the parsed response dict (with ``pages`` key).
     """
-    import httpx
-
     MAX_GEN_ATTEMPTS = 3  # initial + 2 retries
     last_missing: dict[str, list[str]] = {}
     last_response: dict = {}
@@ -1729,16 +1728,10 @@ async def _call_with_slot_retry(
                 timeout=timeout,
                 max_tokens=attempt_max_tokens,
             )
-        except (httpx.ReadTimeout, httpx.ConnectError) as exc:
-            _logger.warning(
-                "[Generator] LLM call timed out on attempt %d/%d: %s",
-                attempt + 1, MAX_GEN_ATTEMPTS, exc,
-            )
-            if attempt == MAX_GEN_ATTEMPTS - 1:
-                raise RuntimeError(
-                    f"Generator LLM timed out after {MAX_GEN_ATTEMPTS} attempts: {exc}"
-                ) from exc
-            continue
+        except RetryExhausted:
+            # 传输层（provider 包装，plan 1.9）已按 2/10/30s 退避重试耗尽——
+            # 内容层不再无退避重跑，原样传播给批级 _ingest_one（记 breaker 故障）。
+            raise
         except RuntimeError as exc:
             exc_str = str(exc)
             if "response_format" in exc_str.lower() and "400" in exc_str:

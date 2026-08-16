@@ -147,6 +147,22 @@ async def test_retry_429_retry_after_capped(sleep_log):
     assert sleep_log == [10.0]
 
 
+async def test_retry_429_missing_retry_after_defaults_to_5s(sleep_log):
+    """M-7: Retry-After 头缺失 → 429 等待默认 5s（_parse_retry_after 兜底）。"""
+    calls = []
+
+    async def fn():
+        calls.append(1)
+        if len(calls) == 1:
+            raise _http_status_error(429)  # 无 Retry-After 头
+        return "ok"
+
+    result = await retry_with_backoff(fn, retry_delays=(0.001,), max_retry_after=60)
+    assert result == "ok"
+    assert len(calls) == 2
+    assert sleep_log == [5.0]
+
+
 async def test_retry_422_permanent_failure_no_retry(sleep_log):
     """422 → PermanentFailure 立即抛出，不重试。"""
     calls = []
@@ -319,6 +335,27 @@ def test_retry_llm_provider_breaker_open_short_circuits(sleep_log):
     with pytest.raises(CircuitBreakerOpen):
         asyncio.run(wrapped.complete([{"role": "user", "content": "hi"}]))
     assert inner.calls == []
+
+
+def test_retry_llm_provider_chat_goes_through_retry(sleep_log):
+    """M-7: wrapper.chat() 必须经 retry_with_backoff（委托 wrapper.complete，
+    而不是直接透传 inner.chat 绕过重试）。"""
+    from src.pipeline.retry import RetryLLMProvider
+
+    inner = _FakeProvider()
+
+    async def _flaky(messages, **kwargs):
+        inner.calls.append({"messages": messages, "kwargs": kwargs})
+        if len(inner.calls) == 1:
+            raise _http_status_error(429, retry_after="1")
+        return {"content": "ok"}
+
+    inner.complete = _flaky
+    wrapped = RetryLLMProvider(inner, retry_delays=(0.1,))
+    resp = asyncio.run(wrapped.chat([{"role": "user", "content": "hi"}]))
+    assert resp == {"content": "ok"}
+    assert len(inner.calls) == 2
+    assert sleep_log == [1.0]
 
 
 # ---------------------------------------------------------------------------
@@ -549,3 +586,50 @@ def test_retry_with_backoff_has_callers():
     src = Path(retry_mod.__file__).read_text(encoding="utf-8")
     assert "retry_with_backoff(" in src
     assert "class RetryLLMProvider" in src
+
+
+# ---------------------------------------------------------------------------
+# I-1：422 穿透 ingest.py fallback 级联（reviewer Important-1）
+# ---------------------------------------------------------------------------
+
+async def test_generate_ingest_422_permanent_failure_bubbles(tmp_path):
+    """I-1: 422 content moderation 必须经 generate_ingest 冒泡为 PermanentFailure，
+    不得被 chunked→unified→two-step fallback 级联吞掉（B2 空耗 LLM 消除）。
+
+    生产链：factory 用 RetryLLMProvider 包 provider → complete() 把 422 分类为
+    PermanentFailure → generate_ingest 的 fallback 级联必须放行而非重发。
+    """
+    from src.pipeline.ingest import generate_ingest
+    from src.pipeline.retry import PermanentFailure, RetryLLMProvider
+    from src.wiki.core.paths import WikiPaths
+    from src.wiki.storage.ensure import ensure_knowledge_base
+
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "moderation.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text("内容审核拒绝的内容", encoding="utf-8")
+
+    calls = {"n": 0}
+
+    class _ModerationProvider:
+        async def complete(self, messages, **kwargs):
+            calls["n"] += 1
+            raise _http_status_error(422)
+        async def chat(self, messages, **kwargs):
+            return await self.complete(messages, **kwargs)
+
+    provider = RetryLLMProvider(_ModerationProvider(), retry_delays=(0.001,))
+
+    with pytest.raises(PermanentFailure):
+        await generate_ingest(
+            paths=paths,
+            source_path=raw,
+            source_text="内容审核拒绝的内容",
+            provider=provider,
+            task_id="kb-moderation",
+        )
+    # 422 首次 LLM 调用即冒泡：fallback 级联不得重发（unified 一次即停）
+    assert calls["n"] == 1, (
+        "422 应首次 LLM 调用后立即冒泡，fallback 级联不得重发调用"
+    )

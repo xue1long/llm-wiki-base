@@ -45,6 +45,7 @@ from ..lib.write_hooks import flush_pending_writes
 from ..wiki.features.indexer import append_to_index
 from ..wiki.features.logger import log_event
 from ..wiki.storage.page_writer import write_page
+from .retry import PermanentFailure
 
 # Resolve analyze/generate via the pipeline package namespace so
 # monkey-patches on `src.pipeline.pipeline.analyze` /
@@ -499,6 +500,10 @@ async def generate_ingest(
             )
             if not pages:
                 raise RuntimeError("chunked path returned 0 pages")
+        except PermanentFailure:
+            # 422 content moderation —— 永久失败，禁止 fallback 级联再发 LLM 调用
+            # （B2：每批空耗 LLM 的浪费消除；直接冒泡到批级 permanent_failed）。
+            raise
         except Exception as _chunked_err:
             _logger.warning(
                 "[run_ingest] chunked path failed (%s), falling back to unified",
@@ -526,6 +531,10 @@ async def generate_ingest(
             )
             if not pages:
                 raise RuntimeError("unified path returned 0 pages")
+        except PermanentFailure:
+            # 422 content moderation —— 永久失败，禁止 fallback 级联再发 LLM 调用
+            # （B2：每批空耗 LLM 的浪费消除；直接冒泡到批级 permanent_failed）。
+            raise
         except Exception as _unified_err:
             _logger.warning(
                 "[run_ingest] unified path failed (%s), falling back to two-step",

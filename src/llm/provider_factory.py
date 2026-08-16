@@ -17,7 +17,7 @@ _logger = logging.getLogger(__name__)
 def create_llm_provider(
     registry_name: str,
     model_override: str | None = None,
-) -> "object":
+) -> LLMProvider:
     """Create an LLM provider instance from a global registry entry.
 
     The returned provider is wrapped in ``RetryLLMProvider`` (plan 1.9 / C1):
@@ -26,13 +26,17 @@ def create_llm_provider(
     shared ``"llm"`` circuit breaker.  This single factory-level wrapper
     covers all LLM call points at once (generator / analyzer via BudgetedLLM /
     c_grade_handler / QualityJudge) — no per-call-site wiring to miss.
+
+    ``RetryLLMProvider`` is duck-compatible with ``LLMProvider`` (it exposes
+    ``complete/chat/embed/health_check/check_response_format/close`` and
+    delegates ``model``/``config``/``_response_format_ok`` via ``__getattr__``).
     """
     from .registry import ProviderRegistry
     config = ProviderRegistry.get(registry_name)
     return _wrap_retry(_create_from_config(config, model_override))
 
 
-def _wrap_retry(provider) -> "object":
+def _wrap_retry(provider) -> LLMProvider:
     """Wrap a concrete provider with the retry/breaker layer (lazy import to
     avoid a module-level import cycle: pipeline.retry is import-safe only
     after the pipeline package has been initialised)."""

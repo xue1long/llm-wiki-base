@@ -152,6 +152,7 @@ def _decide_abort(
     resume: bool,
     completed: set,
     skip: int,
+    permanent_failed: int = 0,
 ) -> tuple[bool, str]:
     """R0-2: decide whether to abort the batch after the generate summary.
 
@@ -162,11 +163,12 @@ def _decide_abort(
 
     Params:
       ok        number of files successfully generated
-      err       number of files that failed generation
+      err       number of files that failed generation (retryable)
       pending   number of files still pending — missing on disk this run
       resume    whether ``--resume`` was given
       completed set of raw paths already completed in a prior run
       skip      number of files skipped as already-completed (resume)
+      permanent_failed number of files permanently failed (422, non-retryable)
 
     Returns ``(abort, reason)``.
     """
@@ -175,6 +177,10 @@ def _decide_abort(
     if ok == 0 and err == 0:
         if pending:
             return True, "all files missing (empty batch)"
+        if permanent_failed:
+            # ok==0/err==0/pending==0 且存在 422 永久失败（M-3）：零页产出，
+            # 原因如实标注而非泛化的 "empty batch"。
+            return True, f"all files permanent-failed (422): {permanent_failed}"
         # ok==0, pending==0 — nothing was generated this run.  The ONLY
         # legitimate zero-page outcome is a --resume re-run where every file
         # was already completed in a prior run.  Any other empty batch
@@ -366,7 +372,7 @@ async def _generate_batch(
     async def _ingest_one(idx: int, raw_rel: str) -> tuple[str, object]:
         async with sem:
             from src.circuit_breaker import get_circuit_breaker
-            from src.pipeline.retry import CircuitBreakerOpen, PermanentFailure
+            from src.pipeline.retry import CircuitBreakerOpen, PermanentFailure, RetryExhausted
 
             src = root / raw_rel
             text = src.read_text(encoding="utf-8", errors="replace")
@@ -401,6 +407,11 @@ async def _generate_batch(
                     await _await_breaker_recovery()
                     if attempt >= MAX_RETRIES:
                         break
+                except RetryExhausted as exc:
+                    # 传输层（provider 包装）已 2/10/30s 退避耗尽：不整批重跑
+                    # generate_ingest（否则传输层重试会再次触发），直接记失败。
+                    last_err = exc
+                    break
                 except Exception as exc:
                     last_err = exc
                     if attempt < MAX_RETRIES:
@@ -749,6 +760,7 @@ async def main() -> int:
         ok=gen["ok"], err=gen["err"], pending=gen["missing_count"],
         resume=args.resume, completed=completed_files,
         skip=gen["completed_skip_count"],
+        permanent_failed=gen.get("permanent_failed", 0),
     )
     if abort:
         _log(f"BATCH ABORTED: {reason}")
@@ -756,6 +768,7 @@ async def main() -> int:
             "status": "failed",
             "files": files,
             "ok": gen["ok"], "err": gen["err"],
+            "permanent_failed": gen.get("permanent_failed", 0),
             "missing": gen["missing_count"],
             "skipped_completed": gen["completed_skip_count"],
             "reason": reason,
@@ -846,7 +859,9 @@ async def main() -> int:
         root=ROOT,
         task_id=f"b{args.batch}",
         prior_completed=completed_files,
-        gen_failed=[r for r, res in gen["file_results"].items() if not res["ok"]],
+        # permanent_failed（422）不属可重投错误：不进 failed_files（M-2）。
+        gen_failed=[r for r, res in gen["file_results"].items()
+                    if not res["ok"] and not res.get("permanent_failed")],
         ok=gen["ok"], err=gen["err"],
     )
 
