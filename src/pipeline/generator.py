@@ -229,6 +229,13 @@ Slot minimums and fallbacks (DO NOT leave these required slots empty):
   `comparison_dimensions`→ At LEAST 2 dimensions
   `overview`             → At LEAST 1 paragraph
 
+Note (v3.0.0 项目模板): these minimums are GENERIC guidance for bundled
+2.0.0 templates. The authoritative required slots for THIS project are the
+{PAGE_TEMPLATES} template sections below — output ONLY slots present in
+the template; bundled-only slots (extracted_concepts /
+comparison_dimensions / overview) must NOT be emitted when the project
+template lacks them.
+
 When source truly lacks info for a required slot, write "来源未详述此方面"
 — NEVER leave it empty or filled with placeholder text.
 
@@ -412,6 +419,13 @@ SLOT                  | PAGE TYPE   | MINIMUM ACCEPTABLE CONTENT
 `extracted_concepts`  | source      | At LEAST 3 `[[wikilinks]]` to concept/entity pages generated below
 `comparison_dimensions`| synthesis  | At LEAST 2 dimensions being compared
 `overview`            | synthesis   | At LEAST 1 paragraph summarising the comparison
+
+Note (v3.0.0 项目模板): the table above is GENERIC guidance for bundled
+2.0.0 templates. The authoritative required slots for THIS project come
+from the {PAGE_TEMPLATES} template sections — output ONLY slots present
+in the template; bundled-only slots (extracted_concepts /
+comparison_dimensions / overview) must NOT be emitted when the project
+template lacks them.
 
 **Slot purpose notes — keep adjacent slots distinct, NO duplicate content**:
 - entity `basic_info` → ONE-LINE positioning: type/category/core attribute
@@ -824,6 +838,12 @@ SLOT                  | PAGE TYPE   | MINIMUM ACCEPTABLE CONTENT
 `extracted_concepts`  | source      | At LEAST 3 `[[wikilinks]]` to concept/entity pages
 `comparison_dimensions`| synthesis  | At LEAST 2 dimensions being compared
 `overview`            | synthesis   | At LEAST 1 paragraph summarising the comparison
+
+Note (v3.0.0 项目模板): the table above is GENERIC guidance for bundled
+2.0.0 templates. The authoritative required slots for THIS project come
+from the {PAGE_TEMPLATES} template sections — output ONLY slots present
+in the template; bundled-only slots must NOT be emitted when the project
+template lacks them.
 
 **FALLBACKS — when claims truly lack info, use these instead of empty/placeholder**:
 - `references`    → Write `- [[<source-page-slug>]]`
