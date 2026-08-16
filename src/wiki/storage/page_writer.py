@@ -103,6 +103,18 @@ def write_page(paths: WikiPaths, page: WikiPage) -> None:
     path = page_path_for(paths, page.type, page.id, registry, custom_type)
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
+        # Phase 1.7 (F8): never silently overwrite an immutable page —
+        # the pipeline re-ingest guard relies on this (ingest commit skips
+        # immutable targets); a direct write must fail loudly too.
+        try:
+            existing = read_page(path)
+            if getattr(existing, "is_immutable", False):
+                raise ValueError(
+                    f"Refusing to overwrite immutable page: {page.id} "
+                    f"(set is_immutable=false to edit)"
+                )
+        except PageNotFoundError:
+            pass
         _snapshot_raw(paths, page.id, path)
     else:
         validate_tag_compliance(page.tags)
