@@ -16,14 +16,20 @@ class IdempotencyCache:
         identifier: str,
         content_prefix: str = "",
         project_id: str = "",
+        round_key: str = "",
     ) -> str:
         """
         生成幂等键
-        算法: md5(source_type + identifier + content_prefix + project_id)
+        算法: md5(source_type + identifier + content_prefix + project_id + round_key)
         project_id 为空时对单项目场景向后兼容
+
+        round_key（Phase 4 P4 P0 加固，plan guidance #7）：重建轮次维度。
+        全量重摄入时同一 raw 会在多轮重建（reingest:{batch}:{raw}）——
+        若不加轮次维度，第二轮重建会被第一轮的 in-memory 哈希判为重复而跳过。
+        缺省为空字符串 → 与旧算法完全一致（队列/文件夹路径调用方不受影响）。
         """
         prefix = source_type.value
-        data = f"{prefix}:{identifier}:{content_prefix[:1024]}:{project_id}"
+        data = f"{prefix}:{identifier}:{content_prefix[:1024]}:{project_id}:{round_key}"
         return hashlib.md5(data.encode()).hexdigest()
 
     def check_and_mark(self, task_hash: str) -> bool:
@@ -64,10 +70,12 @@ def generate_task_hash(
     source: str,
     content_prefix: str = "",
     project_id: str = "",
+    round_key: str = "",
 ) -> str:
     """便捷函数"""
     cache = get_idempotency_cache()
-    return cache.generate_hash(source_type, source, content_prefix, project_id)
+    return cache.generate_hash(source_type, source, content_prefix, project_id,
+                               round_key=round_key)
 
 def check_duplicate(task_hash: str) -> bool:
     """检查是否重复提交"""
