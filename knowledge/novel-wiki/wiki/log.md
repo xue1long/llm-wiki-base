@@ -114,3 +114,155 @@
 - **ingest**: `b0` — generated 10 pages from 借鉴素材玄幻小说大纲表格.md
 ## 2026-08-16T15:12:29.498448
 - **reverse-relation**: `b0` — generated 0 pages from (batch-reconcile)
+## 2026-08-16T15:57:50.458772
+- **ingest**: `b0` — generated 9 pages from 借鉴素材书籍如何商业化_8111d1.md
+## 2026-08-16T15:57:50.690166
+- **ingest**: `b0` — generated 2 pages from 借鉴素材书籍如何商业化.md
+## 2026-08-16T15:57:50.867826
+- **ingest**: `b0` — generated 3 pages from 借鉴素材人物描写必读.md
+## 2026-08-16T15:57:51.027041
+- **ingest**: `b0` — generated 3 pages from 借鉴素材写作套路征文类别与主线设定.md
+## 2026-08-16T15:57:51.205909
+- **ingest**: `b0` — generated 6 pages from 借鉴素材古代刺客的暗杀手段.md
+## 2026-08-16T15:57:51.486645
+- **ingest**: `b0` — generated 5 pages from 借鉴素材大纲的重要性新文开篇.md
+## 2026-08-16T15:57:51.658453
+- **ingest**: `b0` — generated 1 pages from 借鉴素材小白系列之对对子诗词精选片段第二期.md
+## 2026-08-16T15:57:51.741058
+- **ingest**: `b0` — generated 3 pages from 借鉴素材小说主题分类的内容详细.md
+## 2026-08-16T15:57:51.894622
+- **ingest**: `b0` — generated 3 pages from 借鉴素材小说写作.md
+## 2026-08-16T15:57:52.002947
+- **ingest**: `b0` — generated 2 pages from 借鉴素材小说大纲模版.md
+## 2026-08-16T15:57:52.193053
+- **ingest**: `b0` — generated 7 pages from 借鉴素材必备华夏天空作家福利.md
+## 2026-08-16T15:57:52.391530
+- **ingest**: `b0` — generated 5 pages from 借鉴素材打斗七公式重要.md
+## 2026-08-16T15:57:52.605587
+- **ingest**: `b0` — generated 6 pages from 借鉴素材执梦文学社.md
+## 2026-08-16T15:57:52.879175
+- **ingest**: `b0` — generated 6 pages from 借鉴素材浅子小四素樱贱圣对对子精选片段.md
+## 2026-08-16T15:57:53.078573
+- **ingest**: `b0` — generated 3 pages from 借鉴素材玄幻与仙侠的区别.md
+## 2026-08-16T15:57:53.267022
+- **ingest**: `b0` — generated 7 pages from 借鉴素材玄幻标签创作基金评定标准详解.md
+## 2026-08-16T15:57:53.436127
+- **ingest**: `b0` — generated 3 pages from 借鉴素材玄幻小说创作入门指南.md
+## 2026-08-16T15:57:53.591102
+- **ingest**: `b0` — generated 3 pages from 借鉴素材玄幻小说大纲表格.md
+## 2026-08-16T15:57:54.254511
+- **reverse-relation**: `b0` — generated 0 pages from (batch-reconcile)
+## 2026-08-16T16:23:58.871320
+- **ingest**: `b0` — generated 3 pages from 借鉴素材书籍如何商业化_8111d1.md
+## 2026-08-16T16:23:58.995175
+- **ingest**: `b0` — generated 5 pages from 借鉴素材书籍如何商业化.md
+## 2026-08-16T16:23:59.134554
+- **ingest**: `b0` — generated 5 pages from 借鉴素材人物描写必读.md
+## 2026-08-16T16:23:59.269915
+- **ingest**: `b0` — generated 5 pages from 借鉴素材写作套路征文类别与主线设定.md
+## 2026-08-16T16:23:59.491181
+- **ingest**: `b0` — generated 9 pages from 借鉴素材古代刺客的暗杀手段.md
+## 2026-08-16T16:23:59.812797
+- **ingest**: `b0` — generated 7 pages from 借鉴素材大纲的重要性新文开篇.md
+## 2026-08-16T16:24:00.073311
+- **ingest**: `b0` — generated 5 pages from 借鉴素材小白系列之对对子诗词精选片段第二期.md
+## 2026-08-16T16:24:00.338191
+- **ingest**: `b0` — generated 6 pages from 借鉴素材浅子小四素樱贱圣对对子精选片段.md
+## 2026-08-16T16:24:00.611130
+- **ingest**: `b0` — generated 7 pages from 借鉴素材小说主题分类的内容详细.md
+## 2026-08-16T16:24:00.793020
+- **ingest**: `b0` — generated 3 pages from 借鉴素材小说写作.md
+## 2026-08-16T16:24:00.883815
+- **ingest**: `b0` — generated 2 pages from 借鉴素材小说大纲模版.md
+## 2026-08-16T16:24:00.980350
+- **ingest**: `b0` — generated 4 pages from 借鉴素材必备华夏天空作家福利.md
+## 2026-08-16T16:24:01.104790
+- **ingest**: `b0` — generated 3 pages from 借鉴素材打斗七公式重要.md
+## 2026-08-16T16:24:01.258467
+- **ingest**: `b0` — generated 5 pages from 借鉴素材执梦文学社.md
+## 2026-08-16T16:24:01.412018
+- **ingest**: `b0` — generated 4 pages from 借鉴素材玄幻与仙侠的区别.md
+## 2026-08-16T16:24:01.550137
+- **ingest**: `b0` — generated 4 pages from 借鉴素材玄幻标签创作基金评定标准详解.md
+## 2026-08-16T16:24:01.700042
+- **ingest**: `b0` — generated 5 pages from 借鉴素材玄幻小说创作入门指南.md
+## 2026-08-16T16:24:02.253074
+- **ingest**: `b0` — generated 13 pages from 借鉴素材玄幻小说大纲表格.md
+## 2026-08-16T16:24:02.564726
+- **reverse-relation**: `b0` — generated 0 pages from (batch-reconcile)
+## 2026-08-16T16:53:20.965782
+- **ingest**: `b0` — generated 3 pages from 借鉴素材书籍如何商业化_8111d1.md
+## 2026-08-16T16:53:21.879078
+- **ingest**: `b0` — generated 5 pages from 借鉴素材书籍如何商业化.md
+## 2026-08-16T16:53:22.117528
+- **ingest**: `b0` — generated 3 pages from 借鉴素材人物描写必读.md
+## 2026-08-16T16:53:22.293915
+- **ingest**: `b0` — generated 4 pages from 借鉴素材写作套路征文类别与主线设定.md
+## 2026-08-16T16:53:22.632077
+- **ingest**: `b0` — generated 6 pages from 借鉴素材古代刺客的暗杀手段.md
+## 2026-08-16T16:53:23.115091
+- **ingest**: `b0` — generated 8 pages from 借鉴素材小说主题分类的内容详细.md
+## 2026-08-16T16:53:23.450107
+- **ingest**: `b0` — generated 4 pages from 借鉴素材大纲的重要性新文开篇.md
+## 2026-08-16T16:53:23.946847
+- **ingest**: `b0` — generated 8 pages from 借鉴素材小白系列之对对子诗词精选片段第二期.md
+## 2026-08-16T16:53:24.293999
+- **ingest**: `b0` — generated 2 pages from 借鉴素材小说写作.md
+## 2026-08-16T16:53:24.537848
+- **ingest**: `b0` — generated 5 pages from 借鉴素材小说大纲模版.md
+## 2026-08-16T16:53:24.964922
+- **ingest**: `b0` — generated 7 pages from 借鉴素材必备华夏天空作家福利.md
+## 2026-08-16T16:53:25.614162
+- **ingest**: `b0` — generated 3 pages from 借鉴素材打斗七公式重要.md
+## 2026-08-16T16:53:25.827704
+- **ingest**: `b0` — generated 6 pages from 借鉴素材执梦文学社.md
+## 2026-08-16T16:53:26.011756
+- **ingest**: `b0` — generated 2 pages from 借鉴素材浅子小四素樱贱圣对对子精选片段.md
+## 2026-08-16T16:53:26.175416
+- **ingest**: `b0` — generated 3 pages from 借鉴素材玄幻与仙侠的区别.md
+## 2026-08-16T16:53:26.455476
+- **ingest**: `b0` — generated 3 pages from 借鉴素材玄幻小说创作入门指南.md
+## 2026-08-16T16:53:26.729944
+- **ingest**: `b0` — generated 5 pages from 借鉴素材玄幻小说大纲表格.md
+## 2026-08-16T16:53:26.994736
+- **ingest**: `b0` — generated 5 pages from 借鉴素材玄幻标签创作基金评定标准详解.md
+## 2026-08-16T16:53:27.734274
+- **reverse-relation**: `b0` — generated 0 pages from (batch-reconcile)
+## 2026-08-16T17:16:25.490916
+- **ingest**: `b0` — generated 3 pages from 借鉴素材书籍如何商业化_8111d1.md
+## 2026-08-16T17:16:26.088426
+- **ingest**: `b0` — generated 9 pages from 借鉴素材书籍如何商业化.md
+## 2026-08-16T17:16:26.812783
+- **ingest**: `b0` — generated 5 pages from 借鉴素材小说主题分类的内容详细.md
+## 2026-08-16T17:16:27.706021
+- **ingest**: `b0` — generated 8 pages from 借鉴素材人物描写必读.md
+## 2026-08-16T17:16:29.073208
+- **ingest**: `b0` — generated 6 pages from 借鉴素材写作套路征文类别与主线设定.md
+## 2026-08-16T17:16:29.829458
+- **ingest**: `b0` — generated 4 pages from 借鉴素材古代刺客的暗杀手段.md
+## 2026-08-16T17:16:30.429936
+- **ingest**: `b0` — generated 7 pages from 借鉴素材大纲的重要性新文开篇.md
+## 2026-08-16T17:16:31.340565
+- **ingest**: `b0` — generated 6 pages from 借鉴素材小白系列之对对子诗词精选片段第二期.md
+## 2026-08-16T17:16:32.368837
+- **ingest**: `b0` — generated 5 pages from 借鉴素材小说写作.md
+## 2026-08-16T17:16:33.094957
+- **ingest**: `b0` — generated 4 pages from 借鉴素材小说大纲模版.md
+## 2026-08-16T17:16:33.575584
+- **ingest**: `b0` — generated 5 pages from 借鉴素材必备华夏天空作家福利.md
+## 2026-08-16T17:16:34.795848
+- **ingest**: `b0` — generated 3 pages from 借鉴素材打斗七公式重要.md
+## 2026-08-16T17:16:35.359715
+- **ingest**: `b0` — generated 5 pages from 借鉴素材执梦文学社.md
+## 2026-08-16T17:16:36.454784
+- **ingest**: `b0` — generated 4 pages from 借鉴素材浅子小四素樱贱圣对对子精选片段.md
+## 2026-08-16T17:16:37.257004
+- **ingest**: `b0` — generated 4 pages from 借鉴素材玄幻与仙侠的区别.md
+## 2026-08-16T17:16:37.972231
+- **ingest**: `b0` — generated 3 pages from 借鉴素材玄幻小说创作入门指南.md
+## 2026-08-16T17:16:38.730063
+- **ingest**: `b0` — generated 5 pages from 借鉴素材玄幻小说大纲表格.md
+## 2026-08-16T17:16:39.738917
+- **ingest**: `b0` — generated 9 pages from 借鉴素材玄幻标签创作基金评定标准详解.md
+## 2026-08-16T17:16:41.649391
+- **reverse-relation**: `b0` — generated 0 pages from (batch-reconcile)
