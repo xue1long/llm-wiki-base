@@ -227,10 +227,12 @@ def test_git_snapshot_recorded(mini_wiki: Path) -> None:
 def test_failed_three_strikes_blocklists(mini_wiki: Path) -> None:
     """同一 raw 连续 3 批 failed → blocklist + 告警（plan guidance #11）。"""
     _write_plan(mini_wiki, ["raw/sources/b.md"])
-    # 让 fake-generate 抛错（RUFLO_FAKE_FAIL=1）→ 每批 failed
+    # 让 fake-generate 抛错（RUFLO_FAKE_FAIL=1）→ 每批 failed。
+    # --resume 语义（M1 review）：failed 只在续跑时重投，续跑累计 3 次触发。
     env = {"RUFLO_FAKE_FAIL": "1"}
-    for _ in range(3):
-        _run_executor(mini_wiki, extra_env=env)
+    for i in range(3):
+        _run_executor(mini_wiki, extra_env=env,
+                      extra_args=["--resume"] if i > 0 else None)
     state = _state(mini_wiki)
     entry = state.get("batch_0", {}).get("raw_states", {}).get("raw/sources/b.md", {})
     assert entry.get("blocklisted") is True
@@ -249,3 +251,134 @@ def test_budget_exceeded_auto_pauses(mini_wiki: Path) -> None:
     state = _state(mini_wiki)
     assert state.get("batch_0", {}).get("status") in ("paused_budget", "committed")
     assert r.returncode in (0, 3)
+
+
+# ---------------------------------------------------------------------------
+# pre-commit gate 真实路径（review C2/C3/I4：WikiPage relations / operation
+# depth / v3.0.0 synthesis 不误杀、不崩溃）
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def gate_wiki(tmp_path: Path) -> Path:
+    """带项目级 v3.0.0 模板的 wiki（synthesis conclusion 槽 → 待定与结论）。"""
+    ensure_knowledge_base(tmp_path)
+    tpl = tmp_path / ".wiki-templates"
+    tpl.mkdir(parents=True, exist_ok=True)
+    proj = REPO_ROOT / "knowledge" / "novel-wiki" / ".wiki-templates"
+    for name in ("source.md", "concept.md", "entity.md", "synthesis.md"):
+        if (proj / name).exists():
+            (tpl / name).write_text(
+                (proj / name).read_text(encoding="utf-8"), encoding="utf-8")
+    return tmp_path
+
+
+def _mk_page(wiki_root: Path, rel: str, body: str,
+             depth: str = "concept", tags: list[str] | None = None) -> None:
+    p = wiki_root / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    page_id = Path(rel).stem
+    fm = [f"id: {page_id}", f"title: {page_id}",
+          "type: " + ("source" if "/sources/" in rel else "concept"),
+          "sources:\n- raw/sources/a.md", f"processing_depth: {depth}"]
+    if tags:
+        fm.append("tags:")
+        fm.extend(f"- {t}" for t in tags)
+    p.write_text("---\n" + "\n".join(fm) + "\n---\n\n" + body, encoding="utf-8")
+    # 对账口径读 wiki/index.md —— 落盘页必须经 append_to_index 登记
+    from src.wiki.core.paths import WikiPaths as _WP
+    from src.wiki.features.indexer import append_to_index
+    from src.wiki.core.types import PageType as _PT
+    ptype = _PT.SOURCE if "/sources/" in rel else _PT.CONCEPT
+    append_to_index(_WP(wiki_root), [(page_id, ptype, page_id)])
+
+
+def test_gate_accepts_wikipage_with_relations_and_operation_depth(gate_wiki) -> None:
+    """C2：WikiPage.relations 是 Relation dataclass（非 dict）——gate 不崩溃。"""
+    import sys as _sys
+    if str(REPO_ROOT) not in _sys.path:
+        _sys.path.insert(0, str(REPO_ROOT))
+    from scripts.batch_executor import run_precommit_gate
+    from src.wiki.core.types import Relation, WikiPage, PageType
+    from src.wiki.core.paths import WikiPaths
+
+    # 目标页必须存在（对账口径：磁盘 ∪ produced）
+    _mk_page(gate_wiki, "wiki/sources/src-a.md",
+             "<!-- wiki-template-version: 3.0.0 -->\n## 摘要\n\ns\n",
+             depth="source")
+    _mk_page(gate_wiki, "wiki/concepts/concept-b.md",
+             "<!-- wiki-template-version: 3.0.0 -->\n## 定义\n\nd\n",
+             depth="concept")
+
+    page = WikiPage(
+        id="synthesis-执梦", title="执梦", type=PageType.SYNTHESIS,
+        sources=["raw/sources/a.md"], processing_depth="operation", grade="B",
+        body=(
+            "<!-- wiki-template-version: 3.0.0 -->\n"
+            "<!-- wiki-template-type: synthesis -->\n\n"
+            "## 议题与分歧点\n\n议题\n\n## 各方观点\n\n- [[src-a]]\n- [[concept-b]]\n\n"
+            "## 共识\n\n共识\n\n## 证据对比\n\n对比\n\n## 待定与结论\n\n结论\n"),
+        relations=[Relation(type="derived_from", target_id="src-a", weight=1.0)],
+    )
+    paths = WikiPaths(gate_wiki)
+    passed, issues = run_precommit_gate([page], [], {}, paths)
+    # operation depth 合法；v3.0.0 synthesis 的 待定与结论 槽命中（非 结论）
+    assert passed, issues
+    assert not any("invalid processing_depth" in i for i in issues)
+    assert not any("MISSING-SECTION" in i for i in issues)
+
+
+def test_gate_rejects_placeholder_and_illegal_relation(gate_wiki) -> None:
+    import sys as _sys
+    if str(REPO_ROOT) not in _sys.path:
+        _sys.path.insert(0, str(REPO_ROOT))
+    from scripts.batch_executor import run_precommit_gate
+    from src.wiki.core.types import Relation, WikiPage, PageType
+    from src.wiki.core.paths import WikiPaths
+
+    bad = WikiPage(
+        id="bad-1", title="坏页", type=PageType.CONCEPT,
+        sources=["raw/sources/a.md"], processing_depth="concept", grade="B",
+        body="<!-- wiki-template-version: 2.0.0 -->\n\n## 定义\n\n待补充\n",
+        relations=[Relation(type="related_to", target_id="x", weight=1.0)],
+    )
+    paths = WikiPaths(gate_wiki)
+    passed, issues = run_precommit_gate([bad], [], {}, paths)
+    assert not passed
+    assert any("LINT-PLACEHOLDER" in i for i in issues)
+    assert any("LINT-ILLEGAL-RELATION" in i for i in issues)
+
+
+def test_gate_accepts_valid_tags_and_rejects_invalid(gate_wiki) -> None:
+    import sys as _sys
+    if str(REPO_ROOT) not in _sys.path:
+        _sys.path.insert(0, str(REPO_ROOT))
+    from scripts.batch_executor import run_precommit_gate
+    from src.wiki.core.types import WikiPage, PageType
+    from src.wiki.core.paths import WikiPaths
+    paths = WikiPaths(gate_wiki)
+    _mk_page(gate_wiki, "wiki/sources/src-a.md",
+             "<!-- wiki-template-version: 2.0.0 -->\n## 摘要\n\ns\n",
+             depth="source")
+    _mk_page(gate_wiki, "wiki/concepts/c.md",
+             "<!-- wiki-template-version: 2.0.0 -->\n## 定义\n\nd\n",
+             depth="concept")
+
+    clean = WikiPage(
+        id="clean-1", title="干净", type=PageType.CONCEPT,
+        sources=["raw/sources/a.md"], processing_depth="concept", grade="B",
+        body="<!-- wiki-template-version: 2.0.0 -->\n\n## 定义\n\n内容\n\n"
+             "## 主要特点\n\n- x\n\n## 例子\n\n- y\n\n## 相关概念\n\n[[c]]\n\n"
+             "## 参考来源\n\n[[src-a]]\n",
+        tags=["素材/ugc", "可信度/ugc"],
+    )
+    passed, issues = run_precommit_gate([clean], [], {}, paths)
+    assert passed, issues
+
+    bad_tags = WikiPage(
+        id="bad-tag", title="坏标签", type=PageType.CONCEPT,
+        sources=["raw/sources/a.md"], processing_depth="concept", grade="B",
+        body=clean.body, tags=["读者群/其它"],
+    )
+    passed2, issues2 = run_precommit_gate([bad_tags], [], {}, paths)
+    assert not passed2
+    assert any("TAG-ENUM" in i for i in issues2)

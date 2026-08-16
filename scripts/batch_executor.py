@@ -40,8 +40,8 @@
 退出码：
   0  批完成（committed）
   1  manifest/参数错误 或 无可处理文件
-  2  门禁失败（零写入）
-  3  预算超限暂停 或 POSTCHECK 失败
+  2  门禁失败（零写入，pre-commit 阶段拦截）
+  3  整批门禁复核失败（页面已提交，须 rollback_batch）或 预算超限暂停
   137 kill -9 注入
 """
 from __future__ import annotations
@@ -61,7 +61,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.services.batch_state import (  # noqa: E402
     load_batch_state,
     raw_status,
-    save_batch_state,
     set_raw_status,
 )
 from src.wiki.core.paths import WikiPaths  # noqa: E402
@@ -133,7 +132,12 @@ def _fake_generate(raw_rel: str) -> list:
 # ---------------------------------------------------------------------------
 
 def _gate_fields(page) -> list[str]:
-    """L0-L3：id/title/sources/grade/processing_depth（复用 fields_cmd 语义）。"""
+    """L0-L3：id/title/sources/grade/processing_depth（复用 fields_cmd 语义）。
+
+    processing_depth 合法值对齐 generator 的 PROCESSING_DEPTH_VALUES
+    （concept/memory/operation）+ wiki 写入侧扩展（source/entity/synthesis/
+    stub）——review C3-3：漏 operation 会把真实语料误拦。
+    """
     errs = []
     if not page.id:
         errs.append("L0: missing id")
@@ -143,14 +147,21 @@ def _gate_fields(page) -> list[str]:
         errs.append("L0: missing sources")
     if page.grade not in ("A", "B", "C"):
         errs.append(f"L1: invalid grade: {page.grade}")
-    _VALID_DEPTHS = {"memory", "concept", "source", "entity", "synthesis", "stub"}
+    _VALID_DEPTHS = {"memory", "concept", "operation",
+                     "source", "entity", "synthesis", "stub"}
     if page.processing_depth not in _VALID_DEPTHS:
         errs.append(f"L1: invalid processing_depth: {page.processing_depth}")
     return errs
 
 
 def _gate_tags(page) -> list[str]:
-    """tags 值域 + 必填对（复用 tag_namespace）。"""
+    """tags 值域 + 必填对（复用 tag_namespace）。
+
+    语义与 batch_gate_v3（1.5 门禁，本 pre-commit gate 取代它）一致：
+    ``validate_tag_compliance``（值域 + 素材/ugc↔可信度/ugc 必填对）。
+    ``cli tags validate`` 只查前缀（更松）是既有分叉，非本 gate 引入——
+    gate 采用批门禁口径（review I4 记录，不改）。
+    """
     from src.wiki.features.tag_namespace import (
         TagValidationError, validate_tag_compliance,
     )
@@ -165,20 +176,31 @@ def _gate_lint(page, paths) -> list[str]:
     """lint 四项：占位符 / 非法 relation / RAW-PASTE / MISSING-SECTION。
 
     在内存页对象上运行（pre-commit 时页面尚未落盘），判定逻辑与
-    ``src.wiki.features.lint.lint_wiki`` 共享同一谓词，杜绝口径分叉。
+    ``src.wiki.features.lint.lint_wiki`` 共享同一谓词与版本门（review C3）：
+    - RAW-PASTE 阈值走 ``_load_raw_paste_thresholds(paths)``（quality_settings
+      校准，不写死）；
+    - MISSING-SECTION 走 lint 的 H3 版本门（页声明版本 < 项目模板版本 →
+      bundled 槽集）+ ``_template_heading_map``（v3.0.0 synthesis 的
+      conclusion 槽渲染为 ``## 待定与结论``）；
+    - 严重级与 lint_wiki 对齐：占位符/非法 relation/source fulltext 段为
+      ERROR；RAW-PASTE run 超阈值在 lint 是 WARNING（不拦批）——本 gate
+      只把 ERROR 项计入 block（与 batch_gate_v3 的 lint 步骤一致）。
     """
     from src.wiki.features.lint import (
         _BODY_HEADING_RE,
         _BUILTIN_RELATIONS,
         _PLACEHOLDER_SUBSTRINGS,
         _TEMPLATE_VERSION_RE,
+        _bundled_template,
         _has_fulltext_section,
-        _heading_label,
+        _load_raw_paste_thresholds,
         _long_raw_text_run,
         _parse_version,
+        _template_heading_map,
         list_resolved,
         required_slot_names,
     )
+    from src.wiki.core.types import PageType
 
     errs = []
     body = page.body or ""
@@ -190,15 +212,14 @@ def _gate_lint(page, paths) -> list[str]:
         rtype = rel.type if isinstance(rel.type, str) else rel.type.value
         if rtype not in _BUILTIN_RELATIONS and not rtype.startswith("x-"):
             errs.append(f"LINT-ILLEGAL-RELATION: {page.id} type={rtype}")
-    # RAW-PASTE（source 页：fulltext 段 → ERROR；run 超阈值 → ERROR）
+    # RAW-PASTE：阈值从 quality_settings 读（review C3-2）；与 lint 一致，
+    # 只有 source fulltext 段是 ERROR，run 超阈值在 lint 为 WARNING（不拦批）。
+    T_source, T_non = _load_raw_paste_thresholds(paths)
     raw_run = _long_raw_text_run(body)
-    if page.type.value == "source" and _has_fulltext_section(body):
+    if page.type == PageType.SOURCE and _has_fulltext_section(body):
         errs.append(f"LINT-RAW-PASTE(fulltext): {page.id}")
-    elif page.type.value == "source" and raw_run > 800:
-        errs.append(f"LINT-RAW-PASTE(source): {page.id} run={raw_run}")
-    elif page.type.value != "source" and raw_run > 300:
-        errs.append(f"LINT-RAW-PASTE(non-source): {page.id} run={raw_run}")
-    # MISSING-SECTION（版本门 >= 2.0.0；stub 豁免）
+    # （lint 中 run 超阈值是 WARNING → 不入 ERROR 集，避免门禁与 lint 分叉拦批）
+    # MISSING-SECTION（H3 版本门 + 标题映射，review C3-1）
     vm = _TEMPLATE_VERSION_RE.search(body)
     if vm and _parse_version(vm.group(1)) >= (2, 0, 0) and \
             getattr(page, "processing_depth", "") != "stub":
@@ -207,18 +228,52 @@ def _gate_lint(page, paths) -> list[str]:
             template = templates.get(page.type)
             if template is not None:
                 required = required_slot_names(template)
-                if required:
+                if not required:
+                    return errs
+                page_ver = _parse_version(vm.group(1))
+                project_ver = _parse_version(template.version or "2.0.0")
+                if page_ver < project_ver:
+                    baseline = _bundled_template(page.type)
+                    if baseline is None:
+                        return errs
+                    headings = {_heading_label_for(n, page.type)
+                                for n in required_slot_names(baseline)}
+                else:
+                    heading_map = _template_heading_map(template, page.type.value)
                     headings = {
-                        _heading_label(n, page.type.value) for n in required
+                        heading_map.get(n, _heading_label_for(n, page.type))
+                        for n in required
                     }
-                    body_headings = set(_BODY_HEADING_RE.findall(body))
-                    missing = sorted(h for h in headings if h not in body_headings)
-                    if missing:
-                        errs.append(
-                            f"LINT-MISSING-SECTION: {page.id} missing={missing}")
+                body_headings = set(_BODY_HEADING_RE.findall(body))
+                missing = sorted(h for h in headings if h not in body_headings)
+                if missing:
+                    errs.append(
+                        f"LINT-MISSING-SECTION: {page.id} missing={missing}")
         except Exception:
             pass  # 模板解析失败 → 该槽检查降级（不误 block）
     return errs
+
+
+def _heading_label_for(slot_name: str, page_type) -> str:
+    """slot → 标题（复用 lint 的 bundled 映射；entity 的 summary → 简介）。"""
+    from src.wiki.features.lint import _heading_label
+    return _heading_label(slot_name, page_type.value)
+
+
+def _wikilink_targets_of(page) -> list[str]:
+    """WikiPage 的链接目标：body ``[[...]]`` + relation target_id。
+
+    review C2：不能把 WikiPage 直接喂给 ``metrics.collect_wikilinks``
+    （它按 PageSnapshot 契约访问 ``relations[].get("target")``，而
+    WikiPage.relations 是 ``list[Relation]`` dataclass → AttributeError）。
+    """
+    import re as _re
+    targets = [m.group(1).strip()
+               for m in _re.finditer(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]",
+                                     page.body or "")]
+    targets += [rel.target_id for rel in (page.relations or [])
+                if getattr(rel, "target_id", None)]
+    return [t for t in targets if t]
 
 
 def _gate_reconcile(pages, extra_pages, paths) -> list[str]:
@@ -230,7 +285,6 @@ def _gate_reconcile(pages, extra_pages, paths) -> list[str]:
     from src.wiki.features.indexer import read_index
     from src.wiki.features.knowledge_gaps import KnowledgeGapStore
     from src.wiki.features.slug_utils import normalize_reconcile_slug
-    from src.wiki.features.metrics import collect_wikilinks
 
     produced = {p.id for p in pages} | {p.id for p in (extra_pages or [])}
     disk = {slug for slug, _, _ in read_index(paths)}
@@ -248,8 +302,10 @@ def _gate_reconcile(pages, extra_pages, paths) -> list[str]:
 
     errs = []
     for p in pages + (extra_pages or []):
-        for target in collect_wikilinks(p):
+        for target in _wikilink_targets_of(p):
             canon = alias_canon(target) if alias_canon else target
+            # get_canonical 对未知 slug 返回 None → 回退原 target（review 实测）
+            canon = canon if canon else target
             tn = normalize_reconcile_slug(canon)
             if target in produced or tn in known_norm:
                 continue
@@ -257,6 +313,22 @@ def _gate_reconcile(pages, extra_pages, paths) -> list[str]:
                 continue
             errs.append(f"BROKEN-LINK: {p.id} -> [[{target}]]")
     return errs
+
+
+def _estimate_batch_cost(ok: int, err: int) -> float:
+    """估算本批费用（USD）。I2 review：真实模式不能恒 0.0。
+
+    - fake 模式：RUFLO_FAKE_COST（默认 0.2 USD/批，测试可控）；
+    - 真实模式：按 LLM 调用次数估算（每 raw ≈1 次 generate + 每页合成，
+      粗算 ok+err 次 × COST_PER_CALL），COST_PER_CALL 取 OpenAI
+      text-embedding/chat 的保守上限。精确计价应接 token 计量（待接入，
+      本估算保证 ``--budget-usd`` 在生产有意义而非 no-op）。
+    """
+    if _is_fake_mode():
+        return float(os.environ.get("RUFLO_FAKE_COST", "0.2"))
+    # 0.2 B2 定稿预算口径：每 LLM 调用 ~$0.0005 上限（glm-5.2 级别）
+    COST_PER_CALL = float(os.environ.get("RUFLO_COST_PER_CALL", "0.0005"))
+    return round((ok + err) * COST_PER_CALL, 4)
 
 
 def run_precommit_gate(pages, extra_pages, raw_headers, paths,
@@ -343,12 +415,26 @@ async def _generate_raw(paths, provider, raw_rel, batch_no) -> tuple[list, list,
     )
 
 
+def _resolve_provider(args):
+    """按 --project 解析 LLM provider（C1：真实模式不能传 None）。
+
+    --root 测试模式无项目注册 → 返回默认 provider（_get_provider(None)）。
+    """
+    from src.pipeline import _get_provider
+    project_id = getattr(args, "project", None)
+    return _get_provider(project_id)
+
+
 async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id) -> str:
     """Phase 3：按分支提交单个 raw。返回分支名（reingest / first_ingest）。
 
     C2：有 source 页 → reingest（记 pending_deletion → cascade_delete +
     删向量 → commit 新页）；无 → 首摄 commit。cascade 抛 FileNotFoundError
     （源页被删）→ 降级首摄而非 failed。
+
+    向量删除（I3 review）：降级首摄 / pending_deletion 续跑（probe=None）
+    分支也必须幂等删除旧向量——崩溃发生在 cascade 与删向量之间时，旧 chunk
+    不清理会让搜索命中陈旧内容。delete_by_source 幂等（无残留删 0 行）。
     """
     from src.services.ingest import probe_source_page
     from src.wiki.features.cascade_delete import cascade_delete
@@ -367,13 +453,39 @@ async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id) -> str:
             branch = "first_ingest"   # 源页已被并发删除 → 首摄分支
             cascade_result = {}
         else:
-            init_vector_store_for_paths(paths)
-            delete_by_source(paths, raw_rel)
             cascade_result.get("deleted_pages", [])
+        init_vector_store_for_paths(paths)
+        delete_by_source(paths, raw_rel)
         _crash_at("cascade")
+    else:
+        # 首摄/续跑分支：仍幂等清旧向量（I3 review）
+        init_vector_store_for_paths(paths)
+        delete_by_source(paths, raw_rel)
     await commit_ingest(paths, Path(raw_rel), pages, extras, task_id=task_id)
     set_raw_status(paths, batch_key, raw_rel, "done", branch=branch)
     return branch
+
+
+def _set_batch_status(paths, batch_key, status: str, **extra) -> None:
+    """批级状态写入（H① 锁纪律：所有 batch_build_state 写走统一锁路径）。
+
+    与 set_raw_status 一样经 update_batch_state（文件锁 + os.replace 原子写），
+    杜绝并发 executor 的读-改-写丢失更新（review M3）。
+    """
+    from src.services.batch_state import update_batch_state
+
+    def _mutate(state: dict) -> dict:
+        entry = state.setdefault(batch_key, {})
+        if not isinstance(entry, dict):
+            entry = {}
+            state[batch_key] = entry
+        entry["status"] = status
+        entry["ts"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        for k, v in extra.items():
+            entry[k] = v
+        return state
+
+    update_batch_state(paths, _mutate)
 
 
 def _update_fail_streak(paths, batch_key, raw_rel, status) -> None:
@@ -397,6 +509,10 @@ def _update_fail_streak(paths, batch_key, raw_rel, status) -> None:
 async def run_batch(args) -> int:
     paths = _resolve_paths(args)
 
+    # C1：真实模式必须解析 provider（None → 整批 AttributeError）。
+    # fake 模式不需要（_gen_one 走 _fake_generate），但仍解析以便契约一致。
+    provider = None if _is_fake_mode() else _resolve_provider(args)
+
     manifest = Path(args.manifest)
     if not manifest.is_absolute():
         manifest = paths.root / manifest
@@ -417,12 +533,10 @@ async def run_batch(args) -> int:
     # git 快照（guidance #13；--no-git-snapshot 跳过，测试用）
     snapshot = None if args.no_git_snapshot else _git_snapshot(paths)
     if snapshot:
-        state = load_batch_state(paths)
-        entry = state.setdefault(batch_key, {})
-        entry["git_snapshot"] = snapshot
-        entry["status"] = entry.get("status", "in_progress")
-        entry["ts"] = time.strftime("%Y-%m-%dT%H:%M:%S")
-        save_batch_state(paths, state)
+        from src.services.batch_state import update_batch_state
+        update_batch_state(paths, lambda st: (
+            st.setdefault(batch_key, {}).__setitem__("git_snapshot", snapshot),
+            st)[1])
 
     # 预算顶层检查：上次已超限 → 暂停
     state = load_batch_state(paths)
@@ -430,12 +544,13 @@ async def run_batch(args) -> int:
     if args.budget_usd is not None and cumulative > args.budget_usd:
         print(f"BUDGET PAUSED: cumulative ${cumulative:.2f} > "
               f"${args.budget_usd:.2f} — not starting batch", flush=True)
-        entry = state.setdefault(batch_key, {})
-        entry["status"] = "paused_budget"
-        save_batch_state(paths, state)
+        _set_batch_status(paths, batch_key, "paused_budget")
         return 3
 
     # ── 状态机：决定每 raw 动作 ─────────────────────────────────────
+    # M1 review：--resume 语义 —— failed 只在续跑时重投；全新跑（无 --resume）
+    # 跳过 failed（上一轮失败需要人工/脚本决策后再重投，避免无限自动重试）。
+    # done / permanent_failed / blocklisted 恒跳过；pending_deletion 恒重建。
     pending: list[str] = []
     for raw in files:
         st = raw_status(state, batch_key, raw)
@@ -445,6 +560,9 @@ async def run_batch(args) -> int:
             continue
         if st == "permanent_failed" or entry.get("blocklisted"):
             print(f"SKIP blocked: {raw}", flush=True)
+            continue
+        if st == "failed" and not args.resume:
+            print(f"SKIP failed (use --resume to resubmit): {raw}", flush=True)
             continue
         if st == "pending_deletion":
             print(f"RESUME pending_deletion: {raw} — re-running rebuild",
@@ -456,9 +574,7 @@ async def run_batch(args) -> int:
         return 0
 
     # 门禁先置 pending_gate（C4：批级状态，崩溃后续跑可识别）
-    state = load_batch_state(paths)
-    state.setdefault(batch_key, {})["status"] = "pending_gate"
-    save_batch_state(paths, state)
+    _set_batch_status(paths, batch_key, "pending_gate")
 
     # ── Phase 1：generate（dry，全部 pending 并行，零磁盘写）────────
     generated: dict[str, tuple[list, list, dict]] = {}
@@ -481,7 +597,7 @@ async def run_batch(args) -> int:
                 generated[raw_rel] = (pages, [], {"fake": True})
             else:
                 pages, extras, meta = await _generate_raw(
-                    paths, None, raw_rel, args.batch)
+                    paths, provider, raw_rel, args.batch)
                 generated[raw_rel] = (pages, extras, meta)
             header = ""
             try:
@@ -517,13 +633,9 @@ async def run_batch(args) -> int:
 
     # is_immutable 整批跳过 ≠ 失败（guidance #13）：不算 abort。
     if not generated and skipped_immutable and not failed_raws and not perm_failed_raws:
-        state = load_batch_state(paths)
-        entry = state.setdefault(batch_key, {})
-        entry["status"] = "committed"
-        entry["ok"] = len(skipped_immutable)
-        entry["skipped_immutable"] = skipped_immutable
-        entry["ts"] = time.strftime("%Y-%m-%dT%H:%M:%S")
-        save_batch_state(paths, state)
+        _set_batch_status(paths, batch_key, "committed",
+                          ok=len(skipped_immutable),
+                          skipped_immutable=skipped_immutable)
         print(f"BATCH DONE (all {len(skipped_immutable)} immutable skipped)",
               flush=True)
         return 0
@@ -532,12 +644,9 @@ async def run_batch(args) -> int:
         print(f"BATCH ABORTED: zero pages generated "
               f"(failed={len(failed_raws)} perm={len(perm_failed_raws)})",
               flush=True)
-        state = load_batch_state(paths)
-        entry = state.setdefault(batch_key, {})
-        entry["status"] = "failed"
-        entry["err"] = len(failed_raws)
-        entry["permanent_failed"] = len(perm_failed_raws)
-        save_batch_state(paths, state)
+        _set_batch_status(paths, batch_key, "failed",
+                          err=len(failed_raws),
+                          permanent_failed=len(perm_failed_raws))
         return 1
 
     # ── Phase 2：pre-commit 门禁（内存页，失败 = 零写入）────────────
@@ -551,11 +660,8 @@ async def run_batch(args) -> int:
               f"({len(gate_issues)} issue(s))", flush=True)
         for iss in gate_issues[:10]:
             print(f"  [GATE] {iss}", flush=True)
-        state = load_batch_state(paths)
-        entry = state.setdefault(batch_key, {})
-        entry["status"] = "gate_failed"
-        entry["gate_issues"] = gate_issues[:50]
-        save_batch_state(paths, state)
+        _set_batch_status(paths, batch_key, "gate_failed",
+                          gate_issues=gate_issues[:50])
         for raw in generated:
             _update_fail_streak(paths, batch_key, raw, "failed")
         return 2
@@ -584,6 +690,18 @@ async def run_batch(args) -> int:
     for raw in perm_failed_raws:
         perm += 1
 
+    # ── 每批向量 upsert（guidance #9："每批后向量 upsert"）──────────
+    # 直跑路径只删向量（_commit_raw），重建后必须 upsert 新 chunk，否则
+    # 搜索静默丢内容（I3 review (a)）。真实模式需要 embedding provider；
+    # 未配置/失败 → 记 warn 不拦批（与 server 的 best-effort 一致）。
+    if not _is_fake_mode() and generated:
+        try:
+            upserted = await _upsert_batch_vectors(paths, all_pages)
+            print(f"  [vector] upserted {upserted} chunk(s)", flush=True)
+        except Exception as exc:
+            print(f"  [vector] WARN upsert failed (search degrade): {exc}",
+                  flush=True)
+
     # ── 整批门禁复核（C4：崩溃后续跑对整批——含已 done 文件——重跑门禁，
     #    杜绝门禁作用域收缩）──────────────────────────────────────────
     whole_ok = await _rerun_gate_batch(paths, batch_key, files)
@@ -591,36 +709,88 @@ async def run_batch(args) -> int:
 
     # ── 预算累计 + 批状态 ───────────────────────────────────────────
     state = load_batch_state(paths)
-    cost = float(os.environ.get("RUFLO_FAKE_COST", "0.2")) if os.environ.get(
-        "RUFLO_EXECUTOR_FAKE_GENERATE") == "1" else 0.0
+    cost = _estimate_batch_cost(ok, err)
     budget_state = state.setdefault("budget", {})
     budget_state["cumulative_usd"] = cumulative + cost
     budget_state["last_batch_usd"] = cost
-    entry = state.setdefault(batch_key, {})
+    from src.services.batch_state import update_batch_state
     if not whole_ok:
-        entry["status"] = "gate_failed"
-        entry["ok"] = ok
-        entry["err"] = err
-        save_batch_state(paths, state)
-        print("BATCH GATE RE-CHECK FAILED (whole-batch scope) — review", flush=True)
-        return 2
+        # I1 review：复核在 commit 之后，失败 ≠ 零写入——独立 exit code 3
+        # + 状态 gate_recheck_failed（标注 committed=True），提示回滚。
+        _set_batch_status(paths, batch_key, "gate_recheck_failed",
+                          committed=True, ok=ok, err=err)
+        update_batch_state(paths, lambda st: (
+            st.setdefault("budget", {}).__setitem__("cumulative_usd", cumulative + cost),
+            st)[1])
+        print("BATCH GATE RE-CHECK FAILED (whole-batch scope, pages already "
+              "committed) — use scripts/rollback_batch.py to revert", flush=True)
+        return 3
     if args.budget_usd is not None and budget_state["cumulative_usd"] > args.budget_usd:
-        entry["status"] = "paused_budget"
-        entry["ok"] = ok
-        entry["err"] = err
-        entry["permanent_failed"] = perm
-        save_batch_state(paths, state)
+        _set_batch_status(paths, batch_key, "paused_budget",
+                          ok=ok, err=err, permanent_failed=perm)
+        update_batch_state(paths, lambda st: (
+            st.setdefault("budget", {}).__setitem__("cumulative_usd", cumulative + cost),
+            st)[1])
         print(f"BUDGET PAUSED: cumulative ${budget_state['cumulative_usd']:.2f} "
               f"> ${args.budget_usd:.2f}", flush=True)
         return 3
-    entry["status"] = "committed"
-    entry["ok"] = ok
-    entry["err"] = err
-    entry["permanent_failed"] = perm
-    entry["ts"] = time.strftime("%Y-%m-%dT%H:%M:%S")
-    save_batch_state(paths, state)
+    _set_batch_status(paths, batch_key, "committed",
+                      ok=ok, err=err, permanent_failed=perm)
+    update_batch_state(paths, lambda st: (
+        st.setdefault("budget", {}).__setitem__("cumulative_usd", cumulative + cost),
+        st)[1])
     print(f"BATCH DONE ok={ok} err={err} permanent_failed={perm}", flush=True)
     return 0
+
+
+async def _upsert_batch_vectors(paths, pages) -> int:
+    """为批内已提交页面切块 + embedding + upsert（guidance #9）。
+
+    复用 ``src.utils.text.chunk_markdown`` + ``src.llm.embedding_runtime``
+    provider + ``src.vector.upsert.vector_upsert_chunks``（与 indexer /
+    librarian 同一套向量写入路径）。无 embedding provider 时抛错，由调用方
+    降级（search degrade，不拦批）。
+    """
+    from src.utils.text import chunk_markdown
+    from src.llm.embedding_runtime import get_embedding_provider
+    from src.vector.store import init_vector_store_for_paths
+    from src.vector.upsert import vector_upsert_chunks
+    from src.types import VectorChunk
+    from src.utils.path import normalize_source_path
+    from datetime import timezone, datetime
+
+    init_vector_store_for_paths(paths)
+    provider = get_embedding_provider()
+    total = 0
+    for p in pages:
+        content = (p.body or "").strip()
+        if not content:
+            continue
+        chunks = chunk_markdown(content)
+        if not chunks:
+            continue
+        embedding_results = await provider.embed(chunks)
+        if embedding_results and hasattr(embedding_results[0], "embedding"):
+            embeddings = [e.embedding for e in embedding_results]
+        else:
+            embeddings = list(embedding_results)
+        if not embeddings or len(embeddings) != len(chunks):
+            continue
+        now = int(datetime.now(timezone.utc).timestamp() * 1000)
+        lance_chunks = [
+            VectorChunk(
+                id=f"{p.id}-chunk-{i}",
+                task_id=p.id,
+                content=chunk,
+                embedding=embeddings[i],
+                path=normalize_source_path(p.id, paths.root),
+                updated_at=now,
+            )
+            for i, chunk in enumerate(chunks)
+        ]
+        vector_upsert_chunks(lance_chunks)
+        total += len(lance_chunks)
+    return total
 
 
 async def _rerun_gate_batch(paths, batch_key, files) -> bool:
@@ -657,25 +827,6 @@ async def _rerun_gate_batch(paths, batch_key, files) -> bool:
     return passed
 
 
-def _install_fake_run_ingest() -> None:
-    """RUFLO_EXECUTOR_FAKE_GENERATE=1：让 run_ingest（reingest 续跑）也走 fake。
-
-    续跑时 pending_deletion 文件走 ``reingest_source_direct`` 内部的
-    ``run_ingest``；fake 模式下把它换成 fake 生成 + 真实 commit，保证离线。
-    """
-    import src.pipeline.ingest as _pi_mod
-
-    async def _fake_run_ingest(paths, source_path, source_text, provider,
-                               folder_context="", task_id="test"):
-        from src.pipeline.ingest import commit_ingest
-        raw_rel = Path(str(source_path)).as_posix()
-        pages = _fake_generate(raw_rel)
-        await commit_ingest(paths, source_path, pages, task_id=task_id)
-        return pages
-
-    _pi_mod.run_ingest = _fake_run_ingest
-
-
 def _is_fake_mode() -> bool:
     return os.environ.get("RUFLO_EXECUTOR_FAKE_GENERATE") == "1"
 
@@ -706,9 +857,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.budget_usd is not None and args.budget_usd <= 0:
         print("ERROR: --budget-usd must be > 0", flush=True)
         return 1
-
-    if _is_fake_mode():
-        _install_fake_run_ingest()
+    if args.batch < 0:
+        print("ERROR: --batch must be >= 0", flush=True)
+        return 1
+    if args.concurrency < 1:
+        print("ERROR: --concurrency must be >= 1", flush=True)
+        return 1
 
     return asyncio.run(run_batch(args))
 
