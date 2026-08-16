@@ -318,3 +318,45 @@ def test_resolve_cache_does_not_break_missing_file_error(tmp_path):
     finally:
         object.__setattr__(r, "BUNDLED_DIR", original)
         r.clear_cache()
+
+
+# ---------------------------------------------------------------------------
+# Phase 2.2 — project-level v3.0.0 templates hit for novel-wiki
+# ---------------------------------------------------------------------------
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+NOVEL_WIKI = REPO_ROOT / "knowledge" / "novel-wiki"
+
+# 写作域 v3.0.0 模板的零采纳可选槽（spec §4.5 删除；plan 2.2 确认已清理）
+_OLD_OPTIONAL_SLOTS = ("limitations?", "conflicts?", "source_meta?")
+
+
+def test_project_level_priority_hits_novel_wiki():
+    """novel-wiki 的 4 个页面模板必须命中项目级 v3.0.0（优先于 bundled 2.0.0）。"""
+    from src.wiki.core.types import PageType
+    from src.wiki.templates import resolver as r
+
+    r.clear_cache()
+    try:
+        for ptype in (PageType.SOURCE, PageType.ENTITY, PageType.CONCEPT, PageType.SYNTHESIS):
+            t = r.resolve(ptype, NOVEL_WIKI)
+            assert t.source == "project", (
+                f"{ptype.value} 模板应来自项目级，实际 {t.source}"
+            )
+            assert t.version == "3.0.0", (
+                f"{ptype.value} 模板版本应为 3.0.0，实际 {t.version}"
+            )
+            assert t.path.parent == NOVEL_WIKI / ".wiki-templates"
+    finally:
+        r.clear_cache()
+
+
+def test_novel_wiki_templates_no_zero_adoption_optional_slots():
+    """spec §4.5 废弃的零采纳可选槽（limitations?/conflicts?/source_meta?）
+    必须从项目级模板中清除（plan 2.2）。"""
+    for name in ("concept.md", "source.md", "entity.md", "synthesis.md"):
+        text = (NOVEL_WIKI / ".wiki-templates" / name).read_text(encoding="utf-8")
+        for slot in _OLD_OPTIONAL_SLOTS:
+            assert f"slot:{slot}" not in text, (
+                f"{name} 仍含废弃可选槽 {slot!r}"
+            )
