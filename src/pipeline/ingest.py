@@ -151,22 +151,10 @@ def _format_wiki_index(index: dict) -> str:
 
 
 # B10: extract every [[wikilink]] target from a page body. A wikilink may
-# carry an `|alias` and/or a `#section` suffix; both are stripped so the
-# resulting target matches the slugified page id (which the generator also
-# slugifies). Kept as a module-level pure helper so it is unit-testable
-# against the real code (not a copy).
-_WIKILINK_RE = re.compile(r"\[\[(.*?)\]\]")
-
-
-def _extract_wikilink_targets(body: str) -> list[str]:
-    """Return the de-suffixed target of each ``[[wikilink]]`` in *body*."""
-    out: list[str] = []
-    for _raw in _WIKILINK_RE.findall(body or ""):
-        _tgt = _raw.split("|")[0].split("#")[0].strip()
-        if _tgt:
-            out.append(_tgt)
-    return out
-
+# carry an `|alias` and/or a `#section` suffix. The reconciliation helper in
+# ``src/pipeline/reconcile.py`` owns the canonical implementation now (its
+# ``_extract_wikilink_targets`` is shared by resolver + gap collection);
+# this module-level helper was removed with the old auto-stub block.
 
 def _compute_reverse_relations(paths, pages):
     """Add inverse edges so the relation graph is bidirectional on disk.
