@@ -30,7 +30,15 @@ registry.json
 # happens; they belong to a specific project + machine and should not
 # be committed.
 # vector index dir
-.index
+.index/*
+# Phase 4 P1 P0 加固（plan guidance #6）：门禁/对账数据 git 跟踪——
+# 用 gitignore 例外规则白名单放行（钉死，非 force-add）。lancedb 不入 git
+# （不在例外列表），依赖"每批向量 upsert 可重放"。
+!.index/batch_build_state.json
+!.index/knowledge_gaps.json
+!.index/batch_reports/
+!.index/batch_reports/*.json
+!.index/reingest_plan.json
 # LLM cache dir
 .llm-wiki
 # Obsidian vault (when this repo is opened in Obsidian)
