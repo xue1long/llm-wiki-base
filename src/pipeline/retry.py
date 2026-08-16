@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Awaitable, Callable, TypeVar
+from typing import Awaitable, Callable, Optional, TypeVar
 
 import httpx
 
@@ -20,6 +20,9 @@ T = TypeVar("T")
 
 # C1 backoff schedule: 2s -> 10s -> 30s (max 3 retries).
 _RETRY_DELAYS: tuple[float, float, float] = (2.0, 10.0, 30.0)
+
+# Injectable sleep hook (tests override to skip real waiting and record calls).
+_sleep: Callable[[float], Awaitable[None]] = asyncio.sleep
 
 
 # ---------------------------------------------------------------------------
@@ -114,8 +117,14 @@ class RetryExhausted(Exception):
     """All retry attempts exhausted for a transient error."""
 
 
-class PermanentFailure(Exception):
-    """Non-retryable failure (e.g. HTTP 422 content moderation)."""
+class PermanentFailure(RuntimeError):
+    """Non-retryable failure (e.g. HTTP 422 content moderation).
+
+    Subclasses :class:`RuntimeError` so existing callers that catch
+    ``RuntimeError`` (generator/analyzer response_format-400 downgrade,
+    generic provider-error handling) keep working when a wrapped provider
+    surfaces a permanent error.
+    """
 
 
 class CircuitBreakerOpen(Exception):
@@ -132,6 +141,7 @@ async def retry_with_backoff(
     max_retries: int = 3,
     cb_name: str = "llm",
     max_retry_after: float = 60.0,
+    retry_delays: Optional[tuple[float, ...]] = None,
 ) -> T:
     """Retry an async callable with exponential backoff for transient errors.
 
@@ -158,6 +168,8 @@ async def retry_with_backoff(
         max_retries: Maximum number of retries (default 3).
         cb_name: Name of the circuit breaker to check (default ``"llm"``).
         max_retry_after: Upper bound for Retry-After header (default 60 s).
+        retry_delays: Override the exponential backoff schedule. Defaults to
+            ``_RETRY_DELAYS`` (2s → 10s → 30s).
 
     Returns:
         The return value of *fn* on success.
@@ -181,6 +193,7 @@ async def retry_with_backoff(
 
     last_error: BaseException | None = None
     total_attempts = max_retries + 1  # initial call + retries
+    delays = _RETRY_DELAYS if retry_delays is None else tuple(retry_delays)
 
     for attempt in range(total_attempts):
         # Re-check breaker state on each iteration (it could transition
@@ -241,17 +254,67 @@ async def retry_with_backoff(
                     "[retry] attempt %d/%d: rate limited (429) — waiting %.1fs",
                     attempt + 1, total_attempts, retry_after,
                 )
-                await asyncio.sleep(retry_after)
+                await _sleep(retry_after)
                 continue
 
             # --- transient: backoff ---
-            delay = _RETRY_DELAYS[attempt] if attempt < len(_RETRY_DELAYS) else 30.0
+            delay = delays[attempt] if attempt < len(delays) else 30.0
             _logger.info(
                 "[retry] attempt %d/%d: transient (%s) — retrying in %.1fs",
                 attempt + 1, total_attempts, type(exc).__name__, delay,
             )
-            await asyncio.sleep(delay)
+            await _sleep(delay)
 
     # Safety net (should be unreachable — all paths above either return,
     # continue, or raise).
     raise RetryExhausted(f"All {total_attempts} attempts exhausted") from last_error
+
+
+# ---------------------------------------------------------------------------
+# Provider-layer wrapper — C1 接线点统一封装（plan 1.9 review E）
+# ---------------------------------------------------------------------------
+
+class RetryLLMProvider:
+    """Wrap any ``LLMProvider`` so ``complete()``/``chat()`` go through
+    :func:`retry_with_backoff` (429 Retry-After / 422 permanent / transient
+    backoff), with the shared ``"llm"`` circuit breaker.
+
+    Everything else (``embed``, ``health_check``, ``check_response_format``,
+    ``close``, ``model``/``config``/``_response_format_ok`` attributes) is
+    transparently delegated to the inner provider.  Applying this wrapper in
+    ``create_llm_provider`` covers every LLM call point at once — generator,
+    analyzer (via ``BudgetedLLM``), ``c_grade_handler`` and ``QualityJudge`` —
+    so no per-call-site wiring can be missed (review E / plan 1.9).
+    """
+
+    def __init__(
+        self,
+        inner: object,
+        *,
+        max_retries: int = 3,
+        cb_name: str = "llm",
+        max_retry_after: float = 60.0,
+        retry_delays: Optional[tuple[float, ...]] = None,
+    ):
+        self._inner = inner
+        self._max_retries = max_retries
+        self._cb_name = cb_name
+        self._max_retry_after = max_retry_after
+        self._retry_delays = retry_delays
+
+    # -- chat entry points go through the same retry path -------------------
+    async def complete(self, messages, **kwargs):
+        return await retry_with_backoff(
+            lambda: self._inner.complete(messages, **kwargs),
+            max_retries=self._max_retries,
+            cb_name=self._cb_name,
+            max_retry_after=self._max_retry_after,
+            retry_delays=self._retry_delays,
+        )
+
+    async def chat(self, messages, **kwargs):
+        return await self.complete(messages, **kwargs)
+
+    # -- everything else delegates to the inner provider --------------------
+    def __getattr__(self, name):
+        return getattr(self._inner, name)

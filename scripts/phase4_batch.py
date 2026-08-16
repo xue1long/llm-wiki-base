@@ -46,12 +46,35 @@ FILE_TIMEOUT = 900
 # C7: warn when a single batch exceeds this wall-clock budget.
 BATCH_WARN_SECONDS = 60 * 60
 
+# C1 (plan 1.9): llm 熔断器名称与恢复轮询间隔。
+LLM_BREAKER = "llm"
+BREAKER_POLL_SECONDS = 5.0
+
 
 def _log(msg: str) -> None:
     line = f"[{time.strftime('%H:%M:%S')}] {msg}"
     print(line, flush=True)
     with REPORT.open("a", encoding="utf-8") as f:
         f.write(line + "\n")
+
+
+async def _await_breaker_recovery(breaker=None, poll_seconds: float = BREAKER_POLL_SECONDS) -> None:
+    """llm 熔断器 OPEN 时暂停整批，等待恢复（C1 / plan 1.9 O3）。
+
+    直跑路径不再"OPEN 后照打"：executor 顶层在派发前检查 breaker，OPEN 则
+    阻塞等待 —— ``can_execute()`` 在 recovery_timeout（60s）后自动转
+    HALF_OPEN 放行试探调用，2 次成功恢复 CLOSED。禁止无冷却人工重启打满调用。
+    """
+    from src.circuit_breaker import CircuitState, get_circuit_breaker
+    breaker = breaker or get_circuit_breaker(LLM_BREAKER)
+    while not breaker.can_execute():
+        _log(
+            f"llm circuit breaker OPEN — pausing batch, waiting for recovery "
+            f"({breaker.config.recovery_timeout}s cooldown) ..."
+        )
+        await asyncio.sleep(poll_seconds)
+    if breaker.state != CircuitState.CLOSED:
+        _log(f"llm circuit breaker now {breaker.state.value} — resuming batch")
 
 
 def _load_state() -> dict:
@@ -304,6 +327,10 @@ async def _generate_batch(
     from src.pipeline.ingest import generate_ingest
     from src.utils.path import normalize_source_path
 
+    # C1 (plan 1.9 O3): executor 顶层检查 llm 熔断器 —— OPEN 时暂停整批等待恢复，
+    # 禁止无冷却重启打满调用。
+    await _await_breaker_recovery()
+
     all_pages: list = []
     all_extra: list = []
     raw_headers: dict[str, str] = {}
@@ -338,6 +365,9 @@ async def _generate_batch(
 
     async def _ingest_one(idx: int, raw_rel: str) -> tuple[str, object]:
         async with sem:
+            from src.circuit_breaker import get_circuit_breaker
+            from src.pipeline.retry import CircuitBreakerOpen, PermanentFailure
+
             src = root / raw_rel
             text = src.read_text(encoding="utf-8", errors="replace")
             task_id = f"b{batch_no}-{Path(raw_rel).stem[:30]}"
@@ -345,6 +375,8 @@ async def _generate_batch(
 
             pages = extra = meta = None
             last_err = None
+            permanent_failed = False
+            breaker = get_circuit_breaker(LLM_BREAKER)
             for attempt in range(MAX_RETRIES + 1):
                 try:
                     pages, extra, meta = await asyncio.wait_for(
@@ -357,10 +389,28 @@ async def _generate_batch(
                     )
                     last_err = None
                     break
+                except PermanentFailure as exc:
+                    # 422 content moderation —— 永久失败：不重试、不记 breaker
+                    # 故障（非服务故障），标记 permanent_failed 移出重试。
+                    last_err = exc
+                    permanent_failed = True
+                    break
+                except CircuitBreakerOpen as exc:
+                    # 熔断器 OPEN：不记故障（已 OPEN），等整批暂停恢复后重试。
+                    last_err = exc
+                    await _await_breaker_recovery()
+                    if attempt >= MAX_RETRIES:
+                        break
                 except Exception as exc:
                     last_err = exc
                     if attempt < MAX_RETRIES:
                         await asyncio.sleep(2)
+
+            # C1 (plan 1.9 O3): 按文件结果记一次 breaker（重试不重复计数）。
+            if last_err is None:
+                breaker.record_success()
+            elif not permanent_failed and not isinstance(last_err, CircuitBreakerOpen):
+                breaker.record_failure()
 
             result = {
                 "raw_rel": raw_rel,
@@ -370,6 +420,7 @@ async def _generate_batch(
                 "meta": meta,
                 "ok": last_err is None,
                 "error": str(last_err) if last_err else None,
+                "permanent_failed": permanent_failed,
             }
             return raw_rel, result
 
@@ -399,15 +450,22 @@ async def _generate_batch(
                  f"rejected={result['meta'].get('rejected') if result['meta'] else '?'}")
             all_pages.extend(result["pages"] or [])
             all_extra.extend(result["extra"] or [])
+        elif result["permanent_failed"]:
+            # 422 永久失败：不计入 err（非瞬态、非服务故障），移出重试。
+            _log(f"  PERM {raw_rel}: {result['error']}")
         else:
             err += 1
             _log(f"  FAIL {raw_rel}: {result['error']}")
 
-    _log(f"generated ok={ok} err={err} total_pages={len(all_pages)} "
-         f"extras={len(all_extra)} elapsed={time.monotonic()-t0:.0f}s")
+    _log(f"generated ok={ok} err={err} "
+         f"permanent_failed={sum(1 for r in file_results.values() if r.get('permanent_failed'))} "
+         f"total_pages={len(all_pages)} extras={len(all_extra)} "
+         f"elapsed={time.monotonic()-t0:.0f}s")
 
     return {
         "ok": ok, "err": err,
+        "permanent_failed": sum(
+            1 for r in file_results.values() if r.get("permanent_failed")),
         "missing_count": missing_count,
         "completed_skip_count": completed_skip_count,
         "skip_count": skip_count,
