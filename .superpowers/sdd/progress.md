@@ -47,15 +47,22 @@
 - 验收：`PYTHONPATH=. python scripts/phase3_accept.py`
 - 真实解释器：`C:\Users\HP\AppData\Local\Python\pythoncore-3.14-64\python.exe`（WindowsApps 别名是空 stub）
 
-## 下一步
+## Phase 4 全量分批重摄入执行记录（2026-08-16，进行中）
 
-**Phase 4 全量分批重摄入**（执行模型重写，plan Phase 4）：
-- `scripts/plan_reingest_batches.py`（清单生成：全量 raw 分批，过滤 .md/download_progress）
-- `scripts/batch_executor.py`（批执行器 + 状态机；pre-commit 门禁并入）
-- cascade 分支（存量页重建）、`cleanup_stub_pages.py`（165 存量 stub 处置）
-- 向量 upsert + 维度校验、`.gitignore` 门禁文件白名单（P1）
-- 后续：Phase 4.5 聚合 → Phase 5 终验（M1-M12 复测 + M12 向量抽查）
+**已完成任务（每任务 TDD + commit + reviewer）**：
+| # | commit | 任务 |
+|---|---|---|
+| 4.1 | 18b650a9 + 1fec69a7 | `scripts/plan_reingest_batches.py` 全量分批清单（缺口优先→主题目录，每批≤20 .md，扩展名白名单 + 排除 download_progress；review 整改：gap hint 契约白名单/黑名单/越界防护 + wrong-shape 降级 + batch_no 1-based + theme mixed）——1361 raw → 69 批，gap_priority=3 |
+| 4.2 | e752a5e0 | `src/utils/idempotency.py` generate_task_hash 重建轮次维度（round_key=reingest:{batch}:{raw}，轮次间可重投，缺省向后兼容） |
+| 4.3 | 238ea381 | `src/vector/store.py` 维度校验（init_vector_store_for_paths(expected_dim)，禁静默 drop；rebuild_vector_schema 显式迁移决策） |
+| 4.4 | 1358f3e6 + 59b85691 | `src/services/ingest.py` reingest 直跑分支（probe→cascade+删向量→重建，不经队列；pending_deletion 补偿禁裸窗口）+ `src/services/batch_state.py` 统一 schema/文件锁（三写者 H①）；review 整改：folder 写者迁统一 schema(C1) + 续跑清残留向量(I1) + 重建失败契约(I2) |
+| 4.5 | ff969919 | `scripts/batch_executor.py` 直跑批执行器（每 raw 状态机 + kill-9 各阶段注入测试 + 崩溃续跑 + pre-commit 门禁 NDG/fields/tags/lint/对账 失败零写入 + 预算自动暂停 + is_immutable 跳过 + 3-strike blocklist + git 快照） |
+| 4.6 | f67cec27 | `scripts/rollback_batch.py`（git checkout+clean wiki + 显式向量重建双动作）+ `.gitignore` 门禁文件白名单例外（batch_build_state/knowledge_gaps/reingest_plan/batch_reports，lancedb 不入 git） |
+
+**待完成**：stub 清理（`cleanup_stub_pages.py` 复用，165 存量 stub 处置）→ 首批全量试跑（验收：kill-9 续跑正确、首摄不炸、无裸窗口、门禁零写入、M2≥80%、M8/M9=0、M11 批均净增≤5）→ progress 账本回填。
+
+**回归状态**：test_scripts 59 绿；全树 3-5 个既存收集 ERROR + test_pipeline 4 个既存失败（均为兄弟 conftest 级联，基线一致，与 Phase 4 改动无关）。
 
 ## git 纪律
 
-`git add <specific files>`；工作区他人改动勿碰：`discovery.py`/`start.bat`/`web/*`/`docs/evaluations/`/`knowledge/_batch*/`。`.memory/` 与 `.index/` gitignore。
+`git add <specific files>`；工作区他人改动勿碰：`discovery.py`/`start.bat`/`web/*`/`docs/evaluations/`/`knowledge/_batch*/`。`.memory/` 与 `.index/` gitignore（Phase 4 P1 例外：门禁文件白名单）。
