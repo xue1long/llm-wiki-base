@@ -64,6 +64,7 @@ from .cli_ext.heat_cmd import (
     cmd_heat_zombies, cmd_heat_restore, cmd_heat_archive,
 )
 from .cli_ext.cache_cmd import cmd_cache_status, cmd_cache_cleanup
+from .cli_ext.batch_cmd import add_batch_subcommands
 from .cli_ext.wiki_polish_cmd import (
     cmd_stubs_list, cmd_stubs_promote, cmd_dedup_auto,
     cmd_lint_cache_clear, cmd_lint,
@@ -349,6 +350,9 @@ def main():
 
     # Deep Research (research {run,list,show})
     add_research_subcommands(subparsers)
+
+    # Batch runner (batch {run,plan} — P1-A 3d)
+    add_batch_subcommands(subparsers)
 
     # Relations subcommand
     p_relations = subparsers.add_parser("relations", help="Manage wiki relations")
