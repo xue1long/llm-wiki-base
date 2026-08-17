@@ -49,7 +49,7 @@ from scripts.batch_generate import (  # noqa: E402
     load_cache,
 )
 from src.wiki.features.batch_gate import run_precommit_gate  # noqa: E402
-from scripts.batch_executor import (  # noqa: E402
+from src.orchestrator.batch_runner import (  # noqa: E402
     _auto_tag_ugc,
     _commit_raw,
     _estimate_batch_cost,

@@ -488,7 +488,7 @@ def test_commit_raw_persists_missing_slugs_to_gap_ledger(mini_wiki: Path) -> Non
     if str(REPO_ROOT) not in _sys.path:
         _sys.path.insert(0, str(REPO_ROOT))
     import asyncio
-    from scripts.batch_executor import _commit_raw
+    from src.orchestrator.batch_runner import _commit_raw
     from src.wiki.core.types import WikiPage, PageType
 
     raw_rel = "raw/sources/b.md"   # 无存量 source 页 → first_ingest 分支
@@ -520,7 +520,7 @@ def test_auto_tag_ugc_tags_carrier_derived_pages(gate_wiki: Path) -> None:
     import sys as _sys
     if str(REPO_ROOT) not in _sys.path:
         _sys.path.insert(0, str(REPO_ROOT))
-    from scripts.batch_executor import _auto_tag_ugc
+    from src.orchestrator.batch_runner import _auto_tag_ugc
     from src.wiki.core.types import WikiPage, PageType
 
     # UGC carrier header（lint _is_ugc_carrier 命中：QQ 群/分享 等特征）
@@ -559,7 +559,7 @@ def test_rerun_gate_batch_filters_to_batch_pages(gate_wiki: Path) -> None:
     if str(REPO_ROOT) not in _sys.path:
         _sys.path.insert(0, str(REPO_ROOT))
     import asyncio
-    from scripts.batch_executor import _rerun_gate_batch
+    from src.orchestrator.batch_runner import _rerun_gate_batch
     from src.wiki.core.types import Relation, WikiPage, PageType
     from src.wiki.core.paths import WikiPaths
     from src.wiki.storage.page_writer import write_page
