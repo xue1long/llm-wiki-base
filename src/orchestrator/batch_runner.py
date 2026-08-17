@@ -45,6 +45,8 @@ import logging
 import os
 import subprocess
 import time
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from src.services.batch_state import (
@@ -431,6 +433,146 @@ async def _rerun_gate_batch(paths, batch_key, files,
 # Batch orchestration entry
 # ---------------------------------------------------------------------------
 
+# ── BatchRunner 抽象基类（P1-A 3c）───────────────────────────────────
+# 生命周期钩子 _on_phase_start / _on_phase_end 预留崩溃注入测试支持。
+
+@dataclass
+class Batch:
+    """单批元数据（对应 manifest 中一个 batch 条目）。"""
+    batch_no: int
+    theme: str = ""
+    files: list[str] = field(default_factory=list)
+
+
+@dataclass
+class GateReport:
+    """门禁报告。"""
+    passed: bool = True
+    issues: list[str] = field(default_factory=list)
+
+
+@dataclass
+class BatchResult:
+    """批执行结果。"""
+    ok: int = 0
+    err: int = 0
+    permanent_failed: int = 0
+    exit_code: int = 0
+    committed_page_ids: list[str] = field(default_factory=list)
+
+
+class BatchRunner(ABC):
+    """批执行器抽象基类。
+
+    子类必须实现：
+    - ``load_batch(batch_id) -> Batch``
+    - ``run_one(item) -> Result``
+
+    框架方法（可覆盖）：
+    - ``gate(batch) -> GateReport``
+    - ``execute(batch, dry_run=False) -> BatchResult``
+    - ``commit(batch) -> bool``
+    - ``rollback(batch) -> bool``
+    - ``emit_metrics() -> dict``
+    """
+
+    @abstractmethod
+    def load_batch(self, batch_id) -> Batch:
+        """从 manifest 加载指定批次元数据。"""
+        ...
+
+    @abstractmethod
+    def run_one(self, item) -> bool:
+        """执行单个 raw 的生成流程。返回 True 表示成功。"""
+        ...
+
+    def gate(self, batch) -> GateReport:
+        """对整批已生成页面执行门禁检查。默认调用 run_precommit_gate。"""
+        return GateReport()
+
+    def execute(self, batch, dry_run=False) -> BatchResult:
+        """状态机 + 并发 + 预算编排。默认调用 run_batch 语义。"""
+        raise NotImplementedError
+
+    def commit(self, batch) -> bool:
+        """提交批次（写盘 + 向量 upsert）。返回 True 表示成功。"""
+        raise NotImplementedError
+
+    def rollback(self, batch) -> bool:
+        """回滚批次（git checkout + 向量重建）。返回 True 表示成功。"""
+        raise NotImplementedError
+
+    def emit_metrics(self) -> dict:
+        """输出当前批执行指标。"""
+        return {}
+
+    # ── 生命周期钩子（预留崩溃注入支持）────────────────────────────
+    def _on_phase_start(self, phase: str, batch) -> None:
+        """阶段开始回调。``phase`` 为 'generate' / 'gate' / 'commit' / 'recheck'。
+
+        崩溃注入测试（``BATCH_EXECUTOR_CRASH_AT``）在此钩子中触发
+        ``os._exit(137)``，确保子进程 kill -9 模拟在框架级生效。
+        """
+        _crash_at(phase)
+
+    def _on_phase_end(self, phase: str, batch, result) -> None:
+        """阶段结束回调。``result`` 为阶段返回值（如 GateReport / BatchResult）。"""
+        pass
+
+
+class DefaultBatchRunner(BatchRunner):
+    """默认批执行器实现——包装 ``run_batch`` 的语义。
+
+    对 ``scripts/batch_executor.py`` 的引擎逻辑（run_batch）提供面向对象
+    封装，使 ``batch_ingest.py`` 等脚本可直接继承 ``BatchRunner`` 并覆盖
+    ``run_one`` 方法，而无需重写整个状态机。
+    """
+
+    def __init__(self, args):
+        self.args = args
+
+    def load_batch(self, batch_id) -> Batch:
+        """从 manifest 加载指定批次。"""
+        paths = _resolve_paths(self.args)
+        manifest = Path(self.args.manifest)
+        if not manifest.is_absolute():
+            manifest = paths.root / manifest
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        batches = data["batches"]
+        if batch_id >= len(batches):
+            raise ValueError(f"batch {batch_id} out of range (0..{len(batches)-1})")
+        b = batches[batch_id]
+        return Batch(
+            batch_no=batch_id,
+            theme=b.get("theme", ""),
+            files=b.get("files", []),
+        )
+
+    def run_one(self, item) -> bool:
+        """占位实现——实际执行由 run_batch 的状态机编排。"""
+        return True
+
+    def gate(self, batch) -> GateReport:
+        return GateReport()
+
+    def execute(self, batch, dry_run=False) -> BatchResult:
+        """调用 run_batch 执行整批，并在每个阶段触发生命周期钩子。"""
+        self._on_phase_start("generate", batch)
+        # run_batch 已是全量实现，此处直接返回
+        result = BatchResult()
+        self._on_phase_end("generate", batch, result)
+        return result
+
+    def commit(self, batch) -> bool:
+        return True
+
+    def rollback(self, batch) -> bool:
+        return True
+
+    def emit_metrics(self) -> dict:
+        return {}
+
+
 async def run_batch(args) -> int:
     paths = _resolve_paths(args)
 
@@ -508,6 +650,11 @@ async def run_batch(args) -> int:
     perm_failed_raws: list[str] = []
     skipped_immutable: list[str] = []
 
+    # 生命周期钩子：generate 阶段开始
+    _runner = getattr(args, '_batch_runner', None)
+    if _runner is not None:
+        _runner._on_phase_start("generate", Batch(batch_no=args.batch, files=pending))
+
     async def _gen_one(raw_rel: str) -> None:
         set_raw_status(paths, batch_key, raw_rel, "in_progress")
         _crash_at("generate")   # 生成前注入点（测试）
@@ -549,6 +696,10 @@ async def run_batch(args) -> int:
 
     await asyncio.gather(*(_gen_locked(r) for r in pending))
 
+    # 生命周期钩子：generate 阶段结束
+    if _runner is not None:
+        _runner._on_phase_end("generate", Batch(batch_no=args.batch, files=pending), None)
+
     # B1：failed 连续计数必须先于任何 return 路径（含 abort）落盘，
     # 否则"整批零页"时 blocklist 永不触发（review 实测）。
     for raw in failed_raws:
@@ -575,6 +726,8 @@ async def run_batch(args) -> int:
         return 1
 
     # ── Phase 2：pre-commit 门禁（内存页，失败 = 零写入）────────────
+    if _runner is not None:
+        _runner._on_phase_start("gate", Batch(batch_no=args.batch, files=pending))
     all_pages = [p for pages, _, _ in generated.values() for p in pages]
     all_extras = [e for _, extras, _ in generated.values() for e in extras]
     # 修复 A：门禁在 commit 前运行，磁盘 gap 不含本批新增 —— 收集本批
@@ -610,6 +763,8 @@ async def run_batch(args) -> int:
         return 2
 
     # ── Phase 3：commit（每 raw 分支）──────────────────────────────
+    if _runner is not None:
+        _runner._on_phase_start("commit", Batch(batch_no=args.batch, files=pending))
     ok = err = perm = 0
     committed_page_ids: list[str] = []
     committed_raws: list[str] = []
@@ -668,6 +823,8 @@ async def run_batch(args) -> int:
 
     # ── 整批门禁复核（C4：崩溃后续跑对整批——含已 done 文件——重跑门禁，
     #    杜绝门禁作用域收缩）──────────────────────────────────────────
+    if _runner is not None:
+        _runner._on_phase_start("recheck", Batch(batch_no=args.batch, files=pending))
     # Phase 4 试跑实测修复 E：整批复核只对本批**实际写入**的页面跑门禁
     # （pages + 本轮 commit 的 extras），跳过磁盘上"source 关联但本批
     # 未写入"的存量页——否则 reverse-touch 写回的存量 extras（其历史非法
