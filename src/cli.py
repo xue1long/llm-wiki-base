@@ -77,7 +77,8 @@ logger = logging.getLogger(__name__)
 
 def _override_config_dir_from_env():
     """Allow RUFLO_CONFIG_DIR env var to override OS-standard config dir (for tests)."""
-    env_dir = os.environ.get("RUFLO_CONFIG_DIR")
+    from src.config import settings
+    env_dir = settings().config_dir
     if env_dir:
         # Monkey-patch at import time
         import src.project.paths as paths

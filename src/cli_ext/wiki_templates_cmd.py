@@ -9,7 +9,6 @@ Subcommands:
 from __future__ import annotations
 
 import argparse
-import os
 import shutil
 import subprocess
 import sys
@@ -135,7 +134,8 @@ def cmd_wiki_templates_edit(args: argparse.Namespace) -> None:
 
     # Open in $EDITOR unless --no-open
     if not args.no_open:
-        editor = os.environ.get("EDITOR") or os.environ.get("VISUAL")
+        from src.config import settings
+        editor = settings().editor or settings().visual
         click_edit = _try_import_click_edit()
         if click_edit is not None:
             try:
@@ -197,7 +197,8 @@ def cmd_wiki_templates_reset(args: argparse.Namespace) -> None:
     # destructive operation. Using an env var in addition to isatty
     # so subprocess-invoked tests (which inherit a tty) can still
     # force the safe path.
-    noninteractive = not sys.stdin.isatty() or os.environ.get("RUFO_NONINTERACTIVE") == "1"
+    from src.config import settings
+    noninteractive = not sys.stdin.isatty() or settings().noninteractive
     if not args.yes and noninteractive:
         print(
             f"Refusing to remove {target} without --yes "

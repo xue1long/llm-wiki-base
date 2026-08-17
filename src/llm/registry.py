@@ -246,7 +246,8 @@ class ProviderRegistry:
         """
         providers = ProviderRegistry.load()
 
-        env_name = os.environ.get(RUFLO_LLM_PROVIDER_ENV, "").strip()
+        from src.config import settings
+        env_name = settings().llm_provider.strip()
         if env_name:
             if env_name not in providers:
                 raise ValueError(
@@ -349,7 +350,7 @@ def _default_providers() -> dict[str, ProviderConfig]:
             name="openai",
             type="openai",
             base_url="https://api.openai.com/v1",
-            api_key=os.environ.get("OPENAI_API_KEY", ""),
+            api_key=settings().openai_api_key,
             default_chat_model="gpt-4o-mini",
             default_embedding_model="text-embedding-3-small",
             # Env-sourced: api_key came from os.environ, not an explicit
@@ -362,7 +363,7 @@ def _default_providers() -> dict[str, ProviderConfig]:
             type="anthropic",
             # MUST include /v1 path; the Anthropic SDK is mounted at /v1/messages.
             base_url="https://api.anthropic.com/v1",
-            api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
+            api_key=settings().anthropic_api_key,
             default_chat_model="claude-haiku-4-5",
             sourced_from_env=True,
         ),

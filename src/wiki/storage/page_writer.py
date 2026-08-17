@@ -90,7 +90,8 @@ def write_page(paths: WikiPaths, page: WikiPage) -> None:
     )
     if taxonomy_errors:
         message = "taxonomy validation failed: " + "; ".join(taxonomy_errors)
-        if os.environ.get("RUFLO_TAXONOMY_VALIDATION", "warn").lower() == "strict":
+        from src.config import settings
+        if settings().taxonomy_validation == "strict":
             raise ValueError(message)
         logging.getLogger(__name__).warning(message)
     registry = None

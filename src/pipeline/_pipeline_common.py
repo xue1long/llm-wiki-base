@@ -494,7 +494,8 @@ def _dump_failed_json(content: str) -> None:
     ``RUFLO_JSON_DEBUG_DIR`` (defaults to ``.index/staging/failed_json``
     under the project root discovered from CWD or ``os.getcwd()``)."""
     try:
-        debug_root = os.environ.get("RUFLO_JSON_DEBUG_DIR", "")
+        from src.config import settings
+        debug_root = settings().json_debug_dir
         if not debug_root:
             cwd = Path.cwd()
             debug_root = str(cwd / ".index" / "staging" / "failed_json")

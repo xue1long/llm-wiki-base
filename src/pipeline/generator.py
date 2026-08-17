@@ -17,7 +17,6 @@ This module is the single source of truth for wiki template enforcement.
 See docs/superpowers/plans/2026-07-26-wiki-schema-v23.md.
 """
 import logging
-import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -62,7 +61,8 @@ _logger = logging.getLogger(__name__)
 # Sources beyond the cap go through ingest.py's chunked-analysis path
 # (S1) instead of truncation.
 def get_max_source_chars() -> int:
-    return int(os.environ.get("RUFLO_MAX_SOURCE_CHARS", "16000"))
+    from src.config import settings
+    return settings().max_source_chars
 
 
 MAX_SOURCE_CHARS = get_max_source_chars()

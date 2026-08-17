@@ -48,9 +48,12 @@ def _create_from_config(config: ProviderConfig, model_override: str | None = Non
     # Env-var override for API key when config leaves it blank.
     if not config.api_key:
         env_key = _env_var_for_provider(config.name)
-        if env_key and os.environ.get(env_key):
-            from dataclasses import replace
-            config = replace(config, api_key=os.environ[env_key])
+        if env_key:
+            from src.config import settings
+            settings_val = getattr(settings(), _field_for_env(env_key), "")
+            if settings_val:
+                from dataclasses import replace
+                config = replace(config, api_key=settings_val)
 
     if config.type == "ollama":
         from .ollama_provider import OllamaProvider
@@ -129,3 +132,15 @@ def _env_var_for_provider(name: str) -> str | None:
         "anthropic": "ANTHROPIC_API_KEY",
         "ollama": None,
     }.get(name)
+
+
+def _field_for_env(env_name: str) -> str:
+    """Map an env var name to the equivalent :class:`src.config.Settings` field.
+
+    Kept next to ``_env_var_for_provider`` so the provider→env→field chain
+    stays in one place.
+    """
+    return {
+        "OPENAI_API_KEY": "openai_api_key",
+        "ANTHROPIC_API_KEY": "anthropic_api_key",
+    }.get(env_name, "")

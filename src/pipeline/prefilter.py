@@ -70,7 +70,7 @@ def prefilter(
     PrefilterResult
         The recommended action and associated metadata.
     """
-    import os
+    from src.config import settings
     from .stub_quality import detect_reference_list_density
 
     # Rule 1: skip empty or placeholder files (< 100 bytes).
@@ -85,7 +85,7 @@ def prefilter(
     if (
         sanitizer_score is not None
         and sanitizer_score < 0.3
-        and os.environ.get("RUFLO_SANITIZER_SKIP_LLM", "0") == "1"
+        and settings().sanitizer_skip_llm
     ):
         return PrefilterResult(
             action="source_only",

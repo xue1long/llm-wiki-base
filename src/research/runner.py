@@ -73,7 +73,8 @@ async def run_deep_research(
         queries = list(response.get("queries", [topic]))[:max_queries]
 
     # Step 2: Web search (Tavily only in MVP)
-    api_key = os.environ.get("TAVILY_API_KEY", "")
+    from src.config import settings
+    api_key = settings().tavily_api_key
     provider = TavilyProvider(api_key)
     all_results: list[dict] = []
     try:
