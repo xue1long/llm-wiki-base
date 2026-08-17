@@ -4,7 +4,15 @@
 > 计划：`docs/superpowers/plans/2026-08-15-novel-wiki-writing-template.md`
 > 续接：`.memory/handoff-novel-wiki-phase1-2026-08-15.md`（Phase 0-2）、`.memory/handoff-novel-wiki-phase3-2026-08-16.md`（Phase 3 续接）
 >
-> **新计划（2026-08-26）：** 模块规范性与统一化改造 — `docs/superpowers/plans/2026-08-26-module-standardization-unification.md`（P0-A→P0-B→P1-A→P1-B→P2-A/P2-B→P3，status: planned）
+> **新计划（2026-08-26）：** 模块规范性与统一化改造 — `docs/superpowers/plans/2026-08-26-module-standardization-unification.md`
+>
+> **P0-A 注册 ruflo CLI → ✅ `be5417ec`**
+> **P0-B 中央配置模块 → ✅ `bca225a6`**
+> **P1-A BatchRunner 收编脚本 → 待执行（下一会话）**
+> **P1-B 根目录清理 → 待执行**
+> **P2-A 文档双文件同步 → 待执行**
+> **P2-B superpowers 归档 → 待执行**
+> **P3 公共层边界 → 待执行**
 
 ## 状态总览
 
