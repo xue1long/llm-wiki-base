@@ -9,10 +9,10 @@
 > **P0-A 注册 ruflo CLI → ✅ `be5417ec`**
 > **P0-B 中央配置模块 → ✅ `bca225a6`**
 > **P1-A BatchRunner 收编脚本 → ✅ 4 子任务（`c4d50dee` 3a 门禁真源 / `68029bcf` 3b 拆引擎 / `2237df22` 3c BatchRunner ABC / `2ac5ef60` 3d ruflo batch CLI）**
-> **P1-B 根目录清理 → 待执行**
-> **P2-A 文档双文件同步 → 待执行**
-> **P2-B superpowers 归档 → 待执行**
-> **P3 公共层边界 → 待执行**
+> **P1-B 根目录清理 → ✅ `d64a17bd`**
+> **P2-A 文档双文件同步 → ✅ `96a9466d`**（正文同步 4 处差异 + pre-commit 钩子校验）
+> **P2-B superpowers 归档 → ✅ `409b0dc2`**（73→9 文档，64 归档）
+> **P3 公共层边界 → ✅ `257d7777`**（src/shared → tests/support）
 
 ## 状态总览
 
@@ -158,3 +158,65 @@
 **遗留（后续 P 处理）：**
 - `batch_ingest`/`phase4_batch`/`phase5_accept`/`pilot_ingest` 等遗留脚本未逐一改成继承 `BatchRunner` 子类（计划表 3d 的完整清单）——当前保留原样，`ruflo batch run` 作为规范入口已可用。如需完整收编可作为后续增量。
 - `batch_gate_check`/`batch_gate_v3`/`diagnose_batch_gate` 的 `ruflo batch gate` 子命令未建（3d 表中可并入 `BatchRunner.gate()`）——当前 `diagnose_batch_gate` 直接调门禁真源，语义已统一。
+
+## P2-A 文档双文件同步（2026-08-18）✅ `96a9466d`
+
+**目标：** `AGENTS.md` / `CLAUDE.md` 双文件正文逐字节一致 + pre-commit 钩子强制。
+
+**同步的 4 处差异：**
+| # | 差异 | 方向 |
+|---|---|---|
+| 1 | `custom_type` 行（自定义类型字段） | CLAUDE 有 → AGENTS 补上 |
+| 2 | schema.md/purpose.md 注入段落 | CLAUDE 有 → AGENTS 补上 |
+| 3 | dev-relay 路径统一为 `.agents/skills/` | 两文件同步（原 `.Codex`/`.claude` 遗留 → 规范值） |
+| 4 | graphify 两行规则（dirty 容忍 + 跳过条件） | AGENTS 有 → CLAUDE 补上 |
+
+**钩子实现（`scripts/setup_git_hooks.py` 扩展）：**
+- 在 `sync_wiki_spec.py` 前增加 AGENTS/CLAUDE 正文校验
+- **跳过前 3 行**（H1 标题 / 空行 / 工具说明行）后逐字节比较余下内容；不一致 → ERROR + exit(1)
+- 两文件合法差异仅 H1 标题（`# AGENTS.md` vs `# CLAUDE.md`）+ 第 3 行工具名（Codex vs Claude Code）
+
+**验收：**
+1. 两文件同步 → 钩子通过（EXIT=0）✅
+2. 故意改 CLAUDE.md 不同步 → 钩子拦截（EXIT=1）✅
+3. 正文（跳前 3 行）长度一致 27369 bytes ✅
+
+## P2-B superpowers 归档（2026-08-18）✅ `409b0dc2`
+
+**分档原则：** 按 git 最后提交时间（非 mtime——73 文件 mtime 均为 8/14 批量复制时间）。
+
+**保留 9 个活跃文档（< 30 天）：**
+- 当前计划 `2026-08-26-module-standardization-unification.md`（8/17）
+- novel-wiki 活跃：`2026-08-15-*-writing-template*.md`（plan + spec，8/16）
+- 8/12 的 4 个近期规划（knowledge-os-docs-integration 等）
+- `PLAN_TEMPLATE.md` + `README.md`
+
+**归档 64 个（2026-07-21 ~ 2026-08-11 已完结）：**
+- 移至 `docs/archive/superpowers/`（保留 plans/specs 目录结构）
+- `docs/archive/README.md` 说明"此目录为历史规划归档，不反映当前状态"
+
+**验收：**
+1. `docs/superpowers/` 73→9 文档（≤15 ✅）
+2. `docs/archive/superpowers/` 64 文件可访问 ✅
+3. `.superpowers/sdd/progress.md` 3 个链接全部指向保留文件，无需更新 ✅
+4. 其他 docs 中指向已归档文件的引用（ARCHITECTURE/CONSTRAINTS/README 等）**保持原路径**——历史文档引用保留完整链，避免链式断链（记录：`docs/archive/` 内交叉引用同样保留原绝对路径）
+
+## P3 公共层边界（2026-08-18）✅ `257d7777`
+
+**迁移：** `src/shared/test_helpers.py` → `tests/support/test_helpers.py`
+
+**动作：**
+- `git mv src/shared/test_helpers.py tests/support/test_helpers.py`
+- 删除 `src/shared/__init__.py`（空目录，src/shared/ 整体消失）
+- 更新 9 个测试文件 import：`from src.shared.test_helpers` → `from tests.support.test_helpers`
+
+**命名约定（明确 src/ 分层）：**
+- `src/utils/`：纯函数、无副作用工具（path/slugify/text/similarity/idempotency）
+- `src/lib/`：框架性代码、有副作用辅助（atomic_ctx/write_hooks/project/context_budget/budgeted）
+- `src/*/core/`：业务领域核心（wiki/core、knowledge/core）
+
+**验收：**
+1. `src/shared/` 目录不存在 ✅
+2. 9 个文件 `from tests.support.test_helpers import ScriptedLLMProvider` 可导入 ✅（traceback 证实实际走 tests.support 路径）
+3. 非模板依赖测试 24/24 通过 ✅（预存模板解析失败 TemplateParseError 与 P3 无关，基线一致）
+4. 未动 `src/utils/`/`src/lib/` 内容（仅文档化边界）

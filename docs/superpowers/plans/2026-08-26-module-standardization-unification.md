@@ -260,7 +260,7 @@ P0-A → P0-B → P1-A 严格串行（P0-B 依赖 P0-A 的 CLI 入口做 `ruflo 
   2. 同步修改后 → `git commit` 通过
   3. 现有两个文件保持等长，无需立刻合并
 
-- **Status:** pending
+- **Status:** ✅ `96a9466d`（正文同步校验 + pre-commit 钩子）
 
 ---
 
@@ -281,7 +281,7 @@ P0-A → P0-B → P1-A 严格串行（P0-B 依赖 P0-A 的 CLI 入口做 `ruflo 
   2. `docs/archive/superpowers/` 已归档文件可访问
   3. `.superpowers/sdd/progress.md` 仍有链接指向 `docs/superpowers/`——更新这些链接指向归档后的位置
 
-- **Status:** pending
+- **Status:** ✅ `409b0dc2`（73→9 保留，64 归档）
 
 ---
 
@@ -302,7 +302,7 @@ P0-A → P0-B → P1-A 严格串行（P0-B 依赖 P0-A 的 CLI 入口做 `ruflo 
   3. `pytest` 全绿
   4. 新写代码遵循命名约定
 
-- **Status:** pending
+- **Status:** ✅ `257d7777`（src/shared → tests/support，9 importer 更新）
 
 ---
 
