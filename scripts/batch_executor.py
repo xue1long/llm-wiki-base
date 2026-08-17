@@ -129,202 +129,16 @@ def _fake_generate(raw_rel: str) -> list:
 
 # ---------------------------------------------------------------------------
 # Pre-commit gate（C4：NDG+fields/tags/lint/对账，失败 = 零写入）
+# 门禁五项提取至 src/wiki/features/batch_gate.py（P1-A 3a）
 # ---------------------------------------------------------------------------
 
-def _gate_fields(page) -> list[str]:
-    """L0-L3：id/title/sources/grade/processing_depth（复用 fields_cmd 语义）。
-
-    processing_depth 合法值对齐 generator 的 PROCESSING_DEPTH_VALUES
-    （concept/memory/operation）+ wiki 写入侧扩展（source/entity/synthesis/
-    stub）——review C3-3：漏 operation 会把真实语料误拦。
-    """
-    errs = []
-    if not page.id:
-        errs.append("L0: missing id")
-    if not getattr(page, "title", "") or not page.title.strip():
-        errs.append("L0: missing title")
-    if not page.sources:
-        errs.append("L0: missing sources")
-    if page.grade not in ("A", "B", "C"):
-        errs.append(f"L1: invalid grade: {page.grade}")
-    _VALID_DEPTHS = {"memory", "concept", "operation",
-                     "source", "entity", "synthesis", "stub"}
-    if page.processing_depth not in _VALID_DEPTHS:
-        errs.append(f"L1: invalid processing_depth: {page.processing_depth}")
-    return errs
-
-
-def _gate_tags(page) -> list[str]:
-    """tags 值域 + 必填对（复用 tag_namespace）。
-
-    语义与 batch_gate_v3（1.5 门禁，本 pre-commit gate 取代它）一致：
-    ``validate_tag_compliance``（值域 + 素材/ugc↔可信度/ugc 必填对）。
-    ``cli tags validate`` 只查前缀（更松）是既有分叉，非本 gate 引入——
-    gate 采用批门禁口径（review I4 记录，不改）。
-    """
-    from src.wiki.features.tag_namespace import (
-        TagValidationError, validate_tag_compliance,
-    )
-    try:
-        validate_tag_compliance(list(page.tags or []))
-    except TagValidationError as exc:
-        return [str(exc)]
-    return []
-
-
-def _gate_lint(page, paths) -> list[str]:
-    """lint 四项：占位符 / 非法 relation / RAW-PASTE / MISSING-SECTION。
-
-    在内存页对象上运行（pre-commit 时页面尚未落盘），判定逻辑与
-    ``src.wiki.features.lint.lint_wiki`` 共享同一谓词与版本门（review C3）：
-    - RAW-PASTE 阈值走 ``_load_raw_paste_thresholds(paths)``（quality_settings
-      校准，不写死）；
-    - MISSING-SECTION 走 lint 的 H3 版本门（页声明版本 < 项目模板版本 →
-      bundled 槽集）+ ``_template_heading_map``（v3.0.0 synthesis 的
-      conclusion 槽渲染为 ``## 待定与结论``）；
-    - 严重级与 lint_wiki 对齐：占位符/非法 relation/source fulltext 段为
-      ERROR；RAW-PASTE run 超阈值在 lint 是 WARNING（不拦批）——本 gate
-      只把 ERROR 项计入 block（与 batch_gate_v3 的 lint 步骤一致）。
-    """
-    from src.wiki.features.lint import (
-        _BODY_HEADING_RE,
-        _BUILTIN_RELATIONS,
-        _PLACEHOLDER_SUBSTRINGS,
-        _TEMPLATE_VERSION_RE,
-        _bundled_template,
-        _has_fulltext_section,
-        _load_raw_paste_thresholds,
-        _long_raw_text_run,
-        _parse_version,
-        _template_heading_map,
-        list_resolved,
-        required_slot_names,
-    )
-    from src.wiki.core.types import PageType
-
-    errs = []
-    body = page.body or ""
-    # 占位符（ERROR）
-    if any(p in body for p in _PLACEHOLDER_SUBSTRINGS):
-        errs.append(f"LINT-PLACEHOLDER: {page.id}")
-    # 非法 relation（ERROR）
-    for rel in (page.relations or []):
-        rtype = rel.type if isinstance(rel.type, str) else rel.type.value
-        if rtype not in _BUILTIN_RELATIONS and not rtype.startswith("x-"):
-            errs.append(f"LINT-ILLEGAL-RELATION: {page.id} type={rtype}")
-    # RAW-PASTE：阈值从 quality_settings 读（review C3-2）；与 lint 一致，
-    # 只有 source fulltext 段是 ERROR，run 超阈值在 lint 为 WARNING（不拦批）。
-    T_source, T_non = _load_raw_paste_thresholds(paths)
-    raw_run = _long_raw_text_run(body)
-    if page.type == PageType.SOURCE and _has_fulltext_section(body):
-        errs.append(f"LINT-RAW-PASTE(fulltext): {page.id}")
-    # （lint 中 run 超阈值是 WARNING → 不入 ERROR 集，避免门禁与 lint 分叉拦批）
-    # MISSING-SECTION（H3 版本门 + 标题映射，review C3-1）
-    vm = _TEMPLATE_VERSION_RE.search(body)
-    if vm and _parse_version(vm.group(1)) >= (2, 0, 0) and \
-            getattr(page, "processing_depth", "") != "stub":
-        try:
-            templates = {t.type: t for t in list_resolved(paths.root)}
-            template = templates.get(page.type)
-            if template is not None:
-                required = required_slot_names(template)
-                if not required:
-                    return errs
-                page_ver = _parse_version(vm.group(1))
-                project_ver = _parse_version(template.version or "2.0.0")
-                if page_ver < project_ver:
-                    baseline = _bundled_template(page.type)
-                    if baseline is None:
-                        return errs
-                    headings = {_heading_label_for(n, page.type)
-                                for n in required_slot_names(baseline)}
-                else:
-                    heading_map = _template_heading_map(template, page.type.value)
-                    headings = {
-                        heading_map.get(n, _heading_label_for(n, page.type))
-                        for n in required
-                    }
-                body_headings = set(_BODY_HEADING_RE.findall(body))
-                missing = sorted(h for h in headings if h not in body_headings)
-                if missing:
-                    errs.append(
-                        f"LINT-MISSING-SECTION: {page.id} missing={missing}")
-        except Exception:
-            pass  # 模板解析失败 → 该槽检查降级（不误 block）
-    return errs
-
-
-def _heading_label_for(slot_name: str, page_type) -> str:
-    """slot → 标题（复用 lint 的 bundled 映射；entity 的 summary → 简介）。"""
-    from src.wiki.features.lint import _heading_label
-    return _heading_label(slot_name, page_type.value)
-
-
-def _wikilink_targets_of(page) -> list[str]:
-    """WikiPage 的链接目标：body ``[[...]]`` + relation target_id。
-
-    review C2：不能把 WikiPage 直接喂给 ``metrics.collect_wikilinks``
-    （它按 PageSnapshot 契约访问 ``relations[].get("target")``，而
-    WikiPage.relations 是 ``list[Relation]`` dataclass → AttributeError）。
-    """
-    import re as _re
-    targets = [m.group(1).strip()
-               for m in _re.finditer(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]",
-                                     page.body or "")]
-    targets += [rel.target_id for rel in (page.relations or [])
-                if getattr(rel, "target_id", None)]
-    return [t for t in targets if t]
-
-
-def _gate_reconcile(pages, extra_pages, paths,
-                    pending_gap_slugs: set[str] | None = None) -> list[str]:
-    """对账（M1）：批内页 wikilink/relation 目标 vs 磁盘 ∪ 别名 ∪ 索引 ∪ gap。
-
-    gap 已登记（open/suppressed）的目标不计断链（F2 语义）。批内产生的页
-    互相解析；磁盘既有页也解析（对账到整库，非仅批内）。
-
-    ``pending_gap_slugs``（修复 A）：本批 generate 已采集、尚未落盘的 gap
-    slug——并入豁免集（磁盘 gap 账本在 commit 时才写入，门禁在 commit 前
-    运行；不并入则本批新 gap 全部误判 BROKEN-LINK 拦批）。
-
-    extras（存量 reverse-touch 页）不参与断链判定（修复 B：存量断链是
-    M1 历史遗留，由 Phase 4 cascade 重建消解；extras 仅作 produced 目标）。
-    """
-    from src.wiki.features.indexer import read_index
-    from src.wiki.features.knowledge_gaps import KnowledgeGapStore
-    from src.wiki.features.slug_utils import normalize_reconcile_slug
-
-    produced = {p.id for p in pages} | {p.id for p in (extra_pages or [])}
-    disk = {slug for slug, _, _ in read_index(paths)}
-    try:
-        from src.wiki.features.slug_aliases import SlugAliasRegistry
-        alias = SlugAliasRegistry(paths.root)
-        alias_canon = alias.get_canonical
-    except Exception:
-        alias_canon = None
-
-    known_norm = {normalize_reconcile_slug(s) for s in (disk | produced)}
-    gap_slugs = {g.slug for g in KnowledgeGapStore(paths.root).all()
-                 if g.status in ("open", "suppressed")}
-    if pending_gap_slugs:
-        gap_slugs |= set(pending_gap_slugs)
-    gap_norm = {normalize_reconcile_slug(s) for s in gap_slugs}
-
-    errs = []
-    # 修复 B：只对批内新产出 pages 判断链；extras 是存量 reverse-touch 页，
-    # 其历史断链由 cascade 重建消解（不计入批内 M1）。
-    for p in pages:
-        for target in _wikilink_targets_of(p):
-            canon = alias_canon(target) if alias_canon else target
-            # get_canonical 对未知 slug 返回 None → 回退原 target（review 实测）
-            canon = canon if canon else target
-            tn = normalize_reconcile_slug(canon)
-            if target in produced or tn in known_norm:
-                continue
-            if target in gap_slugs or tn in gap_norm:
-                continue
-            errs.append(f"BROKEN-LINK: {p.id} -> [[{target}]]")
-    return errs
+from src.wiki.features.batch_gate import (  # noqa: E402
+    _gate_fields,
+    _gate_lint,
+    _gate_reconcile,
+    _gate_tags,
+    run_precommit_gate,
+)
 
 
 def _estimate_batch_cost(ok: int, err: int) -> float:
@@ -341,50 +155,6 @@ def _estimate_batch_cost(ok: int, err: int) -> float:
     # 0.2 B2 定稿预算口径：每 LLM 调用 ~$0.0005 上限（glm-5.2 级别）
     COST_PER_CALL = float(os.environ.get("RUFLO_COST_PER_CALL", "0.0005"))
     return round((ok + err) * COST_PER_CALL, 4)
-
-
-def run_precommit_gate(pages, extra_pages, raw_headers, paths,
-                       allow_overwrite=False,
-                       pending_gap_slugs: set[str] | None = None
-                       ) -> tuple[bool, list[str]]:
-    """pre-commit 门禁：NDG + fields + tags + lint + 对账（失败 = 零写入）。
-
-    Returns ``(passed, issues)``。任何一项 ERROR → 整批 block。
-
-    ``pending_gap_slugs``（Phase 4 试跑实测修复 A）：本批 generate 阶段
-    已采集、尚未落盘磁盘 gap 账本的 slug（_commit_raw 会把它们写入
-    KnowledgeGapStore；门禁在 commit 前运行，磁盘 gap 不含本批新增）。
-    若不并入豁免集，这些"本批已登记"的链接会被误判 BROKEN-LINK →
-    整批零写入误拦（试跑 22 个 issue 的主因）。
-
-    ``extra_pages``（Phase 4 试跑实测修复 B）：存量 reverse-touch 页
-    （旧 2.0.0 英文 tag / 历史断链是 M8/M1 消解范围，按 phase3_accept
-    口径不计入批内 M1/M4/M9 判定）——fields/tags/lint 只查本批新产出
-    ``pages``；extras 仅作为对账的已知目标（produced 集合），自身不拦批。
-    """
-    from src.wiki.features.ndg_gate import run_ndg_gate
-
-    issues: list[str] = []
-
-    # 1. NDG gate（P1-P7 既有批次级结构检查）
-    report = run_ndg_gate(
-        pages, raw_headers=raw_headers, extra_pages=extra_pages,
-        paths=paths, allow_overwrite=allow_overwrite,
-    )
-    for issue in report.issues:
-        if issue.is_blocker:
-            issues.append(f"NDG-{issue.code}: {issue.page_id or '-'} {issue.message}")
-
-    # 2-5. fields / tags / lint / 对账 —— 只查本批新产出 pages；
-    #      extras（存量 reverse-touch 页）不参与（修复 B）。
-    for p in pages:
-        issues.extend(f"{e} [{p.id}]" for e in _gate_fields(p))
-        issues.extend(f"TAG-ENUM {e} [{p.id}]" for e in _gate_tags(p))
-        issues.extend(f"{e}" for e in _gate_lint(p, paths))
-    issues.extend(_gate_reconcile(pages, extra_pages, paths,
-                                  pending_gap_slugs=pending_gap_slugs))
-
-    return not issues, issues
 
 
 # ---------------------------------------------------------------------------
@@ -731,11 +501,11 @@ async def run_batch(args) -> int:
             branch = await _commit_raw(paths, raw, pages, extras, batch_key,
                                        task_id=f"b{args.batch}", meta=meta)
             ok += 1
-            # 记录本批实际写入页（pages + extras 的 id）——验收脚本与整批
-            # 复核依赖精确批内集合（Phase 3 口径；phase3_accept 首选
-            # page_ids 而非 mtime 窗口）。
+            # 记录本批实际写入页（**pages** 的 id，不含 extras）——验收脚本
+            # 与整批复核依赖精确批内集合。extras 是存量 reverse-touch 页，
+            # 其历史非法 relation/旧英文 tag 属 M8/M9 消解范围，不入批内
+            # 判定（Phase 4 试跑实测修复 E）。
             committed_page_ids.extend(p.id for p in pages)
-            committed_page_ids.extend(p.id for p in extras)
             committed_raws.append(raw)
             _update_fail_streak(paths, batch_key, raw, "done")
             _crash_at("commit")   # 提交后注入点（测试）
@@ -783,8 +553,13 @@ async def run_batch(args) -> int:
     # 未写入"的存量页——否则 reverse-touch 写回的存量 extras（其历史非法
     # relation/旧英文 tag 是 M8/M9 消解范围）会被误拦（batch 0 实测：
     # 东方玄幻 的存量 contrasts relation 使整批 gate_recheck_failed）。
+    # 作用域 = 已持久化 page_ids（含历史 done 文件）∪ 本轮 pages——续跑
+    # 时仍覆盖整批，杜绝门禁作用域收缩（C4），同时排除存量 extras。
+    state_now = load_batch_state(paths)
+    persisted_ids = state_now.get(batch_key, {}).get("page_ids", []) or []
+    recheck_ids = sorted(set(persisted_ids) | set(batch_page_ids))
     whole_ok = await _rerun_gate_batch(paths, batch_key, files,
-                                       batch_page_ids=batch_page_ids)
+                                       batch_page_ids=recheck_ids)
     _crash_at("gate")   # 门禁后注入点（测试）
 
     # ── 预算累计 + 批状态 ───────────────────────────────────────────

@@ -297,7 +297,7 @@ def test_gate_accepts_wikipage_with_relations_and_operation_depth(gate_wiki) -> 
     import sys as _sys
     if str(REPO_ROOT) not in _sys.path:
         _sys.path.insert(0, str(REPO_ROOT))
-    from scripts.batch_executor import run_precommit_gate
+    from src.wiki.features.batch_gate import run_precommit_gate
     from src.wiki.core.types import Relation, WikiPage, PageType
     from src.wiki.core.paths import WikiPaths
 
@@ -331,7 +331,7 @@ def test_gate_rejects_placeholder_and_illegal_relation(gate_wiki) -> None:
     import sys as _sys
     if str(REPO_ROOT) not in _sys.path:
         _sys.path.insert(0, str(REPO_ROOT))
-    from scripts.batch_executor import run_precommit_gate
+    from src.wiki.features.batch_gate import run_precommit_gate
     from src.wiki.core.types import Relation, WikiPage, PageType
     from src.wiki.core.paths import WikiPaths
 
@@ -352,7 +352,7 @@ def test_gate_accepts_valid_tags_and_rejects_invalid(gate_wiki) -> None:
     import sys as _sys
     if str(REPO_ROOT) not in _sys.path:
         _sys.path.insert(0, str(REPO_ROOT))
-    from scripts.batch_executor import run_precommit_gate
+    from src.wiki.features.batch_gate import run_precommit_gate
     from src.wiki.core.types import WikiPage, PageType
     from src.wiki.core.paths import WikiPaths
     paths = WikiPaths(gate_wiki)
@@ -402,7 +402,7 @@ def test_precommit_gate_exempts_batch_pending_gap_slugs(gate_wiki) -> None:
     import sys as _sys
     if str(REPO_ROOT) not in _sys.path:
         _sys.path.insert(0, str(REPO_ROOT))
-    from scripts.batch_executor import run_precommit_gate
+    from src.wiki.features.batch_gate import run_precommit_gate
     from src.wiki.core.types import WikiPage, PageType
     from src.wiki.core.paths import WikiPaths
 
@@ -445,7 +445,7 @@ def test_precommit_gate_ignores_legacy_tags_and_links_on_extras(gate_wiki) -> No
     import sys as _sys
     if str(REPO_ROOT) not in _sys.path:
         _sys.path.insert(0, str(REPO_ROOT))
-    from scripts.batch_executor import run_precommit_gate
+    from src.wiki.features.batch_gate import run_precommit_gate
     from src.wiki.core.types import WikiPage, PageType
     from src.wiki.core.paths import WikiPaths
 
