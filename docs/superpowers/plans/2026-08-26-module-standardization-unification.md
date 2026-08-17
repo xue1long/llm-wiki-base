@@ -53,7 +53,7 @@ P0-A → P0-B → P1-A 严格串行（P0-B 依赖 P0-A 的 CLI 入口做 `ruflo 
 - **风险：**
   - 无。这是最小改动的标准 pip 注册。
 
-- **Status:** pending
+- **Status:** ✅ `be5417ec`
 
 ---
 
@@ -138,7 +138,7 @@ P0-A → P0-B → P1-A 严格串行（P0-B 依赖 P0-A 的 CLI 入口做 `ruflo 
   - `src/pipeline/shadow.py` 的 `os.environ` 写操作（`os.environ["RUFLO_PIPELINE_MODE"] = ...`）必须保留——`Settings()` 只读，不写入 env。需要确保 shadow.py 不引入 `from src.config import Settings` 然后只读快照。
   - `src/knowledge/storage/facade.py` 的 7 个 S3 变量暂不迁移，标注为"第二批（实验分支）"。
 
-- **Status:** pending
+- **Status:** ✅ `bca225a6`
 
 ---
 
@@ -199,7 +199,7 @@ P0-A → P0-B → P1-A 严格串行（P0-B 依赖 P0-A 的 CLI 入口做 `ruflo 
   - `test_batch_executor.py` 的崩溃注入测试依赖 `scripts.batch_executor` 的模块路径——平移后可能因 `sys.path.insert(0, ...)` 或 `sys.modules` 缓存导致测试找不到模块。方案：`test_batch_executor.py` 同时测试 `scripts.batch_executor`（CLI 壳）和 `src.orchestrator.batch_runner`（引擎），确保两者都覆盖。
   - 状态机生命周期钩子必须在 `BatchRunner` 的第一版就预留，否则后续加崩溃注入测试时需要改抽象接口。
 
-- **Status:** pending
+- **Status:** ✅ 4 子任务（`c4d50dee` 3a / `68029bcf` 3b / `2237df22` 3c / `2ac5ef60` 3d）
 
 ---
 
@@ -227,7 +227,7 @@ P0-A → P0-B → P1-A 严格串行（P0-B 依赖 P0-A 的 CLI 入口做 `ruflo 
   2. `git log --oneline` 可追溯被删除文件
   3. `pytest` 全绿（确认 `registry.json` 的移动不影响 `GlobalRegistryStore` 加载）
 
-- **Status:** pending
+- **Status:** ✅ `d64a17bd`
 
 ---
 
