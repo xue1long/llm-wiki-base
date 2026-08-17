@@ -1,4 +1,4 @@
-"""tests/test_pipeline/test_analyzer_json.py — JSON analyzer output with 3-tier validation."""
+﻿"""tests/test_pipeline/test_analyzer_json.py — JSON analyzer output with 3-tier validation."""
 import pytest
 
 from src.pipeline.analyzer import (
@@ -25,7 +25,7 @@ from src.knowledge.core.candidate import (
     CandidateStatus,
 )
 from src.knowledge.core.object import KnowledgeType
-from src.shared.test_helpers import ScriptedLLMProvider
+from tests.support.test_helpers import ScriptedLLMProvider
 
 
 # ---------------------------------------------------------------------------

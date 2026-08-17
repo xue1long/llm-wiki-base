@@ -1,6 +1,6 @@
-import asyncio
+﻿import asyncio
 import pytest
-from src.shared.test_helpers import ScriptedLLMProvider
+from tests.support.test_helpers import ScriptedLLMProvider
 from src.pipeline.pipeline import run_ingest
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths

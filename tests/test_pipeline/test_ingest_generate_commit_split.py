@@ -1,4 +1,4 @@
-"""Phase 1 (2026-08-01 NDG plan): run_ingest split into generate_ingest /
+﻿"""Phase 1 (2026-08-01 NDG plan): run_ingest split into generate_ingest /
 commit_ingest.
 
 Locks in the three invariants of the split:
@@ -22,7 +22,7 @@ from src.pipeline.ingest import (
     generate_ingest,
     run_ingest,
 )
-from src.shared.test_helpers import ScriptedLLMProvider
+from tests.support.test_helpers import ScriptedLLMProvider
 from src.wiki.core.paths import WikiPaths
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.features.relations import Relation

@@ -1,4 +1,4 @@
-"""Tests for atomic-context behaviour of stub materialization.
+﻿"""Tests for atomic-context behaviour of stub materialization.
 
 Verifies I-pipeline-3 fix: stub removal goes through safe_write + DELETE_SENTINEL
 so it's batched into the AtomicContext commit point (no premature os.unlink).
@@ -29,7 +29,7 @@ def test_stub_unlink_uses_sentinel(tmp_path):
 
     # The materialization worker expects a ScriptedLLMProvider that produces
     # a real page — so wire up one and call it inside an AtomicContext.
-    from src.shared.test_helpers import ScriptedLLMProvider
+    from tests.support.test_helpers import ScriptedLLMProvider
 
     provider = ScriptedLLMProvider([
         {"pages": [

@@ -1,6 +1,6 @@
-# tests/test_pipeline/test_generator.py
+﻿# tests/test_pipeline/test_generator.py
 import pytest
-from src.shared.test_helpers import ScriptedLLMProvider
+from tests.support.test_helpers import ScriptedLLMProvider
 from src.pipeline.schemas import AnalysisResult, EntityMention, PageSpec
 from src.pipeline.generator import generate, PROCESSING_DEPTH_VALUES
 from src.wiki.core.types import PageType

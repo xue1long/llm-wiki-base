@@ -1,5 +1,5 @@
-import pytest
-from src.shared.test_helpers import ScriptedLLMProvider
+﻿import pytest
+from tests.support.test_helpers import ScriptedLLMProvider
 from src.lib.budgeted import BudgetedLLM
 
 

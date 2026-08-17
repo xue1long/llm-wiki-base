@@ -1,6 +1,6 @@
-# tests/test_pipeline/test_analyzer.py
+﻿# tests/test_pipeline/test_analyzer.py
 import pytest
-from src.shared.test_helpers import ScriptedLLMProvider
+from tests.support.test_helpers import ScriptedLLMProvider
 from src.pipeline.analyzer import ANALYZER_PROMPT, analyze
 from src.wiki.core.types import PageType
 

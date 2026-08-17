@@ -1,4 +1,4 @@
-"""Tests for src/wiki/stubs.py."""
+﻿"""Tests for src/wiki/stubs.py."""
 import pytest
 from src.wiki.features.stubs import StubMaterializerWorker
 from src.wiki.core.types import PageType, WikiPage
@@ -45,7 +45,7 @@ async def test_materialize_one(tmp_path):
 
     # Use a ScriptedLLMProvider that returns a page dict (v2.3 schema
     # uses `slots` instead of `body_markdown`).
-    from src.shared.test_helpers import ScriptedLLMProvider
+    from tests.support.test_helpers import ScriptedLLMProvider
     provider = ScriptedLLMProvider([
         {"pages": [
             {"id": "foo-target", "type": "concept", "title": "Foo Target Real",

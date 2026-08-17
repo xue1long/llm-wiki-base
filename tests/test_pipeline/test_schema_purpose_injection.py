@@ -1,4 +1,4 @@
-"""Phase 2.1 — novel-wiki 场景模板 schema/purpose/taxonomy 落盘 + 注入链路测试。
+﻿"""Phase 2.1 — novel-wiki 场景模板 schema/purpose/taxonomy 落盘 + 注入链路测试。
 
 Spec §4.1–4.4（docs/superpowers/specs/2026-08-15-novel-wiki-writing-template-design.md）
 要求 four project-root assets 落盘在 knowledge/novel-wiki/：
@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from src.shared.test_helpers import ScriptedLLMProvider
+from tests.support.test_helpers import ScriptedLLMProvider
 from src.wiki.core.paths import WikiPaths
 from src.wiki.storage.ensure import ensure_knowledge_base
 
