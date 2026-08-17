@@ -153,6 +153,7 @@ The wiki is the **primary data model**. Legacy `Notes/<task_id>.md` output is pr
 | `heat` | int | 50 | Heat decay tracker (0-100) |
 | `last_used_at` | int | 0 | Heat: last AI retrieval timestamp |
 | `zombie_since` | int\|None | None | Heat: 0-heat timestamp |
+| `custom_type` | str | "" | Schema-declared subtype; routes through `schema.md` while `type` remains its base `PageType` |
 
 **Wiki 规范（含命名/Frontmatter/Body 规则）：** [`docs/guides/wiki-spec.md`](docs/guides/wiki-spec.md)
 
@@ -201,6 +202,12 @@ The default pipeline mode (`RUFLO_PIPELINE_MODE=candidate`, the default) uses th
 4. **CandidatePromoter** — promotes KnowledgeCandidate → KnowledgeObject (lifecycle=PROCESSING)
 5. **Generator** (`generate_from_knowledge_object`) — LLM renders body slots only; frontmatter (type, title, grade, provenance) sourced from KnowledgeObject
 6. **Writer** — atomic: write_page + append_to_index + log_event
+
+At ingest start, the pipeline rereads project-root `schema.md` and
+`purpose.md`. Analyzer prompts receive both files; Generator prompts receive
+the authoritative schema. Types declared by the schema table are accepted by
+structured output, inherit a base `PageType` for slot rendering, and write to
+their declared `wiki/...` directory.
 
 The legacy path (`RUFLO_PIPELINE_MODE=legacy`) uses the old Analyzer (markdown) → Generator (`unified_generate` or two-step `analyze`→`generate`) flow and is deprecated. Shadow mode (`RUFLO_SHADOW_MODE=true`) runs both paths and writes a comparison report to `.index/shadow/<task_id>/`.
 
@@ -292,7 +299,7 @@ Plans are completed in dependency order. Check `.superpowers/sdd/progress.md` fo
 
 ## 分段接力工作流（dev-relay）
 
-本项目采用 mattpocock/skills + ponytail **分段接力**开发，两套技能禁止同时全局常驻。阶段路由、切换约束与避坑清单见 `.Codex/skills/dev-relay/`；方案进入编码前的强制两轮自我审查见 `.Codex/skills/plan-audit/`。
+本项目采用 mattpocock/skills + ponytail **分段接力**开发，两套技能禁止同时全局常驻。阶段路由、切换约束与避坑清单见 `.agents/skills/dev-relay/`；方案进入编码前的强制两轮自我审查见 `.agents/skills/plan-audit/`。
 
 - 阶段分工：需求澄清/领域建模/架构设计用 mattpocock 系（ponytail 关闭）→ 编码实现用 ponytail full → 评审切回 mattpocock 系（`/code-review`）。
 - 阶段切换由用户指令驱动，不擅自切换模式。
@@ -387,3 +394,16 @@ Issues and specs live as GitHub issues, operated via the `gh` CLI. See `docs/age
 ### Domain docs
 
 Single-context layout — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

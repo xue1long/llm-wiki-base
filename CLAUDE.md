@@ -1,4 +1,4 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -299,7 +299,7 @@ Plans are completed in dependency order. Check `.superpowers/sdd/progress.md` fo
 
 ## 分段接力工作流（dev-relay）
 
-本项目采用 mattpocock/skills + ponytail **分段接力**开发，两套技能禁止同时全局常驻。阶段路由、切换约束与避坑清单见 `.claude/skills/dev-relay/`；方案进入编码前的强制两轮自我审查见 `.claude/skills/plan-audit/`。
+本项目采用 mattpocock/skills + ponytail **分段接力**开发，两套技能禁止同时全局常驻。阶段路由、切换约束与避坑清单见 `.agents/skills/dev-relay/`；方案进入编码前的强制两轮自我审查见 `.agents/skills/plan-audit/`。
 
 - 阶段分工：需求澄清/领域建模/架构设计用 mattpocock 系（ponytail 关闭）→ 编码实现用 ponytail full → 评审切回 mattpocock 系（`/code-review`）。
 - 阶段切换由用户指令驱动，不擅自切换模式。
@@ -394,3 +394,16 @@ Issues and specs live as GitHub issues, operated via the `gh` CLI. See `docs/age
 ### Domain docs
 
 Single-context layout — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
