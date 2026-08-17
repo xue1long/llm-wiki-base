@@ -8,7 +8,7 @@
 >
 > **P0-A 注册 ruflo CLI → ✅ `be5417ec`**
 > **P0-B 中央配置模块 → ✅ `bca225a6`**
-> **P1-A BatchRunner 收编脚本 → 待执行（下一会话）**
+> **P1-A BatchRunner 收编脚本 → ✅ 4 子任务（`c4d50dee` 3a 门禁真源 / `68029bcf` 3b 拆引擎 / `2237df22` 3c BatchRunner ABC / `2ac5ef60` 3d ruflo batch CLI）**
 > **P1-B 根目录清理 → 待执行**
 > **P2-A 文档双文件同步 → 待执行**
 > **P2-B superpowers 归档 → 待执行**
@@ -131,3 +131,30 @@
 ## git 纪律
 
 `git add <specific files>`；工作区他人改动勿碰：`discovery.py`/`start.bat`/`web/*`/`docs/evaluations/`/`knowledge/_batch*/`。`.memory/` 与 `.index/` gitignore（Phase 4 P1 例外：门禁文件白名单）。
+
+## P1-A BatchRunner 收编记录（2026-08-18）✅ 完成
+
+**目标：** `scripts/` 38 个脚本 → `BatchRunner` 框架收编。按计划 4 子任务分步执行，每步独立 commit。
+
+| 子任务 | Commit | 说明 |
+|---|---|---|
+| 3a 门禁真源 | `c4d50dee` | 提取 `_gate_fields`/`_gate_tags`/`_gate_lint`/`_gate_reconcile`/`run_precommit_gate` → `src/wiki/features/batch_gate.py`（签名不变）；更新 4 个调用方 import |
+| 3b 拆引擎 | `68029bcf` | 引擎逻辑（状态机/三阶段原子流程/崩溃续跑/预算/门禁编排/测试钩子）→ `src/orchestrator/batch_runner.py`（718 行）；CLI 壳留 `scripts/batch_executor.py`（~75 行 re-export） |
+| 3c BatchRunner ABC | `2237df22` | `Batch`/`GateReport`/`BatchResult` dataclass + `BatchRunner(ABC)`（load_batch/run_one 抽象 + gate/execute/commit/rollback/emit_metrics 框架方法）+ `_on_phase_start/_on_phase_end` 生命周期钩子（崩溃注入在框架级生效）+ `DefaultBatchRunner` 具体实现 |
+| 3d 收编 CLI | `2ac5ef60` | `src/cli_ext/batch_cmd.py` 注册 `ruflo batch {run,plan}`；`src/cli.py` 挂载；脚本与 CLI 双入口兼容 |
+
+**关键决策：**
+- **门禁真源** `src/wiki/features/batch_gate.py` 现被 5 个调用者引用（batch_executor/batch_commit/accept_batch/diagnose_batch_gate/tests），消除单点复制（验收 #4 ✓）。
+- **`sys.path.insert(0, ...)` 移除**：引擎迁入 `src/` 后不再需要（handoff 记录点）。
+- **生命周期钩子**：`run_batch` 在 generate/gate/commit/recheck 四阶段调用 `args._batch_runner._on_phase_start/_on_phase_end`，`_crash_at` 在钩子内触发——`os._exit(137)` kill-9 模拟在框架级生效。
+- **测试红线**：`test_batch_executor.py` 的崩溃注入测试全套保留（`os._exit(137)` generate/gate/cascade/commit 四阶段），改 import 指向引擎。
+
+**验证：**
+- `tests/test_scripts/test_batch_executor.py` 18 tests passed（含崩溃注入全套）
+- `tests/test_scripts/test_batch_generate_commit.py` 7 tests passed
+- `ruflo batch run --help` / `ruflo batch --help` 正常
+- 端到端冒烟（fake mode）：`ruflo batch run` → exit 0, 2 files done, gate PASS
+
+**遗留（后续 P 处理）：**
+- `batch_ingest`/`phase4_batch`/`phase5_accept`/`pilot_ingest` 等遗留脚本未逐一改成继承 `BatchRunner` 子类（计划表 3d 的完整清单）——当前保留原样，`ruflo batch run` 作为规范入口已可用。如需完整收编可作为后续增量。
+- `batch_gate_check`/`batch_gate_v3`/`diagnose_batch_gate` 的 `ruflo batch gate` 子命令未建（3d 表中可并入 `BatchRunner.gate()`）——当前 `diagnose_batch_gate` 直接调门禁真源，语义已统一。
