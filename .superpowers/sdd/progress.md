@@ -3,6 +3,8 @@
 > 方案：`docs/superpowers/specs/2026-08-15-novel-wiki-writing-template-design.md`
 > 计划：`docs/superpowers/plans/2026-08-15-novel-wiki-writing-template.md`
 > 续接：`.memory/handoff-novel-wiki-phase1-2026-08-15.md`（Phase 0-2）、`.memory/handoff-novel-wiki-phase3-2026-08-16.md`（Phase 3 续接）
+>
+> **新计划（2026-08-26）：** 模块规范性与统一化改造 — `docs/superpowers/plans/2026-08-26-module-standardization-unification.md`（P0-A→P0-B→P1-A→P1-B→P2-A/P2-B→P3，status: planned）
 
 ## 状态总览
 
