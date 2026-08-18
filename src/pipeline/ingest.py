@@ -283,7 +283,12 @@ async def _write_rejected_source_page(
     import time as _time
 
     _t = _time.localtime()
-    _stem = Path(str(source_path)).stem if hasattr(source_path, "stem") else str(source_path)
+    _src_path = Path(str(source_path))
+    # R4: the slug must derive from the *basename* only — an absolute or
+    # project-relative path contains path separators which page_path_for
+    # would otherwise interpret as nested directories, writing the page
+    # outside wiki/sources/.
+    _stem = _src_path.stem if _src_path.stem else str(source_path)
     _norm = unicodedata.normalize("NFC", _stem)
     _hash = hashlib.md5(str(source_path).encode("utf-8")).hexdigest()[:8]
     _slug = f"{_norm}-{_hash}"
@@ -307,10 +312,23 @@ async def _write_rejected_source_page(
         grade="C",
     )
 
-    async with AtomicContext() as ctx:
-        write_page(paths, page, ctx)
-        append_to_index(paths, page, ctx)
-        log_event(paths, "rejected", page.id, {"reason": result.warnings}, ctx)
+    # R4 (audit A-03): the previous code used `async with AtomicContext()`
+    # (no async protocol exists) and passed a non-existent `ctx` argument
+    # to write_page/append_to_index/log_event — the branch was guaranteed
+    # to fail. Use the same synchronous AtomicContext pattern as the main
+    # commit path: writes are buffered by safe_write and flushed once at
+    # exit via flush_pending_writes.
+    from ..lib.atomic_ctx import AtomicContext
+    from ..lib.write_hooks import flush_pending_writes
+    from ..wiki.storage.page_writer import write_page
+    from ..wiki.features.indexer import append_to_index
+    from ..wiki.features.logger import log_event
+
+    with AtomicContext(flush_callback=flush_pending_writes):
+        write_page(paths, page)
+        append_to_index(paths, [(page.id, page.type, page.title)])
+        log_event(paths, "rejected", task_id, f"low quality: {page.id}",
+                  {"reason": result.warnings})
 
     return [page]
 
@@ -427,9 +445,24 @@ async def generate_ingest(
     # RUFLO_SANITIZER_SKIP_LLM=1; off by default).
     if _result.should_skip_llm and __import__("os").environ.get("RUFLO_SANITIZER_SKIP_LLM", "0") == "1":
         _logger.warning("[run_ingest] skipping LLM for %s", source_path)
-        return await _write_rejected_source_page(
+        _rejected_pages = await _write_rejected_source_page(
             paths, source_path, source_text, _result, task_id
         )
+        # R4: the rejection branch must return the same (pages, extra,
+        # meta) triple as the main path — it previously returned a bare
+        # list, which broke every caller's tuple unpacking.
+        return _rejected_pages, [], {
+            "analysis": None,
+            "source_slug": _rejected_pages[0].id if _rejected_pages else None,
+            "source_page_id": _rejected_pages[0].id if _rejected_pages else None,
+            "source_grade": "C",
+            "triage": None,
+            "downstream_count": 0,
+            "extra_pages_count": 0,
+            "rejected": True,
+            "warnings": _result.warnings,
+            "missing_slugs": [],
+        }
 
     _ = source_text  # keep the parameter — body writes reference source_text directly
 
