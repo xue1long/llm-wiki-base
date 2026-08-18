@@ -297,3 +297,77 @@ R9 候选链路删除 → R10 routes 收敛 → R11 依赖 profile → R12 关�
 - 已知基线（未改动前即存在）：全量收集 5 文件兄弟 conftest 级联错误；test_url_redirect_to_loopback_blocked 需真实 DNS
 
 **整改后架构状态**：信任边界（Token 认证 + Key 脱敏 + 上传上限 + 凭据边界）、数据正确性（AtomicContext 失败传播 + 拒绝分支修复 + 单实例护栏 + 显式 project root + /ready + 向量补偿 + 异常分类）、演化运维（唯一主链路 + services 收敛 + 依赖锁定 + 告警 + 版本统一 + runbook）三大块全部落地。
+
+## Phase 4 批量重摄入续跑（2026-08-18，架构整改后）🔄
+
+**状态恢复**（batch_build_state.json）：batch 0 孤儿（legacy smoke，postcheck_failed）；batch 1-7 committed（160 文件）；**batch 8 起待跑（63 批 1241 文件）**。
+
+**运行命令**（BatchRunner 收编后入口，provider 默认 sfkey-glm/glm-5.2）：
+```bash
+PYTHONPATH=. python -m src.cli batch run --root knowledge/novel-wiki --batch <N> --concurrency 3
+```
+- batch 8（01_新手入门 剩余 20 文件）2026-08-18 16:18 启动
+- 整改兼容性：R2 50MiB 上限不影响（源文件均小）；R4 拒绝分支返回三元组（batch 兼容）；R7 vector_pending 在 batch upsert 成功后自动 clear
+- 每批 ~25 分钟，LLM ~27 次/批
+
+## 标签规范化整改（2026-08-18，进行中）🔄
+
+**计划**：`docs/superpowers/plans/2026-08-18-tag-normalization-remediation.md`
+**背景**：batch 8（20 源文件已落盘）Gate re-check 失败；根因 = legacy 英文前缀
+（`func/`、`genre/` 等）绕过 Generator 规范化写入磁盘 + Gate 使用严格中文命名空间。
+**政策决策**：保持兼容政策（策略 1，任何带标签页面自动补 `素材/ugc`+`可信度/ugc`），
+来源感知政策（策略 2）延后（方案 §3 决策注记）。
+
+**已实施（代码已改，待宿主恢复后跑测试验证 + 提交）**：
+| Task | 内容 | 文件 |
+|---|---|---|
+| 1 | 规范化契约测试按策略 1 修正（2 个测试期望补 mandatory） | `tests/test_wiki/test_tag_normalization.py` |
+| 2 | Generator `_normalize_tags` 增加审计日志；`build_tag_prompt_section` 增加 legacy 前缀禁用行；analyzer 内联注释同步 12 前缀 | `src/pipeline/generator.py`、`src/wiki/features/tag_namespace.py`、`src/pipeline/analyzer.py` |
+| 3 | `commit_ingest()` 对 `pages + extra_pages` 写盘前统一 `normalize_tags` + TAG-MAPPED/TAG-REMOVED/TAG-MANDATORY 审计日志；新增 3 测试 | `src/pipeline/ingest.py`、`tests/test_pipeline/test_ingest_generate_commit_split.py` |
+| 4 | `cleanup_invalid_tags.py` 改用公共 `normalize_tags`（mapping/removal/mandatory 输出 + `--apply`）；新增 4 测试；Gate 保持严格校验（复用 `validate_tag_compliance`） | `scripts/cleanup_invalid_tags.py`、`tests/test_scripts/test_cleanup_invalid_tags.py` |
+| 2/4 | Generator legacy 前缀解析测试（`func/教程`→`功能/教程` 且过 `validate_tag_compliance`） | `tests/test_pipeline/test_generator.py` |
+| docs | `docs/reference/ingest-prompts.md` 标签规则纠偏（12 中文前缀 + legacy 禁用）；`docs/guides/novel-wiki-ingest-spec.md` 更新 legacy 迁移说明 | 两个文档 |
+
+**待办（宿主恢复后）**：
+1. 跑测试（`pytest tests/test_wiki/test_tag_normalization.py tests/test_wiki/test_tag_namespace.py tests/test_pipeline/test_generator.py tests/test_pipeline/test_ingest_generate_commit_split.py tests/test_scripts/test_cleanup_invalid_tags.py tests/test_scripts/test_batch_executor.py -v`）→ 修复 → 逐 Task 提交
+2. batch 8：`diagnose_batch_gate.py` / `accept_batch.py --root knowledge/novel-wiki --batch 8` 确认当前 Gate 实际失败项（静态检查未发现 batch 8 页面含 legacy 标签——需运行确认原 `func/结构`、`func/关系`、`genre/平台` 的出处）
+3. 按需 `cleanup_invalid_tags.py --page-ids <受影响>` 修复 → `accept_batch` → batch 8 committed
+4. 继续 `python -m src.cli batch run --root knowledge/novel-wiki --batch 9 --concurrency 3`
+5. 可选后续：全库 `cleanup_invalid_tags.py --all --apply` 清理存量 129 处 legacy 标签（M8 指标）
+
+## 确定性字段与链接整改（2026-08-18，Task 0 完成，Task 1+ 进行中）🔄
+
+**计划**：`docs/superpowers/plans/2026-08-18-deterministic-page-fields-and-links.md`
+**背景**：batch 9 pre-commit Gate 阻断（`飞书云文档`/`北京圣东方国信科技有限公司` →
+`[[入门教程角色篇完善小说的技法-e8ca1866]]` 旧 hash + 标题丢词的 source 链接）。
+方案经 plan-audit 两轮审查（致命 0 → 重大 2 → Task 0 前置）。**编码门槛**：Task 0
+未证明提交/并发/TOCTOU/custom-type 边界前不进入 Task 1，也不重跑 batch 9。
+
+### Task 0（✅ 已实现并验证，待提交）
+
+| 切片 | 内容 | 文件 |
+|---|---|---|
+| 0.1 | sanitizer reject 改纯内存返回（Gate 前零 wiki 写入）；回归测试改显式 commit 断言 | `src/pipeline/ingest.py`、`tests/test_pipeline/test_rejected_source_page.py` |
+| 0.2 | `AtomicCommitError` → raw `partial_commit`（+failed_paths）+ 停止批次（rc 4）；flush 故障注入钩子 `RUFLO_FLUSH_FAIL_PATHS`；`log_event` 按 (event,task_id,detail) 去重；partial 重试幂等测试 | `src/orchestrator/batch_runner.py`、`src/lib/write_hooks.py`、`src/wiki/features/logger.py`、`tests/test_scripts/test_batch_executor.py` |
+| 0.3 | 跨进程 `project_commit_lock()`（`.index/commit.lock`）包裹提交循环；`write_page(expected_content_hash)` CAS → `WriteConflictError`；批级 `write_conflict`（rc 5）| `src/services/batch_state.py`、`src/wiki/storage/page_writer.py`、`tests/test_wiki/test_page_writer.py` |
+| 0.4 | `SchemaRegistry.iter_page_dirs()` 统一目录枚举；`_collect_existing_wiki`/`_resolvable_set` 改用；custom type 发现/对账测试 | `src/wiki/schema_registry.py`、`src/pipeline/reconcile.py`、`tests/test_wiki/test_schema_registry.py` |
+| 0.0 | `BATCH_STATUSES` 增加 `partial_commit`；测试常量同步 | `src/services/batch_state.py`、`tests/test_services/test_batch_state.py` |
+
+**验证**：139 项定向测试全绿（batch 状态机、lib 原子写、reject、commit split、reconcile、
+page_writer、schema_registry、cascade、immutable）。
+
+**Task 0 已证实的语义**：Gate 前零 wiki 写入；单 raw 提交部分失败 → `partial_commit`
+可发现可重试（page/index 幂等、log 去重）；人工编辑 → `WRITE-CONFLICT` 拒绝覆盖；
+同项目并发提交由跨进程锁串行化；custom type 页全目录可见。
+**已知上限（ponytail）**：`AtomicContext` 仍是线程局部缓冲（async 同线程任务间可能
+串桶，服务器并发摄入未覆盖）；owner-token fencing 未实现（由提交锁串行化替代）。
+
+### 待办
+
+1. 提交 Task 0（`git add` 具体文件 → `fix(batch): partial_commit/commit-lock/TOCTOU/custom-dir (Task 0)`）
+2. Task 1：canonical raw path + Target Resolver contract/实现
+3. Task 2：四条 Generator 入口统一 `ResolutionContext`、body wikilink + relation target
+4. Task 3：`finalize_generated_page()` 字段接管 + custom type 全链路
+5. Task 4：relation/taxonomy/alias 归一化
+6. Task 5：Gate 审计输出 + unresolved blocker + 副作用 sentinel
+7. Task 6：batch 9 重跑验收（Gate 前零写入 + partial 恢复 + 并发锁已就位）

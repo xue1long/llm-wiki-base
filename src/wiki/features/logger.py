@@ -24,6 +24,9 @@ def log_event(
         ## <iso-timestamp>
         - <event>: <task_id> — <detail>
         [optional JSON metadata]
+
+    Idempotent per (event, task_id, detail): a retried commit must not
+    duplicate the audit line (partial-commit recovery, plan Task 0.2).
     """
     timestamp = datetime.fromtimestamp(time.time()).isoformat()
     entry_md = f"## {timestamp}\n- **{event}**: `{task_id}` — {detail}\n"
@@ -36,6 +39,10 @@ def log_event(
         content = paths.llm_wiki_log.read_text(encoding="utf-8")
         if not content.endswith("\n"):
             content += "\n"
+    # Dedup: identical (event, task_id, detail) line already present → skip.
+    marker = f"- **{event}**: `{task_id}` — {detail}\n"
+    if marker in content:
+        return
     content += entry_md
     safe_write(paths.llm_wiki_log, content)
 

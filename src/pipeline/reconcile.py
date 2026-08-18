@@ -89,9 +89,9 @@ def _resolvable_set(paths: WikiPaths, produced_slugs: set[str]) -> set[str]:
     canonical targets are added so a wikilink to an alias also resolves.
     """
     resolvable: set[str] = {normalize_reconcile_slug(s) for s in produced_slugs if s}
-    # 磁盘页（四个 typed 目录）
-    for attr in ("wiki_sources", "wiki_entities", "wiki_concepts", "wiki_synthesis"):
-        d = getattr(paths, attr, None)
+    # 磁盘页（内置 typed 目录 + schema custom 目录；Task 0.4 统一枚举）
+    from ..wiki.schema_registry import SchemaRegistry
+    for d in SchemaRegistry.from_project(paths.root).iter_page_dirs(paths):
         if d is None or not d.exists():
             continue
         for f in d.glob("*.md"):

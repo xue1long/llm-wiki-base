@@ -75,11 +75,19 @@ def _snapshot_raw(paths: WikiPaths, page_id: str, file_path: Path) -> None:
         f.unlink()
 
 
-def write_page(paths: WikiPaths, page: WikiPage) -> None:
+class WriteConflictError(Exception):
+    """Overwrite refused: the on-disk content changed since the write was
+    planned (manual edit / concurrent writer). Task 0.3 TOCTOU guard."""
+
+
+def write_page(paths: WikiPaths, page: WikiPage,
+               expected_content_hash: str | None = None) -> None:
     """Write page to disk via safe_write (respects AtomicContext).
 
-    The page title lives in frontmatter only — we don't prepend a `# title`
-    header so the body round-trips cleanly.
+    *expected_content_hash* (optional): sha256 of the current on-disk
+    content captured at generate time. When provided and the file exists,
+    a mismatch raises :class:`WriteConflictError` instead of silently
+    overwriting a manual edit / concurrent write (plan Task 0.3).
     """
     import logging
     import os
@@ -104,6 +112,15 @@ def write_page(paths: WikiPaths, page: WikiPage) -> None:
     path = page_path_for(paths, page.type, page.id, registry, custom_type)
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
+        if expected_content_hash is not None:
+            import hashlib
+            cur = hashlib.sha256(path.read_bytes()).hexdigest()
+            if cur != expected_content_hash:
+                raise WriteConflictError(
+                    f"refusing to overwrite {page.id}: on-disk content "
+                    f"changed since generate (TOCTOU); expected "
+                    f"{expected_content_hash[:8]}… got {cur[:8]}…"
+                )
         # Phase 1.7 (F8): never silently overwrite an immutable page —
         # the pipeline re-ingest guard relies on this (ingest commit skips
         # immutable targets); a direct write must fail loudly too.

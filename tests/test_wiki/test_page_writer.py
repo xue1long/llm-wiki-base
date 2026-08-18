@@ -53,6 +53,32 @@ def test_write_page_overwrites_existing(tmp_path):
     assert loaded.body == "v2"
 
 
+def test_write_page_expected_hash_mismatch_raises_write_conflict(tmp_path):
+    """Task 0.3 TOCTOU：expected_content_hash 与磁盘不符 → WriteConflictError。"""
+    import hashlib
+
+    from src.wiki.storage.page_writer import WriteConflictError
+
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    page = WikiPage(id="foo", title="Foo", type=PageType.ENTITY, body="v1")
+    write_page(p, page)
+    path = page_path_for(p, PageType.ENTITY, "foo")
+
+    baseline = hashlib.sha256(path.read_bytes()).hexdigest()
+    # 未变化 → 允许覆盖
+    write_page(p, WikiPage(id="foo", title="Foo", type=PageType.ENTITY,
+                           body="v2"), expected_content_hash=baseline)
+    # 人工编辑 → 拒绝覆盖
+    path.write_text(path.read_text(encoding="utf-8") + "\n<!-- manual -->\n",
+                    encoding="utf-8")
+    with pytest.raises(WriteConflictError):
+        write_page(p, WikiPage(id="foo", title="Foo", type=PageType.ENTITY,
+                               body="v3"), expected_content_hash=baseline)
+    # 内容保持人工编辑结果
+    assert "<!-- manual -->" in path.read_text(encoding="utf-8")
+
+
 def test_read_page_missing(tmp_path):
     ensure_knowledge_base(tmp_path)
     with pytest.raises(PageNotFoundError):

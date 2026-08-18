@@ -150,6 +150,86 @@ def test_resume_skips_done_files(mini_wiki: Path) -> None:
     assert raw_status(state, "batch_0", "raw/sources/a.md") == "done"
 
 
+def _reset_raw_state(root: Path, raw: str) -> None:
+    """测试辅助：把 raw 状态重置为 pending（下次运行重新处理）。"""
+    p = root / ".index" / "batch_build_state.json"
+    state = json.loads(p.read_text(encoding="utf-8"))
+    state["batch_0"]["raw_states"][raw] = {"status": "pending", "fail_streak": 0}
+    p.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def test_toctou_write_conflict_refuses_overwrite(mini_wiki: Path) -> None:
+    """Task 0.3：generate 后目标页被人工修改 → WRITE-CONFLICT，拒绝覆盖。
+
+    第一轮提交 b.md（生成 src-b + concept-b）；删除 src-b 使第二轮走
+    first_ingest（无 cascade 删除），再注入 TOUCH 模拟 generate 与 commit
+    之间的人工编辑 → commit 检测到 concept-b 内容变化，拒绝覆盖。
+    """
+    _write_plan(mini_wiki, ["raw/sources/b.md"])
+    r = _run_executor(mini_wiki)
+    assert r.returncode == 0, r.stderr[-2000:]
+    assert (mini_wiki / "wiki" / "concepts" / "concept-b.md").exists()
+
+    # 删除 source 页 → 下轮 first_ingest（concept 页仍是存量目标）
+    (mini_wiki / "wiki" / "sources" / "src-b.md").unlink()
+    _reset_raw_state(mini_wiki, "raw/sources/b.md")
+
+    r2 = _run_executor(
+        mini_wiki,
+        extra_env={"RUFLO_EXECUTOR_TOUCH_RAW": "raw/sources/b.md"},
+    )
+    assert r2.returncode != 0, r2.stderr[-2000:]
+    state = _state(mini_wiki)
+    entry = state["batch_0"]["raw_states"]["raw/sources/b.md"]
+    assert entry["status"] == "failed"
+    assert "WRITE-CONFLICT" in entry.get("last_error", ""), entry
+    # 人工编辑未被静默覆盖
+    assert "<!-- manual edit -->" in (
+        mini_wiki / "wiki" / "concepts" / "concept-b.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_partial_commit_records_state_and_resume_retries(mini_wiki: Path) -> None:
+    """Task 0.2：单 raw flush 部分失败 → partial_commit + 停止后续；续跑幂等重试。
+
+    注入 RUFLO_FLUSH_FAIL_PATHS 让 b.md 的 source 页 flush 失败。先提交
+    a.md（前序已写），再让 b.md 部分失败，制造真实"前序成功 + 后序部分
+    提交"的中间态。
+    """
+    # 1) 先提交 a.md
+    _write_plan(mini_wiki, ["raw/sources/a.md"])
+    r = _run_executor(mini_wiki)
+    assert r.returncode == 0, r.stderr[-2000:]
+    assert raw_status(_state(mini_wiki), "batch_0", "raw/sources/a.md") == "done"
+
+    # 2) b.md 提交时注入 flush 失败 → partial_commit + 停止（rc 4）
+    _write_plan(mini_wiki, ["raw/sources/b.md"])
+    r = _run_executor(mini_wiki, extra_env={"RUFLO_FLUSH_FAIL_PATHS": "src-b.md"})
+    assert r.returncode == 4, r.stderr[-2000:]
+    state = _state(mini_wiki)
+    b_entry = state["batch_0"]["raw_states"]["raw/sources/b.md"]
+    assert b_entry["status"] == "partial_commit"
+    assert any("src-b.md" in p for p in b_entry.get("failed_paths", []))
+    assert state["batch_0"]["status"] == "partial_commit"
+    # 部分提交：同批 concept 页已写出，但 source 页失败（真实中间态）
+    assert (mini_wiki / "wiki" / "concepts" / "concept-b.md").exists()
+    assert not (mini_wiki / "wiki" / "sources" / "src-b.md").exists()
+
+    # 3) 恢复后续跑：幂等重试，page/index/log 不重复
+    r2 = _run_executor(mini_wiki, extra_args=["--resume"])
+    assert r2.returncode == 0, r2.stderr[-2000:]
+    state2 = _state(mini_wiki)
+    assert raw_status(state2, "batch_0", "raw/sources/b.md") == "done"
+    assert state2["batch_0"]["status"] == "committed"
+    assert (mini_wiki / "wiki" / "sources" / "src-b.md").exists()
+    # 每个页面在索引中恰好出现一次（重试不重复追加）
+    index_after = (mini_wiki / "wiki" / "index.md").read_text(encoding="utf-8")
+    for slug in ("src-a", "concept-a", "src-b", "concept-b"):
+        assert index_after.count(f"**{slug}**") == 1, f"duplicate index entry: {slug}"
+
+
+
+
 # ---------------------------------------------------------------------------
 # 每 raw 分支
 # ---------------------------------------------------------------------------

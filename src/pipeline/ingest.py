@@ -44,6 +44,7 @@ from ..lib.atomic_ctx import AtomicContext
 from ..lib.write_hooks import flush_pending_writes
 from ..wiki.features.indexer import append_to_index
 from ..wiki.features.logger import log_event
+from ..wiki.features.tag_namespace import normalize_tags
 from ..wiki.storage.page_writer import write_page
 from .retry import PermanentFailure
 
@@ -119,17 +120,25 @@ _EXISTING_WIKI_DIRS = [
 
 
 def _collect_existing_wiki(paths: WikiPaths) -> dict:
-    """Scan the 4 typed wiki directories; return ``{slug: PageType}`` for
-    every page currently on disk.
+    """Scan every wiki page directory (built-in typed + schema custom dirs);
+    return ``{slug: PageType}`` for each page currently on disk.
 
     Reused for both the analyzer/generator ``existing_wiki_index`` prompt
     text (slug reuse — B9) and Fix E's stub de-duplication set (B11).
+    Directory discovery delegates to ``SchemaRegistry.iter_page_dirs``
+    (Task 0.4) so custom-type pages are never missed; built-in dirs keep
+    their PageType, custom dirs fall back to ``SOURCE`` for reuse purposes.
     """
+    from ..wiki.schema_registry import SchemaRegistry
+    registry = SchemaRegistry.from_project(paths.root)
+    typed_dirs = {
+        getattr(paths, attr): pt for pt, attr in _EXISTING_WIKI_DIRS
+    }
     index = {}
-    for pt, attr in _EXISTING_WIKI_DIRS:
-        d = getattr(paths, attr, None)
+    for d in registry.iter_page_dirs(paths):
         if d is None or not d.exists():
             continue
+        pt = typed_dirs.get(d, PageType.SOURCE)
         for f in d.glob("*.md"):
             index[f.stem] = pt
     return index
@@ -279,7 +288,7 @@ async def _write_rejected_source_page(
     result: "SanitizerResult",
     task_id: str,
 ) -> list[WikiPage]:
-    """Write a grade=C source page when source quality is too low for LLM."""
+    """Build a grade=C source page; persistence happens in commit_ingest()."""
     import time as _time
 
     _t = _time.localtime()
@@ -312,24 +321,8 @@ async def _write_rejected_source_page(
         grade="C",
     )
 
-    # R4 (audit A-03): the previous code used `async with AtomicContext()`
-    # (no async protocol exists) and passed a non-existent `ctx` argument
-    # to write_page/append_to_index/log_event — the branch was guaranteed
-    # to fail. Use the same synchronous AtomicContext pattern as the main
-    # commit path: writes are buffered by safe_write and flushed once at
-    # exit via flush_pending_writes.
-    from ..lib.atomic_ctx import AtomicContext
-    from ..lib.write_hooks import flush_pending_writes
-    from ..wiki.storage.page_writer import write_page
-    from ..wiki.features.indexer import append_to_index
-    from ..wiki.features.logger import log_event
-
-    with AtomicContext(flush_callback=flush_pending_writes):
-        write_page(paths, page)
-        append_to_index(paths, [(page.id, page.type, page.title)])
-        log_event(paths, "rejected", task_id, f"low quality: {page.id}",
-                  {"reason": result.warnings})
-
+    # Gate 前禁止写盘。生成阶段只返回页面，统一由 commit_ingest()
+    # 在 Gate 通过后提交，避免 reject + Gate fail 污染 wiki/index/log。
     return [page]
 
 
@@ -1151,6 +1144,7 @@ async def commit_ingest(
     triage_result=None,
     missing_slugs: list | None = None,
     event: str = "ingest",
+    expected_page_hashes: dict[str, str] | None = None,
 ):
     """Phase 2 (NDG split): write pages + index update + log.
 
@@ -1183,11 +1177,40 @@ async def commit_ingest(
     # Page-count guard: surface over-splitting (batch-10: 3.5KB doc → 17 pages).
     pages = _apply_page_cap_note(pages, Path(str(source_path)).name)
 
+    # 标签统一规范化兜底（计划 2026-08-18 Task 3）：pages + extra_pages 在
+    # 写盘前统一经过唯一规范化器（tag_namespace.normalize_tags），任何入口
+    # （新生成页 / extra_pages 反向关系 / 重试 / 迁移）的 legacy 或非法标签
+    # 都无法到达磁盘。每次 mapping / removal / mandatory add 都记录审计
+    # 日志（不包含 API Key 或其他凭据）。
+    for _page in pages + _extra:
+        _raw_tags = list(_page.tags or [])
+        _norm = normalize_tags(_raw_tags, source_path=str(source_path))
+        if _norm.tags == _raw_tags:
+            continue
+        _page.tags = _norm.tags
+        for _orig, _new in _norm.mapped.items():
+            _logger.warning(
+                "[commit_ingest] TAG-MAPPED page=%s source=%s %s -> %s",
+                _page.id, source_path, _orig, _new,
+            )
+        for _rem in _norm.removed:
+            _logger.warning(
+                "[commit_ingest] TAG-REMOVED page=%s source=%s %s",
+                _page.id, source_path, _rem,
+            )
+        for _add in _norm.mandatory_added:
+            _logger.warning(
+                "[commit_ingest] TAG-MANDATORY page=%s source=%s +%s",
+                _page.id, source_path, _add,
+            )
+
     with AtomicContext(flush_callback=flush_pending_writes):
         for page in pages:
-            write_page(paths, page)
+            write_page(paths, page,
+                       expected_content_hash=(expected_page_hashes or {}).get(page.id))
         for page in _extra:
-            write_page(paths, page)
+            write_page(paths, page,
+                       expected_content_hash=(expected_page_hashes or {}).get(page.id))
         append_to_index(
             paths,
             [(p.id, p.type, p.title) for p in pages],

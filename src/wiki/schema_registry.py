@@ -128,6 +128,29 @@ class SchemaRegistry:
     def is_custom(self, type_name: str) -> bool:
         return type_name in self._custom
 
+    def iter_page_dirs(self, paths) -> list:
+        """All wiki page directories: built-in typed dirs + schema custom dirs.
+
+        Single directory-discovery source for resolver / index / reconcile /
+        wikilink / gate consumers (plan Task 0.4). Custom dirs are resolved
+        via ``WikiPaths.get_custom_dir`` so callers stop hard-coding the four
+        built-in typed directories.
+        """
+        from .core.paths import WikiPaths
+        if not isinstance(paths, WikiPaths):
+            paths = WikiPaths(paths)
+        dirs = [
+            paths.wiki_sources,
+            paths.wiki_entities,
+            paths.wiki_concepts,
+            paths.wiki_synthesis,
+        ]
+        for name in self.all_custom_type_names():
+            cdir = self.get_directory(name)
+            if cdir:
+                dirs.append(paths.get_custom_dir(cdir))
+        return dirs
+
     def all_custom_type_names(self) -> list[str]:
         return sorted(self._custom)
 

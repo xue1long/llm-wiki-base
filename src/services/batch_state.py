@@ -38,7 +38,8 @@ from pathlib import Path
 
 from ..wiki.core.paths import WikiPaths
 
-# Phase 4 正式每 raw 状态机枚举（plan guidance #2，pending_deletion 并入）。
+# Phase 4 正式每 raw 状态机枚举（plan guidance #2，pending_deletion 并入；
+# Task 0.2 新增 partial_commit —— 单 raw 提交部分失败，带 failed_paths）。
 BATCH_STATUSES = (
     "pending",
     "in_progress",
@@ -46,6 +47,7 @@ BATCH_STATUSES = (
     "failed",
     "permanent_failed",
     "pending_deletion",
+    "partial_commit",
 )
 
 SCHEMA_VERSION = 2
@@ -70,8 +72,12 @@ class _FileLock:
     state file itself stays a clean JSON document.
     """
 
-    def __init__(self, paths: WikiPaths, timeout: float = _DEFAULT_TIMEOUT):
-        self._lock_path = Path(str(batch_state_path(paths)) + ".lock")
+    def __init__(self, paths: WikiPaths, timeout: float = _DEFAULT_TIMEOUT,
+                 lock_path: Path | None = None):
+        if lock_path is not None:
+            self._lock_path = Path(lock_path)
+        else:
+            self._lock_path = Path(str(batch_state_path(paths)) + ".lock")
         self._fd: int | None = None
         self._timeout = timeout
 
@@ -142,6 +148,22 @@ class _FileLock:
 def batch_state_lock(paths: WikiPaths, timeout: float = _DEFAULT_TIMEOUT) -> _FileLock:
     """Return a :class:`_FileLock` for the batch-state file (context manager)."""
     return _FileLock(paths, timeout=timeout)
+
+
+def project_commit_lock(paths: WikiPaths, timeout: float = _DEFAULT_TIMEOUT) -> _FileLock:
+    """Cross-process lock over wiki **data** commits (page/index/log/alias/vector).
+
+    Separate lock file (``.index/commit.lock``) from the batch-state lock:
+    it guards the data-write phase, not the state JSON. Hold it for the whole
+    commit loop so concurrent executors of the same project cannot interleave
+    page/index writes (plan Task 0.3). Cross-process on Windows (msvcrt) and
+    POSIX (fcntl); advisory only.
+    """
+    return _FileLock(
+        paths,
+        timeout=timeout,
+        lock_path=Path(str(paths.root)) / ".index" / "commit.lock",
+    )
 
 
 # ---------------------------------------------------------------------------

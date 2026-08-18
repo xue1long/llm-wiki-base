@@ -135,8 +135,17 @@ def flush_pending_writes() -> int:
         return 0
     count = len(bucket)
     failed: list[Path] = []
+    # Test hook: RUFLO_FLUSH_FAIL_PATHS=<name>[;<name>...] forces matching
+    # target paths to fail the flush, exercising the partial-commit path.
+    fail_markers = {
+        m for m in os.environ.get("RUFLO_FLUSH_FAIL_PATHS", "").split(";") if m
+    }
     for path, content in list(bucket.items()):
         try:
+            if fail_markers and (
+                path.name in fail_markers or str(path) in fail_markers
+            ):
+                raise OSError(f"injected flush failure (RUFLO_FLUSH_FAIL_PATHS): {path}")
             if content == DELETE_SENTINEL:
                 try:
                     os.unlink(path)

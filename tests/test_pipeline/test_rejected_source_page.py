@@ -54,15 +54,12 @@ async def test_rejected_source_page_returns_grade_c(monkeypatch, tmp_path):
     assert page.type == PageType.SOURCE
     assert "已跳过处理" in page.body
     assert meta.get("rejected") is True
+    assert not list((paths.root / "wiki").rglob("*.md"))
 
 
 @pytest.mark.asyncio
-async def test_rejected_source_page_writes_atomically(monkeypatch, tmp_path):
-    """The atomic write path completes: page+index+log all flush cleanly.
-
-    Uses the same synchronous AtomicContext pattern as the main commit
-    path — the regression was using a non-existent async protocol.
-    """
+async def test_rejected_source_page_commits_only_after_explicit_commit(monkeypatch, tmp_path):
+    """Generation is side-effect free; explicit commit persists the page."""
     monkeypatch.setenv("RUFLO_SANITIZER_SKIP_LLM", "1")
     paths = _make_paths(tmp_path)
 
@@ -74,18 +71,10 @@ async def test_rejected_source_page_writes_atomically(monkeypatch, tmp_path):
         task_id="t-reject-2",
     )
 
-    # Mirror the commit path: write page + index + log inside one context.
-    from src.lib.atomic_ctx import AtomicContext
-    from src.lib.write_hooks import flush_pending_writes
-    from src.wiki.storage.page_writer import write_page
-    from src.wiki.features.indexer import append_to_index
-    from src.wiki.features.logger import log_event
-
-    with AtomicContext(flush_callback=flush_pending_writes):
-        for page in pages:
-            write_page(paths, page)
-        append_to_index(paths, [(p.id, p.type, p.title) for p in pages])
-        log_event(paths, "rejected", "t-reject-2", "low quality")
+    from src.pipeline.ingest import commit_ingest
+    await commit_ingest(
+        paths, str(tmp_path / "bad2.txt"), pages, [], task_id="t-reject-2",
+    )
 
     # The page file must exist on disk.
     page = pages[0]

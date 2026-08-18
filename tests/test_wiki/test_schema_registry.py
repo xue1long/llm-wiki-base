@@ -130,3 +130,62 @@ def test_ensure_creates_declared_custom_directories(tmp_path):
     )
     ensure_knowledge_base(tmp_path, registry)
     assert (tmp_path / "wiki" / "research" / "thesis").is_dir()
+
+
+def test_iter_page_dirs_includes_custom_dirs(tmp_path):
+    """Task 0.4: directory discovery covers built-in + schema custom dirs."""
+    from src.wiki.core.paths import WikiPaths
+    from src.wiki.storage.ensure import ensure_knowledge_base
+
+    (tmp_path / "schema.md").write_text(
+        "| type | directory |\n|------|-----------|\n| thesis | wiki/thesis |\n",
+        encoding="utf-8",
+    )
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    reg = SchemaRegistry.from_project(tmp_path)
+
+    dirs = reg.iter_page_dirs(paths)
+    names = {str(d) for d in dirs}
+    assert str(paths.wiki_sources) in names
+    assert str(paths.wiki_entities) in names
+    assert str(paths.wiki_concepts) in names
+    assert str(paths.wiki_synthesis) in names
+    assert str(paths.get_custom_dir("thesis")) in names
+
+    # A page under the custom dir is discovered by _collect_existing_wiki.
+    from src.pipeline.ingest import _collect_existing_wiki
+    custom = paths.get_custom_dir("thesis")
+    custom.mkdir(parents=True, exist_ok=True)
+    (custom / "argument.md").write_text(
+        "---\nid: argument\ntitle: Argument\ntype: concept\n"
+        "custom_type: thesis\n---\n\n正文\n",
+        encoding="utf-8",
+    )
+    index = _collect_existing_wiki(paths)
+    assert "argument" in index
+
+
+def test_reconcile_resolves_custom_dir_pages(tmp_path):
+    """Task 0.4: reconcile sees pages in custom-type directories."""
+    from src.wiki.core.paths import WikiPaths
+    from src.pipeline.reconcile import _resolvable_set
+
+    (tmp_path / "schema.md").write_text(
+        "| type | directory |\n|------|-----------|\n| thesis | wiki/thesis |\n",
+        encoding="utf-8",
+    )
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    custom = paths.get_custom_dir("thesis")
+    custom.mkdir(parents=True, exist_ok=True)
+    (custom / "argument.md").write_text(
+        "---\nid: argument\ntitle: Argument\ntype: concept\n"
+        "custom_type: thesis\n---\n\n正文\n",
+        encoding="utf-8",
+    )
+
+    resolvable = _resolvable_set(paths, set())
+    assert "argument" in resolvable
+

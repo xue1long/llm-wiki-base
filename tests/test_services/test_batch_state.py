@@ -35,7 +35,7 @@ from src.services.batch_state import (  # noqa: E402
 )
 
 VALID_STATUSES = {"pending", "in_progress", "done", "failed",
-                  "permanent_failed", "pending_deletion"}
+                  "permanent_failed", "pending_deletion", "partial_commit"}
 
 
 @pytest.fixture

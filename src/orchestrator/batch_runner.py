@@ -8,8 +8,9 @@
 - **直跑路径唯一**（B6/C2）：进程内直接调用 ``generate_ingest`` /
   ``commit_ingest``，绝不经过任务队列（队列降级只读）。
 - 每 raw 状态机：``pending / in_progress / done / failed / permanent_failed /
-  pending_deletion``（复审 B 修订，pending_deletion 并入正式枚举），持久化于
-  ``.index/batch_build_state.json``（统一 schema + 文件锁，H①）。
+  pending_deletion / partial_commit``（复审 B 修订，pending_deletion 并入正式枚举；
+  Task 0.2 新增 partial_commit —— 单 raw 提交部分失败，带 failed_paths，续跑重试），
+  持久化于 ``.index/batch_build_state.json``（统一 schema + 文件锁，H①）。
 - **三阶段原子流程**（门禁失败 = 零写入，天然原子）：
   1. **generate（dry）**——批内全部 pending raw 并行生成页面，零磁盘写；
   2. **pre-commit 门禁**——NDG + fields + tags + lint + 对账 五项（门禁真源
@@ -54,6 +55,8 @@ from src.services.batch_state import (
     raw_status,
     set_raw_status,
 )
+from src.lib.write_hooks import AtomicCommitError
+from src.wiki.storage.page_writer import WriteConflictError
 from src.wiki.core.paths import WikiPaths
 from src.wiki.features.batch_gate import run_precommit_gate
 
@@ -75,6 +78,48 @@ def _crash_at(stage: str) -> None:
     if target == stage:
         _logger.warning("[crash-inject] os._exit(137) at stage %s", stage)
         os._exit(137)
+
+
+def _snapshot_page_hashes(paths, pages) -> dict[str, str]:
+    """Task 0.3：generate 结束时为存量目标页记录 sha256 基线（TOCTOU CAS）。"""
+    import hashlib
+    from src.wiki.schema_registry import SchemaRegistry
+    from src.wiki.storage.page_writer import page_path_for
+
+    registry = SchemaRegistry.from_project(paths.root)
+    out: dict[str, str] = {}
+    for p in pages:
+        try:
+            path = page_path_for(
+                paths, p.type, p.id, registry,
+                getattr(p, "custom_type", "") or "",
+            )
+            if path.exists():
+                out[p.id] = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError:
+            continue
+    return out
+
+
+def _touch_page_for_toctou(paths, pages) -> None:
+    """测试钩子：模拟 generate 与 commit 之间的人工编辑（RUFLO_EXECUTOR_TOUCH_RAW）。"""
+    from src.wiki.schema_registry import SchemaRegistry
+    from src.wiki.storage.page_writer import page_path_for
+
+    registry = SchemaRegistry.from_project(paths.root)
+    for p in pages:
+        try:
+            path = page_path_for(
+                paths, p.type, p.id, registry,
+                getattr(p, "custom_type", "") or "",
+            )
+            if path.exists():
+                path.write_text(
+                    path.read_text(encoding="utf-8") + "\n<!-- manual edit -->\n",
+                    encoding="utf-8",
+                )
+        except OSError:
+            continue
 
 
 def _fake_generate(raw_rel: str) -> list:
@@ -252,7 +297,8 @@ async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id,
         delete_by_source(paths, raw_rel)
     missing_slugs = (meta or {}).get("missing_slugs")
     await commit_ingest(paths, Path(raw_rel), pages, extras, task_id=task_id,
-                        missing_slugs=missing_slugs)
+                        missing_slugs=missing_slugs,
+                        expected_page_hashes=(meta or {}).get("expected_page_hashes"))
     set_raw_status(paths, batch_key, raw_rel, "done", branch=branch)
     return branch
 
@@ -666,11 +712,23 @@ async def run_batch(args) -> int:
                 return
             if os.environ.get("RUFLO_EXECUTOR_FAKE_GENERATE") == "1":
                 pages = _fake_generate(raw_rel)
-                generated[raw_rel] = (pages, [], {"fake": True})
+                meta = {
+                    "fake": True,
+                    "expected_page_hashes": _snapshot_page_hashes(paths, pages),
+                }
+                generated[raw_rel] = (pages, [], meta)
             else:
                 pages, extras, meta = await _generate_raw(
                     paths, provider, raw_rel, args.batch)
+                # Task 0.3 TOCTOU：generate 结束时为"将要覆盖的存量页"记录
+                # content-hash 基线；commit 前若磁盘内容已变化（人工编辑/
+                # 并发写）则 WRITE-CONFLICT，不静默覆盖。
+                meta = dict(meta or {})
+                meta["expected_page_hashes"] = _snapshot_page_hashes(paths, pages)
                 generated[raw_rel] = (pages, extras, meta)
+            if os.environ.get("RUFLO_EXECUTOR_TOUCH_RAW") == raw_rel:
+                # 测试钩子：模拟 generate 与 commit 之间的人工编辑
+                _touch_page_for_toctou(paths, pages)
             header = ""
             try:
                 header = (paths.root / raw_rel).read_text(
@@ -763,34 +821,63 @@ async def run_batch(args) -> int:
         return 2
 
     # ── Phase 3：commit（每 raw 分支）──────────────────────────────
+    # Task 0.3：整个数据提交阶段持项目级跨进程锁（page/index/log/alias/
+    # vector），与 batch-state 锁分离 —— 并发执行器对同一项目无法交错写
+    # 数据。owner-token fencing 未实现；并发提交现由同一把锁串行化。
     if _runner is not None:
         _runner._on_phase_start("commit", Batch(batch_no=args.batch, files=pending))
     ok = err = perm = 0
     committed_page_ids: list[str] = []
     committed_raws: list[str] = []
-    for raw in pending:
-        if raw not in generated:
-            continue
-        pages, extras, meta = generated[raw]
-        try:
-            branch = await _commit_raw(paths, raw, pages, extras, batch_key,
-                                       task_id=f"b{args.batch}", meta=meta)
-            ok += 1
-            # 记录本批实际写入页（**pages** 的 id，不含 extras）——验收脚本
-            # 与整批复核依赖精确批内集合。extras 是存量 reverse-touch 页，
-            # 其历史非法 relation/旧英文 tag 属 M8/M9 消解范围，不入批内
-            # 判定（Phase 4 试跑实测修复 E）。
-            committed_page_ids.extend(p.id for p in pages)
-            committed_raws.append(raw)
-            _update_fail_streak(paths, batch_key, raw, "done")
-            _crash_at("commit")   # 提交后注入点（测试）
-        except Exception as exc:
-            from src.pipeline.retry import PermanentFailure
-            if isinstance(exc, PermanentFailure):
-                perm += 1
-            else:
+    partial_raws: list[str] = []
+    conflict_raws: list[str] = []
+    from src.services.batch_state import project_commit_lock
+    with project_commit_lock(paths):
+        for raw in pending:
+            if raw not in generated:
+                continue
+            pages, extras, meta = generated[raw]
+            try:
+                branch = await _commit_raw(paths, raw, pages, extras, batch_key,
+                                           task_id=f"b{args.batch}", meta=meta)
+                ok += 1
+                # 记录本批实际写入页（**pages** 的 id，不含 extras）——验收脚本
+                # 与整批复核依赖精确批内集合。extras 是存量 reverse-touch 页，
+                # 其历史非法 relation/旧英文 tag 属 M8/M9 消解范围，不入批内
+                # 判定（Phase 4 试跑实测修复 E）。
+                committed_page_ids.extend(p.id for p in pages)
+                committed_raws.append(raw)
+                _update_fail_streak(paths, batch_key, raw, "done")
+                _crash_at("commit")   # 提交后注入点（测试）
+            except AtomicCommitError as exc:
+                # Task 0.2：单 raw 提交部分失败（page/index/log 已写出一部分）。
+                # 记 partial_commit + 失败路径清单，停止后续 raw —— 部分状态可
+                # 发现、可重试（page/index 幂等；log 去重）。绝不伪装成普通
+                # failed 后直接重试（旧页/向量可能已处于中间态）。
                 err += 1
-            print(f"  COMMIT FAIL {raw}: {exc}", flush=True)
+                partial_raws.append(raw)
+                print(f"  COMMIT PARTIAL {raw}: {exc} — raw marked "
+                      f"partial_commit (resume retries idempotently)", flush=True)
+                set_raw_status(paths, batch_key, raw, "partial_commit",
+                               failed_paths=[str(p) for p in exc.failed_paths])
+                break
+            except WriteConflictError as exc:
+                # Task 0.3：generate 后目标页被人工/并发修改 → 拒绝覆盖。
+                # 停止后续提交：人工冲突需人工处理，批级状态写 write_conflict。
+                err += 1
+                conflict_raws.append(raw)
+                set_raw_status(paths, batch_key, raw, "failed",
+                               last_error=f"WRITE-CONFLICT: {exc}")
+                print(f"  COMMIT WRITE-CONFLICT {raw}: {exc} — batch stopped "
+                      f"(manual edit detected)", flush=True)
+                break
+            except Exception as exc:
+                from src.pipeline.retry import PermanentFailure
+                if isinstance(exc, PermanentFailure):
+                    perm += 1
+                else:
+                    err += 1
+                print(f"  COMMIT FAIL {raw}: {exc}", flush=True)
     for raw in failed_raws:
         err += 1
     for raw in perm_failed_raws:
@@ -813,6 +900,24 @@ async def run_batch(args) -> int:
     # 直跑路径只删向量（_commit_raw），重建后必须 upsert 新 chunk，否则
     # 搜索静默丢内容（I3 review (a)）。真实模式需要 embedding provider；
     # 未配置/失败 → 记 warn 不拦批（与 server 的 best-effort 一致）。
+    if conflict_raws:
+        # Task 0.3：人工编辑/并发写冲突 → 独立状态，人工处理后重跑。
+        _set_batch_status(paths, batch_key, "write_conflict",
+                          committed=True, ok=ok, err=err,
+                          conflict_raws=conflict_raws)
+        print("BATCH WRITE-CONFLICT — manual edit detected on target page(s); "
+              "resolve and re-run", flush=True)
+        return 5
+    if partial_raws:
+        # Task 0.2：存在 partial_commit raw —— 不继续向量 upsert / 复核，
+        # 直接以独立状态收尾，续跑 --resume 重试（page/index 幂等）。
+        _set_batch_status(paths, batch_key, "partial_commit",
+                          committed=True, ok=ok, err=err,
+                          partial_raws=partial_raws)
+        print("BATCH PARTIAL COMMIT — raw(s) marked partial_commit; "
+              "run --resume to retry (page/index writes are idempotent, "
+              "log deduped)", flush=True)
+        return 4
     if not _is_fake_mode() and generated:
         try:
             upserted = await _upsert_batch_vectors(paths, all_pages)
