@@ -874,3 +874,45 @@
 - **ingest**: `b11` — generated 2 pages from 必备资料如何写好大纲.md
 ## 2026-08-19T01:18:49.887652
 - **reverse-relation**: `b11` — generated 0 pages from (batch-reconcile)
+## 2026-08-19T01:42:01.092173
+- **ingest**: `b12` — generated 4 pages from 必备资料如何写好简介.md
+## 2026-08-19T01:42:03.327627
+- **ingest**: `b12` — generated 6 pages from 必备资料小说人物描写方法与实例浅析.md
+## 2026-08-19T01:42:03.366412
+- **ingest**: `b12` — generated 1 pages from 必备资料如何构架写作悬念.md
+## 2026-08-19T01:42:03.395610
+- **ingest**: `b12` — generated 3 pages from 必备资料如何构架写作悬念1.md
+## 2026-08-19T01:42:03.452326
+- **ingest**: `b12` — generated 6 pages from 必备资料如何驾驭情节.md
+## 2026-08-19T01:42:03.491616
+- **ingest**: `b12` — generated 3 pages from 必备资料小说人物塑造.md
+## 2026-08-19T01:42:03.515242
+- **ingest**: `b12` — generated 3 pages from 必备资料小说作者南友.md
+## 2026-08-19T01:42:03.569088
+- **ingest**: `b12` — generated 6 pages from 必备资料怎么渲染一场惊心动魄的战斗场面.md
+## 2026-08-19T01:42:03.609451
+- **ingest**: `b12` — generated 3 pages from 必备资料序章三年前.md
+## 2026-08-19T01:42:03.647746
+- **ingest**: `b12` — generated 5 pages from 必备资料开篇一万字三段式写法.md
+## 2026-08-19T01:42:03.677651
+- **ingest**: `b12` — generated 2 pages from 必备资料怎么渲染一场惊心动魄的战斗场面1.md
+## 2026-08-19T01:42:03.695530
+- **ingest**: `b12` — generated 1 pages from 必备资料怎么渲染一场惊心动魄的战斗场面1_508621.md
+## 2026-08-19T01:42:03.712569
+- **ingest**: `b12` — generated 2 pages from 必备资料怎么渲染一场惊心动魄的战斗场面2.md
+## 2026-08-19T01:42:03.728791
+- **ingest**: `b12` — generated 1 pages from 必备资料怎么渲染一场惊心动魄的战斗场面2_d99fe8.md
+## 2026-08-19T01:42:03.752306
+- **ingest**: `b12` — generated 2 pages from 必备资料打斗七公式重要1.md
+## 2026-08-19T01:42:03.771393
+- **ingest**: `b12` — generated 2 pages from 必备资料打斗场面.md
+## 2026-08-19T01:42:03.815507
+- **ingest**: `b12` — generated 6 pages from 必备资料技术篇如何防止卡文和快速的码文.md
+## 2026-08-19T01:42:03.862675
+- **ingest**: `b12` — generated 4 pages from 必备资料技术篇小说速成大纲传统文学版长篇.md
+## 2026-08-19T01:42:03.901834
+- **ingest**: `b12` — generated 4 pages from 必备资料技术篇悬疑小说常用的诡计大全.md
+## 2026-08-19T01:42:03.935486
+- **ingest**: `b12` — generated 7 pages from 必备资料教你写作如何写出精彩的科幻小说长篇.md
+## 2026-08-19T01:42:04.170908
+- **reverse-relation**: `b12` — generated 0 pages from (batch-reconcile)

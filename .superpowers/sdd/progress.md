@@ -22,7 +22,7 @@
 | Phase 1 平台改造 | ✅ 10/10 | 见 handoff（1.1–1.9） |
 | **Phase 2 场景模板落地** | ✅ 2/2 | schema/purpose/taxonomy/taxonomy_tags 落盘 + 模板确认 |
 | **Phase 3 实测首轮** | ✅ **达标** | 首批 batch_001 全指标过（2026-08-16，含 10 个修复 commit） |
-| **Phase 4 全量分批重摄入** | 🔄 进行中 | **batch 0-1 全量 40/40 完成**（7 缺陷修复，0.021 USD）；batch 2-68 待跑 |
+| **Phase 4 全量分批重摄入** | 🔄 进行中 | **batch 1-12 已 committed（240/240 raw）**；batch 13-68 待跑（batch 0 孤儿 gap-raw 保留 postcheck_failed） |
 | Phase 4.5 synthesis 聚合 | ✅ 完成 | **11 页分歧汇聚页全部生成+质量门过**（写作技法/技巧/题材体系/读者与市场/创作原则/平台规则/叙事技巧/心态与职业/案例与素材/小说创作/小说结构） |
 | Phase 5 终验 | ✅ 完成 | **M1-M12 指标表 + 缺口分析 + 挂账清单**；4 项未达标需全量摄入后自动达标，挂账记录于 `.index/batch_reports/phase5_report.md` |
 
@@ -391,3 +391,11 @@ batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首�
 - **首跑 Gate 阻断（NDG-P6）**：`升级流小说` 批内跨类型 slug 冲突（wiki 已有 concept 页，批内同时生成 entity 页）。`batch run`（batch_runner）路径不做批内对账直接跑 NDG gate → 阻断。改用 `phase4_batch.py`（reconcile_batch 以 wiki 磁盘类型为准，把 entity 页折入 concept 页）→ Gate PASS。
 - 经验：batch 11+ 若再遇 NDG-P6 跨类型 slug 冲突，用 phase4_batch.py（含 reconcile）而非 batch run 直跑。
 - 已知上限（ponytail）：taxonomy unknown category/sub 为 write_page 宽松警告（非 strict），不阻断。
+
+## Phase 4 批量重摄入续跑（2026-08-19）✅ batch 12 committed
+
+**执行**：`scripts/phase4_batch.py --manifest knowledge/novel-wiki/.index/reingest_backlog.json --batch 12 --project 0ff37d87-... --allow-overwrite --concurrency 3`（01_新手入门，20 raw）
+- 结果：`BATCH DONE ok=20 err=0 pages=71 gate=PASS`，POSTCHECK 全过，batch_12 状态 committed（106 page_ids，20 completed_files）。一次通过，无需重跑。
+- 生成：total_pages=102 + extras=66，reconcile 收敛跨文件重复页（飞书云文档/北京圣东方国信科技有限公司/打斗场景气氛渲染/废材流/金手指 等多源合并，higher-grade 优先）；`gate: 71 page(s) PASS (0 issue, 0 blocker)`；commit 71 主页 + 35 reverse-relation extras。
+- 无 NDG-P6 阻断（reconcile 已把 entity 折入 concept/按 wiki 磁盘类型收敛）；taxonomy unknown category 仍为宽松警告。
+- 经验：后续批次（13+）继续沿用 phase4_batch.py 直跑路径。

@@ -971,6 +971,33 @@
       "status": "open"
     },
     {
+      "slug": "科幻幻想核心",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料教你写作如何写出精彩的科幻小说长篇.md",
+      "referenced_by": [
+        "科幻小说长篇创作方法"
+      ],
+      "created_at": 1787074923953,
+      "status": "open"
+    },
+    {
+      "slug": "科幻构思驱动情节",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料教你写作如何写出精彩的科幻小说长篇.md",
+      "referenced_by": [
+        "科幻小说长篇创作方法"
+      ],
+      "created_at": 1787074923953,
+      "status": "open"
+    },
+    {
+      "slug": "科幻环境氛围营造",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料教你写作如何写出精彩的科幻小说长篇.md",
+      "referenced_by": [
+        "科幻小说长篇创作方法"
+      ],
+      "created_at": 1787074923953,
+      "status": "open"
+    },
+    {
       "slug": "稳定更新",
       "raw_hint": "raw/sources/ugc-test2.md",
       "referenced_by": [
