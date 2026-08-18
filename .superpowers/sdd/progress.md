@@ -369,7 +369,8 @@ page_writer、schema_registry、cascade、immutable）。
 3. Task 2（✅ 待提交）：`generate_ingest` 冻结 `ResolutionContext`（canonical key + source 候选 + index/title/alias 快照）→ `_normalize_generated_pages` 统一重写 body wikilink + relation target；删除 generator 两处 inline source-link 修复（含 difflib）；`test_generate_ingest_rewrites_legacy_hash_source_link` 通过
 4. Task 3（✅ 待提交）：提取 `finalize_generated_page()` 显式字段 owner 边界（grade/depth/id/title/时间戳）；custom type 全链路目录枚举已在 Task 0.4 覆盖（iter_page_dirs → collect/reconcile；Gate 经 index.md 覆盖 custom 页）；休眠入口 `generate_from_candidate`/`generate_from_knowledge_object` 无仓库内调用方，接入待后续（ponytail: 无调用方不接线）
 5. Task 4（✅ 待提交）：`SlugAliasRegistry.get_canonical` 有界链解析（`_MAX_ALIAS_DEPTH=8`，环/自环/超深 fail-closed）+ `add` 拒绝自环；`finalize_generated_page` 归一化 relation weight（越界/NaN → 1.0）；taxonomy 已由 `write_page` 严格校验
-6. Task 5（进行中）：`run_precommit_gate` 接受 `resolution_context`；`_gate_reconcile` 未解析目标经统一 resolver 判别——多候选 → `TARGET-AMBIGUOUS`（可诊断，不受 pending_gap 豁免），否则 `BROKEN-LINK`；batch_runner 收集整批 source 候选传入 Gate
+6. Task 5（✅ 待提交）：`run_precommit_gate` 接受 `resolution_context`；`_gate_reconcile` 未解析目标经统一 resolver 判别——多候选 → `TARGET-AMBIGUOUS`（可诊断，不受 pending_gap 豁免），否则 `BROKEN-LINK`；batch_runner 收集整批 source 候选传入 Gate
+7. Task 6（batch 9 实测中）：✅ 标签规范化 + resolver 生效；⚠️ TOCTOU 误报修复——同批多 raw 共享概念页时批内自写不算冲突（expected hashes 剔除 batch_page_ids），新增 `test_batch_shared_page_no_false_toctou_conflict` 回归；待重跑 batch 9 验证
 4. Task 3：`finalize_generated_page()` 字段接管 + custom type 全链路
 5. Task 4：relation/taxonomy/alias 归一化
 6. Task 5：Gate 审计输出 + unresolved blocker + 副作用 sentinel

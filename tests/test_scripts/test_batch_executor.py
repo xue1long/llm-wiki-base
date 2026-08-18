@@ -150,43 +150,26 @@ def test_resume_skips_done_files(mini_wiki: Path) -> None:
     assert raw_status(state, "batch_0", "raw/sources/a.md") == "done"
 
 
-def _reset_raw_state(root: Path, raw: str) -> None:
-    """测试辅助：把 raw 状态重置为 pending（下次运行重新处理）。"""
-    p = root / ".index" / "batch_build_state.json"
-    state = json.loads(p.read_text(encoding="utf-8"))
-    state["batch_0"]["raw_states"][raw] = {"status": "pending", "fail_streak": 0}
-    p.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+def test_batch_shared_page_no_false_toctou_conflict(mini_wiki: Path) -> None:
+    """Task 0.3 修正回归：同批两个 raw 产出同一概念页（同 stem 不同目录）
+    → 先提交的 raw 改写后，后提交 raw 的 TOCTOU 基线不得误报冲突。"""
+    # raw/sources/a.md（fixture 已有存量 src-a → reingest）+
+    # raw/sources/sub/a.md（同 stem "a" → 产出同 id 的 src-a/concept-a）
+    sub = mini_wiki / "raw" / "sources" / "sub"
+    sub.mkdir(parents=True, exist_ok=True)
+    (sub / "a.md").write_text("# 素材A2\n\n内容", encoding="utf-8")
+    _write_plan(mini_wiki, ["raw/sources/a.md", "raw/sources/sub/a.md"])
 
-
-def test_toctou_write_conflict_refuses_overwrite(mini_wiki: Path) -> None:
-    """Task 0.3：generate 后目标页被人工修改 → WRITE-CONFLICT，拒绝覆盖。
-
-    第一轮提交 b.md（生成 src-b + concept-b）；删除 src-b 使第二轮走
-    first_ingest（无 cascade 删除），再注入 TOUCH 模拟 generate 与 commit
-    之间的人工编辑 → commit 检测到 concept-b 内容变化，拒绝覆盖。
-    """
-    _write_plan(mini_wiki, ["raw/sources/b.md"])
     r = _run_executor(mini_wiki)
     assert r.returncode == 0, r.stderr[-2000:]
-    assert (mini_wiki / "wiki" / "concepts" / "concept-b.md").exists()
-
-    # 删除 source 页 → 下轮 first_ingest（concept 页仍是存量目标）
-    (mini_wiki / "wiki" / "sources" / "src-b.md").unlink()
-    _reset_raw_state(mini_wiki, "raw/sources/b.md")
-
-    r2 = _run_executor(
-        mini_wiki,
-        extra_env={"RUFLO_EXECUTOR_TOUCH_RAW": "raw/sources/b.md"},
-    )
-    assert r2.returncode != 0, r2.stderr[-2000:]
     state = _state(mini_wiki)
-    entry = state["batch_0"]["raw_states"]["raw/sources/b.md"]
-    assert entry["status"] == "failed"
-    assert "WRITE-CONFLICT" in entry.get("last_error", ""), entry
-    # 人工编辑未被静默覆盖
-    assert "<!-- manual edit -->" in (
-        mini_wiki / "wiki" / "concepts" / "concept-b.md"
-    ).read_text(encoding="utf-8")
+    assert raw_status(state, "batch_0", "raw/sources/a.md") == "done"
+    assert raw_status(state, "batch_0", "raw/sources/sub/a.md") == "done"
+    assert state["batch_0"]["status"] == "committed"
+    assert "WRITE-CONFLICT" not in r.stderr
+    # 共享概念页只写一次、索引只登记一次
+    idx = (mini_wiki / "wiki" / "index.md").read_text(encoding="utf-8")
+    assert idx.count("**concept-a**") == 1, idx
 
 
 def test_partial_commit_records_state_and_resume_retries(mini_wiki: Path) -> None:

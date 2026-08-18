@@ -101,27 +101,6 @@ def _snapshot_page_hashes(paths, pages) -> dict[str, str]:
     return out
 
 
-def _touch_page_for_toctou(paths, pages) -> None:
-    """测试钩子：模拟 generate 与 commit 之间的人工编辑（RUFLO_EXECUTOR_TOUCH_RAW）。"""
-    from src.wiki.schema_registry import SchemaRegistry
-    from src.wiki.storage.page_writer import page_path_for
-
-    registry = SchemaRegistry.from_project(paths.root)
-    for p in pages:
-        try:
-            path = page_path_for(
-                paths, p.type, p.id, registry,
-                getattr(p, "custom_type", "") or "",
-            )
-            if path.exists():
-                path.write_text(
-                    path.read_text(encoding="utf-8") + "\n<!-- manual edit -->\n",
-                    encoding="utf-8",
-                )
-        except OSError:
-            continue
-
-
 def _fake_generate(raw_rel: str) -> list:
     """离线确定性生成（RUFLO_EXECUTOR_FAKE_GENERATE=1）——测试专用。
 
@@ -254,7 +233,8 @@ async def _generate_raw(paths, provider, raw_rel, batch_no) -> tuple[list, list,
 
 
 async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id,
-                      meta: dict | None = None) -> str:
+                      meta: dict | None = None,
+                      expected_page_hashes: dict | None = None) -> str:
     """Phase 3：按分支提交单个 raw。返回分支名（reingest / first_ingest）。
 
     C2：有 source 页 → reingest（记 pending_deletion → cascade_delete +
@@ -269,6 +249,9 @@ async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id,
     ``missing_slugs`` 是本批采集的未解析引用——必须透传给 ``commit_ingest``
     落盘 KnowledgeGapStore（此前丢弃 → gap 账本在 batch 路径从未写入，
     且门禁在 commit 前读不到本批 gap → BROKEN-LINK 误拦整批）。
+
+    ``expected_page_hashes``（Task 0.3）：调用方已剔除本批产出 id 的
+    TOCTOU 基线（批内自写不算冲突）。
     """
     from src.services.ingest import probe_source_page
     from src.wiki.features.cascade_delete import cascade_delete
@@ -298,7 +281,7 @@ async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id,
     missing_slugs = (meta or {}).get("missing_slugs")
     await commit_ingest(paths, Path(raw_rel), pages, extras, task_id=task_id,
                         missing_slugs=missing_slugs,
-                        expected_page_hashes=(meta or {}).get("expected_page_hashes"))
+                        expected_page_hashes=expected_page_hashes)
     set_raw_status(paths, batch_key, raw_rel, "done", branch=branch)
     return branch
 
@@ -722,13 +705,11 @@ async def run_batch(args) -> int:
                     paths, provider, raw_rel, args.batch)
                 # Task 0.3 TOCTOU：generate 结束时为"将要覆盖的存量页"记录
                 # content-hash 基线；commit 前若磁盘内容已变化（人工编辑/
-                # 并发写）则 WRITE-CONFLICT，不静默覆盖。
+                # 并发写）则 WRITE-CONFLICT，不静默覆盖。批内产出的 page id
+                # 在 commit 阶段被剔除（批内自写不算冲突）。
                 meta = dict(meta or {})
                 meta["expected_page_hashes"] = _snapshot_page_hashes(paths, pages)
                 generated[raw_rel] = (pages, extras, meta)
-            if os.environ.get("RUFLO_EXECUTOR_TOUCH_RAW") == raw_rel:
-                # 测试钩子：模拟 generate 与 commit 之间的人工编辑
-                _touch_page_for_toctou(paths, pages)
             header = ""
             try:
                 header = (paths.root / raw_rel).read_text(
@@ -854,9 +835,19 @@ async def run_batch(args) -> int:
             if raw not in generated:
                 continue
             pages, extras, meta = generated[raw]
+            # Task 0.3 修正：TOCTOU 基线只保护**批外存量页**。本批多个 raw
+            # 可能产出同一概念页（如 题材选择），先提交的 raw 会改写该页，
+            # 后提交 raw 的 generate 基线因此过期 —— 批内自写不算冲突，
+            # 从 expected hashes 中剔除本批产出的 page ids。
+            _expected = dict((meta or {}).get("expected_page_hashes") or {})
+            if _expected and batch_page_ids:
+                _expected = {
+                    k: v for k, v in _expected.items() if k not in batch_page_ids
+                }
             try:
                 branch = await _commit_raw(paths, raw, pages, extras, batch_key,
-                                           task_id=f"b{args.batch}", meta=meta)
+                                           task_id=f"b{args.batch}", meta=meta,
+                                           expected_page_hashes=_expected)
                 ok += 1
                 # 记录本批实际写入页（**pages** 的 id，不含 extras）——验收脚本
                 # 与整批复核依赖精确批内集合。extras 是存量 reverse-touch 页，
