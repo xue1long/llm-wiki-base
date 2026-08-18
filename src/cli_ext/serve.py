@@ -48,6 +48,20 @@ def _exit(code: int) -> None:
 
 def cmd_serve(args: argparse.Namespace) -> None:
     """Start HTTP API server."""
+    # R1: refuse to expose the unauthenticated management surface on a
+    # non-loopback bind. Loopback (127.0.0.1/localhost/::1) needs no token;
+    # any other host requires `ruflo auth-token generate` first.
+    from ..server.auth import get_token, require_token_for_host
+
+    if require_token_for_host(args.host) and get_token() is None:
+        print(
+            f"Refusing to bind {args.host}: the HTTP management API is "
+            "unauthenticated. Generate a bearer token first with: "
+            "`ruflo auth-token generate`, then restart the server.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     if args.daemon:
         _daemonize(args)
     else:

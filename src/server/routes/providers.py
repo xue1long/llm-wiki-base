@@ -14,7 +14,13 @@ router = APIRouter(prefix="/api/v1", tags=["providers"])
 
 
 def _config_to_dict(cfg: ProviderConfig, redact_keys: bool = True) -> dict[str, Any]:
-    """ProviderConfig -> dict with api_key redacted for list/show."""
+    """ProviderConfig -> dict with api_key redacted for list/show.
+
+    R1: the API never returns the raw API key. ``redact_keys`` is kept as
+    a parameter only for internal callers that explicitly need the raw
+    value *within* the server process; every HTTP response must use the
+    default (redacted) form.
+    """
     d = cfg.to_dict()
     if redact_keys:
         d["api_key"] = "***" if d.get("api_key") else ""
@@ -59,12 +65,12 @@ def list_providers() -> dict:
 
 @router.get("/providers/{name}")
 def get_provider(name: str) -> dict:
-    """Get a single provider config (full API key for editing)."""
+    """Get a single provider config (API key always redacted — R1)."""
     try:
         config = ProviderRegistry.require(name)
     except ProviderNotFoundError:
         raise HTTPException(404, f"Provider not found: {name}")
-    return {"ok": True, "provider": _config_to_dict(config, redact_keys=False)}
+    return {"ok": True, "provider": _config_to_dict(config)}
 
 
 @router.post("/providers")
@@ -100,7 +106,7 @@ def add_provider(body: AddProviderRequest) -> dict:
         default_embedding_model=body.embedding_model or body.chat_model,
     )
     ProviderRegistry.upsert(config)
-    return {"ok": True, "provider": _config_to_dict(config, redact_keys=False)}
+    return {"ok": True, "provider": _config_to_dict(config)}
 
 
 @router.delete("/providers/{name}")

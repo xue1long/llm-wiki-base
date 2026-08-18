@@ -70,6 +70,7 @@ from .cli_ext.wiki_polish_cmd import (
     cmd_stubs_list, cmd_stubs_promote, cmd_dedup_auto,
     cmd_lint_cache_clear, cmd_lint,
 )
+from .cli_ext.auth_token_cmd import add_auth_token_parser
 
 logging.basicConfig(
     level=logging.INFO,
@@ -344,6 +345,9 @@ def main():
     p_serve_stop.set_defaults(func=cmd_serve_stop)
     p_serve_status = subparsers.add_parser("serve-status", help="Check daemon status")
     p_serve_status.set_defaults(func=cmd_serve_status)
+
+    # R1: bearer-token management for the HTTP management surface
+    add_auth_token_parser(subparsers)
 
     # MCP (stdio Model Context Protocol server)
     p_mcp = subparsers.add_parser("mcp", help="Start stdio MCP server")

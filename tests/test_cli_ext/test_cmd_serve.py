@@ -15,14 +15,18 @@ from src.cli_ext.serve import (
 # ----- Foreground mode (cross-platform) -----
 
 def test_serve_foreground_calls_uvicorn(monkeypatch):
-    """Foreground mode calls uvicorn.run with create_app."""
+    """Foreground mode calls uvicorn.run with create_app.
+
+    Uses a loopback host: R1 refuses non-loopback binds without a bearer
+    token, so a 0.0.0.0 host here would (correctly) exit before uvicorn.
+    """
     run_mock = MagicMock()
     create_app_mock = MagicMock(return_value="fake_app")
 
     import src.cli_ext.serve as serve_mod
     monkeypatch.setattr(serve_mod, "_serve_foreground", lambda args: run_mock(create_app_mock(), host=args.host, port=args.port, log_level="info"))
 
-    args = argparse.Namespace(host="0.0.0.0", port=9000, daemon=False, stop=False)
+    args = argparse.Namespace(host="127.0.0.1", port=9000, daemon=False, stop=False)
     cmd_serve(args)
     run_mock.assert_called_once()
 

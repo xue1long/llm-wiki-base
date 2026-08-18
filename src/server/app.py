@@ -247,6 +247,13 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # R1: bearer-token auth for the management surface. When a token is
+    # configured (see `ruflo auth-token`), all /api/v1 write ops and
+    # provider management require `Authorization: Bearer <token>`;
+    # /health stays anonymous. No token → loopback-only mode, no auth.
+    from .auth_middleware import add_auth_middleware
+    add_auth_middleware(app)
+
     from .routes import health, projects, files, search, ingest, reviews, chat, schema, agent_cli, analysis, providers, tags, quality, heat, templates, scenario_templates
     for router in [health.router, projects.router, files.router, search.router,
                    ingest.router, reviews.router, chat.router, schema.router, agent_cli.router,

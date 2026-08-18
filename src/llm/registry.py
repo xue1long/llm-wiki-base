@@ -345,6 +345,8 @@ class ProviderRegistry:
 
 
 def _default_providers() -> dict[str, ProviderConfig]:
+    from src.config import settings
+
     return {
         "openai": ProviderConfig(
             name="openai",
