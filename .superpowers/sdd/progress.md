@@ -250,3 +250,50 @@
 2. `ruflo batch diagnose-gate -- --help` 透传至原脚本 ✅（exit=2, 输出含原脚本名）
 3. 5/5 CLI 注册测试通过 ✅
 4. 19/19 batch_executor 崩溃注入测试通过 ✅（含 os._exit(137) 子进程）
+
+## 架构整改（2026-08-18，Wave 0+1 完成）✅
+
+**计划**：`docs/superpowers/plans/2026-08-18-architecture-remediation.md`（15 项风险，Wave 0/1/2）
+**范围确认**（用户批准）：受控单机单 worker / 单一 Bearer Token / 上传上限 50MiB / 候选链路冻结+删除
+
+### Wave 0 — 外部暴露止损（P0）✅
+
+| 风险 | Commit | 摘要 |
+|---|---|---|
+| R1 管理面认证+Key 脱敏 | `cdf25b53` | Bearer Token（`ruflo auth-token {generate,show,clear}`）+ /api/v1 写操作与 provider 管理需 Token；无 Token 非回环绑定拒绝；provider 响应强制脱敏；修复 `_default_providers` 缺 settings import |
+| R2 上传上限 | `445bc2df` | `RUFLO_MAX_UPLOAD_BYTES`（默认 50MiB）；HTTP 路由分块读取超限 413；Collector 统一源读取层限制（URL/本地文件/文件夹摄取不可绕过） |
+| R15 凭据/出境边界 | `26416a42` | 启动权限检查（非 0600 警告）；show/add 出境提示（stderr 保 JSON 契约）；`llm-providers rotate-key`（不回显新 key） |
+
+### Wave 1 — 数据正确性与可用性（P1）✅
+
+| 风险 | Commit | 摘要 |
+|---|---|---|
+| R4 拒绝分支 | `59ed6c0d` | `_write_rejected_source_page` 改用同步 AtomicContext + 真签名；拒绝分支返回 (pages, extra, meta) 三元组；slug 只取 basename |
+| R3 提交失败语义 | `266d6f16` | `AtomicCommitError(failed_paths)`；flush 失败抛聚合异常不再吞错；callback 失败也传播；body 异常仍优先 |
+| R6 单实例 + R14 显式 project root | `00e0cb60` | `serve --workers>1` 拒绝；`--project-root` 必填（拒绝 CWD 猜测）；`.llm-wiki/server.lock` 实例锁（死 PID 自动清理）；`RUFLO_PROJECT_ROOT` 传递 |
+| R5 /ready | `7f705792` | 分项检查 queue/wiki/vector/provider，200/503；provider 探测 60s 缓存防抖动 |
+| R7 向量补偿 | `9617540a` | `.index/vector_pending.json` 账本；commit 后 mark、upsert 成功 clear、启动 scan 兜底；`ruflo vector {status,reconcile}` |
+| R8 异常分类 | `a905db25` | `RetryableDependencyError`/`InvalidInputError`/`DataConsistencyError`/`ProgrammingError`；`[no-retry]` 标记 → 立即死信 |
+
+### Wave 2 进行中
+
+R9 候选链路删除 → R10 routes 收敛 → R11 依赖 profile → R12 关联 ID+告警 → R13 版本+runbook
+
+### Wave 2 — 演化与运维（P2）✅ 完成
+
+| 风险 | Commit | 摘要 |
+|---|---|---|
+| R9 候选链路删除 | `95cfc9d2` | 删除未接入的 Reviewer/Promoter/ClaimExtractor stage（生产零引用，-1855 行）；保留 KnowledgeCandidate 数据模型与 generator 工具函数 |
+| R10 routes 收敛 | `76398c59` | heat 写操作收敛到 `src/services/heat.py`；route 变薄适配器；新增 test_route_boundary.py 静态守卫（禁 route 直接 import wiki 写内部） |
+| R11 依赖 profile | `2e219eaa` | pyproject 新增 `[embedding]` extra；`embed_profile.embedding_mode()` = remote/local/keyword-only；/ready 诚实报 degraded；新增 requirements.lock |
+| R12 关联ID+告警 | `94363bfc` | 4 类告警指标（dead_letter/backlog/provider_failure/write_failure）；`src/lib/correlation.py` request_id/task_id/project_id 日志关联；docs/ops/runbook.md |
+| R13 版本+runbook | `f02bd971` | `src.__version__` 单一真源（health/app 派生）；start.bat 移除 netstat 误杀、改用 serve-stop + --project-root |
+
+### 整改全量验收（Wave 0/1/2 全部完成）✅
+
+**15/15 风险整改完成**，全部有测试 + 提交。运行验证：
+- 测试回归：858 + 1278 + 389 + 78 = **2603 测试通过**（含 15 项整改的新增测试约 100+）
+- 冒烟验证：`serve --project-root` 启动 → `/health` 返回 version=2.0.0（R13）、`/ready` 分项 200（R5/R14）、无 Token 非回环绑定被拒 exit 2（R1/R6）
+- 已知基线（未改动前即存在）：全量收集 5 文件兄弟 conftest 级联错误；test_url_redirect_to_loopback_blocked 需真实 DNS
+
+**整改后架构状态**：信任边界（Token 认证 + Key 脱敏 + 上传上限 + 凭据边界）、数据正确性（AtomicContext 失败传播 + 拒绝分支修复 + 单实例护栏 + 显式 project root + /ready + 向量补偿 + 异常分类）、演化运维（唯一主链路 + services 收敛 + 依赖锁定 + 告警 + 版本统一 + runbook）三大块全部落地。
