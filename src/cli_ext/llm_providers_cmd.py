@@ -7,6 +7,26 @@ import sys
 from pathlib import Path
 
 
+# R15: data-egress boundary. Providers are either remote (content and
+# credentials travel to a third-party host) or local (ollama / loopback).
+# Every user-facing command that mentions a provider prints the applicable
+# notice so operators can make an informed data-handling decision.
+_REMOTE_TYPES = {"openai", "anthropic", "openai-compatible"}
+
+
+def _egress_notice(provider_type: str) -> str:
+    """Return the data-egress notice for a provider type (R15)."""
+    if provider_type == "ollama":
+        return ("本地处理：内容与凭据不会离开本机 "
+                "(仅连接 localhost 的 Ollama 服务)。")
+    return ("数据出境提示：该 Provider 为远程服务，文档内容与 API Key "
+            "将发送到第三方主机处理；请确认供应商的数据处理条款。")
+
+
+def _is_remote(provider_type: str) -> bool:
+    return provider_type in _REMOTE_TYPES
+
+
 def cmd_llm_providers_list(_args: argparse.Namespace) -> None:
     """List all configured LLM providers."""
     from ..llm.registry import ProviderRegistry
@@ -22,7 +42,7 @@ def cmd_llm_providers_list(_args: argparse.Namespace) -> None:
 
 
 def cmd_llm_providers_show(args: argparse.Namespace) -> None:
-    """Print full ProviderConfig JSON (api_key masked)."""
+    """Print full ProviderConfig JSON (api_key masked) + egress notice."""
     from ..llm.registry import ProviderNotFoundError, ProviderRegistry
 
     try:
@@ -30,8 +50,38 @@ def cmd_llm_providers_show(args: argparse.Namespace) -> None:
     except ProviderNotFoundError as e:
         print(str(e), file=sys.stderr)
         sys.exit(2)
-    # redact=True: never print the plaintext API key (I-llm-12).
+    # redact=True: never print the plaintext API key (I-llm-12 / R15).
     print(json.dumps(p.to_dict(redact=True), indent=2, ensure_ascii=False))
+    # R15: explicit data-egress boundary — stderr keeps stdout a pure JSON
+    # document for script consumers.
+    print(_egress_notice(p.type), file=sys.stderr)
+
+
+def cmd_llm_providers_rotate_key(args: argparse.Namespace) -> None:
+    """Replace a provider's API key, keeping all other fields (R15).
+
+    Rotation is explicit: a new key must be supplied; the old value is
+    overwritten in the registry file. The new key is never echoed to the
+    terminal.
+    """
+    from ..llm.registry import ProviderNotFoundError, ProviderRegistry
+    from dataclasses import replace
+
+    if not args.api_key:
+        print("rotate-key requires --api-key <new-key> "
+              "(refusing to leave the old key in place)", file=sys.stderr)
+        sys.exit(2)
+
+    try:
+        existing = ProviderRegistry.require(args.name)
+    except ProviderNotFoundError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(2)
+
+    ProviderRegistry.upsert(replace(existing, api_key=args.api_key))
+    print(f"Rotated API key for provider '{args.name}' "
+          "(new key stored, not printed).")
+    print(_egress_notice(existing.type))
 
 
 def cmd_llm_providers_add(args: argparse.Namespace) -> None:
@@ -71,6 +121,8 @@ def cmd_llm_providers_add(args: argparse.Namespace) -> None:
     )
     ProviderRegistry.upsert(config)
     print(f"Added provider '{args.name}' (type={args.type}, default={chat_model})")
+    # R15: data-egress boundary on the add path.
+    print(_egress_notice(args.type))
 
 
 def cmd_llm_providers_remove(args: argparse.Namespace) -> None:

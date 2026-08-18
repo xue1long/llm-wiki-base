@@ -45,6 +45,7 @@ from .cli_ext.llm_providers_cmd import (
     cmd_llm_providers_list, cmd_llm_providers_show,
     cmd_llm_providers_add, cmd_llm_providers_remove,
     cmd_llm_providers_test, cmd_llm_providers_set_default,
+    cmd_llm_providers_rotate_key,
 )
 from .cli_ext.health_cmd import cmd_health
 from .cli_ext.content_health_cmd import cmd_content_health
@@ -275,6 +276,10 @@ def main():
     p_llm_sd = p_llm_sub.add_parser("set-default")
     p_llm_sd.add_argument("name")
     p_llm_sd.set_defaults(func=cmd_llm_providers_set_default)
+    p_llm_rot = p_llm_sub.add_parser("rotate-key", help="Replace a provider's API key (R15)")
+    p_llm_rot.add_argument("name")
+    p_llm_rot.add_argument("--api-key", default="")
+    p_llm_rot.set_defaults(func=cmd_llm_providers_rotate_key)
 
     # Health
     p_health = subparsers.add_parser("health", help="Run wiki health checks (H1/H2/H4)")

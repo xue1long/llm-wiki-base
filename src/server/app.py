@@ -158,6 +158,15 @@ def create_app() -> FastAPI:
             except Exception as e:
                 _logger.warning("[startup] vector store init failed: %s", e)
 
+            # R15: warn at startup when the provider registry file is
+            # world/group-accessible (it holds plaintext API keys). Advisory
+            # only — never fails boot.
+            try:
+                from ..llm.registry import check_config_permissions
+                check_config_permissions()
+            except Exception:
+                pass
+
             # Health-check loop (preserved from prior behaviour).
             # Each provider gets a 10-second timeout so a single unreachable
             # provider (e.g. OpenAI behind a TLS-blocking proxy) cannot hang

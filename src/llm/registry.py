@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import sys
 from dataclasses import replace
 from typing import Optional
 from pathlib import Path
@@ -43,6 +44,34 @@ _logger = logging.getLogger(__name__)
 def _config_path() -> Path:
     from ..project.paths import config_dir
     return config_dir() / "llm-providers.json"
+
+
+def check_config_permissions() -> None:
+    """Warn when the provider file exists but is not owner-only (R15).
+
+    The registry holds plaintext API keys; on POSIX the file must be
+    chmod 0600. This check is advisory only (never raises) so a platform
+    or environment that cannot enforce the permission (Windows chmod is
+    best-effort) does not hard-fail startup. The server lifespan calls
+    this on boot; operators see the warning and can fix the file mode.
+    """
+    path = _config_path()
+    if not path.exists():
+        return
+    try:
+        mode = path.stat().st_mode
+    except OSError:
+        return
+    # Only meaningful on POSIX (Windows stat modes are not ACL-equivalent).
+    if os.name != "posix":
+        return
+    if mode & 0o077:  # group/other read/write/execute bits set
+        print(
+            f"WARNING [R15]: {path} is world/group-accessible "
+            f"(mode {oct(mode & 0o777)}). It contains API keys. "
+            "Run: chmod 600 <path>",
+            file=sys.stderr,
+        )
 
 
 # Env var that overrides default-resolution order (highest precedence)
