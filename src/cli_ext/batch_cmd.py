@@ -1,16 +1,23 @@
 """batch_cmd.py — `ruflo batch` CLI subcommands (P1-A 3d).
 
-Wraps ``scripts/batch_executor.py`` (引擎在 ``src/orchestrator/batch_runner.py``)
-为 ``ruflo batch run`` 子命令，使原有脚本可通过 `python scripts/batch_*.py` 或
-`ruflo batch run` 两种方式调用（兼容过渡期）。
+Wraps the ``scripts/batch_*.py`` legacy CLIs as ``ruflo batch`` subcommands,
+so each script can be invoked either via ``python scripts/<name>.py`` or
+``ruflo batch <name>`` (compatible transition period).
 
-子命令：
-- ``run`` — 执行一批（wrap batch_executor.py 的 main()）
-- ``plan`` — 生成批量摄入计划（wrap plan_reingest_batches.py）
+Subcommands:
+- ``run`` — 执行一批（进程内，wrap batch_executor.py 的 main()）
+- ``plan`` — 生成批量摄入计划（进程内，wrap plan_reingest_batches.py）
+- ``gate-check / gate-v3 / diagnose-gate / accept / generate / commit /
+  build / ingest / rollback / pilot / phase3-accept / phase4 /
+  phase5-accept / plan-first / plan-backlog`` — 子进程转发原脚本，透传
+  args 与退出码（零行为风险，原脚本直跑入口保留）。
 """
 from __future__ import annotations
 
+import argparse
 import asyncio
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -20,6 +27,44 @@ from src.orchestrator.batch_runner import (
     DefaultBatchRunner,
     run_batch,
 )
+
+_SCRIPTS_DIR = Path(__file__).resolve().parent.parent.parent / "scripts"
+
+# (subcommand, script name, help)
+_SCRIPT_SUBCOMMANDS = [
+    ("gate-check", "batch_gate_check", "批级质量门禁（P1-P7 + P4b）"),
+    ("gate-v3", "batch_gate_v3", "post-ingest 批级门禁（M1/M2/M4/M6/M7）"),
+    ("diagnose-gate", "diagnose_batch_gate", "复现某批整批复核并打印完整 issues"),
+    ("accept", "accept_batch", "整批复核通过后标记 committed"),
+    ("generate", "batch_generate", "并行生成批次（零磁盘写，产物缓存）"),
+    ("commit", "batch_commit", "串行提交批次（消费 generate 缓存）"),
+    ("build", "batch_build", "批量构建知识库（ingest + archive 两段式）"),
+    ("ingest", "batch_ingest", "批量摄取文档（HTTP API）"),
+    ("rollback", "rollback_batch", "批回滚 = git checkout + 向量重建"),
+    ("pilot", "pilot_ingest", "Phase 4.2 pilot 随机重摄取"),
+    ("phase3-accept", "phase3_accept", "Phase 3 首批验收"),
+    ("phase4", "phase4_batch", "Phase 4 批执行（generate→reconcile→gate→commit）"),
+    ("phase5-accept", "phase5_accept", "Phase 5 终验报告"),
+    ("plan-first", "plan_gap_first_batch", "B12 缺口优先首批清单"),
+    ("plan-backlog", "build_reingest_backlog", "全量重摄入 backlog 清单"),
+]
+
+
+def _run_script(script: str, argv: list[str]) -> None:
+    """Run ``python scripts/<script>.py <argv...>`` and propagate the exit code."""
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(_SCRIPTS_DIR.parent)
+    proc = subprocess.run(
+        [sys.executable, str(_SCRIPTS_DIR / f"{script}.py"), *argv],
+        env=env,
+    )
+    sys.exit(proc.returncode)
+
+
+def _make_script_runner(script: str):
+    def _cmd(args) -> None:
+        _run_script(script, list(args.args))
+    return _cmd
 
 
 def _inject_runner(args) -> None:
@@ -53,6 +98,13 @@ def add_batch_subcommands(subparsers) -> None:
     p_plan.add_argument("--out", default=None,
                         help="输出路径（默认 .index/reingest_plan.json）")
     p_plan.set_defaults(func=cmd_batch_plan)
+
+    # Legacy script wrappers (zero-touch subprocess forwarding)
+    for name, script, desc in _SCRIPT_SUBCOMMANDS:
+        sp = p_batch_sub.add_parser(name, help=desc)
+        sp.add_argument("args", nargs=argparse.REMAINDER,
+                        help=f"透传给 scripts/{script}.py 的参数")
+        sp.set_defaults(func=_make_script_runner(script))
 
 
 def cmd_batch_run(args) -> None:

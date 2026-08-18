@@ -65,6 +65,7 @@ from .cli_ext.heat_cmd import (
 )
 from .cli_ext.cache_cmd import cmd_cache_status, cmd_cache_cleanup
 from .cli_ext.batch_cmd import add_batch_subcommands
+from .cli_ext.scripts_cmd import add_scripts_subcommands
 from .cli_ext.wiki_polish_cmd import (
     cmd_stubs_list, cmd_stubs_promote, cmd_dedup_auto,
     cmd_lint_cache_clear, cmd_lint,
@@ -351,8 +352,11 @@ def main():
     # Deep Research (research {run,list,show})
     add_research_subcommands(subparsers)
 
-    # Batch runner (batch {run,plan} — P1-A 3d)
+    # Batch runner (batch {run,plan,...} — P1-A 3d + 遗留脚本收编)
     add_batch_subcommands(subparsers)
+
+    # Legacy script groups (migrate / audit / util — 遗留脚本收编)
+    add_scripts_subcommands(subparsers)
 
     # Relations subcommand
     p_relations = subparsers.add_parser("relations", help="Manage wiki relations")
