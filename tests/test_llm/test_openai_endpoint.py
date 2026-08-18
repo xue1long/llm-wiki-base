@@ -106,3 +106,64 @@ class TestStripReasoning:
         content = "<think>just reasoning</think>"
         result = _strip_reasoning(content)
         assert result == ""
+
+
+def test_post_json_non_utf8_error_body_preserves_http_status_cause(monkeypatch):
+    """GBK-encoded 5xx error body must not mask the HTTPStatusError cause.
+
+    Regression: phase4 batch 14 — the upstream (sfkey) returned 500/502/524
+    error pages whose bodies are GBK (non-UTF-8).  The old snippet line
+    ``(r.text or "")[:200]`` raised UnicodeDecodeError inside the except
+    handler, replacing the HTTPStatusError cause, so ``classify_error`` saw a
+    bare UnicodeDecodeError → "permanent" → no retry → the raw file was
+    marked permanently failed even though the failure was a transient 5xx.
+    """
+    import asyncio
+
+    import httpx
+
+    from src.llm.openai_provider import OpenAIProvider
+    from src.llm.types import ProviderConfig
+    from src.pipeline.retry import classify_error
+
+    gbk_body = "服务繁忙，请稍后重试".encode("gbk")
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            500,
+            content=gbk_body,
+            headers={"Content-Type": "text/html; charset=gbk"},
+        )
+
+    from httpx import AsyncClient, MockTransport
+
+    def _factory(*args, **kwargs):
+        kwargs.pop("trust_env", None)
+        return AsyncClient(transport=MockTransport(handler), **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", _factory)
+
+    cfg = ProviderConfig(
+        name="openai", type="openai", api_key="sk-test",
+        base_url="https://api.openai.com/v1",
+        default_chat_model="gpt-4o-mini",
+    )
+    p = OpenAIProvider(cfg)
+
+    exc = None
+    try:
+        asyncio.run(p._post_json("https://api.openai.com/v1/chat/completions", {"a": 1}))
+    except Exception as e:  # pragma: no cover - assertion below
+        exc = e
+    assert exc is not None
+    # The RuntimeError message must still be readable (body snippet decoded
+    # with errors="replace", not a UnicodeDecodeError).
+    assert str(exc).startswith("HTTP 500")
+    # The HTTPStatusError must be preserved as the root cause so the retry
+    # classifier treats the 5xx as transient, not permanent.
+    root = exc
+    while root.__cause__ is not None:
+        root = root.__cause__
+    assert isinstance(root, httpx.HTTPStatusError)
+    assert root.response.status_code == 500
+    assert classify_error(exc) == "transient"

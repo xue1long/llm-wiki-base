@@ -86,8 +86,15 @@ class OpenAIProvider(LLMProvider):
             except Exception as e:
                 # Attach the response body so the error message is
                 # diagnostic even when the provider returns an empty
-                # status reason (seen with MiniMax M3).
-                body_snippet = (r.text or "")[:200]
+                # status reason (seen with MiniMax M3).  Decode from raw
+                # bytes with errors="replace": upstream 5xx error pages
+                # may be GBK/other non-UTF-8, and r.text would raise
+                # UnicodeDecodeError, masking the HTTPStatusError cause
+                # so classify_error could not see status>=500 (transient)
+                # and the batch marked the file permanently failed.
+                body_snippet = (r.content or b"")[:200].decode(
+                    "utf-8", errors="replace"
+                )
                 raise RuntimeError(
                     f"HTTP {r.status_code}: {body_snippet}"
                 ) from e
