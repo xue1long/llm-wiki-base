@@ -88,51 +88,29 @@ async def decay_heat(project_id: str):
 
 @router.post("/projects/{project_id}/heat/zombies/restore")
 async def restore_zombies(project_id: str, body: dict):
-    """Restore zombie pages. Expects body: {page_ids: [...]}."""
+    """Restore zombie pages. Expects body: {page_ids: [...]}.
+
+    R10: delegates the write to src.services.heat (thin adapter).
+    """
     try:
         ctx, paths = resolve_project(project_id, by_id_only=True)
     except ProjectNotFoundError as e:
         raise HTTPException(404, str(e))
 
-    from ...wiki.storage.page_writer import read_page, write_page, page_path_for
-    from ...wiki.features.heat import _infer_type
-
-    page_ids = body.get("page_ids", [])
-    restored = 0
-    for pid in page_ids:
-        pf = page_path_for(paths, _infer_type(paths, pid), pid)
-        if pf.exists():
-            p = read_page(pf)
-            p.heat = 100
-            p.is_immutable = True
-            p.zombie_since = None
-            write_page(paths, p)
-            restored += 1
-
-    return {"restored": restored}
+    from ...services.heat import restore_zombies as _restore
+    return _restore(project_id, body.get("page_ids", []))
 
 
 @router.post("/projects/{project_id}/heat/zombies/archive")
 async def archive_zombies(project_id: str, body: dict):
-    """Archive zombie pages to _archive/. Expects body: {page_ids: [...]}."""
-    import shutil
+    """Archive zombie pages to _archive/. Expects body: {page_ids: [...]}.
+
+    R10: delegates the write to src.services.heat (thin adapter).
+    """
     try:
         ctx, paths = resolve_project(project_id, by_id_only=True)
     except ProjectNotFoundError as e:
         raise HTTPException(404, str(e))
 
-    from ...wiki.storage.page_writer import page_path_for
-    from ...wiki.features.heat import _infer_type
-
-    page_ids = body.get("page_ids", [])
-    archive_dir = paths.wiki / "_archive"
-    archive_dir.mkdir(parents=True, exist_ok=True)
-
-    archived = 0
-    for pid in page_ids:
-        pf = page_path_for(paths, _infer_type(paths, pid), pid)
-        if pf.exists():
-            shutil.move(str(pf), str(archive_dir / pf.name))
-            archived += 1
-
-    return {"archived": archived}
+    from ...services.heat import archive_zombies as _archive
+    return _archive(project_id, body.get("page_ids", []))
