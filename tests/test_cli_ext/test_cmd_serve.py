@@ -14,7 +14,7 @@ from src.cli_ext.serve import (
 
 # ----- Foreground mode (cross-platform) -----
 
-def test_serve_foreground_calls_uvicorn(monkeypatch):
+def test_serve_foreground_calls_uvicorn(monkeypatch, tmp_path):
     """Foreground mode calls uvicorn.run with create_app.
 
     Uses a loopback host: R1 refuses non-loopback binds without a bearer
@@ -25,8 +25,14 @@ def test_serve_foreground_calls_uvicorn(monkeypatch):
 
     import src.cli_ext.serve as serve_mod
     monkeypatch.setattr(serve_mod, "_serve_foreground", lambda args: run_mock(create_app_mock(), host=args.host, port=args.port, log_level="info"))
+    import src.server.auth as _auth_mod
+    monkeypatch.setattr(_auth_mod, "get_token", lambda: None)
+    monkeypatch.setattr(_auth_mod, "require_token_for_host", lambda host: False)
+    monkeypatch.setattr(serve_mod, "_acquire_project_lock", lambda root: tmp_path / "lock")
+    monkeypatch.setattr(serve_mod, "_release_project_lock", lambda lock: None)
 
-    args = argparse.Namespace(host="127.0.0.1", port=9000, daemon=False, stop=False)
+    args = argparse.Namespace(host="127.0.0.1", port=9000, daemon=False, stop=False,
+                              workers=1, project_root=str(tmp_path / "kb"))
     cmd_serve(args)
     run_mock.assert_called_once()
 
@@ -61,6 +67,10 @@ def test_daemon_posix_calls_fork(monkeypatch, tmp_path):
 
     import src.cli_ext.serve as serve_mod
     monkeypatch.setattr(serve_mod, "_is_posix", lambda: True)
+    import src.server.auth as _auth_mod
+    monkeypatch.setattr(_auth_mod, "get_token", lambda: None)
+    monkeypatch.setattr(_auth_mod, "require_token_for_host", lambda host: False)
+    monkeypatch.setattr(serve_mod, "_precheck_project_lock", lambda root: None)
 
     fork_mock = MagicMock(return_value=1)  # parent exits immediately
     monkeypatch.setattr(serve_mod, "_fork", fork_mock)
@@ -68,7 +78,8 @@ def test_daemon_posix_calls_fork(monkeypatch, tmp_path):
     # Mock _serve_foreground to prevent actual server start
     monkeypatch.setattr(serve_mod, "_serve_foreground", MagicMock())
 
-    args = argparse.Namespace(host="127.0.0.1", port=19828, daemon=True)
+    args = argparse.Namespace(host="127.0.0.1", port=19828, daemon=True,
+                              workers=1, project_root=str(tmp_path / "kb"))
     cmd_serve(args)
 
     # _fork should have been called
@@ -89,7 +100,14 @@ def test_daemon_already_running(monkeypatch, tmp_path, capsys):
         raise SystemExit(code)
     monkeypatch.setattr("src.cli_ext.serve.sys.exit", fake_exit)
 
-    args = argparse.Namespace(host="127.0.0.1", port=19828, daemon=True)
+    import src.cli_ext.serve as serve_mod
+    import src.server.auth as _auth_mod
+    monkeypatch.setattr(_auth_mod, "get_token", lambda: None)
+    monkeypatch.setattr(_auth_mod, "require_token_for_host", lambda host: False)
+    monkeypatch.setattr(serve_mod, "_precheck_project_lock", lambda root: None)
+
+    args = argparse.Namespace(host="127.0.0.1", port=19828, daemon=True,
+                              workers=1, project_root=str(tmp_path / "kb"))
 
     with pytest.raises(SystemExit) as exc:
         cmd_serve(args)
@@ -114,11 +132,16 @@ def test_daemon_stale_pidfile(monkeypatch, tmp_path):
     import src.cli_ext.serve as serve_mod
     monkeypatch.setattr(serve_mod, "_is_posix", lambda: True)
     monkeypatch.setattr(serve_mod, "_fork", lambda: 1)
+    import src.server.auth as _auth_mod
+    monkeypatch.setattr(_auth_mod, "get_token", lambda: None)
+    monkeypatch.setattr(_auth_mod, "require_token_for_host", lambda host: False)
+    monkeypatch.setattr(serve_mod, "_precheck_project_lock", lambda root: None)
 
     # Mock _serve_foreground so daemon doesn't actually run
     monkeypatch.setattr(serve_mod, "_serve_foreground", MagicMock())
 
-    args = argparse.Namespace(host="127.0.0.1", port=19828, daemon=True)
+    args = argparse.Namespace(host="127.0.0.1", port=19828, daemon=True,
+                              workers=1, project_root=str(tmp_path / "kb"))
     cmd_serve(args)
 
     # Stale pidfile should be removed
@@ -132,6 +155,10 @@ def test_daemon_windows_uses_subprocess(monkeypatch, tmp_path):
 
     import src.cli_ext.serve as serve_mod
     monkeypatch.setattr(serve_mod, "_is_posix", lambda: False)  # Force Windows path
+    import src.server.auth as _auth_mod
+    monkeypatch.setattr(_auth_mod, "get_token", lambda: None)
+    monkeypatch.setattr(_auth_mod, "require_token_for_host", lambda host: False)
+    monkeypatch.setattr(serve_mod, "_precheck_project_lock", lambda root: None)
 
     popen_mock = MagicMock()
     monkeypatch.setattr("subprocess.Popen", popen_mock)
@@ -142,7 +169,8 @@ def test_daemon_windows_uses_subprocess(monkeypatch, tmp_path):
     # Pretend pidfile gets created (in real subprocess scenario)
     test_pidfile.write_text("12345")
 
-    args = argparse.Namespace(host="127.0.0.1", port=19828, daemon=True)
+    args = argparse.Namespace(host="127.0.0.1", port=19828, daemon=True,
+                              workers=1, project_root=str(tmp_path / "kb"))
     cmd_serve(args)
 
     # subprocess.Popen should have been called
@@ -159,6 +187,12 @@ def test_daemon_posix_writes_pidfile(monkeypatch, tmp_path):
 
     import src.cli_ext.serve as serve_mod
     monkeypatch.setattr(serve_mod, "_is_posix", lambda: True)
+    import src.server.auth as _auth_mod
+    monkeypatch.setattr(_auth_mod, "get_token", lambda: None)
+    monkeypatch.setattr(_auth_mod, "require_token_for_host", lambda host: False)
+    monkeypatch.setattr(serve_mod, "_precheck_project_lock", lambda root: None)
+    monkeypatch.setattr(serve_mod, "_acquire_project_lock", lambda root: tmp_path / "lock")
+    monkeypatch.setattr(serve_mod, "_release_project_lock", lambda lock: None)
 
     # First fork returns 0 (we are child), second fork returns 0 (we are child)
     fork_calls = [0]
@@ -182,7 +216,8 @@ def test_daemon_posix_writes_pidfile(monkeypatch, tmp_path):
             pidfile_during_serve[0] = test_pidfile.read_text().strip()
     monkeypatch.setattr(serve_mod, "_serve_foreground", fake_serve)
 
-    args = argparse.Namespace(host="127.0.0.1", port=19828, daemon=True)
+    args = argparse.Namespace(host="127.0.0.1", port=19828, daemon=True,
+                              workers=1, project_root=str(tmp_path / "kb"))
     cmd_serve(args)
 
     # Verify both forks happened

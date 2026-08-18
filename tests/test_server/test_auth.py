@@ -316,8 +316,13 @@ def test_serve_allows_nonloopback_with_token(monkeypatch, tmp_path):
     import src.cli_ext.serve as serve_mod
     started = []
     monkeypatch.setattr(serve_mod, "_serve_foreground", lambda args: started.append(args.host))
+    monkeypatch.setattr(serve_mod, "_acquire_project_lock", lambda root: tmp_path / "lock")
+    monkeypatch.setattr(serve_mod, "_release_project_lock", lambda lock: None)
 
-    args = type("Args", (), {"host": "0.0.0.0", "port": 9000, "daemon": False})()
+    args = type("Args", (), {
+        "host": "0.0.0.0", "port": 9000, "daemon": False,
+        "workers": 1, "project_root": str(tmp_path / "kb"),
+    })()
     serve_mod.cmd_serve(args)
     assert started == ["0.0.0.0"]
 
@@ -335,7 +340,12 @@ def test_serve_allows_loopback_without_token(monkeypatch, tmp_path):
     import src.cli_ext.serve as serve_mod
     started = []
     monkeypatch.setattr(serve_mod, "_serve_foreground", lambda args: started.append(args.host))
+    monkeypatch.setattr(serve_mod, "_acquire_project_lock", lambda root: tmp_path / "lock")
+    monkeypatch.setattr(serve_mod, "_release_project_lock", lambda lock: None)
 
-    args = type("Args", (), {"host": "127.0.0.1", "port": 9000, "daemon": False})()
+    args = type("Args", (), {
+        "host": "127.0.0.1", "port": 9000, "daemon": False,
+        "workers": 1, "project_root": str(tmp_path / "kb"),
+    })()
     serve_mod.cmd_serve(args)
     assert started == ["127.0.0.1"]

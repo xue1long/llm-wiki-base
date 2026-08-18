@@ -1,6 +1,7 @@
 """FastAPI app factory for ruflo-kb HTTP API."""
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -129,11 +130,16 @@ def create_app() -> FastAPI:
                 except Exception as le:
                     _logger.warning("[startup] local embedding fallback also failed: %s", le)
 
-            # Initialise the vector store for the active project (best-effort;
-            # resolved from CWD; adjust if the API gains a project selector).
+            # Initialise the vector store for the active project (best-effort).
+            # R14: prefer the explicit project root set by `ruflo serve
+            # --project-root` (propagated via RUFLO_PROJECT_ROOT so the
+            # daemon child inherits it); fall back to CWD only when unset
+            # (CLI now requires the flag, so this is a defensive default).
             try:
                 from pathlib import Path
-                project_root = Path.cwd()
+                project_root = Path(
+                    os.environ.get("RUFLO_PROJECT_ROOT") or Path.cwd()
+                )
                 paths = ensure_knowledge_base(project_root)
                 init_vector_store_for_paths(paths)
                 # Wire DecayBridge so heat decay triggers lifecycle transitions

@@ -345,6 +345,10 @@ def main():
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=19828)
     p_serve.add_argument("--daemon", action="store_true")
+    p_serve.add_argument("--workers", type=int, default=1,
+                         help="Uvicorn workers (only 1 is supported — R6)")
+    p_serve.add_argument("--project-root", default=None,
+                         help="Explicit project root (required — R14)")
     p_serve.set_defaults(func=cmd_serve)
     p_serve_stop = subparsers.add_parser("serve-stop", help="Stop daemon server")
     p_serve_stop.set_defaults(func=cmd_serve_stop)

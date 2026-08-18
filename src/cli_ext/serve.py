@@ -46,6 +46,109 @@ def _exit(code: int) -> None:
     os._exit(code)
 
 
+# ---------------------------------------------------------------------------
+# R6: single-instance guard — one server per project root
+# ---------------------------------------------------------------------------
+
+def project_lock_path(project_root: str) -> Path:
+    """Path of the instance lock for a project root (R6).
+
+    Lives inside the project's metadata dir (``.llm-wiki/server.lock``) so
+    two processes pointed at the same project share one lock, while
+    different projects never collide.
+    """
+    return Path(project_root) / ".llm-wiki" / "server.lock"
+
+
+def _process_alive(pid: int) -> bool:
+    """Cross-platform liveness check for a PID."""
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except OSError:
+        # Windows: WinError 87 means the process does not exist.
+        return False
+
+
+def _acquire_project_lock(project_root: str) -> Path:
+    """Create the project instance lock, refusing a live second server.
+
+    Returns the lock path on success. Raises SystemExit(2) when another
+    live server holds the lock. A stale lock (dead PID / malformed) is
+    overwritten.
+    """
+    lock = project_lock_path(project_root)
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    if lock.exists():
+        try:
+            existing_pid = int(lock.read_text().strip())
+        except (ValueError, OSError):
+            existing_pid = -1
+        if existing_pid > 0 and _process_alive(existing_pid):
+            print(
+                f"Server already running for project {project_root!r} "
+                f"(PID {existing_pid}); run `serve-stop` first.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        # Stale lock — remove and take over.
+        try:
+            lock.unlink()
+        except OSError:
+            pass
+    lock.write_text(str(os.getpid()))
+    return lock
+
+
+def _release_project_lock(lock: Path) -> None:
+    """Remove the instance lock if we still own it."""
+    try:
+        if lock.exists() and lock.read_text().strip() == str(os.getpid()):
+            lock.unlink()
+    except OSError:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# R14: explicit project root — refuse silent CWD guessing
+# ---------------------------------------------------------------------------
+
+def _require_project_root(args: argparse.Namespace) -> str:
+    """Validate/return the explicit project root (R14).
+
+    The server must be told which project to serve; silently using the CWD
+    caused cross-project writes when the wrong directory was used. Raise
+    SystemExit(2) when missing.
+    """
+    root = getattr(args, "project_root", None)
+    if not root:
+        print(
+            "serve requires an explicit --project-root <path>; refusing to "
+            "guess the active project from the current working directory.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    return str(root)
+
+
+def _require_single_worker(args: argparse.Namespace) -> None:
+    """Refuse multi-worker deployments (R6)."""
+    workers = getattr(args, "workers", 1) or 1
+    if workers > 1:
+        print(
+            f"Refusing to start with --workers {workers}: ruflo-kb is a "
+            "single-process, single-worker deployment. The file-based queue, "
+            "EventBus and in-flight tracker are process-local; multiple "
+            "workers would corrupt task state.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+
 def cmd_serve(args: argparse.Namespace) -> None:
     """Start HTTP API server."""
     # R1: refuse to expose the unauthenticated management surface on a
@@ -62,16 +165,33 @@ def cmd_serve(args: argparse.Namespace) -> None:
         )
         sys.exit(2)
 
+    # R6 + R14 (before daemonize/foreground so both paths are guarded).
+    _require_single_worker(args)
+    project_root = _require_project_root(args)
+    args.project_root = project_root
+
     if args.daemon:
+        # Daemon: the parent pre-checks for a live lock but must NOT hold
+        # it — the detached child re-runs cmd_serve and acquires the lock
+        # itself (the parent's PID would otherwise block the child).
+        _precheck_project_lock(project_root)
         _daemonize(args)
     else:
-        _serve_foreground(args)
+        lock = _acquire_project_lock(project_root)
+        args._lock = lock
+        try:
+            _serve_foreground(args)
+        finally:
+            _release_project_lock(lock)
 
 
 def _serve_foreground(args: argparse.Namespace) -> None:
     """Start uvicorn in the current process (foreground)."""
     import uvicorn
     from ..server.app import create_app
+    # R14: make the explicit project root visible to the app lifespan.
+    if getattr(args, "project_root", None):
+        os.environ["RUFLO_PROJECT_ROOT"] = str(args.project_root)
     app = create_app()
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
@@ -107,6 +227,29 @@ def _daemonize(args: argparse.Namespace) -> None:
         _daemonize_windows(args, log_path)
 
 
+def _precheck_project_lock(project_root: str) -> None:
+    """Verify no live server holds the project lock (daemon pre-check, R6).
+
+    Unlike ``_acquire_project_lock`` this does NOT write the lock — the
+    daemon child owns it. Used so a second daemon launch fails fast with a
+    clear message instead of silently double-starting.
+    """
+    lock = project_lock_path(project_root)
+    if not lock.exists():
+        return
+    try:
+        existing_pid = int(lock.read_text().strip())
+    except (ValueError, OSError):
+        return
+    if existing_pid > 0 and _process_alive(existing_pid):
+        print(
+            f"Server already running for project {project_root!r} "
+            f"(PID {existing_pid}); run `serve-stop` first.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+
 def _daemonize_posix(args: argparse.Namespace, log_path: Path) -> None:
     """POSIX double-fork daemon pattern."""
     # First fork: parent exits, child becomes session leader
@@ -123,10 +266,13 @@ def _daemonize_posix(args: argparse.Namespace, log_path: Path) -> None:
         _exit(0)
     # Write pidfile (we are now the final daemon child)
     PIDFILE.write_text(str(_getpid()))
+    # R6: the daemon child owns the project lock for its lifetime.
+    lock = _acquire_project_lock(args.project_root)
     try:
         _serve_foreground(args)
     finally:
         PIDFILE.unlink(missing_ok=True)
+        _release_project_lock(lock)
 
 
 def _daemonize_windows(args: argparse.Namespace, log_path: Path) -> None:
@@ -147,6 +293,10 @@ def _daemonize_windows(args: argparse.Namespace, log_path: Path) -> None:
         "--host", args.host,
         "--port", str(args.port),
     ]
+    if getattr(args, "project_root", None):
+        cmd += ["--project-root", str(args.project_root)]
+    if getattr(args, "workers", 1) != 1:
+        cmd += ["--workers", str(args.workers)]
     with open(log_path, "ab") as log_f:
         subprocess.Popen(
             cmd,
