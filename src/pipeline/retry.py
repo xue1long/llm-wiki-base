@@ -79,6 +79,13 @@ def classify_error(exc: BaseException) -> str:
     ):
         return "transient"
 
+    # Response-body decode anomalies are protocol-level and transient:
+    # a truncated mid-multibyte body (finish_reason=length cutting a CJK
+    # char) or a GBK-encoded error page surfaced on a 2xx would otherwise
+    # classify as permanent and never retry (phase4 batch 14).
+    if isinstance(inner, UnicodeDecodeError):
+        return "transient"
+
     # asyncio-level timeout.
     if isinstance(inner, asyncio.TimeoutError):
         return "transient"

@@ -99,6 +99,15 @@ def test_classify_other_status_permanent():
     assert classify_error(_http_status_error(400)) == "permanent"
 
 
+def test_classify_unicode_decode_error_transient():
+    """响应体解码异常（GBK 错误页 / 截断的多字节字符）是协议级瞬时故障，
+    必须可重试，不能判 permanent（phase4 batch 14 实测根因）。"""
+    inner = UnicodeDecodeError("utf-8", b"\x9c", 0, 1, "invalid start byte")
+    wrapped = RuntimeError(f"OpenAI complete failed: {inner}")
+    wrapped.__cause__ = inner
+    assert classify_error(wrapped) == "transient"
+
+
 # ---------------------------------------------------------------------------
 # retry_with_backoff — 各路径
 # ---------------------------------------------------------------------------
