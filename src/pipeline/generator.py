@@ -16,7 +16,6 @@ Plan 27 (2026-07-26 wiki v2.3 schema) changes:
 This module is the single source of truth for wiki template enforcement.
 See docs/superpowers/plans/2026-07-26-wiki-schema-v23.md.
 """
-import difflib
 import logging
 import re
 from pathlib import Path
@@ -732,19 +731,6 @@ async def unified_generate(
             )
         # Phase 3 follow-up (M4)：渲染后确定性清洗 LLM 惯性占位符
         body_md = _clean_placeholder_text(body_md)
-
-        # Fix broken source-page wikilinks in rendered body
-        if source_slug_map and body_md:
-            _known_source_slugs: set[str] = set(source_slug_map.values())
-            def _replace_broken_wl(m, _slugs=_known_source_slugs):  # noqa: B023
-                target = m.group(1).split("|")[0].split("#")[0].strip()
-                canon = _slugify(target) or target
-                for real_slug in _slugs:
-                    if (_slugify(real_slug) or real_slug) == canon:
-                        alias = m.group(1)[len(target):]
-                        return f"[[{real_slug}{alias}]]"
-                return m.group(0)
-            body_md = _re.sub(r"\[\[(.*?)\]\]", _replace_broken_wl, body_md)
 
         # Relation dedup by slugified target
         raw_relations = p.get("relations", []) or []
@@ -1628,41 +1614,6 @@ async def generate(
             body_md = _clean_placeholder_text(body_md)
 
         # Fix: the LLM may emit guessed/pinyin wikilinks to source pages
-        # (e.g. [[必备资料-11-月...]]) that don't match the deterministic
-        # slug on disk. Scan rendered bodies and replace any [[wikilink]]
-        # whose slugified form matches a known source-page slug.
-        if source_slug_map and body_md:
-            _known_source_slugs: set[str] = set(source_slug_map.values())
-            _source_stems = {
-                Path(raw_path).stem: real_slug
-                for raw_path, real_slug in source_slug_map.items()
-            }
-
-            def _replace_broken_source_wikilink(m: object, _slugs=_known_source_slugs) -> str:  # noqa: B023
-                target = m.group(1).split("|")[0].split("#")[0].strip()
-                canon = _slugify(target) or target
-                for real_slug in _slugs:
-                    if (_slugify(real_slug) or real_slug) == canon:
-                        alias = m.group(1)[len(target):]  # |alias or #fragment
-                        return f"[[{real_slug}{alias}]]"
-
-                # Repair a narrow historical drift: a source wikilink may
-                # retain an old 8-char hash while its title loses a word.
-                # Only rewrite when it closely matches exactly one current
-                # raw stem; ordinary concepts remain untouched.
-                target_base = re.sub(r"-[0-9a-f]{8}$", "", target)
-                if target_base != target and _source_stems:
-                    matches = [
-                        (stem, real_slug)
-                        for stem, real_slug in _source_stems.items()
-                        if difflib.SequenceMatcher(None, target_base, stem).ratio() >= 0.88
-                    ]
-                    if len(matches) == 1:
-                        alias = m.group(1)[len(target):]
-                        return f"[[{matches[0][1]}{alias}]]"
-                return m.group(0)
-            body_md = re.sub(r"\[\[(.*?)\]\]", _replace_broken_source_wikilink, body_md)
-
         # Dedup relations: the LLM may emit multiple relation entries
         # for the same target (same slug, or different renderings of
         # the same concept that slugify to the same canonical form).

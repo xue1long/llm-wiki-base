@@ -144,6 +144,49 @@ def _collect_existing_wiki(paths: WikiPaths) -> dict:
     return index
 
 
+def _build_resolution_context(paths, source_path, source_slug: str, raw_stem: str):
+    """Task 2：冻结一次生成操作的不可变 ResolutionContext。
+
+    canonical raw key + 当前 source 候选 + 全库 index（slug/title）与
+    alias 快照。body wikilink 与 relation target 共用此上下文解析。
+    """
+    from src.utils.path import canonical_raw_key
+    from src.wiki.features.slug_utils import normalize_reconcile_slug
+    from src.wiki.features.target_resolver import ResolutionContext
+
+    try:
+        canon_key = canonical_raw_key(source_path, paths.root)
+    except ValueError:
+        canon_key = str(source_path)
+
+    aliases = {}
+    try:
+        from src.wiki.features.slug_aliases import SlugAliasRegistry
+        for _a, _c in (SlugAliasRegistry(paths.root).aliases or {}).items():
+            if _c:
+                aliases[_a] = _c
+    except Exception:
+        pass
+
+    existing: set[str] = set()
+    title_index: dict[str, list[str]] = {}
+    try:
+        from src.wiki.features.indexer import read_index
+        for _slug, _pt, _title in read_index(paths):
+            existing.add(normalize_reconcile_slug(_slug))
+            _key = normalize_reconcile_slug(_title or _slug)
+            title_index.setdefault(_key, []).append(_slug)
+    except Exception:
+        pass
+
+    return ResolutionContext(
+        source_candidates=((canon_key, source_slug, raw_stem),),
+        existing_index=frozenset(existing),
+        title_index=title_index,
+        aliases=aliases,
+    )
+
+
 def _format_wiki_index(index: dict) -> str:
     """Render the index as prompt text for the analyzer/generator.
 
@@ -230,8 +273,41 @@ def _compute_reverse_relations(paths, pages):
     return list(extra.values())
 
 
-def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[WikiPage]:
-    """Post-process LLM-generated pages: enforce valid enums, canonicalize relation targets."""
+def finalize_generated_page(page: WikiPage, paths: WikiPaths, *,
+                            now: int | None = None) -> WikiPage:
+    """Task 3：生成管线字段 owner 边界 —— 系统字段由脚本最终裁定，不信任 LLM。
+
+    覆盖：``grade``、``processing_depth``、``id/title`` 清洗、
+    ``created_at/updated_at``。语义字段（body/tags/relations/category/
+    taxonomy_sub/custom_type）由各自规范化器或 Schema 路由处理；通用
+    ``write_page()`` 只做结构校验与序列化，不在此改写人工页面。
+    """
+    if now is None:
+        now = int(__import__("time").time() * 1000)
+    if page.grade not in ("A", "B", "C"):
+        page.grade = "B"
+    if page.processing_depth not in ("concept", "memory", "operation", "stub"):
+        page.processing_depth = "concept"
+    if page.id:
+        page.id = page.id.strip()
+    if page.title:
+        page.title = page.title.strip()
+    if not page.created_at:
+        page.created_at = now
+    if not page.updated_at:
+        page.updated_at = now
+    return page
+
+
+def _normalize_generated_pages(
+    pages: list[WikiPage],
+    paths: WikiPaths,
+    resolution_context=None,
+) -> list[WikiPage]:
+    """Post-process LLM-generated pages: enforce valid enums, canonicalize
+    relation targets, and rewrite body wikilinks via the unified Target
+    Resolver (plan Task 2)."""
+    import re as _re
     import time
     try:
         from src.wiki import SlugAliasRegistry
@@ -243,18 +319,8 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
     from src.pipeline.generator import RELATION_TYPES as _RELATION_TYPES
     _valid_relation_types = set(_RELATION_TYPES)
     for page in pages:
-        if page.grade not in ("A", "B", "C"):
-            page.grade = "B"
-        if page.processing_depth not in ("concept", "memory", "operation", "stub"):
-            page.processing_depth = "concept"
-        if page.id:
-            page.id = page.id.strip()
-        if page.title:
-            page.title = page.title.strip()
-        if not page.created_at:
-            page.created_at = now
-        if not page.updated_at:
-            page.updated_at = now
+        # Task 3：字段 owner —— 系统字段先经 finalize_generated_page 裁定
+        finalize_generated_page(page, paths, now=now)
         # M9（Phase 3 实测）：过滤非法 relation 类型——LLM 或历史页可能输出
         # `related_to` / `contrasts` / `part_of` 等非 17 型（+ x-*）类型。
         # JSON schema enum 只约束新 LLM 输出；存量页（extras）合并时也须清理。
@@ -268,6 +334,33 @@ def _normalize_generated_pages(pages: list[WikiPage], paths: WikiPaths) -> list[
                 canonical = reg.get_canonical(rel.target_id)
                 if canonical and canonical != rel.target_id:
                     rel.target_id = canonical
+
+        # Task 2：统一 Target Resolver —— body wikilink + relation target
+        # 共用同一 ResolutionContext，消除各 Generator 入口的独立猜名/替换。
+        if resolution_context is not None:
+            from src.wiki.features.target_resolver import resolve_wiki_target
+            if page.body:
+                def _rewrite(m: object) -> str:
+                    inner = m.group(1)
+                    target = inner.split("|")[0].split("#")[0].strip()
+                    res = resolve_wiki_target(target, context=resolution_context)
+                    if res.canonical_target and res.changed:
+                        _logger.warning(
+                            "[normalize] TARGET-REWRITE page=%s %s -> %s (%s)",
+                            page.id, target, res.canonical_target, res.kind,
+                        )
+                        return f"[[{res.canonical_target}{inner[len(target):]}]]"
+                    return m.group(0)
+                page.body = _re.sub(r"\[\[(.*?)\]\]", _rewrite, page.body)
+            if page.relations:
+                for rel in page.relations:
+                    res = resolve_wiki_target(rel.target_id, context=resolution_context)
+                    if res.canonical_target and res.changed:
+                        _logger.warning(
+                            "[normalize] TARGET-REWRITE page=%s rel %s -> %s (%s)",
+                            page.id, rel.target_id, res.canonical_target, res.kind,
+                        )
+                        rel.target_id = res.canonical_target
     return pages
 
 
@@ -486,6 +579,12 @@ async def generate_ingest(
     )
     _source_slug_map = {str(source_path): _source_slug_for_map}
 
+    # Task 2：冻结 ResolutionContext（canonical raw key + source 候选 +
+    # 全库 index/标题/alias 快照），供 _normalize_generated_pages 的 body
+    # wikilink 与 relation target 统一解析（各 Generator 入口共享）。
+    _resolution_context = _build_resolution_context(
+        paths, source_path, _source_slug_for_map, _raw_stem_for_slug)
+
     # Unified path: single LLM call (Analyzer + Generator merged).
     # Falls back to two-step on failure. For sources larger than
     # MAX_SOURCE_CHARS, skip the truncating unified path entirely and use
@@ -644,7 +743,7 @@ async def generate_ingest(
             )
 
     # Normalize LLM-generated fields before writing to disk.
-    pages = _normalize_generated_pages(pages, paths)
+    pages = _normalize_generated_pages(pages, paths, resolution_context=_resolution_context)
 
     # Fix D: guarantee one source page per ingested task.
     # The LLM may or may not include a ``source`` entry in

@@ -741,3 +741,43 @@ async def test_commit_ingest_leaves_clean_tags_untouched(tmp_path: Path) -> None
 
     on_disk = read_page(paths.wiki_concepts / "t3-clean.md")
     assert on_disk.tags == ["题材/玄幻", "素材/ugc", "可信度/ugc"]
+
+
+# ---------------------------------------------------------------------------
+# 计划 2026-08-18 Task 2：统一 Target Resolver 重写 body wikilink + relation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_generate_ingest_rewrites_legacy_hash_source_link(tmp_path: Path) -> None:
+    """Task 2：LLM 输出旧 hash + 标题丢词的 source 链接（batch 9 根因）
+    → generate_ingest 后 body wikilink 与 relation target 均指向 canonical
+    source slug。"""
+    from tests.support.test_helpers import ScriptedLLMProvider
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "入门教程角色篇完善小说角色的技法.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text("# 角色技法\n\n内容", encoding="utf-8")
+
+    provider = ScriptedLLMProvider([{
+        "pages": [
+            {"id": "src", "type": "source", "title": "源",
+             "slots": {"source_meta": "sm", "summary": "S",
+                       "key_points": ["k"], "extracted_concepts": ["[[概念甲]]"]}},
+            {"id": "飞书云文档", "type": "entity", "title": "飞书云文档",
+             "slots": {"related": ["[[入门教程角色篇完善小说的技法-e8ca1866]]"],
+                       "summary": "S"},
+             "relations": [{"target": "入门教程角色篇完善小说的技法-e8ca1866",
+                            "type": "references", "weight": 0.9, "context": "c"}]},
+        ]
+    }])
+    pages, _extra, meta = await generate_ingest(
+        paths=paths, source_path=raw, source_text="# 角色技法\n\n内容",
+        provider=provider, task_id="kb-t2")
+    src_slug = meta.get("source_slug")
+    assert src_slug, meta
+    by_id = {p.id: p for p in pages}
+    ent = by_id["飞书云文档"]
+    assert f"[[{src_slug}]]" in ent.body, ent.body
+    assert any(r.target_id == src_slug for r in ent.relations), ent.relations
