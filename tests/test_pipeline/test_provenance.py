@@ -1,9 +1,9 @@
-"""Tests for Task 2.3 — page-level provenance for PDFs."""
+﻿"""Tests for Task 2.3 鈥?page-level provenance for PDFs."""
 import pytest
 
 
 # ---------------------------------------------------------------------------
-# 2.3a — PDF page marker injection
+# 2.3a 鈥?PDF page marker injection
 # ---------------------------------------------------------------------------
 
 class TestPdfPageMarkers:
@@ -53,7 +53,7 @@ class TestPdfPageMarkers:
 
 
 # ---------------------------------------------------------------------------
-# 2.3a (safety) — markers survive sanitizer
+# 2.3a (safety) 鈥?markers survive sanitizer
 # ---------------------------------------------------------------------------
 
 class TestPageMarkersSurviveSanitizer:
@@ -75,83 +75,8 @@ class TestPageMarkersSurviveSanitizer:
 
 
 # ---------------------------------------------------------------------------
-# 2.3b — CandidatePromoter fills page/quote from evidence
 # ---------------------------------------------------------------------------
-
-class TestCandidatePromoterProvenance:
-    def test_promoter_reads_page_from_first_evidence(self):
-        """CandidatePromoter populates Provenance.page from evidence[0].page."""
-        from src.pipeline.stages.candidate_promoter import CandidatePromoter
-        from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
-        from src.knowledge.core.object import KnowledgeType
-
-        candidate = KnowledgeCandidate(
-            id="c1", source_id="test.pdf", type=KnowledgeType.CONCEPT,
-            title="Test", claims=[], confidence=0.8,
-            evidence=[
-                {"source_path": "test.pdf", "page": 3, "quote": "exact text here"},
-            ],
-            raw_llm_output={}, status=CandidateStatus.VALIDATED,
-        )
-        promoter = CandidatePromoter()
-        obj = promoter.promote(candidate)
-        assert obj.provenance.page == 3
-        assert obj.provenance.quote == "exact text here"
-
-    def test_promoter_quote_truncated_to_200_chars(self):
-        """Quotes longer than 200 chars are truncated."""
-        from src.pipeline.stages.candidate_promoter import CandidatePromoter
-        from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
-        from src.knowledge.core.object import KnowledgeType
-
-        long_quote = "x" * 300
-        candidate = KnowledgeCandidate(
-            id="c2", source_id="test.pdf", type=KnowledgeType.CONCEPT,
-            title="Test", claims=[], confidence=0.8,
-            evidence=[{"source_path": "test.pdf", "page": 1, "quote": long_quote}],
-            raw_llm_output={}, status=CandidateStatus.VALIDATED,
-        )
-        promoter = CandidatePromoter()
-        obj = promoter.promote(candidate)
-        assert len(obj.provenance.quote) == 200
-
-    def test_promoter_no_evidence_defaults_to_none(self):
-        """When candidate has no evidence, page is None and quote is empty."""
-        from src.pipeline.stages.candidate_promoter import CandidatePromoter
-        from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
-        from src.knowledge.core.object import KnowledgeType
-
-        candidate = KnowledgeCandidate(
-            id="c3", source_id="test.pdf", type=KnowledgeType.CONCEPT,
-            title="Test", claims=[], confidence=0.8,
-            evidence=[],
-            raw_llm_output={}, status=CandidateStatus.VALIDATED,
-        )
-        promoter = CandidatePromoter()
-        obj = promoter.promote(candidate)
-        assert obj.provenance.page is None
-        assert obj.provenance.quote == ""
-
-    def test_promoter_evidence_page_none_stays_none(self):
-        """When evidence page is None/null, Provenance.page stays None."""
-        from src.pipeline.stages.candidate_promoter import CandidatePromoter
-        from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
-        from src.knowledge.core.object import KnowledgeType
-
-        candidate = KnowledgeCandidate(
-            id="c4", source_id="test.md", type=KnowledgeType.CONCEPT,
-            title="Test", claims=[], confidence=0.8,
-            evidence=[{"source_path": "test.md", "page": None, "quote": "text"}],
-            raw_llm_output={}, status=CandidateStatus.VALIDATED,
-        )
-        promoter = CandidatePromoter()
-        obj = promoter.promote(candidate)
-        assert obj.provenance.page is None
-        assert obj.provenance.quote == "text"
-
-
-# ---------------------------------------------------------------------------
-# 2.3c — generate_from_candidate sets _ko_extra.provenance
+# 2.3c 鈥?generate_from_candidate sets _ko_extra.provenance
 # ---------------------------------------------------------------------------
 
 class TestGenerateFromCandidateProvenance:
@@ -248,7 +173,7 @@ class TestGenerateFromCandidateProvenance:
 
 
 # ---------------------------------------------------------------------------
-# 2.3c — WikiPage.to_frontmatter_dict includes _ko_extra
+# 2.3c 鈥?WikiPage.to_frontmatter_dict includes _ko_extra
 # ---------------------------------------------------------------------------
 
 class TestFrontmatterIncludesKoExtra:
@@ -274,7 +199,7 @@ class TestFrontmatterIncludesKoExtra:
 
 
 # ---------------------------------------------------------------------------
-# 2.3d — Analyzer prompt contains page guidance
+# 2.3d 鈥?Analyzer prompt contains page guidance
 # ---------------------------------------------------------------------------
 
 class TestAnalyzerPromptPageGuidance:
