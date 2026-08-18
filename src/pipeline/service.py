@@ -146,12 +146,18 @@ class PipelineService:
             })
             self.queue_service.update_status(task_id, status=TaskStatus.APPROVED)
         except Exception as exc:
+            # R8: classify the fault. RetryableDependencyError → FAILED
+            # (queue retries); InvalidInput/DataConsistency/Programming →
+            # error string carries the no-retry marker so the queue
+            # dead-letters immediately instead of burning retries on a
+            # deterministic failure.
+            from ..lib.errors import format_error_for_queue
             _logger.exception("ingest failed for %s", task_id)
             try:
                 self.queue_service.update_status(
                     task_id,
                     status=TaskStatus.FAILED,
-                    error=str(exc),
+                    error=format_error_for_queue(exc),
                 )
             except Exception:
                 _logger.exception("failed to update_status to FAILED for %s", task_id)
