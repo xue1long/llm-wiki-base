@@ -151,6 +151,13 @@ def flush_pending_writes() -> int:
             failed.append(path)
             _logger.exception("atomic flush write failed for %s", path)
     if failed:
+        # R12: alertable metric — write failures (disk / permissions).
+        try:
+            from ..metrics import WRITE_FAILURE_TOTAL
+            for _p in failed:
+                WRITE_FAILURE_TOTAL.inc(path_kind=_p.suffix.lstrip(".") or "file")
+        except Exception:
+            pass
         raise AtomicCommitError(failed)
     return count
 

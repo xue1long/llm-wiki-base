@@ -153,6 +153,13 @@ class PipelineService:
             # deterministic failure.
             from ..lib.errors import format_error_for_queue
             _logger.exception("ingest failed for %s", task_id)
+            # R12: alertable metric — provider failures (circuit opens on
+            # 3 consecutive).
+            try:
+                from ..metrics import PROVIDER_FAILURE_TOTAL
+                PROVIDER_FAILURE_TOTAL.inc(provider="unknown")
+            except Exception:
+                pass
             try:
                 self.queue_service.update_status(
                     task_id,

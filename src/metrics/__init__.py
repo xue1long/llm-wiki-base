@@ -48,6 +48,33 @@ INGEST_VERDICT_TOTAL = MetricsRegistry.counter(
     label_names=["verdict", "reason"],
 )
 
+# ── R12: four alertable fault metrics ──────────────────────────────────
+# Each has a documented alert threshold (see docs/ops/runbook.md):
+#   dead-letter        → alert when rate > 0 over 5 min (task loss)
+#   queue backlog      → alert when pending+dead_letter > 50 (backlog)
+#   provider failure   → alert when 3 consecutive failures (circuit open)
+#   write failure      → alert when > 0 in 10 min (disk / permissions)
+DEAD_LETTER_TOTAL = MetricsRegistry.counter(
+    "ruflo_dead_letter_total",
+    "Total number of tasks moved to dead letter",
+    label_names=["reason"],
+)
+QUEUE_BACKLOG = MetricsRegistry.gauge(
+    "ruflo_queue_backlog",
+    "Number of tasks pending or dead-lettered (queue pressure)",
+    label_names=["status"],
+)
+PROVIDER_FAILURE_TOTAL = MetricsRegistry.counter(
+    "ruflo_provider_failure_total",
+    "Total LLM provider failures (connect / timeout / auth)",
+    label_names=["provider"],
+)
+WRITE_FAILURE_TOTAL = MetricsRegistry.counter(
+    "ruflo_write_failure_total",
+    "Total wiki/file write failures (disk, permissions, atomic commit)",
+    label_names=["path_kind"],
+)
+
 
 __all__ = [
     "Counter", "Gauge", "Histogram", "MetricsRegistry",
@@ -56,5 +83,7 @@ __all__ = [
     "INGEST_DURATION_SECONDS", "INGEST_VERDICT_TOTAL",
     "CHAT_TOTAL", "LLM_CALL_DURATION",
     "LLM_COST_USD_TOTAL", "ACTIVE_TASKS",
+    "DEAD_LETTER_TOTAL", "QUEUE_BACKLOG",
+    "PROVIDER_FAILURE_TOTAL", "WRITE_FAILURE_TOTAL",
     "DEFAULT_BUCKETS",
 ]

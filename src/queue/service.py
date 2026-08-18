@@ -232,6 +232,12 @@ class QueueService:
                 )
                 # Allow re-enqueue of the same source after dead-letter.
                 remove_hash(task.task_hash)
+                # R12: alertable metric — dead-letter is task loss.
+                try:
+                    from ..metrics import DEAD_LETTER_TOTAL
+                    DEAD_LETTER_TOTAL.inc(reason="retry_exhausted")
+                except Exception:
+                    pass
 
             if decision.new_status == TaskStatus.FAILED:
                 # Allow re-enqueue of the same source after failure.
@@ -390,11 +396,20 @@ class QueueService:
         breaker = self._breaker()
         tasks = self.get_queue()
         with self._service_lock:
+            pending_count = len([t for t in tasks if t.status == TaskStatus.PENDING])
+            dead_letter_count = len([t for t in tasks if t.status == TaskStatus.DEAD_LETTER])
+            # R12: keep the backlog gauge current for alerting.
+            try:
+                from ..metrics import QUEUE_BACKLOG
+                QUEUE_BACKLOG.set(pending_count, status="pending")
+                QUEUE_BACKLOG.set(dead_letter_count, status="dead_letter")
+            except Exception:
+                pass
             return {
                 "paused": self._paused,
                 "circuit_breaker_state": breaker.state.value,
                 "failure_count": breaker.failure_count,
-                "pending_count": len([t for t in tasks if t.status == TaskStatus.PENDING]),
+                "pending_count": pending_count,
                 "running_count": len([t for t in tasks if t.status == TaskStatus.RUNNING]),
                 "failed_count": len([t for t in tasks if t.status == TaskStatus.FAILED]),
             }

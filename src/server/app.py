@@ -64,6 +64,13 @@ def create_app() -> FastAPI:
     """Build FastAPI app with all routers mounted."""
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        # R12: inject correlation fields (request_id/task_id/project_id)
+        # into every log record so the HTTP→Queue→Pipeline→Writer chain is
+        # traceable end-to-end.
+        import logging
+        from ..lib.correlation import CorrelationLogFilter
+        logging.getLogger().addFilter(CorrelationLogFilter())
+
         # Startup: configure the process-global embedding provider + vector
         # store handle for the active project. Audit finding C-1 root cause
         # was that the embedding provider was never wired up at app startup,
@@ -292,6 +299,19 @@ def create_app() -> FastAPI:
     # /health stays anonymous. No token → loopback-only mode, no auth.
     from .auth_middleware import add_auth_middleware
     add_auth_middleware(app)
+
+    # R12: per-request correlation id (injected into logs via the filter).
+    import uuid
+    from ..lib.correlation import set_correlation, clear_correlation
+
+    @app.middleware("http")
+    async def _correlation_middleware(request, call_next):
+        request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
+        set_correlation(request_id=request_id)
+        try:
+            return await call_next(request)
+        finally:
+            clear_correlation()
 
     from .routes import health, projects, files, search, ingest, reviews, chat, schema, agent_cli, analysis, providers, tags, quality, heat, templates, scenario_templates
     for router in [health.router, projects.router, files.router, search.router,
