@@ -72,7 +72,17 @@ def check_wiki() -> tuple[str, str]:
 
 
 def check_vector() -> tuple[str, str]:
-    """Vector store handle initialised (best-effort; derived state)."""
+    """Vector store handle initialised (best-effort; derived state).
+
+    R11: when no embedding capability exists (keyword-only), report
+    ``degraded`` — semantic search is OFF and the operator must know
+    (never pretend vectors are usable).
+    """
+    from ..llm.embed_profile import embedding_mode
+    mode = embedding_mode()
+    if mode == "keyword-only":
+        return "degraded", "semantic search unavailable (keyword-only); " \
+                          "install the 'embedding' extra or configure a remote provider"
     try:
         from ..vector.store import init_vector_store_for_paths, get_table
         from ..wiki.core.paths import WikiPaths
@@ -83,7 +93,7 @@ def check_vector() -> tuple[str, str]:
             pass  # init is best-effort at boot; handle may still exist
         table = get_table(paths)
         if table is not None:
-            return "ok", "vector store initialised"
+            return "ok", f"vector store initialised ({mode} embedding)"
         return "error", "vector store not initialised"
     except Exception as e:
         return "error", f"vector store unavailable: {e}"

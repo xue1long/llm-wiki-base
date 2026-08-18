@@ -26,6 +26,12 @@ dev = [
     "ruff>=0.11.0",
     "mypy>=1.14.0",
 ]
+# R11: local embedding fallback is an OPTIONAL profile. Not installed by
+# default → the system honestly reports keyword-only search instead of
+# pretending semantic search works (audit: declared fallback not installed).
+embedding = [
+    "sentence-transformers>=2.2.0",
+]
 
 [tool.pytest.ini_options]
 # Treat all `async def test_*` as asyncio tests without requiring an
