@@ -3,7 +3,7 @@
 > 版本：v1.0 ｜ 2026-08-03
 > 用途：集中收录摄取流水线中所有 LLM 提示词原文，便于审阅与统一维护。
 >
-> ⚠️ **重要纠偏**：本文档中的标签前缀以代码实际值为准——**8 个英文前缀**（genre/ func/ char/ event/ mood/ entity/ scene_phase/ status/）。此前 `docs/evaluations/tag-namespace-evaluation.md` 与 `docs/ARCHITECTURE.md` §14 误写为"10 个中文前缀（题材/功能/角色/事件/情绪/实体/场景阶段/状态/素材/可信度/）"，应以本文为准修正。
+> ⚠️ **重要纠偏（2026-08-18 更新）**：本文档中的标签前缀以代码实际值为准——**当前为 12 个中文前缀**（题材/功能/角色/事件/情绪/实体/场景阶段/状态/素材/可信度/读者群/平台，单一来源 `src/wiki/features/tag_namespace.py::TAG_PREFIXES`）。旧 8 个英文前缀（genre/ func/ char/ event/ mood/ entity/ scene_phase/ status/）为 legacy：可由 `normalize_tags` 自动映射（如 `func/教程` → `功能/教程`）或删除（值域非法），**禁止 LLM 新输出**。此前本文档"8 个英文前缀为现行值"的说法已失效；下方提示词原文如与代码注入的 `{tag_namespace_rules}` 不一致，以代码为准。
 
 ---
 
@@ -53,16 +53,22 @@ ASCII kebab-case — 保留概念的自然字面，**禁止拼音转写**。专�
 
 ## Tags guidance (受控命名空间)
 每个建议页可带 0-N 个 tags (分类检索用). 每个 tag 必须是 `前缀/名称` 形式, 前缀
-只能是以下 8 个受控值之一 (名称用中文或英文, 不要含空格):
-- genre/       题材类型   (如 genre/现言, genre/玄幻)
-- func/        功能类型   (如 func/教程, func/案例)
-- char/        角色类型   (如 char/总裁, char/女主)
-- event/       事件类型   (如 event/签约, event/冲突)
-- mood/        情绪氛围   (如 mood/甜宠, mood/悬疑)
-- entity/      是什么(What) (如 entity/创酷中文网, entity/起点)
-- scene_phase/ 何时用(When) (如 scene_phase/开篇, scene_phase/高潮)
-- status/      生命周期   (如 status/草稿, status/完结)
-不要使用这 8 个以外的前缀, 也不要写裸标签(无 `/`). 来源/概念页至少给 1-2 个最贴切的 tag.
+只能是以下受控中文前缀之一 (名称用中文, 不要含空格; 值域受约束的前缀见
+`tag_namespace.py::TAG_VALUES`, 超值域的标签会被自动删除):
+- 题材/   (题材类型, 如 题材/现言, 题材/玄幻)
+- 功能/   (功能类型, 如 功能/教程, 功能/案例)
+- 角色/   (角色类型, 如 角色/总裁, 角色/女主)
+- 事件/   (事件类型, 如 事件/签约)
+- 情绪/   (情绪氛围, 如 情绪/甜宠, 情绪/悬疑)
+- 实体/   (是什么 What, 如 实体/创酷中文网)
+- 场景阶段/ (何时用 When, 如 场景阶段/开篇, 场景阶段/高潮)
+- 状态/   (生命周期, 如 状态/完结)
+- 素材/   (素材品类, 如 素材/ugc, 素材/book)
+- 可信度/ (可信度, 如 可信度/ugc, 可信度/book)
+- 读者群/ (读者群类型, 如 读者群/男频)
+- 平台/   (发布平台, 如 平台/起点)
+禁止旧英文前缀 (genre/ func/ char/ event/ mood/ entity/ scene_phase/ status/), 也不要写裸标签(无 `/`).
+来源/概念页至少给 1-2 个最贴切的 tag.
 
 ## Task
 Extract structured analysis. Output strict JSON:
@@ -84,7 +90,7 @@ Extract structured analysis. Output strict JSON:
       "grade": "A|B|C",                    // optional; default B
       "processing_depth": "concept|memory", // optional; default concept
       "is_immutable": false,               // optional; default false
-      "tags": ["genre/现言", "func/教程"]      // optional; default []
+      "tags": ["题材/现言", "功能/教程"]      // optional; default []
     }
   ],
   "links_to_existing": ["<slug>"]          // existing wiki pages this references
@@ -216,16 +222,22 @@ listed in `## Existing wiki index`.  Example:
 
 ## Tags guidance (受控命名空间)
 每个输出页可带 0-N 个 `tags` (分类检索用). 每个 tag 必须是 `前缀/名称` 形式, 前缀
-只能是以下 8 个受控值之一 (名称用中文或英文, 不要含空格):
-- genre/       题材类型   (如 genre/现言, genre/玄幻)
-- func/        功能类型   (如 func/教程, func/案例)
-- char/        角色类型   (如 char/总裁, char/女主)
-- event/       事件类型   (如 event/签约, event/冲突)
-- mood/        情绪氛围   (如 mood/甜宠, mood/悬疑)
-- entity/      是什么(What) (如 entity/创酷中文网, entity/起点)
-- scene_phase/ 何时用(When) (如 scene_phase/开篇, scene_phase/高潮)
-- status/      生命周期   (如 status/草稿, status/完结)
-不要使用这 8 个以外的前缀, 也不要写裸标签(无 `/`). 来源/概念页至少给 1-2 个最贴切的 tag.
+只能是以下受控中文前缀之一 (名称用中文, 不要含空格; 值域受约束的前缀见
+`tag_namespace.py::TAG_VALUES`, 超值域的标签会被自动删除):
+- 题材/   (题材类型, 如 题材/现言, 题材/玄幻)
+- 功能/   (功能类型, 如 功能/教程, 功能/案例)
+- 角色/   (角色类型, 如 角色/总裁, 角色/女主)
+- 事件/   (事件类型, 如 事件/签约)
+- 情绪/   (情绪氛围, 如 情绪/甜宠, 情绪/悬疑)
+- 实体/   (是什么 What, 如 实体/创酷中文网)
+- 场景阶段/ (何时用 When, 如 场景阶段/开篇, 场景阶段/高潮)
+- 状态/   (生命周期, 如 状态/完结)
+- 素材/   (素材品类, 如 素材/ugc, 素材/book)
+- 可信度/ (可信度, 如 可信度/ugc, 可信度/book)
+- 读者群/ (读者群类型, 如 读者群/男频)
+- 平台/   (发布平台, 如 平台/起点)
+禁止旧英文前缀 (genre/ func/ char/ event/ mood/ entity/ scene_phase/ status/), 也不要写裸标签(无 `/`).
+来源/概念页至少给 1-2 个最贴切的 tag.
 (若本页在分析阶段已给出 tags 建议, 你可直接沿用或按其内容调整.)
 
 ## Task
@@ -244,7 +256,7 @@ For each suggested page, fill its slots. Output strict JSON:
         {"target": "<other-slug>", "type": "<one of the 17 built-in relation types below>",
           "weight": 0.0-1.0, "context": "<why>"}
       ],
-      "tags": ["genre/现言", "func/教程"]     // optional; 受控命名空间前缀 (见 Tags guidance)
+      "tags": ["题材/现言", "功能/教程"]     // optional; 受控命名空间前缀 (见 Tags guidance)
       "category": "",                          // optional; 一级分类
       "taxonomy_sub": "",                      // optional; 二级分类
       "processing_depth": "concept"            // optional; concept|memory
@@ -376,8 +388,9 @@ will fail to parse and a slower fallback pipeline runs instead.
 **Subject boundary**: Keep claims attached to their exact subject. Do NOT
 transfer a claim about one entity to another just because they share terms.
 
-**Tags**: `prefix/name` format, 8 allowed prefixes:
-genre/ func/ char/ event/ mood/ entity/ scene_phase/ status/
+**Tags**: `prefix/name` format, 12 个受控中文前缀:
+题材/ 功能/ 角色/ 事件/ 情绪/ 实体/ 场景阶段/ 状态/ 素材/ 可信度/ 读者群/ 平台/
+(旧英文前缀 genre/ func/ char/ event/ mood/ entity/ scene_phase/ status/ 已废弃, 禁止输出)
 
 **Relation types** (17 built-in + `x-*` custom):
 is_part_of contains references referenced_by causes caused_by contradicts
@@ -398,7 +411,7 @@ knowledge into structured wiki pages. Output strict JSON:
       "title": "<中文标题>",
       "slots": {"<slot_name>": "<content or list of strings>"},
       "relations": [{"target": "<slug>", "type": "<relation_type>", "weight": 0.0-1.0, "context": "<why>"}],
-      "tags": ["genre/现言", "func/教程"],
+      "tags": ["题材/现言", "功能/教程"],
       "grade": "A|B|C",
       "category": "",
       "taxonomy_sub": "",

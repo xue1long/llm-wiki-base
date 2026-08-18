@@ -1,4 +1,4 @@
-﻿# tests/test_pipeline/test_generator.py
+# tests/test_pipeline/test_generator.py
 import pytest
 from tests.support.test_helpers import ScriptedLLMProvider
 from src.pipeline.schemas import AnalysisResult, EntityMention, PageSpec
@@ -1096,6 +1096,19 @@ def test_resolve_tags_unified_appends_mandatory_pairs():
     tags = _resolve_page_tags_unified({"tags": ["题材/玄幻"]})
     assert "素材/ugc" in tags
     assert "可信度/ugc" in tags
+
+
+def test_resolve_tags_unified_maps_legacy_prefixes():
+    """Task 2/4：LLM 输出 legacy 前缀（genre/func/...）被统一规范化。
+
+    ``func/教程`` → ``功能/教程``、``genre/玄幻`` → ``题材/玄幻``，结果
+    必须通过 ``validate_tag_compliance``（与 Gate/write_page 同一规则）。
+    """
+    from src.pipeline.generator import _resolve_page_tags_unified
+    from src.wiki.features.tag_namespace import validate_tag_compliance
+    tags = _resolve_page_tags_unified({"tags": ["func/教程", "genre/玄幻"]})
+    assert tags == ["功能/教程", "题材/玄幻", "素材/ugc", "可信度/ugc"], tags
+    validate_tag_compliance(tags)  # must not raise
 
 
 def test_resolve_tags_unified_empty_and_all_invalid_stay_empty():

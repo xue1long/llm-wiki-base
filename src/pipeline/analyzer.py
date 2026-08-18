@@ -77,8 +77,9 @@ Extract structured analysis. Output strict JSON:
       "processing_depth": "concept|memory|operation", // optional; default concept
       "is_immutable": false,               // optional; default false
       "tags": ["题材/现言", "功能/教程"]      // optional; default []
-      // 受控命名空间: 前缀只能是 题材/ 功能/ 角色/ 事件/ 情绪/ 实体/ 场景阶段/ 状态/ 素材/ 可信度/ 之一,
+      // 受控命名空间: 前缀只能是 题材/ 功能/ 角色/ 事件/ 情绪/ 实体/ 场景阶段/ 状态/ 素材/ 可信度/ 读者群/ 平台/ 之一,
       // 形式为 "前缀/名称" (名称用中文/英文, 不要含空格). 不要使用其它前缀或裸标签(无 /).
+      // 旧英文前缀 (genre/ func/ char/ event/ mood/ entity/ scene_phase/ status/) 已废弃, 禁止输出.
     }}
   ],
   "links_to_existing": ["<slug>"]          // existing wiki pages this references

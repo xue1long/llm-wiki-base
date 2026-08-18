@@ -1,4 +1,4 @@
-﻿"""Phase 1 (2026-08-01 NDG plan): run_ingest split into generate_ingest /
+"""Phase 1 (2026-08-01 NDG plan): run_ingest split into generate_ingest /
 commit_ingest.
 
 Locks in the three invariants of the split:
@@ -12,6 +12,7 @@ Locks in the three invariants of the split:
 """
 from __future__ import annotations
 
+import logging
 import time
 from pathlib import Path
 
@@ -27,7 +28,7 @@ from src.wiki.core.paths import WikiPaths
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.features.relations import Relation
 from src.wiki.storage.ensure import ensure_knowledge_base
-from src.wiki.storage.page_writer import write_page
+from src.wiki.storage.page_writer import read_page, write_page
 
 
 @pytest.fixture(autouse=True)
@@ -636,3 +637,107 @@ async def test_generate_ingest_filters_illegal_relations(tmp_path: Path) -> None
         f"extras illegal relations must be filtered, got {types}"
     )
     assert "references" in types, "legal relation must be preserved"
+
+
+# ---------------------------------------------------------------------------
+# 计划 2026-08-18 Task 3：commit_ingest 统一标签规范化兜底
+# （pages + extra_pages 写盘前统一经过 tag_namespace.normalize_tags）
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_commit_ingest_normalizes_pages_tags(tmp_path: Path) -> None:
+    """Task 3：pages 携带 legacy/非法标签时，落盘前统一规范化。
+
+    ``func/教程`` 映射为 ``功能/教程``、``genre/玄幻`` 映射为 ``题材/玄幻``，
+    并按兼容政策（策略 1）自动补 ``素材/ugc`` + ``可信度/ugc``。
+    """
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "t3-pages.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text("内容", encoding="utf-8")
+
+    now = int(time.time() * 1000)
+    page = WikiPage(
+        id="t3-page", title="T3页", type=PageType.CONCEPT,
+        sources=["raw/sources/t3-pages.md"],
+        body="## 定义\n\n内容。", grade="B",
+        created_at=now, updated_at=now,
+        tags=["func/教程", "genre/玄幻"],
+    )
+    await commit_ingest(paths=paths, source_path=raw, pages=[page],
+                        task_id="kb-t3")
+
+    on_disk = read_page(paths.wiki_concepts / "t3-page.md")
+    assert on_disk.tags == ["功能/教程", "题材/玄幻", "素材/ugc", "可信度/ugc"], (
+        f"commit_ingest must normalize page tags before write, got: {on_disk.tags}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_commit_ingest_normalizes_extra_pages_tags_and_audits(
+        tmp_path: Path, caplog) -> None:
+    """Task 3：extra_pages（存量反向边页）携带 legacy 标签时落盘前规范化。
+
+    无法安全映射的标签（``func/结构``、``genre/平台``）被删除并产生
+    TAG-REMOVED 审计日志；规范化不导致 AtomicContext 回滚（写盘成功）。
+    """
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "t3-extra.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text("内容", encoding="utf-8")
+
+    now = int(time.time() * 1000)
+    page = WikiPage(
+        id="t3-new", title="T3新页", type=PageType.SOURCE,
+        sources=["raw/sources/t3-extra.md"],
+        body="## 摘要\n\n内容。", grade="A",
+        created_at=now, updated_at=now,
+    )
+    extra = WikiPage(
+        id="t3-extra", title="T3存量", type=PageType.CONCEPT,
+        sources=[], body="存量内容。", grade="C",
+        created_at=now, updated_at=now,
+        tags=["func/结构", "genre/平台", "功能/教程"],
+    )
+    with caplog.at_level(logging.WARNING, logger="src.pipeline.ingest"):
+        await commit_ingest(paths=paths, source_path=raw, pages=[page],
+                            extra_pages=[extra], task_id="kb-t3-extra")
+
+    on_disk = read_page(paths.wiki_concepts / "t3-extra.md")
+    # func/结构、genre/平台 值域非法且无法安全映射 → 删除；功能/教程 保留 + 补 mandatory
+    assert on_disk.tags == ["功能/教程", "素材/ugc", "可信度/ugc"], (
+        f"commit_ingest must normalize extra_pages tags, got: {on_disk.tags}"
+    )
+    # 审计日志记录 removal（页面 id + 原标签，不含凭据）
+    audit_msgs = [r.message for r in caplog.records]
+    assert any("TAG-REMOVED" in m and "t3-extra" in m and "func/结构" in m
+               for m in audit_msgs), (
+        f"audit log must record TAG-REMOVED, got: {audit_msgs}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_commit_ingest_leaves_clean_tags_untouched(tmp_path: Path) -> None:
+    """Task 3：已合规标签页面（含 mandatory）落盘后不变（规范化零副作用）。"""
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "t3-clean.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text("内容", encoding="utf-8")
+
+    now = int(time.time() * 1000)
+    page = WikiPage(
+        id="t3-clean", title="T3干净", type=PageType.CONCEPT,
+        sources=["raw/sources/t3-clean.md"],
+        body="## 定义\n\n内容。", grade="B",
+        created_at=now, updated_at=now,
+        tags=["题材/玄幻", "素材/ugc", "可信度/ugc"],
+    )
+    await commit_ingest(paths=paths, source_path=raw, pages=[page],
+                        task_id="kb-t3-clean")
+
+    on_disk = read_page(paths.wiki_concepts / "t3-clean.md")
+    assert on_disk.tags == ["题材/玄幻", "素材/ugc", "可信度/ugc"]

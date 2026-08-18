@@ -16,6 +16,7 @@ Plan 27 (2026-07-26 wiki v2.3 schema) changes:
 This module is the single source of truth for wiki template enforcement.
 See docs/superpowers/plans/2026-07-26-wiki-schema-v23.md.
 """
+import difflib
 import logging
 import re
 from pathlib import Path
@@ -31,6 +32,7 @@ from ..wiki.features.tag_namespace import (
     TAG_PREFIXES,
     build_tag_prompt_section,
     is_valid_value,
+    normalize_tags,
 )
 from ..wiki.core.types import PageType, WikiPage
 from ..wiki.schema_registry import SchemaRegistry
@@ -773,7 +775,7 @@ async def unified_generate(
     return pages
 
 
-def _resolve_page_tags_unified(page: dict) -> list[str]:
+def _resolve_page_tags_unified(page: dict, *, source_kind: str | None = None) -> list[str]:
     """Resolve tags for the unified path (no analyzer fallback).
 
     Normalizes to the write_page gate: value-invalid tags are dropped and
@@ -785,25 +787,24 @@ def _resolve_page_tags_unified(page: dict) -> list[str]:
         raw = [raw]
     if not isinstance(raw, (list, tuple)):
         return []
-    return _normalize_tags(raw)
+    return _normalize_tags(raw, source_kind=source_kind)
 
 
-def _normalize_tags(tags: list) -> list[str]:
-    """Enforce the tag namespace invariant the write_page gate expects.
+def _normalize_tags(tags: list, *, source_kind: str | None = None,
+                    source_path: str | None = None) -> list[str]:
+    """Compatibility wrapper around the single tag normalizer.
 
-    ``validate_tag_compliance`` (src/wiki/features/tag_namespace.py) rejects
-    value-domain violations (e.g. ``题材/穿越`` — 穿越 not in the 题材 domain)
-    and missing mandatory pairs (``素材/ugc``, ``可信度/ugc``) once a page
-    carries any tag. Drop value-invalid tags and append any missing mandatory
-    pairs so the result always passes the gate; empty input stays empty.
+    Logs mapping / removal / mandatory-add so tag normalization at the
+    generator boundary stays auditable (plan 2026-08-18 Task 2).
     """
-    valid = [t for t in tags if isinstance(t, str) and is_valid_value(t)]
-    if valid:
-        for prefix, value in MANDATORY_PAIRS:
-            mandatory = f"{prefix}/{value}"
-            if mandatory not in valid:
-                valid.append(mandatory)
-    return valid
+    result = normalize_tags(tags, source_kind=source_kind,
+                            source_path=source_path)
+    if result.mapped or result.removed or result.mandatory_added:
+        _logger.warning(
+            "[generator] tag normalization: mapped=%s removed=%s mandatory_added=%s",
+            result.mapped, result.removed, result.mandatory_added,
+        )
+    return result.tags
 
 
 # ---------------------------------------------------------------------------
@@ -1632,6 +1633,11 @@ async def generate(
         # whose slugified form matches a known source-page slug.
         if source_slug_map and body_md:
             _known_source_slugs: set[str] = set(source_slug_map.values())
+            _source_stems = {
+                Path(raw_path).stem: real_slug
+                for raw_path, real_slug in source_slug_map.items()
+            }
+
             def _replace_broken_source_wikilink(m: object, _slugs=_known_source_slugs) -> str:  # noqa: B023
                 target = m.group(1).split("|")[0].split("#")[0].strip()
                 canon = _slugify(target) or target
@@ -1639,6 +1645,21 @@ async def generate(
                     if (_slugify(real_slug) or real_slug) == canon:
                         alias = m.group(1)[len(target):]  # |alias or #fragment
                         return f"[[{real_slug}{alias}]]"
+
+                # Repair a narrow historical drift: a source wikilink may
+                # retain an old 8-char hash while its title loses a word.
+                # Only rewrite when it closely matches exactly one current
+                # raw stem; ordinary concepts remain untouched.
+                target_base = re.sub(r"-[0-9a-f]{8}$", "", target)
+                if target_base != target and _source_stems:
+                    matches = [
+                        (stem, real_slug)
+                        for stem, real_slug in _source_stems.items()
+                        if difflib.SequenceMatcher(None, target_base, stem).ratio() >= 0.88
+                    ]
+                    if len(matches) == 1:
+                        alias = m.group(1)[len(target):]
+                        return f"[[{matches[0][1]}{alias}]]"
                 return m.group(0)
             body_md = re.sub(r"\[\[(.*?)\]\]", _replace_broken_source_wikilink, body_md)
 

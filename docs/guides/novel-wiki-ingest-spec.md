@@ -77,7 +77,7 @@ raw/
 
 > 落实 UGC 可信度要求：用 `可信度/ugc` 强制标注，Lint 可校验（F6/H3）。
 
-> **2026-08-01 前缀中文化**：10 个前缀已全部改为中文（题材/功能/角色/事件/情绪/实体/场景阶段/状态/素材/可信度），`TAG_PREFIXES`、Generator/Analyzer 提示词、JSON schema 描述、`wiki-spec.md` 均已同步（355+ 测试通过）。**现有页面中的旧英文前缀 tags（如 `genre/玄幻`）暂不迁移**——它们现在会被 `tags validate` 标记为违规、并被 tag 索引静默忽略，待后续统一清理（迁移脚本改写或容忍期结束后删除）。
+> **2026-08-01 前缀中文化**：12 个前缀已全部改为中文（题材/功能/角色/事件/情绪/实体/场景阶段/状态/素材/可信度/读者群/平台），`TAG_PREFIXES`、Generator/Analyzer 提示词、JSON schema 描述、`wiki-spec.md` 均已同步（355+ 测试通过）。**旧英文前缀 tags（如 `genre/玄幻`）为 legacy**——由唯一规范化器 `tag_namespace.normalize_tags` 在 Generator / `commit_ingest`（pages + extra_pages）/ `cleanup_invalid_tags.py` 边界统一处理：可确定映射的自动映射（`func/教程` → `功能/教程`），无法安全映射的删除并记录审计（计划 `docs/superpowers/plans/2026-08-18-tag-normalization-remediation.md`）。
 
 ### 元数据承接（补回原方案 frontmatter 模板字段）
 

@@ -162,9 +162,10 @@ def normalize_tags(
     """Normalize tags at a deterministic pipeline boundary.
 
     Legacy prefixes are mapped when the mapping is unambiguous. Unknown
-    prefixes and invalid values are removed with warnings. UGC mandatory
-    tags are added only when ``source_kind == 'ugc'``; this avoids treating
-    every tagged concept as UGC merely because it has any tag.
+    prefixes and invalid values are removed with warnings. For backwards
+    compatibility with the current project Gate, configured mandatory pairs
+    are added whenever at least one valid tag remains. ``source_kind`` is
+    retained for the planned source-aware policy transition.
     """
     mapped: dict[str, str] = {}
     removed: list[str] = []
@@ -188,8 +189,8 @@ def normalize_tags(
         if candidate not in result:
             result.append(candidate)
     mandatory_added: list[str] = []
-    if source_kind == "ugc":
-        for prefix, value in (("素材", "ugc"), ("可信度", "ugc")):
+    if result:
+        for prefix, value in MANDATORY_PAIRS:
             mandatory = f"{prefix}/{value}"
             if mandatory not in result:
                 result.append(mandatory)
@@ -263,4 +264,8 @@ def build_tag_prompt_section() -> str:
     if MANDATORY_PAIRS:
         mandatory = [f"`{p}/{v}`" for p, v in MANDATORY_PAIRS]
         lines.append(f"\nMandatory tags (must be present): {', '.join(mandatory)}")
+    lines.append(
+        "\nLegacy English prefixes (genre/, func/, char/, event/, mood/, "
+        "entity/, scene_phase/, status/) are FORBIDDEN — never emit them."
+    )
     return "\n".join(lines)
