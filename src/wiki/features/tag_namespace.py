@@ -1,11 +1,14 @@
-"""Validate wiki page tags use controlled namespace prefixes.
+"""Validate and normalize wiki page tags.
 
 Prefixes are defined in TAG_PREFIXES. For high-frequency prefixes,
 TAG_VALUES constrains the allowed suffix values (None = free-form).
-MANDATORY_PAIRS lists prefix:value pairs that MUST be present in every
-tag set — configurable per project.
+MANDATORY_PAIRS lists prefix:value pairs that may be required by policy.
+
+The public ``normalize_tags`` function is the single normalization
+boundary used by ingestion, commit, cleanup and Gate code.
 """
 
+from dataclasses import dataclass, field
 from typing import Iterable
 
 # ---------------------------------------------------------------------------
@@ -30,6 +33,27 @@ TAG_PREFIXES: dict[str, str] = {
 # ---------------------------------------------------------------------------
 # Value domain constraints (None = free-form, any value allowed)
 # ---------------------------------------------------------------------------
+
+@dataclass
+class TagNormalizationResult:
+    tags: list[str]
+    mapped: dict[str, str] = field(default_factory=dict)
+    removed: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    mandatory_added: list[str] = field(default_factory=list)
+
+
+LEGACY_PREFIX_MAP: dict[str, str] = {
+    "genre": "题材",
+    "func": "功能",
+    "char": "角色",
+    "event": "事件",
+    "mood": "情绪",
+    "entity": "实体",
+    "scene_phase": "场景阶段",
+    "status": "状态",
+}
+
 
 TAG_VALUES: dict[str, set[str] | None] = {
     "题材": {"现言", "古言", "玄幻", "仙侠", "科幻", "悬疑", "都市", "校园", "职场", "历史", "武侠", "军事"},
@@ -127,6 +151,58 @@ def missing_mandatory_tags(tags: Iterable[str]) -> list[str]:
         if tag not in tag_set:
             missing.append(tag)
     return missing
+
+
+def normalize_tags(
+    tags: Iterable[str] | None,
+    *,
+    source_kind: str | None = None,
+    source_path: str | None = None,
+) -> TagNormalizationResult:
+    """Normalize tags at a deterministic pipeline boundary.
+
+    Legacy prefixes are mapped when the mapping is unambiguous. Unknown
+    prefixes and invalid values are removed with warnings. UGC mandatory
+    tags are added only when ``source_kind == 'ugc'``; this avoids treating
+    every tagged concept as UGC merely because it has any tag.
+    """
+    mapped: dict[str, str] = {}
+    removed: list[str] = []
+    warnings: list[str] = []
+    result: list[str] = []
+    for raw in tags or []:
+        if not isinstance(raw, str) or not raw.strip():
+            if raw not in (None, ""):
+                removed.append(str(raw))
+            continue
+        tag = raw.strip()
+        parsed = tag.split("/", 1)
+        candidate = tag
+        if len(parsed) == 2 and parsed[0] in LEGACY_PREFIX_MAP:
+            candidate = f"{LEGACY_PREFIX_MAP[parsed[0]]}/{parsed[1]}"
+            mapped[tag] = candidate
+        if not is_valid_value(candidate):
+            removed.append(tag)
+            warnings.append(f"removed invalid tag: {tag}")
+            continue
+        if candidate not in result:
+            result.append(candidate)
+    mandatory_added: list[str] = []
+    if source_kind == "ugc":
+        for prefix, value in (("素材", "ugc"), ("可信度", "ugc")):
+            mandatory = f"{prefix}/{value}"
+            if mandatory not in result:
+                result.append(mandatory)
+                mandatory_added.append(mandatory)
+    if source_path and warnings:
+        warnings = [f"{source_path}: {item}" for item in warnings]
+    return TagNormalizationResult(
+        tags=result,
+        mapped=mapped,
+        removed=removed,
+        warnings=warnings,
+        mandatory_added=mandatory_added,
+    )
 
 
 # ---------------------------------------------------------------------------
