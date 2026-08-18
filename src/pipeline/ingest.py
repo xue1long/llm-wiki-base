@@ -296,6 +296,15 @@ def finalize_generated_page(page: WikiPage, paths: WikiPaths, *,
         page.created_at = now
     if not page.updated_at:
         page.updated_at = now
+    # Task 4：relation 元数据归一化 —— weight 有限且 clamp 到 [0,1]
+    for rel in (page.relations or []):
+        try:
+            w = float(rel.weight)
+        except (TypeError, ValueError):
+            w = 1.0
+        if w != w or w < 0.0 or w > 1.0:  # NaN 或越界 → 默认 1.0
+            w = 1.0
+        rel.weight = round(w, 4)
     return page
 
 

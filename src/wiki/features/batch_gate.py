@@ -178,7 +178,8 @@ def _wikilink_targets_of(page) -> list[str]:
 
 
 def _gate_reconcile(pages, extra_pages, paths: WikiPaths,
-                    pending_gap_slugs: set[str] | None = None) -> list[str]:
+                    pending_gap_slugs: set[str] | None = None,
+                    resolution_context=None) -> list[str]:
     """对账（M1）：批内页 wikilink/relation 目标 vs 磁盘 ∪ 别名 ∪ 索引 ∪ gap。
 
     gap 已登记（open/suppressed）的目标不计断链（F2 语义）。批内产生的页
@@ -187,6 +188,10 @@ def _gate_reconcile(pages, extra_pages, paths: WikiPaths,
     ``pending_gap_slugs``（修复 A）：本批 generate 已采集、尚未落盘的 gap
     slug——并入豁免集（磁盘 gap 账本在 commit 时才写入，门禁在 commit 前
     运行；不并入则本批新 gap 全部误判 BROKEN-LINK 拦批）。
+
+    ``resolution_context``（Task 5）：未解析目标经统一 resolver 判别多候选
+    → ``TARGET-AMBIGUOUS``（可诊断），否则 ``BROKEN-LINK``。确定性失败不
+    受 pending gap 豁免。
 
     extras（存量 reverse-touch 页）不参与断链判定（修复 B：存量断链是
     M1 历史遗留，由 Phase 4 cascade 重建消解；extras 仅作 produced 目标）。
@@ -222,6 +227,17 @@ def _gate_reconcile(pages, extra_pages, paths: WikiPaths,
             tn = normalize_reconcile_slug(canon)
             if target in produced or tn in known_norm:
                 continue
+            # Task 5：统一 resolver 判别放在 gap 豁免之前 —— 确定性失败
+            # （多候选）不被 pending_gap_slugs 业务缺口豁免。
+            if resolution_context is not None:
+                from src.wiki.features.target_resolver import resolve_wiki_target
+                res = resolve_wiki_target(target, context=resolution_context)
+                if res.kind == "ambiguous":
+                    errs.append(
+                        f"TARGET-AMBIGUOUS: {p.id} -> [[{target}]] "
+                        f"candidates={res.candidates}"
+                    )
+                    continue
             if target in gap_slugs or tn in gap_norm:
                 continue
             errs.append(f"BROKEN-LINK: {p.id} -> [[{target}]]")
@@ -234,7 +250,8 @@ def _gate_reconcile(pages, extra_pages, paths: WikiPaths,
 
 def run_precommit_gate(pages, extra_pages, raw_headers, paths: WikiPaths,
                        allow_overwrite=False,
-                       pending_gap_slugs: set[str] | None = None
+                       pending_gap_slugs: set[str] | None = None,
+                       resolution_context=None
                        ) -> tuple[bool, list[str]]:
     """pre-commit 门禁：NDG + fields + tags + lint + 对账（失败 = 零写入）。
 
@@ -250,6 +267,12 @@ def run_precommit_gate(pages, extra_pages, raw_headers, paths: WikiPaths,
     （旧 2.0.0 英文 tag / 历史断链是 M8/M1 消解范围，按 phase3_accept
     口径不计入批内 M1/M4/M9 判定）——fields/tags/lint 只查本批新产出
     ``pages``；extras 仅作为对账的已知目标（produced 集合），自身不拦批。
+
+    ``resolution_context``（Task 5）：整批 source 候选的
+    :class:`~src.wiki.features.target_resolver.ResolutionContext`。未解析
+    目标经统一 resolver 二次判别：多候选 → ``TARGET-AMBIGUOUS``（可诊断
+    阻断），否则保持 ``BROKEN-LINK``。确定性 resolver 失败绝不被
+    ``pending_gap_slugs`` 豁免。
     """
     from src.wiki.features.ndg_gate import run_ndg_gate
 
@@ -271,6 +294,7 @@ def run_precommit_gate(pages, extra_pages, raw_headers, paths: WikiPaths,
         issues.extend(f"TAG-ENUM {e} [{p.id}]" for e in _gate_tags(p))
         issues.extend(f"{e}" for e in _gate_lint(p, paths))
     issues.extend(_gate_reconcile(pages, extra_pages, paths,
-                                  pending_gap_slugs=pending_gap_slugs))
+                                  pending_gap_slugs=pending_gap_slugs,
+                                  resolution_context=resolution_context))
 
     return not issues, issues

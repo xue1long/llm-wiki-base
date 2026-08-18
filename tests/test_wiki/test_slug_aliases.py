@@ -152,3 +152,47 @@ def test_registry_overwrite_canonical_reassigns_reverse(tmp_path):
     assert reg.get_canonical("qi-dai-gan") == "dushi-xianxia-liu"
     assert reg.has_aliases_for("qi-dai-gan-chuangzuo") == []
     assert reg.has_aliases_for("dushi-xianxia-liu") == ["qi-dai-gan"]
+
+
+# ---------------------------------------------------------------------------
+# Task 4：有界链解析 + 环/自环 fail-closed
+# ---------------------------------------------------------------------------
+
+
+def test_alias_chain_resolves_to_terminal(tmp_path):
+    """A→B→C：get_canonical(A) 返回终点 C（不返回中间 B）。"""
+    ensure_knowledge_base(tmp_path)
+    reg = SlugAliasRegistry(tmp_path)
+    reg.add("a", "b")
+    reg.add("b", "c")
+    assert reg.get_canonical("a") == "c"
+
+
+def test_alias_self_loop_rejected_and_fail_closed(tmp_path):
+    """add 拒绝自环；手工构造的自环在解析时 fail-closed 返回 None。"""
+    ensure_knowledge_base(tmp_path)
+    reg = SlugAliasRegistry(tmp_path)
+    reg.add("a", "a")
+    assert "a" not in reg.aliases  # self-loop rejected
+    # 手工写入自环（模拟磁盘脏数据）
+    reg.aliases["loop"] = "loop"
+    assert reg.get_canonical("loop") is None
+
+
+def test_alias_cycle_fail_closed(tmp_path):
+    """A→B、B→A 成环 → get_canonical(A) 返回 None（不无限循环）。"""
+    ensure_knowledge_base(tmp_path)
+    reg = SlugAliasRegistry(tmp_path)
+    reg.add("a", "b")
+    reg.add("b", "a")
+    assert reg.get_canonical("a") is None
+    assert reg.get_canonical("b") is None
+
+
+def test_alias_depth_cap_fail_closed(tmp_path):
+    """超过 _MAX_ALIAS_DEPTH 的链 → 返回 None。"""
+    ensure_knowledge_base(tmp_path)
+    reg = SlugAliasRegistry(tmp_path)
+    for i in range(12):
+        reg.add(f"a{i}", f"a{i+1}")
+    assert reg.get_canonical("a0") is None  # 11 跳 > 8 上限

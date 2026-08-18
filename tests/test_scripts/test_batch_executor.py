@@ -428,6 +428,73 @@ def test_gate_rejects_placeholder_and_illegal_relation(gate_wiki) -> None:
     assert any("LINT-ILLEGAL-RELATION" in i for i in issues)
 
 
+def test_gate_emits_target_ambiguous_for_multi_candidate(gate_wiki) -> None:
+    """Task 5：未解析目标经统一 resolver 判别多候选 → TARGET-AMBIGUOUS
+    （可诊断阻断），且不受 pending_gap_slugs 豁免。"""
+    import sys as _sys
+    if str(REPO_ROOT) not in _sys.path:
+        _sys.path.insert(0, str(REPO_ROOT))
+    from src.wiki.features.batch_gate import run_precommit_gate
+    from src.wiki.features.target_resolver import ResolutionContext
+    from src.wiki.core.types import WikiPage, PageType
+    from src.wiki.core.paths import WikiPaths
+
+    # 同 stem 不同目录的两个 source 候选 → 歧义
+    ctx = ResolutionContext(source_candidates=(
+        ("raw/sources/a/入门教程角色篇完善小说角色的技法.md",
+         "入门教程角色篇完善小说角色的技法-abcdef12",
+         "入门教程角色篇完善小说角色的技法"),
+        ("raw/sources/b/入门教程角色篇完善小说角色的技法.md",
+         "入门教程角色篇完善小说角色的技法-34567890",
+         "入门教程角色篇完善小说角色的技法"),
+    ))
+    page = WikiPage(
+        id="amb-1", title="歧义页", type=PageType.CONCEPT,
+        sources=["raw/sources/a.md"], processing_depth="concept", grade="B",
+        body="<!-- wiki-template-version: 2.0.0 -->\n\n## 定义\n\n内容\n\n"
+             "## 例子\n\n[[入门教程角色篇完善小说的技法-e8ca1866]]\n",
+    )
+    paths = WikiPaths(gate_wiki)
+    passed, issues = run_precommit_gate(
+        [page], [], {}, paths,
+        pending_gap_slugs={"入门教程角色篇完善小说的技法-e8ca1866"},
+        resolution_context=ctx,
+    )
+    assert not passed
+    assert any("TARGET-AMBIGUOUS" in i and "amb-1" in i for i in issues), issues
+    # 确定性 resolver 失败不被 pending_gap 豁免
+    assert not any("BROKEN-LINK" in i for i in issues)
+
+
+def test_gate_unresolved_stays_broken_link(gate_wiki) -> None:
+    """Task 5：单候选无法解析 → 仍为 BROKEN-LINK（阻断，不误判 ambiguous）。"""
+    import sys as _sys
+    if str(REPO_ROOT) not in _sys.path:
+        _sys.path.insert(0, str(REPO_ROOT))
+    from src.wiki.features.batch_gate import run_precommit_gate
+    from src.wiki.features.target_resolver import ResolutionContext
+    from src.wiki.core.types import WikiPage, PageType
+    from src.wiki.core.paths import WikiPaths
+
+    ctx = ResolutionContext(source_candidates=(
+        ("raw/sources/入门教程角色篇完善小说角色的技法.md",
+         "入门教程角色篇完善小说角色的技法-abcdef12",
+         "入门教程角色篇完善小说角色的技法"),
+    ))
+    page = WikiPage(
+        id="brk-1", title="断链页", type=PageType.CONCEPT,
+        sources=["raw/sources/a.md"], processing_depth="concept", grade="B",
+        body="<!-- wiki-template-version: 2.0.0 -->\n\n## 定义\n\n内容\n\n"
+             "## 例子\n\n[[完全无关概念-12345678]]\n",
+    )
+    paths = WikiPaths(gate_wiki)
+    passed, issues = run_precommit_gate(
+        [page], [], {}, paths, resolution_context=ctx)
+    assert not passed
+    assert any("BROKEN-LINK" in i and "brk-1" in i for i in issues), issues
+    assert not any("TARGET-AMBIGUOUS" in i for i in issues)
+
+
 def test_gate_accepts_valid_tags_and_rejects_invalid(gate_wiki) -> None:
     import sys as _sys
     if str(REPO_ROOT) not in _sys.path:

@@ -781,3 +781,41 @@ async def test_generate_ingest_rewrites_legacy_hash_source_link(tmp_path: Path) 
     ent = by_id["飞书云文档"]
     assert f"[[{src_slug}]]" in ent.body, ent.body
     assert any(r.target_id == src_slug for r in ent.relations), ent.relations
+
+
+# ---------------------------------------------------------------------------
+# 计划 2026-08-18 Task 3：finalize_generated_page 字段 owner 边界
+# ---------------------------------------------------------------------------
+
+
+def test_finalize_generated_page_overrides_system_fields():
+    """Task 3：LLM 提供的非法系统字段由脚本最终裁定。"""
+    from src.pipeline.ingest import finalize_generated_page
+    page = WikiPage(
+        id=" 带空格 ", title=" 标题 ", type=PageType.CONCEPT,
+        grade="Z", processing_depth="bogus", created_at=0, updated_at=0,
+        body="b", custom_type="",
+    )
+    finalize_generated_page(page, WikiPaths("."), now=123)
+    assert page.id == "带空格"
+    assert page.title == "标题"
+    assert page.grade == "B"
+    assert page.processing_depth == "concept"
+    assert page.created_at == 123
+    assert page.updated_at == 123
+    # 已有时间戳不被覆盖（reingest 保留首次创建时间）
+    page2 = WikiPage(id="a", title="A", type=PageType.CONCEPT,
+                     created_at=111, updated_at=222)
+    finalize_generated_page(page2, WikiPaths("."), now=999)
+    assert page2.created_at == 111
+    assert page2.updated_at == 222
+    # Task 4：relation weight 归一化（越界/NaN → 1.0，合法值保留）
+    from src.wiki.features.relations import Relation
+    page3 = WikiPage(id="w", title="W", type=PageType.CONCEPT)
+    page3.relations = [
+        Relation(target_id="x", type="references", weight=5.0),
+        Relation(target_id="y", type="references", weight=float("nan")),
+        Relation(target_id="z", type="references", weight=0.3),
+    ]
+    finalize_generated_page(page3, WikiPaths("."), now=1)
+    assert [r.weight for r in page3.relations] == [1.0, 1.0, 0.3]

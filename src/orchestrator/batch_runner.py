@@ -805,10 +805,27 @@ async def run_batch(args) -> int:
     # extras 是存量 reverse-touch 页（历史非法 relation/旧英文 tag 属
     # M8/M9 消解范围），pre-commit 已豁免，整批复核必须同口径（修复 E）。
     batch_page_ids = sorted({p.id for p in all_pages})
+    # Task 5：整批 source 候选 → Gate 对账的 ResolutionContext
+    # （未解析目标多候选 → TARGET-AMBIGUOUS 可诊断）。
+    from src.utils.path import canonical_raw_key
+    from src.wiki.features.target_resolver import ResolutionContext
+    _src_candidates = []
+    for raw in pending:
+        if raw not in generated:
+            continue
+        _slug = (generated[raw][2] or {}).get("source_slug")
+        if _slug:
+            _src_candidates.append(
+                (canonical_raw_key(raw, paths.root), _slug, Path(raw).stem))
+    _gate_res_ctx = (
+        ResolutionContext(source_candidates=tuple(_src_candidates))
+        if _src_candidates else None
+    )
     gate_ok, gate_issues = run_precommit_gate(
         all_pages, all_extras, raw_headers, paths,
         allow_overwrite=args.allow_overwrite,
-        pending_gap_slugs=pending_gap_slugs)
+        pending_gap_slugs=pending_gap_slugs,
+        resolution_context=_gate_res_ctx)
     if not gate_ok:
         print(f"BATCH BLOCKED: pre-commit gate failed — zero wiki writes "
               f"({len(gate_issues)} issue(s))", flush=True)

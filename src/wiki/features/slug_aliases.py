@@ -28,6 +28,7 @@ from ...lib.write_hooks import safe_write
 
 _ALIAS_FILE = "slug_aliases.json"
 _SCHEMA_VERSION = 1
+_MAX_ALIAS_DEPTH = 8  # Task 4：有界链解析深度上限（环/超深 fail-closed）
 
 
 def _resolve_project_root(project_root: Union[str, Path, os.PathLike]) -> str:
@@ -88,9 +89,11 @@ class SlugAliasRegistry:
         """Register ``alias`` → ``canonical``. If ``alias`` was already
         registered (possibly pointing to a different canonical), its
         reverse entry is updated accordingly so the reverse index
-        never lies.
+        never lies. Self-loops (``alias == canonical``) are rejected.
         """
         if not alias or not canonical:
+            return
+        if alias == canonical:
             return
         previous_canonical = self.aliases.get(alias)
         # If alias was previously pointing elsewhere, drop it from old
@@ -114,12 +117,26 @@ class SlugAliasRegistry:
 
     # ── Queries ──────────────────────────────────────────────────
     def get_canonical(self, alias: str) -> str | None:
-        """Forward lookup. Returns the canonical slug for ``alias``,
-        or None if no alias is registered. The return value is the
-        canonical page id; the caller is responsible for checking
-        whether that page actually exists on disk.
+        """Forward lookup with bounded chain resolution (Task 4).
+
+        Follows alias → canonical chains up to :data:`_MAX_ALIAS_DEPTH`
+        hops. Returns the terminal canonical, or ``None`` when the alias
+        is unregistered, self-looping, part of a cycle, or the chain
+        exceeds the depth cap (fail-closed — never loops forever).
         """
-        return self.aliases.get(alias)
+        if alias not in self.aliases:
+            return None
+        seen: set[str] = set()
+        cur = alias
+        for _ in range(_MAX_ALIAS_DEPTH):
+            nxt = self.aliases.get(cur)
+            if nxt is None:
+                return cur
+            if nxt == cur or nxt in seen:
+                return None  # self-loop / cycle
+            seen.add(nxt)
+            cur = nxt
+        return None  # depth cap exceeded
 
     def has_aliases_for(self, canonical: str) -> list[str]:
         """Reverse lookup. Returns the list of aliases that point to
