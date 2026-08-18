@@ -68,13 +68,11 @@ class AtomicContext:
 
         from . import write_hooks
 
-        bucket = write_hooks._current_bucket()
-
         # Audit fix (C1): an exception raised in the body MUST NOT commit
         # buffered writes. Discard the pending bucket so partial state is
         # not flushed. The body's exception continues to propagate.
         if exc_type is not None:
-            bucket.clear()
+            write_hooks._current_bucket().clear()
             local.suspended = False
             return False
 
@@ -82,27 +80,14 @@ class AtomicContext:
         if not (self._is_outer and self._flush_callback):
             return False
 
-        # Snapshot and clear only THIS thread's pending-writes bucket. Other
-        # threads' buckets are untouched; their AtomicContext exit will flush
-        # them. See src/lib/write_hooks.py for the per-thread design.
-        pending = list(bucket.items())
-        bucket.clear()
-
-        # Flush the captured batch one path at a time so a failed write does
-        # not prevent the remaining paths from reaching disk. The bucket is
-        # already clear, so callback failures cannot leak writes.
-        for path, content in pending:
-            try:
-                write_hooks.safe_write(path, content)
-            except Exception:
-                _logger.exception("atomic flush write failed for %s", path)
-        try:
-            self._flush_callback()
-        except Exception as e:
-            _logger.error(f"[AtomicContext] flush_callback failed: {e}")
-            # Docstring contract: "flush failures logged but never raised from
-            # __exit__". A body exception already wins the propagation slot, so
-            # we must swallow callback failures unconditionally to honour it.
+        # R3 (audit A-02): flush failures must NOT be swallowed. The batch
+        # is attempted path-by-path (so one bad path does not starve the
+        # rest); flush_pending_writes raises AtomicCommitError with the
+        # aggregated failed-path list, which propagates to the caller so
+        # the task can be marked FAILED. The flush_callback failure is also
+        # propagated (no more log-and-ignore).
+        write_hooks.flush_pending_writes()
+        self._flush_callback()
         return False
 
 
