@@ -1201,6 +1201,16 @@ async def commit_ingest(
     if triage_result is not None:
         write_triage_result(paths, triage_result)
 
+    # R7: Wiki committed successfully — record vector-pending entries so
+    # a later upsert failure is discoverable and retryable (derived state
+    # never silently drifts from the source of truth).
+    try:
+        from ..vector.pending import mark_pending
+        mark_pending(paths, pages + _extra)
+    except Exception:
+        _logger.warning("[commit_ingest] vector pending mark failed (non-fatal)",
+                        exc_info=True)
+
     # 1.3 O6：未解析引用 → gap 账本（原子写，继承 blocklist/上限/doc-title 过滤）。
     if missing_slugs:
         from ..wiki.features.knowledge_gaps import KnowledgeGapStore

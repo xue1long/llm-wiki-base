@@ -817,9 +817,19 @@ async def run_batch(args) -> int:
         try:
             upserted = await _upsert_batch_vectors(paths, all_pages)
             print(f"  [vector] upserted {upserted} chunk(s)", flush=True)
+            # R7: vectors committed — clear the pending ledger for this
+            # batch's pages so they are no longer marked for re-indexing.
+            try:
+                from ..vector.pending import clear_pending
+                cleared = clear_pending(paths, [p.id for p in all_pages])
+                if cleared:
+                    print(f"  [vector] cleared {cleared} pending entr(ies)", flush=True)
+            except Exception as _pe:
+                print(f"  [vector] WARN pending clear failed: {_pe}", flush=True)
         except Exception as exc:
             print(f"  [vector] WARN upsert failed (search degrade): {exc}",
                   flush=True)
+            # Pending entries remain → startup / CLI reconcile will retry.
 
     # ── 整批门禁复核（C4：崩溃后续跑对整批——含已 done 文件——重跑门禁，
     #    杜绝门禁作用域收缩）──────────────────────────────────────────

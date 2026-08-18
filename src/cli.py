@@ -72,6 +72,7 @@ from .cli_ext.wiki_polish_cmd import (
     cmd_lint_cache_clear, cmd_lint,
 )
 from .cli_ext.auth_token_cmd import add_auth_token_parser
+from .cli_ext.vector_cmd import add_vector_parser
 
 logging.basicConfig(
     level=logging.INFO,
@@ -357,6 +358,9 @@ def main():
 
     # R1: bearer-token management for the HTTP management surface
     add_auth_token_parser(subparsers)
+
+    # R7: vector-pending compensation (reconcile / status)
+    add_vector_parser(subparsers)
 
     # MCP (stdio Model Context Protocol server)
     p_mcp = subparsers.add_parser("mcp", help="Start stdio MCP server")

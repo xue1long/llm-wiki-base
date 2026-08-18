@@ -164,6 +164,30 @@ def create_app() -> FastAPI:
             except Exception as e:
                 _logger.warning("[startup] vector store init failed: %s", e)
 
+            # R7: crash-recovery safety net — mark wiki pages missing from
+            # the vector table as pending so a later reconcile (CLI or
+            # server-side) re-indexes them. Best-effort; never fails boot.
+            try:
+                from ..vector.pending import scan_wiki_vector_diff
+                from ..vector.store import get_table
+                from ..wiki.core.paths import WikiPaths
+                _paths = WikiPaths(project_root)
+                _table = get_table(_paths)
+                if _table is not None:
+                    try:
+                        _ids = [r["id"] for r in _table.to_pandas().to_dict("records")] \
+                            if hasattr(_table, "to_pandas") else []
+                        _added = scan_wiki_vector_diff(_paths, _table, _ids)
+                        if _added:
+                            _logger.info(
+                                "[startup] vector-pending scan: %d wiki page(s) "
+                                "marked for re-indexing", _added,
+                            )
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
             # R15: warn at startup when the provider registry file is
             # world/group-accessible (it holds plaintext API keys). Advisory
             # only — never fails boot.
