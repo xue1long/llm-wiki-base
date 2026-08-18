@@ -14,7 +14,8 @@
       "slug": "yy",
       "raw_hint": "raw/sources/01_新手入门/入门教程写作要点.md",
       "referenced_by": [
-        "入门教程写作要点-3db22009"
+        "入门教程写作要点-3db22009",
+        "代入感"
       ],
       "created_at": 1786951018682,
       "status": "open"
@@ -241,6 +242,15 @@
         "写作必要性"
       ],
       "created_at": 1786949007030,
+      "status": "open"
+    },
+    {
+      "slug": "写作心态",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料新人经验如何选择适合自己的题材1.md",
+      "referenced_by": [
+        "跟风写作戒律"
+      ],
+      "created_at": 1787076064548,
       "status": "open"
     },
     {
@@ -878,6 +888,15 @@
         "古典仙侠"
       ],
       "created_at": 1786868640711,
+      "status": "open"
+    },
+    {
+      "slug": "死也比废人强前六章片段",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料新书.md",
+      "referenced_by": [
+        "废人逆袭-从受辱弱者到超常主角"
+      ],
+      "created_at": 1787076064272,
       "status": "open"
     },
     {

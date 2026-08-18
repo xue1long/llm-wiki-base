@@ -22,7 +22,7 @@
 | Phase 1 平台改造 | ✅ 10/10 | 见 handoff（1.1–1.9） |
 | **Phase 2 场景模板落地** | ✅ 2/2 | schema/purpose/taxonomy/taxonomy_tags 落盘 + 模板确认 |
 | **Phase 3 实测首轮** | ✅ **达标** | 首批 batch_001 全指标过（2026-08-16，含 10 个修复 commit） |
-| **Phase 4 全量分批重摄入** | 🔄 进行中 | **batch 1-12 已 committed（240/240 raw）**；batch 13-68 待跑（batch 0 孤儿 gap-raw 保留 postcheck_failed） |
+| **Phase 4 全量分批重摄入** | 🔄 进行中 | **batch 1-13 已 committed（260/260 raw）**；batch 14-68 待跑（batch 0 孤儿 gap-raw 保留 postcheck_failed） |
 | Phase 4.5 synthesis 聚合 | ✅ 完成 | **11 页分歧汇聚页全部生成+质量门过**（写作技法/技巧/题材体系/读者与市场/创作原则/平台规则/叙事技巧/心态与职业/案例与素材/小说创作/小说结构） |
 | Phase 5 终验 | ✅ 完成 | **M1-M12 指标表 + 缺口分析 + 挂账清单**；4 项未达标需全量摄入后自动达标，挂账记录于 `.index/batch_reports/phase5_report.md` |
 
@@ -399,3 +399,12 @@ batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首�
 - 生成：total_pages=102 + extras=66，reconcile 收敛跨文件重复页（飞书云文档/北京圣东方国信科技有限公司/打斗场景气氛渲染/废材流/金手指 等多源合并，higher-grade 优先）；`gate: 71 page(s) PASS (0 issue, 0 blocker)`；commit 71 主页 + 35 reverse-relation extras。
 - 无 NDG-P6 阻断（reconcile 已把 entity 折入 concept/按 wiki 磁盘类型收敛）；taxonomy unknown category 仍为宽松警告。
 - 经验：后续批次（13+）继续沿用 phase4_batch.py 直跑路径。
+
+## Phase 4 批量重摄入续跑（2026-08-19）✅ batch 13 committed
+
+**执行**：`scripts/phase4_batch.py --manifest knowledge/novel-wiki/.index/reingest_backlog.json --batch 13 --project 0ff37d87-... --allow-overwrite --concurrency 3`（01_新手入门，20 raw）
+- 结果：`BATCH DONE ok=20 err=0 pages=106 gate=PASS`，POSTCHECK 全过，batch_13 状态 committed（144 page_ids，20 completed_files）。一次通过，无需重跑。
+- 生成：total_pages=127 + extras=52，elapsed=980s；reconcile 收敛跨文件重复页（飞书云文档/北京圣东方国信科技有限公司/题材选择/跟风写作戒律/作品包装/正文纯净原则 等多源合并，higher-grade 优先）；`gate: 106 page(s) PASS (0 issue, 0 blocker)`；commit 106 主页 + 39 reverse-relation extras。
+- 首跑环境坑：未设 `PYTHONPATH=.` 时 phase4_batch.py 直接 `ModuleNotFoundError: No module named 'src'`（exit 1）；补 `Set-Item Env:PYTHONPATH .` + `Set-Item Env:PYTHONIOENCODING utf-8` 后正常（与脚本 docstring usage 一致）。
+- 已知上限（ponytail）：taxonomy unknown category 仍为宽松警告（不阻断）；4 个 raw 被 sanitizer high_repetition 标记但仍生成成功（rejected=True 仅入库 quarantine 判断，不影响提交）；LLM 偶发 finish_reason=length 截断由重试+auto-fill 兜底。
+- 经验：后续批次（14+）继续沿用 phase4_batch.py 直跑路径，且必须带 PYTHONPATH=.

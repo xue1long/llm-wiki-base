@@ -1,0 +1,49 @@
+---
+id: 必备资料第1章大纲-f9f72ffc
+title: 必备资料第1章大纲
+type: source
+sources:
+- raw/sources/01_新手入门/必备资料第1章大纲.md
+created_at: 1787075994633
+updated_at: 1787075994633
+relations: []
+grade: A
+processing_depth: concept
+is_immutable: false
+heat: 50
+last_used_at: 0
+zombie_since: null
+tags:
+- 素材/ugc
+- 可信度/ugc
+category: 案例与素材
+taxonomy_sub: 作品案例
+related_entities: []
+custom_type: ''
+---
+
+<!-- wiki-template-version: 3.0.0 -->
+<!-- wiki-template-type: source -->
+
+## 来源元数据
+
+来源: 文件路径 raw\sources\01_新手入门\必备资料第1章大纲.md; 格式: Markdown; 下载时间: 见原始文件头部; 发布组织: 未知（可能为网络写作教程）
+
+## 转录质量
+
+人工撰写，可读性高
+
+## 摘要
+
+这份大纲详细介绍了小说《痕印》的世界观设定，包括五印体系、四大隐世家族、修炼等级、主线剧情、分卷大纲等，是一部典型的东方玄幻小说创作蓝图。
+
+## 关键观点
+
+- 小说《痕印》背景为宗派林立、武道为尊的世界，主线为亲情与复仇。
+- 核心设定为五印（天痕印、地痕印、神痕印、王痕印、星痕印），支撑武道世界。
+- 主角肖雪生身世曲折，拥有星痕印和金手指浩剑，逐步成长并找到哥哥。
+- 分卷大纲详细叙述了从家族排挤到决战武道意志的完整故事。
+
+## 可信度声明
+
+UGC来源，来自网络写作教程，可信度一般，但内容完整。

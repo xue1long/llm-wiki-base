@@ -916,3 +916,45 @@
 - **ingest**: `b12` — generated 7 pages from 必备资料教你写作如何写出精彩的科幻小说长篇.md
 ## 2026-08-19T01:42:04.170908
 - **reverse-relation**: `b12` — generated 0 pages from (batch-reconcile)
+## 2026-08-19T02:01:00.438024
+- **ingest**: `b13` — generated 6 pages from 必备资料教你写作如何写出精彩的科幻小说长篇1.md
+## 2026-08-19T02:01:04.153342
+- **ingest**: `b13` — generated 6 pages from 必备资料散文的写作技巧是什么.md
+## 2026-08-19T02:01:04.228829
+- **ingest**: `b13` — generated 11 pages from 必备资料新书.md
+## 2026-08-19T02:01:04.368649
+- **ingest**: `b13` — generated 10 pages from 必备资料新书_b51648.md
+## 2026-08-19T02:01:04.471676
+- **ingest**: `b13` — generated 5 pages from 必备资料新人经验如何选择适合自己的题材.md
+## 2026-08-19T02:01:04.526610
+- **ingest**: `b13` — generated 2 pages from 必备资料新人经验如何选择适合自己的题材1.md
+## 2026-08-19T02:01:04.565023
+- **ingest**: `b13` — generated 1 pages from 必备资料新人经验如何选择适合自己的题材_195dfd.md
+## 2026-08-19T02:01:04.647679
+- **ingest**: `b13` — generated 4 pages from 必备资料新手写小说忌讳的十点1.md
+## 2026-08-19T02:01:04.716706
+- **ingest**: `b13` — generated 4 pages from 必备资料新手写小说忌讳的十点.md
+## 2026-08-19T02:01:04.814496
+- **ingest**: `b13` — generated 6 pages from 必备资料某编辑讲课感谢九月时寒的转发.md
+## 2026-08-19T02:01:04.894375
+- **ingest**: `b13` — generated 6 pages from 必备资料武侠小说教程.md
+## 2026-08-19T02:01:04.992657
+- **ingest**: `b13` — generated 9 pages from 必备资料洪荒中国奇禽异兽总览.md
+## 2026-08-19T02:01:05.056931
+- **ingest**: `b13` — generated 5 pages from 必备资料浏览篇各朝代兵制.md
+## 2026-08-19T02:01:05.111267
+- **ingest**: `b13` — generated 3 pages from 必备资料独家高招小说文章掺水十六法.md
+## 2026-08-19T02:01:05.178219
+- **ingest**: `b13` — generated 5 pages from 必备资料玄幻修真小说升级方式大总结.md
+## 2026-08-19T02:01:05.232684
+- **ingest**: `b13` — generated 3 pages from 必备资料环境描写.md
+## 2026-08-19T02:01:05.274434
+- **ingest**: `b13` — generated 4 pages from 必备资料环境描写_7a4f89.md
+## 2026-08-19T02:01:05.340222
+- **ingest**: `b13` — generated 3 pages from 必备资料空白大纲模板.md
+## 2026-08-19T02:01:05.393135
+- **ingest**: `b13` — generated 8 pages from 必备资料第1章大纲.md
+## 2026-08-19T02:01:05.474873
+- **ingest**: `b13` — generated 5 pages from 必备资料第1章大纲_50ea4b.md
+## 2026-08-19T02:01:05.948940
+- **reverse-relation**: `b13` — generated 0 pages from (batch-reconcile)
