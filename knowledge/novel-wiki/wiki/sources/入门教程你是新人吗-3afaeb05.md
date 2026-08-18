@@ -1,0 +1,71 @@
+---
+id: 入门教程你是新人吗-3afaeb05
+title: 入门教程你是新人吗
+type: source
+sources:
+- raw/sources/01_新手入门/入门教程你是新人吗.md
+created_at: 1786944279258
+updated_at: 1786944279258
+relations:
+- target: 华夏天空青衫-e-组
+  type: contains
+  weight: 1.0
+  context: 文档主体即青衫E组的招募公告
+- target: 华夏天空网站青衫-e-组
+  type: references
+  weight: 1.0
+  context: 该来源文档是该小组发布的招募公告
+- target: 华夏天空-2016-征文新福利
+  type: derives
+  weight: 1.0
+  context: 福利内容直接来自该公告
+- target: 全勤起算时机
+  type: derives
+  weight: 1.0
+  context: 全勤起算时点直接取自该公告
+- target: 网编招募标准
+  type: referenced_by
+  weight: 1.0
+  context: 网编招募标准引自该公告
+grade: A
+processing_depth: concept
+is_immutable: false
+heat: 50
+last_used_at: 0
+zombie_since: null
+tags:
+- 素材/ugc
+- 可信度/ugc
+- 功能/教程
+category: 平台规则
+taxonomy_sub: 全勤与福利
+related_entities: []
+custom_type: ''
+---
+
+<!-- wiki-template-version: 3.0.0 -->
+<!-- wiki-template-type: source -->
+
+## 来源元数据
+
+来源类型：飞书云文档页面；平台：飞书云文档；发布组织：华夏天空青衫一营E组（文档落款），所属飞书租户：北京圣东方国信科技有限公司；URL：https://www.feishu.cn/docx/U9xvd6EEJoI6h1xtEqNc5Ea0nug；下载时间：2026-04-14 13:18:56；任务ID：raw/sources/01_新手入门/入门教程你是新人吗.md
+
+## 转录质量
+
+人工撰写并经飞书云文档导出为 Markdown；可读性评级：A（字段完整、层级清晰，无 OCR 识别问题）
+
+## 摘要
+
+这是华夏天空网站青衫一营E组在“入门教程”系列文档中发布的招募与福利公告：介绍 2016 年征文的女频/男频全勤稿酬、责编一对一指导、上架必上无线、送平板电脑等福利，并招募限定题材作者及十名网编。可作为了解华夏天空平台福利生态和网编计酬方式的参考素材。
+
+## 关键观点
+
+- 女频签约开始算全勤：日更 6000 字全勤 1000 元，日更 10000 字全勤 1500 元；男频上架开始算全勤：日更 8000 字全勤 2000 元，日更 12000 字全勤 3000 元。
+- 2016 年征文新福利还包括责编一对一指导、上架必上无线、送平板电脑。
+- 重点招募男频玄幻、都市暧昧，女频都市总裁文、穿越女强文作者，要求最低日更 6000 字、主流题材阅读量大。
+- 网编招募标准：每天能投入三小时、年满十六岁、热情负责；仅限十名；计酬为普通文 100、高价文 400（具体私戳）。
+- 报名联系方式为 QQ 2191762107。
+
+## 可信度声明
+
+UGC 来源。正文以“华夏天空青衫一营E组宣”落款，属于小组招募宣传而非平台官方规则文件；全勤数额、网编计酬等具体口径需以招募方私聊或平台正式公告为准。

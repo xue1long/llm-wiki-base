@@ -1,12 +1,20 @@
 ---
 id: zzsck
-title: ZZSCK
+title: zzsck
 type: entity
 sources:
-- raw/sources/补充教程写穿越小说角色前要注意的十个问题.md
-created_at: 1786898718789
-updated_at: 1786898718789
-relations: []
+- raw/sources/01_新手入门/入门教程创建角色示例.md
+created_at: 1786945332007
+updated_at: 1786945332007
+relations:
+- target: 中国作者素材库
+  type: is_part_of
+  weight: 1.0
+  context: zzsck 是该网站的域名
+- target: 入门教程创建角色示例-b4332649
+  type: referenced_by
+  weight: 0.6
+  context: 原文网址域名
 grade: C
 processing_depth: concept
 is_immutable: false
@@ -16,9 +24,9 @@ zombie_since: null
 tags:
 - 素材/ugc
 - 可信度/ugc
-- 实体/人物
-category: 心态与职业
-taxonomy_sub: 写作心态
+- 实体/标识
+category: 案例与素材
+taxonomy_sub: 桥段与梗
 related_entities: []
 custom_type: ''
 ---
@@ -28,16 +36,21 @@ custom_type: ''
 
 ## 基本信息
 
-类型：作者/写作教程创作者；归属：未知平台；时代：当代；核心属性：穿越小说教程作者。
+域名；中国作者素材库的网址
 
 ## 简介
 
-ZZSCK疑似为网络写作教程作者或笔名，提供了《写穿越小说角色前要注意的十个问题》等教程，内容聚焦穿越小说创作套路，对网文新手有一定参考价值。
+zzsck 是中国作者素材库的域名缩写，出现在本文档原文地址中（http://www.zzsck.com）。
 
 ## 写作价值
 
-作为教程作者，其总结的十个问题为穿越小说角色塑造提供了系统化的检查清单，但需注意其套路化倾向，适合商业化写作起步阶段参考。
+作为来源标识，有助于追溯 UGC 内容的原始出处。
+
+## 别名
+
+- 中国作者素材库
 
 ## 相关引用
 
-- [[补充教程写穿越小说角色前要注意的十个问题-2e613087]]
+- [[入门教程创建角色示例-b4332649]]
+- [[中国作者素材库]]

@@ -1,0 +1,52 @@
+---
+id: dm
+title: DM
+type: entity
+sources:
+- raw/sources/01_新手入门/入门教程创造角色.md
+created_at: 1786945367682
+updated_at: 1786945367682
+relations:
+- target: 人物构建
+  type: supports
+  weight: 0.5
+  context: DM参与角色构建过程
+- target: 入门教程创造角色-27fffe79
+  type: referenced_by
+  weight: 0.3
+  context: 文档中提及DM
+grade: C
+processing_depth: concept
+is_immutable: false
+heat: 50
+last_used_at: 0
+zombie_since: null
+tags:
+- 实体/角色
+- 功能/参考
+- 素材/ugc
+- 可信度/ugc
+category: 案例与素材
+taxonomy_sub: 作品案例
+related_entities: []
+custom_type: ''
+---
+
+<!-- wiki-template-version: 3.0.0 -->
+<!-- wiki-template-type: entity -->
+
+## 基本信息
+
+实体类型: 人物; 归属: 角色扮演游戏; 时代: 通用; 平台: 纸笔/电子RPG
+
+## 简介
+
+DM（Dungeon Master，地下城主）是角色扮演游戏中的主持人和仲裁者，负责构建世界、引导剧情、扮演NPC，并在角色创造过程中与玩家协作。在角色创造问题清单中，DM被建议与玩家一起讨论角色设定。
+
+## 写作价值
+
+在写作中，DM的概念可类比为作者，作者需要像DM一样掌控角色命运、世界规则和剧情走向。理解DM的职责有助于作者更系统地构建角色。
+
+## 相关引用
+
+- [[入门教程创造角色-27fffe79]]

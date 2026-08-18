@@ -11,10 +11,103 @@
       "status": "open"
     },
     {
+      "slug": "yy",
+      "raw_hint": "raw/sources/01_新手入门/入门教程写作要点.md",
+      "referenced_by": [
+        "入门教程写作要点-3db22009"
+      ],
+      "created_at": 1786951018682,
+      "status": "open"
+    },
+    {
+      "slug": "上架前后吸引力提升",
+      "raw_hint": "raw/sources/01_新手入门/入门教程17上架.md",
+      "referenced_by": [
+        "正文纯净原则"
+      ],
+      "created_at": 1786933957716,
+      "status": "open"
+    },
+    {
+      "slug": "上架时机",
+      "raw_hint": "raw/sources/01_新手入门/入门教程如何写一个好的开头.md",
+      "referenced_by": [
+        "三段大情节法则"
+      ],
+      "created_at": 1786954307420,
+      "status": "open"
+    },
+    {
+      "slug": "专项描写训练法",
+      "raw_hint": "raw/sources/01_新手入门/入门教程详解新作者常见困难和瓶颈.md",
+      "referenced_by": [
+        "文笔进阶路径"
+      ],
+      "created_at": 1787065114815,
+      "status": "open"
+    },
+    {
+      "slug": "世界构建",
+      "raw_hint": "raw/sources/01_新手入门/借鉴素材网文中的九线_2b7fc4.md",
+      "referenced_by": [
+        "势力架构"
+      ],
+      "created_at": 1786933955288,
+      "status": "open"
+    },
+    {
+      "slug": "世界观",
+      "raw_hint": "raw/sources/01_新手入门/借鉴素材网文中的九线_2b7fc4.md",
+      "referenced_by": [
+        "势力架构"
+      ],
+      "created_at": 1786933955288,
+      "status": "open"
+    },
+    {
+      "slug": "世界观设定",
+      "raw_hint": "raw/sources/01_新手入门/借鉴素材网文中的九线.md",
+      "referenced_by": [
+        "势力架构"
+      ],
+      "created_at": 1786933954605,
+      "status": "open"
+    },
+    {
+      "slug": "主线",
+      "raw_hint": "raw/sources/01_新手入门/入门教程7人物.md",
+      "referenced_by": [
+        "人物欲望驱动"
+      ],
+      "created_at": 1786949202022,
+      "status": "open"
+    },
+    {
+      "slug": "主线防偏",
+      "raw_hint": "raw/sources/01_新手入门/入门教程一些精华.md",
+      "referenced_by": [
+        "主线设定"
+      ],
+      "created_at": 1786949202561,
+      "status": "open"
+    },
+    {
+      "slug": "主角塑造原则",
+      "raw_hint": "raw/sources/01_新手入门/借鉴素材网文中的九线_2b7fc4.md",
+      "referenced_by": [
+        "身世设定",
+        "前三万字法则"
+      ],
+      "created_at": 1786933955288,
+      "status": "open"
+    },
+    {
       "slug": "主角设定原则",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
       "referenced_by": [
-        "人物设定三要素"
+        "人物设定三要素",
+        "家破人亡复仇法",
+        "人物欲望驱动"
       ],
       "created_at": 1786867072034,
       "status": "open"
@@ -24,18 +117,39 @@
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
       "referenced_by": [
         "三千字首章冲突法则",
-        "三支线展开法则"
+        "三支线展开法则",
+        "视角稳定性原则"
       ],
       "created_at": 1786867070733,
+      "status": "open"
+    },
+    {
+      "slug": "人物关系设计",
+      "raw_hint": "raw/sources/01_新手入门/入门教程作家十二戒.md",
+      "referenced_by": [
+        "上下关系混乱-写作忌讳"
+      ],
+      "created_at": 1786949205000,
       "status": "open"
     },
     {
       "slug": "人物塑造",
       "raw_hint": "raw/sources/必备资料15顺眼谈文章的画面感.md",
       "referenced_by": [
-        "单调对话描写"
+        "单调对话描写",
+        "主角智慧性格",
+        "人物设定三要素"
       ],
       "created_at": 1786899600881,
+      "status": "open"
+    },
+    {
+      "slug": "人物性格冲突",
+      "raw_hint": "raw/sources/01_新手入门/入门教程技术篇剧情开展讲解.md",
+      "referenced_by": [
+        "新颖而大胆的开篇"
+      ],
+      "created_at": 1786954317944,
       "status": "open"
     },
     {
@@ -48,6 +162,123 @@
       "status": "open"
     },
     {
+      "slug": "人物神态描写词汇集--百度知道",
+      "raw_hint": "batch_4_gate_broken_link",
+      "referenced_by": [
+        "人物神态描写"
+      ],
+      "created_at": 1786949007030,
+      "status": "open"
+    },
+    {
+      "slug": "人物设定",
+      "raw_hint": "raw/sources/01_新手入门/入门教程7人物.md",
+      "referenced_by": [
+        "人物欲望驱动"
+      ],
+      "created_at": 1786949202022,
+      "status": "open"
+    },
+    {
+      "slug": "借鉴素材",
+      "raw_hint": "raw/sources/01_新手入门/入门教程作家十二戒.md",
+      "referenced_by": [
+        "抄袭-写作禁忌"
+      ],
+      "created_at": 1786949205000,
+      "status": "open"
+    },
+    {
+      "slug": "入门教程交流术语--人物描写片段",
+      "raw_hint": "batch_4_gate_broken_link",
+      "referenced_by": [
+        "人物描写素材库"
+      ],
+      "created_at": 1786949007030,
+      "status": "open"
+    },
+    {
+      "slug": "入门教程交流术语--人物描写词语",
+      "raw_hint": "batch_4_gate_broken_link",
+      "referenced_by": [
+        "入门教程交流术语-89a8e6b5"
+      ],
+      "created_at": 1786949007030,
+      "status": "open"
+    },
+    {
+      "slug": "入门教程系列",
+      "raw_hint": "raw/sources/01_新手入门/入门教程17上架.md",
+      "referenced_by": [
+        "入门教程17上架-dc744f83"
+      ],
+      "created_at": 1786933957716,
+      "status": "open"
+    },
+    {
+      "slug": "全知视角",
+      "raw_hint": "raw/sources/01_新手入门/入门教程网络小说写作要点必看1.md",
+      "referenced_by": [
+        "视角稳定性原则"
+      ],
+      "created_at": 1787041811130,
+      "status": "open"
+    },
+    {
+      "slug": "写作孤独感",
+      "raw_hint": "batch_4_gate_broken_link",
+      "referenced_by": [
+        "写作必要性"
+      ],
+      "created_at": 1786949007030,
+      "status": "open"
+    },
+    {
+      "slug": "写作简洁性",
+      "raw_hint": "raw/sources/01_新手入门/入门教程17上架.md",
+      "referenced_by": [
+        "正文纯净原则"
+      ],
+      "created_at": 1786933957716,
+      "status": "open"
+    },
+    {
+      "slug": "冲突点与爽点",
+      "raw_hint": "raw/sources/01_新手入门/入门教程6对白.md",
+      "referenced_by": [
+        "冲突矛盾"
+      ],
+      "created_at": 1786933959004,
+      "status": "open"
+    },
+    {
+      "slug": "凤头开篇策略",
+      "raw_hint": "raw/sources/01_新手入门/入门教程17上架.md",
+      "referenced_by": [
+        "前三万字法则"
+      ],
+      "created_at": 1786933957716,
+      "status": "open"
+    },
+    {
+      "slug": "凤头猪肚豹尾",
+      "raw_hint": "raw/sources/01_新手入门/入门教程网文速成攻略转.md",
+      "referenced_by": [
+        "情节结构"
+      ],
+      "created_at": 1787041809832,
+      "status": "open"
+    },
+    {
+      "slug": "刀劈",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材古代刺客的暗杀手段.md",
+      "referenced_by": [
+        "剑刺"
+      ],
+      "created_at": 1786968291327,
+      "status": "open"
+    },
+    {
       "slug": "分集情节大纲",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
       "referenced_by": [
@@ -57,12 +288,40 @@
       "status": "open"
     },
     {
+      "slug": "剑道独尊",
+      "raw_hint": "raw/sources/01_新手入门/借鉴素材网文中的九线_2b7fc4.md",
+      "referenced_by": [
+        "装备设定"
+      ],
+      "created_at": 1786933955288,
+      "status": "open"
+    },
+    {
+      "slug": "力量体系",
+      "raw_hint": "raw/sources/01_新手入门/借鉴素材网文中的九线.md",
+      "referenced_by": [
+        "九线理论",
+        "技能体系设定"
+      ],
+      "created_at": 1786933954605,
+      "status": "open"
+    },
+    {
       "slug": "功法",
       "raw_hint": "raw/sources/ugc-test2.md",
       "referenced_by": [
         "三章亮卖点法则"
       ],
       "created_at": 1786899600609,
+      "status": "open"
+    },
+    {
+      "slug": "华夏天空青衫-e-组",
+      "raw_hint": "raw/sources/01_新手入门/入门教程你是新人吗.md",
+      "referenced_by": [
+        "入门教程你是新人吗-3afaeb05"
+      ],
+      "created_at": 1786951015554,
       "status": "open"
     },
     {
@@ -93,6 +352,33 @@
       "status": "open"
     },
     {
+      "slug": "原创性",
+      "raw_hint": "raw/sources/01_新手入门/入门教程作家十二戒.md",
+      "referenced_by": [
+        "抄袭-写作禁忌"
+      ],
+      "created_at": 1786949205000,
+      "status": "open"
+    },
+    {
+      "slug": "句子结构控制节奏",
+      "raw_hint": "raw/sources/01_新手入门/入门教程写书技巧.md",
+      "referenced_by": [
+        "具体描写"
+      ],
+      "created_at": 1786951017263,
+      "status": "open"
+    },
+    {
+      "slug": "司各脱",
+      "raw_hint": "raw/sources/01_新手入门/入门教程小说写作的指路明灯.md",
+      "referenced_by": [
+        "罗斯金-john-ruskin"
+      ],
+      "created_at": 1786954315417,
+      "status": "open"
+    },
+    {
       "slug": "合同打印-、-寄送补贴",
       "raw_hint": "raw/sources/01_新手入门/借鉴素材必备华夏天空作家福利.md",
       "referenced_by": [
@@ -108,6 +394,60 @@
         "书名与简介的重要性"
       ],
       "created_at": 1786899601580,
+      "status": "open"
+    },
+    {
+      "slug": "唯美主义",
+      "raw_hint": "raw/sources/01_新手入门/入门教程关于小说写作.md",
+      "referenced_by": [
+        "为艺术而艺术"
+      ],
+      "created_at": 1786951016307,
+      "status": "open"
+    },
+    {
+      "slug": "场面描写",
+      "raw_hint": "raw/sources/01_新手入门/入门教程编辑眼中的好文标准.md",
+      "referenced_by": [
+        "小说开头技巧"
+      ],
+      "created_at": 1787041809399,
+      "status": "open"
+    },
+    {
+      "slug": "复仇",
+      "raw_hint": "raw/sources/01_新手入门/入门教程3开篇.md",
+      "referenced_by": [
+        "家破人亡复仇法"
+      ],
+      "created_at": 1786933958330,
+      "status": "open"
+    },
+    {
+      "slug": "大宠小虐",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材套路.md",
+      "referenced_by": [
+        "现言宠文类"
+      ],
+      "created_at": 1786968291835,
+      "status": "open"
+    },
+    {
+      "slug": "大情节三段式结构",
+      "raw_hint": "raw/sources/01_新手入门/入门教程如何写一个好的开头.md",
+      "referenced_by": [
+        "三段大情节法则"
+      ],
+      "created_at": 1786954307420,
+      "status": "open"
+    },
+    {
+      "slug": "大纲与结构",
+      "raw_hint": "raw/sources/01_新手入门/入门教程关于小说写作.md",
+      "referenced_by": [
+        "尽头感"
+      ],
+      "created_at": 1786951016307,
       "status": "open"
     },
     {
@@ -138,12 +478,30 @@
       "status": "open"
     },
     {
+      "slug": "审核与合规",
+      "raw_hint": "raw/sources/01_新手入门/入门教程1书名.md",
+      "referenced_by": [
+        "情色化书名风险"
+      ],
+      "created_at": 1786933957937,
+      "status": "open"
+    },
+    {
       "slug": "小说主题",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
       "referenced_by": [
         "小说类型"
       ],
       "created_at": 1786870404634,
+      "status": "open"
+    },
+    {
+      "slug": "小说写作教程虚构文学速成全攻略",
+      "raw_hint": "raw/sources/01_新手入门/入门教程新手必看基础篇冲突行动结局故事.md",
+      "referenced_by": [
+        "入门教程新手必看基础篇冲突行动结局故事-326ead29"
+      ],
+      "created_at": 1786954327003,
       "status": "open"
     },
     {
@@ -157,12 +515,77 @@
       "status": "open"
     },
     {
+      "slug": "小说开头自查",
+      "raw_hint": "raw/sources/01_新手入门/入门教程网络小说写作宝典.md",
+      "referenced_by": [
+        "开篇布局常见错误"
+      ],
+      "created_at": 1787041810658,
+      "status": "open"
+    },
+    {
+      "slug": "小说节奏",
+      "raw_hint": "raw/sources/01_新手入门/入门教程网络小说选题要求_756acb.md",
+      "referenced_by": [
+        "基调--写作风格"
+      ],
+      "created_at": 1787065113457,
+      "status": "open"
+    },
+    {
+      "slug": "小说风格",
+      "raw_hint": "raw/sources/01_新手入门/入门教程网络小说选题要求_756acb.md",
+      "referenced_by": [
+        "基调--写作风格"
+      ],
+      "created_at": 1787065113457,
+      "status": "open"
+    },
+    {
       "slug": "小说高潮",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
       "referenced_by": [
-        "三千字首章冲突法则"
+        "三千字首章冲突法则",
+        "三段大情节法则",
+        "情节结构"
       ],
       "created_at": 1786867070733,
+      "status": "open"
+    },
+    {
+      "slug": "小高潮与大高潮",
+      "raw_hint": "raw/sources/01_新手入门/入门教程网文速成攻略转.md",
+      "referenced_by": [
+        "情节结构"
+      ],
+      "created_at": 1787041809832,
+      "status": "open"
+    },
+    {
+      "slug": "市场趋势",
+      "raw_hint": "raw/sources/01_新手入门/入门教程作家十二戒.md",
+      "referenced_by": [
+        "跟风-写作戒律"
+      ],
+      "created_at": 1786949205000,
+      "status": "open"
+    },
+    {
+      "slug": "开篇布局",
+      "raw_hint": "raw/sources/01_新手入门/入门教程3开篇.md",
+      "referenced_by": [
+        "开篇写法"
+      ],
+      "created_at": 1786945914313,
+      "status": "open"
+    },
+    {
+      "slug": "开篇法则",
+      "raw_hint": "raw/sources/01_新手入门/入门教程17上架.md",
+      "referenced_by": [
+        "前三万字法则"
+      ],
+      "created_at": 1786933957716,
       "status": "open"
     },
     {
@@ -172,6 +595,89 @@
         "异界大陆"
       ],
       "created_at": 1786864346842,
+      "status": "open"
+    },
+    {
+      "slug": "情理之中意料之外",
+      "raw_hint": "raw/sources/01_新手入门/入门教程一些精华.md",
+      "referenced_by": [
+        "入门教程一些精华-fbd86e03"
+      ],
+      "created_at": 1786949202561,
+      "status": "open"
+    },
+    {
+      "slug": "情绪渲染",
+      "raw_hint": "raw/sources/01_新手入门/入门教程网络小说选题要求_756acb.md",
+      "referenced_by": [
+        "基调--写作风格"
+      ],
+      "created_at": 1787065113457,
+      "status": "open"
+    },
+    {
+      "slug": "情节悬念",
+      "raw_hint": "raw/sources/01_新手入门/入门教程技术篇剧情开展讲解.md",
+      "referenced_by": [
+        "新颖而大胆的开篇"
+      ],
+      "created_at": 1786954317944,
+      "status": "open"
+    },
+    {
+      "slug": "情节模式",
+      "raw_hint": "raw/sources/01_新手入门/入门教程3开篇.md",
+      "referenced_by": [
+        "家破人亡复仇法"
+      ],
+      "created_at": 1786933958330,
+      "status": "open"
+    },
+    {
+      "slug": "情节设计",
+      "raw_hint": "raw/sources/01_新手入门/入门教程6对白.md",
+      "referenced_by": [
+        "冲突矛盾",
+        "主线设定",
+        "情节结构"
+      ],
+      "created_at": 1786933959004,
+      "status": "open"
+    },
+    {
+      "slug": "情节驱动",
+      "raw_hint": "raw/sources/01_新手入门/入门教程7人物.md",
+      "referenced_by": [
+        "人物欲望驱动"
+      ],
+      "created_at": 1786949202022,
+      "status": "open"
+    },
+    {
+      "slug": "意料之外情理之中法",
+      "raw_hint": "raw/sources/01_新手入门/入门教程十大小说写作技巧.md",
+      "referenced_by": [
+        "入门教程十大小说写作技巧-e7ef379b"
+      ],
+      "created_at": 1786951020631,
+      "status": "open"
+    },
+    {
+      "slug": "感情纠葛",
+      "raw_hint": "raw/sources/01_新手入门/借鉴素材网文中的九线.md",
+      "referenced_by": [
+        "后宫设定"
+      ],
+      "created_at": 1786933954605,
+      "status": "open"
+    },
+    {
+      "slug": "成神",
+      "raw_hint": "raw/sources/01_新手入门/入门教程新人作者快速成神攻略.md",
+      "referenced_by": [
+        "入门教程新人作者快速成神攻略-9c6d8a1e"
+      ],
+      "created_at": 1786954325156,
       "status": "open"
     },
     {
@@ -193,12 +699,84 @@
       "status": "open"
     },
     {
+      "slug": "扮猪吃老虎套路",
+      "raw_hint": "batch_5_gate_broken_link",
+      "referenced_by": [
+        "狗屎运"
+      ],
+      "created_at": 1786950756990,
+      "status": "open"
+    },
+    {
+      "slug": "排版技巧",
+      "raw_hint": "raw/sources/01_新手入门/入门教程小说文章掺水十六法.md",
+      "referenced_by": [
+        "乡巴老过河法"
+      ],
+      "created_at": 1786954315744,
+      "status": "open"
+    },
+    {
+      "slug": "推广币",
+      "raw_hint": "raw/sources/01_新手入门/入门教程你是新人吗.md",
+      "referenced_by": [
+        "华夏天空"
+      ],
+      "created_at": 1786951015554,
+      "status": "open"
+    },
+    {
+      "slug": "搓麻花法",
+      "raw_hint": "raw/sources/01_新手入门/入门教程小说文章掺水十六法.md",
+      "referenced_by": [
+        "拉油条法"
+      ],
+      "created_at": 1786954315744,
+      "status": "open"
+    },
+    {
       "slug": "支线",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
       "referenced_by": [
         "三支线展开法则"
       ],
       "created_at": 1786871786392,
+      "status": "open"
+    },
+    {
+      "slug": "数字对仗",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小白系列之对对子诗词精选片段第二期.md",
+      "referenced_by": [
+        "自嘲对子"
+      ],
+      "created_at": 1786968292055,
+      "status": "open"
+    },
+    {
+      "slug": "文笔与剧情的关系",
+      "raw_hint": "raw/sources/01_新手入门/入门教程详解新作者常见困难和瓶颈.md",
+      "referenced_by": [
+        "文笔进阶路径"
+      ],
+      "created_at": 1787065114815,
+      "status": "open"
+    },
+    {
+      "slug": "新书榜规则",
+      "raw_hint": "raw/sources/01_新手入门/入门教程详解新作者常见困难和瓶颈.md",
+      "referenced_by": [
+        "作者网站轨迹"
+      ],
+      "created_at": 1787065114815,
+      "status": "open"
+    },
+    {
+      "slug": "新颖开篇",
+      "raw_hint": "raw/sources/01_新手入门/入门教程技术篇剧情开展讲解.md",
+      "referenced_by": [
+        "丰富矛盾的人物性格冲突"
+      ],
+      "created_at": 1786954317944,
       "status": "open"
     },
     {
@@ -221,6 +799,24 @@
       "status": "open"
     },
     {
+      "slug": "更新速度重要性",
+      "raw_hint": "raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看_de5255.md",
+      "referenced_by": [
+        "写作坚持原则"
+      ],
+      "created_at": 1786949205539,
+      "status": "open"
+    },
+    {
+      "slug": "有限视角",
+      "raw_hint": "raw/sources/01_新手入门/入门教程网络小说写作要点必看1.md",
+      "referenced_by": [
+        "视角稳定性原则"
+      ],
+      "created_at": 1787041811130,
+      "status": "open"
+    },
+    {
       "slug": "架空历史",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
       "referenced_by": [
@@ -239,12 +835,48 @@
       "status": "open"
     },
     {
+      "slug": "横切悬念倒叙事件法",
+      "raw_hint": "raw/sources/01_新手入门/入门教程十大小说写作技巧.md",
+      "referenced_by": [
+        "入门教程十大小说写作技巧-e7ef379b"
+      ],
+      "created_at": 1786951020631,
+      "status": "open"
+    },
+    {
       "slug": "武侠",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
       "referenced_by": [
         "古典仙侠"
       ],
       "created_at": 1786868640711,
+      "status": "open"
+    },
+    {
+      "slug": "法宝",
+      "raw_hint": "raw/sources/01_新手入门/入门教程0暗黑类装备前缀.md",
+      "referenced_by": [
+        "属性词--暗黑装备"
+      ],
+      "created_at": 1786933956565,
+      "status": "open"
+    },
+    {
+      "slug": "淡化情节形散神聚法",
+      "raw_hint": "raw/sources/01_新手入门/入门教程十大小说写作技巧.md",
+      "referenced_by": [
+        "入门教程十大小说写作技巧-e7ef379b"
+      ],
+      "created_at": 1786951020631,
+      "status": "open"
+    },
+    {
+      "slug": "潜龙勿用",
+      "raw_hint": "raw/sources/01_新手入门/入门教程教你如何增加网文爽点的精彩度.md",
+      "referenced_by": [
+        "蓄势-爽点前置节奏"
+      ],
+      "created_at": 1786954324276,
       "status": "open"
     },
     {
@@ -257,6 +889,24 @@
       "status": "open"
     },
     {
+      "slug": "爽点设置",
+      "raw_hint": "raw/sources/01_新手入门/入门教程网络小说选题要求_756acb.md",
+      "referenced_by": [
+        "基调--写作风格"
+      ],
+      "created_at": 1787065113457,
+      "status": "open"
+    },
+    {
+      "slug": "独创性",
+      "raw_hint": "raw/sources/01_新手入门/入门教程作家十二戒.md",
+      "referenced_by": [
+        "跟风-写作戒律"
+      ],
+      "created_at": 1786949205000,
+      "status": "open"
+    },
+    {
       "slug": "玄幻与仙侠区分对比",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
       "referenced_by": [
@@ -266,12 +916,58 @@
       "status": "open"
     },
     {
+      "slug": "用户活跃度-ippv-比",
+      "raw_hint": "raw/sources/01_新手入门/入门教程各大小说网站人气对比方便选择参考.md",
+      "referenced_by": [
+        "ip-访问量"
+      ],
+      "created_at": 1786951020988,
+      "status": "open"
+    },
+    {
+      "slug": "画面感",
+      "raw_hint": "raw/sources/01_新手入门/入门教程作家十二戒.md",
+      "referenced_by": [
+        "流水账-写作毛病"
+      ],
+      "created_at": 1786949205000,
+      "status": "open"
+    },
+    {
+      "slug": "社会经验",
+      "raw_hint": "raw/sources/01_新手入门/入门教程作家十二戒.md",
+      "referenced_by": [
+        "上下关系混乱-写作忌讳"
+      ],
+      "created_at": 1786949205000,
+      "status": "open"
+    },
+    {
       "slug": "稳定更新",
       "raw_hint": "raw/sources/ugc-test2.md",
       "referenced_by": [
-        "更新速度的重要性"
+        "更新速度的重要性",
+        "写作坚持原则"
       ],
       "created_at": 1786899600609,
+      "status": "open"
+    },
+    {
+      "slug": "签约标准",
+      "raw_hint": "raw/sources/01_新手入门/入门教程详解新作者常见困难和瓶颈.md",
+      "referenced_by": [
+        "作者网站轨迹"
+      ],
+      "created_at": 1787065114815,
+      "status": "open"
+    },
+    {
+      "slug": "签约福利",
+      "raw_hint": "raw/sources/01_新手入门/入门教程三江杂谈.md",
+      "referenced_by": [
+        "上架政策"
+      ],
+      "created_at": 1786949203214,
       "status": "open"
     },
     {
@@ -284,12 +980,39 @@
       "status": "open"
     },
     {
+      "slug": "网文作者心态",
+      "raw_hint": "raw/sources/01_新手入门/入门教程详解新作者常见困难和瓶颈.md",
+      "referenced_by": [
+        "作者网站轨迹"
+      ],
+      "created_at": 1787065114815,
+      "status": "open"
+    },
+    {
+      "slug": "网文写作技巧",
+      "raw_hint": "raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看_de5255.md",
+      "referenced_by": [
+        "写作坚持原则"
+      ],
+      "created_at": 1786949205539,
+      "status": "open"
+    },
+    {
       "slug": "网文开篇七法则",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
       "referenced_by": [
         "三千字首章冲突法则"
       ],
       "created_at": 1786867070733,
+      "status": "open"
+    },
+    {
+      "slug": "网文开篇法则",
+      "raw_hint": "raw/sources/01_新手入门/入门教程17上架.md",
+      "referenced_by": [
+        "正文纯净原则"
+      ],
+      "created_at": 1786933957716,
       "status": "open"
     },
     {
@@ -302,6 +1025,15 @@
       "status": "open"
     },
     {
+      "slug": "网文文笔达标线",
+      "raw_hint": "raw/sources/01_新手入门/入门教程详解新作者常见困难和瓶颈.md",
+      "referenced_by": [
+        "文笔进阶路径"
+      ],
+      "created_at": 1787065114815,
+      "status": "open"
+    },
+    {
       "slug": "网文题材通用性对比综述-p9q0r1s2",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
       "referenced_by": [
@@ -311,12 +1043,48 @@
       "status": "open"
     },
     {
+      "slug": "网络小说装备系统",
+      "raw_hint": "raw/sources/01_新手入门/入门教程0暗黑类装备前缀.md",
+      "referenced_by": [
+        "装备基础名--暗黑类"
+      ],
+      "created_at": 1786933956565,
+      "status": "open"
+    },
+    {
+      "slug": "网络式大纲",
+      "raw_hint": "raw/sources/01_新手入门/入门教程一些精华.md",
+      "referenced_by": [
+        "大纲写法"
+      ],
+      "created_at": 1786949202561,
+      "status": "open"
+    },
+    {
       "slug": "网络文学",
       "raw_hint": "raw/sources/必备资料15顺眼谈文章的画面感.md",
       "referenced_by": [
         "小说画面感"
       ],
       "created_at": 1786899600881,
+      "status": "open"
+    },
+    {
+      "slug": "罗斯金",
+      "raw_hint": "raw/sources/01_新手入门/入门教程小说写作的指路明灯.md",
+      "referenced_by": [
+        "司各脱-walter-scott"
+      ],
+      "created_at": 1786954315417,
+      "status": "open"
+    },
+    {
+      "slug": "老套开篇",
+      "raw_hint": "raw/sources/01_新手入门/入门教程3开篇.md",
+      "referenced_by": [
+        "家破人亡复仇法"
+      ],
+      "created_at": 1786933958330,
       "status": "open"
     },
     {
@@ -332,9 +1100,37 @@
       "slug": "节奏与悬念",
       "raw_hint": "raw/sources/补充教程写作经验如何加强书的情节.md",
       "referenced_by": [
-        "延宕"
+        "延宕",
+        "开篇写法"
       ],
       "created_at": 1786899601262,
+      "status": "open"
+    },
+    {
+      "slug": "芥川龙之介",
+      "raw_hint": "raw/sources/01_新手入门/入门教程关于小说写作.md",
+      "referenced_by": [
+        "自奉为神"
+      ],
+      "created_at": 1786951016307,
+      "status": "open"
+    },
+    {
+      "slug": "英雄之旅七种人物原型",
+      "raw_hint": "raw/sources/01_新手入门/入门教程0小说人物辅助设定.md",
+      "referenced_by": [
+        "小说人物辅助设定"
+      ],
+      "created_at": 1786933955960,
+      "status": "open"
+    },
+    {
+      "slug": "蓄势",
+      "raw_hint": "raw/sources/01_新手入门/入门教程教你如何增加网文爽点的精彩度.md",
+      "referenced_by": [
+        "潜龙勿用-网文桥段第一步"
+      ],
+      "created_at": 1786954324276,
       "status": "open"
     },
     {
@@ -344,6 +1140,33 @@
         "单调对话描写"
       ],
       "created_at": 1786899600881,
+      "status": "open"
+    },
+    {
+      "slug": "读者心态研究",
+      "raw_hint": "raw/sources/01_新手入门/入门教程小说写作新人网络小说的成神宝典精装版.md",
+      "referenced_by": [
+        "都市上班族阅读心态"
+      ],
+      "created_at": 1786954315209,
+      "status": "open"
+    },
+    {
+      "slug": "读者阅读体验",
+      "raw_hint": "raw/sources/01_新手入门/入门教程17上架.md",
+      "referenced_by": [
+        "正文纯净原则"
+      ],
+      "created_at": 1786933957716,
+      "status": "open"
+    },
+    {
+      "slug": "跟我玩阴死你",
+      "raw_hint": "raw/sources/01_新手入门/入门教程2简介.md",
+      "referenced_by": [
+        "入门教程2简介-8dd2bba6"
+      ],
+      "created_at": 1786933958147,
       "status": "open"
     },
     {
@@ -373,6 +1196,24 @@
         "都市小说主题分类"
       ],
       "created_at": 1786870403315,
+      "status": "open"
+    },
+    {
+      "slug": "都市生活",
+      "raw_hint": "raw/sources/01_新手入门/入门教程基础篇网络小说的类型.md",
+      "referenced_by": [
+        "都市小说"
+      ],
+      "created_at": 1786954305682,
+      "status": "open"
+    },
+    {
+      "slug": "都市重生",
+      "raw_hint": "raw/sources/01_新手入门/入门教程基础篇网络小说的类型.md",
+      "referenced_by": [
+        "都市小说"
+      ],
+      "created_at": 1786954305682,
       "status": "open"
     },
     {
@@ -410,6 +1251,24 @@
         "小说类型"
       ],
       "created_at": 1786870404634,
+      "status": "open"
+    },
+    {
+      "slug": "飞刀",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材古代刺客的暗杀手段.md",
+      "referenced_by": [
+        "匕首"
+      ],
+      "created_at": 1786968291327,
+      "status": "open"
+    },
+    {
+      "slug": "高潮后战利品法则",
+      "raw_hint": "raw/sources/01_新手入门/入门教程如何写一个好的开头.md",
+      "referenced_by": [
+        "三支线展开法则"
+      ],
+      "created_at": 1786954307420,
       "status": "open"
     }
   ]
