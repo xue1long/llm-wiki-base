@@ -1704,7 +1704,7 @@ async def _call_with_slot_retry(
 
     Returns the parsed response dict (with ``pages`` key).
     """
-    MAX_GEN_ATTEMPTS = 3  # initial + 2 retries
+    MAX_GEN_ATTEMPTS = 4  # initial + 3 retries
     last_missing: dict[str, list[str]] = {}
     last_response: dict = {}
     _json_mode = True  # first attempt uses response_format

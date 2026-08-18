@@ -1211,7 +1211,7 @@ async def test_call_with_slot_retry_raises_clear_error_after_all_truncated():
         content='{"pages": [{"id": "s", "title": "未完成',
         model="glm-5.2", truncated=True,
     )
-    provider = _make_tracking_provider([truncated, truncated, truncated])
+    provider = _make_tracking_provider([truncated, truncated, truncated, truncated])
     with pytest.raises(RuntimeError, match="truncat"):
         await _call_with_slot_retry(
             provider=provider,
@@ -1220,7 +1220,10 @@ async def test_call_with_slot_retry_raises_clear_error_after_all_truncated():
             required_slots_by_type={},
             max_tokens=8192,
         )
-    assert [c["max_tokens"] for c in provider.calls] == [8192, 16384, 32768]
+    # 4 attempts: 8192 → 16384 → 32768 → 65536 (phase4 batch 14: a single
+    # pathological file needed >32768 tokens, so a 4th escalation level was
+    # added).
+    assert [c["max_tokens"] for c in provider.calls] == [8192, 16384, 32768, 65536]
 
 
 async def test_call_with_slot_retry_passes_max_tokens_forwards():
@@ -1422,7 +1425,9 @@ async def test_call_with_slot_retry_missing_slugs_exhausted_returns_last():
                 ' "relations": [{"target": "幽灵概念"}]}]}',
         model="glm-5.2", truncated=False,
     )
-    provider = _make_tracking_provider([always_ghost, always_ghost, always_ghost])
+    provider = _make_tracking_provider(
+        [always_ghost, always_ghost, always_ghost, always_ghost]
+    )
 
     def resolver(pages):
         return ["幽灵概念"]
@@ -1435,7 +1440,7 @@ async def test_call_with_slot_retry_missing_slugs_exhausted_returns_last():
         max_tokens=8192,
         missing_slugs_resolver=resolver,
     )
-    assert len(provider.calls) == 3  # 初始 + 2 次反馈重试
+    assert len(provider.calls) == 4  # 初始 + 3 次反馈重试 (MAX_GEN_ATTEMPTS=4)
     assert result["pages"][0]["relations"][0]["target"] == "幽灵概念"
 
 
