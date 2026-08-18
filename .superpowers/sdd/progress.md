@@ -370,7 +370,15 @@ page_writer、schema_registry、cascade、immutable）。
 4. Task 3（✅ 待提交）：提取 `finalize_generated_page()` 显式字段 owner 边界（grade/depth/id/title/时间戳）；custom type 全链路目录枚举已在 Task 0.4 覆盖（iter_page_dirs → collect/reconcile；Gate 经 index.md 覆盖 custom 页）；休眠入口 `generate_from_candidate`/`generate_from_knowledge_object` 无仓库内调用方，接入待后续（ponytail: 无调用方不接线）
 5. Task 4（✅ 待提交）：`SlugAliasRegistry.get_canonical` 有界链解析（`_MAX_ALIAS_DEPTH=8`，环/自环/超深 fail-closed）+ `add` 拒绝自环；`finalize_generated_page` 归一化 relation weight（越界/NaN → 1.0）；taxonomy 已由 `write_page` 严格校验
 6. Task 5（✅ 待提交）：`run_precommit_gate` 接受 `resolution_context`；`_gate_reconcile` 未解析目标经统一 resolver 判别——多候选 → `TARGET-AMBIGUOUS`（可诊断，不受 pending_gap 豁免），否则 `BROKEN-LINK`；batch_runner 收集整批 source 候选传入 Gate
-7. Task 6（batch 9 实测中）：✅ 标签规范化 + resolver 生效；⚠️ TOCTOU 误报修复——同批多 raw 共享概念页时批内自写不算冲突（expected hashes 剔除 batch_page_ids），新增 `test_batch_shared_page_no_false_toctou_conflict` 回归；待重跑 batch 9 验证
+7. Task 6（✅ batch 9 完成）：TOCTOU 误报修复（批内自写剔除，`9b7ac861`）；重跑 `--resume` → `BATCH DONE ok=19 err=0`（1 上次 done）、Gate PASS 91 pages、批状态 committed。真实运行验证：标签规范化审计（TAG-MAPPED/REMOVED/MANDATORY）对存量 reverse-touch 页生效；resolver 重写旧 hash 链接，无 BROKEN-LINK/TARGET-AMBIGUOUS；共享概念页无 TOCTOU 误报；vector 降级 WARN（未配 provider）。taxonomy unknown category 为 write_page 宽松警告（非 strict 模式），不阻断。
+
+## 确定性字段与链接整改 —— 阶段完成 ✅
+
+Tasks 0-6 全部完成（提交：`19ea1ed2` Task 0 / `6cab7bf7` Task 1 / `9ce10228` Task 2 / `0e625532` Task 3-5 / `9b7ac861` Task 6 修复）。
+batch 8 已 committed（accept_batch）；batch 9 已 committed。后续批次：batch 10+ 可直接 `batch run`。
+已知上限（ponytail）：AtomicContext 线程局部（async 同线程并发摄入未覆盖）；owner-token fencing 由项目提交锁串行化替代；generate_from_candidate/KO 无调用方未接线；taxonomy 非 strict 模式只警告。
+
+## 提交记录（本轮）
 4. Task 3：`finalize_generated_page()` 字段接管 + custom type 全链路
 5. Task 4：relation/taxonomy/alias 归一化
 6. Task 5：Gate 审计输出 + unresolved blocker + 副作用 sentinel
