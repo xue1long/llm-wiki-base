@@ -156,8 +156,8 @@
 - 端到端冒烟（fake mode）：`ruflo batch run` → exit 0, 2 files done, gate PASS
 
 **遗留（后续 P 处理）：**
-- `batch_ingest`/`phase4_batch`/`phase5_accept`/`pilot_ingest` 等遗留脚本未逐一改成继承 `BatchRunner` 子类（计划表 3d 的完整清单）——当前保留原样，`ruflo batch run` 作为规范入口已可用。如需完整收编可作为后续增量。
-- `batch_gate_check`/`batch_gate_v3`/`diagnose_batch_gate` 的 `ruflo batch gate` 子命令未建（3d 表中可并入 `BatchRunner.gate()`）——当前 `diagnose_batch_gate` 直接调门禁真源，语义已统一。
+- ~~`batch_ingest`/`phase4_batch`/`phase5_accept`/`pilot_ingest` 等遗留脚本未逐一改成继承 `BatchRunner` 子类~~ → ✅ **已收编**（见下文「遗留脚本全量收编」）
+- `batch_gate_check`/`batch_gate_v3`/`diagnose_batch_gate` 的 `ruflo batch gate` 子命令未建 → ✅ **已收编**（`ruflo batch gate-check/gate-v3/diagnose-gate`）
 
 ## P2-A 文档双文件同步（2026-08-18）✅ `96a9466d`
 
@@ -220,3 +220,33 @@
 2. 9 个文件 `from tests.support.test_helpers import ScriptedLLMProvider` 可导入 ✅（traceback 证实实际走 tests.support 路径）
 3. 非模板依赖测试 24/24 通过 ✅（预存模板解析失败 TemplateParseError 与 P3 无关，基线一致）
 4. 未动 `src/utils/`/`src/lib/` 内容（仅文档化边界）
+
+## 遗留脚本全量收编（2026-08-18）✅ `c8ace1da`
+
+**目标：** 按 plan 3d 表，将 `scripts/` 中 38 个遗留脚本全部注册为 `ruflo` 子命令。
+
+**收编范围（四组 38 子命令）：**
+
+| 组 | 子命令数 | 清单 |
+|---|---|---|
+| `ruflo batch` | 17 | run/plan（进程内）+ gate-check/gate-v3/diagnose-gate/accept/generate/commit/build/ingest/rollback/pilot/phase3-accept/phase4/phase5-accept/plan-first/plan-backlog（子进程转发） |
+| `ruflo migrate` | 5 | legacy-tags/pinyin-to-cjk/slug-aliases/timestamps/vector-paths |
+| `ruflo audit` | 4 | blindspots/placeholder-classify/wiki-baseline/quality-check |
+| `ruflo util` | 12 | aggregate-synthesis/cleanup-stubs/cleanup-tags/fix-mojibake/ndg-calibrate/normalize-sources/rebuild-index/stress-test/sync-wiki-spec/setup-git-hooks/ingest-d/ingest-manual |
+
+**实现方式：** 薄 CLI 包装 + 子进程转发（`subprocess.run`），原脚本保留 `python scripts/<name>.py` 直跑入口（兼容过渡期）。环境变量继承完整 `os.environ` + `PYTHONPATH` 确保 Windows 下模块加载正常。
+
+**新增文件：**
+- `src/cli_ext/scripts_cmd.py` — migrate/audit/util 三组，子进程转发
+- `src/cli_ext/batch_cmd.py` — 扩展（原 71 行 → 134 行），追加 15 个子进程转发
+- `tests/test_cli_ext/test_scripts_cmd.py` — 5 测试（注册 + 转发验证）
+
+**遗留问题清零：**
+- ~~`batch_ingest`/`phase4_batch` 等未收编~~ → ✅ 全部收编
+- ~~`batch_gate_check` 等 gate 子命令未建~~ → ✅ `ruflo batch gate-check/gate-v3/diagnose-gate`
+
+**验证：**
+1. `ruflo {batch,migrate,audit,util} --help` 列全子命令 ✅
+2. `ruflo batch diagnose-gate -- --help` 透传至原脚本 ✅（exit=2, 输出含原脚本名）
+3. 5/5 CLI 注册测试通过 ✅
+4. 19/19 batch_executor 崩溃注入测试通过 ✅（含 os._exit(137) 子进程）

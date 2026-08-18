@@ -179,13 +179,13 @@ P0-A → P0-B → P1-A 严格串行（P0-B 依赖 P0-A 的 CLI 入口做 `ruflo 
 - **子任务 3d：收编其他脚本为薄 CLI 包装**
   | 原脚本 | 目标子命令 | 包装方式 |
   |---|---|---|
-  | `batch_ingest`、`batch_generate`、`batch_build`、`pilot_ingest`、`phase3_accept`、`phase4_batch`、`phase5_accept`、`accept_batch` | `ruflo batch run` | 继承 `BatchRunner`，实现 `run_one` |
-  | `batch_gate_check`、`batch_gate_v3`、`diagnose_batch_gate` | 并入 `BatchRunner.gate()` | 调用 `batch_gate.py` |
-  | `batch_commit`、`rollback_batch` | 并入 `BatchRunner.commit/rollback` | 调用 `batch_state.py` |
-  | `plan_gap_first_batch`、`plan_reingest_batches`、`build_reingest_backlog` | `ruflo batch plan` | 继承 `Planner` 基类 |
-  | 5 × `migrate_*` | `ruflo migrate` | 继承 `Migration` 基类（带 `--dry-run`/`--verify`） |
-  | 3 × `audit_*`、`quality_check_wiki` | `ruflo audit` | 继承 `Auditor` 基类 |
-  | `fix_mojibake_sources`、`cleanup_*`、`normalize_sources`、`ndg_calibrate`、`sync_wiki_spec`、`rebuild_index`、`stress_test_ingest`、`aggregate_synthesis`、`ingest_novel_wiki_*`、`setup_git_hooks` | `ruflo util` 或 `tools/` | 收编为子命令或保留为运维工具 |
+  | `batch_ingest`、`batch_generate`、`batch_build`、`pilot_ingest`、`phase3_accept`、`phase4_batch`、`phase5_accept`、`accept_batch` | `ruflo batch run` / `generate` / `commit` / `build` / `ingest` / `pilot` / `phase3-accept` / `phase4` / `phase5-accept` | 子进程转发（零行为风险，原脚本保留 `python scripts/<name>.py` 双入口） |
+  | `batch_gate_check`、`batch_gate_v3`、`diagnose_batch_gate` | `ruflo batch gate-check / gate-v3 / diagnose-gate` | 子进程转发 |
+  | `batch_commit`、`rollback_batch` | `ruflo batch commit / rollback` | 子进程转发 |
+  | `plan_gap_first_batch`、`plan_reingest_batches`、`build_reingest_backlog` | `ruflo batch plan`（进程内）/ `plan-first` / `plan-backlog` | 进程内 + 子进程转发 |
+  | 5 × `migrate_*` | `ruflo migrate` | 子进程转发 |
+  | 3 × `audit_*`、`quality_check_wiki` | `ruflo audit` | 子进程转发 |
+  | `fix_mojibake_sources`、`cleanup_*`、`normalize_sources`、`ndg_calibrate`、`sync_wiki_spec`、`rebuild_index`、`stress_test_ingest`、`aggregate_synthesis`、`ingest_novel_wiki_*`、`setup_git_hooks` | `ruflo util` | 子进程转发 |
 
 - **验收：**
   1. L1：`pytest --import-mode=importlib` 全绿
@@ -199,7 +199,7 @@ P0-A → P0-B → P1-A 严格串行（P0-B 依赖 P0-A 的 CLI 入口做 `ruflo 
   - `test_batch_executor.py` 的崩溃注入测试依赖 `scripts.batch_executor` 的模块路径——平移后可能因 `sys.path.insert(0, ...)` 或 `sys.modules` 缓存导致测试找不到模块。方案：`test_batch_executor.py` 同时测试 `scripts.batch_executor`（CLI 壳）和 `src.orchestrator.batch_runner`（引擎），确保两者都覆盖。
   - 状态机生命周期钩子必须在 `BatchRunner` 的第一版就预留，否则后续加崩溃注入测试时需要改抽象接口。
 
-- **Status:** ✅ 4 子任务（`c4d50dee` 3a / `68029bcf` 3b / `2237df22` 3c / `2ac5ef60` 3d）
+- **Status:** ✅ 4 子任务（`c4d50dee` 3a / `68029bcf` 3b / `2237df22` 3c / `2ac5ef60` 3d）+ 后续收编 `c8ace1da`（38 脚本全量注册为 `ruflo batch/migrate/audit/util` 子命令）
 
 ---
 
