@@ -13,8 +13,15 @@ if exist ".venv\Scripts\activate.bat" (
     call venv\Scripts\activate.bat
 )
 
-REM Start the HTTP API server (foreground)
-python -m src.cli serve --host 127.0.0.1 --port 19828
+REM Stop a previously-started daemon via the PID file (R13: only ever
+REM stops OUR server — never kill unrelated processes on the port).
+python -m src.cli serve-stop >nul 2>&1
+
+REM Start the HTTP API server (foreground).
+REM R14: serve requires an explicit project root. Change PROJECT_ROOT to
+REM your project directory (defaults to this repo root).
+set "PROJECT_ROOT=%CD%"
+python -m src.cli serve --host 127.0.0.1 --port 19828 --project-root "%PROJECT_ROOT%"
 
 REM ---- Alternatives (uncomment to use) ----
 REM Daemon mode (runs in the background):

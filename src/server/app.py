@@ -287,9 +287,10 @@ def create_app() -> FastAPI:
             _logger.warning(f"[shutdown] aclose_all failed: {e}")
         _logger.info("[server] shutting down")
 
+    from .. import __version__ as _app_version
     app = FastAPI(
         title="ruflo-kb API",
-        version="0.2.0",
+        version=_app_version,
         lifespan=lifespan,
     )
 
