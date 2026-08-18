@@ -68,7 +68,8 @@
       "slug": "世界观设定",
       "raw_hint": "raw/sources/01_新手入门/借鉴素材网文中的九线.md",
       "referenced_by": [
-        "势力架构"
+        "势力架构",
+        "装备设定"
       ],
       "created_at": 1786933954605,
       "status": "open"
@@ -159,6 +160,15 @@
         "人物设定三要素"
       ],
       "created_at": 1786867072034,
+      "status": "open"
+    },
+    {
+      "slug": "人物性格设定",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料大纲范本.md",
+      "referenced_by": [
+        "人物设定"
+      ],
+      "created_at": 1787073529481,
       "status": "open"
     },
     {
@@ -288,6 +298,15 @@
       "status": "open"
     },
     {
+      "slug": "列夫托尔斯泰",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料如何写出人物的个性.md",
+      "referenced_by": [
+        "必备资料如何写出人物的个性-b0037f61"
+      ],
+      "created_at": 1787073529633,
+      "status": "open"
+    },
+    {
       "slug": "剑道独尊",
       "raw_hint": "raw/sources/01_新手入门/借鉴素材网文中的九线_2b7fc4.md",
       "referenced_by": [
@@ -322,6 +341,15 @@
         "入门教程你是新人吗-3afaeb05"
       ],
       "created_at": 1786951015554,
+      "status": "open"
+    },
+    {
+      "slug": "单调对话描写",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料如何写出人物的个性.md",
+      "referenced_by": [
+        "细节动作描写"
+      ],
+      "created_at": 1787073529633,
       "status": "open"
     },
     {

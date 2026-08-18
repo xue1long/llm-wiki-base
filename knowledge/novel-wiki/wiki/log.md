@@ -832,3 +832,45 @@
 - **ingest**: `b10` — generated 5 pages from 必备资料人物叙述类模版1.md
 ## 2026-08-18T23:50:34.128575
 - **ingest**: `b10` — generated 5 pages from 必备资料人物性格塑造的六个方法.md
+## 2026-08-19T01:18:46.192113
+- **ingest**: `b11` — generated 5 pages from 必备资料人物设置与剧情的关系.md
+## 2026-08-19T01:18:48.851492
+- **ingest**: `b11` — generated 5 pages from 必备资料作品审核标准1.md
+## 2026-08-19T01:18:48.894829
+- **ingest**: `b11` — generated 4 pages from 必备资料作者投稿模版.md
+## 2026-08-19T01:18:48.933888
+- **ingest**: `b11` — generated 4 pages from 必备资料作者五个阶段.md
+## 2026-08-19T01:18:48.994333
+- **ingest**: `b11` — generated 8 pages from 必备资料作者写作十二大忌.md
+## 2026-08-19T01:18:49.038765
+- **ingest**: `b11` — generated 3 pages from 必备资料偷走的流年南若兮3342字.md
+## 2026-08-19T01:18:49.077712
+- **ingest**: `b11` — generated 6 pages from 必备资料典籍提取聊斋志异小说人名全纪录.md
+## 2026-08-19T01:18:49.108031
+- **ingest**: `b11` — generated 3 pages from 必备资料典籍提取聊斋志异小说人名全纪录_d0d6a3.md
+## 2026-08-19T01:18:49.166605
+- **ingest**: `b11` — generated 6 pages from 必备资料写作大纲的十个步骤.md
+## 2026-08-19T01:18:49.212394
+- **ingest**: `b11` — generated 4 pages from 必备资料写作大纲的十个步骤_0faefe.md
+## 2026-08-19T01:18:49.244663
+- **ingest**: `b11` — generated 2 pages from 必备资料写作大纲的十大步骤.md
+## 2026-08-19T01:18:49.281713
+- **ingest**: `b11` — generated 3 pages from 必备资料剧情大纲格式.md
+## 2026-08-19T01:18:49.329594
+- **ingest**: `b11` — generated 4 pages from 必备资料古风小说讲课.md
+## 2026-08-19T01:18:49.376736
+- **ingest**: `b11` — generated 4 pages from 必备资料大神说法第三讲情理之中意料之外作者雪宁1.md
+## 2026-08-19T01:18:49.415161
+- **ingest**: `b11` — generated 2 pages from 必备资料大纲书写格式.md
+## 2026-08-19T01:18:49.463414
+- **ingest**: `b11` — generated 4 pages from 必备资料大纲范本.md
+## 2026-08-19T01:18:49.505740
+- **ingest**: `b11` — generated 4 pages from 必备资料天蟾子论套路的情节拓展.md
+## 2026-08-19T01:18:49.556624
+- **ingest**: `b11` — generated 4 pages from 必备资料如何写人物.md
+## 2026-08-19T01:18:49.604810
+- **ingest**: `b11` — generated 5 pages from 必备资料如何写出人物的个性.md
+## 2026-08-19T01:18:49.649830
+- **ingest**: `b11` — generated 2 pages from 必备资料如何写好大纲.md
+## 2026-08-19T01:18:49.887652
+- **reverse-relation**: `b11` — generated 0 pages from (batch-reconcile)

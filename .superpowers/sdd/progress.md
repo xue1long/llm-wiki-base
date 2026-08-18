@@ -383,3 +383,11 @@ batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首�
 5. Task 4：relation/taxonomy/alias 归一化
 6. Task 5：Gate 审计输出 + unresolved blocker + 副作用 sentinel
 7. Task 6：batch 9 重跑验收（Gate 前零写入 + partial 恢复 + 并发锁已就位）
+
+## Phase 4 批量重摄入续跑（2026-08-19）✅ batch 11 committed
+
+**执行**：`scripts/phase4_batch.py --manifest knowledge/novel-wiki/.index/reingest_backlog.json --batch 11 --project 0ff37d87-... --allow-overwrite --concurrency 3`
+- 结果：`BATCH DONE ok=20 err=0 pages=82 gate=PASS`，POSTCHECK 全过，batch_11 状态 committed（115 page_ids，20 completed_files）。
+- **首跑 Gate 阻断（NDG-P6）**：`升级流小说` 批内跨类型 slug 冲突（wiki 已有 concept 页，批内同时生成 entity 页）。`batch run`（batch_runner）路径不做批内对账直接跑 NDG gate → 阻断。改用 `phase4_batch.py`（reconcile_batch 以 wiki 磁盘类型为准，把 entity 页折入 concept 页）→ Gate PASS。
+- 经验：batch 11+ 若再遇 NDG-P6 跨类型 slug 冲突，用 phase4_batch.py（含 reconcile）而非 batch run 直跑。
+- 已知上限（ponytail）：taxonomy unknown category/sub 为 write_page 宽松警告（非 strict），不阻断。
