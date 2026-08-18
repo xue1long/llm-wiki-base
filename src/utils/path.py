@@ -155,3 +155,42 @@ def normalize_source_path(source_path: str, project_root: str | Path) -> str:
         return rel.as_posix()
     except ValueError:
         return source_path
+
+
+def canonical_raw_key(source_path: str | Path, project_root: str | Path) -> str:
+    """Canonical raw-path key v1 (plan 2026-08-18 Task 1).
+
+    Stable identity for a raw source file: project-root-relative, forward
+    slashes, NFC-normalized Unicode, with ``.``/``..``/redundant separators
+    collapsed lexically. **Refuses** (raises ``ValueError``) when the path
+    escapes the project root — never silently falls back to an absolute
+    path, so the same file cannot hash to two different keys from
+    absolute/relative inputs.
+
+    Policy choices (fixed in contract):
+    - case-sensitive (no casefold) — matches existing repo behavior where
+      raw paths are manifest-generated with consistent case;
+    - NFC only (NFD inputs are normalized) — stable across macOS HFS+ vs
+      Windows/APFS NFD exports;
+    - symlinks are NOT resolved (lexical only) — same as the rest of the
+      codebase, a symlink inside root pointing outside is out of scope for
+      the ingest boundary.
+
+    Source hash, ``WikiPage.sources`` and ``source_slug_map`` keys must all
+    be derived from this key.
+    """
+    import unicodedata
+
+    source = Path(str(source_path))
+    root = Path(str(project_root))
+    if not source.is_absolute():
+        source = root / source
+    norm = os.path.normpath(str(source))
+    source = Path(norm)
+    try:
+        rel = source.relative_to(root)
+    except ValueError:
+        raise ValueError(
+            f"source path outside project root: {source_path!r} (root={root})"
+        ) from None
+    return unicodedata.normalize("NFC", rel.as_posix())

@@ -343,7 +343,7 @@ PYTHONPATH=. python -m src.cli batch run --root knowledge/novel-wiki --batch <N>
 方案经 plan-audit 两轮审查（致命 0 → 重大 2 → Task 0 前置）。**编码门槛**：Task 0
 未证明提交/并发/TOCTOU/custom-type 边界前不进入 Task 1，也不重跑 batch 9。
 
-### Task 0（✅ 已实现并验证，待提交）
+**Task 0（✅ 已提交 `19ea1ed2`）**
 
 | 切片 | 内容 | 文件 |
 |---|---|---|
@@ -364,9 +364,9 @@ page_writer、schema_registry、cascade、immutable）。
 
 ### 待办
 
-1. 提交 Task 0（`git add` 具体文件 → `fix(batch): partial_commit/commit-lock/TOCTOU/custom-dir (Task 0)`）
-2. Task 1：canonical raw path + Target Resolver contract/实现
-3. Task 2：四条 Generator 入口统一 `ResolutionContext`、body wikilink + relation target
+1. ~~提交 Task 0~~ ✅ `3675f1f4`（标签 Task 1-4）+ `19ea1ed2`（Task 0）
+2. Task 1（✅ 待提交）：canonical raw path（`canonical_raw_key` v1：NFC/root 外拒绝/golden vectors）+ Target Resolver（`src/wiki/features/target_resolver.py`，优先级 exact→source→alias→title→legacy_hash→unresolved/ambiguous；legacy_hash 仅带 hash 后缀 + 唯一 source 候选内允许 0.88 相似度）；17 contract tests `tests/test_wiki/test_target_resolver.py` 全绿
+3. Task 2（进行中）：`generate_ingest` 冻结 `ResolutionContext`（canonical key + source 候选 + index/title/alias 快照）→ `_normalize_generated_pages` 统一重写 body wikilink + relation target；删除 generator 两处 inline source-link 修复（含 difflib）；新增 `test_generate_ingest_rewrites_legacy_hash_source_link`
 4. Task 3：`finalize_generated_page()` 字段接管 + custom type 全链路
 5. Task 4：relation/taxonomy/alias 归一化
 6. Task 5：Gate 审计输出 + unresolved blocker + 副作用 sentinel
