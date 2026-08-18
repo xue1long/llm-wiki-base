@@ -212,6 +212,29 @@ class OpenAIProvider(LLMProvider):
                     f"{self.base_url}/chat/completions", body, timeout=timeout,
                 )
             except Exception as e:
+                # A 2xx body that can't be UTF-8-decoded is a response cut
+                # mid-multibyte-character by the max_tokens cap (the model
+                # stopped in the middle of a CJK char).  Retrying with the
+                # SAME cap can never fix it, so surface it as a truncated
+                # response — the generator then escalates max_tokens
+                # (8192 → 16384 → 32768) exactly like finish_reason="length"
+                # (phase4 batch 14: 必备资料网络小说写作宝典如何做有生存能力的作者.md
+                # failed 4 runs because this path raised instead of
+                # signalling truncation).
+                root = e
+                while root.__cause__ is not None:
+                    root = root.__cause__
+                if isinstance(root, UnicodeDecodeError):
+                    _logger.warning(
+                        "[OpenAIProvider] undecodable response body "
+                        "(truncated mid-multibyte?) — treating as truncation "
+                        "so the caller escalates max_tokens"
+                    )
+                    n = len(getattr(root, "object", b"") or b"")
+                    return LLMResponse(
+                        content="", model=model, usage=None,
+                        truncated=True, content_length=n,
+                    )
                 raise RuntimeError(f"OpenAI complete failed: {e}") from e
 
         try:

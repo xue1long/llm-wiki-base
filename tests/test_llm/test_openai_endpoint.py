@@ -167,3 +167,47 @@ def test_post_json_non_utf8_error_body_preserves_http_status_cause(monkeypatch):
     assert isinstance(root, httpx.HTTPStatusError)
     assert root.response.status_code == 500
     assert classify_error(exc) == "transient"
+
+
+def test_complete_undecodable_200_body_returns_truncated(monkeypatch):
+    """A 2xx body cut mid-multibyte (max_tokens cap) must surface as a
+    truncated LLMResponse, not raise — so the generator escalates max_tokens.
+
+    Regression: phase4 batch 14 — 必备资料网络小说写作宝典如何做有生存能力的作者.md
+    failed 4 runs because an undecodable body made complete() raise a generic
+    RuntimeError (classified transient → retried with the SAME max_tokens →
+    deterministic failure). Returning truncated=True lets _call_with_slot_retry
+    escalate 8192 → 16384 → 32768 exactly like finish_reason="length".
+    """
+    import asyncio
+
+    import httpx
+
+    from src.llm.openai_provider import OpenAIProvider
+    from src.llm.types import ProviderConfig
+
+    # Body cut in the middle of a 3-byte CJK char: 0xe6 0x9c is an
+    # incomplete sequence (needs a third byte).
+    truncated_body = b'{"choices":[{"message":{"content":"\xe6\x9c"}}]}'
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=truncated_body)
+
+    from httpx import AsyncClient, MockTransport
+
+    def _factory(*args, **kwargs):
+        kwargs.pop("trust_env", None)
+        return AsyncClient(transport=MockTransport(handler), **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", _factory)
+
+    cfg = ProviderConfig(
+        name="openai", type="openai", api_key="sk-test",
+        base_url="https://api.openai.com/v1",
+        default_chat_model="gpt-4o-mini",
+    )
+    p = OpenAIProvider(cfg)
+
+    resp = asyncio.run(p.complete([{"role": "user", "content": "hi"}]))
+    assert resp.truncated is True
+    assert resp.content_length > 0
