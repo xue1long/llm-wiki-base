@@ -36,6 +36,26 @@ logger = logging.getLogger(__name__)
 
 MAX_REDIRECT_HOPS = 5
 
+
+class SourceTooLargeError(ValueError):
+    """Raised when a source (URL body or local file) exceeds the cap.
+
+    R2: the cap is enforced here, in the unified source-read layer, so
+    every ingestion entry (HTTP upload, URL ingest, CLI, folder ingest)
+    is subject to the same resource limit.
+    """
+
+
+def _enforce_source_size(size_bytes: int, source: str) -> None:
+    """Raise SourceTooLargeError when ``size_bytes`` exceeds the cap."""
+    from ..config import settings
+    max_bytes = settings().max_upload_bytes
+    if size_bytes > max_bytes:
+        raise SourceTooLargeError(
+            f"source {source!r} is {size_bytes} bytes, exceeding the "
+            f"{max_bytes}-byte limit (RUFLO_MAX_UPLOAD_BYTES)"
+        )
+
 # Encodings for double-encoding detection and fallback decode.
 # GBK/Big5 cover all Chinese content (Simplified + Traditional).
 # _DOUBLE_ENCODE_SOURCE_CODECS: single-byte codecs that original GBK/Big5
@@ -271,6 +291,9 @@ async def collect(
             break
         else:
             raise PermissionDenied(f"Too many redirects (>{MAX_REDIRECT_HOPS}) from {source}")
+        # R2: unified source cap — a URL body larger than the configured
+        # limit is rejected before it can be parsed/embedded.
+        _enforce_source_size(len(response.content), source)
         content = response.text
         raw_path = source
     else:
@@ -306,6 +329,16 @@ async def collect(
         ext = file_path.suffix.lower()
 
         enforce_permission(AgentType.COLLECTOR, source, Permission.READ)
+
+        # R2: unified source cap — reject oversized local files before
+        # reading them into memory (PDF/office extraction would otherwise
+        # buffer the whole file).
+        try:
+            _enforce_source_size(file_path.stat().st_size, str(file_path))
+        except OSError:
+            # stat may fail for exotic paths; the read below will surface
+            # the real error.
+            pass
 
         if ext == ".pdf":
             content = extract_pdf_text(str(file_path))

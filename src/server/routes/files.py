@@ -5,6 +5,11 @@ from ...services import files as files_service
 
 router = APIRouter(prefix="/api/v1", tags=["files"])
 
+# R2: chunk size for streaming an upload to disk. The route never buffers
+# the whole payload in memory: it accumulates chunks and aborts with 413
+# the moment the configured cap is exceeded.
+_UPLOAD_CHUNK_BYTES = 64 * 1024
+
 
 @router.get("/projects/{project_id}/files")
 async def list_files(project_id: str, root: str = "wiki", recursive: bool = True, max_files: int = 2000, include_tags: bool = False):
@@ -52,11 +57,33 @@ async def upload_file(project_id: str, file: UploadFile = File(...)):
     The file is written to disk and can then be ingested via the normal
     ingest pipeline. Call ``POST /ingest`` with ``{"source": "<relpath>"}``
     afterwards, or use the batch-ingest UI to select it.
+
+    R2: the body is streamed in chunks; exceeding the configured
+    ``RUFLO_MAX_UPLOAD_BYTES`` cap aborts with 413 before the target file
+    is written and without buffering the whole payload in memory.
     """
+    from ...config import settings
+    max_bytes = settings().max_upload_bytes
+    total = 0
+    chunks: list[bytes] = []
+    while True:
+        chunk = await file.read(_UPLOAD_CHUNK_BYTES)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(
+                413,
+                f"upload exceeds limit of {max_bytes} bytes",
+            )
+        chunks.append(chunk)
+    content = b"".join(chunks)
+
     try:
-        content = await file.read()
         return files_service.upload_file(project_id, file.filename or "upload", content)
     except ProjectNotFoundError as e:
         raise HTTPException(404, str(e))
     except files_service.UnsupportedFileTypeError as e:
         raise HTTPException(400, str(e))
+    except files_service.FileTooLargeError as e:
+        raise HTTPException(413, str(e))

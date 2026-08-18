@@ -328,6 +328,16 @@ def upload_file(project_id: str, filename: str, content: bytes) -> dict:
             f"unsupported file type {ext!r}; supported: {sorted(_RAW_EXTS)}"
         )
 
+    # R2: defensive size cap at the service layer (the HTTP route also
+    # streams with a chunk limit, so a hostile client cannot force the
+    # whole payload into memory before this check runs).
+    from ..config import settings
+    max_bytes = settings().max_upload_bytes
+    if len(content) > max_bytes:
+        raise FileTooLargeError(
+            f"upload exceeds limit of {max_bytes} bytes ({name})"
+        )
+
     raw_dir = paths.root / "raw" / "sources"
     raw_dir.mkdir(parents=True, exist_ok=True)
     dest = raw_dir / name

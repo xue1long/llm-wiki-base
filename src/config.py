@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     json_debug_dir: str = Field(default="", validation_alias="RUFLO_JSON_DEBUG_DIR")
     taxonomy_validation: str = Field(default="warn", validation_alias="RUFLO_TAXONOMY_VALIDATION")
 
+    # ── Resource limits (R2) ──
+    # Max bytes for a single ingested source (upload / URL / folder file).
+    # Default 50 MiB; enforced at the HTTP upload route AND the unified
+    # Collector source-read layer so no ingestion entry can bypass it.
+    max_upload_bytes: int = Field(
+        default=50 * 1024 * 1024,
+        validation_alias="RUFLO_MAX_UPLOAD_BYTES",
+    )
+
     # ── External services ──
     tavily_api_key: str = Field(default="", validation_alias="TAVILY_API_KEY")
 
