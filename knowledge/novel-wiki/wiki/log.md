@@ -958,3 +958,45 @@
 - **ingest**: `b13` — generated 5 pages from 必备资料第1章大纲_50ea4b.md
 ## 2026-08-19T02:01:05.948940
 - **reverse-relation**: `b13` — generated 0 pages from (batch-reconcile)
+## 2026-08-19T02:34:28.833627
+- **ingest**: `b14` — generated 5 pages from 必备资料第一忌讳无论文笔多么优美都.md
+## 2026-08-19T02:34:31.040836
+- **ingest**: `b14` — generated 5 pages from 必备资料第一章小说如何塑造角色1.md
+## 2026-08-19T02:34:31.081544
+- **ingest**: `b14` — generated 5 pages from 必备资料第一章小说如何塑造角色1_d36b97.md
+## 2026-08-19T02:34:31.125755
+- **ingest**: `b14` — generated 6 pages from 必备资料第一节课授课内容.md
+## 2026-08-19T02:34:31.160681
+- **ingest**: `b14` — generated 8 pages from 必备资料第九章关于小说情节设计1.md
+## 2026-08-19T02:34:31.195757
+- **ingest**: `b14` — generated 4 pages from 必备资料第二课讲课资料.md
+## 2026-08-19T02:34:31.232991
+- **ingest**: `b14` — generated 4 pages from 必备资料网络小说写作宝典如何塑造角色1_ca1afb.md
+## 2026-08-19T02:34:31.277309
+- **ingest**: `b14` — generated 6 pages from 必备资料详解新作者常见困难和瓶颈.md
+## 2026-08-19T02:34:31.315098
+- **ingest**: `b14` — generated 6 pages from 必备资料踏莎行春色将阑寇准.md
+## 2026-08-19T02:34:31.361361
+- **reverse-relation**: `b14` — generated 0 pages from (batch-reconcile)
+## 2026-08-19T02:50:48.330729
+- **ingest**: `b14` — generated 13 pages from 必备资料第二课讲课资料1.md
+## 2026-08-19T02:50:50.503724
+- **ingest**: `b14` — generated 3 pages from 必备资料第八章关于完善小说人物的技巧1.md
+## 2026-08-19T02:50:50.539239
+- **ingest**: `b14` — generated 6 pages from 必备资料网络小说写作宝典如何做有生存能力的作者_9c5f45.md
+## 2026-08-19T02:50:50.590448
+- **ingest**: `b14` — generated 12 pages from 必备资料诗词格律自学教程.md
+## 2026-08-19T03:03:41.819319
+- **ingest**: `b14` — generated 3 pages from 必备资料网络小说写作宝典如何塑造角色1.md
+## 2026-08-19T03:03:43.936037
+- **ingest**: `b14` — generated 7 pages from 必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿_f9c0da.md
+## 2026-08-19T03:22:34.020335
+- **ingest**: `b14` — generated 3 pages from 必备资料第八章关于完善小说人物的技巧1_2516a3.md
+## 2026-08-19T03:22:36.118181
+- **ingest**: `b14` — generated 6 pages from 必备资料网络小说写作宝典如何塑造角色.md
+## 2026-08-19T03:22:36.162998
+- **ingest**: `b14` — generated 5 pages from 必备资料网络小说写作宝典如何塑造角色_7a9e06.md
+## 2026-08-19T03:22:36.210732
+- **ingest**: `b14` — generated 4 pages from 必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿.md
+## 2026-08-19T04:00:23.877711
+- **ingest**: `b14` — generated 7 pages from 必备资料网络小说写作宝典如何做有生存能力的作者.md

@@ -22,7 +22,7 @@
 | Phase 1 平台改造 | ✅ 10/10 | 见 handoff（1.1–1.9） |
 | **Phase 2 场景模板落地** | ✅ 2/2 | schema/purpose/taxonomy/taxonomy_tags 落盘 + 模板确认 |
 | **Phase 3 实测首轮** | ✅ **达标** | 首批 batch_001 全指标过（2026-08-16，含 10 个修复 commit） |
-| **Phase 4 全量分批重摄入** | 🔄 进行中 | **batch 1-13 已 committed（260/260 raw）**；batch 14-68 待跑（batch 0 孤儿 gap-raw 保留 postcheck_failed） |
+| **Phase 4 全量分批重摄入** | 🔄 进行中 | **batch 1-14 已 committed（280/280 raw）**；batch 15-68 待跑（batch 0 孤儿 gap-raw 保留 postcheck_failed） |
 | Phase 4.5 synthesis 聚合 | ✅ 完成 | **11 页分歧汇聚页全部生成+质量门过**（写作技法/技巧/题材体系/读者与市场/创作原则/平台规则/叙事技巧/心态与职业/案例与素材/小说创作/小说结构） |
 | Phase 5 终验 | ✅ 完成 | **M1-M12 指标表 + 缺口分析 + 挂账清单**；4 项未达标需全量摄入后自动达标，挂账记录于 `.index/batch_reports/phase5_report.md` |
 
@@ -408,3 +408,17 @@ batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首�
 - 首跑环境坑：未设 `PYTHONPATH=.` 时 phase4_batch.py 直接 `ModuleNotFoundError: No module named 'src'`（exit 1）；补 `Set-Item Env:PYTHONPATH .` + `Set-Item Env:PYTHONIOENCODING utf-8` 后正常（与脚本 docstring usage 一致）。
 - 已知上限（ponytail）：taxonomy unknown category 仍为宽松警告（不阻断）；4 个 raw 被 sanitizer high_repetition 标记但仍生成成功（rejected=True 仅入库 quarantine 判断，不影响提交）；LLM 偶发 finish_reason=length 截断由重试+auto-fill 兜底。
 - 经验：后续批次（14+）继续沿用 phase4_batch.py 直跑路径，且必须带 PYTHONPATH=.
+
+## Phase 4 批量重摄入续跑（2026-08-19）✅ batch 14 committed
+
+**执行**：`scripts/phase4_batch.py --manifest knowledge/novel-wiki/.index/reingest_backlog.json --batch 14 --project 0ff37d87-... --allow-overwrite --concurrency 3`（01_新手入门，20 raw）
+- 结果：**5 轮 resume 累计** 20/20 raw 全完成，batch_14 状态 committed（20 completed_files，missing=None）。**全批一次跑不完**：上游（sfkey）500/502/524 风暴 + 单文件病理级 LLM 输出，需 5 轮 resume（9→13→15→19→20 文件）。
+- 各轮：run1 ok=9 pages=49 / resume1 ok=4 pages=34 / resume2 ok=2 pages=10 / resume3 ok=4 pages=18 / resume4 ok=1 pages=7；每段 `gate: N page(s) PASS (0 blocker)` + POSTCHECK 全过；reconcile 跨文件收敛（老舍/角色塑造/代入感 等多源合并）。
+- **本批发现并修复 4 个代码缺陷（均有回归测试）**：
+  1. `d0a09d20` `fix(llm)`：`_post_json` 错误摘要行 `(r.text or "")[:200]` 遇 GBK 错误体抛 UnicodeDecodeError → 遮蔽 HTTPStatusError cause → 5xx 被判 permanent。改 `r.content` 字节解码 errors='replace'，保留 cause → transient 可重试。
+  2. `ea643660` `fix(retry)`：classify_error 将响应体解码异常（UnicodeDecodeError——截断的多字节字符 / GBK 错误页）判为协议级瞬时（transient）可重试。
+  3. `ad8fd9ad` `fix(llm)`：200 响应体解码失败按截断信号返回（LLMResponse(truncated=True, content_length=N)），触发生成器 max_tokens 升级路径而非把文件判死。
+  4. `ff181cbc` `fix(generator)`：MAX_GEN_ATTEMPTS 3→4，截断升级新增第 4 级 65536（端点实测接受）；修复病态文件（必备资料网络小说写作宝典如何做有生存能力的作者.md——glm-5.2 对该文件产出随预算增长 19K→34K→96K 字符且把思考写进 JSON slot，32K 封顶不够；65536 后一次通过 7 页）。
+- 经验：上游不稳定时段（500/502/524 + GBK 错误页）批次可能分段完成，`--resume` 幂等续跑；病态大输出文件靠第 4 级 max_tokens 升级兜底；后续批次继续 phase4_batch.py + PYTHONPATH=. 直跑。
+- 已知上限（ponytail）：taxonomy unknown category 仍为宽松警告（不阻断）；sanitizer high_repetition 标记文件仍可生成（rejected=True 仅入库 quarantine 判断）。
+

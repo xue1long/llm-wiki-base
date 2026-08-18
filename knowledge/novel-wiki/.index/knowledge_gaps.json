@@ -70,7 +70,8 @@
       "raw_hint": "raw/sources/01_新手入门/借鉴素材网文中的九线.md",
       "referenced_by": [
         "势力架构",
-        "装备设定"
+        "装备设定",
+        "科幻小说社会背景合理性"
       ],
       "created_at": 1786933954605,
       "status": "open"
@@ -441,6 +442,15 @@
         "为艺术而艺术"
       ],
       "created_at": 1786951016307,
+      "status": "open"
+    },
+    {
+      "slug": "啰嗦",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿_f9c0da.md",
+      "referenced_by": [
+        "自述-写作毛病"
+      ],
+      "created_at": 1787079823957,
       "status": "open"
     },
     {
@@ -855,6 +865,15 @@
       "status": "open"
     },
     {
+      "slug": "朱天王词律新编",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料诗词格律自学教程.md",
+      "referenced_by": [
+        "必备资料诗词格律自学教程-12c86802"
+      ],
+      "created_at": 1787079050618,
+      "status": "open"
+    },
+    {
       "slug": "架空历史",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
       "referenced_by": [
@@ -987,6 +1006,15 @@
         "上下关系混乱-写作忌讳"
       ],
       "created_at": 1786949205000,
+      "status": "open"
+    },
+    {
+      "slug": "科幻小说",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料第二课讲课资料.md",
+      "referenced_by": [
+        "科幻小说社会背景合理性"
+      ],
+      "created_at": 1787078071211,
       "status": "open"
     },
     {
@@ -1171,6 +1199,15 @@
       "status": "open"
     },
     {
+      "slug": "自述",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿_f9c0da.md",
+      "referenced_by": [
+        "啰嗦-写作毛病"
+      ],
+      "created_at": 1787079823957,
+      "status": "open"
+    },
+    {
       "slug": "节奏与悬念",
       "raw_hint": "raw/sources/补充教程写作经验如何加强书的情节.md",
       "referenced_by": [
@@ -1199,12 +1236,66 @@
       "status": "open"
     },
     {
+      "slug": "茶馆",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色_7a9e06.md",
+      "referenced_by": [
+        "必备资料网络小说写作宝典如何塑造角色-7a9e06-05e5a03a"
+      ],
+      "created_at": 1787080956185,
+      "status": "open"
+    },
+    {
       "slug": "蓄势",
       "raw_hint": "raw/sources/01_新手入门/入门教程教你如何增加网文爽点的精彩度.md",
       "referenced_by": [
         "潜龙勿用-网文桥段第一步"
       ],
       "created_at": 1786954324276,
+      "status": "open"
+    },
+    {
+      "slug": "角色性格设定",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1.md",
+      "referenced_by": [
+        "角色合情合理"
+      ],
+      "created_at": 1787078071058,
+      "status": "open"
+    },
+    {
+      "slug": "角色脸谱化",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1.md",
+      "referenced_by": [
+        "角色合情合理"
+      ],
+      "created_at": 1787078071058,
+      "status": "open"
+    },
+    {
+      "slug": "角色设定",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1.md",
+      "referenced_by": [
+        "角色合情合理"
+      ],
+      "created_at": 1787078071058,
+      "status": "open"
+    },
+    {
+      "slug": "诗词创作八大误区",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料诗词格律自学教程.md",
+      "referenced_by": [
+        "必备资料诗词格律自学教程-12c86802"
+      ],
+      "created_at": 1787079050618,
+      "status": "open"
+    },
+    {
+      "slug": "诗词四大要素",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料诗词格律自学教程.md",
+      "referenced_by": [
+        "必备资料诗词格律自学教程-12c86802"
+      ],
+      "created_at": 1787079050618,
       "status": "open"
     },
     {
@@ -1241,6 +1332,15 @@
         "入门教程2简介-8dd2bba6"
       ],
       "created_at": 1786933958147,
+      "status": "open"
+    },
+    {
+      "slug": "踏莎行春色将阑",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料踏莎行春色将阑寇准.md",
+      "referenced_by": [
+        "必备资料踏莎行春色将阑寇准-0aceeb4d"
+      ],
+      "created_at": 1787078071334,
       "status": "open"
     },
     {
