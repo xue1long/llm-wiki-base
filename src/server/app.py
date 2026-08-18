@@ -275,6 +275,10 @@ def create_app() -> FastAPI:
                    analysis.router, providers.router, tags.router, quality.router, heat.router, templates.router, scenario_templates.router]:
         app.include_router(router)
 
+    # R5: readiness probe (per-component, 200/503) — /health stays liveness.
+    from .ready import router as ready_router
+    app.include_router(ready_router)
+
     # Mount /metrics endpoint (Plan 7 fix; previously dead code).
     # get_router() is idempotent — caches the router at module level so
     # the DB path is locked to the first call's project. Multi-project
