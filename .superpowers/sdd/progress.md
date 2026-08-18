@@ -375,7 +375,7 @@ page_writer、schema_registry、cascade、immutable）。
 ## 确定性字段与链接整改 —— 阶段完成 ✅
 
 Tasks 0-6 全部完成（提交：`19ea1ed2` Task 0 / `6cab7bf7` Task 1 / `9ce10228` Task 2 / `0e625532` Task 3-5 / `9b7ac861` Task 6 修复）。
-batch 8 已 committed（accept_batch）；batch 9 已 committed。后续批次：batch 10+ 可直接 `batch run`。
+batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首次提交 20 raw，recheck 因跨类型 slug `修真文`（concept/entity）失败；无 LLM 重跑，保留已有 concept，确定性将新 entity 重命名为 `修真文-写法`，同步 index/page_ids 后 Gate PASS → committed（97 page_ids）。后续批次：batch 11+ 可直接 `batch run`。
 已知上限（ponytail）：AtomicContext 线程局部（async 同线程并发摄入未覆盖）；owner-token fencing 由项目提交锁串行化替代；generate_from_candidate/KO 无调用方未接线；taxonomy 非 strict 模式只警告。
 
 ## 提交记录（本轮）

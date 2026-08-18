@@ -792,3 +792,43 @@
 - **ingest**: `b9` — generated 5 pages from 入门教程金手指关键不在于如何牛逼而在于如何限制.md
 ## 2026-08-18T22:58:36.208520
 - **ingest**: `b9` — generated 6 pages from 入门教程金手指的技巧.md
+## 2026-08-18T23:50:30.262245
+- **ingest**: `b10` — generated 5 pages from 必备资料11大纲和细纲.md
+## 2026-08-18T23:50:30.494357
+- **ingest**: `b10` — generated 7 pages from 必备资料11月28号创酷中文网女频现言讲课记录.md
+## 2026-08-18T23:50:30.716083
+- **ingest**: `b10` — generated 6 pages from 必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md
+## 2026-08-18T23:50:30.864882
+- **ingest**: `b10` — generated 5 pages from 必备资料15顺眼谈文章的画面感.md
+## 2026-08-18T23:50:31.122562
+- **ingest**: `b10` — generated 10 pages from 必备资料20个签约条件新人必看2.md
+## 2026-08-18T23:50:31.352183
+- **ingest**: `b10` — generated 6 pages from 必备资料20仙侠类题材作品的创作要点及卖点.md
+## 2026-08-18T23:50:31.539146
+- **ingest**: `b10` — generated 6 pages from 必备资料22期待感让你的作品能够引人入胜1.md
+## 2026-08-18T23:50:31.734100
+- **ingest**: `b10` — generated 6 pages from 必备资料22期待感让你的作品能够引人入胜1_a59f91.md
+## 2026-08-18T23:50:31.993315
+- **ingest**: `b10` — generated 8 pages from 必备资料36架空历史的创作要点.md
+## 2026-08-18T23:50:32.196827
+- **ingest**: `b10` — generated 5 pages from 必备资料36架空历史的创作要点1.md
+## 2026-08-18T23:50:32.353955
+- **ingest**: `b10` — generated 6 pages from 必备资料36架空历史的创作要点_e4d43b.md
+## 2026-08-18T23:50:32.516826
+- **ingest**: `b10` — generated 6 pages from 必备资料37修真仙侠小说的元素和写法.md
+## 2026-08-18T23:50:32.793845
+- **ingest**: `b10` — generated 5 pages from 必备资料5速度网络文学创作的唯一秘诀.md
+## 2026-08-18T23:50:33.070809
+- **ingest**: `b10` — generated 6 pages from 必备资料5速度网络文学创作的唯一秘诀_95e59d.md
+## 2026-08-18T23:50:33.206874
+- **ingest**: `b10` — generated 4 pages from 必备资料812如何写好开头.md
+## 2026-08-18T23:50:33.358380
+- **ingest**: `b10` — generated 4 pages from 必备资料8月7日授课记录.md
+## 2026-08-18T23:50:33.564559
+- **ingest**: `b10` — generated 7 pages from 必备资料912怎么写出小说爽点.md
+## 2026-08-18T23:50:33.735227
+- **ingest**: `b10` — generated 4 pages from 必备资料业界杂谈也谈网络小说的模式化写作.md
+## 2026-08-18T23:50:33.954379
+- **ingest**: `b10` — generated 5 pages from 必备资料人物叙述类模版1.md
+## 2026-08-18T23:50:34.128575
+- **ingest**: `b10` — generated 5 pages from 必备资料人物性格塑造的六个方法.md
