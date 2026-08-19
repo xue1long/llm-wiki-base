@@ -1042,3 +1042,45 @@
 - **ingest**: `b15` — generated 2 pages from 新人须知1浅谈网络写手网络文学与网络文学创作基础.md
 ## 2026-08-19T09:00:22.435002
 - **ingest**: `b15` — generated 3 pages from 新人须知1浅谈网络写手网络文学与网络文学创作基础_08147a.md
+## 2026-08-19T09:26:28.874754
+- **ingest**: `b16` — generated 8 pages from 新人须知20仙侠类题材作品的创作要点及卖点.md
+## 2026-08-19T09:26:49.121039
+- **ingest**: `b16` — generated 10 pages from 新人须知22期待感让你的作品能够引人入胜.md
+## 2026-08-19T09:26:49.266265
+- **ingest**: `b16` — generated 1 pages from 新人须知22期待感让你的作品能够引人入胜_ac5917.md
+## 2026-08-19T09:26:49.326918
+- **ingest**: `b16` — generated 8 pages from 新人须知23网文分段技巧详谈.md
+## 2026-08-19T09:26:49.430506
+- **ingest**: `b16` — generated 6 pages from 新人须知25都市类小说类的创作要点.md
+## 2026-08-19T09:26:49.488767
+- **ingest**: `b16` — generated 2 pages from 新人须知25都市类小说类的创作要点_c3dd5d.md
+## 2026-08-19T09:26:49.613047
+- **ingest**: `b16` — generated 8 pages from 新人须知26如何用性格突出角色用角色吸引读者.md
+## 2026-08-19T09:26:49.725690
+- **ingest**: `b16` — generated 3 pages from 新人须知26如何用性格突出角色用角色吸引读者_de04db.md
+## 2026-08-19T09:26:49.814216
+- **ingest**: `b16` — generated 5 pages from 新人须知27你为什么穿越你凭什么穿越.md
+## 2026-08-19T09:26:49.874480
+- **ingest**: `b16` — generated 2 pages from 新人须知28从泡妞技巧看网络小说创作.md
+## 2026-08-19T09:26:49.959406
+- **ingest**: `b16` — generated 3 pages from 新人须知29对话技巧详谈引号开头对话流.md
+## 2026-08-19T09:26:50.066394
+- **ingest**: `b16` — generated 3 pages from 新人须知2给你的作品换件衣服你会发现你什么题材都可以写.md
+## 2026-08-19T09:26:50.168501
+- **ingest**: `b16` — generated 3 pages from 新人须知30第一人称小说创作优劣详解.md
+## 2026-08-19T09:26:50.233171
+- **ingest**: `b16` — generated 3 pages from 新人须知31如何对待评论和书评.md
+## 2026-08-19T09:26:50.305345
+- **ingest**: `b16` — generated 8 pages from 新人须知32开头的具体写法.md
+## 2026-08-19T09:26:50.357920
+- **ingest**: `b16` — generated 2 pages from 新人须知32开头的具体写法_33702d.md
+## 2026-08-19T09:26:50.401284
+- **ingest**: `b16` — generated 3 pages from 新人须知33用科学的管理方法管理你的作品.md
+## 2026-08-19T09:26:50.432125
+- **ingest**: `b16` — generated 2 pages from 新人须知34承转启合文章的衔接和转折.md
+## 2026-08-19T09:26:50.460919
+- **ingest**: `b16` — generated 4 pages from 新人须知35学会给你的小说打补丁.md
+## 2026-08-19T09:26:50.571486
+- **ingest**: `b16` — generated 9 pages from 新人须知36架空历史的创作要点.md
+## 2026-08-19T09:26:50.886098
+- **reverse-relation**: `b16` — generated 0 pages from (batch-reconcile)
