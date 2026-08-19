@@ -1126,3 +1126,45 @@
 - **ingest**: `b17` — generated 3 pages from 新人须知8墨武讲课记录.md
 ## 2026-08-19T11:04:50.211148
 - **reverse-relation**: `b17` — generated 0 pages from (batch-reconcile)
+## 2026-08-19T11:39:33.321287
+- **ingest**: `b18` — generated 6 pages from 新人须知9写作目的和心态的问题.md
+## 2026-08-19T11:39:36.985577
+- **ingest**: `b18` — generated 4 pages from 新人须知9写作目的和心态的问题_e76e46.md
+## 2026-08-19T11:39:37.059948
+- **ingest**: `b18` — generated 9 pages from 新人须知关于小说写作.md
+## 2026-08-19T11:39:37.134801
+- **ingest**: `b18` — generated 7 pages from 新人须知小说写作新手上路基本写作教程.md
+## 2026-08-19T11:39:37.181046
+- **ingest**: `b18` — generated 4 pages from 新人须知小说写作新手上路基本写作教程_2f72ea.md
+## 2026-08-19T11:39:37.213619
+- **ingest**: `b18` — generated 1 pages from 新人须知尾号五新人指南.md
+## 2026-08-19T11:39:37.245938
+- **ingest**: `b18` — generated 3 pages from 新人须知新人完美投稿计划.md
+## 2026-08-19T11:39:37.284633
+- **ingest**: `b18` — generated 2 pages from 新人须知新手上路基本写作教程.md
+## 2026-08-19T11:39:37.315155
+- **ingest**: `b18` — generated 3 pages from 新人须知更俗写作心得访谈.md
+## 2026-08-19T11:39:37.347594
+- **ingest**: `b18` — generated 4 pages from 方法论YY小说模式.md
+## 2026-08-19T11:39:37.388314
+- **ingest**: `b18` — generated 4 pages from 方法论YY点103式.md
+## 2026-08-19T11:39:37.424859
+- **ingest**: `b18` — generated 3 pages from 方法论一个全职写手的心得体会.md
+## 2026-08-19T11:39:37.461498
+- **ingest**: `b18` — generated 4 pages from 方法论丰富多彩的人物形象塑造.md
+## 2026-08-19T11:39:37.509641
+- **ingest**: `b18` — generated 5 pages from 方法论从新手到大神.md
+## 2026-08-19T11:39:37.552369
+- **ingest**: `b18` — generated 4 pages from 方法论侦探小说二十守则.md
+## 2026-08-19T11:39:37.597167
+- **ingest**: `b18` — generated 3 pages from 方法论关于写作技法原理转自奇幻世界网火沙论坛.md
+## 2026-08-19T11:39:37.639447
+- **ingest**: `b18` — generated 7 pages from 方法论写书技巧.md
+## 2026-08-19T11:39:37.690854
+- **ingest**: `b18` — generated 4 pages from 方法论写作心得.md
+## 2026-08-19T11:39:37.742948
+- **ingest**: `b18` — generated 5 pages from 方法论写作技巧与心得117条.md
+## 2026-08-19T11:39:37.803769
+- **ingest**: `b18` — generated 9 pages from 方法论写作技巧之15条小技巧.md
+## 2026-08-19T11:39:37.955005
+- **reverse-relation**: `b18` — generated 0 pages from (batch-reconcile)

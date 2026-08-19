@@ -11,6 +11,15 @@
       "status": "open"
     },
     {
+      "slug": "e-m-福斯特",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论写书技巧.md",
+      "referenced_by": [
+        "小说的真实与虚构"
+      ],
+      "created_at": 1787110777661,
+      "status": "open"
+    },
+    {
       "slug": "yy",
       "raw_hint": "raw/sources/01_新手入门/入门教程写作要点.md",
       "referenced_by": [
@@ -116,6 +125,15 @@
       "status": "open"
     },
     {
+      "slug": "主角设定的真实性",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论写书技巧.md",
+      "referenced_by": [
+        "小说的真实与虚构"
+      ],
+      "created_at": 1787110777661,
+      "status": "open"
+    },
+    {
       "slug": "二十条签约条件分类综述",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
       "referenced_by": [
@@ -168,7 +186,8 @@
       "slug": "人物性格设定",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料大纲范本.md",
       "referenced_by": [
-        "人物设定"
+        "人物设定",
+        "小说人物塑造"
       ],
       "created_at": 1787073529481,
       "status": "open"
@@ -318,6 +337,15 @@
       "status": "open"
     },
     {
+      "slug": "刚劲与柔劲",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论写书技巧.md",
+      "referenced_by": [
+        "冲击力"
+      ],
+      "created_at": 1787110777661,
+      "status": "open"
+    },
+    {
       "slug": "剑道独尊",
       "raw_hint": "raw/sources/01_新手入门/借鉴素材网文中的九线_2b7fc4.md",
       "referenced_by": [
@@ -397,6 +425,15 @@
         "抄袭-写作禁忌"
       ],
       "created_at": 1786949205000,
+      "status": "open"
+    },
+    {
+      "slug": "发掷力",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论写书技巧.md",
+      "referenced_by": [
+        "冲击力"
+      ],
+      "created_at": 1787110777661,
       "status": "open"
     },
     {
@@ -562,6 +599,15 @@
       "status": "open"
     },
     {
+      "slug": "对话与描写",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/新人须知小说写作新手上路基本写作教程.md",
+      "referenced_by": [
+        "语感"
+      ],
+      "created_at": 1787110777155,
+      "status": "open"
+    },
+    {
       "slug": "小说主题",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
       "referenced_by": [
@@ -673,6 +719,15 @@
       "status": "open"
     },
     {
+      "slug": "悬置紧张法",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论写书技巧.md",
+      "referenced_by": [
+        "方法论写书技巧-272982f2"
+      ],
+      "created_at": 1787110777661,
+      "status": "open"
+    },
+    {
       "slug": "情理之中意料之外",
       "raw_hint": "raw/sources/01_新手入门/入门教程一些精华.md",
       "referenced_by": [
@@ -688,6 +743,15 @@
         "基调--写作风格"
       ],
       "created_at": 1787065113457,
+      "status": "open"
+    },
+    {
+      "slug": "情节与故事",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论写书技巧.md",
+      "referenced_by": [
+        "小说的真实与虚构"
+      ],
+      "created_at": 1787110777661,
       "status": "open"
     },
     {
@@ -834,6 +898,15 @@
         "文笔进阶路径"
       ],
       "created_at": 1787065114815,
+      "status": "open"
+    },
+    {
+      "slug": "文笔与语言",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/新人须知小说写作新手上路基本写作教程.md",
+      "referenced_by": [
+        "语感"
+      ],
+      "created_at": 1787110777155,
       "status": "open"
     },
     {

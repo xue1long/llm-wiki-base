@@ -22,7 +22,7 @@
 | Phase 1 平台改造 | ✅ 10/10 | 见 handoff（1.1–1.9） |
 | **Phase 2 场景模板落地** | ✅ 2/2 | schema/purpose/taxonomy/taxonomy_tags 落盘 + 模板确认 |
 | **Phase 3 实测首轮** | ✅ **达标** | 首批 batch_001 全指标过（2026-08-16，含 10 个修复 commit） |
-| **Phase 4 全量分批重摄入** | 🔄 进行中 | **batch 1-14 已 committed（280/280 raw）**；batch 15-68 待跑（batch 0 孤儿 gap-raw 保留 postcheck_failed） |
+| **Phase 4 全量分批重摄入** | 🔄 进行中 | **batch 1-18 已 committed（360/360 raw）**；batch 19-68 待跑（batch 0 孤儿 gap-raw 保留 postcheck_failed） |
 | Phase 4.5 synthesis 聚合 | ✅ 完成 | **11 页分歧汇聚页全部生成+质量门过**（写作技法/技巧/题材体系/读者与市场/创作原则/平台规则/叙事技巧/心态与职业/案例与素材/小说创作/小说结构） |
 | Phase 5 终验 | ✅ 完成 | **M1-M12 指标表 + 缺口分析 + 挂账清单**；4 项未达标需全量摄入后自动达标，挂账记录于 `.index/batch_reports/phase5_report.md` |
 
@@ -429,4 +429,24 @@ batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首�
 - **本轮**：--resume 跳过 18 completed，仅生成 2 剩余文件：`ok=2 err=0 total_pages=8 extras=0 elapsed=152s`；reconcile 合并 2 页（网络小说/网络文学，higher-grade 优先）；`gate: 5 page(s) PASS (0 issue, 0 blocker)`（overwrite WARN 非阻断，--allow-overwrite 放行）；POSTCHECK 全过；batch_15 状态 committed（20 completed_files，failed_files 清空，page_ids=5）。
 - **LLM provider 已切换 xiaomi-mimo**（mimo-v2.5，default=xiaomi-mimo）：本轮实测 200 OK、无截断；之前 sfkey 超时文件一次通过。
 - 经验：`--resume` 幂等续跑把 18 个已落盘文件当 completed 跳过，只补剩余文件，POSTCHECK 只扫本轮生成页；已 committed 批次不重跑。batch_16+ 为全新批次（无 --resume），继续 phase4_batch.py + PYTHONPATH=. 直跑。
+
+## Phase 4 批量重摄入续跑（2026-08-19）✅ batch 16 committed
+
+**执行**：`scripts/phase4_batch.py --manifest knowledge/novel-wiki/.index/reingest_backlog.json --batch 16 --project 0ff37d87-... --allow-overwrite --concurrency 3`（01_新手入门，20 raw，新人须知20-36 系列）
+- 结果：一次通过 `ok=20 err=0 total_pages=111 extras=27 elapsed=1460s`；reconcile 收敛跨文件重复页（爽点与情绪/期待感/都市小说/北京圣东方国信科技有限公司/人物塑造/射雕英雄传 等多源合并，higher-grade 优先）；`gate: 93 page(s) PASS (0 blocker)`；commit 93 主页 + 19 reverse-relation extras；POSTCHECK 全过；batch_16 committed（20 completed_files，page_ids=111）。
+- 经验：xiaomi-mimo（mimo-v2.5）全程 200 OK、无截断；taxonomy unknown category/sub 仍为宽松警告（非 strict，不阻断）。
+
+## Phase 4 批量重摄入续跑（2026-08-19）✅ batch 17 committed
+
+**执行**：`scripts/phase4_batch.py --manifest knowledge/novel-wiki/.index/reingest_backlog.json --batch 17 --project 0ff37d87-... --allow-overwrite --concurrency 3`（01_新手入门，20 raw，新人须知36_d0bb05-8 系列）
+- 结果：一次通过 `ok=20 err=0 total_pages=88 extras=46 elapsed=585s`；reconcile 收敛跨文件重复页（完本心态/爽点/先抑后扬/梦入神机/人物塑造/主角性格设定/凤头 等多源合并，higher-grade 优先）；`gate: 78 page(s) PASS (0 issue, 0 blocker)`；commit 78 主页 + 30 reverse-relation extras；POSTCHECK 全过；batch_17 committed（20 completed_files，missing=None，page_ids 记录）。
+- 备注：4 raw 被 sanitizer high_repetition 标记（rejected=True 仅入库判断，不阻断提交）；1 个 raw（新人须知40网络小说的爽点是什么.md，>25K chars）走 chunked 路径产出 13 页；2 处 gap 记账（速度--网络文学创作核心 / 基础扎实；新人须知40 的 4 个 gap：奖励与需要/队友设定/女主处理/爽点设计）；taxonomy unknown category（空 category）仍为 write_page 宽松警告（非 strict，不阻断）。
+- 经验：xiaomi-mimo（mimo-v2.5）全程 200 OK；batch 17 一次通过无 resume；继续 phase4_batch.py + PYTHONPATH=. 直跑。
+
+## Phase 4 批量重摄入续跑（2026-08-19）✅ batch 18 committed
+
+**执行**：`scripts/phase4_batch.py --manifest knowledge/novel-wiki/.index/reingest_backlog.json --batch 18 --project 0ff37d87-... --allow-overwrite --concurrency 3`（mixed，20 raw：新人须知9 系列 9 个 + 02_进阶技巧/方法论 系列 11 个）
+- 结果：一次通过 `ok=20 err=0 permanent_failed=0 total_pages=101 extras=17 elapsed=1925s`；reconcile 收敛跨文件重复页（人物塑造/北京圣东方国信科技有限公司/语感/智慧/冲突 等多源合并，higher-grade 优先）；`gate: 91 page(s) PASS (0 issue, 0 blocker)`；commit 91 主页 + 12 reverse-relation extras；POSTCHECK 全过；batch_18 committed（20 completed_files，failed_files=[]，missing=None，page_ids=107）。
+- 备注：3 个超大/大文件——方法论写书技巧.md（43.6K chars，4 chunk，chunked 产出 7 页，2 处 truncation 由 retry ladder 兜底，6 gap 记账：悬置紧张法/主角设定的真实性/情节与故事/e-m-福斯特/发掷力/刚劲与柔劲）；方法论关于写作技法原理转自奇幻世界网火沙论坛.md（13.3K chars）产出 3 页；5 raw 被 sanitizer high_repetition 标记（rejected=True 仅入库判断，不阻断提交）；2 个 gap 记账（文笔与语言/对话与描写，来自 新人须知小说写作新手上路基本写作教程.md）；taxonomy unknown category/sub（空 category、习惯与方法、写作心态）仍为 write_page 宽松警告（非 strict，不阻断）。
+- 经验：xiaomi-mimo（mimo-v2.5）全程 200 OK，仅 2 次 finish_reason=length 截断均由第 1/2 级重试消化；batch 18 一次通过无 resume；继续 phase4_batch.py + PYTHONPATH=. 直跑。
 
