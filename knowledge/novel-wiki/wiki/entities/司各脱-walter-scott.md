@@ -7,6 +7,34 @@ sources:
 created_at: 1786952030111
 updated_at: 1786952030111
 relations:
+- target: 现实之灯
+  type: supported_by
+  weight: 0.9
+  context: 司各脱的创作实践是现实之灯原则的典范例证。
+- target: 理想之灯
+  type: supported_by
+  weight: 0.9
+  context: 司各脱的人物塑造是理想之灯原则的典范例证。
+- target: 公正之灯
+  type: supported_by
+  weight: 0.9
+  context: 司各脱的公正之心是此原则的典范。
+- target: 忘我之灯
+  type: supported_by
+  weight: 0.9
+  context: 司各脱的高尚品格是忘我之灯的典范。
+- target: 纯洁之灯
+  type: supported_by
+  weight: 0.9
+  context: 司各脱的纯洁品格是此原则的典范。
+- target: 人性之灯
+  type: supported_by
+  weight: 0.9
+  context: 司各脱的作品处理方式是人性之灯的典范。
+- target: 高尚之灯
+  type: supported_by
+  weight: 0.9
+  context: 司各脱的作品是高尚之灯原则的典范。
 - target: 罗斯金
   type: referenced_by
   weight: 0.8

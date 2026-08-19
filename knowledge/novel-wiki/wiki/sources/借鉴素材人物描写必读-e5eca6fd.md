@@ -15,6 +15,10 @@ relations:
   type: derives
   weight: 0.9
   context: 作家联盟群在该素材中被提及
+- target: 方法论精彩描写身份-f88d80aa
+  type: derives
+  weight: 0.8
+  context: 文档内容与人物描写必读类素材高度相关，可能为其子集或补充。
 grade: A
 processing_depth: memory
 is_immutable: false

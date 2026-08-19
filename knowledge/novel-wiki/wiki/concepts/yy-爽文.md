@@ -15,6 +15,18 @@ relations:
   type: referenced_by
   weight: 0.9
   context: 文章把YY视为网络作品的重要快感来源。
+- target: yy-小说-103-个经典桥段
+  type: contains
+  weight: 0.9
+  context: YY小说经典桥段是构成YY爽文的核心情节元素。
+- target: 主角愤怒寻仇桥段
+  type: derives
+  weight: 0.9
+  context: 此桥段是YY爽文中用于制造情绪高潮和爽点的常用手法。
+- target: 方法论新人成神之路写手必读-1be12c3c
+  type: referenced_by
+  weight: 0.9
+  context: 本文系统阐述了YY爽文的核心理念、写作方法与案例，是本文的核心主题之一。
 - target: 爽点
   type: derived_from
   weight: 0.85
@@ -27,27 +39,11 @@ relations:
   type: supports
   weight: 0.8
   context: 来源中的皇帝和战争示例都以主角欲望作为题材驱动力。
-- target: 新人须知更俗写作心得访谈-b858680c
-  type: referenced_by
-  weight: 0.6
-  context: 访谈讨论了都市YY小说的写作要点，与概念页‘yy-爽文’的题材特性相关。
-- target: 方法论yy小说模式-942f4f92
+- target: 方法论-yy-小说模式-942f4f92
   type: referenced_by
   weight: 0.8
   context: 本文是对YY小说模式的详细拆解，是yy-爽文概念的具体化写作方法论。
-- target: 升级练功小说
-  type: contains
-  weight: 0.7
-  context: 升级练功小说是yy-爽文的典型子类。
-- target: yy-小说-103-个经典桥段
-  type: contains
-  weight: 0.9
-  context: YY小说经典桥段是构成YY爽文的核心情节元素。
-- target: 主角愤怒寻仇桥段
-  type: derives
-  weight: 0.9
-  context: 此桥段是YY爽文中用于制造情绪高潮和爽点的常用手法。
-- target: 方法论yy点103式-e6b9ec09
+- target: 方法论-yy-点-103-式-e6b9ec09
   type: referenced_by
   weight: 0.8
   context: 文档所列桥段是YY爽文制造爽点的具体手法。
@@ -55,6 +51,22 @@ relations:
   type: derives
   weight: 0.8
   context: 此桥段是YY爽文中构建主角优越感和“扮猪吃虎”效果的核心手段。
+- target: 升级练功小说
+  type: contains
+  weight: 0.7
+  context: 升级练功小说是yy-爽文的典型子类。
+- target: 升级流小说
+  type: contains
+  weight: 0.7
+  context: 升级流小说是YY爽文的一种重要表现形式。
+- target: 新人须知更俗写作心得访谈-b858680c
+  type: referenced_by
+  weight: 0.6
+  context: 访谈讨论了都市YY小说的写作要点，与概念页‘yy-爽文’的题材特性相关。
+- target: 方法论爽文经典桥段套路-06fe9a47
+  type: referenced_by
+  weight: 1.0
+  context: 文章核心主题就是阐述如何创作爽文，其定义、特征和桥段设计都围绕此概念展开。
 grade: C
 processing_depth: concept
 is_immutable: false

@@ -6,7 +6,63 @@ sources:
 - raw/sources/补充教程小说结局的十三种方式精.md
 created_at: 1786899593909
 updated_at: 1786899593909
-relations: []
+relations:
+- target: 马原
+  type: references
+  weight: 1.0
+  context: 该文章的作者与核心讲述者
+- target: 死亡结局
+  type: derives
+  weight: 1.0
+  context: 该概念是来源文章总结的第一种结局方式
+- target: 大团圆结局
+  type: derives
+  weight: 1.0
+  context: 该概念是来源文章总结的第二种结局方式
+- target: 诗意结局
+  type: derives
+  weight: 1.0
+  context: 该概念是来源文章总结的第三种结局方式
+- target: 揭谜结局
+  type: derives
+  weight: 1.0
+  context: 该概念是来源文章总结的第四种结局方式
+- target: 解嘲结局
+  type: derives
+  weight: 1.0
+  context: 该概念是来源文章总结的第五种结局方式
+- target: 有去无归结局
+  type: derives
+  weight: 1.0
+  context: 该概念是来源文章总结的第六种结局方式
+- target: 梦魇结局
+  type: derives
+  weight: 1.0
+  context: 该概念是来源文章总结的第七种结局方式
+- target: 循环往复结局
+  type: derives
+  weight: 1.0
+  context: 该概念是来源文章总结的第八种结局方式
+- target: 得而复失结局
+  type: derives
+  weight: 1.0
+  context: 该概念是来源文章总结的第九种结局方式
+- target: 走出叙事人视野结局
+  type: derives
+  weight: 1.0
+  context: 该概念是来源文章总结的第十种结局方式
+- target: 以死来终止结局
+  type: derives
+  weight: 1.0
+  context: 该概念是来源文章总结的第十一种结局方式
+- target: 歪打正着结局
+  type: derives
+  weight: 1.0
+  context: 该概念是来源文章总结的第十二种结局方式
+- target: 迷失结局
+  type: derives
+  weight: 1.0
+  context: 该概念是来源文章总结的第十三种结局方式
 grade: A
 processing_depth: source
 is_immutable: false
