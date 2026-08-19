@@ -48,6 +48,7 @@ knowledge/*/.index/*
 !knowledge/*/.index/batch_reports/
 !knowledge/*/.index/batch_reports/*.json
 !knowledge/*/.index/reingest_plan.json
+!knowledge/*/.index/quality_settings.json
 # LLM cache dir
 .llm-wiki
 # Obsidian vault (when this repo is opened in Obsidian)

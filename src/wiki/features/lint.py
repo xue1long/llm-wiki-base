@@ -550,6 +550,29 @@ def lint_wiki(
                         )
                     )
 
+            # LINT-TAGS-ENUM: tag values must fall within the controlled
+            # vocabulary defined in tag_namespace.TAG_VALUES.  Reuses the
+            # existing validate_tag_values() so the enum is single-source.
+            if page.tags:
+                from ..features.tag_namespace import validate_tag_values
+                invalid_tags = validate_tag_values(page.tags)
+                if invalid_tags:
+                    issues.append(
+                        LintIssue(
+                            code="LINT-TAGS-ENUM",
+                            severity=LintSeverity.ERROR,
+                            message=(
+                                f"Page has tags outside controlled vocabulary: "
+                                f"{invalid_tags} on page {page.id}"
+                            ),
+                            page_id=page.id,
+                            suggestion=(
+                                "Use tags from the controlled vocabulary "
+                                "(see tag_namespace.TAG_VALUES)."
+                            ),
+                        )
+                    )
+
             # LINT-SYNTHESIS-GATE: v3.0.0 synthesis pages must carry at least
             # 2 resolvable [[wikilinks]] inside the 各方观点 section (F1 — the
             # gate must not rely on frontmatter `sources` count, which is

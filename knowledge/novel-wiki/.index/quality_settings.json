@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "raw_paste": {
+    "source_threshold": 800,
+    "non_source_threshold": 300
+  },
+  "placeholder": {
+    "substrings": ["（系统占位", "待补充", "见下游概念页", "来源未提供具体例子"],
+    "whole_body": ["(empty)", "(无内容)", "(占位)", "(placeholder)"]
+  },
+  "synthesis": {
+    "min_viewpoint_wikilinks": 2,
+    "viewpoints_heading": "各方观点"
+  },
+  "tags": {
+    "required_prefixes": ["素材/", "可信度/"],
+    "optional_prefixes": ["情绪/", "场景阶段/", "读者群/", "平台/", "题材/", "功能/", "角色/", "事件/", "实体/", "状态/", "func/", "genre/"],
+    "taxonomy_category_prefix": "Tags-"
+  },
+  "relations": {
+    "builtin_types": [
+      "is_part_of", "contains", "references", "referenced_by",
+      "causes", "caused_by", "contradicts", "supports", "supported_by",
+      "supersedes", "superseded_by", "depends_on", "required_by",
+      "analogous_to", "opposite_of", "derived_from", "derives"
+    ],
+    "allow_user_prefix": "x-"
+  },
+  "gate": {
+    "enabled_rules": [
+      "LINT-MISSING-ID",
+      "LINT-MISSING-TITLE",
+      "LINT-EMPTY-BODY",
+      "LINT-MISSING-SECTION",
+      "LINT-ORPHAN",
+      "LINT-DUPLICATE",
+      "LINT-RAW-PASTE",
+      "LINT-MISSING-SOURCES",
+      "LINT-UGC-CRED",
+      "LINT-PLACEHOLDER",
+      "LINT-ILLEGAL-RELATION",
+      "LINT-SYNTHESIS-GATE"
+    ],
+    "error_rules": [
+      "LINT-MISSING-SECTION",
+      "LINT-RAW-PASTE",
+      "LINT-PLACEHOLDER",
+      "LINT-ILLEGAL-RELATION",
+      "LINT-SYNTHESIS-GATE"
+    ],
+    "new_rules": [
+      "LINT-TAGS-ENUM"
+    ],
+    "batch_scope": "intra-batch",
+    "retry_on_fail": true,
+    "max_retries": 1
+  }
+}
