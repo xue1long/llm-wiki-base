@@ -422,3 +422,11 @@ batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首�
 - 经验：上游不稳定时段（500/502/524 + GBK 错误页）批次可能分段完成，`--resume` 幂等续跑；病态大输出文件靠第 4 级 max_tokens 升级兜底；后续批次继续 phase4_batch.py + PYTHONPATH=. 直跑。
 - 已知上限（ponytail）：taxonomy unknown category 仍为宽松警告（不阻断）；sanitizer high_repetition 标记文件仍可生成（rejected=True 仅入库 quarantine 判断）。
 
+## Phase 4 批量重摄入续跑（2026-08-19）✅ batch 15 committed
+
+**执行**：`scripts/phase4_batch.py --manifest knowledge/novel-wiki/.index/reingest_backlog.json --batch 15 --project 0ff37d87-... --allow-overwrite --concurrency 3 --resume`（01_新手入门，20 raw）
+- **背景**：batch_15 上一轮 18/20 完成但未提交，2 文件超时（新人须知1浅谈网络写手网络文学与网络文学创作基础.md 及 _08147a 变体，均 <8KB 小文件——超时源头上游不稳）。
+- **本轮**：--resume 跳过 18 completed，仅生成 2 剩余文件：`ok=2 err=0 total_pages=8 extras=0 elapsed=152s`；reconcile 合并 2 页（网络小说/网络文学，higher-grade 优先）；`gate: 5 page(s) PASS (0 issue, 0 blocker)`（overwrite WARN 非阻断，--allow-overwrite 放行）；POSTCHECK 全过；batch_15 状态 committed（20 completed_files，failed_files 清空，page_ids=5）。
+- **LLM provider 已切换 xiaomi-mimo**（mimo-v2.5，default=xiaomi-mimo）：本轮实测 200 OK、无截断；之前 sfkey 超时文件一次通过。
+- 经验：`--resume` 幂等续跑把 18 个已落盘文件当 completed 跳过，只补剩余文件，POSTCHECK 只扫本轮生成页；已 committed 批次不重跑。batch_16+ 为全新批次（无 --resume），继续 phase4_batch.py + PYTHONPATH=. 直跑。
+

@@ -1000,3 +1000,45 @@
 - **ingest**: `b14` — generated 4 pages from 必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿.md
 ## 2026-08-19T04:00:23.877711
 - **ingest**: `b14` — generated 7 pages from 必备资料网络小说写作宝典如何做有生存能力的作者.md
+## 2026-08-19T04:47:05.280675
+- **ingest**: `b15` — generated 5 pages from 必备资料金手指.md
+## 2026-08-19T04:47:07.454155
+- **ingest**: `b15` — generated 5 pages from 必备资料青春校园小说相关写作技巧.md
+## 2026-08-19T04:47:07.495877
+- **ingest**: `b15` — generated 4 pages from 新人须知10网络小说大纲和细纲的作用.md
+## 2026-08-19T04:47:07.530819
+- **ingest**: `b15` — generated 5 pages from 新人须知11从标题党看网络文学创作手法中的诱惑性创作1.md
+## 2026-08-19T04:47:07.563793
+- **ingest**: `b15` — generated 5 pages from 新人须知12剖析网络游戏的卖点讲解网络小说创作利用网游模式写作方法.md
+## 2026-08-19T04:47:07.601817
+- **ingest**: `b15` — generated 4 pages from 新人须知12剖析网络游戏的卖点讲解网络小说创作利用网游模式写作方法_493b76.md
+## 2026-08-19T04:47:07.640438
+- **ingest**: `b15` — generated 9 pages from 新人须知13网络文学创作的几个误区.md
+## 2026-08-19T04:47:07.669566
+- **ingest**: `b15` — generated 2 pages from 新人须知13网络文学创作的几个误区_c397d6.md
+## 2026-08-19T04:47:07.696597
+- **ingest**: `b15` — generated 6 pages from 新人须知14网络文学实体书出版的那些事儿.md
+## 2026-08-19T04:47:07.726174
+- **ingest**: `b15` — generated 6 pages from 新人须知14网络文学实体书出版的那些事儿_c39e43.md
+## 2026-08-19T04:47:07.757993
+- **ingest**: `b15` — generated 3 pages from 新人须知15顺眼谈文章的画面感.md
+## 2026-08-19T04:47:07.787385
+- **ingest**: `b15` — generated 5 pages from 新人须知17文笔在网络文学创作上的作用.md
+## 2026-08-19T04:47:07.829437
+- **ingest**: `b15` — generated 5 pages from 新人须知17文笔在网络文学创作上的作用_1dd858.md
+## 2026-08-19T04:47:07.862713
+- **ingest**: `b15` — generated 5 pages from 新人须知17编辑讲课记录.md
+## 2026-08-19T04:47:07.897117
+- **ingest**: `b15` — generated 7 pages from 新人须知18创作会经常遇到的问题.md
+## 2026-08-19T04:47:07.925893
+- **ingest**: `b15` — generated 2 pages from 新人须知18创作会经常遇到的问题_056c32.md
+## 2026-08-19T04:47:07.953217
+- **ingest**: `b15` — generated 5 pages from 新人须知19从信昌出版社出版要求分析网络文学创作.md
+## 2026-08-19T04:47:07.976837
+- **ingest**: `b15` — generated 2 pages from 新人须知19从信昌出版社出版要求分析网络文学创作_de13c1.md
+## 2026-08-19T04:47:08.061571
+- **reverse-relation**: `b15` — generated 0 pages from (batch-reconcile)
+## 2026-08-19T09:00:17.397855
+- **ingest**: `b15` — generated 2 pages from 新人须知1浅谈网络写手网络文学与网络文学创作基础.md
+## 2026-08-19T09:00:22.435002
+- **ingest**: `b15` — generated 3 pages from 新人须知1浅谈网络写手网络文学与网络文学创作基础_08147a.md
