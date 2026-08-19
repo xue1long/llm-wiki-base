@@ -71,11 +71,14 @@ metrics.db
 .server.log.*
 
 # --- agent/tool runtime dirs ---
+# graphify 知识图谱产物（代码变更后可用 `graphify update .` 重建）
+graphify-out/
 .agents/
 .codebuddy/
 .minimax/
 .trae/
 .venv/
+.novel_venv/
 
 # one-off debug / scratch scripts
 _check_*.py

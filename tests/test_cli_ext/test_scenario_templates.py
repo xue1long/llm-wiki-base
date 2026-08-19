@@ -50,3 +50,34 @@ def test_custom_template_can_add_taxonomy_content(tmp_path, monkeypatch):
 def test_bundled_template_cannot_be_updated_or_deleted():
     with pytest.raises(PermissionError):
         update_metadata("general", description="no")
+
+
+def test_novel_bundled_template_registered():
+    ids = {t.name for t in list_templates()}
+    assert "novel" in ids
+    t = load("novel")
+    assert t.builtin is True
+    # 必需根级文件齐备
+    for must in ("purpose.md", "schema.md", "taxonomy.md", "taxonomy_tags.md"):
+        assert must in t.files, f"missing {must}"
+    # 四个页面模板齐备
+    wt = {f for f in t.files if f.startswith(".wiki-templates/")}
+    assert wt == {
+        ".wiki-templates/source.md",
+        ".wiki-templates/entity.md",
+        ".wiki-templates/concept.md",
+        ".wiki-templates/synthesis.md",
+    }
+    # C 决策：页面模板版本头为 2.0.0（非源 3.0.0），规避版本门炸弹且符合 H3
+    assert "wiki-template-version: 2.0.0" in t.files[".wiki-templates/concept.md"]
+
+
+def test_novel_apply_template_scaffold(tmp_path):
+    written = apply_template("novel", tmp_path)
+    names = {p.name for p in written}
+    assert {"purpose.md", "schema.md", "taxonomy.md", "taxonomy_tags.md"} <= names
+    # 页面模板落到 .wiki-templates/
+    assert (tmp_path / ".wiki-templates" / "concept.md").exists()
+    # 应用副本版本头仍为 2.0.0
+    head = (tmp_path / ".wiki-templates" / "concept.md").read_text(encoding="utf-8").splitlines()[0]
+    assert "wiki-template-version: 2.0.0" in head
