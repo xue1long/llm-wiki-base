@@ -131,15 +131,48 @@ def _read_raw_header(raw_path: Path, chars: int = 4000) -> str:
         return ""
 
 
-def _batch_completed_files(batch_key: str) -> set[str]:
+def _batch_key(manifest: str, batch: int) -> str:
+    """Manifest-bound state key (P1 fix), backward-compatible with the
+    default manifest.
+
+    The default manifest (``reingest_backlog.json``) keeps the legacy
+    ``batch_{batch}`` key so existing consumers (``phase3_accept`` reads
+    ``batch_0``) and already-committed state entries stay valid.  Any
+    *alternate* manifest gets a stem-bound key ``batch_{stem}_{batch}`` so
+    different manifests sharing a batch index no longer collide in
+    ``batch_build_state.json`` — the original bug, where ``--resume`` could
+    reuse the wrong manifest's ``completed_files``.
+    """
+    if Path(manifest).resolve() == Path(str(MANIFEST)).resolve():
+        return f"batch_{batch}"
+    return f"batch_{Path(manifest).stem}_{batch}"
+
+
+def _resolve_batch_entry(state: dict, manifest: str, batch: int) -> dict | None:
+    """Resolve a batch's state entry, bound to ``manifest``.
+
+    Looks up the manifest-bound key first, then falls back to the legacy
+    unbound key (``batch_{batch}``) so batches already committed before this
+    change stay resumable.  Returns the entry dict, or ``None`` when neither
+    exists (fresh run)."""
+    entry = state.get(_batch_key(manifest, batch))
+    if isinstance(entry, dict):
+        return entry
+    legacy = state.get(f"batch_{batch}")
+    if isinstance(legacy, dict):
+        return legacy
+    return None
+
+
+def _batch_completed_files(manifest: str, batch: int) -> set[str]:
     """Return the set of raw file paths already completed for this batch.
 
     Status-independent read (D1/F7): any entry carrying ``completed_files``
     (``committing`` / ``partial`` / ``committed`` / ``postcheck_failed``)
     resumes from it.  ``gate_failed`` / ``failed`` entries carry none →
-    correctly empty."""
-    state = _load_state()
-    entry = state.get(batch_key)
+    correctly empty.  Resolution binds to ``manifest`` and falls back to the
+    legacy unbound key for backward compatibility."""
+    entry = _resolve_batch_entry(_load_state(), manifest, batch)
     if isinstance(entry, dict):
         return set(entry.get("completed_files", []))
     return set()
@@ -740,9 +773,9 @@ async def main() -> int:
     # fake-commit 'committed' / exit 0 while the missing pages stay missing.
     # Block before any LLM/generate work — only manual repair of the missing
     # pages or a non-resume re-run can clear it.
-    batch_key = f"batch_{args.batch}"
+    batch_key = _batch_key(args.manifest, args.batch)
     if args.resume:
-        _prior = _load_state().get(batch_key)
+        _prior = _resolve_batch_entry(_load_state(), args.manifest, args.batch)
         if isinstance(_prior, dict) and _prior.get("status") == "postcheck_failed":
             _missing = _prior.get("missing", [])
             _log(f"RESUME BLOCKED: prior run ended postcheck_failed — "
@@ -771,7 +804,7 @@ async def main() -> int:
     # Checkpoint resume: skip files already completed in a prior run.
     completed_files: set[str] = set()
     if args.resume:
-        completed_files = _batch_completed_files(batch_key)
+        completed_files = _batch_completed_files(args.manifest, args.batch)
         if completed_files:
             _log(f"resume: skipping {len(completed_files)} already-completed file(s)")
 

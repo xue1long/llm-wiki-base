@@ -91,6 +91,23 @@ def auto_register_on_first_run() -> list[ProjectContext]:
     contexts: list[ProjectContext] = []
     for kb_path in kb_paths:
         try:
+            # Guard against same-name-different-path confusion. When the
+            # registry already contains a project with the same directory
+            # name but pointing at a *different* physical path (e.g. the
+            # repo was cloned/duplicated), skip it and warn instead of
+            # silently registering a second same-named entity. This is the
+            # root cause of "which project am I actually looking at" — two
+            # registries both call it "novel-wiki" while pointing at
+            # different copies on disk.
+            if GlobalRegistryStore.by_path(kb_path) is None:
+                collision = GlobalRegistryStore.by_name(kb_path.name)
+                if collision is not None:
+                    _logger.warning(
+                        "[discovery] skipping %s: a project named %r already "
+                        "exists at %s (candidate at %s was NOT registered)",
+                        kb_path, collision.name, collision.path, kb_path,
+                    )
+                    continue
             ctx = ProjectContext.from_path(kb_path)  # from_path is idempotent (skips if exists)
             contexts.append(ctx)
         except Exception as e:

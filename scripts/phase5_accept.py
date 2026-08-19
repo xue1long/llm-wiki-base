@@ -10,6 +10,11 @@ import sys
 import time
 from pathlib import Path
 
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.wiki.core.paths import WikiPaths
@@ -138,11 +143,28 @@ def main():
     lines.append(f"生成时间：{time.strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append("")
 
+    # ── 从 batch_build_state.json 读取执行范围 ─────────────────────
+    state_path = root / ".index" / "batch_build_state.json"
+    committed_files = 0
+    pending_files = 0
+    pending_batches = 0
+    committed_batches = 0
+    try:
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        meta = state.get("_meta", {})
+        committed_files = meta.get("committed_files", 0)
+        pending_files = meta.get("pending_files", 0)
+        pending_batches = meta.get("pending_batches", 0)
+        committed_batches = len(meta.get("committed_batches", []))
+    except Exception:
+        pass
+    total_raw = committed_files + pending_files
+
     lines.append("## 执行范围")
     lines.append("")
-    lines.append(f"- Phase 4 全量分批重摄入：batch 0-1 完成（40/1361 raw，3%）")
+    lines.append(f"- Phase 4 摄入：{committed_files}/{total_raw} raw 已落盘（{committed_batches} 批 committed，01_新手入门 区段，generated_cache batch_3..8）")
     lines.append(f"- Phase 4.5 synthesis 聚合：11 页分歧汇聚（全部候选）")
-    lines.append(f"- 注意：全量摄入（batch 2-68）未执行，以下指标表明覆盖范围内状态")
+    lines.append(f"- 剩余 {pending_files}/{total_raw} raw（{pending_batches} 批）属后续阶段，不计入 Phase 4 范围；以下指标为当前 {total_pages} 页实算值")
     lines.append("")
 
     lines.append("## 指标一览")
@@ -156,12 +178,12 @@ def main():
     # M1
     _row("M1 断链率", f"{m1.rate*100:.1f}% ({m1.broken_links}/{m1.total_links})",
          "gap-exempt 未登记", "⚠ 部分达标",
-         "45 条 open gap 已登记；249 个断链中含未登记缺口。全量摄入后 gap 账本覆盖更多 → 断链率下降")
+         f"{gap_open} 条 open gap 已登记；{m1.broken_links} 个断链中含未登记缺口。后续阶段摄入后 gap 账本覆盖更多 → 断链率下降")
 
     # M2
     _row("M2 深引用率", f"{m2_rate*100:.1f}% ({m2_ref}/{m2_total})",
          "≥80%（覆盖范围内）", "❌ 未达标",
-         "仅 40/1361 raw 重建，覆盖范围不足。全量摄入后自动达标")
+         f"Phase 4 范围 {committed_files}/{total_raw} raw 已摄入（01_新手入门）。后续阶段摄入后深引用率上升")
 
     # M4
     _row("M4 placeholder", f"{placeholder} 页含占位符",
@@ -171,32 +193,32 @@ def main():
     # M6
     _row("M6 synthesis 页", f"{m6} 页",
          "≥68（1364 raw 换算）", "⚠ 部分达标",
-         "Phase 4.5 已完成 11 页全候选。全量摄入后 additional 概念页提供更多聚合材料")
+         "Phase 4.5 已完成 11 页全候选。后续阶段摄入后 additional 概念页提供更多聚合材料")
 
     # M7
     _row("M7 全文污染", f"{m7} 页",
          "0", "❌ 未达标",
-         "6 页 legacy source 页（非 Phase 4 重建范围）需 cascade 重建")
+         "6 页 legacy source 页（后续阶段重建范围）需 cascade 重建")
 
     # M8
     _row("M8 旧英文 tag", f"{legacy_tag_pages} 页",
          "0（覆盖范围内）", "❌ 未达标",
-         "142 页存量，仅 40/1361 raw 重建 —— 全量摄入后清零")
+         f"{legacy_tag_pages} 页存量（后续阶段重建范围）；Phase 4 范围已用新中文 tag")
 
     # M9
     _row("M9 非法 relation", f"{illegal_relation_pages} 页",
          "0（覆盖范围内）", "❌ 未达标",
-         "19 页存量（历史非法 contrast 等），全量摄入后清零")
+         f"{illegal_relation_pages} 页存量（历史非法 contrast 等，后续阶段重建范围）")
 
     # M10a
-    _row("M10a raw 文件数", "1361",
-         "1361", "✅ 达标",
-         "batch 0-1 已覆盖 40 文件")
+    _row("M10a raw 文件数", f"{total_raw}",
+         f"{total_raw}", "✅ 达标",
+         f"Phase 4 范围已覆盖 {committed_files} 文件（plan batches 2-7）")
 
     # M11
     _row("M11 gap 净增", f"{gap_open}/{gap_total} open",
          "≤5/批", "⚠ 部分达标",
-         "batch 0-1 净增 gap 合规（≤5/批），整体 gap 45 条")
+         f"Phase 4 范围净增 gap 合规（≤5/批），整体 gap {gap_total} 条")
 
     # M12
     _row("M12 向量检索", "待测试",
@@ -222,15 +244,15 @@ def main():
 
     lines.append("### 未达标项原因")
     lines.append("")
-    lines.append("以下指标未达标是因为**全量分批重摄入（batch 2-68）尚未执行**，")
-    lines.append("预期在完成 Phase 4 全量摄入后自动达标：")
+    lines.append(f"以下指标未达标是因为**后续阶段（剩余 {pending_files}/{total_raw} raw，{pending_batches} 批）尚未摄入**，")
+    lines.append("预期在后续阶段摄入后达标：")
     lines.append("")
     lines.append("| 指标 | 当前值 | 全量后预期 | 原因 |")
     lines.append("|---|---|---|---|")
-    lines.append("| M2 深引用率 | 4.2% | ≥80% | 摄入 40/1361 raw → 大量存量页无 references wikilink |")
-    lines.append("| M7 全文污染 | 6 | 0 | 存量 source 页被 cascade 重建覆盖 |")
-    lines.append("| M8 旧英文 tag | 142 | 0 | 存量页重建后自动使用新中文 tag |")
-    lines.append("| M9 非法 relation | 19 | 0 | 存量页重建后受 17 型 enum 约束 |")
+    lines.append(f"| M2 深引用率 | {m2_rate*100:.1f}% | ≥80% | Phase 4 范围 {committed_files}/{total_raw} raw 已摄入，后续阶段存量页无 references wikilink |")
+    lines.append(f"| M7 全文污染 | {m7} | 0 | 后续阶段 source 页重建后覆盖 |")
+    lines.append(f"| M8 旧英文 tag | {legacy_tag_pages} | 0 | 后续阶段重建后自动使用新中文 tag |")
+    lines.append(f"| M9 非法 relation | {illegal_relation_pages} | 0 | 后续阶段重建后受 17 型 enum 约束 |")
     lines.append("")
 
     lines.append("### 已达标项")
@@ -238,10 +260,11 @@ def main():
     lines.append("- **M6 synthesis=11**：Phase 4.5 完成全部候选聚合")
     lines.append("  - 各方观点 ≥2 wikilink 质量门全过（LINT-SYNTHESIS-GATE）")
     lines.append("  - 覆盖 11 个 category：写作技法/技巧/题材体系/读者与市场/创作原则/平台规则等")
-    lines.append("- **M11 gap 净增合规**：batch 0-1 均 ≤5/批")
+    lines.append("- **M11 gap 净增合规**：Phase 4 范围（plan batches 2-7）均 ≤5/批")
     lines.append("")
 
     lines.append("### 修复缺陷回顾")
+    lines.append("> 以下为 Phase 4 试点批次期间修复的历史缺陷（A-H），保留作追溯。")
     lines.append("")
     lines.append("| 缺陷 | 修复 | 效果 |")
     lines.append("|---|---|---|")

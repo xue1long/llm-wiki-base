@@ -1,0 +1,1776 @@
+[03:50:50] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:50:50]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[03:50:50] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[03:50:50] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:50:50]   FAIL raw/sources/a.md: HTTP 503
+[03:50:50] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[03:50:50] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:50:50]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[03:50:50] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[03:50:50] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[03:50:50] llm circuit breaker now half_open — resuming batch
+[03:50:50] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:50:50]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[03:50:50] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[03:50:50] POSTCHECK MISSING: src-gap — file not on disk
+[03:50:50] POSTCHECK: 1 error(s) — review before next batch
+[04:27:48] generating 1 file(s) with concurrency=1 (skipped 0)
+[04:27:48]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[04:27:48] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[04:27:48] generating 1 file(s) with concurrency=1 (skipped 0)
+[04:27:48]   FAIL raw/sources/a.md: HTTP 503
+[04:27:48] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[04:27:48] generating 1 file(s) with concurrency=1 (skipped 0)
+[04:27:48]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[04:27:48] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[04:27:48] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[04:27:48] llm circuit breaker now half_open — resuming batch
+[04:27:48] generating 1 file(s) with concurrency=1 (skipped 0)
+[04:27:48]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[04:27:48] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[04:27:49] POSTCHECK MISSING: src-gap — file not on disk
+[04:27:49] POSTCHECK: 1 error(s) — review before next batch
+[17:39:43] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:39:43]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[17:39:43] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[17:39:44] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:39:44]   FAIL raw/sources/a.md: HTTP 503
+[17:39:44] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[17:39:44] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:39:44]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[17:39:44] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[17:39:44] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[17:39:44] llm circuit breaker now half_open — resuming batch
+[17:39:44] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:39:44]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[17:39:44] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[17:39:44] POSTCHECK MISSING: src-gap — file not on disk
+[17:39:44] POSTCHECK: 1 error(s) — review before next batch
+[17:41:03] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:41:03]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[17:41:03] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[17:41:03] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:41:03]   FAIL raw/sources/a.md: HTTP 503
+[17:41:03] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[17:41:03] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:41:03]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[17:41:03] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[17:41:03] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[17:41:03] llm circuit breaker now half_open — resuming batch
+[17:41:03] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:41:03]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[17:41:03] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[17:41:03] POSTCHECK MISSING: src-gap — file not on disk
+[17:41:03] POSTCHECK: 1 error(s) — review before next batch
+[17:43:04] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:43:04]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[17:43:04] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[17:43:04] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:43:04]   FAIL raw/sources/a.md: HTTP 503
+[17:43:04] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[17:43:04] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:43:04]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[17:43:04] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[17:43:04] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[17:43:04] llm circuit breaker now half_open — resuming batch
+[17:43:04] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:43:04]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[17:43:04] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[17:43:05] POSTCHECK MISSING: src-gap — file not on disk
+[17:43:05] POSTCHECK: 1 error(s) — review before next batch
+[17:44:17] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:44:17]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[17:44:17] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[17:44:17] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:44:17]   FAIL raw/sources/a.md: HTTP 503
+[17:44:17] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[17:44:17] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:44:17]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[17:44:17] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[17:44:17] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[17:44:17] llm circuit breaker now half_open — resuming batch
+[17:44:17] generating 1 file(s) with concurrency=1 (skipped 0)
+[17:44:17]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[17:44:17] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[17:44:17] POSTCHECK MISSING: src-gap — file not on disk
+[17:44:17] POSTCHECK: 1 error(s) — review before next batch
+[17:48:00] batch 0 [mixed]: 3 file(s)
+[17:51:28] batch 0 [mixed]: 3 file(s)
+[17:51:28] provider: RetryLLMProvider
+[17:51:28] generating 3 file(s) with concurrency=3 (skipped 0)
+[18:21:35]   OK raw/sources/01_新手入门/借鉴素材小说大纲模版.md: 5 pages, stubs=0, rejected=False
+[18:21:35]   OK raw/sources/01_新手入门/借鉴素材书籍如何商业化.md: 3 pages, stubs=0, rejected=False
+[18:21:35]   FAIL raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md: 
+[18:21:35] generated ok=2 err=1 permanent_failed=0 total_pages=8 extras=6 elapsed=1807s
+[18:21:35] gate: 8 page(s) PASS (1 issue(s), 0 blocker(s))
+[18:21:35]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md' has no corresponding SOURCE page in the batch.
+[18:21:35] B6 overwrite protection: 6 blocker(s)
+[18:21:35]   BLOCK Page '借鉴素材小说大纲模版-4b1c91ca' (source) already exists on disk as source — would overwrite a non-stub page.
+[18:21:35]   BLOCK Page '小白作者网文大学' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[18:21:35]   BLOCK Page '小说大纲模版结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[18:21:35]   BLOCK Page '内容梗概五要素' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[18:21:35]   BLOCK Page '主角人物设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[18:21:35]   BLOCK Page '借鉴素材书籍如何商业化-e7e5c9c5' (source) already exists on disk as source — would overwrite a non-stub page.
+[18:21:35] BATCH BLOCKED: overwrite protection — use --allow-overwrite to force, or --skip-files <raw_rel,...> to exclude the source file
+[18:22:57] batch 1 [01_新手入门]: 20 file(s)
+[18:22:58] provider: RetryLLMProvider
+[18:22:58] generating 20 file(s) with concurrency=3 (skipped 0)
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材写作大纲经典都市写作大纲二十二条主线.md: 5 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材写作套路征文类别与主线设定.md: 5 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材古代刺客的暗杀手段.md: 3 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材大纲的重要性新文开篇.md: 6 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材套路.md: 6 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材小白系列之对对子诗词精选片段第二期.md: 5 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细_89e8d6.md: 11 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材小说写作.md: 5 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6.md: 8 pages, stubs=0, rejected=True
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材小说速成大纲.md: 3 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材常用急救小知识.md: 5 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材必备华夏天空作家福利.md: 9 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材打斗七公式重要.md: 3 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材执梦文学社.md: 3 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材浅子小四素樱贱圣对对子精选片段.md: 5 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材玄幻与仙侠.md: 7 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材玄幻与仙侠的区别.md: 3 pages, stubs=0, rejected=False
+[20:04:48]   OK raw/sources/01_新手入门/借鉴素材玄幻小说创作入门指南.md: 5 pages, stubs=0, rejected=True
+[20:04:49]   OK raw/sources/01_新手入门/借鉴素材玄幻小说大纲表格.md: 4 pages, stubs=0, rejected=False
+[20:04:49]   OK raw/sources/01_新手入门/借鉴素材玄幻标签创作基金评定标准详解.md: 8 pages, stubs=0, rejected=False
+[20:04:49] generated ok=20 err=0 permanent_failed=0 total_pages=109 extras=16 elapsed=6110s
+[20:04:49] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[20:04:49] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[20:04:49] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[20:04:49] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[20:04:49] reconcile: merged '飞书云文档' → '飞书云文档' (same grade, kept first)
+[20:04:49] reconcile: merged '飞书云文档' → '飞书云文档' (same grade, kept first)
+[20:04:49] reconcile: merged '小白作者网文大学' → '小白作者网文大学' (same grade, kept first)
+[20:04:49] reconcile: merged '小白作者网文大学' → '小白作者网文大学' (higher grade (B > C))
+[20:04:49] reconcile: merged '小白作者网文大学' → '小白作者网文大学' (higher grade (B > C))
+[20:04:49] reconcile: merged '玄幻小说' → '玄幻小说' (same grade, kept first)
+[20:04:49] reconcile: merged '东方玄幻' → '东方玄幻' (same grade, kept first)
+[20:04:49] reconcile: merged '仙侠与玄幻区别' → '仙侠与玄幻区别' (same grade, kept first)
+[20:04:49] reconcile: merged '仙侠与玄幻区别' → '仙侠与玄幻区别' (higher grade (B > C))
+[20:04:49] reconcile: merged '小白作者培训学院' → '小白作者培训学院' (higher grade (B > C))
+[20:04:49] reconcile: merged '小白作者培训学院' → '小白作者培训学院' (higher grade (B > C))
+[20:04:49] reconcile: merged '小白作者培训学院' → '小白作者培训学院' (higher grade (B > C))
+[20:04:49] reconcile: merged '现言宠文类' → '现言宠文类' (extra folded (grade B))
+[20:04:49] reconcile: merged '自嘲对子' → '自嘲对子' (extra folded (grade C))
+[20:04:49] reconcile: merged '玄幻小说' → '玄幻小说' (extra folded (grade C))
+[20:04:49] reconcile: merged '东方玄幻' → '东方玄幻' (extra folded (grade C))
+[20:04:49] gate: 93 page(s) PASS (0 issue(s), 0 blocker(s))
+[20:04:49]   WARN overwrite: Page '借鉴素材写作大纲经典都市写作大纲二十二条主线-31488b88' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '飞书云文档' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '都市写作大纲二十二条主线' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '借鉴素材写作套路征文类别与主线设定-128c14b2' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '小白作者网文大学' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '现言宠文类' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '重生复仇爽文类' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '总裁文设定雷区' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '借鉴素材古代刺客的暗杀手段-6281311b' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '借鉴素材大纲的重要性新文开篇-562d564c' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '频道责编' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '大纲的重要性' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '大纲写法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '表格式大纲' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '借鉴素材套路-81291264' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '借鉴素材小白系列之对对子诗词精选片段第二期-1406fefc' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '借鉴素材小说主题分类的内容详细-89e8d6-46f584d6' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '小说主题分类' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '玄幻小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '东方玄幻' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '异界大陆' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '异世争霸' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '异术超能' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '仙侠与玄幻区别' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '借鉴素材小说写作-4f5fc3b7' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '学生一族阅读心态' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '都市上班族阅读心态' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '中老年读者阅读心态' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6-34f66af8' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '小白作者培训学院' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '扩句法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '主角超强' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page 'yy-小说第一定律' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '切割法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '曲折法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '借鉴素材小说速成大纲-0c1ca43b' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '小说大纲模版结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '借鉴素材常用急救小知识-292676c2' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '小面积烧烫伤处理' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:49]   WARN overwrite: Page '触电救治' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '借鉴素材必备华夏天空作家福利-4c7de1bf' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '华夏天空' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '新作者福利计划' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '华夏天空作家福利' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '上架政策' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '全勤奖励制度' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '完本奖励' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '老作者补贴体系' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '借鉴素材打斗七公式重要-ccb79858' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '打斗七公式' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '1vs1-公平对决' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '借鉴素材执梦文学社-73d3f589' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '执梦文学社' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '冲量字数结算标准' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '借鉴素材浅子小四素樱贱圣对对子精选片段-0183be6a' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '贱圣' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '浅子' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '对对子' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '自嘲对子' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '借鉴素材玄幻与仙侠-0172f76e' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '仙侠升级平衡法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '仙侠穿越设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '玄幻快速升级特征' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '借鉴素材玄幻与仙侠的区别-871298c8' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '借鉴素材玄幻小说创作入门指南-11a93e27' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '玄幻小说创作入门指南' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '升级绝对化' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '借鉴素材玄幻小说大纲表格-d4a046ef' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '借鉴素材玄幻标签创作基金评定标准详解-1bc91a92' (source) already exists on disk as source — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '茶话会若溪' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '创作基金标签规范' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '非签约文字类作品评级标准' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '图文标签评级标准' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '图文标签质量调整机制' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50]   WARN overwrite: Page '图文标签内容禁忌' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[20:04:50] committing 93 reconciled page(s) ...
+[20:04:55] committing 11 extra page(s) (reverse-relation) ...
+[20:04:56] POSTCHECK: all pages on disk and indexed
+[20:04:56] BATCH DONE ok=20 err=0 pages=93 gate=PASS
+[20:04:56] WARN: batch took 6119s (>60min)
+[15:20:34] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:20:34]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[15:20:34] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[15:20:34] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:20:34]   FAIL raw/sources/a.md: HTTP 503
+[15:20:34] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[15:20:34] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:20:34]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[15:20:34] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[15:20:34] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[15:20:34] llm circuit breaker now half_open — resuming batch
+[15:20:34] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:20:34]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[15:20:34] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[15:20:34] POSTCHECK MISSING: src-gap — file not on disk
+[15:20:34] POSTCHECK: 1 error(s) — review before next batch
+[15:37:43] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:37:43]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[15:37:43] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[15:37:43] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:37:43]   FAIL raw/sources/a.md: HTTP 503
+[15:37:43] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[15:37:43] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:37:43]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[15:37:43] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[15:37:43] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[15:37:43] llm circuit breaker now half_open — resuming batch
+[15:37:43] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:37:43]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[15:37:43] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[15:37:44] POSTCHECK MISSING: src-gap — file not on disk
+[15:37:44] POSTCHECK: 1 error(s) — review before next batch
+[15:39:40] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:39:40]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[15:39:40] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[15:39:40] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:39:41]   FAIL raw/sources/a.md: HTTP 503
+[15:39:41] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[15:39:41] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:39:41]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[15:39:41] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[15:39:41] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[15:39:41] llm circuit breaker now half_open — resuming batch
+[15:39:41] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:39:41]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[15:39:41] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[15:39:41] POSTCHECK MISSING: src-gap — file not on disk
+[15:39:41] POSTCHECK: 1 error(s) — review before next batch
+[16:07:27] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:07:27]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[16:07:27] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:07:27] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:07:27]   FAIL raw/sources/a.md: HTTP 503
+[16:07:27] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:07:27] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:07:27]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[16:07:27] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[16:07:27] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[16:07:27] llm circuit breaker now half_open — resuming batch
+[16:07:27] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:07:27]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[16:07:27] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:07:27] POSTCHECK MISSING: src-gap — file not on disk
+[16:07:27] POSTCHECK: 1 error(s) — review before next batch
+[23:01:59] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:01:59]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[23:01:59] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[23:01:59] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:01:59]   FAIL raw/sources/a.md: HTTP 503
+[23:01:59] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[23:01:59] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:01:59]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[23:01:59] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[23:01:59] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[23:01:59] llm circuit breaker now half_open — resuming batch
+[23:01:59] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:01:59]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[23:01:59] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[23:01:59] POSTCHECK MISSING: src-gap — file not on disk
+[23:01:59] POSTCHECK: 1 error(s) — review before next batch
+[01:04:31] batch 11 [01_新手入门]: 20 file(s)
+[01:04:32] provider: RetryLLMProvider
+[01:04:32] generating 20 file(s) with concurrency=3 (skipped 0)
+[01:18:45]   OK raw/sources/01_新手入门/必备资料人物设置与剧情的关系.md: 5 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料作品审核标准1.md: 7 pages, stubs=0, rejected=True
+[01:18:45]   OK raw/sources/01_新手入门/必备资料作者五个阶段.md: 4 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料作者写作十二大忌.md: 10 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料作者投稿模版.md: 5 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料偷走的流年南若兮3342字.md: 4 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料典籍提取聊斋志异小说人名全纪录.md: 6 pages, stubs=0, rejected=True
+[01:18:45]   OK raw/sources/01_新手入门/必备资料典籍提取聊斋志异小说人名全纪录_d0d6a3.md: 5 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料写作大纲的十个步骤.md: 6 pages, stubs=0, rejected=True
+[01:18:45]   OK raw/sources/01_新手入门/必备资料写作大纲的十个步骤_0faefe.md: 9 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料写作大纲的十大步骤.md: 5 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料剧情大纲格式.md: 6 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料古风小说讲课.md: 5 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料大神说法第三讲情理之中意料之外作者雪宁1.md: 4 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料大纲书写格式.md: 5 pages, stubs=0, rejected=True
+[01:18:45]   OK raw/sources/01_新手入门/必备资料大纲范本.md: 8 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料天蟾子论套路的情节拓展.md: 4 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料如何写人物.md: 6 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料如何写出人物的个性.md: 5 pages, stubs=0, rejected=False
+[01:18:45]   OK raw/sources/01_新手入门/必备资料如何写好大纲.md: 5 pages, stubs=0, rejected=False
+[01:18:45] generated ok=20 err=0 permanent_failed=0 total_pages=114 extras=54 elapsed=853s
+[01:18:45] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:18:45] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:18:45] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:18:45] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:18:45] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:18:45] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:18:45] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:18:45] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:18:45] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:18:45] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:18:45] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:18:45] reconcile: merged '飞书云文档' → '飞书云文档' (same grade, kept first)
+[01:18:45] reconcile: merged '飞书云文档' → '飞书云文档' (same grade, kept first)
+[01:18:45] reconcile: merged '飞书云文档' → '飞书云文档' (same grade, kept first)
+[01:18:45] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[01:18:45] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[01:18:45] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[01:18:45] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[01:18:45] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[01:18:45] reconcile: merged '大纲写法' → '大纲写法' (same grade, kept first)
+[01:18:45] reconcile: merged '大纲写法' → '大纲写法' (same grade, kept first)
+[01:18:45] reconcile: merged '大纲写法' → '大纲写法' (same grade, kept first)
+[01:18:45] reconcile: merged '地图勾画法' → '地图勾画法' (same grade, kept first)
+[01:18:45] reconcile: merged '地图勾画法' → '地图勾画法' (higher grade (B > C))
+[01:18:45] reconcile: merged '细纲' → '细纲' (same grade, kept first)
+[01:18:45] reconcile: merged '主角性格设定' → '主角性格设定' (same grade, kept first)
+[01:18:45] reconcile: merged '主角性格设定' → '主角性格设定' (higher grade (B > C))
+[01:18:45] reconcile: merged '升级序列多级化' → '升级序列多级化' (higher grade (B > C))
+[01:18:45] reconcile: merged '大纲' → '大纲' (same grade, kept first)
+[01:18:45] reconcile: merged '大纲' → '大纲' (same grade, kept first)
+[01:18:45] reconcile: merged '人物设定' → '人物设定' (same grade, kept first)
+[01:18:45] reconcile: merged '人物设定' → '人物设定' (same grade, kept first)
+[01:18:45] reconcile: merged '人物设定' → '人物设定' (extra folded (grade B))
+[01:18:45] reconcile: merged '题材选择' → '题材选择' (extra folded (grade C))
+[01:18:45] reconcile: merged '大纲' → '大纲' (extra folded (grade B))
+[01:18:45] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (extra folded (grade C))
+[01:18:45] reconcile: merged '伏笔手法' → '伏笔手法' (extra folded (grade B))
+[01:18:45] reconcile: merged '升级序列多级化' → '升级序列多级化' (extra folded (grade B))
+[01:18:45] reconcile: merged '细纲' → '细纲' (extra folded (grade B))
+[01:18:45] reconcile: merged '人物个性刻画' → '人物个性刻画' (extra folded (grade B))
+[01:18:46] gate: 82 page(s) PASS (0 issue(s), 0 blocker(s))
+[01:18:46]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '17k-小说网' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '飞书云文档' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '抄袭-写作禁忌' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '淫秽出版物认定标准' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '签约' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '新手作者五个阶段' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '梦入神机' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '写作坚持原则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '作家十二戒' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '跟风写作戒律' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '第一人称小说写作忌讳' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '流水账写作毛病' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '魔盗' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '第一人称小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '意境美' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '大纲写法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '地图勾画法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '细纲' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '主角性格设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '题材选择' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '升级序列多级化' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '金庸' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '唐家三少' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '大纲' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '剧情节奏' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '人物设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '伏笔手法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '网文书名命名法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '情理之中-意料之外' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '写手境界' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '萧潜' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '表格式大纲' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '技能体系设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '装备设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '情节结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '写作套路' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '悬念' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '人物描写技法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '对话描写方式' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '动作描写' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '人物个性刻画' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '语言行动描写' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '细节描写' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46]   WARN overwrite: Page '大纲的重要性' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:18:46] committing 82 reconciled page(s) ...
+[01:18:49] committing 33 extra page(s) (reverse-relation) ...
+[01:18:50] POSTCHECK: all pages on disk and indexed
+[01:18:50] BATCH DONE ok=20 err=0 pages=82 gate=PASS
+[01:23:09] batch 12 [01_新手入门]: 20 file(s)
+[01:23:10] provider: RetryLLMProvider
+[01:23:10] generating 20 file(s) with concurrency=3 (skipped 0)
+[01:42:00]   OK raw/sources/01_新手入门/必备资料如何写好简介.md: 5 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料如何构架写作悬念.md: 3 pages, stubs=0, rejected=True
+[01:42:00]   OK raw/sources/01_新手入门/必备资料如何构架写作悬念1.md: 5 pages, stubs=0, rejected=True
+[01:42:00]   OK raw/sources/01_新手入门/必备资料如何驾驭情节.md: 6 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料小说人物塑造.md: 5 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料小说人物描写方法与实例浅析.md: 7 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料小说作者南友.md: 5 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料序章三年前.md: 3 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料开篇一万字三段式写法.md: 5 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面.md: 8 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面1.md: 4 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面1_508621.md: 4 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面2.md: 4 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面2_d99fe8.md: 6 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料打斗七公式重要1.md: 4 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料打斗场面.md: 4 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料技术篇如何防止卡文和快速的码文.md: 6 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料技术篇小说速成大纲传统文学版长篇.md: 6 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料技术篇悬疑小说常用的诡计大全.md: 5 pages, stubs=0, rejected=False
+[01:42:00]   OK raw/sources/01_新手入门/必备资料教你写作如何写出精彩的科幻小说长篇.md: 7 pages, stubs=0, rejected=False
+[01:42:00] generated ok=20 err=0 permanent_failed=0 total_pages=102 extras=66 elapsed=1130s
+[01:42:00] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[01:42:00] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[01:42:00] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[01:42:00] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[01:42:00] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[01:42:00] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[01:42:00] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[01:42:00] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:42:00] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:42:00] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:42:00] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:42:00] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:42:00] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[01:42:00] reconcile: merged '商业网文写作' → '商业网文写作' (higher grade (B > C))
+[01:42:00] reconcile: merged '人物性格刻画' → '人物性格刻画' (higher grade (B > C))
+[01:42:00] reconcile: merged '打斗场景气氛渲染' → '打斗场景气氛渲染' (same grade, kept first)
+[01:42:00] reconcile: merged '打斗场景气氛渲染' → '打斗场景气氛渲染' (same grade, kept first)
+[01:42:00] reconcile: merged '打斗场景气氛渲染' → '打斗场景气氛渲染' (same grade, kept first)
+[01:42:00] reconcile: merged '打斗场景气氛渲染' → '打斗场景气氛渲染' (higher grade (B > C))
+[01:42:00] reconcile: merged '打斗场景气氛渲染' → '打斗场景气氛渲染' (higher grade (B > C))
+[01:42:00] reconcile: merged '打斗场景气氛渲染' → '打斗场景气氛渲染' (higher grade (B > C))
+[01:42:00] reconcile: merged '打斗场景气氛渲染' → '打斗场景气氛渲染' (higher grade (B > C))
+[01:42:00] reconcile: merged '废材流' → '废材流' (same grade, kept first)
+[01:42:00] reconcile: merged '废材流' → '废材流' (same grade, kept first)
+[01:42:00] reconcile: merged '废材流' → '废材流' (same grade, kept first)
+[01:42:00] reconcile: merged '废材流' → '废材流' (higher grade (B > C))
+[01:42:00] reconcile: merged '金手指' → '金手指' (higher grade (B > C))
+[01:42:00] reconcile: merged '打斗七公式' → '打斗七公式' (same grade, kept first)
+[01:42:00] reconcile: merged '读者导向写作' → '读者导向写作' (extra folded (grade B))
+[01:42:00] reconcile: merged '冲突驱动故事' → '冲突驱动故事' (extra folded (grade B))
+[01:42:00] reconcile: merged '情节' → '情节' (extra folded (grade B))
+[01:42:00] reconcile: merged '人物塑造' → '人物塑造' (existing higher grade)
+[01:42:00] reconcile: merged '悬念式开篇' → '悬念式开篇' (existing higher grade)
+[01:42:00] reconcile: merged '人物性格刻画' → '人物性格刻画' (extra folded (grade C))
+[01:42:00] reconcile: merged '高潮制造' → '高潮制造' (extra folded (grade B))
+[01:42:00] reconcile: merged '金手指' → '金手指' (extra folded (grade B))
+[01:42:00] reconcile: merged '装逼打脸套路' → '装逼打脸套路' (extra folded (grade B))
+[01:42:00] reconcile: merged '过程性打斗' → '过程性打斗' (existing higher grade)
+[01:42:00] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (extra folded (grade C))
+[01:42:00] gate: 71 page(s) PASS (0 issue(s), 0 blocker(s))
+[01:42:00]   WARN overwrite: Page '网络小说简介' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '简介悬念' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '飞书云文档' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '商业网文写作' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '读者导向写作' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '情节' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '情节构成' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '高潮反推构思法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '斗破苍穹' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '高尔基' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '人物性格刻画' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '人物与剧情关系' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '张无忌' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '人物描写词语库' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '写作状态切换' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '鲁迅' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '打斗场景气氛渲染' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '吸引力-期待感-满足感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:00]   WARN overwrite: Page '冲突驱动故事' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '故事结构三要素' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '废材流' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '金手指' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '高潮制造' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '装逼打脸套路' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '打斗七公式' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '玄幻小说' (entity) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '1vs1-公平对决' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '吴笑笑' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '卡文' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '大纲的重要性' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '小白文' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '虐文' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '小说大纲模版结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '主线情节设定五要素' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '人物设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '一人二角诡计' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '意外犯人诡计' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01]   WARN overwrite: Page '犯人自我抹杀诡计' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[01:42:01] committing 71 reconciled page(s) ...
+[01:42:03] committing 35 extra page(s) (reverse-relation) ...
+[01:42:04] POSTCHECK: all pages on disk and indexed
+[01:42:04] BATCH DONE ok=20 err=0 pages=71 gate=PASS
+[01:44:24] batch 13 [01_新手入门]: 20 file(s)
+[01:44:39] batch 13 [01_新手入门]: 20 file(s)
+[01:44:39] provider: RetryLLMProvider
+[01:44:39] generating 20 file(s) with concurrency=3 (skipped 0)
+[02:00:59]   OK raw/sources/01_新手入门/必备资料教你写作如何写出精彩的科幻小说长篇1.md: 6 pages, stubs=0, rejected=False
+[02:00:59]   OK raw/sources/01_新手入门/必备资料散文的写作技巧是什么.md: 6 pages, stubs=0, rejected=False
+[02:00:59]   OK raw/sources/01_新手入门/必备资料新书.md: 11 pages, stubs=0, rejected=False
+[02:00:59]   OK raw/sources/01_新手入门/必备资料新书_b51648.md: 12 pages, stubs=0, rejected=False
+[02:00:59]   OK raw/sources/01_新手入门/必备资料新人经验如何选择适合自己的题材.md: 5 pages, stubs=0, rejected=True
+[02:00:59]   OK raw/sources/01_新手入门/必备资料新人经验如何选择适合自己的题材1.md: 6 pages, stubs=0, rejected=True
+[02:00:59]   OK raw/sources/01_新手入门/必备资料新人经验如何选择适合自己的题材_195dfd.md: 5 pages, stubs=0, rejected=False
+[02:00:59]   OK raw/sources/01_新手入门/必备资料新手写小说忌讳的十点.md: 5 pages, stubs=0, rejected=False
+[02:00:59]   OK raw/sources/01_新手入门/必备资料新手写小说忌讳的十点1.md: 6 pages, stubs=0, rejected=False
+[02:00:59]   OK raw/sources/01_新手入门/必备资料某编辑讲课感谢九月时寒的转发.md: 6 pages, stubs=0, rejected=False
+[02:00:59]   OK raw/sources/01_新手入门/必备资料武侠小说教程.md: 6 pages, stubs=0, rejected=True
+[02:00:59]   OK raw/sources/01_新手入门/必备资料洪荒中国奇禽异兽总览.md: 9 pages, stubs=0, rejected=True
+[02:00:59]   OK raw/sources/01_新手入门/必备资料浏览篇各朝代兵制.md: 5 pages, stubs=0, rejected=False
+[02:00:59]   OK raw/sources/01_新手入门/必备资料独家高招小说文章掺水十六法.md: 3 pages, stubs=0, rejected=False
+[02:00:59]   OK raw/sources/01_新手入门/必备资料玄幻修真小说升级方式大总结.md: 5 pages, stubs=0, rejected=False
+[02:00:59]   OK raw/sources/01_新手入门/必备资料环境描写.md: 3 pages, stubs=0, rejected=False
+[02:00:59]   OK raw/sources/01_新手入门/必备资料环境描写_7a4f89.md: 7 pages, stubs=0, rejected=False
+[02:00:59]   OK raw/sources/01_新手入门/必备资料空白大纲模板.md: 5 pages, stubs=0, rejected=True
+[02:00:59]   OK raw/sources/01_新手入门/必备资料第1章大纲.md: 9 pages, stubs=0, rejected=True
+[02:00:59]   OK raw/sources/01_新手入门/必备资料第1章大纲_50ea4b.md: 7 pages, stubs=0, rejected=False
+[02:00:59] generated ok=20 err=0 permanent_failed=0 total_pages=127 extras=52 elapsed=980s
+[02:00:59] reconcile: merged '杨宇' → '杨宇' (higher grade (B > C))
+[02:00:59] reconcile: merged '腾跃武校' → '腾跃武校' (higher grade (B > C))
+[02:00:59] reconcile: merged '金手指' → '金手指' (same grade, kept first)
+[02:00:59] reconcile: merged '题材选择' → '题材选择' (same grade, kept first)
+[02:00:59] reconcile: merged '题材选择' → '题材选择' (higher grade (B > C))
+[02:00:59] reconcile: merged '跟风写作戒律' → '跟风写作戒律' (same grade, kept first)
+[02:00:59] reconcile: merged '跟风写作戒律' → '跟风写作戒律' (higher grade (B > C))
+[02:00:59] reconcile: merged '作品包装' → '作品包装' (higher grade (B > C))
+[02:00:59] reconcile: merged '作品包装' → '作品包装' (higher grade (B > C))
+[02:00:59] reconcile: merged '起点中文网' → '起点中文网' (same grade, kept first)
+[02:00:59] reconcile: merged '飞书云文档' → '飞书云文档' (same grade, kept first)
+[02:00:59] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[02:00:59] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[02:00:59] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[02:00:59] reconcile: merged '飞书云文档' → '飞书云文档' (higher grade (B > C))
+[02:00:59] reconcile: merged '正文纯净原则' → '正文纯净原则' (same grade, kept first)
+[02:00:59] reconcile: merged '人物角色数量控制' → '人物角色数量控制' (same grade, kept first)
+[02:00:59] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[02:00:59] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[02:00:59] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[02:00:59] reconcile: merged '环境描写' → '环境描写' (same grade, kept first)
+[02:00:59] reconcile: merged '技能体系设定' → '技能体系设定' (extra folded (grade B))
+[02:00:59] reconcile: merged '复仇' → '复仇' (extra folded (grade C))
+[02:00:59] reconcile: merged '简单易记命名准则' → '简单易记命名准则' (extra folded (grade B))
+[02:00:59] reconcile: merged '写作忌讳' → '写作忌讳' (extra folded (grade B))
+[02:01:00] gate: 106 page(s) PASS (0 issue(s), 0 blocker(s))
+[02:01:00]   WARN overwrite: Page '科幻小说长篇创作方法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '科幻幻想核心设计' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '科幻构思如何驱动情节' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '科幻小说叙述角度选择' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '高尔基' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '废材流' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '金手指' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '主角愤怒寻仇桥段' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '题材选择' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '跟风写作戒律' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '作品包装' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '起点中文网' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page 'yy-爽文' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '飞书云文档' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '写作忌讳' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '正文纯净原则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '人物角色数量控制' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '简单易记命名准则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '网络小说' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '网络小说简介' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '黄金三章' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '剧情节奏' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '伏笔手法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '金庸' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '古典志怪人物名录' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '韩柳欧苏' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '拉油条法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '玄幻快速升级特征' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '斗破苍穹' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '升级流小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '大纲' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '人物设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '玄幻小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '技能体系设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '势力架构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00]   WARN overwrite: Page '复仇' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:01:00] committing 106 reconciled page(s) ...
+[02:01:05] committing 39 extra page(s) (reverse-relation) ...
+[02:01:06] POSTCHECK: all pages on disk and indexed
+[02:01:06] BATCH DONE ok=20 err=0 pages=106 gate=PASS
+[02:03:15] batch 14 [01_新手入门]: 20 file(s)
+[02:03:16] provider: RetryLLMProvider
+[02:03:16] generating 20 file(s) with concurrency=3 (skipped 0)
+[02:34:28]   OK raw/sources/01_新手入门/必备资料第一忌讳无论文笔多么优美都.md: 5 pages, stubs=0, rejected=False
+[02:34:28]   OK raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1.md: 5 pages, stubs=0, rejected=False
+[02:34:28]   OK raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1_d36b97.md: 7 pages, stubs=0, rejected=False
+[02:34:28]   OK raw/sources/01_新手入门/必备资料第一节课授课内容.md: 6 pages, stubs=0, rejected=False
+[02:34:28]   OK raw/sources/01_新手入门/必备资料第九章关于小说情节设计1.md: 8 pages, stubs=0, rejected=False
+[02:34:28]   OK raw/sources/01_新手入门/必备资料第二课讲课资料.md: 4 pages, stubs=0, rejected=True
+[02:34:28]   PERM raw/sources/01_新手入门/必备资料第二课讲课资料1.md: OpenAI complete failed: 'utf-8' codec can't decode byte 0x9c in position 15941: invalid start byte
+[02:34:28]   PERM raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1.md: OpenAI complete failed: 'utf-8' codec can't decode byte 0xe6 in position 7745: invalid continuation byte
+[02:34:28]   PERM raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1_2516a3.md: OpenAI complete failed: 'utf-8' codec can't decode bytes in position 11840-11841: invalid continuation byte
+[02:34:28]   PERM raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者.md: OpenAI complete failed: 'utf-8' codec can't decode byte 0xae in position 3654: invalid start byte
+[02:34:28]   PERM raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者_9c5f45.md: OpenAI complete failed: 'utf-8' codec can't decode byte 0x96 in position 19334: invalid start byte
+[02:34:28]   PERM raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色.md: OpenAI complete failed: 'utf-8' codec can't decode byte 0xe4 in position 7745: invalid continuation byte
+[02:34:28]   PERM raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1.md: OpenAI complete failed: 'utf-8' codec can't decode bytes in position 7744-7745: invalid continuation byte
+[02:34:28]   OK raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1_ca1afb.md: 5 pages, stubs=0, rejected=False
+[02:34:28]   PERM raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色_7a9e06.md: OpenAI complete failed: 'utf-8' codec can't decode bytes in position 7744-7745: invalid continuation byte
+[02:34:28]   PERM raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿.md: OpenAI complete failed: 'utf-8' codec can't decode bytes in position 3649-3650: invalid continuation byte
+[02:34:28]   PERM raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿_f9c0da.md: OpenAI complete failed: 'utf-8' codec can't decode bytes in position 7744-7745: invalid continuation byte
+[02:34:28]   PERM raw/sources/01_新手入门/必备资料诗词格律自学教程.md: OpenAI complete failed: 'utf-8' codec can't decode bytes in position 7744-7745: invalid continuation byte
+[02:34:28]   OK raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md: 6 pages, stubs=0, rejected=False
+[02:34:28]   OK raw/sources/01_新手入门/必备资料踏莎行春色将阑寇准.md: 6 pages, stubs=0, rejected=False
+[02:34:28] generated ok=9 err=0 permanent_failed=11 total_pages=52 extras=2 elapsed=1872s
+[02:34:28] reconcile: merged '老舍' → '老舍' (same grade, kept first)
+[02:34:28] reconcile: merged '老舍' → '老舍' (same grade, kept first)
+[02:34:28] reconcile: merged '亮剑' → '亮剑' (same grade, kept first)
+[02:34:28] gate: 49 page(s) PASS (11 issue(s), 0 blocker(s))
+[02:34:28]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料第二课讲课资料1.md' has no corresponding SOURCE page in the batch.
+[02:34:28]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1.md' has no corresponding SOURCE page in the batch.
+[02:34:28]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1_2516a3.md' has no corresponding SOURCE page in the batch.
+[02:34:28]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者.md' has no corresponding SOURCE page in the batch.
+[02:34:28]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者_9c5f45.md' has no corresponding SOURCE page in the batch.
+[02:34:28]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色.md' has no corresponding SOURCE page in the batch.
+[02:34:28]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1.md' has no corresponding SOURCE page in the batch.
+[02:34:28]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色_7a9e06.md' has no corresponding SOURCE page in the batch.
+[02:34:28]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿.md' has no corresponding SOURCE page in the batch.
+[02:34:28]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿_f9c0da.md' has no corresponding SOURCE page in the batch.
+[02:34:28]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料诗词格律自学教程.md' has no corresponding SOURCE page in the batch.
+[02:34:28]   WARN overwrite: Page '写作忌讳' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '具体描写' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '五种感觉描写法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '角色塑造' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '动漫化创作' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '鲁迅' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '金庸' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '性格小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '情节小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '人物与剧情关系' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '今越' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '新作者常见困难' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '新作者常见瓶颈' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '沟通交流习惯' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:34:28]   WARN overwrite: Page '角色带入法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:34:28] committing 49 reconciled page(s) ...
+[02:34:31] committing 2 extra page(s) (reverse-relation) ...
+[02:34:31] POSTCHECK: all pages on disk and indexed
+[02:34:31] BATCH DONE ok=9 err=0 pages=49 gate=PASS
+[02:36:08] batch 14 [01_新手入门]: 20 file(s)
+[02:36:08] provider: RetryLLMProvider
+[02:36:08] resume: skipping 9 already-completed file(s)
+[02:36:08] SKIP completed: raw/sources/01_新手入门/必备资料第一忌讳无论文笔多么优美都.md
+[02:36:08] SKIP completed: raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1.md
+[02:36:08] SKIP completed: raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1_d36b97.md
+[02:36:08] SKIP completed: raw/sources/01_新手入门/必备资料第一节课授课内容.md
+[02:36:08] SKIP completed: raw/sources/01_新手入门/必备资料第九章关于小说情节设计1.md
+[02:36:08] SKIP completed: raw/sources/01_新手入门/必备资料第二课讲课资料.md
+[02:36:08] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1_ca1afb.md
+[02:36:08] SKIP completed: raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md
+[02:36:08] SKIP completed: raw/sources/01_新手入门/必备资料踏莎行春色将阑寇准.md
+[02:36:08] generating 11 file(s) with concurrency=3 (skipped 9)
+[02:50:48]   OK raw/sources/01_新手入门/必备资料第二课讲课资料1.md: 13 pages, stubs=0, rejected=False
+[02:50:48]   OK raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1.md: 3 pages, stubs=0, rejected=False
+[02:50:48]   PERM raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1_2516a3.md: OpenAI complete failed: 'utf-8' codec can't decode byte 0xaf in position 11845: invalid start byte
+[02:50:48]   PERM raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者.md: OpenAI complete failed: 'utf-8' codec can't decode byte 0xbc in position 3653: invalid start byte
+[02:50:48]   OK raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者_9c5f45.md: 6 pages, stubs=0, rejected=False
+[02:50:48]   PERM raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色.md: OpenAI complete failed: 'utf-8' codec can't decode bytes in position 11840-11841: invalid continuation byte
+[02:50:48]   PERM raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1.md: OpenAI complete failed: 'utf-8' codec can't decode byte 0x98 in position 7749: invalid start byte
+[02:50:48]   PERM raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色_7a9e06.md: OpenAI complete failed: 'utf-8' codec can't decode byte 0xe7 in position 7745: invalid continuation byte
+[02:50:48]   PERM raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿.md: OpenAI complete failed: 'utf-8' codec can't decode byte 0xe5 in position 3649: invalid continuation byte
+[02:50:48]   PERM raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿_f9c0da.md: OpenAI complete failed: 'utf-8' codec can't decode bytes in position 11840-11841: invalid continuation byte
+[02:50:48]   OK raw/sources/01_新手入门/必备资料诗词格律自学教程.md: 12 pages, stubs=0, rejected=False
+[02:50:48] generated ok=4 err=0 permanent_failed=7 total_pages=34 extras=1 elapsed=880s
+[02:50:48] auto-tag: 5 UGC-carrier-derived page(s) tagged 素材/ugc + 可信度/ugc
+[02:50:48] gate: 34 page(s) PASS (7 issue(s), 0 blocker(s))
+[02:50:48]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1_2516a3.md' has no corresponding SOURCE page in the batch.
+[02:50:48]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者.md' has no corresponding SOURCE page in the batch.
+[02:50:48]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色.md' has no corresponding SOURCE page in the batch.
+[02:50:48]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1.md' has no corresponding SOURCE page in the batch.
+[02:50:48]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色_7a9e06.md' has no corresponding SOURCE page in the batch.
+[02:50:48]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿.md' has no corresponding SOURCE page in the batch.
+[02:50:48]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿_f9c0da.md' has no corresponding SOURCE page in the batch.
+[02:50:48]   WARN overwrite: Page '金庸' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:50:48]   WARN overwrite: Page '黄蓉' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:50:48]   WARN overwrite: Page '人物性格鲜明' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:50:48]   WARN overwrite: Page '科幻小说社会背景合理性' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:50:48]   WARN overwrite: Page '人物与剧情关系' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:50:48]   WARN overwrite: Page '人物脸谱化' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:50:48]   WARN overwrite: Page '文笔进阶路径' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:50:48]   WARN overwrite: Page '流水账-写作毛病' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[02:50:48]   WARN overwrite: Page '网络写手' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:50:48]   WARN overwrite: Page '网络小说' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[02:50:48] committing 34 reconciled page(s) ...
+[02:50:50] committing 1 extra page(s) (reverse-relation) ...
+[02:50:50] POSTCHECK: all pages on disk and indexed
+[02:50:50] BATCH DONE ok=4 err=0 pages=34 gate=PASS
+[02:53:38] generating 1 file(s) with concurrency=1 (skipped 0)
+[02:53:38]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[02:53:38] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[02:53:38] generating 1 file(s) with concurrency=1 (skipped 0)
+[02:53:38]   FAIL raw/sources/a.md: HTTP 503
+[02:53:38] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[02:53:38] generating 1 file(s) with concurrency=1 (skipped 0)
+[02:53:38]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[02:53:38] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[02:53:38] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[02:53:38] llm circuit breaker now half_open — resuming batch
+[02:53:38] generating 1 file(s) with concurrency=1 (skipped 0)
+[02:53:38]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[02:53:38] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[02:53:38] POSTCHECK MISSING: src-gap — file not on disk
+[02:53:38] POSTCHECK: 1 error(s) — review before next batch
+[02:53:54] batch 14 [01_新手入门]: 20 file(s)
+[02:53:55] provider: RetryLLMProvider
+[02:53:55] resume: skipping 13 already-completed file(s)
+[02:53:55] SKIP completed: raw/sources/01_新手入门/必备资料第一忌讳无论文笔多么优美都.md
+[02:53:55] SKIP completed: raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1.md
+[02:53:55] SKIP completed: raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1_d36b97.md
+[02:53:55] SKIP completed: raw/sources/01_新手入门/必备资料第一节课授课内容.md
+[02:53:55] SKIP completed: raw/sources/01_新手入门/必备资料第九章关于小说情节设计1.md
+[02:53:55] SKIP completed: raw/sources/01_新手入门/必备资料第二课讲课资料.md
+[02:53:55] SKIP completed: raw/sources/01_新手入门/必备资料第二课讲课资料1.md
+[02:53:55] SKIP completed: raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1.md
+[02:53:55] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者_9c5f45.md
+[02:53:55] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1_ca1afb.md
+[02:53:55] SKIP completed: raw/sources/01_新手入门/必备资料诗词格律自学教程.md
+[02:53:55] SKIP completed: raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md
+[02:53:55] SKIP completed: raw/sources/01_新手入门/必备资料踏莎行春色将阑寇准.md
+[02:53:55] generating 7 file(s) with concurrency=3 (skipped 13)
+[03:03:41]   PERM raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1_2516a3.md: OpenAI complete failed: 'utf-8' codec can't decode byte 0x9c in position 3653: invalid start byte
+[03:03:41]   PERM raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者.md: OpenAI complete failed: 'utf-8' codec can't decode byte 0xe4 in position 15230: invalid continuation byte
+[03:03:41]   PERM raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色.md: OpenAI complete failed: 'utf-8' codec can't decode bytes in position 7744-7745: invalid continuation byte
+[03:03:41]   OK raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1.md: 3 pages, stubs=0, rejected=True
+[03:03:41]   PERM raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色_7a9e06.md: OpenAI complete failed: 'utf-8' codec can't decode byte 0x8e in position 11845: invalid start byte
+[03:03:41]   PERM raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿.md: OpenAI complete failed: 'utf-8' codec can't decode bytes in position 3648-3649: invalid continuation byte
+[03:03:41]   OK raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿_f9c0da.md: 7 pages, stubs=0, rejected=False
+[03:03:41] generated ok=2 err=0 permanent_failed=5 total_pages=10 extras=1 elapsed=587s
+[03:03:41] gate: 10 page(s) PASS (5 issue(s), 0 blocker(s))
+[03:03:41]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1_2516a3.md' has no corresponding SOURCE page in the batch.
+[03:03:41]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者.md' has no corresponding SOURCE page in the batch.
+[03:03:41]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色.md' has no corresponding SOURCE page in the batch.
+[03:03:41]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色_7a9e06.md' has no corresponding SOURCE page in the batch.
+[03:03:41]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿.md' has no corresponding SOURCE page in the batch.
+[03:03:41]   WARN overwrite: Page '亮剑' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[03:03:41]   WARN overwrite: Page '角色塑造' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[03:03:41] committing 10 reconciled page(s) ...
+[03:03:43] committing 1 extra page(s) (reverse-relation) ...
+[03:03:43] POSTCHECK: all pages on disk and indexed
+[03:03:43] BATCH DONE ok=2 err=0 pages=10 gate=PASS
+[03:06:24] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:06:24]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[03:06:24] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[03:06:24] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:06:24]   FAIL raw/sources/a.md: HTTP 503
+[03:06:24] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[03:06:24] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:06:24]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[03:06:24] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[03:06:24] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[03:06:24] llm circuit breaker now half_open — resuming batch
+[03:06:24] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:06:24]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[03:06:24] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[03:06:24] POSTCHECK MISSING: src-gap — file not on disk
+[03:06:24] POSTCHECK: 1 error(s) — review before next batch
+[03:06:35] batch 14 [01_新手入门]: 20 file(s)
+[03:06:36] provider: RetryLLMProvider
+[03:06:36] resume: skipping 15 already-completed file(s)
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料第一忌讳无论文笔多么优美都.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1_d36b97.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料第一节课授课内容.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料第九章关于小说情节设计1.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料第二课讲课资料.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料第二课讲课资料1.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者_9c5f45.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1_ca1afb.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿_f9c0da.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料诗词格律自学教程.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md
+[03:06:36] SKIP completed: raw/sources/01_新手入门/必备资料踏莎行春色将阑寇准.md
+[03:06:36] generating 5 file(s) with concurrency=3 (skipped 15)
+[03:22:33]   OK raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1_2516a3.md: 3 pages, stubs=0, rejected=False
+[03:22:33]   FAIL raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者.md: All 4 LLM call attempts exhausted
+[03:22:33]   OK raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色.md: 6 pages, stubs=0, rejected=True
+[03:22:33]   OK raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色_7a9e06.md: 5 pages, stubs=0, rejected=False
+[03:22:33]   OK raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿.md: 4 pages, stubs=0, rejected=True
+[03:22:33] generated ok=4 err=1 permanent_failed=0 total_pages=18 extras=5 elapsed=957s
+[03:22:33] reconcile: merged '老舍' → '老舍' (extra folded (grade B))
+[03:22:33] gate: 18 page(s) PASS (1 issue(s), 0 blocker(s))
+[03:22:33]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者.md' has no corresponding SOURCE page in the batch.
+[03:22:33]   WARN overwrite: Page '一页书' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[03:22:33]   WARN overwrite: Page '人物塑造五栏表格' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[03:22:33]   WARN overwrite: Page '老舍' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[03:22:33]   WARN overwrite: Page '角色塑造' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[03:22:33]   WARN overwrite: Page '角色性格设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[03:22:33]   WARN overwrite: Page '合情合理' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[03:22:33]   WARN overwrite: Page '侧面烘托' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[03:22:33]   WARN overwrite: Page '卅无颜' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[03:22:34]   WARN overwrite: Page '代入感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[03:22:34] committing 18 reconciled page(s) ...
+[03:22:36] committing 3 extra page(s) (reverse-relation) ...
+[03:22:36] POSTCHECK: all pages on disk and indexed
+[03:22:36] BATCH DONE ok=4 err=1 pages=18 gate=PASS
+[03:25:20] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:25:20]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[03:25:20] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[03:25:20] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:25:20]   FAIL raw/sources/a.md: HTTP 503
+[03:25:20] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[03:25:20] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:25:20]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[03:25:20] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[03:25:20] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[03:25:20] llm circuit breaker now half_open — resuming batch
+[03:25:20] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:25:20]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[03:25:20] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[03:25:20] POSTCHECK MISSING: src-gap — file not on disk
+[03:25:20] POSTCHECK: 1 error(s) — review before next batch
+[03:25:55] batch 14 [01_新手入门]: 20 file(s)
+[03:25:55] provider: RetryLLMProvider
+[03:25:55] resume: skipping 19 already-completed file(s)
+[03:25:55] SKIP completed: raw/sources/01_新手入门/必备资料第一忌讳无论文笔多么优美都.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1_d36b97.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料第一节课授课内容.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料第九章关于小说情节设计1.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料第二课讲课资料.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料第二课讲课资料1.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1_2516a3.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者_9c5f45.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1_ca1afb.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色_7a9e06.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿_f9c0da.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料诗词格律自学教程.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md
+[03:25:56] SKIP completed: raw/sources/01_新手入门/必备资料踏莎行春色将阑寇准.md
+[03:25:56] generating 1 file(s) with concurrency=3 (skipped 19)
+[03:47:54]   FAIL raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者.md: Generator LLM JSON parse failed after 3 attempts: no JSON object/array found in LLM response (50919 chars): line 1 column 1 (char 0)
+[03:47:54] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=1318s
+[03:47:54] BATCH ABORTED: all files failed
+[03:56:45] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:56:45]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[03:56:45] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[03:56:45] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:56:45]   FAIL raw/sources/a.md: HTTP 503
+[03:56:45] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[03:56:45] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:56:45]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[03:56:45] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[03:56:45] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[03:56:45] llm circuit breaker now half_open — resuming batch
+[03:56:45] generating 1 file(s) with concurrency=1 (skipped 0)
+[03:56:45]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[03:56:45] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[03:56:46] POSTCHECK MISSING: src-gap — file not on disk
+[03:56:46] POSTCHECK: 1 error(s) — review before next batch
+[03:57:10] batch 14 [01_新手入门]: 20 file(s)
+[03:57:10] provider: RetryLLMProvider
+[03:57:10] resume: skipping 19 already-completed file(s)
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料第一忌讳无论文笔多么优美都.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1_d36b97.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料第一节课授课内容.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料第九章关于小说情节设计1.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料第二课讲课资料.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料第二课讲课资料1.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1_2516a3.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者_9c5f45.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1_ca1afb.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色_7a9e06.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿_f9c0da.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料诗词格律自学教程.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md
+[03:57:10] SKIP completed: raw/sources/01_新手入门/必备资料踏莎行春色将阑寇准.md
+[03:57:10] generating 1 file(s) with concurrency=3 (skipped 19)
+[04:00:23]   OK raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者.md: 7 pages, stubs=0, rejected=True
+[04:00:23] generated ok=1 err=0 permanent_failed=0 total_pages=7 extras=0 elapsed=193s
+[04:00:23] gate: 7 page(s) PASS (0 issue(s), 0 blocker(s))
+[04:00:23]   WARN overwrite: Page '存稿' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:00:23]   WARN overwrite: Page '更新' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:00:23]   WARN overwrite: Page '签约' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:00:23]   WARN overwrite: Page '上架时机' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:00:23]   WARN overwrite: Page '三江' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[04:00:23] committing 7 reconciled page(s) ...
+[04:00:26] POSTCHECK: all pages on disk and indexed
+[04:00:26] BATCH DONE ok=1 err=0 pages=7 gate=PASS
+[04:03:25] batch 15 [01_新手入门]: 20 file(s)
+[04:03:25] provider: RetryLLMProvider
+[04:03:25] generating 20 file(s) with concurrency=3 (skipped 0)
+[04:47:05]   OK raw/sources/01_新手入门/必备资料金手指.md: 5 pages, stubs=0, rejected=False
+[04:47:05]   OK raw/sources/01_新手入门/必备资料青春校园小说相关写作技巧.md: 5 pages, stubs=0, rejected=False
+[04:47:05]   OK raw/sources/01_新手入门/新人须知10网络小说大纲和细纲的作用.md: 4 pages, stubs=0, rejected=False
+[04:47:05]   OK raw/sources/01_新手入门/新人须知11从标题党看网络文学创作手法中的诱惑性创作1.md: 5 pages, stubs=0, rejected=False
+[04:47:05]   OK raw/sources/01_新手入门/新人须知12剖析网络游戏的卖点讲解网络小说创作利用网游模式写作方法.md: 6 pages, stubs=0, rejected=True
+[04:47:05]   OK raw/sources/01_新手入门/新人须知12剖析网络游戏的卖点讲解网络小说创作利用网游模式写作方法_493b76.md: 4 pages, stubs=0, rejected=False
+[04:47:05]   OK raw/sources/01_新手入门/新人须知13网络文学创作的几个误区.md: 9 pages, stubs=0, rejected=True
+[04:47:05]   OK raw/sources/01_新手入门/新人须知13网络文学创作的几个误区_c397d6.md: 4 pages, stubs=0, rejected=True
+[04:47:05]   OK raw/sources/01_新手入门/新人须知14网络文学实体书出版的那些事儿.md: 6 pages, stubs=0, rejected=True
+[04:47:05]   OK raw/sources/01_新手入门/新人须知14网络文学实体书出版的那些事儿_c39e43.md: 6 pages, stubs=0, rejected=False
+[04:47:05]   OK raw/sources/01_新手入门/新人须知15顺眼谈文章的画面感.md: 3 pages, stubs=0, rejected=False
+[04:47:05]   OK raw/sources/01_新手入门/新人须知17文笔在网络文学创作上的作用.md: 5 pages, stubs=0, rejected=True
+[04:47:05]   OK raw/sources/01_新手入门/新人须知17文笔在网络文学创作上的作用_1dd858.md: 5 pages, stubs=0, rejected=True
+[04:47:05]   OK raw/sources/01_新手入门/新人须知17编辑讲课记录.md: 5 pages, stubs=0, rejected=True
+[04:47:05]   OK raw/sources/01_新手入门/新人须知18创作会经常遇到的问题.md: 7 pages, stubs=0, rejected=False
+[04:47:05]   OK raw/sources/01_新手入门/新人须知18创作会经常遇到的问题_056c32.md: 4 pages, stubs=0, rejected=False
+[04:47:05]   OK raw/sources/01_新手入门/新人须知19从信昌出版社出版要求分析网络文学创作.md: 5 pages, stubs=0, rejected=True
+[04:47:05]   OK raw/sources/01_新手入门/新人须知19从信昌出版社出版要求分析网络文学创作_de13c1.md: 4 pages, stubs=0, rejected=False
+[04:47:05]   FAIL raw/sources/01_新手入门/新人须知1浅谈网络写手网络文学与网络文学创作基础.md: 
+[04:47:05]   FAIL raw/sources/01_新手入门/新人须知1浅谈网络写手网络文学与网络文学创作基础_08147a.md: 
+[04:47:05] generated ok=18 err=2 permanent_failed=0 total_pages=92 extras=16 elapsed=2618s
+[04:47:05] reconcile: merged '凡人修仙传' → '凡人修仙传' (higher grade (B > C))
+[04:47:05] reconcile: merged '飞书云文档' → '飞书云文档' (same grade, kept first)
+[04:47:05] reconcile: merged '烽火戏诸侯' → '烽火戏诸侯' (higher grade (B > C))
+[04:47:05] reconcile: merged '基础误区' → '基础误区' (higher grade (B > C))
+[04:47:05] reconcile: merged '绿帽情节' → '绿帽情节' (higher grade (B > C))
+[04:47:05] reconcile: merged '信昌出版社' → '信昌出版社' (same grade, kept first)
+[04:47:05] reconcile: merged '糖葫芦式写法' → '糖葫芦式写法' (higher grade (A > B))
+[04:47:05] gate: 85 page(s) PASS (2 issue(s), 0 blocker(s))
+[04:47:05]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/新人须知1浅谈网络写手网络文学与网络文学创作基础.md' has no corresponding SOURCE page in the batch.
+[04:47:05]   [WARN] P5 -: Raw input 'raw/sources/01_新手入门/新人须知1浅谈网络写手网络文学与网络文学创作基础_08147a.md' has no corresponding SOURCE page in the batch.
+[04:47:05]   WARN overwrite: Page '金手指设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '金手指' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '凡人修仙传' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '佛本是道' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '情节' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '飞书云文档' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '网络小说' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '大纲' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '细纲' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '阳神' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '升级流小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '装备设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '主线' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '顺眼谈文章的画面感培训' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '画面感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '文笔' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '落差感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:47:05]   WARN overwrite: Page '情节第一' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[04:47:05] committing 85 reconciled page(s) ...
+[04:47:07] committing 12 extra page(s) (reverse-relation) ...
+[04:47:08] POSTCHECK: all pages on disk and indexed
+[04:47:08] BATCH DONE ok=18 err=2 pages=85 gate=PASS
+[04:47:41] batch 15 [01_新手入门]: 20 file(s)
+[04:47:41] provider: RetryLLMProvider
+[04:47:41] resume: skipping 18 already-completed file(s)
+[04:47:41] SKIP completed: raw/sources/01_新手入门/必备资料金手指.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/必备资料青春校园小说相关写作技巧.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知10网络小说大纲和细纲的作用.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知11从标题党看网络文学创作手法中的诱惑性创作1.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知12剖析网络游戏的卖点讲解网络小说创作利用网游模式写作方法.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知12剖析网络游戏的卖点讲解网络小说创作利用网游模式写作方法_493b76.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知13网络文学创作的几个误区.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知13网络文学创作的几个误区_c397d6.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知14网络文学实体书出版的那些事儿.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知14网络文学实体书出版的那些事儿_c39e43.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知15顺眼谈文章的画面感.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知17文笔在网络文学创作上的作用.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知17文笔在网络文学创作上的作用_1dd858.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知17编辑讲课记录.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知18创作会经常遇到的问题.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知18创作会经常遇到的问题_056c32.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知19从信昌出版社出版要求分析网络文学创作.md
+[04:47:41] SKIP completed: raw/sources/01_新手入门/新人须知19从信昌出版社出版要求分析网络文学创作_de13c1.md
+[04:47:41] generating 2 file(s) with concurrency=3 (skipped 18)
+[05:17:44]   FAIL raw/sources/01_新手入门/新人须知1浅谈网络写手网络文学与网络文学创作基础.md: 
+[05:17:44]   FAIL raw/sources/01_新手入门/新人须知1浅谈网络写手网络文学与网络文学创作基础_08147a.md: 
+[05:17:44] generated ok=0 err=2 permanent_failed=0 total_pages=0 extras=0 elapsed=1803s
+[05:17:44] BATCH ABORTED: all files failed
+[08:57:44] batch 15 [01_新手入门]: 20 file(s)
+[08:57:45] provider: RetryLLMProvider
+[08:57:45] resume: skipping 18 already-completed file(s)
+[08:57:45] SKIP completed: raw/sources/01_新手入门/必备资料金手指.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/必备资料青春校园小说相关写作技巧.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知10网络小说大纲和细纲的作用.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知11从标题党看网络文学创作手法中的诱惑性创作1.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知12剖析网络游戏的卖点讲解网络小说创作利用网游模式写作方法.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知12剖析网络游戏的卖点讲解网络小说创作利用网游模式写作方法_493b76.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知13网络文学创作的几个误区.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知13网络文学创作的几个误区_c397d6.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知14网络文学实体书出版的那些事儿.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知14网络文学实体书出版的那些事儿_c39e43.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知15顺眼谈文章的画面感.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知17文笔在网络文学创作上的作用.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知17文笔在网络文学创作上的作用_1dd858.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知17编辑讲课记录.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知18创作会经常遇到的问题.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知18创作会经常遇到的问题_056c32.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知19从信昌出版社出版要求分析网络文学创作.md
+[08:57:45] SKIP completed: raw/sources/01_新手入门/新人须知19从信昌出版社出版要求分析网络文学创作_de13c1.md
+[08:57:45] generating 2 file(s) with concurrency=3 (skipped 18)
+[09:00:17]   OK raw/sources/01_新手入门/新人须知1浅谈网络写手网络文学与网络文学创作基础.md: 4 pages, stubs=0, rejected=True
+[09:00:17]   OK raw/sources/01_新手入门/新人须知1浅谈网络写手网络文学与网络文学创作基础_08147a.md: 4 pages, stubs=0, rejected=False
+[09:00:17] generated ok=2 err=0 permanent_failed=0 total_pages=8 extras=0 elapsed=152s
+[09:00:17] reconcile: merged '网络小说' → '网络小说' (same grade, kept first)
+[09:00:17] reconcile: merged '网络文学' → '网络文学' (higher grade (B > C))
+[09:00:17] gate: 5 page(s) PASS (0 issue(s), 0 blocker(s))
+[09:00:17]   WARN overwrite: Page '网络小说' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[09:00:17]   WARN overwrite: Page '网络写手' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[09:00:17] committing 5 reconciled page(s) ...
+[09:00:22] POSTCHECK: all pages on disk and indexed
+[09:00:22] BATCH DONE ok=2 err=0 pages=5 gate=PASS
+[09:02:06] batch 16 [01_新手入门]: 20 file(s)
+[09:02:08] provider: RetryLLMProvider
+[09:02:08] generating 20 file(s) with concurrency=3 (skipped 0)
+[09:26:28]   OK raw/sources/01_新手入门/新人须知20仙侠类题材作品的创作要点及卖点.md: 8 pages, stubs=0, rejected=False
+[09:26:28]   OK raw/sources/01_新手入门/新人须知22期待感让你的作品能够引人入胜.md: 10 pages, stubs=0, rejected=True
+[09:26:28]   OK raw/sources/01_新手入门/新人须知22期待感让你的作品能够引人入胜_ac5917.md: 3 pages, stubs=0, rejected=True
+[09:26:28]   OK raw/sources/01_新手入门/新人须知23网文分段技巧详谈.md: 8 pages, stubs=0, rejected=False
+[09:26:28]   OK raw/sources/01_新手入门/新人须知25都市类小说类的创作要点.md: 6 pages, stubs=0, rejected=True
+[09:26:28]   OK raw/sources/01_新手入门/新人须知25都市类小说类的创作要点_c3dd5d.md: 5 pages, stubs=0, rejected=False
+[09:26:28]   OK raw/sources/01_新手入门/新人须知26如何用性格突出角色用角色吸引读者.md: 8 pages, stubs=0, rejected=False
+[09:26:28]   OK raw/sources/01_新手入门/新人须知26如何用性格突出角色用角色吸引读者_de04db.md: 5 pages, stubs=0, rejected=False
+[09:26:28]   OK raw/sources/01_新手入门/新人须知27你为什么穿越你凭什么穿越.md: 6 pages, stubs=0, rejected=True
+[09:26:28]   OK raw/sources/01_新手入门/新人须知28从泡妞技巧看网络小说创作.md: 3 pages, stubs=0, rejected=False
+[09:26:28]   OK raw/sources/01_新手入门/新人须知29对话技巧详谈引号开头对话流.md: 4 pages, stubs=0, rejected=False
+[09:26:28]   OK raw/sources/01_新手入门/新人须知2给你的作品换件衣服你会发现你什么题材都可以写.md: 4 pages, stubs=0, rejected=False
+[09:26:28]   OK raw/sources/01_新手入门/新人须知30第一人称小说创作优劣详解.md: 3 pages, stubs=0, rejected=False
+[09:26:28]   OK raw/sources/01_新手入门/新人须知31如何对待评论和书评.md: 4 pages, stubs=0, rejected=True
+[09:26:28]   OK raw/sources/01_新手入门/新人须知32开头的具体写法.md: 8 pages, stubs=0, rejected=True
+[09:26:28]   OK raw/sources/01_新手入门/新人须知32开头的具体写法_33702d.md: 7 pages, stubs=0, rejected=True
+[09:26:28]   OK raw/sources/01_新手入门/新人须知33用科学的管理方法管理你的作品.md: 3 pages, stubs=0, rejected=True
+[09:26:28]   OK raw/sources/01_新手入门/新人须知34承转启合文章的衔接和转折.md: 2 pages, stubs=0, rejected=True
+[09:26:28]   OK raw/sources/01_新手入门/新人须知35学会给你的小说打补丁.md: 5 pages, stubs=0, rejected=True
+[09:26:28]   OK raw/sources/01_新手入门/新人须知36架空历史的创作要点.md: 9 pages, stubs=0, rejected=True
+[09:26:28] generated ok=20 err=0 permanent_failed=0 total_pages=111 extras=27 elapsed=1460s
+[09:26:28] reconcile: merged '爽点与情绪' → '爽点与情绪' (same grade, kept first)
+[09:26:28] reconcile: merged '期待感' → '期待感' (same grade, kept first)
+[09:26:28] reconcile: merged '伏笔手法' → '伏笔手法' (same grade, kept first)
+[09:26:28] reconcile: merged '都市小说' → '都市小说' (same grade, kept first)
+[09:26:28] reconcile: merged '代入感' → '代入感' (same grade, kept first)
+[09:26:28] reconcile: merged '飞库' → '飞库' (same grade, kept first)
+[09:26:28] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[09:26:28] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[09:26:28] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[09:26:28] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[09:26:28] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[09:26:28] reconcile: merged '人物塑造' → '人物塑造' (same grade, kept first)
+[09:26:28] reconcile: merged '角色性格设定' → '角色性格设定' (same grade, kept first)
+[09:26:28] reconcile: merged '射雕英雄传' → '射雕英雄传' (higher grade (A > C))
+[09:26:28] reconcile: merged '先抑后扬' → '先抑后扬' (same grade, kept first)
+[09:26:28] reconcile: merged '先扬后抑' → '先扬后抑' (same grade, kept first)
+[09:26:28] reconcile: merged '家破人亡复仇法' → '家破人亡复仇法' (same grade, kept first)
+[09:26:28] reconcile: merged '爽点' → '爽点' (extra folded (grade C))
+[09:26:28] reconcile: merged '网络文学' → '网络文学' (existing higher grade)
+[09:26:28] reconcile: merged '人物塑造' → '人物塑造' (extra folded (grade B))
+[09:26:28] reconcile: merged '仙侠小说' → '仙侠小说' (extra folded (grade B))
+[09:26:28] reconcile: merged '都市小说' → '都市小说' (extra folded (grade C))
+[09:26:28] reconcile: merged '金手指' → '金手指' (extra folded (grade B))
+[09:26:28] gate: 93 page(s) PASS (0 issue(s), 0 blocker(s))
+[09:26:28]   WARN overwrite: Page '仙侠小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '仙侠与玄幻区别' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '佛本是道' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '飘渺之旅' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '期待感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '伏笔手法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '连环伏笔' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '误导诱导' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '阳神' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '副本' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '画面感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '镜头感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '都市小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '代入感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '凤头猪肚麒麟尾' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '爽点' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '飞库' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '人物塑造' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '角色性格设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '角色性格重复强化' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '主角三百字登场法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '黄蓉' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '射雕英雄传' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '金庸' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '以角色塑造为主的小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '以情节推动为主的小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '穿越重生' (entity) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '金手指' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '凤头' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '对话流' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '对话写作技巧' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '网游模式写作' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '题材选择' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '第一人称小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '灵幻奇侠' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '书评反馈处理原则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '飞书云文档' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '小说开头技巧' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '先抑后扬' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '家破人亡复仇法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '老套' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '架空历史' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '人物架空' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '背景架空' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '争霸文' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '种田文' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28]   WARN overwrite: Page '小资文' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[09:26:28] committing 93 reconciled page(s) ...
+[09:26:50] committing 19 extra page(s) (reverse-relation) ...
+[09:26:50] POSTCHECK: all pages on disk and indexed
+[09:26:50] BATCH DONE ok=20 err=0 pages=93 gate=PASS
+[09:27:36] batch 17 [01_新手入门]: 20 file(s)
+[09:27:39] provider: RetryLLMProvider
+[09:27:39] generating 20 file(s) with concurrency=3 (skipped 0)
+[10:54:54] batch 17 [01_新手入门]: 20 file(s)
+[10:54:56] provider: RetryLLMProvider
+[10:54:56] generating 20 file(s) with concurrency=3 (skipped 0)
+[11:04:41]   OK raw/sources/01_新手入门/新人须知36架空历史的创作要点_d0bb05.md: 5 pages, stubs=0, rejected=True
+[11:04:41]   OK raw/sources/01_新手入门/新人须知37修真仙侠小说的元素和写法.md: 3 pages, stubs=0, rejected=False
+[11:04:41]   OK raw/sources/01_新手入门/新人须知39文章的开头你想让读者记住什么.md: 4 pages, stubs=0, rejected=False
+[11:04:41]   OK raw/sources/01_新手入门/新人须知3网络小说完本的重要性和完本后如何开新书.md: 4 pages, stubs=0, rejected=True
+[11:04:41]   OK raw/sources/01_新手入门/新人须知3网络小说完本的重要性和完本后如何开新书_f632bc.md: 3 pages, stubs=0, rejected=True
+[11:04:41]   OK raw/sources/01_新手入门/新人须知40网络小说的爽点是什么.md: 13 pages, stubs=0, rejected=False
+[11:04:41]   OK raw/sources/01_新手入门/新人须知40网络小说的爽点是什么_00258a.md: 5 pages, stubs=0, rejected=False
+[11:04:41]   OK raw/sources/01_新手入门/新人须知43人物刻画的几点心得.md: 6 pages, stubs=0, rejected=True
+[11:04:41]   OK raw/sources/01_新手入门/新人须知43人物刻画的几点心得_b6e7dd.md: 5 pages, stubs=0, rejected=True
+[11:04:41]   OK raw/sources/01_新手入门/新人须知44如何在网络小说上架前后提升作品的吸引力.md: 3 pages, stubs=0, rejected=True
+[11:04:41]   OK raw/sources/01_新手入门/新人须知45东方玄幻题材的创作.md: 3 pages, stubs=0, rejected=False
+[11:04:41]   OK raw/sources/01_新手入门/新人须知4如果让你优化你的前六万字作品你打算从几个方面入手.md: 3 pages, stubs=0, rejected=True
+[11:04:41]   OK raw/sources/01_新手入门/新人须知4如果让你优化你的前六万字作品你打算从几个方面入手_acc3e4.md: 3 pages, stubs=0, rejected=False
+[11:04:41]   OK raw/sources/01_新手入门/新人须知5速度网络文学创作的唯一秘诀.md: 4 pages, stubs=0, rejected=True
+[11:04:41]   OK raw/sources/01_新手入门/新人须知5速度网络文学创作的唯一秘诀_47c3cb.md: 3 pages, stubs=0, rejected=True
+[11:04:41]   OK raw/sources/01_新手入门/新人须知6如何抓住读者心理.md: 4 pages, stubs=0, rejected=True
+[11:04:41]   OK raw/sources/01_新手入门/新人须知6如何抓住读者心理_562918.md: 3 pages, stubs=0, rejected=False
+[11:04:41]   OK raw/sources/01_新手入门/新人须知7上架作品更新秘诀凤头猪肚麒麟尾.md: 4 pages, stubs=0, rejected=True
+[11:04:41]   OK raw/sources/01_新手入门/新人须知7上架作品更新秘诀凤头猪肚麒麟尾_6e28f2.md: 6 pages, stubs=0, rejected=False
+[11:04:41]   OK raw/sources/01_新手入门/新人须知8墨武讲课记录.md: 4 pages, stubs=0, rejected=False
+[11:04:41] generated ok=20 err=0 permanent_failed=0 total_pages=88 extras=46 elapsed=585s
+[11:04:41] reconcile: merged '完本心态' → '完本心态' (same grade, kept first)
+[11:04:41] reconcile: merged '爽点' → '爽点' (same grade, kept first)
+[11:04:41] reconcile: merged '先抑后扬' → '先抑后扬' (same grade, kept first)
+[11:04:41] reconcile: merged '梦入神机' → '梦入神机' (same grade, kept first)
+[11:04:41] reconcile: merged '人物塑造' → '人物塑造' (higher grade (A > B))
+[11:04:41] reconcile: merged '人物性格刻画' → '人物性格刻画' (higher grade (A > B))
+[11:04:41] reconcile: merged '主角性格设定' → '主角性格设定' (higher grade (A > B))
+[11:04:41] reconcile: merged '无限恐怖' → '无限恐怖' (same grade, kept first)
+[11:04:41] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[11:04:41] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[11:04:41] reconcile: merged '凤头' → '凤头' (extra folded (grade B))
+[11:04:41] reconcile: merged '代入感' → '代入感' (extra folded (grade B))
+[11:04:41] reconcile: merged '人物塑造' → '人物塑造' (extra folded (grade B))
+[11:04:41] reconcile: merged '凤头猪肚麒麟尾' → '凤头猪肚麒麟尾' (extra folded (grade B))
+[11:04:41] reconcile: merged '爽点' → '爽点' (extra folded (grade B))
+[11:04:41] gate: 78 page(s) PASS (0 issue(s), 0 blocker(s))
+[11:04:41]   WARN overwrite: Page '历史小说' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '人物架空' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '修真文-写法' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '代入感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '主角三百字登场法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '完本心态' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '凤头' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '爽点' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '先抑后扬' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '梦入神机' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '优越感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '人物塑造' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '人物性格刻画' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '主角性格设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '无限恐怖' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '正文纯净原则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '东方玄幻' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '网游模式写作' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '作品第一印象六要素' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '凤头猪肚麒麟尾' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '猪肚' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '豹尾' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41]   WARN overwrite: Page '上架时机' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:04:41] committing 78 reconciled page(s) ...
+[11:04:49] committing 30 extra page(s) (reverse-relation) ...
+[11:04:50] POSTCHECK: all pages on disk and indexed
+[11:04:50] BATCH DONE ok=20 err=0 pages=78 gate=PASS
+[11:07:26] batch 18 [mixed]: 20 file(s)
+[11:07:28] provider: RetryLLMProvider
+[11:07:28] generating 20 file(s) with concurrency=3 (skipped 0)
+[11:39:33]   OK raw/sources/01_新手入门/新人须知9写作目的和心态的问题.md: 6 pages, stubs=0, rejected=True
+[11:39:33]   OK raw/sources/01_新手入门/新人须知9写作目的和心态的问题_e76e46.md: 5 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/01_新手入门/新人须知关于小说写作.md: 9 pages, stubs=0, rejected=True
+[11:39:33]   OK raw/sources/01_新手入门/新人须知小说写作新手上路基本写作教程.md: 7 pages, stubs=0, rejected=True
+[11:39:33]   OK raw/sources/01_新手入门/新人须知小说写作新手上路基本写作教程_2f72ea.md: 6 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/01_新手入门/新人须知尾号五新人指南.md: 1 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/01_新手入门/新人须知新人完美投稿计划.md: 3 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/01_新手入门/新人须知新手上路基本写作教程.md: 6 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/01_新手入门/新人须知更俗写作心得访谈.md: 3 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/02_进阶技巧/方法论YY小说模式.md: 4 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/02_进阶技巧/方法论YY点103式.md: 4 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/02_进阶技巧/方法论一个全职写手的心得体会.md: 3 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/02_进阶技巧/方法论丰富多彩的人物形象塑造.md: 5 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/02_进阶技巧/方法论从新手到大神.md: 5 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/02_进阶技巧/方法论侦探小说二十守则.md: 4 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/02_进阶技巧/方法论关于写作技法原理转自奇幻世界网火沙论坛.md: 3 pages, stubs=0, rejected=True
+[11:39:33]   OK raw/sources/02_进阶技巧/方法论写书技巧.md: 7 pages, stubs=0, rejected=True
+[11:39:33]   OK raw/sources/02_进阶技巧/方法论写作心得.md: 5 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/02_进阶技巧/方法论写作技巧与心得117条.md: 5 pages, stubs=0, rejected=False
+[11:39:33]   OK raw/sources/02_进阶技巧/方法论写作技巧之15条小技巧.md: 10 pages, stubs=0, rejected=False
+[11:39:33] generated ok=20 err=0 permanent_failed=0 total_pages=101 extras=17 elapsed=1925s
+[11:39:33] reconcile: merged '新人作者常见困难' → '新人作者常见困难' (same grade, kept first)
+[11:39:33] reconcile: merged '语感' → '语感' (higher grade (B > C))
+[11:39:33] reconcile: merged '语感' → '语感' (higher grade (B > C))
+[11:39:33] reconcile: merged '智慧' → '智慧' (higher grade (B > C))
+[11:39:33] reconcile: merged '冲突' → '冲突' (higher grade (B > C))
+[11:39:33] reconcile: merged '人物塑造' → '人物塑造' (same grade, kept first)
+[11:39:33] reconcile: merged '人物塑造' → '人物塑造' (higher grade (B > C))
+[11:39:33] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[11:39:33] reconcile: merged '作家十二戒' → '作家十二戒' (same grade, kept first)
+[11:39:33] reconcile: merged '节奏感' → '节奏感' (extra folded (grade B))
+[11:39:33] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (extra folded (grade C))
+[11:39:33] reconcile: merged '人物塑造' → '人物塑造' (existing higher grade)
+[11:39:33] auto-tag: 4 UGC-carrier-derived page(s) tagged 素材/ugc + 可信度/ugc
+[11:39:33] gate: 91 page(s) PASS (0 issue(s), 0 blocker(s))
+[11:39:33]   WARN overwrite: Page '唐家三少' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '血红' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '新人自审' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '新人作者心态调整' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '写作坚持原则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '陀思妥耶夫斯基' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '三岛由纪夫' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '镜头感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '尽头感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '自奉为神' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '为艺术而艺术' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '村上春树' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '川端康成' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '节奏感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '投稿邮件规范' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '书名与简介的重要性' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page 'yy-小说-103-个经典桥段' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '主角愤怒寻仇桥段' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '优越感桥段' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '人物脸谱化' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '新手作者五个阶段' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '写手境界' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '侦探小说公平竞赛原则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '侦探唯一性原则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '凶手身份限制' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '作家十二戒' (concept) already exists on disk as entity — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '写作三大要点' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '小说写作四大忌讳' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '魔盗' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[11:39:33]   WARN overwrite: Page '悬念' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[11:39:33] committing 91 reconciled page(s) ...
+[11:39:37] committing 12 extra page(s) (reverse-relation) ...
+[11:39:38] POSTCHECK: all pages on disk and indexed
+[11:39:38] BATCH DONE ok=20 err=0 pages=91 gate=PASS
+[11:41:21] batch 19 [02_进阶技巧]: 20 file(s)
+[11:41:23] provider: RetryLLMProvider
+[11:41:23] generating 20 file(s) with concurrency=3 (skipped 0)
+[12:20:56]   FAIL raw/sources/02_进阶技巧/方法论写作的他山之石电影蒙太奇ZT.md: 
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论写作目的和心态.md: 4 pages, stubs=0, rejected=False
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论写作经验总结.md: 7 pages, stubs=0, rejected=False
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论写作过程论.md: 4 pages, stubs=0, rejected=True
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论写好小说抓住十三个关键.md: 4 pages, stubs=0, rejected=True
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论写故事的十个常用技巧.md: 4 pages, stubs=0, rejected=False
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论写景图貌的现场展示.md: 4 pages, stubs=0, rejected=False
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论出卖你性格的16个小动作.md: 3 pages, stubs=0, rejected=True
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论创造你的角色时该考虑的20个问题.md: 3 pages, stubs=0, rejected=False
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论半神攻略.md: 3 pages, stubs=0, rejected=True
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论华夏原创写作指南.md: 5 pages, stubs=0, rejected=False
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论历史题材小说的写作技巧.md: 8 pages, stubs=0, rejected=False
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论多样化的情节结构.md: 3 pages, stubs=0, rejected=False
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论好的文笔基础决定一个作者能走多远.md: 5 pages, stubs=0, rejected=False
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论如何体现小说的画面感.md: 3 pages, stubs=0, rejected=False
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论如何写一个好的开头.md: 8 pages, stubs=0, rejected=True
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论如何写仙侠.md: 13 pages, stubs=0, rejected=True
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论如何写作科幻奇幻小说.md: 5 pages, stubs=0, rejected=False
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论如何写出精彩的科幻小说.md: 8 pages, stubs=0, rejected=False
+[12:20:56]   OK raw/sources/02_进阶技巧/方法论如何写好一本小说.md: 5 pages, stubs=0, rejected=False
+[12:20:56] generated ok=19 err=1 permanent_failed=0 total_pages=99 extras=17 elapsed=2374s
+[12:20:56] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[12:20:56] reconcile: merged '科幻构思如何驱动情节' → '科幻构思如何驱动情节' (higher grade (A > B))
+[12:20:56] reconcile: merged '人物性格刻画' → '人物性格刻画' (existing higher grade)
+[12:20:56] reconcile: merged '画面感' → '画面感' (extra folded (grade B))
+[12:20:56] gate: 96 page(s) PASS (1 issue(s), 0 blocker(s))
+[12:20:56]   [WARN] P5 -: Raw input 'raw/sources/02_进阶技巧/方法论写作的他山之石电影蒙太奇ZT.md' has no corresponding SOURCE page in the batch.
+[12:20:56]   WARN overwrite: Page '写作心态' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '写作坚持原则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '人物个性刻画' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '人物个性刻画要素' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '剧情节奏' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '横切悬念-倒叙事件法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '意料之外-情理之中法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '淡化情节-形散神聚法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '散文' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '人物描写素材库' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '角色塑造' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '成神-网文写作' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '网络文学读者阅读心态' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '都市上班族阅读心态' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '学生一族阅读心态' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '中老年读者阅读心态' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '历史小说角色塑造要点' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '架空历史' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:56]   WARN overwrite: Page '历史小说' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '情节结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '飞书云文档' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '文笔' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '文笔要求' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '画面感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '主角三百字登场法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '三千字首章冲突法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '三章亮卖点法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '三万字首高潮法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '三支线展开法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '三段大情节法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '开篇写法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '仙侠小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '仙侠与玄幻区别' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '古典仙侠' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '佛本是道' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '飘渺之旅' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '洪荒封神流' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '星际寻宝流' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '科幻构思如何驱动情节' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '科幻小说长篇创作方法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '科幻幻想核心设计' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '科幻人物性格与关系冲突' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '科幻小说叙述角度选择' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '科幻环境与氛围营造' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '细节描写' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '五感描写法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '具体描写' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[12:20:57]   WARN overwrite: Page '契诃夫' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[12:20:57] committing 96 reconciled page(s) ...
+[12:21:06] committing 16 extra page(s) (reverse-relation) ...
+[12:21:07] POSTCHECK: all pages on disk and indexed
+[12:21:07] BATCH DONE ok=19 err=1 pages=96 gate=PASS
+[12:21:40] batch 19 [02_进阶技巧]: 20 file(s)
+[12:21:43] provider: RetryLLMProvider
+[12:21:43] resume: skipping 19 already-completed file(s)
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论写作目的和心态.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论写作经验总结.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论写作过程论.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论写好小说抓住十三个关键.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论写故事的十个常用技巧.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论写景图貌的现场展示.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论出卖你性格的16个小动作.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论创造你的角色时该考虑的20个问题.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论半神攻略.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论华夏原创写作指南.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论历史题材小说的写作技巧.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论多样化的情节结构.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论好的文笔基础决定一个作者能走多远.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论如何体现小说的画面感.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论如何写一个好的开头.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论如何写仙侠.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论如何写作科幻奇幻小说.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论如何写出精彩的科幻小说.md
+[12:21:43] SKIP completed: raw/sources/02_进阶技巧/方法论如何写好一本小说.md
+[12:21:43] generating 1 file(s) with concurrency=3 (skipped 19)
+[13:00:16] batch 20 [02_进阶技巧]: 5 file(s)
+[13:00:45] batch 20 [02_进阶技巧]: 5 file(s)
+[13:00:46] provider: RetryLLMProvider
+[13:00:46] generating 5 file(s) with concurrency=3 (skipped 0)
+[13:03:25]   OK raw/sources/02_进阶技巧/方法论如何形象地描绘场景.md: 3 pages, stubs=0, rejected=False
+[13:03:25]   OK raw/sources/02_进阶技巧/方法论如何抓住读者心理.md: 3 pages, stubs=0, rejected=True
+[13:03:25]   OK raw/sources/02_进阶技巧/方法论如何提高文笔和写作能力.md: 4 pages, stubs=0, rejected=True
+[13:03:25]   OK raw/sources/02_进阶技巧/方法论如何运营你的作品.md: 4 pages, stubs=0, rejected=False
+[13:03:25]   OK raw/sources/02_进阶技巧/方法论如何驾驭情节.md: 5 pages, stubs=0, rejected=True
+[13:03:25] generated ok=5 err=0 permanent_failed=0 total_pages=19 extras=2 elapsed=158s
+[13:03:25] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[13:03:25] gate: 18 page(s) PASS (0 issue(s), 0 blocker(s))
+[13:03:25] B6 overwrite protection: 10 blocker(s)
+[13:03:25]   BLOCK Page '五感描写法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:03:25]   BLOCK Page '动作描写' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:03:25]   BLOCK Page '抓住读者心理五要素' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:03:25]   BLOCK Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:03:25]   BLOCK Page '书名与简介的重要性' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:03:25]   BLOCK Page '简单易记命名准则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:03:25]   BLOCK Page '笔名选择' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:03:25]   BLOCK Page '斗破苍穹' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:03:25]   BLOCK Page '情节即矛盾' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:03:25]   BLOCK Page '高潮反推构思法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:03:25] BATCH BLOCKED: overwrite protection — use --allow-overwrite to force, or --skip-files <raw_rel,...> to exclude the source file
+[13:03:38] batch 20 [02_进阶技巧]: 5 file(s)
+[13:03:40] provider: RetryLLMProvider
+[13:03:40] generating 5 file(s) with concurrency=3 (skipped 0)
+[13:06:29]   OK raw/sources/02_进阶技巧/方法论如何形象地描绘场景.md: 6 pages, stubs=0, rejected=False
+[13:06:29]   OK raw/sources/02_进阶技巧/方法论如何抓住读者心理.md: 4 pages, stubs=0, rejected=True
+[13:06:29]   OK raw/sources/02_进阶技巧/方法论如何提高文笔和写作能力.md: 4 pages, stubs=0, rejected=True
+[13:06:29]   OK raw/sources/02_进阶技巧/方法论如何运营你的作品.md: 3 pages, stubs=0, rejected=False
+[13:06:29]   OK raw/sources/02_进阶技巧/方法论如何驾驭情节.md: 6 pages, stubs=0, rejected=True
+[13:06:29] generated ok=5 err=0 permanent_failed=0 total_pages=23 extras=9 elapsed=169s
+[13:06:29] gate: 23 page(s) PASS (0 issue(s), 0 blocker(s))
+[13:06:29]   WARN overwrite: Page '五感描写法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:06:29]   WARN overwrite: Page '动作描写' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:06:29]   WARN overwrite: Page '抓住读者心理五要素' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:06:29]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:06:29]   WARN overwrite: Page '老书虫' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:06:29]   WARN overwrite: Page '写作素材积累' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:06:29]   WARN overwrite: Page '书名与简介的重要性' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:06:29]   WARN overwrite: Page '简单易记命名准则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:06:29]   WARN overwrite: Page '斗破苍穹' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:06:29]   WARN overwrite: Page '情节即矛盾' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:06:29]   WARN overwrite: Page '高潮反推构思法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:06:29]   WARN overwrite: Page '三段大情节法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:06:29] committing 23 reconciled page(s) ...
+[13:06:36] committing 8 extra page(s) (reverse-relation) ...
+[13:06:36] POSTCHECK: all pages on disk and indexed
+[13:06:36] BATCH DONE ok=5 err=0 pages=23 gate=PASS
+[13:06:53] batch 20 [02_进阶技巧]: 20 file(s)
+[13:06:55] provider: RetryLLMProvider
+[13:06:55] resume: skipping 5 already-completed file(s)
+[13:06:55] SKIP completed: raw/sources/02_进阶技巧/方法论如何形象地描绘场景.md
+[13:06:55] SKIP completed: raw/sources/02_进阶技巧/方法论如何抓住读者心理.md
+[13:06:55] SKIP completed: raw/sources/02_进阶技巧/方法论如何提高文笔和写作能力.md
+[13:06:55] SKIP completed: raw/sources/02_进阶技巧/方法论如何运营你的作品.md
+[13:06:55] SKIP completed: raw/sources/02_进阶技巧/方法论如何驾驭情节.md
+[13:06:55] generating 15 file(s) with concurrency=3 (skipped 5)
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论小小说创作中的悬置紧张法ZT.md: 4 pages, stubs=0, rejected=True
+[13:37:00]   FAIL raw/sources/02_进阶技巧/方法论小说写作技巧大全.md: 
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论小说写作的指路明灯.md: 10 pages, stubs=0, rejected=True
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论小说创作常见弊病总结.md: 2 pages, stubs=0, rejected=True
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论小说创作感悟转载.md: 10 pages, stubs=0, rejected=True
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论小说创作技巧点睛.md: 6 pages, stubs=0, rejected=False
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论小说创作谈转载.md: 9 pages, stubs=0, rejected=True
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论小说的写作技巧.md: 7 pages, stubs=0, rejected=False
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论小说结构.md: 14 pages, stubs=0, rejected=True
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论小说要给人以现实感.md: 4 pages, stubs=0, rejected=False
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论应该具有创新意识.md: 6 pages, stubs=0, rejected=False
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论必须注意的写作.md: 5 pages, stubs=0, rejected=False
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论悬念的分级论升级流.md: 5 pages, stubs=0, rejected=False
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论悬疑小说常用的诡计合集.md: 7 pages, stubs=0, rejected=True
+[13:37:00]   OK raw/sources/02_进阶技巧/方法论悬疑小说常用的诡计大全.md: 4 pages, stubs=0, rejected=False
+[13:37:00] generated ok=14 err=1 permanent_failed=0 total_pages=93 extras=27 elapsed=1805s
+[13:37:00] reconcile: merged '伏笔手法' → '伏笔手法' (same grade, kept first)
+[13:37:00] reconcile: merged '剧情节奏' → '剧情节奏' (same grade, kept first)
+[13:37:00] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[13:37:00] reconcile: merged '一人二角诡计' → '一人二角诡计' (higher grade (B > C))
+[13:37:00] reconcile: merged '意外犯人诡计' → '意外犯人诡计' (higher grade (B > C))
+[13:37:00] reconcile: merged '犯人自我抹杀诡计' → '犯人自我抹杀诡计' (higher grade (B > C))
+[13:37:00] reconcile: merged '人物个性刻画' → '人物个性刻画' (extra folded (grade B))
+[13:37:00] reconcile: merged '伏笔手法' → '伏笔手法' (extra folded (grade B))
+[13:37:00] reconcile: merged '配角衬托' → '配角衬托' (extra folded (grade B))
+[13:37:00] reconcile: merged '高潮制造' → '高潮制造' (extra folded (grade B))
+[13:37:00] gate: 87 page(s) PASS (1 issue(s), 0 blocker(s))
+[13:37:00]   [WARN] P5 -: Raw input 'raw/sources/02_进阶技巧/方法论小说写作技巧大全.md' has no corresponding SOURCE page in the batch.
+[13:37:00]   WARN overwrite: Page '悬置紧张法-悬念技法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '现实之灯' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '理想之灯' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '公正之灯' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '忘我之灯' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '纯洁之灯' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '人物个性刻画' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '人性描写' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '伏笔手法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '剧情节奏' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '高潮制造' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '高达' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '海贼王' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '棋魂' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '人物个性刻画要素' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '配角衬托' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '飞书云文档' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '单线型结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '复线型结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '辐射型结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '蛛网型结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '回环型结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '情绪型结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '板块型结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '短篇小说结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '情节小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '性格小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '氛围小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '抽象小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '小说结构角度' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '五感描写法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '拉威尔-斯潘塞' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '节奏控制-句子结构法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '对话写作技巧' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '一波十几折' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '升级流小说' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '悬念分级论' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '张无忌' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '主角定位' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '一人二角诡计' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '意外犯人诡计' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00]   WARN overwrite: Page '犯人自我抹杀诡计' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:37:00] committing 87 reconciled page(s) ...
+[13:37:05] committing 21 extra page(s) (reverse-relation) ...
+[13:37:06] POSTCHECK: all pages on disk and indexed
+[13:37:06] BATCH DONE ok=14 err=1 pages=87 gate=PASS
+[13:42:58] batch 21 [02_进阶技巧]: 20 file(s)
+[13:43:00] provider: RetryLLMProvider
+[13:43:00] generating 20 file(s) with concurrency=3 (skipped 0)
+[13:43:01] batch 22 [02_进阶技巧]: 20 file(s)
+[13:43:03] provider: RetryLLMProvider
+[13:43:03] generating 20 file(s) with concurrency=3 (skipped 0)
+[13:43:07] batch 23 [02_进阶技巧]: 20 file(s)
+[13:43:08] provider: RetryLLMProvider
+[13:43:08] generating 20 file(s) with concurrency=3 (skipped 0)
+[13:57:14]   OK raw/sources/02_进阶技巧/方法论语言规范.md: 5 pages, stubs=0, rejected=False
+[13:57:14]   OK raw/sources/02_进阶技巧/方法论起点爽文经典桥段.md: 5 pages, stubs=0, rejected=False
+[13:57:14]   OK raw/sources/02_进阶技巧/方法论转载创建角色的365个问题.md: 3 pages, stubs=0, rejected=False
+[13:57:14]   OK raw/sources/02_进阶技巧/方法论过渡篇.md: 7 pages, stubs=0, rejected=False
+[13:57:14]   OK raw/sources/02_进阶技巧/方法论骨刀总结写作资料.md: 5 pages, stubs=0, rejected=True
+[13:57:14]   OK raw/sources/02_进阶技巧/方法论黄易与古龙金庸之比较.md: 6 pages, stubs=0, rejected=True
+[13:57:14]   OK raw/sources/02_进阶技巧/方法论黄易武侠小说创作论.md: 12 pages, stubs=0, rejected=True
+[13:57:14]   OK raw/sources/02_进阶技巧/方法论黑色幽默.md: 5 pages, stubs=0, rejected=True
+[13:57:14]   OK raw/sources/02_进阶技巧/补充教程中国126把古名剑大全精.md: 7 pages, stubs=0, rejected=True
+[13:57:14]   OK raw/sources/02_进阶技巧/补充教程写作指导网络小说写作指南.md: 5 pages, stubs=0, rejected=False
+[13:57:14]   OK raw/sources/02_进阶技巧/补充教程写作经验侦探小说创作指南与写法.md: 6 pages, stubs=0, rejected=True
+[13:57:14]   OK raw/sources/02_进阶技巧/补充教程写作经验如何加强书的情节.md: 6 pages, stubs=0, rejected=True
+[13:57:14]   OK raw/sources/02_进阶技巧/补充教程写作经验言情大总结.md: 3 pages, stubs=0, rejected=True
+[13:57:14]   OK raw/sources/02_进阶技巧/补充教程写穿越小说角色前要注意的十个问题.md: 4 pages, stubs=0, rejected=True
+[13:57:14]   OK raw/sources/02_进阶技巧/补充教程小说写作大纲的模版共享.md: 4 pages, stubs=0, rejected=False
+[13:57:14]   OK raw/sources/02_进阶技巧/补充教程小说写作新人网络小说的成神宝典精装版.md: 5 pages, stubs=0, rejected=False
+[13:57:14]   OK raw/sources/02_进阶技巧/补充教程小说创作技巧点睛通用.md: 4 pages, stubs=0, rejected=False
+[13:57:14]   OK raw/sources/02_进阶技巧/补充教程小说大纲范例.md: 6 pages, stubs=0, rejected=False
+[13:57:14]   OK raw/sources/02_进阶技巧/补充教程小说结局的十三种方式精.md: 15 pages, stubs=0, rejected=False
+[13:57:14]   OK raw/sources/02_进阶技巧/补充教程描写人物品质的成语.md: 3 pages, stubs=0, rejected=False
+[13:57:14] generated ok=20 err=0 permanent_failed=0 total_pages=116 extras=16 elapsed=846s
+[13:57:14] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[13:57:14] reconcile: merged '黄易' → '黄易' (higher grade (A > B))
+[13:57:14] reconcile: merged 'yy-小说-103-个经典桥段' → 'yy-小说-103-个经典桥段' (extra folded (grade C))
+[13:57:14] gate: 114 page(s) PASS (1 issue(s), 0 blocker(s))
+[13:57:14]   [WARN] P2 大唐双龙传: Page body has 314-char unstructured run (threshold 300) — possible raw paste.
+[13:57:14]   WARN overwrite: Page '语言规范' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '误读' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '生造词语' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '普通话' (entity) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '爽文' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page 'yy-小说-103-个经典桥段' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '过渡障碍' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '飞书云文档' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '金庸' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '古龙' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '黄易' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '楼心月' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '网络小说' (concept) already exists on disk as entity — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '侦探小说二十守则' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '侦探小说公平竞赛原则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '侦探小说凶手身份限制' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '悬念' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '延宕' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '突转' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '发现' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '巧合' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '穿越小说主角设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page 'zzsck' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '小说大纲模版结构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '主线情节设定五要素' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '主角人物设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '网络文学读者阅读心态' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '学生一族阅读心态' (entity) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '都市上班族阅读心态' (entity) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '写作心态' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '人物个性刻画要素' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '配角的运用和衬托' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '马原' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '死亡结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '大团圆结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '诗意结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '揭谜结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '解嘲结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '有去无归结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '梦魇结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '循环往复结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '得而复失结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '走出叙事人视野结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '以死来终止结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '歪打正着结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14]   WARN overwrite: Page '迷失结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[13:57:14] committing 114 reconciled page(s) ...
+[13:57:23] committing 12 extra page(s) (reverse-relation) ...
+[13:57:24] POSTCHECK: all pages on disk and indexed
+[13:57:24] BATCH DONE ok=20 err=0 pages=114 gate=PASS
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论网络写手教程.md: 1 pages, stubs=0, rejected=True
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论网络创作秘籍.md: 5 pages, stubs=0, rejected=True
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论网络原创文学写作指南1三江小阵.md: 4 pages, stubs=0, rejected=False
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论网络原创文学写作指南2三江小阵.md: 4 pages, stubs=0, rejected=False
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论网络小说3X技巧总结.md: 3 pages, stubs=0, rejected=False
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论网络小说与创作ZT.md: 4 pages, stubs=0, rejected=True
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论网络小说写作技巧集锦.md: 4 pages, stubs=0, rejected=True
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论网络小说创作技巧.md: 4 pages, stubs=0, rejected=True
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论网络小说选题要求.md: 6 pages, stubs=0, rejected=False
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论网络文学的特性.md: 8 pages, stubs=0, rejected=False
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论网络爆红小说写作教程.md: 4 pages, stubs=0, rejected=False
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论网络长篇创作自析.md: 5 pages, stubs=0, rejected=False
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论美文语言的诗意营造.md: 6 pages, stubs=0, rejected=False
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论耽美写作.md: 4 pages, stubs=0, rejected=True
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论要点.md: 6 pages, stubs=0, rejected=False
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论要素.md: 4 pages, stubs=0, rejected=True
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论解决卡文的办法.md: 3 pages, stubs=0, rejected=False
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论言之琐碎篇情小说常用桥段.md: 3 pages, stubs=0, rejected=False
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论认识网络文学写作的特性.md: 4 pages, stubs=0, rejected=False
+[14:01:05]   OK raw/sources/02_进阶技巧/方法论论如何写言情小说.md: 4 pages, stubs=0, rejected=True
+[14:01:05] generated ok=20 err=0 permanent_failed=0 total_pages=86 extras=17 elapsed=1081s
+[14:01:05] reconcile: merged '北京圣东方国信科技有限公司' → '北京圣东方国信科技有限公司' (same grade, kept first)
+[14:01:05] reconcile: merged '人物性格刻画' → '人物性格刻画' (existing higher grade)
+[14:01:05] reconcile: merged '人物设定' → '人物设定' (extra folded (grade B))
+[14:01:05] reconcile: merged '网络文学' → '网络文学' (extra folded (grade B))
+[14:01:05] auto-tag: 1 UGC-carrier-derived page(s) tagged 素材/ugc + 可信度/ugc
+[14:01:05] gate: 84 page(s) PASS (2 issue(s), 0 blocker(s))
+[14:01:05]   [WARN] P7 写作心态: Extra page '写作心态' (concept) would overwrite an existing non-stub page.
+[14:01:05]   [WARN] P7 yy-小说-103-个经典桥段: Extra page 'yy-小说-103-个经典桥段' (entity) would overwrite an existing non-stub page.
+[14:01:05]   WARN overwrite: Page '遍地狼烟' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '网络原创文学' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '黄易' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '日月当空' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '大纲的重要性' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '人物设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '人物塑造' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '小说的真实与虚构' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '血红' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '网络文学' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '散文' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '虐文' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '情节与冲突' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '门派归顺套路' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '力量叠加法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '反差烘托法' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '权谋御下术' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '悬念' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '冲突' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '卡文' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '大纲' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05]   WARN overwrite: Page '架空历史' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:01:05] committing 84 reconciled page(s) ...
+[14:01:13] committing 15 extra page(s) (reverse-relation) ...
+[14:01:14] POSTCHECK: all pages on disk and indexed
+[14:01:14] BATCH DONE ok=20 err=0 pages=84 gate=PASS
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论打斗七公式重要.md: 4 pages, stubs=0, rejected=False
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论打斗描写辅助设定.md: 3 pages, stubs=0, rejected=False
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论抓住兴奋点.md: 3 pages, stubs=0, rejected=False
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论教你如何开始写一本小说从项目管理漫谈小说写作.md: 2 pages, stubs=0, rejected=False
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论文学写作的界定.md: 7 pages, stubs=0, rejected=False
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论新人成神之路写手必读.md: 6 pages, stubs=0, rejected=False
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论无线写作技巧.md: 2 pages, stubs=0, rejected=False
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论时光之轮简介梗概设定.md: 17 pages, stubs=0, rejected=True
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论明辉巨谈装B路子.md: 3 pages, stubs=0, rejected=False
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论暗黑类装备前缀.md: 5 pages, stubs=0, rejected=False
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论浅谈买断与分成内附买断开头套路.md: 12 pages, stubs=0, rejected=False
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论浪漫主义神话学原理.md: 6 pages, stubs=0, rejected=True
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论爽文经典桥段套路.md: 5 pages, stubs=0, rejected=True
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论爽点.md: 6 pages, stubs=0, rejected=False
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论玄幻仙侠小说战斗描写.md: 5 pages, stubs=0, rejected=True
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论精彩描写身份.md: 7 pages, stubs=0, rejected=True
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论系统讲解小说写作要求.md: 4 pages, stubs=0, rejected=False
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论经典重温功夫在文外杂志新手的三十六个注意事项.md: 4 pages, stubs=0, rejected=True
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论.md: 16 pages, stubs=0, rejected=False
+[14:03:41]   OK raw/sources/02_进阶技巧/方法论结局的十三种方式.md: 15 pages, stubs=0, rejected=True
+[14:03:41] generated ok=20 err=0 permanent_failed=0 total_pages=132 extras=38 elapsed=1241s
+[14:03:41] reconcile: merged '打斗七公式' → '打斗七公式' (same grade, kept first)
+[14:03:41] reconcile: merged '七分铺垫三分打斗法则' → '七分铺垫三分打斗法则' (same grade, kept first)
+[14:03:41] reconcile: merged '龙的天空-2010-新年写手读者沙龙' → '龙的天空-2010-新年写手读者沙龙' (same grade, kept first)
+[14:03:41] reconcile: merged '方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论-d889f48a' → '方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论-d889f48a' (higher grade (A > B))
+[14:03:41] reconcile: merged '方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论-d889f48a' → '方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论-d889f48a' (higher grade (A > B))
+[14:03:41] reconcile: merged '七分铺垫三分打斗法则' → '七分铺垫三分打斗法则' (extra folded (grade B))
+[14:03:41] gate: 127 page(s) PASS (4 issue(s), 0 blocker(s))
+[14:03:41]   [WARN] P7 情节与冲突: Extra page '情节与冲突' (concept) would overwrite an existing non-stub page.
+[14:03:41]   [WARN] P7 人物塑造: Extra page '人物塑造' (concept) would overwrite an existing non-stub page.
+[14:03:41]   [WARN] P7 大纲: Extra page '大纲' (concept) would overwrite an existing non-stub page.
+[14:03:41]   [WARN] P7 人物设定: Extra page '人物设定' (concept) would overwrite an existing non-stub page.
+[14:03:41]   WARN overwrite: Page '打斗七公式' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '打斗场景气氛渲染' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '七分铺垫三分打斗法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '北京圣东方国信科技有限公司' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '装逼打脸套路' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '暗黑类装备前缀命名系统' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '装备设定' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '主角三百字登场法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '三千字首章冲突法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '三章亮卖点法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '三万字首高潮法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '三支线展开法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '三段大情节法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '主角打酱油限制法则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '每一章场景限制原则' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '爽文' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '爽点' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '优越感桥段' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '先抑后扬' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '送菜流' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '优越感' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '情节' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '小说创作' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '投稿邮件规范' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '马原' (entity) already exists on disk as entity — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '死亡结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '大团圆结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '诗意结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '揭谜结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '解嘲结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '有去无归结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '梦魇结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '循环往复结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '得而复失结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '走出叙事人视野结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '以死来终止结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '歪打正着结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41]   WARN overwrite: Page '迷失结局' (concept) already exists on disk as concept — would overwrite a non-stub page.
+[14:03:41] committing 127 reconciled page(s) ...
+[14:03:51] committing 33 extra page(s) (reverse-relation) ...
+[14:03:52] POSTCHECK: all pages on disk and indexed
+[14:03:52] BATCH DONE ok=20 err=0 pages=127 gate=PASS
+[14:04:18] batch 24 [02_进阶技巧]: 20 file(s)
+[14:04:19] provider: RetryLLMProvider
+[14:04:19] generating 20 file(s) with concurrency=3 (skipped 0)
+[14:04:36] batch 25 [02_进阶技巧]: 20 file(s)
+[14:04:37] provider: RetryLLMProvider
+[14:04:37] generating 20 file(s) with concurrency=3 (skipped 0)
+[14:04:44] batch 26 [02_进阶技巧]: 20 file(s)
+[14:04:45] provider: RetryLLMProvider
+[14:04:45] generating 20 file(s) with concurrency=3 (skipped 0)
+[14:13:49] batch 24 [02_进阶技巧]: 20 file(s)
+[14:13:50] provider: RetryLLMProvider
+[14:13:50] generating 20 file(s) with concurrency=3 (skipped 0)
+[14:14:03] batch 25 [02_进阶技巧]: 20 file(s)
+[14:14:03] provider: RetryLLMProvider
+[14:14:03] generating 20 file(s) with concurrency=3 (skipped 0)
+[14:14:09] batch 26 [02_进阶技巧]: 20 file(s)
+[14:14:10] provider: RetryLLMProvider
+[14:14:10] generating 20 file(s) with concurrency=3 (skipped 0)
