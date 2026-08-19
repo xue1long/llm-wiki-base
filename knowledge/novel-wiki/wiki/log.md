@@ -1168,3 +1168,43 @@
 - **ingest**: `b18` — generated 9 pages from 方法论写作技巧之15条小技巧.md
 ## 2026-08-19T11:39:37.955005
 - **reverse-relation**: `b18` — generated 0 pages from (batch-reconcile)
+## 2026-08-19T12:20:57.328276
+- **ingest**: `b19` — generated 4 pages from 方法论写作目的和心态.md
+## 2026-08-19T12:21:04.694137
+- **ingest**: `b19` — generated 7 pages from 方法论写作经验总结.md
+## 2026-08-19T12:21:04.752918
+- **ingest**: `b19` — generated 4 pages from 方法论写作过程论.md
+## 2026-08-19T12:21:04.826787
+- **ingest**: `b19` — generated 4 pages from 方法论写好小说抓住十三个关键.md
+## 2026-08-19T12:21:04.892567
+- **ingest**: `b19` — generated 4 pages from 方法论写故事的十个常用技巧.md
+## 2026-08-19T12:21:04.950684
+- **ingest**: `b19` — generated 4 pages from 方法论写景图貌的现场展示.md
+## 2026-08-19T12:21:05.018784
+- **ingest**: `b19` — generated 2 pages from 方法论出卖你性格的16个小动作.md
+## 2026-08-19T12:21:05.077468
+- **ingest**: `b19` — generated 3 pages from 方法论创造你的角色时该考虑的20个问题.md
+## 2026-08-19T12:21:05.149536
+- **ingest**: `b19` — generated 3 pages from 方法论半神攻略.md
+## 2026-08-19T12:21:05.262655
+- **ingest**: `b19` — generated 5 pages from 方法论华夏原创写作指南.md
+## 2026-08-19T12:21:05.399138
+- **ingest**: `b19` — generated 8 pages from 方法论历史题材小说的写作技巧.md
+## 2026-08-19T12:21:05.479979
+- **ingest**: `b19` — generated 3 pages from 方法论多样化的情节结构.md
+## 2026-08-19T12:21:05.575037
+- **ingest**: `b19` — generated 5 pages from 方法论好的文笔基础决定一个作者能走多远.md
+## 2026-08-19T12:21:05.656990
+- **ingest**: `b19` — generated 2 pages from 方法论如何体现小说的画面感.md
+## 2026-08-19T12:21:05.833649
+- **ingest**: `b19` — generated 8 pages from 方法论如何写一个好的开头.md
+## 2026-08-19T12:21:06.100993
+- **ingest**: `b19` — generated 13 pages from 方法论如何写仙侠.md
+## 2026-08-19T12:21:06.237831
+- **ingest**: `b19` — generated 5 pages from 方法论如何写作科幻奇幻小说.md
+## 2026-08-19T12:21:06.380072
+- **ingest**: `b19` — generated 7 pages from 方法论如何写出精彩的科幻小说.md
+## 2026-08-19T12:21:06.517548
+- **ingest**: `b19` — generated 5 pages from 方法论如何写好一本小说.md
+## 2026-08-19T12:21:06.829560
+- **reverse-relation**: `b19` — generated 0 pages from (batch-reconcile)
