@@ -20,6 +20,15 @@
       "status": "open"
     },
     {
+      "slug": "vip-章节运营",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论新人成神之路写手必读.md",
+      "referenced_by": [
+        "作品包装与运营"
+      ],
+      "created_at": 1787119429505,
+      "status": "open"
+    },
+    {
       "slug": "yy",
       "raw_hint": "raw/sources/01_新手入门/入门教程写作要点.md",
       "referenced_by": [
@@ -27,6 +36,15 @@
         "代入感"
       ],
       "created_at": 1786951018682,
+      "status": "open"
+    },
+    {
+      "slug": "三江推荐申请",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论新人成神之路写手必读.md",
+      "referenced_by": [
+        "作品包装与运营"
+      ],
+      "created_at": 1787119429505,
       "status": "open"
     },
     {
@@ -86,6 +104,15 @@
       "status": "open"
     },
     {
+      "slug": "世界设置",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/补充教程小说大纲范例.md",
+      "referenced_by": [
+        "小说大纲写作框架"
+      ],
+      "created_at": 1787119042918,
+      "status": "open"
+    },
+    {
       "slug": "主线",
       "raw_hint": "raw/sources/01_新手入门/入门教程7人物.md",
       "referenced_by": [
@@ -114,6 +141,15 @@
       "status": "open"
     },
     {
+      "slug": "主角欲望",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/补充教程小说大纲范例.md",
+      "referenced_by": [
+        "主角塑造-移情与欲望"
+      ],
+      "created_at": 1787119042918,
+      "status": "open"
+    },
+    {
       "slug": "主角设定原则",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
       "referenced_by": [
@@ -131,6 +167,15 @@
         "小说的真实与虚构"
       ],
       "created_at": 1787110777661,
+      "status": "open"
+    },
+    {
+      "slug": "书评管理",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论新人成神之路写手必读.md",
+      "referenced_by": [
+        "作品包装与运营"
+      ],
+      "created_at": 1787119429505,
       "status": "open"
     },
     {
@@ -165,6 +210,15 @@
       "status": "open"
     },
     {
+      "slug": "人物性格",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论系统讲解小说写作要求.md",
+      "referenced_by": [
+        "情节"
+      ],
+      "created_at": 1787119430714,
+      "status": "open"
+    },
+    {
       "slug": "人物性格冲突",
       "raw_hint": "raw/sources/01_新手入门/入门教程技术篇剧情开展讲解.md",
       "referenced_by": [
@@ -187,7 +241,9 @@
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料大纲范本.md",
       "referenced_by": [
         "人物设定",
-        "小说人物塑造"
+        "小说人物塑造",
+        "人物刻画七要素",
+        "小说大纲写作框架"
       ],
       "created_at": 1787073529481,
       "status": "open"
@@ -208,6 +264,33 @@
         "人物欲望驱动"
       ],
       "created_at": 1786949202022,
+      "status": "open"
+    },
+    {
+      "slug": "仙剑奇侠传",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/补充教程小说写作大纲的模版共享.md",
+      "referenced_by": [
+        "补充教程小说写作大纲的模版共享-a56031f5"
+      ],
+      "created_at": 1787119042483,
+      "status": "open"
+    },
+    {
+      "slug": "作品仆街处理",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论新人成神之路写手必读.md",
+      "referenced_by": [
+        "作品包装与运营"
+      ],
+      "created_at": 1787119429505,
+      "status": "open"
+    },
+    {
+      "slug": "修炼等级体系设定",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论时光之轮简介梗概设定.md",
+      "referenced_by": [
+        "非魔法类力量体系设计-以上至之力为例"
+      ],
+      "created_at": 1787119429751,
       "status": "open"
     },
     {
@@ -274,6 +357,15 @@
       "status": "open"
     },
     {
+      "slug": "写作技法",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论系统讲解小说写作要求.md",
+      "referenced_by": [
+        "小说创作"
+      ],
+      "created_at": 1787119430714,
+      "status": "open"
+    },
+    {
       "slug": "写作简洁性",
       "raw_hint": "raw/sources/01_新手入门/入门教程17上架.md",
       "referenced_by": [
@@ -319,6 +411,15 @@
       "status": "open"
     },
     {
+      "slug": "分集大纲",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/补充教程小说大纲范例.md",
+      "referenced_by": [
+        "小说大纲写作框架"
+      ],
+      "created_at": 1787119042918,
+      "status": "open"
+    },
+    {
       "slug": "分集情节大纲",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
       "referenced_by": [
@@ -346,12 +447,48 @@
       "status": "open"
     },
     {
+      "slug": "创作中的孤独与焦虑",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论.md",
+      "referenced_by": [
+        "网络文学更新速度批判"
+      ],
+      "created_at": 1787119431038,
+      "status": "open"
+    },
+    {
+      "slug": "创作心态",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论.md",
+      "referenced_by": [
+        "网络文学更新速度批判"
+      ],
+      "created_at": 1787119431038,
+      "status": "open"
+    },
+    {
+      "slug": "创新意识",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论应该具有创新意识.md",
+      "referenced_by": [
+        "寓言式写法"
+      ],
+      "created_at": 1787117825531,
+      "status": "open"
+    },
+    {
       "slug": "剑道独尊",
       "raw_hint": "raw/sources/01_新手入门/借鉴素材网文中的九线_2b7fc4.md",
       "referenced_by": [
         "装备设定"
       ],
       "created_at": 1786933955288,
+      "status": "open"
+    },
+    {
+      "slug": "剧情拍子",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论小说的写作技巧.md",
+      "referenced_by": [
+        "过山车原理"
+      ],
+      "created_at": 1787117825319,
       "status": "open"
     },
     {
@@ -362,6 +499,15 @@
         "技能体系设定"
       ],
       "created_at": 1786933954605,
+      "status": "open"
+    },
+    {
+      "slug": "力量体系设定",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论时光之轮简介梗概设定.md",
+      "referenced_by": [
+        "非魔法类力量体系设计-以上至之力为例"
+      ],
+      "created_at": 1787119429751,
       "status": "open"
     },
     {
@@ -464,6 +610,15 @@
       "status": "open"
     },
     {
+      "slug": "后金庸时代武侠创作",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论黄易武侠小说创作论.md",
+      "referenced_by": [
+        "黄易武侠风格"
+      ],
+      "created_at": 1787119041426,
+      "status": "open"
+    },
+    {
       "slug": "吸引读者九法",
       "raw_hint": "raw/sources/补充教程小说写作大纲的模版共享.md",
       "referenced_by": [
@@ -500,12 +655,30 @@
       "status": "open"
     },
     {
+      "slug": "埃德加-·-爱伦-·-坡",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论浪漫主义神话学原理.md",
+      "referenced_by": [
+        "作用与反作用原则"
+      ],
+      "created_at": 1787119430216,
+      "status": "open"
+    },
+    {
       "slug": "基础扎实",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/新人须知17文笔在网络文学创作上的作用.md",
       "referenced_by": [
         "文笔-网络文学"
       ],
       "created_at": 1787086027802,
+      "status": "open"
+    },
+    {
+      "slug": "塔蒙-·-盖东",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论时光之轮简介梗概设定.md",
+      "referenced_by": [
+        "利用预言与宿命驱动长篇叙事"
+      ],
+      "created_at": 1787119429751,
       "status": "open"
     },
     {
@@ -533,6 +706,15 @@
         "三段大情节法则"
       ],
       "created_at": 1786954307420,
+      "status": "open"
+    },
+    {
+      "slug": "大神",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论新人成神之路写手必读.md",
+      "referenced_by": [
+        "新人成神之路"
+      ],
+      "created_at": 1787119429505,
       "status": "open"
     },
     {
@@ -581,12 +763,48 @@
       "status": "open"
     },
     {
+      "slug": "奥森-·-司考特-·-卡特",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论如何写作科幻奇幻小说.md",
+      "referenced_by": [
+        "方法论如何写作科幻奇幻小说-686ccda6"
+      ],
+      "created_at": 1787113266288,
+      "status": "open"
+    },
+    {
       "slug": "女主处理",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/新人须知40网络小说的爽点是什么.md",
       "referenced_by": [
         "爽点设计-具体方法与案例"
       ],
       "created_at": 1787108688362,
+      "status": "open"
+    },
+    {
+      "slug": "女频现言",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/补充教程写作经验言情大总结.md",
+      "referenced_by": [
+        "言情小说典型剧情模式"
+      ],
+      "created_at": 1787119042260,
+      "status": "open"
+    },
+    {
+      "slug": "存稿管理策略",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论新人成神之路写手必读.md",
+      "referenced_by": [
+        "作品包装与运营"
+      ],
+      "created_at": 1787119429505,
+      "status": "open"
+    },
+    {
+      "slug": "安妮女王描写范例",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论精彩描写身份.md",
+      "referenced_by": [
+        "文学作品中的身份描写案例对比"
+      ],
+      "created_at": 1787119430610,
       "status": "open"
     },
     {
@@ -599,12 +817,30 @@
       "status": "open"
     },
     {
+      "slug": "对比手法",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论新人成神之路写手必读.md",
+      "referenced_by": [
+        "方法论新人成神之路写手必读-1be12c3c"
+      ],
+      "created_at": 1787119429505,
+      "status": "open"
+    },
+    {
       "slug": "对话与描写",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/新人须知小说写作新手上路基本写作教程.md",
       "referenced_by": [
         "语感"
       ],
       "created_at": 1787110777155,
+      "status": "open"
+    },
+    {
+      "slug": "寻秦记",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论黄易武侠小说创作论.md",
+      "referenced_by": [
+        "黄易"
+      ],
+      "created_at": 1787119041426,
       "status": "open"
     },
     {
@@ -642,6 +878,15 @@
         "开篇布局常见错误"
       ],
       "created_at": 1787041810658,
+      "status": "open"
+    },
+    {
+      "slug": "小说真实与虚构",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论网络小说创作技巧.md",
+      "referenced_by": [
+        "方法论网络小说创作技巧-da8f98ee"
+      ],
+      "created_at": 1787119272582,
       "status": "open"
     },
     {
@@ -683,6 +928,24 @@
       "status": "open"
     },
     {
+      "slug": "尤老二警官描写范例",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论精彩描写身份.md",
+      "referenced_by": [
+        "文学作品中的身份描写案例对比"
+      ],
+      "created_at": 1787119430610,
+      "status": "open"
+    },
+    {
+      "slug": "巨精灵",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论时光之轮简介梗概设定.md",
+      "referenced_by": [
+        "奇幻种族的社会文化结构设计"
+      ],
+      "created_at": 1787119429751,
+      "status": "open"
+    },
+    {
       "slug": "市场趋势",
       "raw_hint": "raw/sources/01_新手入门/入门教程作家十二戒.md",
       "referenced_by": [
@@ -719,6 +982,15 @@
       "status": "open"
     },
     {
+      "slug": "总在途中",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论结局的十三种方式.md",
+      "referenced_by": [
+        "走出叙事人视野结局"
+      ],
+      "created_at": 1787119431383,
+      "status": "open"
+    },
+    {
       "slug": "悬置紧张法",
       "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论写书技巧.md",
       "referenced_by": [
@@ -746,12 +1018,30 @@
       "status": "open"
     },
     {
+      "slug": "情节不够美女来凑",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论.md",
+      "referenced_by": [
+        "量产型玄幻"
+      ],
+      "created_at": 1787119431038,
+      "status": "open"
+    },
+    {
       "slug": "情节与故事",
       "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论写书技巧.md",
       "referenced_by": [
         "小说的真实与虚构"
       ],
       "created_at": 1787110777661,
+      "status": "open"
+    },
+    {
+      "slug": "情节安排",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/补充教程小说大纲范例.md",
+      "referenced_by": [
+        "长篇小说创作流程"
+      ],
+      "created_at": 1787119042918,
       "status": "open"
     },
     {
@@ -773,12 +1063,22 @@
       "status": "open"
     },
     {
+      "slug": "情节线",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/补充教程小说大纲范例.md",
+      "referenced_by": [
+        "故事主线"
+      ],
+      "created_at": 1787119042918,
+      "status": "open"
+    },
+    {
       "slug": "情节设计",
       "raw_hint": "raw/sources/01_新手入门/入门教程6对白.md",
       "referenced_by": [
         "冲突矛盾",
         "主线设定",
-        "情节结构"
+        "情节结构",
+        "网络小说写作十戒"
       ],
       "created_at": 1786933959004,
       "status": "open"
@@ -892,6 +1192,15 @@
       "status": "open"
     },
     {
+      "slug": "文以载道",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论.md",
+      "referenced_by": [
+        "网文文学性与商业性矛盾"
+      ],
+      "created_at": 1787119431038,
+      "status": "open"
+    },
+    {
       "slug": "文笔与剧情的关系",
       "raw_hint": "raw/sources/01_新手入门/入门教程详解新作者常见困难和瓶颈.md",
       "referenced_by": [
@@ -928,6 +1237,24 @@
       "status": "open"
     },
     {
+      "slug": "时光之轮",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论时光之轮简介梗概设定.md",
+      "referenced_by": [
+        "方法论时光之轮简介梗概设定-44fa92d9"
+      ],
+      "created_at": 1787119429751,
+      "status": "open"
+    },
+    {
+      "slug": "时地人事",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/补充教程小说大纲范例.md",
+      "referenced_by": [
+        "小说大纲写作框架"
+      ],
+      "created_at": 1787119042918,
+      "status": "open"
+    },
+    {
       "slug": "时空穿梭",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
       "referenced_by": [
@@ -944,6 +1271,15 @@
         "科幻小说主题分类"
       ],
       "created_at": 1786864346842,
+      "status": "open"
+    },
+    {
+      "slug": "暗黑之君",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论时光之轮简介梗概设定.md",
+      "referenced_by": [
+        "终极反派塑造-概念化与动机设定"
+      ],
+      "created_at": 1787119429751,
       "status": "open"
     },
     {
@@ -1010,6 +1346,15 @@
       "status": "open"
     },
     {
+      "slug": "武侠小说创作论",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论黄易武侠小说创作论.md",
+      "referenced_by": [
+        "后金庸时代的武侠创作"
+      ],
+      "created_at": 1787119041426,
+      "status": "open"
+    },
+    {
       "slug": "死也比废人强前六章片段",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/必备资料新书.md",
       "referenced_by": [
@@ -1025,6 +1370,15 @@
         "属性词--暗黑装备"
       ],
       "created_at": 1786933956565,
+      "status": "open"
+    },
+    {
+      "slug": "流氓写手现象",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论.md",
+      "referenced_by": [
+        "网文文学性与商业性矛盾"
+      ],
+      "created_at": 1787119431038,
       "status": "open"
     },
     {
@@ -1106,6 +1460,42 @@
         "流水账-写作毛病"
       ],
       "created_at": 1786949205000,
+      "status": "open"
+    },
+    {
+      "slug": "白描",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论小说的写作技巧.md",
+      "referenced_by": [
+        "传统小说理论-描写技法综述"
+      ],
+      "created_at": 1787117825319,
+      "status": "open"
+    },
+    {
+      "slug": "皇帝描写范例",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论精彩描写身份.md",
+      "referenced_by": [
+        "文学作品中的身份描写案例对比"
+      ],
+      "created_at": 1787119430610,
+      "status": "open"
+    },
+    {
+      "slug": "真龙重生",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论时光之轮简介梗概设定.md",
+      "referenced_by": [
+        "利用预言与宿命驱动长篇叙事"
+      ],
+      "created_at": 1787119429751,
+      "status": "open"
+    },
+    {
+      "slug": "破碎虚空",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论黄易武侠小说创作论.md",
+      "referenced_by": [
+        "黄易"
+      ],
+      "created_at": 1787119041426,
       "status": "open"
     },
     {
@@ -1191,6 +1581,15 @@
       "status": "open"
     },
     {
+      "slug": "网文书名包装技巧",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论新人成神之路写手必读.md",
+      "referenced_by": [
+        "作品包装与运营"
+      ],
+      "created_at": 1787119429505,
+      "status": "open"
+    },
+    {
       "slug": "网文作者心态",
       "raw_hint": "raw/sources/01_新手入门/入门教程详解新作者常见困难和瓶颈.md",
       "referenced_by": [
@@ -1245,6 +1644,24 @@
       "status": "open"
     },
     {
+      "slug": "网文更新与冲榜策略",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论新人成神之路写手必读.md",
+      "referenced_by": [
+        "诡道篇-运营技巧"
+      ],
+      "created_at": 1787119429505,
+      "status": "open"
+    },
+    {
+      "slug": "网文简介包装技巧",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论新人成神之路写手必读.md",
+      "referenced_by": [
+        "作品包装与运营"
+      ],
+      "created_at": 1787119429505,
+      "status": "open"
+    },
+    {
       "slug": "网文题材通用性对比综述-p9q0r1s2",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说大纲模版.md",
       "referenced_by": [
@@ -1281,12 +1698,39 @@
       "status": "open"
     },
     {
+      "slug": "网络文学作者",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论.md",
+      "referenced_by": [
+        "网络文学作者素养"
+      ],
+      "created_at": 1787119431038,
+      "status": "open"
+    },
+    {
+      "slug": "网络文学浮躁",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论.md",
+      "referenced_by": [
+        "网络文学更新速度批判"
+      ],
+      "created_at": 1787119431038,
+      "status": "open"
+    },
+    {
       "slug": "罗斯金",
       "raw_hint": "raw/sources/01_新手入门/入门教程小说写作的指路明灯.md",
       "referenced_by": [
         "司各脱-walter-scott"
       ],
       "created_at": 1786954315417,
+      "status": "open"
+    },
+    {
+      "slug": "老人与海",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论结局的十三种方式.md",
+      "referenced_by": [
+        "得而复失结局"
+      ],
+      "created_at": 1787119431383,
       "status": "open"
     },
     {
@@ -1314,6 +1758,15 @@
         "啰嗦-写作毛病"
       ],
       "created_at": 1787079823957,
+      "status": "open"
+    },
+    {
+      "slug": "至上之力",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论时光之轮简介梗概设定.md",
+      "referenced_by": [
+        "非魔法类力量体系设计-以上至之力为例"
+      ],
+      "created_at": 1787119429751,
       "status": "open"
     },
     {
@@ -1354,12 +1807,57 @@
       "status": "open"
     },
     {
+      "slug": "菜刀姓李",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论网络创作秘籍.md",
+      "referenced_by": [
+        "遍地狼烟"
+      ],
+      "created_at": 1787119271939,
+      "status": "open"
+    },
+    {
+      "slug": "葛朗台富翁描写范例",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论精彩描写身份.md",
+      "referenced_by": [
+        "文学作品中的身份描写案例对比"
+      ],
+      "created_at": 1787119430610,
+      "status": "open"
+    },
+    {
+      "slug": "蒙太奇叙事",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论黄易武侠小说创作论.md",
+      "referenced_by": [
+        "黄易武侠风格"
+      ],
+      "created_at": 1787119041426,
+      "status": "open"
+    },
+    {
       "slug": "蓄势",
       "raw_hint": "raw/sources/01_新手入门/入门教程教你如何增加网文爽点的精彩度.md",
       "referenced_by": [
         "潜龙勿用-网文桥段第一步"
       ],
       "created_at": 1786954324276,
+      "status": "open"
+    },
+    {
+      "slug": "覆雨翻云",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论黄易武侠小说创作论.md",
+      "referenced_by": [
+        "黄易"
+      ],
+      "created_at": 1787119041426,
+      "status": "open"
+    },
+    {
+      "slug": "角色与剧情关系",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论时光之轮简介梗概设定.md",
+      "referenced_by": [
+        "宏大世界观设定方法论"
+      ],
+      "created_at": 1787119429751,
       "status": "open"
     },
     {
@@ -1387,6 +1885,15 @@
         "角色合情合理"
       ],
       "created_at": 1787078071058,
+      "status": "open"
+    },
+    {
+      "slug": "设定",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论小说的写作技巧.md",
+      "referenced_by": [
+        "三种创意类型-点型-关键型-架构型"
+      ],
+      "created_at": 1787117825319,
       "status": "open"
     },
     {
@@ -1432,6 +1939,15 @@
         "正文纯净原则"
       ],
       "created_at": 1786933957716,
+      "status": "open"
+    },
+    {
+      "slug": "起承转合",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/补充教程小说大纲范例.md",
+      "referenced_by": [
+        "小说大纲写作框架"
+      ],
+      "created_at": 1787119042918,
       "status": "open"
     },
     {
@@ -1500,6 +2016,15 @@
       "status": "open"
     },
     {
+      "slug": "重生之龙",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论时光之轮简介梗概设定.md",
+      "referenced_by": [
+        "利用预言与宿命驱动长篇叙事"
+      ],
+      "created_at": 1787119429751,
+      "status": "open"
+    },
+    {
       "slug": "重生文",
       "title": "重生文",
       "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细.md",
@@ -1561,6 +2086,15 @@
         "三支线展开法则"
       ],
       "created_at": 1786954307420,
+      "status": "open"
+    },
+    {
+      "slug": "龙空沙龙-2010-批判网络玄幻浮躁风气",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/02_进阶技巧/方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论.md",
+      "referenced_by": [
+        "方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论-d889f48a"
+      ],
+      "created_at": 1787119431038,
       "status": "open"
     }
   ]
