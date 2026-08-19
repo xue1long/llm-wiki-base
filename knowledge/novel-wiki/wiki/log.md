@@ -1084,3 +1084,45 @@
 - **ingest**: `b16` — generated 9 pages from 新人须知36架空历史的创作要点.md
 ## 2026-08-19T09:26:50.886098
 - **reverse-relation**: `b16` — generated 0 pages from (batch-reconcile)
+## 2026-08-19T11:04:42.023710
+- **ingest**: `b17` — generated 5 pages from 新人须知36架空历史的创作要点_d0bb05.md
+## 2026-08-19T11:04:47.911944
+- **ingest**: `b17` — generated 3 pages from 新人须知37修真仙侠小说的元素和写法.md
+## 2026-08-19T11:04:47.993385
+- **ingest**: `b17` — generated 4 pages from 新人须知39文章的开头你想让读者记住什么.md
+## 2026-08-19T11:04:48.071637
+- **ingest**: `b17` — generated 4 pages from 新人须知3网络小说完本的重要性和完本后如何开新书.md
+## 2026-08-19T11:04:48.136864
+- **ingest**: `b17` — generated 2 pages from 新人须知3网络小说完本的重要性和完本后如何开新书_f632bc.md
+## 2026-08-19T11:04:48.287937
+- **ingest**: `b17` — generated 13 pages from 新人须知40网络小说的爽点是什么.md
+## 2026-08-19T11:04:48.396612
+- **ingest**: `b17` — generated 2 pages from 新人须知40网络小说的爽点是什么_00258a.md
+## 2026-08-19T11:04:48.548988
+- **ingest**: `b17` — generated 6 pages from 新人须知43人物刻画的几点心得.md
+## 2026-08-19T11:04:48.615102
+- **ingest**: `b17` — generated 2 pages from 新人须知43人物刻画的几点心得_b6e7dd.md
+## 2026-08-19T11:04:48.672312
+- **ingest**: `b17` — generated 3 pages from 新人须知44如何在网络小说上架前后提升作品的吸引力.md
+## 2026-08-19T11:04:48.755903
+- **ingest**: `b17` — generated 3 pages from 新人须知45东方玄幻题材的创作.md
+## 2026-08-19T11:04:48.809005
+- **ingest**: `b17` — generated 3 pages from 新人须知4如果让你优化你的前六万字作品你打算从几个方面入手.md
+## 2026-08-19T11:04:48.877598
+- **ingest**: `b17` — generated 3 pages from 新人须知4如果让你优化你的前六万字作品你打算从几个方面入手_acc3e4.md
+## 2026-08-19T11:04:48.947851
+- **ingest**: `b17` — generated 4 pages from 新人须知5速度网络文学创作的唯一秘诀.md
+## 2026-08-19T11:04:49.002717
+- **ingest**: `b17` — generated 3 pages from 新人须知5速度网络文学创作的唯一秘诀_47c3cb.md
+## 2026-08-19T11:04:49.078189
+- **ingest**: `b17` — generated 4 pages from 新人须知6如何抓住读者心理.md
+## 2026-08-19T11:04:49.140023
+- **ingest**: `b17` — generated 2 pages from 新人须知6如何抓住读者心理_562918.md
+## 2026-08-19T11:04:49.211118
+- **ingest**: `b17` — generated 4 pages from 新人须知7上架作品更新秘诀凤头猪肚麒麟尾.md
+## 2026-08-19T11:04:49.307143
+- **ingest**: `b17` — generated 5 pages from 新人须知7上架作品更新秘诀凤头猪肚麒麟尾_6e28f2.md
+## 2026-08-19T11:04:49.418919
+- **ingest**: `b17` — generated 3 pages from 新人须知8墨武讲课记录.md
+## 2026-08-19T11:04:50.211148
+- **reverse-relation**: `b17` — generated 0 pages from (batch-reconcile)

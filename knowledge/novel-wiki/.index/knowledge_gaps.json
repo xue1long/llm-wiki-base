@@ -535,6 +535,24 @@
       "status": "open"
     },
     {
+      "slug": "奖励与需要",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/新人须知40网络小说的爽点是什么.md",
+      "referenced_by": [
+        "新人须知40网络小说的爽点是什么-c3686b99"
+      ],
+      "created_at": 1787108688362,
+      "status": "open"
+    },
+    {
+      "slug": "女主处理",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/新人须知40网络小说的爽点是什么.md",
+      "referenced_by": [
+        "爽点设计-具体方法与案例"
+      ],
+      "created_at": 1787108688362,
+      "status": "open"
+    },
+    {
       "slug": "审核与合规",
       "raw_hint": "raw/sources/01_新手入门/入门教程1书名.md",
       "referenced_by": [
@@ -970,6 +988,15 @@
         "基调--写作风格"
       ],
       "created_at": 1787065113457,
+      "status": "open"
+    },
+    {
+      "slug": "爽点设计",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/新人须知40网络小说的爽点是什么.md",
+      "referenced_by": [
+        "力量体系设计-等级-技能-双主导分类"
+      ],
+      "created_at": 1787108688362,
       "status": "open"
     },
     {
@@ -1425,6 +1452,15 @@
         "段落过长问题"
       ],
       "created_at": 1786899600881,
+      "status": "open"
+    },
+    {
+      "slug": "队友设定",
+      "raw_hint": "knowledge/novel-wiki/raw/sources/01_新手入门/新人须知40网络小说的爽点是什么.md",
+      "referenced_by": [
+        "配角的衬托作用"
+      ],
+      "created_at": 1787108688362,
       "status": "open"
     },
     {
