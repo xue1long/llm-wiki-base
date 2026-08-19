@@ -85,7 +85,10 @@
     const current = App.state.projects.find(p => p.id === App.state.projectId);
     dd.innerHTML = App.state.projects.map(p => `
       <div class="project-dropdown-item${p.id === App.state.projectId ? " active" : ""}" data-id="${App.escapeHtml(p.id)}">
-        <span class="proj-name" title="${App.escapeHtml(p.path || "")}">${App.escapeHtml(p.name)}</span>
+        <span class="proj-name" title="${App.escapeHtml(p.path || "")}">
+          <span class="proj-name-text">${App.escapeHtml(p.name)}</span>
+          <span class="proj-path">${App.escapeHtml(p.path || "")}</span>
+        </span>
         <button class="proj-del" data-id="${App.escapeHtml(p.id)}" data-name="${App.escapeHtml(p.name)}" title="删除记录">&times;</button>
       </div>
     `).join("");
@@ -110,7 +113,9 @@
       });
     });
 
-    document.getElementById("projectDropdownLabel").textContent = current ? current.name : "选择项目";
+    const label = document.getElementById("projectDropdownLabel");
+    label.textContent = current ? current.name : "选择项目";
+    label.title = current ? (current.path || current.name) : "";
   }
 
   function toggleDropdown() {
@@ -151,6 +156,7 @@
     App.state.projectId = chosen.id;
     App.state.projectName = chosen.name;
     document.getElementById("projectName").textContent = App.state.projectName;
+    document.getElementById("projectName").title = chosen.path || chosen.name;
     App.state.sessionId = null;
     App.state.pendingBrowseTarget = null;
     try {
@@ -219,6 +225,7 @@
       App.state.projectId = chosen.id;
       App.state.projectName = chosen.name;
       document.getElementById("projectName").textContent = App.state.projectName;
+      document.getElementById("projectName").title = chosen.path || chosen.name;
 
       renderDropdown();
       document.getElementById("projectDropdownBtn").style.display = "flex";
