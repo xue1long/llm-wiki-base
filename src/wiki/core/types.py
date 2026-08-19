@@ -89,7 +89,7 @@ class WikiPage:
     @classmethod
     def from_dict(cls, d: dict, body: str = "") -> "WikiPage":
         from ..features.relations import Relation
-        return cls(
+        page = cls(
             id=d["id"],
             title=d["title"],
             type=PageType(d["type"]),
@@ -110,6 +110,11 @@ class WikiPage:
             related_entities=list(d.get("related_entities", [])),
             custom_type=str(d.get("custom_type", "")),
         )
+        # S1: restore _ko_extra for round-trip (capture source_status, etc.)
+        ko_extra = d.get("_ko_extra")
+        if isinstance(ko_extra, dict):
+            page._ko_extra = ko_extra
+        return page
 
 
 @dataclass

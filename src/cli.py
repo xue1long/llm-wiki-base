@@ -73,6 +73,7 @@ from .cli_ext.wiki_polish_cmd import (
 )
 from .cli_ext.auth_token_cmd import add_auth_token_parser
 from .cli_ext.vector_cmd import add_vector_parser
+from .cli_ext import capture_cmd
 
 logging.basicConfig(
     level=logging.INFO,
@@ -361,6 +362,9 @@ def main():
 
     # R7: vector-pending compensation (reconcile / status)
     add_vector_parser(subparsers)
+
+    # Fast capture (write wiki pages without LLM pipeline)
+    capture_cmd.register(subparsers)
 
     # MCP (stdio Model Context Protocol server)
     p_mcp = subparsers.add_parser("mcp", help="Start stdio MCP server")
