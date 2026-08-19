@@ -1,16 +1,14 @@
-__init__
 agent
-circuit_breaker
-cli
 cli_ext
 events
+graphify-out
+knowledge
 lib
 llm
 maintenance
 mcp_server
 metrics
 orchestrator
-permissions
 pipeline
 project
 quality
@@ -23,7 +21,6 @@ services
 shared
 sync
 templates
-types
 utils
 vector
 vision
