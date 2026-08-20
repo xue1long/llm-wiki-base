@@ -66,6 +66,29 @@ def cmd_capture(args: argparse.Namespace) -> None:
         print(f"Path: {result['path']}")
 
 
+def cmd_capture_mark_verify(args: argparse.Namespace) -> None:
+    """Mark a capture page as verified."""
+    from ..services.capture import mark_page_verified_by_id, PageNotFoundError
+
+    project = args.project or args.path or "."
+    try:
+        result = mark_page_verified_by_id(
+            project_id=project,
+            page_id=args.page_id,
+            user_id="cli",
+        )
+    except PageNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"OK marked verified: {result['page_id']}")
+    print(f"   previous state: {result['previous_state']}")
+    print(f"   verified_at: {result['verified_at']}")
+
+
 def register(subparsers: argparse._SubParsersAction) -> None:
     """Register the 'capture' subcommand."""
     p = subparsers.add_parser(
@@ -88,3 +111,16 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument("--project", help="Project ID or path")
     p.add_argument("--path", help="Project path (alias for --project)")
     p.set_defaults(func=cmd_capture)
+
+
+def register_mark_verify(subparsers: argparse._SubParsersAction) -> None:
+    """Register the 'capture-mark-verify' subcommand (separate to avoid nesting)."""
+    p = subparsers.add_parser(
+        "capture-mark-verify",
+        help="Mark a capture page as human-verified",
+        description="Set workflow_state=verified + verified_at=now; admin only via HTTP.",
+    )
+    p.add_argument("page_id", help="Page ID to mark as verified")
+    p.add_argument("--project", help="Project ID or path")
+    p.add_argument("--path", help="Project path (alias for --project)")
+    p.set_defaults(func=cmd_capture_mark_verify)

@@ -365,6 +365,7 @@ def main():
 
     # Fast capture (write wiki pages without LLM pipeline)
     capture_cmd.register(subparsers)
+    capture_cmd.register_mark_verify(subparsers)
 
     # MCP (stdio Model Context Protocol server)
     p_mcp = subparsers.add_parser("mcp", help="Start stdio MCP server")

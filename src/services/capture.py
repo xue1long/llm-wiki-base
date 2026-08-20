@@ -56,6 +56,64 @@ def mark_page_verified_rollback(
     page.verified_at = old_verified_at
     return page
 
+
+class PageNotFoundError(Exception):
+    """Raised when a wiki page is not found by id."""
+
+
+def mark_page_verified_by_id(
+    project_id: str,
+    page_id: str,
+    *,
+    user_id: str = "system",
+) -> dict:
+    """Find a page by id and mark it verified. Used by API + CLI.
+
+    Raises PageNotFoundError if not found.
+    Returns dict with status / page_id / workflow_state / previous_state / verified_at.
+    """
+    from ..lib.project import resolve_project
+    from ..wiki.storage.page_writer import read_page, write_page
+
+    _ctx, paths = resolve_project(project_id, by_id_only=True)
+
+    page = None
+    for type_dir in (
+        paths.wiki_sources, paths.wiki_entities,
+        paths.wiki_concepts, paths.wiki_synthesis,
+    ):
+        if not type_dir.exists():
+            continue
+        for md_file in type_dir.glob("*.md"):
+            try:
+                candidate = read_page(md_file)
+            except Exception:
+                continue
+            if candidate.id == page_id:
+                page = candidate
+                break
+        if page is not None:
+            break
+
+    if page is None:
+        raise PageNotFoundError(f"Page not found: {page_id}")
+
+    old_state = page.workflow_state
+    old_verified_at = page.verified_at
+    page = mark_page_verified(page, user_id=user_id)
+    try:
+        write_page(paths, page)
+    except Exception:
+        mark_page_verified_rollback(page, old_state, old_verified_at)
+        raise
+    return {
+        "status": "ok",
+        "page_id": page.id,
+        "workflow_state": page.workflow_state,
+        "previous_state": old_state,
+        "verified_at": page.verified_at,
+    }
+
 # Type → base PageType mapping
 _TYPE_MAP = {
     "article": "source",
