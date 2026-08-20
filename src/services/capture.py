@@ -22,6 +22,40 @@ from ..wiki.storage.page_writer import page_path_for, write_page
 
 _logger = logging.getLogger(__name__)
 
+
+def mark_page_verified(
+    page: WikiPage,
+    *,
+    user_id: str = "system",
+    audit_log: bool = True,
+) -> WikiPage:
+    """Mark a page as human-verified (bypasses 'ready' intermediate state).
+
+    Sets ``workflow_state = "verified"`` and stamps ``verified_at`` (Unix ms).
+    Caller must persist via write_page / page writer after.
+    """
+    from datetime import datetime, timezone
+
+    page.workflow_state = "verified"
+    page.verified_at = int(datetime.now(timezone.utc).timestamp() * 1000)
+    if audit_log:
+        _logger.info(
+            "mark_page_verified: page=%s user=%s -> verified",
+            page.id, user_id,
+        )
+    return page
+
+
+def mark_page_verified_rollback(
+    page: WikiPage,
+    old_state: str,
+    old_verified_at: int,
+) -> WikiPage:
+    """Rollback page state on save failure."""
+    page.workflow_state = old_state
+    page.verified_at = old_verified_at
+    return page
+
 # Type → base PageType mapping
 _TYPE_MAP = {
     "article": "source",

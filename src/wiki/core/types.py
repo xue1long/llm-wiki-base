@@ -125,6 +125,12 @@ class WikiPage:
         return page
 
 
+# Valid values for workflow_state (lint reference).
+VALID_WORKFLOW_STATES = frozenset({"draft", "ready", "verified", "outdated"})
+# Valid values for processing_depth (lint reference).
+VALID_PROCESSING_DEPTHS = frozenset({"concept", "memory", "operation"})
+
+
 @dataclass
 class ReviewItem:
     id: str

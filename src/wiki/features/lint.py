@@ -28,6 +28,7 @@ from .indexer import read_index
 
 logger = logging.getLogger(__name__)
 from ..storage.page_writer import read_page
+from ..core.types import VALID_PROCESSING_DEPTHS, VALID_WORKFLOW_STATES
 from ..core.paths import WikiPaths
 from ..core.types import PageType
 from ..templates import list_resolved, required_slot_names
@@ -388,6 +389,37 @@ def lint_wiki(
                         code="LINT-EMPTY-BODY",
                         severity=LintSeverity.INFO,
                         message=f"Page has empty body: {page.id}",
+                        page_id=page.id,
+                    )
+                )
+
+            # Workflow state lint checks (P17 + P27)
+            _ws = page.workflow_state or "draft"
+            if _ws not in VALID_WORKFLOW_STATES:
+                issues.append(
+                    LintIssue(
+                        code="LINT-INVALID-WORKFLOW-STATE",
+                        severity=LintSeverity.ERROR,
+                        message=f"Invalid workflow_state: {page.workflow_state!r}",
+                        page_id=page.id,
+                    )
+                )
+            if _ws == "verified" and page.verified_at <= 0:
+                issues.append(
+                    LintIssue(
+                        code="LINT-INVALID-VERIFIED-AT",
+                        severity=LintSeverity.WARNING,
+                        message="workflow_state=verified but verified_at is not set",
+                        page_id=page.id,
+                    )
+                )
+            _pd = page.processing_depth or "concept"
+            if _pd not in VALID_PROCESSING_DEPTHS:
+                issues.append(
+                    LintIssue(
+                        code="LINT-INVALID-PROCESSING-DEPTH",
+                        severity=LintSeverity.ERROR,
+                        message=f"Invalid processing_depth: {page.processing_depth!r}",
                         page_id=page.id,
                     )
                 )
