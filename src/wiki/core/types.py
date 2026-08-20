@@ -59,6 +59,10 @@ class WikiPage:
     # built-in types. When set, the page routes to wiki/<custom>/ instead
     # of the base type's dir; ``type`` stays the base enum for rendering.
     custom_type: str = ""
+    # Workflow state (draft/ready/verified/outdated), default draft (compat).
+    workflow_state: str = "draft"
+    # Unix-ms timestamp of last human verification; 0 = never verified.
+    verified_at: int = 0
 
     def to_frontmatter_dict(self) -> dict:
         d = {
@@ -80,6 +84,8 @@ class WikiPage:
             "taxonomy_sub": self.taxonomy_sub,
             "related_entities": list(self.related_entities),
             "custom_type": self.custom_type,
+            "workflow_state": self.workflow_state,
+            "verified_at": self.verified_at,
         }
         ko_extra = getattr(self, "_ko_extra", None)
         if isinstance(ko_extra, dict):
@@ -109,6 +115,8 @@ class WikiPage:
             taxonomy_sub=d.get("taxonomy_sub", ""),
             related_entities=list(d.get("related_entities", [])),
             custom_type=str(d.get("custom_type", "")),
+            workflow_state=str(d.get("workflow_state", "draft")),
+            verified_at=int(d.get("verified_at", 0)),
         )
         # S1: restore _ko_extra for round-trip (capture source_status, etc.)
         ko_extra = d.get("_ko_extra")
