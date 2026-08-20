@@ -536,6 +536,18 @@ async def generate_ingest(
 
     _sanitized_source_text = _result.text
 
+    # Q26: compute processing_depth_hint from sanitized source text.
+    # This is a HINT passed to generator functions, not a forced override —
+    # LLM can still choose a different processing_depth in its output.
+    from .short_form import detect_short_form
+    _depth_decision = detect_short_form(_sanitized_source_text)
+    _processing_depth_hint = _depth_decision.processing_depth
+    _logger.debug(
+        "[generate_ingest] processing_depth_hint=%s chars=%d steps=%d timed_out=%s",
+        _processing_depth_hint, _depth_decision.char_count,
+        _depth_decision.step_count, _depth_decision.timed_out,
+    )
+
     # Hard-reject: skip LLM entirely for degraded sources (opt-in via
     # RUFLO_SANITIZER_SKIP_LLM=1; off by default).
     if _result.should_skip_llm and __import__("os").environ.get("RUFLO_SANITIZER_SKIP_LLM", "0") == "1":
@@ -631,6 +643,7 @@ async def generate_ingest(
                 schema_registry=schema_registry,
                 taxonomy_content=_taxonomy_text,
                 missing_slugs_resolver=_missing_resolver,
+                processing_depth_hint=_processing_depth_hint,
             )
             _logger.info(
                 "[run_ingest] chunked path produced %d pages for %s",
@@ -663,6 +676,7 @@ async def generate_ingest(
                 purpose_content=_purpose_text,
                 taxonomy_content=_taxonomy_text,
                 missing_slugs_resolver=_missing_resolver,
+                processing_depth_hint=_processing_depth_hint,
             )
             _logger.info(
                 "[run_ingest] unified path produced %d pages for %s",
@@ -702,6 +716,7 @@ async def generate_ingest(
                 schema_registry=schema_registry,
                 taxonomy_content=_taxonomy_text,
                 missing_slugs_resolver=_missing_resolver,
+                processing_depth_hint=_processing_depth_hint,
             )
 
     # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.

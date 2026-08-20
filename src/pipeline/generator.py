@@ -285,6 +285,9 @@ When source truly lacks info for a required slot, write "来源未详述此方�
 ## Operation template (used when processing_depth=operation)
 {OPERATION_TEMPLATE}
 
+## Short-form template (used when processing_depth=memory)
+{SHORT_FORM_TEMPLATE}
+
 ## Entity pages are REQUIRED
 Every entity listed in `suggested_pages` (type=entity) MUST have a
 corresponding entry in your `pages` output. The wiki knowledge graph
@@ -412,6 +415,9 @@ extract structured knowledge, and render wiki pages in ONE pass.
 
 ## Operation template (used when processing_depth=operation)
 {OPERATION_TEMPLATE}
+
+## Short-form template (used when processing_depth=memory)
+{SHORT_FORM_TEMPLATE}
 
 ## Project Schema
 {SCHEMA_SECTION}
@@ -560,6 +566,7 @@ async def unified_generate(
     purpose_content: str = "",
     taxonomy_content: str = "",
     missing_slugs_resolver=None,
+    processing_depth_hint: Optional[str] = None,
 ) -> list[WikiPage]:
     """Single-pass: analyze source text + render wiki pages in one LLM call.
 
@@ -644,6 +651,7 @@ async def unified_generate(
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
         OPERATION_TEMPLATE=_render_operation_template_section(paths.root),
+        SHORT_FORM_TEMPLATE=_render_short_form_template_section(paths.root),
         SCHEMA_SECTION=_render_schema_section(schema_registry),
         PURPOSE_SECTION=purpose_content or "(未配置)",
         TAXONOMY_SECTION=taxonomy_content or "(未配置)",
@@ -720,15 +728,13 @@ async def unified_generate(
                 continue
 
         template = resolved_templates.get(page_type)
-        if template is None:
-            body_md = ""
-        else:
-            body_md = render_body(
-                template_body=template.body_markdown,
-                slots=p.get("slots", {}) or {},
-                page_type=page_type,
-                template_version=template.version or "",
-            )
+        body_md = _render_page_body(
+            template=template,
+            slots=p.get("slots", {}) or {},
+            page_type=page_type,
+            paths=paths,
+            processing_depth_hint=processing_depth_hint,
+        )
         # Phase 3 follow-up (M4)：渲染后确定性清洗 LLM 惯性占位符
         body_md = _clean_placeholder_text(body_md)
 
@@ -830,6 +836,9 @@ information — only organize and render the claims provided below.
 
 ## Operation template (used when processing_depth=operation)
 {OPERATION_TEMPLATE}
+
+## Short-form template (used when processing_depth=memory)
+{SHORT_FORM_TEMPLATE}
 
 ## Project Schema
 {SCHEMA_SECTION}
@@ -933,6 +942,7 @@ async def generate_from_candidate(
     schema_registry: Optional["SchemaRegistry"] = None,
     taxonomy_content: str = "",
     missing_slugs_resolver=None,
+    processing_depth_hint: Optional[str] = None,
 ) -> list[WikiPage]:
     """Render wiki pages from a validated KnowledgeCandidate.
 
@@ -1026,6 +1036,7 @@ async def generate_from_candidate(
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
         OPERATION_TEMPLATE=_render_operation_template_section(paths.root),
+        SHORT_FORM_TEMPLATE=_render_short_form_template_section(paths.root),
         SCHEMA_SECTION=_render_schema_section(schema_registry),
         TAXONOMY_SECTION=taxonomy_content or "(未配置)",
         page_types="|".join(_custom_type_enum(schema_registry)),
@@ -1105,17 +1116,15 @@ async def generate_from_candidate(
             slug = cleaned
 
         template = resolved_templates.get(page_type)
-        if template is None:
-            body_md = ""
-        else:
-            body_md = render_body(
-                template_body=template.body_markdown,
-                slots=p.get("slots", {}) or {},
-                page_type=page_type,
-                template_version=template.version or "",
-            )
-            # Phase 3 follow-up (M4)：渲染后确定性清洗 LLM 惯性占位符
-            body_md = _clean_placeholder_text(body_md)
+        body_md = _render_page_body(
+            template=template,
+            slots=p.get("slots", {}) or {},
+            page_type=page_type,
+            paths=paths,
+            processing_depth_hint=processing_depth_hint,
+        )
+        # Phase 3 follow-up (M4)：渲染后确定性清洗 LLM 惯性占位符
+        body_md = _clean_placeholder_text(body_md)
 
         # Relation dedup by slugified target
         raw_relations = p.get("relations", []) or []
@@ -1160,6 +1169,7 @@ async def generate_from_knowledge_object(
     schema_registry: Optional["SchemaRegistry"] = None,
     taxonomy_content: str = "",
     missing_slugs_resolver=None,
+    processing_depth_hint: Optional[str] = None,
 ) -> list[WikiPage]:
     """Render wiki pages from a KnowledgeObject with frontmatter enforcement.
 
@@ -1252,6 +1262,7 @@ async def generate_from_knowledge_object(
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
         OPERATION_TEMPLATE=_render_operation_template_section(paths.root),
+        SHORT_FORM_TEMPLATE=_render_short_form_template_section(paths.root),
         SCHEMA_SECTION=_render_schema_section(schema_registry),
         TAXONOMY_SECTION=taxonomy_content or "(未配置)",
         page_types="|".join(_custom_type_enum(schema_registry)),
@@ -1334,17 +1345,15 @@ async def generate_from_knowledge_object(
 
         # Render body from LLM slots
         template = resolved_templates.get(page_type)
-        if template is None:
-            body_md = ""
-        else:
-            body_md = render_body(
-                template_body=template.body_markdown,
-                slots=p.get("slots", {}) or {},
-                page_type=page_type,
-                template_version=template.version or "",
-            )
-            # Phase 3 follow-up (M4)：渲染后确定性清洗 LLM 惯性占位符
-            body_md = _clean_placeholder_text(body_md)
+        body_md = _render_page_body(
+            template=template,
+            slots=p.get("slots", {}) or {},
+            page_type=page_type,
+            paths=paths,
+            processing_depth_hint=processing_depth_hint,
+        )
+        # Phase 3 follow-up (M4)：渲染后确定性清洗 LLM 惯性占位符
+        body_md = _clean_placeholder_text(body_md)
 
         # Relation dedup
         raw_relations = p.get("relations", []) or []
@@ -1389,6 +1398,7 @@ async def generate(
     schema_registry: Optional["SchemaRegistry"] = None,
     taxonomy_content: str = "",
     missing_slugs_resolver=None,
+    processing_depth_hint: Optional[str] = None,
 ) -> list[WikiPage]:
     """Step 2: LLM call → list of WikiPage objects.
 
@@ -1497,6 +1507,7 @@ async def generate(
         TAG_NAMESPACE_RULES=TAG_NAMESPACE_RULES,
         PAGE_TEMPLATES=_render_template_section(paths.root),
         OPERATION_TEMPLATE=_render_operation_template_section(paths.root),
+        SHORT_FORM_TEMPLATE=_render_short_form_template_section(paths.root),
         SOURCE_SLUG_MAP=_format_source_slug_map(source_slug_map),
         SCHEMA_SECTION=_render_schema_section(schema_registry),
         TAXONOMY_SECTION=taxonomy_content or "(未配置)",
@@ -1601,17 +1612,15 @@ async def generate(
                 continue
 
         template = resolved_templates.get(page_type)
-        if template is None:
-            body_md = ""
-        else:
-            body_md = render_body(
-                template_body=template.body_markdown,
-                slots=p.get("slots", {}) or {},
-                page_type=page_type,
-                template_version=template.version or "",
-            )
-            # Phase 3 follow-up (M4)：渲染后确定性清洗 LLM 惯性占位符
-            body_md = _clean_placeholder_text(body_md)
+        body_md = _render_page_body(
+            template=template,
+            slots=p.get("slots", {}) or {},
+            page_type=page_type,
+            paths=paths,
+            processing_depth_hint=processing_depth_hint,
+        )
+        # Phase 3 follow-up (M4)：渲染后确定性清洗 LLM 惯性占位符
+        body_md = _clean_placeholder_text(body_md)
 
         # Fix: the LLM may emit guessed/pinyin wikilinks to source pages
         # Dedup relations: the LLM may emit multiple relation entries
@@ -2187,6 +2196,90 @@ def _render_operation_template_section(project_root: Path) -> str:
         except OSError as exc:  # pragma: no cover - permission edge case
             _logger.warning("Could not load operation template %s: %s", path, exc)
     return "(no operation template available)"
+
+
+def _render_short_form_template_section(project_root: Path) -> str:
+    """Load the short-form template for prompt injection (memory-depth pages).
+
+    Mirrors _render_operation_template_section: short-form is a processing_depth,
+    not a PageType. The template is loaded as-is and injected into the prompt
+    so the LLM knows which slots to use when processing_depth=memory.
+    """
+    from ..wiki.templates.types import BUNDLED_DIR, USER_TEMPLATE_DIR
+
+    candidates = [
+        project_root / ".wiki-templates" / "short-form.md",
+        USER_TEMPLATE_DIR / "short-form.md",
+        BUNDLED_DIR / "short-form.md",
+    ]
+    for path in candidates:
+        try:
+            if path.is_file():
+                return "### short-form\n" + path.read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            _logger.warning("Could not load short-form template %s: %s", path, exc)
+    return "(no short-form template available)"
+
+
+def _load_short_form_template(project_root: Path) -> str:
+    """Load short-form.md body for actual page rendering (memory-depth concept pages).
+
+    Returns the raw template body (with <!-- slot:NAME --> markers intact),
+    suitable for passing to render_body(template_body=..., page_type=CONCEPT).
+    Raises FileNotFoundError when no candidate file exists.
+    """
+    from ..wiki.templates.types import BUNDLED_DIR, USER_TEMPLATE_DIR
+
+    candidates = [
+        project_root / ".wiki-templates" / "short-form.md",
+        USER_TEMPLATE_DIR / "short-form.md",
+        BUNDLED_DIR / "short-form.md",
+    ]
+    for path in candidates:
+        if path.is_file():
+            return path.read_text(encoding="utf-8")
+    raise FileNotFoundError(
+        f"No short-form template found (searched project, user, bundled)"
+    )
+
+
+def _render_page_body(
+    template: Template | None,
+    slots: dict,
+    page_type: PageType,
+    paths: WikiPaths,
+    processing_depth_hint: Optional[str] = None,
+) -> str:
+    """Render wiki page body, choosing template by processing_depth_hint.
+
+    Q23/Q28: short-form.md has `wiki-template-type: concept` header (passes parser),
+    but contains only 3 condensed sections (summary/key_points/references). When
+    processing_depth_hint=="memory" and page_type==CONCEPT, use short-form.md.
+    Missing slots fall back to placeholder (Q28: LLM may choose concept slots).
+
+    Falls back to the resolved PageType template when short-form is unavailable
+    (Q16: graceful fallback, not crash).
+    """
+    if processing_depth_hint == "memory" and page_type == PageType.CONCEPT and template is not None:
+        try:
+            short_form_body = _load_short_form_template(paths.root)
+            return render_body(
+                template_body=short_form_body,
+                slots=slots,
+                page_type=page_type,
+                template_version=template.version or "",
+            )
+        except FileNotFoundError:
+            _logger.warning("short-form.md missing, falling back to concept template")
+
+    if template is None:
+        return ""
+    return render_body(
+        template_body=template.body_markdown,
+        slots=slots,
+        page_type=page_type,
+        template_version=template.version or "",
+    )
 
 
 def _render_schema_section(registry: SchemaRegistry | None) -> str:
