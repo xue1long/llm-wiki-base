@@ -1,7 +1,8 @@
-"""Local embedding provider wrapping sentence-transformers (all-MiniLM-L6-v2).
+"""Local embedding provider wrapping sentence-transformers (gte-small-zh).
 
 This provider works entirely offline — no network, no API key, no proxy.
-The model ``all-MiniLM-L6-v2`` is ~80 MB and outputs 384-dim vectors.
+The default model ``thenlper/gte-small-zh`` is a lightweight Chinese model
+and outputs 512-dim vectors.
 
 Usage::
 
@@ -10,14 +11,15 @@ Usage::
     responses = await provider.embed(["hello world"])
 """
 import logging
+import os
 from typing import Optional
 
 from .base import EmbeddingProvider, EmbeddingResponse
 
 _logger = logging.getLogger(__name__)
 
-_MODEL_NAME = "all-MiniLM-L6-v2"
-_EMBEDDING_DIM = 384
+_MODEL_NAME = "thenlper/gte-small-zh"
+_EMBEDDING_DIM = 512
 
 
 class LocalEmbeddingProvider(EmbeddingProvider):
@@ -32,8 +34,10 @@ class LocalEmbeddingProvider(EmbeddingProvider):
     download.
     """
 
-    def __init__(self, model_name: str = _MODEL_NAME):
-        self._model_name = model_name
+    def __init__(self, model_name: str | None = None):
+        self._model_name = model_name or os.environ.get(
+            "RUFLO_LOCAL_EMBEDDING_MODEL", _MODEL_NAME
+        )
         self._model = None  # lazy-loaded
 
     # ------------------------------------------------------------------

@@ -11,7 +11,8 @@ Modes:
 - ``remote``       — a remote LLM provider is configured (may still fail
                      at runtime, but the capability exists).
 - ``local``        — no remote provider, but sentence-transformers is
-                     installed (offline 384-dim embedding).
+                     installed (offline local embedding; default 512-dim
+                     ``thenlper/gte-small-zh``).
 - ``keyword-only`` — neither is available: semantic search is OFF and the
                      system must say so.
 """
