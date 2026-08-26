@@ -93,7 +93,8 @@ class TestCapturePageIntegration:
         assert page_path.exists()
         text = page_path.read_text(encoding="utf-8")
         assert "custom_type: ''" in text  # F1: custom_type is empty
-        assert "source_status" in text    # F2: _ko_extra persisted
+        # C-0 Commit 1: source_status migrated to workflow_state
+        assert "workflow_state: complete" in text
         assert "capture-type: article" in text  # body comment
         assert "This is test content" in text   # content filled
 
@@ -155,7 +156,8 @@ class TestCapturePageIntegration:
         page_path = Path(result["path"])
         text = page_path.read_text(encoding="utf-8")
         assert "源文档内容为空" in text
-        assert "source_status: empty" in text
+        # C-0 Commit 1: source_status migrated to workflow_state
+        assert "workflow_state: empty" in text
 
     @patch("src.services.capture.resolve_project")
     def test_capture_with_url_and_tags(self, mock_resolve, project_dir):
@@ -210,7 +212,7 @@ class TestCapturePageIntegration:
 
     @patch("src.services.capture.resolve_project")
     def test_capture_ko_extra_persisted(self, mock_resolve, project_dir):
-        """F2: source_status must be in frontmatter _ko_extra."""
+        """C-0 Commit 1: capture completeness lives on workflow_state, not _ko_extra."""
         from src.wiki.core.paths import WikiPaths
         from src.project.context import ProjectContext
         paths = WikiPaths(project_dir)
@@ -221,10 +223,13 @@ class TestCapturePageIntegration:
         result = capture_page("test-capture", type="article", title="KO Extra Test", content="some content")
         page_path = Path(result["path"])
         text = page_path.read_text(encoding="utf-8")
-        assert "source_status: complete" in text
+        assert "workflow_state: complete" in text
 
-        # Verify round-trip: read back and check _ko_extra
+        # Verify round-trip: read back and check workflow_state
         from src.wiki.storage.page_writer import read_page
         page = read_page(page_path)
-        assert hasattr(page, "_ko_extra")
-        assert page._ko_extra.get("source_status") == "complete"
+        assert page.workflow_state == "complete"
+        # _ko_extra.source_status must NOT be present after migration
+        ko_extra = getattr(page, "_ko_extra", None)
+        if ko_extra is not None:
+            assert "source_status" not in ko_extra

@@ -239,8 +239,8 @@ def capture_page(
     if category:
         page.category = category
 
-    # _ko_extra persistence (F2/S1)
-    page._ko_extra = {"source_status": "empty" if is_skeleton else "complete"}
+    # C-0 Commit 1: source_status now lives on workflow_state, not _ko_extra.
+    page.workflow_state = "empty" if is_skeleton else "complete"
 
     # Idempotency: check if slug already exists
     if _page_exists(paths, slug, base_type):

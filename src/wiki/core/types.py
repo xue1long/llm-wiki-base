@@ -121,6 +121,13 @@ class WikiPage:
         # S1: restore _ko_extra for round-trip (capture source_status, etc.)
         ko_extra = d.get("_ko_extra")
         if isinstance(ko_extra, dict):
+            # C-0 Commit 1: migrate _ko_extra.source_status to workflow_state.
+            # The legacy key may appear on pages written before the migration;
+            # lift its value to the top-level workflow_state field and drop
+            # the key from _ko_extra so the canonical home is now workflow_state.
+            legacy_source_status = ko_extra.pop("source_status", None)
+            if legacy_source_status is not None and page.workflow_state == "draft":
+                page.workflow_state = str(legacy_source_status)
             page._ko_extra = ko_extra
         return page
 
