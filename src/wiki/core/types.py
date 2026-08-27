@@ -7,6 +7,25 @@ if TYPE_CHECKING:
     from ..features.relations import Relation
 
 
+def _format_legacy_evidence(item: dict) -> str:
+    """Convert one legacy ``_ko_extra.evidence`` entry to the new
+    ``evidence_refs`` string format.
+
+    ``{"doc_id": "d1", "block_id": "b1"}`` → ``"d1:b1"``
+    ``{"doc_id": "d1"}`` (no block_id) → ``"d1"``
+
+    Falls back to the raw stringification of the dict when neither key is
+    present so we never raise on weird legacy data.
+    """
+    doc_id = item.get("doc_id")
+    block_id = item.get("block_id")
+    if doc_id and block_id:
+        return f"{doc_id}:{block_id}"
+    if doc_id:
+        return str(doc_id)
+    return str(item)
+
+
 class PageType(str, Enum):
     SOURCE = "source"
     ENTITY = "entity"
@@ -66,6 +85,10 @@ class WikiPage:
     # Decision record payload (migrated from _ko_extra.memory.decision in C-0
     # Commit 2). ``None`` when no decision data is attached.
     decision_record: dict | None = None
+    # Evidence refs (migrated from _ko_extra.evidence in C-0 Commit 4).
+    # String list of ``"<doc_id>:<block_id>"`` (or ``"<doc_id>"`` when the
+    # legacy entry had no block_id). Empty when no evidence is attached.
+    evidence_refs: list[str] = field(default_factory=list)
 
     def to_frontmatter_dict(self) -> dict:
         d = {
@@ -92,6 +115,8 @@ class WikiPage:
         }
         if self.decision_record is not None:
             d["decision_record"] = self.decision_record
+        if self.evidence_refs:
+            d["evidence_refs"] = list(self.evidence_refs)
         ko_extra = getattr(self, "_ko_extra", None)
         if isinstance(ko_extra, dict):
             d["_ko_extra"] = ko_extra
@@ -123,6 +148,7 @@ class WikiPage:
             workflow_state=str(d.get("workflow_state", "draft")),
             verified_at=int(d.get("verified_at", 0)),
             decision_record=d.get("decision_record"),
+            evidence_refs=list(d.get("evidence_refs", []) or []),
         )
         # S1: restore _ko_extra for round-trip (capture source_status, etc.)
         ko_extra = d.get("_ko_extra")
@@ -137,13 +163,27 @@ class WikiPage:
             # C-0 Commit 2: migrate _ko_extra.memory.decision to decision_record.
             # If the explicit top-level field was absent, lift the legacy
             # payload into it (so reads see it) but keep _ko_extra around for
-            # back-compat round-trip until Commit 4 removes evidence entirely.
+            # back-compat round-trip of unrelated legacy keys
+            # (e.g. capture_context).
             if page.decision_record is None:
                 memory = ko_extra.get("memory")
                 if isinstance(memory, dict):
                     legacy_decision = memory.get("decision")
                     if isinstance(legacy_decision, dict):
                         page.decision_record = legacy_decision
+            # C-0 Commit 4: migrate _ko_extra.evidence → evidence_refs.
+            # Only when the explicit top-level field is absent/empty — the
+            # explicit value wins. Legacy entries (list of dicts with
+            # ``doc_id`` / optional ``block_id``) format as
+            # ``"<doc_id>:<block_id>"`` or ``"<doc_id>"``.
+            if not page.evidence_refs:
+                legacy_evidence = ko_extra.get("evidence")
+                if isinstance(legacy_evidence, list):
+                    page.evidence_refs = [
+                        _format_legacy_evidence(item)
+                        for item in legacy_evidence
+                        if isinstance(item, dict)
+                    ]
             page._ko_extra = ko_extra
         return page
 
