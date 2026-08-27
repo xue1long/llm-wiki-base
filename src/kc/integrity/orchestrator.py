@@ -39,6 +39,7 @@ from .gates import (
 
 if TYPE_CHECKING:
     from .closure import ClosureReport
+    from .health import HealthReport
 
 
 @dataclass(frozen=True)
@@ -232,3 +233,36 @@ class IntegrityGate:
         if integrity_report is None:
             integrity_report = self.check(obj)
         return check_default_closure(obj, integrity_report)
+
+    # ------------------------------------------------------------------
+    # B-3 commit 4 集成: generate_health_report()
+    # ------------------------------------------------------------------
+
+    def generate_health_report(
+        self,
+        integrity_reports: "list[IntegrityReport] | None" = None,
+        closure_reports: "list[ClosureReport] | None" = None,
+        phase_counts: "dict[str, int] | None" = None,
+    ) -> "HealthReport":
+        """spec §11 末尾 + §14 A5-8 知识健康报告 (串联多对象 11 Gate 结果).
+
+        Args:
+            integrity_reports: 11 Gate 流水线执行报告列表 (如 None 则返回空报告)
+            closure_reports:   DefaultClosure 检查报告列表 (可选)
+            phase_counts:      各状态对象数 (status → count, 可选)
+
+        Returns:
+            HealthReport 含 quality_score + gate_failures + 各类统计
+
+        Notes:
+            - quality_score: 加权平均分 (硬门槛错误权重 10, 普通 Gate 错误权重 1)
+            - failed_sample_ids: 限 100 个
+            - not_evaluable: passed_checks=0 时设为 True (v2.2 优化 #7)
+        """
+        from .health import generate_health_report as _gen_health
+
+        return _gen_health(
+            integrity_reports or [],
+            closure_reports,
+            phase_counts,
+        )
