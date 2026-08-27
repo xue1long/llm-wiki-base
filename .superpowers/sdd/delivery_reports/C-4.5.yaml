@@ -1,0 +1,72 @@
+# Knowledge Compiler v2.2 §C-4.5 交付报告（路线 v2.2 Claim/Structured Fact 双路径 / Z-8）
+#
+# C-4.5 任务范围（路线 v2.2 §C-4.5 + spec §5.6 + §3.5 P-5）:
+#   - StructuredFact dataclass + identity_key 算法（spec §5 表）
+#   - structured_extractor 抽取参数表 / 法规 / 代码定义
+#   - Claim + Structured Fact 共存于同一 KU（_attach_to_ku）
+#   - 4 TDD 测试通过；现有 Evidence / Mode / Default Retrieval Filter 0 回归
+#
+# 验收依据:
+#   - 4 测试 PASS（test_structured_fact.py）
+#   - 23 C-1/C-2/C-4 baseline tests PASS（0 回归）
+#   - spec §3.5 P-5 双路径满足
+#   - spec §5.6 schema 完整覆盖
+
+# === 必填字段（spec §16.2 必填字段）===
+
+phase: "C-4.5 Claim/Structured Fact 双路径（Z-8）"
+
+changed_files:
+  - src/kc/contracts/structured_fact.py
+  - src/kc/extraction/structured_extractor.py
+  - src/kc/extraction/__init__.py
+  - src/kc/contracts/__init__.py
+  - tests/test_kc/test_structured_fact.py
+
+contracts_changed:
+  - src/kc/contracts/structured_fact.py  # 新 StructuredFact dataclass + identity_key 算法
+  - src/kc/contracts/__init__.py         # 导出 StructuredFact / compute_structured_fact_identity_key / evidence_for_field
+
+tests_run:
+  - "PYTHONPATH=. python -m pytest tests/test_kc/test_structured_fact.py --import-mode=importlib -v"
+  - "PYTHONPATH=. python -m pytest tests/test_kc/test_evidence_storage.py tests/test_kc/test_mode_fail_closed.py tests/test_kc/test_default_retrieval_filter.py --import-mode=importlib -q"
+
+evaluation_dataset_version:
+  # C-4.5 是 contract / extractor 层任务；尚无金标 case 评估（C-3.2/C-3.5 的 29 case 不适用于 Structured Fact 双路径 schema 校验）
+  - "N/A（C-4.5 是 schema + extractor 层；金标评估属于 B 段）"
+
+metrics:
+  structured_fact_tests_total: 4
+  structured_fact_tests_passed: 4
+  structured_fact_tests_failed: 0
+  baseline_c1_c2_c4_tests_total: 23
+  baseline_c1_c2_c4_tests_passed: 23
+  baseline_c1_c2_c4_tests_failed: 0
+  baseline_regressions: 0
+  identity_key_algorithm: "id-v1: + sha256(canonical_json({subject, field, value, value_type, context_id, validity_id}, sort_keys=True))"
+  shared_evidence_strategy: "StructuredFact.evidence_ids holds Evidence.evidence_id strings (no duplication)"
+  ku_coexistence_strategy: "StructuredExtractor.attach_claim + attach_structured_fact share _ku_claims / _ku_structured_facts dicts (independent storage)"
+  lines_added_total_estimate: 220
+  contracts_files_added: 1
+  contracts_files_modified: 1
+  extractor_files_added: 2  # structured_extractor.py + extraction/__init__.py
+  test_files_added: 1
+
+hard_gate_failures:
+  # 本任务无新指标门槛（C-4.5 是 schema + extractor 落点）
+  []
+
+migration_required: false  # 新 contract 增量加入；不改变既有 Evidence / Claim 路径
+
+rollback_procedure: "git revert <commit-hash-of-C-4.5> 或直接删除 src/kc/contracts/structured_fact.py + src/kc/extraction/ + tests/test_kc/test_structured_fact.py + 还原 src/kc/contracts/__init__.py"
+
+known_limitations:
+  # 已知限制（公开透明）
+  - "structured_extractor 当前是直接 list-of-dict 入口；尚未接入 LLM Analyzer（属于 Generator prompt 增强的下游任务）"
+  - "StructuredExtractor.attach_claim 仅存储 dict（spec §3.5 Claim dataclass 属于后续 Claim v2 任务，本任务只验证 KU 共存）"
+  - "StructuredFact 不持久化到 .index/structured_facts/（属于 C-5 持久化任务的范畴）"
+  - "evidence_for_field 仅做薄包装（quote=field_signature）；真正的字段级 Evidence 抽取属于 StructuredExtractor v2"
+
+# === 关键字段：spec §16.2 EX-3 硬规则 ===
+
+next_phase_ready: true  # hard_gate_failures 为空 + 4 测试 PASS + 0 回归 → 通过 A-0 守门
