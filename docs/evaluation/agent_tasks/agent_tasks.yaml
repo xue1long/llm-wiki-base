@@ -1,0 +1,292 @@
+# Knowledge Compiler v2.1 Agent Task 评估集 (C-3.5 / Z-3)
+# spec §12.3 Agent Context 输出 schema + §15 V-14 + §17 D-15
+#
+# 模式 A: dry-run with mock agent runtime
+#   - 不实际调用 LLM/agent runtime
+#   - mock_response 模拟 agent 应返回的 Agent Context 输出
+#   - evaluator 根据 success_criteria 判定 PASS/FAIL
+#   - 真实 agent runtime 集成是 Z-3 后续任务
+#
+# Agent Context schema (spec §12.3):
+#   {
+#     task_id, query, query_time, requested_context,
+#     publication_version,
+#     knowledge_items: [{knowledge_unit_id, knowledge_mode, statements,
+#                        evidence_refs, conflict_status, confidence}],
+#     omitted_candidates: [{knowledge_unit_id, reason}]
+#   }
+#
+# 评估维度:
+#   - retrieval (AT-001, AT-002, AT-007)
+#   - knowledge_mode (AT-003)
+#   - temporal/conflict (AT-004)
+#   - context/identity (AT-005, AT-006)
+#   - integrity_gate (AT-007, AT-008)
+#   - default_filter (AT-009)
+#   - schema_validation (AT-010)
+#
+# 阈值 (spec §17 D-15):
+#   - Agent Task Success Rate >= 0.85
+#   - Citation Accuracy >= 0.95
+
+- task_id: AT-001
+  query: "找出关于'期待感'的最新 Claim，要求至少 2 个独立 medium Evidence"
+  expected_knowledge_units: ["ku_期待感_v2", "ku_期待感_build"]
+  expected_citations: ["ev_doc_001_quote", "ev_doc_002_quote"]
+  expected_knowledge_modes: ["observed", "observed"]
+  expected_conflict_status: ["none", "none"]
+  success_criteria:
+    min_units_returned: 2
+    min_citations_valid: 2
+    knowledge_mode_identified: true
+    citations_match: true
+  mock_response:
+    knowledge_items:
+      - knowledge_unit_id: "ku_期待感_v2"
+        knowledge_mode: "observed"
+        statements: ["期待感是网络小说最重要的内核元素"]
+        evidence_refs: ["ev_doc_001_quote"]
+        conflict_status: "none"
+        confidence: 0.90
+      - knowledge_unit_id: "ku_期待感_build"
+        knowledge_mode: "observed"
+        statements: ["期待感通过 7 步构建"]
+        evidence_refs: ["ev_doc_002_quote"]
+        conflict_status: "none"
+        confidence: 0.85
+    omitted_candidates: []
+  tag: full
+  confidence: high
+
+- task_id: AT-002
+  query: "列出所有 conflict_type = 'perspective' 的冲突，给出双方立场"
+  expected_knowledge_units: ["ku_carbon_tax_analysis", "ku_exam_policy"]
+  expected_citations: ["ev_env_study", "ev_econ_study", "ev_policy_analysis", "ev_family_survey"]
+  expected_knowledge_modes: ["observed", "observed"]
+  expected_conflict_status: ["perspective", "perspective"]
+  success_criteria:
+    min_units_returned: 2
+    min_citations_valid: 4
+    knowledge_mode_identified: true
+    citations_match: true
+  mock_response:
+    knowledge_items:
+      - knowledge_unit_id: "ku_carbon_tax_analysis"
+        knowledge_mode: "observed"
+        statements: ["碳税减少排放 vs 碳税伤害经济"]
+        evidence_refs: ["ev_env_study", "ev_econ_study"]
+        conflict_status: "perspective"
+        confidence: 0.88
+      - knowledge_unit_id: "ku_exam_policy"
+        knowledge_mode: "observed"
+        statements: ["标准化考试公平 vs 不公平"]
+        evidence_refs: ["ev_policy_analysis", "ev_family_survey"]
+        conflict_status: "perspective"
+        confidence: 0.85
+    omitted_candidates: []
+  tag: full
+  confidence: high
+
+- task_id: AT-003
+  query: "识别 O/S 知识模式 — 哪些是 Synthesized，哪些是 Observed？"
+  expected_knowledge_units: ["ku_meta_summary_v3", "ku_ai_trends_2024"]
+  expected_citations: ["ev_synthesis_doc_001", "ev_news_001"]
+  expected_knowledge_modes: ["synthesized", "observed"]
+  expected_conflict_status: ["none", "none"]
+  success_criteria:
+    min_units_returned: 2
+    min_citations_valid: 2
+    knowledge_mode_identified: true
+    citations_match: true
+  mock_response:
+    knowledge_items:
+      - knowledge_unit_id: "ku_meta_summary_v3"
+        knowledge_mode: "synthesized"
+        statements: ["跨 10 篇论文的元综述结论"]
+        evidence_refs: ["ev_synthesis_doc_001"]
+        conflict_status: "none"
+        confidence: 0.85
+      - knowledge_unit_id: "ku_ai_trends_2024"
+        knowledge_mode: "observed"
+        statements: ["AI 行业 2024 趋势"]
+        evidence_refs: ["ev_news_001"]
+        conflict_status: "none"
+        confidence: 0.92
+    omitted_candidates: []
+  tag: full
+  confidence: high
+
+- task_id: AT-004
+  query: "Temporal Validity 检查 — 哪些知识在 2025-01-01 已 deprecated？"
+  expected_knowledge_units: ["ku_python_v39", "ku_schema_v20"]
+  expected_citations: ["ev_python_release_2024", "ev_schema_upgrade_log"]
+  expected_knowledge_modes: ["observed", "observed"]
+  expected_conflict_status: ["temporal", "temporal"]
+  success_criteria:
+    min_units_returned: 2
+    min_citations_valid: 2
+    knowledge_mode_identified: true
+    citations_match: true
+  mock_response:
+    knowledge_items:
+      - knowledge_unit_id: "ku_python_v39"
+        knowledge_mode: "observed"
+        statements: ["Python 3.9 is the latest stable version (superseded by 3.12)"]
+        evidence_refs: ["ev_python_release_2024"]
+        conflict_status: "temporal"
+        confidence: 0.95
+      - knowledge_unit_id: "ku_schema_v20"
+        knowledge_mode: "observed"
+        statements: ["WikiPage schema v2.0 (superseded by v2.2)"]
+        evidence_refs: ["ev_schema_upgrade_log"]
+        conflict_status: "temporal"
+        confidence: 0.93
+    omitted_candidates: []
+  tag: full
+  confidence: high
+
+- task_id: AT-005
+  query: "Context Resolution 验证 — 同一术语在不同 Context 是否合并？"
+  expected_knowledge_units: ["ku_vector_disambiguation"]
+  expected_citations: ["ev_math_context", "ev_disease_context"]
+  expected_knowledge_modes: ["observed"]
+  expected_conflict_status: ["none"]
+  success_criteria:
+    min_units_returned: 1
+    min_citations_valid: 2
+    knowledge_mode_identified: true
+    citations_match: true
+  mock_response:
+    knowledge_items:
+      - knowledge_unit_id: "ku_vector_disambiguation"
+        knowledge_mode: "observed"
+        statements: ["Vector 在数学 vs Vector 在疾病载体 Context 中保持分离"]
+        evidence_refs: ["ev_math_context", "ev_disease_context"]
+        conflict_status: "none"
+        confidence: 0.90
+    omitted_candidates: []
+  tag: full
+  confidence: high
+
+- task_id: AT-006
+  query: "Identity Resolution 校验 — 跨语言同概念是否合并（人工智能/AI）？"
+  expected_knowledge_units: ["ku_ai_unified"]
+  expected_citations: ["ev_translation_alias"]
+  expected_knowledge_modes: ["observed"]
+  expected_conflict_status: ["none"]
+  success_criteria:
+    min_units_returned: 1
+    min_citations_valid: 1
+    knowledge_mode_identified: true
+    citations_match: true
+  mock_response:
+    knowledge_items:
+      - knowledge_unit_id: "ku_ai_unified"
+        knowledge_mode: "observed"
+        statements: ["人工智能 (zh) = Artificial Intelligence (en)，已合并为 alias"]
+        evidence_refs: ["ev_translation_alias"]
+        conflict_status: "none"
+        confidence: 0.93
+    omitted_candidates: []
+  tag: full
+  confidence: high
+
+- task_id: AT-007
+  query: "Integrity Gate 通过验证 — 'observed + fact' 是否至少 1 个 strong Evidence？"
+  expected_knowledge_units: ["ku_direct_quote_test"]
+  expected_citations: ["ev_strong_quote_001"]
+  expected_knowledge_modes: ["observed"]
+  expected_conflict_status: ["none"]
+  success_criteria:
+    min_units_returned: 1
+    min_citations_valid: 1
+    knowledge_mode_identified: true
+    citations_match: true
+  mock_response:
+    knowledge_items:
+      - knowledge_unit_id: "ku_direct_quote_test"
+        knowledge_mode: "observed"
+        statements: ["直接引用证据测试：通过（strong Evidence）"]
+        evidence_refs: ["ev_strong_quote_001"]
+        conflict_status: "none"
+        confidence: 0.95
+    omitted_candidates: []
+  tag: full
+  confidence: high
+
+- task_id: AT-008
+  query: "Integrity Gate 阻断验证 — inferred evidence 是否单独支撑 observed fact？"
+  expected_knowledge_units: []  # 不应返回（inferred 单独不能支撑 observed）
+  expected_citations: []
+  expected_knowledge_modes: ["observed"]
+  expected_conflict_status: ["none"]
+  success_criteria:
+    min_units_returned: 0  # 期望 0 unit（被 Integrity Gate 阻断）
+    min_citations_valid: 0
+    knowledge_mode_identified: true
+    citations_match: true
+  mock_response:
+    knowledge_items: []  # Agent 应当不返回任何 unit
+    omitted_candidates:
+      - knowledge_unit_id: "ku_inferred_test"
+        reason: "integrity_block"
+  tag: full
+  confidence: high
+  notes: "inferred 单独不能支撑 observed fact，应被 Integrity Gate 阻断（spec §6 E-4）"
+
+- task_id: AT-009
+  query: "Default Retrieval Filter — 当前默认过滤后还能找到哪些 unit？"
+  expected_knowledge_units: ["ku_verified_001", "ku_verified_002"]
+  expected_citations: ["ev_verified_001", "ev_verified_002"]
+  expected_knowledge_modes: ["observed", "observed"]
+  expected_conflict_status: ["none", "none"]
+  success_criteria:
+    min_units_returned: 2
+    min_citations_valid: 2
+    knowledge_mode_identified: true
+    citations_match: true
+  mock_response:
+    knowledge_items:
+      - knowledge_unit_id: "ku_verified_001"
+        knowledge_mode: "observed"
+        statements: ["已 verified 的 unit #1"]
+        evidence_refs: ["ev_verified_001"]
+        conflict_status: "none"
+        confidence: 0.92
+      - knowledge_unit_id: "ku_verified_002"
+        knowledge_mode: "observed"
+        statements: ["已 verified 的 unit #2"]
+        evidence_refs: ["ev_verified_002"]
+        conflict_status: "none"
+        confidence: 0.88
+    omitted_candidates:
+      - knowledge_unit_id: "ku_candidate_001"
+        reason: "integrity_block"  # candidate 不进默认检索
+      - knowledge_unit_id: "ku_quarantined_001"
+        reason: "integrity_block"  # quarantined 不进默认检索
+  tag: full
+  confidence: high
+
+- task_id: AT-010
+  query: "Agent Context 输出 schema 验证 — task_id/query_time/publication_version/omitted_candidates 完整？"
+  expected_knowledge_units: ["ku_schema_verify"]
+  expected_citations: ["ev_schema_doc"]
+  expected_knowledge_modes: ["observed"]
+  expected_conflict_status: ["none"]
+  success_criteria:
+    min_units_returned: 1
+    min_citations_valid: 1
+    knowledge_mode_identified: true
+    citations_match: true
+  mock_response:
+    knowledge_items:
+      - knowledge_unit_id: "ku_schema_verify"
+        knowledge_mode: "observed"
+        statements: ["Agent Context schema 验证通过"]
+        evidence_refs: ["ev_schema_doc"]
+        conflict_status: "none"
+        confidence: 0.95
+    omitted_candidates: []
+  tag: full
+  confidence: high
+  notes: "最后一 case 验证 spec §12.3 Agent Context 完整 schema"

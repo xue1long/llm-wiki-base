@@ -120,6 +120,37 @@ def evaluate_gold_dataset(dataset_path: Path) -> dict[str, Any]:
     }
 
 
+def evaluate_agent_task_integration() -> dict[str, Any]:
+    """C-3.5 integration: call kc_agent_eval and report agent task metrics.
+
+    Returns a small dict with success_rate + citation_accuracy + thresholds.
+    Returns ``{"available": False, ...}`` when the agent task dataset or
+    the kc_agent_eval module cannot be loaded — this keeps the gold-dataset
+    CLI working even when the agent task assets are absent.
+    """
+    try:
+        from scripts.kc_agent_eval import evaluate_agent_task_dataset
+    except ImportError:
+        return {"available": False, "reason": "kc_agent_eval not importable"}
+
+    agent_tasks_path = Path("docs/evaluation/agent_tasks/agent_tasks.yaml")
+    if not agent_tasks_path.exists():
+        return {"available": False, "reason": f"{agent_tasks_path} not found"}
+
+    report = evaluate_agent_task_dataset(agent_tasks_path)
+    return {
+        "available": True,
+        "task_count": report["task_count"],
+        "passed_count": report["passed_count"],
+        "success_rate": report["success_rate"],
+        "citation_accuracy": report["citation_accuracy"],
+        "thresholds": {
+            "agent_task_success_rate": 0.85,  # spec §17 D-15
+            "citation_accuracy": 0.95,  # spec §17 D-15
+        },
+    }
+
+
 def _aggregate_dataset_reports(reports: list[dict[str, Any]]) -> dict[str, Any]:
     """Combine per-dataset reports into a single aggregated report."""
     aggregated: dict[str, Any] = {
