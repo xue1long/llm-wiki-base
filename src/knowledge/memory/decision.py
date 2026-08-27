@@ -1,7 +1,9 @@
 """Decision recorder — structured decision tracking with outcome follow-up.
 
-Decision data is stored in the WikiPage frontmatter under
-``_ko_extra.memory.decision`` as nested YAML.
+Decision data is stored in the WikiPage frontmatter as a top-level
+``decision_record`` field (C-0 Commit 2). Legacy pages may still carry the
+payload under ``_ko_extra.memory.decision``; reads fall back to that key
+when ``decision_record`` is absent.
 """
 
 from __future__ import annotations
@@ -26,12 +28,17 @@ from src.wiki.core.paths import WikiPaths
 
 
 # ---------------------------------------------------------------------------
-# DecisionRecord — the structured payload stored under _ko_extra.memory.decision
+# DecisionRecord — the structured payload stored in WikiPage.decision_record
+# (legacy: ``_ko_extra.memory.decision``)
 # ---------------------------------------------------------------------------
 
 @dataclass
 class DecisionRecord:
-    """Structured decision data stored in ``_ko_extra.memory.decision``."""
+    """Structured decision data stored in ``WikiPage.decision_record``.
+
+    For pages written before C-0 Commit 2, the same payload lived under
+    ``_ko_extra.memory.decision``; readers fall back to that key.
+    """
 
     context: str           # Background / situation leading to the decision
     alternatives: list[str]  # Other options considered
@@ -86,18 +93,15 @@ def _slugify(text: str, max_len: int = 40) -> str:
 def _write_decision_page(
     paths: WikiPaths, ko: KnowledgeObject, decision_record: DecisionRecord
 ) -> str:
-    """Convert KO → WikiPage, embed ``_ko_extra.memory.decision``, write to disk."""
+    """Convert KO → WikiPage, attach ``decision_record``, write to disk."""
     wp = knowledge_object_to_wiki_page(ko)
 
-    # The adapter builds _ko_extra with standard KO fields.  We preserve those
-    # and layer in the memory.decision payload.
-    ko_extra: dict = getattr(wp, "_ko_extra", {}).copy()
-    ko_extra.setdefault("memory", {})["decision"] = decision_record.to_dict()
+    # C-0 Commit 2: decision_record is a top-level WikiPage field. Writing
+    # it here keeps ``_ko_extra.memory.decision`` as a back-compat read
+    # path only — new pages do not embed it under _ko_extra.
+    wp.decision_record = decision_record.to_dict()
 
-    # Build frontmatter — to_frontmatter_dict does NOT include _ko_extra yet,
-    # so we add it manually.
     fm = wp.to_frontmatter_dict()
-    fm["_ko_extra"] = ko_extra
 
     path = paths.wiki_decisions / f"{wp.id}.md"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -111,7 +115,13 @@ def _write_decision_page(
 
 
 def _read_decision_raw(path: Path) -> dict | None:
-    """Read raw frontmatter from a decision page file. Returns ``_ko_extra`` or None."""
+    """Read raw decision record from a decision page file.
+
+    Prefers the top-level ``decision_record`` field written by C-0 Commit 2.
+    Falls back to the legacy ``_ko_extra.memory.decision`` location for
+    pages written before the migration. Returns ``None`` if neither is
+    present.
+    """
     if not path.exists():
         return None
     text = path.read_text(encoding="utf-8")
@@ -126,8 +136,17 @@ def _read_decision_raw(path: Path) -> dict | None:
         return None
     if not isinstance(fm, dict):
         return None
+    top = fm.get("decision_record")
+    if isinstance(top, dict):
+        return top
     ko_extra = fm.get("_ko_extra")
-    return ko_extra if isinstance(ko_extra, dict) else None
+    if isinstance(ko_extra, dict):
+        memory = ko_extra.get("memory")
+        if isinstance(memory, dict):
+            legacy = memory.get("decision")
+            if isinstance(legacy, dict):
+                return legacy
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -137,8 +156,8 @@ def _read_decision_raw(path: Path) -> dict | None:
 class DecisionRecorder:
     """Records decisions as KnowledgeObjects with extra memory fields.
 
-    Decision data is stored in the WikiPage frontmatter under
-    ``_ko_extra.memory.decision`` as nested YAML.
+    Decision data is stored in the WikiPage frontmatter as a top-level
+    ``decision_record`` field (C-0 Commit 2).
     """
 
     def __init__(self, wiki_paths: WikiPaths) -> None:
@@ -207,24 +226,18 @@ class DecisionRecorder:
         """Post-hoc outcome update.
 
         Reads the existing wiki page, updates
-        ``_ko_extra.memory.decision.outcome`` and ``actual_impact``, writes back.
+        ``decision_record.outcome`` and ``actual_impact``, writes back.
+        Falls back to legacy ``_ko_extra.memory.decision`` for pages written
+        before the C-0 Commit 2 migration.
         """
         path = self._paths.wiki_decisions / f"{decision_id}.md"
-        ko_extra = _read_decision_raw(path)
-        if ko_extra is None:
+        decision_data = _read_decision_raw(path)
+        if decision_data is None:
             raise FileNotFoundError(f"Decision not found: {decision_id}")
-
-        memory = ko_extra.get("memory", {})
-        decision_data = memory.get("decision", {}) if isinstance(memory, dict) else {}
-        if not isinstance(decision_data, dict):
-            decision_data = {}
 
         decision_data["outcome"] = outcome
         decision_data["actual_impact"] = actual_impact
         decision_data["outcome_at"] = int(time.time() * 1000)
-
-        memory["decision"] = decision_data
-        ko_extra["memory"] = memory
 
         # Rebuild the full page frontmatter
         text = path.read_text(encoding="utf-8")
@@ -236,7 +249,8 @@ class DecisionRecorder:
             fm = {}
         if not isinstance(fm, dict):
             fm = {}
-        fm["_ko_extra"] = ko_extra
+        # C-0 Commit 2: write to top-level decision_record (canonical home).
+        fm["decision_record"] = decision_data
 
         fm_text = yaml.dump(
             fm, allow_unicode=True, sort_keys=False, default_flow_style=False
@@ -271,12 +285,15 @@ class DecisionRecorder:
             return None
 
         body = text_raw[end + 5:].lstrip("\n")
-        ko_extra = fm.get("_ko_extra")
-        if not isinstance(ko_extra, dict):
-            return None
-
-        memory = ko_extra.get("memory", {})
-        decision_data = memory.get("decision", {}) if isinstance(memory, dict) else {}
+        # C-0 Commit 2: prefer top-level decision_record; fall back to the
+        # legacy ``_ko_extra.memory.decision`` location for pre-migration pages.
+        decision_data = fm.get("decision_record")
+        if not isinstance(decision_data, dict):
+            ko_extra = fm.get("_ko_extra")
+            if isinstance(ko_extra, dict):
+                memory = ko_extra.get("memory")
+                if isinstance(memory, dict):
+                    decision_data = memory.get("decision")
         if not isinstance(decision_data, dict):
             return None
 

@@ -63,6 +63,9 @@ class WikiPage:
     workflow_state: str = "draft"
     # Unix-ms timestamp of last human verification; 0 = never verified.
     verified_at: int = 0
+    # Decision record payload (migrated from _ko_extra.memory.decision in C-0
+    # Commit 2). ``None`` when no decision data is attached.
+    decision_record: dict | None = None
 
     def to_frontmatter_dict(self) -> dict:
         d = {
@@ -87,6 +90,8 @@ class WikiPage:
             "workflow_state": self.workflow_state,
             "verified_at": self.verified_at,
         }
+        if self.decision_record is not None:
+            d["decision_record"] = self.decision_record
         ko_extra = getattr(self, "_ko_extra", None)
         if isinstance(ko_extra, dict):
             d["_ko_extra"] = ko_extra
@@ -117,6 +122,7 @@ class WikiPage:
             custom_type=str(d.get("custom_type", "")),
             workflow_state=str(d.get("workflow_state", "draft")),
             verified_at=int(d.get("verified_at", 0)),
+            decision_record=d.get("decision_record"),
         )
         # S1: restore _ko_extra for round-trip (capture source_status, etc.)
         ko_extra = d.get("_ko_extra")
@@ -128,6 +134,16 @@ class WikiPage:
             legacy_source_status = ko_extra.pop("source_status", None)
             if legacy_source_status is not None and page.workflow_state == "draft":
                 page.workflow_state = str(legacy_source_status)
+            # C-0 Commit 2: migrate _ko_extra.memory.decision to decision_record.
+            # If the explicit top-level field was absent, lift the legacy
+            # payload into it (so reads see it) but keep _ko_extra around for
+            # back-compat round-trip until Commit 4 removes evidence entirely.
+            if page.decision_record is None:
+                memory = ko_extra.get("memory")
+                if isinstance(memory, dict):
+                    legacy_decision = memory.get("decision")
+                    if isinstance(legacy_decision, dict):
+                        page.decision_record = legacy_decision
             page._ko_extra = ko_extra
         return page
 

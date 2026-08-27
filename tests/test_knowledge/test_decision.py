@@ -174,12 +174,10 @@ class TestRecordDecision:
         )
         path = paths.wiki_decisions / f"{did}.md"
         fm = _parse_frontmatter(path)
-        ko_extra = fm.get("_ko_extra")
-        assert isinstance(ko_extra, dict), f"_ko_extra missing or not dict: {fm}"
-        memory = ko_extra.get("memory")
-        assert isinstance(memory, dict)
-        decision = memory.get("decision")
-        assert isinstance(decision, dict)
+        # C-0 Commit 2: decision_record is a top-level frontmatter key, not
+        # buried under _ko_extra.memory.decision.
+        decision = fm.get("decision_record")
+        assert isinstance(decision, dict), f"decision_record missing: {fm}"
         assert decision.get("context") == "Test context"
         assert decision.get("alternatives") == ["Alt1", "Alt2"]
         assert decision.get("rationale") == "Test rationale"
@@ -196,7 +194,8 @@ class TestRecordDecision:
         )
         path = paths.wiki_decisions / f"{did}.md"
         fm = _parse_frontmatter(path)
-        decision_data = fm["_ko_extra"]["memory"]["decision"]
+        # C-0 Commit 2: top-level decision_record (was _ko_extra.memory.decision).
+        decision_data = fm["decision_record"]
         assert decision_data["context"] == "C"
         assert decision_data["alternatives"] == ["A1"]
         assert decision_data["rationale"] == "R"
@@ -214,7 +213,8 @@ class TestRecordDecision:
         )
         path = paths.wiki_decisions / f"{did}.md"
         fm = _parse_frontmatter(path)
-        decision_data = fm["_ko_extra"]["memory"]["decision"]
+        # C-0 Commit 2: top-level decision_record.
+        decision_data = fm["decision_record"]
         assert decision_data["alternatives"] == []
 
     def test_wiki_page_type_is_decision(self, tmp_path):
@@ -261,7 +261,8 @@ class TestUpdateOutcome:
         )
         recorder.update_outcome(did, outcome="It worked perfectly")
         fm = _parse_frontmatter(paths.wiki_decisions / f"{did}.md")
-        decision_data = fm["_ko_extra"]["memory"]["decision"]
+        # C-0 Commit 2: top-level decision_record (was _ko_extra.memory.decision).
+        decision_data = fm["decision_record"]
         assert decision_data["outcome"] == "It worked perfectly"
 
     def test_sets_actual_impact(self, tmp_path):
@@ -272,7 +273,8 @@ class TestUpdateOutcome:
             did, outcome="OK", actual_impact="Saved 200 hours"
         )
         fm = _parse_frontmatter(paths.wiki_decisions / f"{did}.md")
-        decision_data = fm["_ko_extra"]["memory"]["decision"]
+        # C-0 Commit 2: top-level decision_record.
+        decision_data = fm["decision_record"]
         assert decision_data["outcome"] == "OK"
         assert decision_data["actual_impact"] == "Saved 200 hours"
 
@@ -284,7 +286,8 @@ class TestUpdateOutcome:
         recorder.update_outcome(did, outcome="Done")
         after = int(time.time() * 1000)
         fm = _parse_frontmatter(paths.wiki_decisions / f"{did}.md")
-        decision_data = fm["_ko_extra"]["memory"]["decision"]
+        # C-0 Commit 2: top-level decision_record.
+        decision_data = fm["decision_record"]
         oat = decision_data["outcome_at"]
         assert oat > 0
         assert before <= oat <= after + 100  # +100ms buffer for clock skew
@@ -301,7 +304,8 @@ class TestUpdateOutcome:
         )
         recorder.update_outcome(did, outcome="Done")
         fm = _parse_frontmatter(paths.wiki_decisions / f"{did}.md")
-        d = fm["_ko_extra"]["memory"]["decision"]
+        # C-0 Commit 2: top-level decision_record.
+        d = fm["decision_record"]
         assert d["context"] == "Original context"
         assert d["alternatives"] == ["A"]
         assert d["rationale"] == "Original rationale"
@@ -389,17 +393,19 @@ class TestGetDecisionContext:
 # ---------------------------------------------------------------------------
 
 class TestReadDecisionRaw:
-    def test_returns_ko_extra(self, tmp_path):
+    def test_returns_decision_record(self, tmp_path):
+        # C-0 Commit 2: _read_decision_raw now returns the decision dict
+        # itself (top-level ``decision_record``), not the surrounding
+        # ``_ko_extra`` envelope.
         paths = _make_paths(tmp_path)
         recorder = DecisionRecorder(paths)
         did = recorder.record_decision(
             question="Test", decision="Body", context="Ctx"
         )
         path = paths.wiki_decisions / f"{did}.md"
-        ko_extra = _read_decision_raw(path)
-        assert isinstance(ko_extra, dict)
-        assert "memory" in ko_extra
-        assert "decision" in ko_extra["memory"]
+        decision = _read_decision_raw(path)
+        assert isinstance(decision, dict)
+        assert decision.get("context") == "Ctx"
 
     def test_nonexistent_file_returns_none(self, tmp_path):
         result = _read_decision_raw(Path(tmp_path) / "nope.md")
