@@ -12,13 +12,14 @@ Public API:
 - 任一 Gate block → 标记 blocked (fail-closed)
 - Gate 异常 → 视为 block (gate_exception:<name>:<ExceptionType>)
 - warn → 继续执行 + 收集 reasons (不阻断发布)
+- B-3 commit 2: IntegrityGate.check_default_closure() 串联 8 闭包条件 AND 校验
 
 Ref: docs/architecture/B-2_11_Gate_design.md §3-4 + spec §11.2.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .gates import (
     ConflictGate,
@@ -35,6 +36,9 @@ from .gates import (
     SchemaGate,
     TemporalGate,
 )
+
+if TYPE_CHECKING:
+    from .closure import ClosureReport
 
 
 @dataclass(frozen=True)
@@ -199,3 +203,32 @@ class IntegrityGate:
             blocked=blocked,
             warnings=tuple(warnings),
         )
+
+    # ------------------------------------------------------------------
+    # B-3 commit 2 集成: check_default_closure()
+    # ------------------------------------------------------------------
+
+    def check_default_closure(
+        self,
+        obj: Any,
+        integrity_report: "IntegrityReport | None" = None,
+    ) -> "ClosureReport":
+        """spec §11.3 8 默认发布闭包条件 AND 校验 (串联 11 Gate 结果).
+
+        Args:
+            obj:             KnowledgeObject / WikiPage / 待校验对象
+            integrity_report: 11 Gate 流水线结果 (默认先执行 self.check() 获取)
+
+        Returns:
+            ClosureReport 含 8 条件 + 10 硬门槛 check 结果
+
+        Notes:
+            - 默认会先执行 self.check(obj) 获取 integrity_report
+              (如已提供则跳过, 避免重复执行 11 Gate)
+            - 简化实现: 8 条件骨架已落地, 完整 data model 集成留 B-3.x 后续
+        """
+        from .closure import check_default_closure
+
+        if integrity_report is None:
+            integrity_report = self.check(obj)
+        return check_default_closure(obj, integrity_report)
