@@ -1,20 +1,29 @@
-"""spec §11.2 11 Gate 基类 + Schema Gate (B-2.1 commit 1).
+"""spec §11.2 11 Gate 基类 + Schema Gate (B-2.1 commit 1)
++ Provenance Gate (B-2.1 commit 2) + Evidence Gate (B-2.2).
 
 公共契约:
 - ``GateVerdict`` (frozen dataclass): 11 Gate 共用的 verdict 值对象
   字段: passed / severity / reasons / blocked
 - ``Gate`` (abstract 基类): name + order + check(obj, context)
 - ``SchemaGate``: spec §11.2 Gate 1, 验证核心对象必填字段
-- ``ProvenanceGate``: spec §11.2 Gate 2 占位 (commit 2 完整实现)
+- ``ProvenanceGate``: spec §11.2 Gate 2 (B-2.1 commit 2 完整实现)
+- ``EvidenceGate``: spec §11.2 Gate 3 (B-2.2 — 满足 Evidence Strength Policy
+  + B-1 Semantic Support 集成)
 
-依赖 (spec §11.2 + §5):
+依赖 (spec §11.2 + §5 + §6):
 - KnowledgeObject / Evidence / StructuredFact / Conflict / ResolutionEvent /
   KnowledgeUnit / Approval — spec §5 各自的 schema
+- C-1 StrengthPolicy (spec §6 E-1 ~ E-15 降级规则)
+- B-1 SemanticSupportChecker (spec §6 末段 Span/范围/时间)
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Literal
+
+from ..contracts.evidence import Evidence
+from ..contracts.strength_policy import StrengthPolicy
+from ..semantic_support.checker import SemanticSupportChecker
 
 
 # spec §11.2 Gate 输出严重等级
@@ -180,3 +189,201 @@ class ProvenanceGate(Gate):
         if reasons:
             return GateVerdict.block(reasons)
         return GateVerdict.pass_()
+
+
+class EvidenceGate(Gate):
+    """spec §11.2 Gate 3: 满足 Evidence Strength Policy + Semantic Support.
+
+    检查 spec §6 全部 15 条规则:
+
+    强度映射 (E-1 ~ E-7):
+        - E-1: 5 种 Evidence type (direct_quote/structured_source/code/
+          computed/multi_source/inferred)
+        - E-2: direct_quote 默认 strong, 可精确回到原文
+        - E-3: structured_source 默认 strong, 字段/Schema/记录主键可验证
+        - E-4: code 默认 strong, 指向固定版本/提交/内容哈希
+        - E-5: computed 默认 medium, 保存输入/算法版本/复算结果
+        - E-6: multi_source 默认 medium, 至少两个相互独立来源
+        - E-7: inferred 默认 weak, 仅支持 Synthesized, 不能单独支撑 observed fact
+
+    强度约束 (E-8 ~ E-12):
+        - E-8: observed+fact 至少 1 strong Evidence 或 2 独立 medium
+        - E-9: opinion/perspective 不要求升级为事实
+        - E-10: synthesized 必须有 derived_from + Synthesis Provenance +
+          至少 1 个非 inferred Evidence
+        - E-11: strength 由 Policy 根据 Provenance 字段计算
+        - E-12: Source Trust Profile.status=accepted
+          (restricted → candidate/quarantined, rejected 不能支撑)
+
+    降级与支持 (E-13 ~ E-15):
+        - E-13: Semantic Support Check (spec §6 末段, 集成 B-1)
+        - E-14: computed 缺 input_ids/algorithm_version/result_hash 降 weak
+        - E-15: structured_source 缺 schema/record_key/field_path 降 weak
+
+    B-1 SemanticSupportChecker 集成:
+        - span_overlap=False → insufficient (spec §6 末段)
+        - support_type=contradicts → block
+        - support_type=insufficient → block (sufficient support 缺失)
+        - supports_scope=False 或 supports_temporal=False → warn (不阻断, 记录)
+        - 默认 OFF (v2.2 H-3 决策): 无 LLM 调用, 走规则快速判定
+          (spec §A2 Gate SemSupport Accuracy ≥ 0.95)
+    """
+
+    name = "evidence"
+    order = 3
+
+    # Reason code prefixes that should trigger ``block`` rather than ``warn``.
+    # Any reason starting with one of these prefixes is treated as a publish-
+    # blocking violation (mapped at the end of ``check``).
+    _BLOCK_PREFIXES = (
+        "insufficient_",
+        "missing_",
+        "contradicts_",
+        "rejected_",
+        "no_evidence",
+    )
+
+    def __init__(
+        self,
+        semantic_checker: SemanticSupportChecker | None = None,
+    ) -> None:
+        self.strength_policy = StrengthPolicy()
+        # OFF by default (v2.2 H-3): no LLM calls, rule-based fast path
+        self.semantic_checker = semantic_checker or SemanticSupportChecker()
+
+    def check(self, obj: Any, context: dict | None = None) -> GateVerdict:
+        # 1. Only check evidence on Claim-like objects (not KnowledgeObject etc.)
+        if not self._is_claim(obj):
+            return GateVerdict.pass_()
+
+        reasons: list[str] = []
+
+        # 2. Extract evidence list from context or obj attribute
+        evidences = self._get_evidences(obj, context)
+        if not evidences:
+            return GateVerdict.block(["no_evidence"])
+
+        # 3. Compute strength per evidence (E-1, E-2 ~ E-7, E-11, E-14, E-15)
+        evidence_strengths: list[tuple[Evidence, str]] = []
+        for ev in evidences:
+            strength = self.strength_policy.compute_strength(ev)
+            evidence_strengths.append((ev, strength))
+
+        # 4. E-8: observed+fact 至少 1 strong 或 2 独立 medium
+        knowledge_mode = getattr(obj, "knowledge_mode", "observed")
+        claim_type = getattr(obj, "claim_type", "fact")
+
+        if knowledge_mode == "observed" and claim_type == "fact":
+            if not self._has_sufficient_support(evidence_strengths):
+                reasons.append("insufficient_evidence_strength:observed_fact")
+                # Blocking failure — short-circuit before further checks
+                return GateVerdict.block(reasons)
+
+        # 5. E-10: synthesized 必须有 derived_from
+        if knowledge_mode == "synthesized":
+            derived_from = getattr(obj, "derived_from", None)
+            if not derived_from:
+                reasons.append("missing_derived_from:synthesized")
+                return GateVerdict.block(reasons)
+            # E-7: synthesized 可用 inferred (其他 mode 不行)
+            # 其他 mode 下 inferred → 视为 weak 并记录 warn
+            for ev, strength in evidence_strengths:
+                if ev.evidence_type == "inferred":
+                    if knowledge_mode == "synthesized":
+                        continue  # allowed
+                    reasons.append(f"weak_evidence:{ev.evidence_id}")
+                elif strength == "weak":
+                    reasons.append(f"weak_evidence_in_synthesized:{ev.evidence_id}")
+
+        # 6. E-12: Source Trust Profile 检查
+        trust_profile_id = context.get("trust_profile_id") if context else None
+        if trust_profile_id and hasattr(obj, "trust_profile_status"):
+            status = obj.trust_profile_status
+            if status == "rejected":
+                return GateVerdict.block(["rejected_source_trust"])
+            elif status == "restricted":
+                # 不阻断 (自动 candidate/quarantined)
+                reasons.append("restricted_source_trust")
+
+        # 7. E-13: B-1 Semantic Support Check (spec §6 末段)
+        if self.semantic_checker and context:
+            claim_text = (
+                getattr(obj, "text", "") or getattr(obj, "content", "") or ""
+            )
+            claim_id = getattr(obj, "id", "")
+            for ev, _strength in evidence_strengths:
+                verdict = self.semantic_checker.check(
+                    evidence=ev,
+                    claim_text=claim_text,
+                    claim_id=claim_id,
+                )
+                # spec §6 末段：仅 Span 可定位不构成支持
+                if verdict.support_type == "insufficient":
+                    reasons.append(f"insufficient_semantic_support:{ev.evidence_id}")
+                elif verdict.support_type == "contradicts":
+                    return GateVerdict.block(
+                        [f"contradicts_claim:{ev.evidence_id}"]
+                    )
+                elif not verdict.supports_scope:
+                    reasons.append(f"unsupported_scope:{ev.evidence_id}")
+                elif not verdict.supports_temporal:
+                    reasons.append(f"unsupported_temporal:{ev.evidence_id}")
+
+        if reasons:
+            # Distinguish block vs warn by prefix.
+            blocking = [
+                r for r in reasons if r.startswith(self._BLOCK_PREFIXES)
+            ]
+            if blocking:
+                return GateVerdict.block(reasons)
+            return GateVerdict.warn(reasons)
+
+        return GateVerdict.pass_()
+
+    # ------------------------------------------------------------------
+    # helpers
+    # ------------------------------------------------------------------
+
+    def _is_claim(self, obj: Any) -> bool:
+        """Return True iff ``obj`` has claim-shaped attributes.
+
+        A claim is identified by the joint presence of a textual body
+        (``text`` or ``content``) plus ``knowledge_mode``. Schema Gate is
+        responsible for primary type validation; this gate only fires on
+        objects that look like a claim.
+        """
+        has_text = hasattr(obj, "text") or hasattr(obj, "content")
+        has_mode = hasattr(obj, "knowledge_mode")
+        return has_text and has_mode
+
+    def _get_evidences(
+        self, obj: Any, context: dict | None
+    ) -> list[Evidence]:
+        """Resolve the evidence list for the claim.
+
+        Order of precedence:
+            1. ``context["evidences"]`` (caller-provided resolved list)
+            2. ``obj.evidences`` attribute (Claim-like default)
+        """
+        if context and "evidences" in context:
+            return list(context["evidences"])
+        if hasattr(obj, "evidences"):
+            return list(obj.evidences)
+        return []
+
+    def _has_sufficient_support(
+        self, evidence_strengths: list[tuple[Evidence, str]]
+    ) -> bool:
+        """spec §6 E-8: observed+fact 至少 1 strong 或 2 独立 medium.
+
+        独立性 v2.2 暂以"不同 evidence_id 即独立"近似；
+        真正的独立性判定（多源不来自同一文档/作者）由 B-2 后续 task
+        通过 Source Profile 字段统一处理。
+        """
+        strong_count = sum(1 for _ev, s in evidence_strengths if s == "strong")
+        if strong_count >= 1:
+            return True
+        medium_count = sum(1 for _ev, s in evidence_strengths if s == "medium")
+        if medium_count >= 2:
+            return True
+        return False
