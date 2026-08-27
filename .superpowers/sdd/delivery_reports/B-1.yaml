@@ -1,0 +1,85 @@
+# Knowledge Compiler v2.2 路线任务交付报告 (B-1 Semantic Support Check)
+#
+# 任务: B-1 SemanticSupportChecker — spec §6 末段发布前 Semantic Support Check
+#       + §11.4 #9 Evidence Semantic Support Error = 0 + §A2 Gate SemSupport Accuracy ≥ 0.95
+# 范围: 新建 src/kc/semantic_support/ 包 + SupportVerdict dataclass +
+#       SemanticSupportChecker.check() 5 类 SupportType 判定
+#       (supports / partially_supports / irrelevant / contradicts / insufficient)
+# 关联: docs/superpowers/plans/2026-08-26-kc-spec-roadmap.md §B-1 + H-3 + H-6
+#       spec §6 末段 (Semantic Support Check)
+#       spec §11.4 #9 (Evidence Semantic Support Error = 0)
+#       spec §A2 (Gate SemSupport Accuracy ≥ 0.95)
+# commit 1: 2bb191db "feat(kc): add Semantic Support Check (B-1 / H-3 H-6)"
+
+phase: B-1  # 路线 §B-1 Semantic Support Check
+
+changed_files:  # 本次 commit 修改的所有文件（含新增）
+  # commit 1: SemanticSupportChecker 实现 + 测试
+  - src/kc/semantic_support/__init__.py
+  - src/kc/semantic_support/checker.py
+  - tests/test_kc/test_semantic_support.py
+
+contracts_changed:  # 本次 commit 涉及的 Contract（数据契约层）
+  # B-1 是分类器基础设施; 不直接修改现有 C-1 Evidence contract,
+  # 仅消费其字段 (quote / quote_hash / evidence_type)
+  # spec §6 末段 SupportVerdict 是 B-1 新增数据契约:
+  #   字段 (evidence_id, claim_id, support_type, confidence, reasoning,
+  #         supports_scope, supports_temporal, span_overlap)
+  # spec §6 末段 SupportType Literal (5 类) 是 B-1 新增字面量
+  - src/kc/semantic_support/checker.py  # SupportVerdict @dataclass(frozen=True) + SupportType Literal
+
+tests_run:  # 本次 commit 运行的测试命令
+  - "PYTHONPATH=. python -m pytest tests/test_kc/test_semantic_support.py --import-mode=importlib -v"  # 5/5 PASS
+  - "PYTHONPATH=. python -m pytest tests/test_kc --import-mode=importlib -q"  # 69 passed (baseline 64 + 5 new), 0 regression
+
+evaluation_dataset_version:  # 本次 commit 关联的评估数据集版本
+  # B-1 是分类器基础设施; spec §A2 Gate "SemSupport Accuracy ≥ 0.95" 关联评估数据集
+  # 在 D-2 (eval harness for Semantic Support) 阶段才正式落地
+  # 当前 5 个 TDD 测试覆盖 5 类 SupportType + 边界条件 (OFF / ON 接口)
+  "B-1 TDD 5case (commit 2bb191db) — 4 必需场景 + 1 ON-path bonus"
+
+metrics:  # 本次 commit 产出的关键指标
+  # spec §6 末段 5 类 SupportType 全部实现
+  spec_section_6_types_covered: 5  # supports / partially_supports / irrelevant / contradicts / insufficient
+  # spec §6 末段核心规则
+  spec_6_span_overlap_rule: "implemented (无 token 重叠 → insufficient, confidence=1.0)"
+  spec_6_scope_check: "implemented (claim_scope=None 兼容; structured_source strict)"
+  spec_6_temporal_check: "implemented (claim_vf/vt=None 兼容; 简化)"  # A-2 temporal 接入后升级
+  spec_6_contradicts: "implemented (反义词对启发式, 中英常见词)"
+  spec_6_default_off: "implemented (llm_provider=None → cost_used_cny=0)"
+  spec_6_on_interface: "implemented (llm_provider 参数 + sample_ratio=10 + cost_limit_cny=50)"
+  # 测试结果
+  semantic_support_tests_passed: 5  # 4 必需 + 1 ON-path bonus
+  semantic_support_tests_total: 5
+  baseline_test_total_passing: 69  # 64 prior baseline + 5 net new
+  baseline_test_regression_count: 0  # 0 regression
+  # v2.2 决策落地
+  v22_h3_on_by_default: "ON by default 接口 (llm_provider 参数)"
+  v22_h6_cost_limit: "50 元/日成本上限 (cost_limit_cny=50)"
+  v22_h6_sample_ratio: "抽样 1/10 (sample_ratio=10)"
+  v22_h6_default_off_cost: "0 CNY (llm_provider=None 时)"
+  # 文件预算
+  new_files: 3  # __init__ + checker.py + test_semantic_support.py
+  modified_files: 0  # 无现有文件改动
+
+hard_gate_failures:  # spec §11.4 硬门槛 (空 = 通过)
+  # spec §11.4 #9 — Evidence Semantic Support Error = 0
+  # B-1 实现后, release-time 发布前必须执行 SemanticSupportChecker.check()
+  # 当 SupportType="insufficient" 时阻断发布（spec §6 末段）
+  []
+
+migration_required: false  # 新增独立包；不修改 KnowledgeObject / Evidence 既有字段；零数据迁移
+
+rollback_procedure:  # 回滚步骤（一句话描述）
+  "git revert 2bb191db 即可移除 B-1 全部改动（新文件 3 个 + 零现有文件触及）"
+
+known_limitations:  # 已知限制（公开透明）
+  - '_check_span_overlap 使用 regex token 重叠启发式; 真实语义蕴含由 LLM-as-judge ON 路径承担'
+  - "_is_contradiction 使用反义词对启发式; 完整矛盾判定由 B-3 LLM 驱动的 conflict_resolver 接管"
+  - "_check_scope / _check_temporal 简化实现 (claim 缺时间/范围 → 兼容); A-2 temporal validity 接入后升级严格检查"
+  - "_llm_judge 当前为 mock 实现 (cost += 0.01 元/次, 总是 returns supports); B-1.5 follow-up 真实 LLM 集成"
+  - "src/kc/semantic_support/ 包尚未被现有 kc 流程主动调用 (无 coupling); B-3 阶段才会从 release_pipeline 接入"
+
+# === 关键字段：spec §16.2 EX-3 硬规则 ===
+
+next_phase_ready: true  # 5/5 测试通过；baseline 64 → 69 (0 regression); spec §6 末段 5 类全部实现；H-3/H-6 决策落地
