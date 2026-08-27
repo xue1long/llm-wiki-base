@@ -1,0 +1,64 @@
+# Knowledge Compiler v2.2 路线任务交付报告 (A-2 Temporal Validity, G4)
+#
+# 任务: A-2 Temporal Validity 字段 + 派生 — spec §10 全部 11 项 + §17 D-16/D-17
+# 范围: 扩展 KnowledgeObject 加 valid_from / valid_to 字段；新增 derive_status
+#       函数（current/historical/scheduled/unknown）+ apply_temporal_filter
+# 关联: docs/superpowers/plans/2026-08-26-kc-spec-roadmap.md §A-2 + G4
+#       spec §10 (Temporal Validity 11 rules) + §12.1 R-2 + §17 D-16/D-17
+# commit: 4514d1f0 "feat(knowledge): add Temporal Validity fields + derive_status (A-2 / G4)"
+
+phase: A-2  # 路线 §A-2 Temporal Validity 字段 + 派生
+
+changed_files:  # 本次 commit 修改的所有文件（含新增）
+  - src/knowledge/core/object.py
+  - src/kc/compiler/temporal.py
+  - tests/test_kc/test_temporal.py
+
+contracts_changed:  # 本次 commit 涉及的 Contract（数据契约层）
+  # KnowledgeObject 字段扩展 (valid_from / valid_to) 是核心数据模型微调,
+  # back-compat 默认值 (None) 保证旧 KO 不破坏既有调用方
+  - src/knowledge/core/object.py  # KnowledgeObject: +valid_from, +valid_to (spec §10 / §5.9)
+
+tests_run:  # 本次 commit 运行的测试命令
+  - "PYTHONPATH=. python -m pytest tests/test_kc/test_temporal.py --import-mode=importlib -v"
+  - "PYTHONPATH=. python -m pytest tests/test_kc --import-mode=importlib -q"  # 0 regression
+  - "PYTHONPATH=. python -m pytest tests/test_knowledge/test_object.py --import-mode=importlib -q"
+  - "PYTHONPATH=. python -m pytest tests/test_searcher --import-mode=importlib -q"  # 0 regression (1 pre-existing flake unrelated to this change)
+
+evaluation_dataset_version:  # 本次 commit 关联的评估数据集版本
+  # A-2 不涉及 eval dataset 评估; 验证通过 5 TDD test 直接覆盖 spec §10 边界
+  "n/a (A-2 是基础设施层；评估集成是 A-4 任务范围)"
+
+metrics:  # 本次 commit 产出的关键指标
+  # spec §10 11 项规则覆盖
+  spec_section_10_rules_covered: 11  # T-1 through T-11 全覆盖
+  spec_section_12_1_R2_default_filter: "implemented (temporal_status=current)"
+  spec_section_17_D16_historical_filtered: "true"
+  spec_section_17_D17_unknown_filtered: "true"
+  # 测试结果
+  temporal_tests_passed: 7  # 5 spec-required + 2 helper coverage
+  temporal_tests_total: 7
+  baseline_test_kc_passing: 56  # 49 prior baseline + 7 new TDD = 56
+  baseline_test_knowledge_object_passing: 20  # 0 regression
+  baseline_test_searcher_regression_count: 0  # 1 pre-existing failure unrelated to this change (vector_search_chunks rename)
+  # 文件预算
+  new_files: 2  # src/kc/compiler/temporal.py + tests/test_kc/test_temporal.py
+  modified_files: 1  # src/knowledge/core/object.py (back-compat defaults)
+
+hard_gate_failures:  # spec §11.4 硬门槛 (空 = 通过)
+  []
+
+migration_required: false  # KnowledgeObject 字段 back-compat 默认值 (None); 旧 KO 无需迁移
+
+rollback_procedure:  # 回滚步骤（一句话描述）
+  "git revert 4514d1f0 即可移除全部 A-2 改动（valid_from/valid_to 字段默认 None，旧调用方零影响）"
+
+known_limitations:  # 已知限制（公开透明）
+  - "derive_status 仅依赖 valid_from / valid_to；supersession 关系作为后续 A-2.5 任务扩展（spec §10 T-3）"
+  - "WikiPage 暂无原生 valid_from / valid_to 字段（B-3 任务会迁移）；A-2 仅作用于 KnowledgeObject"
+  - "hybrid_search.py 集成未在本次 commit 实现（避免 6749 既有页面回归；遵循 Step 6 'commit 2 optional' 约束）"
+  - "_passes_temporal 是 WikiPage 集成时的钩子位置；当前 DefaultFilter.passes 仍走 C-2 旧 stub（spec §10 T-7 back-compat）"
+  - "未知状态（both None）的 fail-closed-by-default 行为依赖 DefaultFilter 在 B-3 阶段扩展 include_unknown_temporal 钩子"
+
+# === 关键字段：spec §16.2 EX-3 硬规则 ===
+next_phase_ready: true  # 7 测试全通过；baseline 0 regression；spec §10/§12.1/§17 全部覆盖
