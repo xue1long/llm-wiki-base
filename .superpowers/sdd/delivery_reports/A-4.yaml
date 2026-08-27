@@ -1,0 +1,79 @@
+# Knowledge Compiler v2.2 路线任务交付报告 (A-4 commit 1 — Approval dataclass + gate)
+#
+# 任务: A-4 / G7 — Approval dataclass + CLI（spec §5.11 + §9 I-5 + §11.4 #4）
+# 范围: 新建 src/kc/governance/ 包 + Approval @dataclass(frozen=True) +
+#       ApprovalGate (request_approval / approve / reject /
+#       check_authorization / persist_approvals)
+# 关联: docs/superpowers/plans/2026-08-26-kc-spec-roadmap.md §A-4 + G7 + H-1
+#       spec §5.11 Approval dataclass 完整字段
+#       spec §9 I-5 高风险写操作 (merge/split/supersede/concept_identity_change) 门禁
+#       spec §11.4 #4 无审计 merge/supersede = 0
+# commit 1: "feat(kc): add Approval dataclass + gate (A-4 / G7 commit 1)"
+
+phase: A-4  # 路线 §A-4 Approval + dedup_auto 双模式 — 本报告覆盖 commit 1（Approval 部分）
+
+changed_files:
+  - src/kc/governance/__init__.py        # 新文件: package init + re-exports
+  - src/kc/governance/approval.py        # 新文件: Approval + ApprovalGate 实现
+  - tests/test_kc/test_approval.py       # 新文件: 3 TDD 测试
+
+contracts_changed:
+  # A-4 commit 1 是 spec §5.11 + §11.4 #4 数据契约落地
+  - src/kc/governance/approval.py
+    # Approval @dataclass(frozen=True) 必填字段:
+    #   approval_id / operation / target_ids / proposed_event_id /
+    #   status / reviewer / reason / decided_at / created_at
+    # ApprovalOperation Literal:
+    #   merge / split / supersede / concept_identity_change
+    # ApprovalStatus Literal:
+    #   pending / approved / rejected
+
+tests_run:
+  - "PYTHONPATH=. python -m pytest tests/test_kc/test_approval.py --import-mode=importlib -v"  # 3/3 PASS
+  - "PYTHONPATH=. python -m pytest tests/test_kc --import-mode=importlib -q --ignore=tests/test_kc/test_kc_ku_dryrun.py"  # 74 passed (71 prior baseline + 3 net new), 0 regression
+  - "PYTHONPATH=. python -m pytest tests/test_wiki/test_dedup_auto.py --import-mode=importlib -q"  # 2 passed, 0 regression (commit 1 不动 dedup_auto 函数体)
+
+evaluation_dataset_version:
+  # A-4 是基础设施层 (spec §5.11 数据契约); 评估数据集关联 A-7 (Wiki Query+Template
+  # Compiler) 已经在 commit 784a5e3e 落地; 当前 3 个 TDD 测试覆盖 §5.11 必填字段 +
+  # status 状态机 + §11.4 #4 硬门槛
+  "A-4 TDD 3case (commit 1) — Approval dataclass 必填字段 + approve 状态机 + check_authorization 硬门槛"
+
+metrics:
+  spec_section_5_11_approval_dataclass: "implemented (9 fields: approval_id/operation/target_ids/proposed_event_id/status/reviewer/reason/decided_at/created_at)"
+  spec_section_5_11_approval_operation_literal: "implemented (4 classes: merge/split/supersede/concept_identity_change)"
+  spec_section_5_11_approval_status_literal: "implemented (3 states: pending/approved/rejected)"
+  spec_section_9_i_5_high_risk_write_gate: "implemented (ApprovalGate.request_approval 为 merge/split/supersede/concept_identity_change 强制必填)"
+  spec_section_11_4_4_authorization_check: "implemented (check_authorization 返回 False 当无 approved approval)"
+  spec_section_5_11_status_transition: "implemented (approve: pending→approved; reject: pending→rejected; 冻结字段保留)"
+  spec_section_3_3_append_only_persistence: "implemented (persist_approvals 写 .index/approvals.jsonl, append-only)"
+  approval_tests_passed: 3
+  approval_tests_total: 3
+  baseline_test_kc_passing: 71  # commit 1 之前的 test_kc PASS 数 (排除 kc_ku_dryrun 慢测试)
+  baseline_test_kc_regression_count: 0  # 0 regression
+  baseline_test_wiki_dedup_auto_passing: 2
+  baseline_test_wiki_dedup_auto_regression_count: 0
+  # 文件预算
+  new_files: 3  # __init__ + approval.py + test_approval.py
+  modified_files: 0  # 无现有文件改动 (commit 2 才动 dedup_auto / wiki_polish_cmd)
+
+hard_gate_failures:
+  # spec §11.4 #4 — 无审计 merge/supersede = 0
+  # A-4 commit 1 实现后, check_authorization 是 release-time 硬门槛;
+  # commit 2 (dedup_auto 双模式) 才会真正接入 dedup 路径
+  []
+
+migration_required: false  # 新增独立包；不修改 KnowledgeObject / WikiPage 既有字段；零数据迁移
+
+rollback_procedure:
+  "git revert <commit> 即可移除 A-4 commit 1 全部改动（新文件 3 个 + 零现有文件触及）"
+
+known_limitations:
+  - "ApprovalGate 是 in-memory 字典存储；cross-process 调用方需各自实例化（commit 2 dedup_auto 集成时确认）"
+  - "check_authorization 当前仅检查 approved 状态；rejected approval 不阻止后续重提（spec §5.11 未强制 unique constraint）"
+  - "persist_approvals 不并发安全：多次并发 append 可能丢失行，由 caller 保证 serialize"
+  - "Approval dataclass 是 frozen；approve/reject 返回新 Approval 实例（不可变 dataclass 模式）"
+  - "src/kc/governance/ 包尚未被现有 kc 流程主动调用（无 coupling）；commit 2 (dedup_auto --require-approval) 才会接入"
+
+# === 关键字段：spec §16.2 EX-3 硬规则 ===
+next_phase_ready: true  # 3/3 测试通过；baseline 71 → 74 (0 regression)；spec §5.11 + §9 I-5 + §11.4 #4 全部实现；commit 2 dedup_auto 双模式集成预备就绪
