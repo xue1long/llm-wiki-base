@@ -24,6 +24,13 @@ DEFAULT_QUARANTINE_MAX_AGE_DAYS = 90
 DEFAULT_DEDUP_HISTORY_MAX_AGE_DAYS = 30
 DEFAULT_BACKUP_MAX_COUNT = 10
 
+# C-0.5a: Knowledge Core snapshot retention (Z-1, spec §1 M-7).
+# Distinct from DEFAULT_BACKUP_MAX_COUNT which targets the schema-migration
+# ``.llm-wiki/.backup/`` directory. KC snapshots live under
+# ``.llm-wiki/backups/<snap_<ts>>/`` and are kept (max_count=10) before
+# rotation kicks in.
+DEFAULT_KC_BACKUP_MAX_COUNT = 10
+
 
 # ── helpers ───────────────────────────────────────────────────────────────
 
@@ -223,6 +230,38 @@ def cleanup_backups(
     return deleted
 
 
+def cleanup_kc_backups(
+    paths: WikiPaths,
+    max_count: int = DEFAULT_KC_BACKUP_MAX_COUNT,
+) -> int:
+    """Keep only the *max_count* most recent Knowledge Core snapshots.
+
+    Targets ``.llm-wiki/backups/<snap_<ts>>/`` (路线 v2.2 §C-0.5a / Z-1).
+    Does NOT touch ``.llm-wiki/.backup/`` (handled by cleanup_backups above).
+    Snapshots are named ``snap_<13-digit-ms-timestamp>`` so lexical sort
+    matches chronological order.
+    """
+    backup_root = paths.llm_wiki / "backups"
+    if not backup_root.exists():
+        return 0
+    dirs = sorted(
+        (d for d in backup_root.iterdir() if d.is_dir() and d.name.startswith("snap_")),
+        key=lambda d: d.name,
+        reverse=True,
+    )
+    deleted = 0
+    for d in dirs[max_count:]:
+        try:
+            shutil.rmtree(d)
+        except OSError:
+            pass
+        else:
+            deleted += 1
+    if deleted:
+        _logger.info("[cleanup] kc_backups: %d old KC snapshots deleted", deleted)
+    return deleted
+
+
 # ── batch entry point ─────────────────────────────────────────────────────
 
 def cleanup_all(paths: WikiPaths) -> dict[str, int]:
@@ -235,6 +274,7 @@ def cleanup_all(paths: WikiPaths) -> dict[str, int]:
         ("quarantine", cleanup_quarantine),
         ("dedup_history", cleanup_dedup_history),
         ("backups", cleanup_backups),
+        ("kc_backups", cleanup_kc_backups),
     ]
     for name, fn in cleaners:
         try:
