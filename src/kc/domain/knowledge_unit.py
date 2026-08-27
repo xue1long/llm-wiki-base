@@ -97,6 +97,7 @@ class KnowledgeUnit:
     version: int = 1
     created_at: int = 0
     updated_at: int = 0
+    resolution_event_id: str | None = None  # B-2.5 commit 1: 关联 A-1 commit 2 ResolutionEvent (spec §4.4 + §5.11)
 
     @property
     def identity_key(self) -> str:
