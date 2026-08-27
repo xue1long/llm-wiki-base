@@ -1,0 +1,59 @@
+# Knowledge Compiler v2.1 路线任务交付报告 (A-7 / Z-7, spec §16.2)
+#
+# Task: Wiki Query+Template Compiler
+# - WikiTemplate + WikiView dataclass (spec §12.4 schema)
+# - WikiTemplateCompiler.compile() — Query + Template compile path
+# - 6 main TDD tests + 1 bonus for default sections ordering lock
+# - spec §A7 Gate: 不同观点不被静默合并 + 每个事实有 Evidence 入口
+# - 保留既有 src/wiki/projection.py legacy 1-page-per-source（不动）
+
+phase: A-7  # Wiki Query+Template Compiler
+
+changed_files:
+  - src/kc/views/__init__.py
+  - src/kc/views/wiki_template.py
+  - src/kc/views/wiki_template_compiler.py
+  - tests/test_kc/test_wiki_template_compiler.py
+
+contracts_changed:
+  # WikiView / WikiTemplate 在 src/kc/views/ 下新建；与既有 src/kc/contracts/*
+  # （Evidence / PublicationState / StrengthPolicy / KnowledgeMode）解耦：
+  # 编译器是 duck-typed 输入（dict 或 dataclass），不依赖具体 contracts 层 dataclass。
+  # 因此 contracts_changed 列出涉及的 contracts 模块（仅引用，不修改）：
+  - src/kc/contracts/evidence.py        # Evidence 值对象（duck-typed 输入）
+  - src/kc/contracts/status.py          # PublicationState（未直接使用，预留）
+  - src/kc/contracts/strength_policy.py # StrengthPolicy（未直接使用，预留）
+
+tests_run:
+  - "PYTHONPATH=. pytest tests/test_kc/test_wiki_template_compiler.py --import-mode=importlib -v"
+  - "PYTHONPATH=. pytest tests/test_kc --import-mode=importlib -k \"not dryrun and not estimator_json\""
+
+evaluation_dataset_version:
+  # A-7 是渲染层；评估数据集绑定到 retrieval / Agent Task 阶段。
+  # 本 commit 仅编译层（compile path），未引入新评估；引用既有 C-3.2 29-case。
+  "2026-08-26-29case"
+
+metrics:
+  wiki_template_compiler_tests: "7 passed (6 main + 1 bonus)"
+  baseline_kc_tests_excluding_pre_existing_timeouts: "45 passed, 0 regressions"
+  rendered_hash_determinism: "true (same inputs -> same sha256 hex)"
+  spec_a7_gate_no_silent_merge: "verified (each Conflict surfaces own perspective/actual/conditional rows)"
+  spec_a7_gate_evidence_entry_per_fact: "verified (KU without evidence flagged missing-evidence, not dropped)"
+  wiki_view_field_set: "6 spec §12.4 fields: id, topic_scope, publication_version, knowledge_unit_ids, rendered_hash, generated_at"
+
+hard_gate_failures: []
+
+migration_required: false
+
+rollback_procedure:
+  # 回滚：删除 src/kc/views/ 整个目录 + 删除 tests/test_kc/test_wiki_template_compiler.py
+  # 编译器是纯渲染层，无持久化副作用（WikiView 是 frozen dataclass，不落盘）。
+  "rm -rf src/kc/views/ && rm tests/test_kc/test_wiki_template_compiler.py"
+
+known_limitations:
+  - "WikiView 渲染层尚未接入 Core 持久化路径（B-3.5 'delete Wiki then rebuild from Core' 是预留契约，编译器已暴露 publication_version / knowledge_unit_ids / rendered_hash 三个 B-3.5 所需字段，但实际持久化集成未在本 commit 完成）"
+  - "sections_content 字段在 WikiView dataclass 上是 default_factory=dict 且 compare=False/hash=False —— 渲染内容通过 rendered_hash 参与等价性比较，原始 sections_content 不进 hash，便于结构化测试"
+  - "编译器对输入是 duck-typed（dict 或 dataclass），不强制 KnowledgeObject / Conflict 是 dataclass；后续 C-1 / C-4 dataclass 演化时编译器不需要改动"
+
+# === 关键字段：spec §16.2 EX-3 硬规则 ===
+next_phase_ready: true
