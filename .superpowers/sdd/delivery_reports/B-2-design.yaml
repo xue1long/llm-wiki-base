@@ -1,0 +1,50 @@
+# Knowledge Compiler v2.1 路线 B-2 design phase 交付报告
+# 任务：B-2 11 Gate 依赖图 + 接口设计（纯规划任务，0 改代码）
+# 上游路线：docs/superpowers/plans/2026-08-26-kc-spec-roadmap.md §B-2
+
+phase: "B-2 11 Gate 依赖图 design doc (B-2 design phase, 规划任务)"
+
+changed_files:  # 本次 commit 新增的所有文件
+  - docs/architecture/B-2_11_Gate_design.md
+
+contracts_changed:  # 本次 commit 涉及的 Contract（数据契约层）— 纯规划任务无 Contract 改动
+  []
+
+tests_run:  # 本次 commit 运行的测试命令 — 纯文档任务无测试运行
+  []
+
+evaluation_dataset_version:  # 本次 commit 关联的评估数据集版本 — design phase 不关联
+  "2026-08-26-29case"
+
+metrics:  # 本次 commit 产出的关键指标（design phase 文档指标）
+  design_doc_lines: 817
+  design_doc_bytes: 39481
+  gates_documented: 11  # Schema / Provenance / Evidence / Mode / Identity / Granularity / Context / Temporal / Conflict / Relation / Retrieval
+  hard_gates_documented: 10  # spec §11.4 全部 10 类
+  closure_conditions_documented: 10  # spec §11.3 8 条件 + 路线实施细分到 10 条
+  implementation_commits_planned: 8  # B-2.1 ~ B-2.8
+  mermaid_dependency_graph: 1
+  estimated_total_effort_days: "15-22 (单人)"
+  v2_2_major_addition_1: "B-2.5 identity_key 总验收（13 行字段统一校验）"
+  v2_2_major_addition_2: "B-2.6 Knowledge Health Report"
+  existing_code_reuse: "A-1/A-2/A-3/A-4/B-1/C-1/C-2/C-4/C-4.5 全部就绪"
+  test_matrix_total: 82  # 11 Gate 错误注入 + 8 闭包 + 10 硬门槛 + 父/子 + unknown + happy + 审计 + 13 identity_key + 3 health_report
+
+hard_gate_failures:  # spec §11.4 硬门槛，列出失败项（design phase 无代码改动，无可测硬门槛）
+  []
+
+migration_required: false  # 本次 commit 不需要数据迁移（纯规划）
+
+rollback_procedure:  # 回滚步骤 — design doc 独立，无副作用
+  "git revert <commit-hash> 即可，纯文档规划任务无运行时影响"
+
+known_limitations:  # 已知限制（公开透明）
+  - "Relation Gate 是唯一前置依赖未完成的 Gate，需在 B-2.5 任务内补 Relation ADR 模板 + 9 类受控集合常量"
+  - "Source Trust Profile 基础设施未完全到位（B-2.7 实施时若发现缺失则标记为 warning）"
+  - "valid_from/valid_to WikiPage 字段依赖 A-2 任务完成（A 段最后一项）；B-2.4 等待 A-2"
+  - "Hybrid search 集成（C-2.5）延后到 B-2.8 任务"
+  - "B-2 实施不实际编码，design phase 仅产出依赖图 + 接口设计 + 实施拆分；实际代码改动待用户决策后另起任务"
+
+# === 关键字段：spec §16.2 EX-3 硬规则 ===
+
+next_phase_ready: true  # ✅ 设计文档就绪，等待用户决策是否进入 B-2 实施
