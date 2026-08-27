@@ -1,106 +1,442 @@
-# Source Trust Profile 评估 - 5 case 覆盖 5 级 authority_level
-# spec §5.1 Source Trust Profile
-
 - case_id: ST-001
-  query: "How to validate Source Trust Profile for primary authority?"
+  query: How to validate Source Trust Profile for primary authority?
   source_type: url
-  language: "en"
-  context: {domain: knowledge_management, platform: web}
+  language: en
+  context:
+    domain: knowledge_management
+    platform: web
   query_time: 1734567890000
   object_truth:
     type: source_trust_profile
-    id: "stp_primary_001"
-  identity_key: "id-v1:sha256hex_stp_primary_001"
+    id: stp_primary_001
+  identity_key: id-v1:sha256hex_stp_primary_001
   resolution_action: create
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_authority_validation"
-      score: 0.98
-  evidence_refs: ["ev_authority_doc_001"]
+  - knowledge_unit_id: ku_authority_validation
+    score: 0.98
+  evidence_refs:
+  - ev_authority_doc_001
   task_result: success
   tag: full
-  coverage_dimension: "SourceTrust.primary"
+  coverage_dimension: SourceTrust.primary
   confidence: high
-
 - case_id: ST-002
-  query: "Official government source verification"
+  query: Official government source verification
   source_type: api
-  language: "en"
-  context: {domain: government_data, platform: api}
+  language: en
+  context:
+    domain: government_data
+    platform: api
   query_time: 1734567890000
   object_truth:
     type: source_trust_profile
-    id: "stp_official_001"
-  identity_key: "id-v1:sha256hex_stp_official_001"
+    id: stp_official_001
+  identity_key: id-v1:sha256hex_stp_official_001
   resolution_action: create
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_official_validation"
-      score: 0.95
-  evidence_refs: ["ev_official_doc_002"]
+  - knowledge_unit_id: ku_official_validation
+    score: 0.95
+  evidence_refs:
+  - ev_official_doc_002
   task_result: success
   tag: full
-  coverage_dimension: "SourceTrust.official"
+  coverage_dimension: SourceTrust.official
   confidence: high
-
 - case_id: ST-003
-  query: "Expert peer-reviewed source classification"
+  query: Expert peer-reviewed source classification
   source_type: repository
-  language: "en"
-  context: {domain: academic_research, platform: github}
+  language: en
+  context:
+    domain: academic_research
+    platform: github
   query_time: 1734567890000
   object_truth:
     type: source_trust_profile
-    id: "stp_expert_001"
-  identity_key: "id-v1:sha256hex_stp_expert_001"
+    id: stp_expert_001
+  identity_key: id-v1:sha256hex_stp_expert_001
   resolution_action: create
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_expert_validation"
-      score: 0.92
-  evidence_refs: ["ev_peer_review_003"]
+  - knowledge_unit_id: ku_expert_validation
+    score: 0.92
+  evidence_refs:
+  - ev_peer_review_003
   task_result: success
   tag: partial
-  coverage_dimension: "SourceTrust.expert"
+  coverage_dimension: SourceTrust.expert
   confidence: medium
-  notes: "evidence_refs 待人工核查更多独立 peer review"
-
+  notes: evidence_refs 待人工核查更多独立 peer review
 - case_id: ST-004
-  query: "Secondary source trust downgrade"
+  query: Secondary source trust downgrade
   source_type: web_snapshot
-  language: "zh"
-  context: {domain: news_media, platform: web}
+  language: zh
+  context:
+    domain: news_media
+    platform: web
   query_time: 1734567890000
   object_truth:
     type: source_trust_profile
-    id: "stp_secondary_001"
-  identity_key: "id-v1:sha256hex_stp_secondary_001"
+    id: stp_secondary_001
+  identity_key: id-v1:sha256hex_stp_secondary_001
   resolution_action: quarantine
   integrity_status: quarantined
   expected_top_k: []
   evidence_refs: []
   task_result: failure
   tag: partial
-  coverage_dimension: "SourceTrust.secondary"
+  coverage_dimension: SourceTrust.secondary
   confidence: medium
-  notes: "secondary source 自动 quarantine，等待人工核查"
-
+  notes: secondary source 自动 quarantine，等待人工核查
 - case_id: ST-005
-  query: "Unknown source trust evaluation"
+  query: Unknown source trust evaluation
   source_type: manual
-  language: "en"
-  context: {domain: unknown, platform: manual}
+  language: en
+  context:
+    domain: unknown
+    platform: manual
   query_time: 1734567890000
   object_truth:
     type: source_trust_profile
-    id: "stp_unknown_001"
-  identity_key: "id-v1:sha256hex_stp_unknown_001"
+    id: stp_unknown_001
+  identity_key: id-v1:sha256hex_stp_unknown_001
   resolution_action: quarantine
   integrity_status: candidate
   expected_top_k: []
   evidence_refs: []
   task_result: failure
   tag: synthetic
-  coverage_dimension: "SourceTrust.unknown"
+  coverage_dimension: SourceTrust.unknown
   confidence: low
-  notes: "synthetic case，待真实 unknown source 人工补齐"
+  notes: synthetic case，待真实 unknown source 人工补齐
+- case_id: ST-006
+  query: 'Source Trust primary evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_primary_0
+  identity_key: id-v1:sha256hex_ST-006
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-006
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: SourceTrust.primary
+  confidence: high
+- case_id: ST-007
+  query: 'Source Trust primary evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_primary_1
+  identity_key: id-v1:sha256hex_ST-007
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-007
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: SourceTrust.primary
+  confidence: high
+- case_id: ST-008
+  query: 'Source Trust primary evaluation #6'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_primary_2
+  identity_key: id-v1:sha256hex_ST-008
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-008
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: SourceTrust.primary
+  confidence: medium
+- case_id: ST-009
+  query: 'Source Trust official evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_official_0
+  identity_key: id-v1:sha256hex_ST-009
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-009
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: SourceTrust.official
+  confidence: high
+- case_id: ST-010
+  query: 'Source Trust official evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_official_1
+  identity_key: id-v1:sha256hex_ST-010
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-010
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: SourceTrust.official
+  confidence: high
+- case_id: ST-011
+  query: 'Source Trust official evaluation #6'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_official_2
+  identity_key: id-v1:sha256hex_ST-011
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-011
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: SourceTrust.official
+  confidence: medium
+- case_id: ST-012
+  query: 'Source Trust expert evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_expert_0
+  identity_key: id-v1:sha256hex_ST-012
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-012
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: SourceTrust.expert
+  confidence: high
+- case_id: ST-013
+  query: 'Source Trust expert evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_expert_1
+  identity_key: id-v1:sha256hex_ST-013
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-013
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: SourceTrust.expert
+  confidence: high
+- case_id: ST-014
+  query: 'Source Trust expert evaluation #6'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_expert_2
+  identity_key: id-v1:sha256hex_ST-014
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-014
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: SourceTrust.expert
+  confidence: medium
+- case_id: ST-015
+  query: 'Source Trust secondary evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_secondary_0
+  identity_key: id-v1:sha256hex_ST-015
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-015
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: SourceTrust.secondary
+  confidence: high
+- case_id: ST-016
+  query: 'Source Trust secondary evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_secondary_1
+  identity_key: id-v1:sha256hex_ST-016
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-016
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: SourceTrust.secondary
+  confidence: high
+- case_id: ST-017
+  query: 'Source Trust secondary evaluation #6'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_secondary_2
+  identity_key: id-v1:sha256hex_ST-017
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-017
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: SourceTrust.secondary
+  confidence: medium
+- case_id: ST-018
+  query: 'Source Trust unknown evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_unknown_0
+  identity_key: id-v1:sha256hex_ST-018
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-018
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: SourceTrust.unknown
+  confidence: high
+- case_id: ST-019
+  query: 'Source Trust unknown evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_unknown_1
+  identity_key: id-v1:sha256hex_ST-019
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-019
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: SourceTrust.unknown
+  confidence: high
+- case_id: ST-020
+  query: 'Source Trust unknown evaluation #6'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: stp_unknown_2
+  identity_key: id-v1:sha256hex_ST-020
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ST-020
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: SourceTrust.unknown
+  confidence: medium

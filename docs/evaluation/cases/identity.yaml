@@ -1,235 +1,752 @@
-# Identity Resolution 评估 - 9 case 覆盖 3 种 action（merge/supersede/keep_separate 各 3）
-# spec §9 Identity Resolution + §A3 Gate
-
-# --- merge: 3 case ---
-
 - case_id: ID-001
-  query: "merge 同名实体（高 confidence）"
+  query: merge 同名实体（高 confidence）
   source_type: file
-  language: "en"
-  context: {domain: knowledge_management, platform: internal}
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
   query_time: 1734567890000
   object_truth:
     type: identity_resolution
-    id: "id_merge_001"
-    candidate_a: {id: "ku_期待感", name: "期待感"}
-    candidate_b: {id: "ku_期待感_build", name: "期待感的构建"}
+    id: id_merge_001
+    candidate_a:
+      id: ku_期待感
+      name: 期待感
+    candidate_b:
+      id: ku_期待感_build
+      name: 期待感的构建
     similarity: 0.95
-  identity_key: "id-v1:sha256hex_identity_001"
+  identity_key: id-v1:sha256hex_identity_001
   resolution_action: merge
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_期待感_merged"
-      score: 0.90
-  evidence_refs: ["ev_title_match", "ev_content_jaccard"]
+  - knowledge_unit_id: ku_期待感_merged
+    score: 0.9
+  evidence_refs:
+  - ev_title_match
+  - ev_content_jaccard
   task_result: success
   tag: full
-  coverage_dimension: "Identity.merge"
+  coverage_dimension: Identity.merge
   confidence: high
-  notes: "high confidence 自动 merge（无 conflict），建立 approved approval"
-
+  notes: high confidence 自动 merge（无 conflict），建立 approved approval
 - case_id: ID-002
-  query: "merge 同名实体（中 confidence 走 review）"
+  query: merge 同名实体（中 confidence 走 review）
   source_type: url
-  language: "en"
-  context: {domain: knowledge_management, platform: web}
+  language: en
+  context:
+    domain: knowledge_management
+    platform: web
   query_time: 1734567890000
   object_truth:
     type: identity_resolution
-    id: "id_merge_002"
-    candidate_a: {id: "ku_mcp", name: "MCP"}
-    candidate_b: {id: "ku_model_context_protocol", name: "Model Context Protocol"}
+    id: id_merge_002
+    candidate_a:
+      id: ku_mcp
+      name: MCP
+    candidate_b:
+      id: ku_model_context_protocol
+      name: Model Context Protocol
     similarity: 0.85
-  identity_key: "id-v1:sha256hex_identity_002"
+  identity_key: id-v1:sha256hex_identity_002
   resolution_action: link
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_mcp_alias"
-      score: 0.80
-  evidence_refs: ["ev_alias_match"]
+  - knowledge_unit_id: ku_mcp_alias
+    score: 0.8
+  evidence_refs:
+  - ev_alias_match
   task_result: success
   tag: partial
-  coverage_dimension: "Identity.merge"
+  coverage_dimension: Identity.merge
   confidence: medium
-  notes: "medium confidence → 先 link，疑似但未确认合并（待人工 review）"
-
+  notes: medium confidence → 先 link，疑似但未确认合并（待人工 review）
 - case_id: ID-003
-  query: "merge 失败（context 冲突）"
+  query: merge 失败（context 冲突）
   source_type: file
-  language: "en"
-  context: {domain: mathematics, platform: internal}
+  language: en
+  context:
+    domain: mathematics
+    platform: internal
   query_time: 1734567890000
   object_truth:
     type: identity_resolution
-    id: "id_merge_003"
-    candidate_a: {id: "ku_vector_math", name: "Vector"}
-    candidate_b: {id: "ku_vector_disease", name: "Vector"}
-    similarity: 0.70
+    id: id_merge_003
+    candidate_a:
+      id: ku_vector_math
+      name: Vector
+    candidate_b:
+      id: ku_vector_disease
+      name: Vector
+    similarity: 0.7
     context_conflict: true
-  identity_key: "id-v1:sha256hex_identity_003"
+  identity_key: id-v1:sha256hex_identity_003
   resolution_action: keep_separate
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_vector_disambiguation"
-      score: 0.85
-  evidence_refs: ["ev_context_distinction"]
+  - knowledge_unit_id: ku_vector_disambiguation
+    score: 0.85
+  evidence_refs:
+  - ev_context_distinction
   task_result: success
   tag: synthetic
-  coverage_dimension: "Identity.merge"
+  coverage_dimension: Identity.merge
   confidence: low
-  notes: "同名不同 Context → 保持分离（Vector 数学 vs Vector 疾病载体）"
-
-# --- supersede: 3 case ---
-
+  notes: 同名不同 Context → 保持分离（Vector 数学 vs Vector 疾病载体）
 - case_id: ID-004
-  query: "supersede 新版本取代旧版本"
+  query: supersede 新版本取代旧版本
   source_type: file
-  language: "en"
-  context: {domain: software_engineering, platform: internal}
+  language: en
+  context:
+    domain: software_engineering
+    platform: internal
   query_time: 1734567890000
   object_truth:
     type: identity_resolution
-    id: "id_supersede_001"
-    candidate_a: {id: "ku_schema_v20", name: "WikiPage schema v2.0"}
-    candidate_b: {id: "ku_schema_v22", name: "WikiPage schema v2.2"}
-    validity_a: {valid_from: 1633008000000, valid_to: 1704067200000}
-    validity_b: {valid_from: 1704067200000, valid_to: null}
-  identity_key: "id-v1:sha256hex_identity_004"
+    id: id_supersede_001
+    candidate_a:
+      id: ku_schema_v20
+      name: WikiPage schema v2.0
+    candidate_b:
+      id: ku_schema_v22
+      name: WikiPage schema v2.2
+    validity_a:
+      valid_from: 1633008000000
+      valid_to: 1704067200000
+    validity_b:
+      valid_from: 1704067200000
+      valid_to: null
+  identity_key: id-v1:sha256hex_identity_004
   resolution_action: supersede
   integrity_status: deprecated
   expected_top_k:
-    - knowledge_unit_id: "ku_schema_v22"
-      score: 0.95
-  evidence_refs: ["ev_schema_upgrade_log"]
+  - knowledge_unit_id: ku_schema_v22
+    score: 0.95
+  evidence_refs:
+  - ev_schema_upgrade_log
   task_result: success
   tag: full
-  coverage_dimension: "Identity.supersede"
+  coverage_dimension: Identity.supersede
   confidence: high
-  notes: "v2.0 → v2.2 supersede，建立双向 supersedes/superseded_by"
-
+  notes: v2.0 → v2.2 supersede，建立双向 supersedes/superseded_by
 - case_id: ID-005
-  query: "supersede 同一知识新证据取代"
+  query: supersede 同一知识新证据取代
   source_type: api
-  language: "en"
-  context: {domain: scientific_research, platform: pubmed}
+  language: en
+  context:
+    domain: scientific_research
+    platform: pubmed
   query_time: 1734567890000
   object_truth:
     type: identity_resolution
-    id: "id_supersede_002"
-    candidate_a: {id: "ku_vitamin_d_prev", name: "Vitamin D prevents X"}
-    candidate_b: {id: "ku_vitamin_d_new", name: "Vitamin D does not prevent X"}
-    validity_a: {valid_from: 1500000000000, valid_to: 1700000000000}
-    validity_b: {valid_from: 1700000000000, valid_to: null}
-  identity_key: "id-v1:sha256hex_identity_005"
+    id: id_supersede_002
+    candidate_a:
+      id: ku_vitamin_d_prev
+      name: Vitamin D prevents X
+    candidate_b:
+      id: ku_vitamin_d_new
+      name: Vitamin D does not prevent X
+    validity_a:
+      valid_from: 1500000000000
+      valid_to: 1700000000000
+    validity_b:
+      valid_from: 1700000000000
+      valid_to: null
+  identity_key: id-v1:sha256hex_identity_005
   resolution_action: supersede
   integrity_status: deprecated
   expected_top_k:
-    - knowledge_unit_id: "ku_vitamin_d_new"
-      score: 0.92
-  evidence_refs: ["ev_new_meta_analysis"]
+  - knowledge_unit_id: ku_vitamin_d_new
+    score: 0.92
+  evidence_refs:
+  - ev_new_meta_analysis
   task_result: success
   tag: full
-  coverage_dimension: "Identity.supersede"
+  coverage_dimension: Identity.supersede
   confidence: high
-
 - case_id: ID-006
-  query: "supersede 失败（未批准 approval）"
+  query: supersede 失败（未批准 approval）
   source_type: manual
-  language: "en"
-  context: {domain: governance, platform: internal}
+  language: en
+  context:
+    domain: governance
+    platform: internal
   query_time: 1734567890000
   object_truth:
     type: identity_resolution
-    id: "id_supersede_003"
-    candidate_a: {id: "ku_high_value_claim", name: "Critical claim"}
-    candidate_b: {id: "ku_revised_claim", name: "Revised claim"}
+    id: id_supersede_003
+    candidate_a:
+      id: ku_high_value_claim
+      name: Critical claim
+    candidate_b:
+      id: ku_revised_claim
+      name: Revised claim
     approval_id: null
-  identity_key: "id-v1:sha256hex_identity_006"
+  identity_key: id-v1:sha256hex_identity_006
   resolution_action: quarantine
   integrity_status: quarantined
   expected_top_k: []
   evidence_refs: []
   task_result: failure
   tag: full
-  coverage_dimension: "Identity.supersede"
+  coverage_dimension: Identity.supersede
   confidence: high
-  notes: "supersede 必须有 approved approval，否则 quarantine（spec §11.4 #4）"
-
-# --- keep_separate: 3 case ---
-
+  notes: 'supersede 必须有 approved approval，否则 quarantine（spec §11.4 #4）'
 - case_id: ID-007
-  query: "keep_separate 命名相似但 Context 完全不同"
+  query: keep_separate 命名相似但 Context 完全不同
   source_type: url
-  language: "en"
-  context: {domain: biology, platform: web}
+  language: en
+  context:
+    domain: biology
+    platform: web
   query_time: 1734567890000
   object_truth:
     type: identity_resolution
-    id: "id_separate_001"
-    candidate_a: {id: "ku_python_snake", name: "Python (snake)"}
-    candidate_b: {id: "ku_python_lang", name: "Python (language)"}
+    id: id_separate_001
+    candidate_a:
+      id: ku_python_snake
+      name: Python (snake)
+    candidate_b:
+      id: ku_python_lang
+      name: Python (language)
     similarity: 0.65
     context_conflict: true
-  identity_key: "id-v1:sha256hex_identity_007"
+  identity_key: id-v1:sha256hex_identity_007
   resolution_action: keep_separate
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_python_disambiguation"
-      score: 0.88
-  evidence_refs: ["ev_context_distinction"]
+  - knowledge_unit_id: ku_python_disambiguation
+    score: 0.88
+  evidence_refs:
+  - ev_context_distinction
   task_result: success
   tag: full
-  coverage_dimension: "Identity.keep_separate"
+  coverage_dimension: Identity.keep_separate
   confidence: high
-
 - case_id: ID-008
-  query: "keep_separate 跨语言同概念"
+  query: keep_separate 跨语言同概念
   source_type: file
-  language: "zh"
-  context: {domain: linguistics, platform: internal}
+  language: zh
+  context:
+    domain: linguistics
+    platform: internal
   query_time: 1734567890000
   object_truth:
     type: identity_resolution
-    id: "id_separate_002"
-    candidate_a: {id: "ku_人工智能", name: "人工智能"}
-    candidate_b: {id: "ku_artificial_intelligence", name: "Artificial Intelligence"}
+    id: id_separate_002
+    candidate_a:
+      id: ku_人工智能
+      name: 人工智能
+    candidate_b:
+      id: ku_artificial_intelligence
+      name: Artificial Intelligence
     similarity: 0.78
-    note: "Same concept, different languages → merge via alias"
-  identity_key: "id-v1:sha256hex_identity_008"
+    note: Same concept, different languages → merge via alias
+  identity_key: id-v1:sha256hex_identity_008
   resolution_action: merge
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_ai_unified"
-      score: 0.93
-  evidence_refs: ["ev_translation_alias"]
+  - knowledge_unit_id: ku_ai_unified
+    score: 0.93
+  evidence_refs:
+  - ev_translation_alias
   task_result: success
   tag: full
-  coverage_dimension: "Identity.keep_separate"
+  coverage_dimension: Identity.keep_separate
   confidence: high
-  notes: "跨语言同概念 → merge via alias（spec §9 9 步流水线 alias 步骤）"
-
+  notes: 跨语言同概念 → merge via alias（spec §9 9 步流水线 alias 步骤）
 - case_id: ID-009
-  query: "keep_separate 同名不同实体（最终判定）"
+  query: keep_separate 同名不同实体（最终判定）
   source_type: manual
-  language: "en"
-  context: {domain: disambiguation, platform: internal}
+  language: en
+  context:
+    domain: disambiguation
+    platform: internal
   query_time: 1734567890000
   object_truth:
     type: identity_resolution
-    id: "id_separate_003"
-    candidate_a: {id: "ku_mercury_planet", name: "Mercury (planet)"}
-    candidate_b: {id: "ku_mercury_element", name: "Mercury (element)"}
-    similarity: 0.60
+    id: id_separate_003
+    candidate_a:
+      id: ku_mercury_planet
+      name: Mercury (planet)
+    candidate_b:
+      id: ku_mercury_element
+      name: Mercury (element)
+    similarity: 0.6
     context_conflict: true
     final_decision: keep_separate
-  identity_key: "id-v1:sha256hex_identity_009"
+  identity_key: id-v1:sha256hex_identity_009
   resolution_action: keep_separate
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_mercury_disambiguation"
-      score: 0.90
-  evidence_refs: ["ev_astronomy_data", "ev_chemistry_data"]
+  - knowledge_unit_id: ku_mercury_disambiguation
+    score: 0.9
+  evidence_refs:
+  - ev_astronomy_data
+  - ev_chemistry_data
   task_result: success
   tag: full
-  coverage_dimension: "Identity.keep_separate"
+  coverage_dimension: Identity.keep_separate
+  confidence: high
+- case_id: ID-010
+  query: 'Identity merge evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_merge_3
+  identity_key: id-v1:sha256hex_ID-010
+  resolution_action: merge
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-010
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: Identity.merge
+  confidence: high
+- case_id: ID-011
+  query: 'Identity merge evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_merge_4
+  identity_key: id-v1:sha256hex_ID-011
+  resolution_action: merge
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-011
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: Identity.merge
+  confidence: medium
+- case_id: ID-012
+  query: 'Identity merge evaluation #6'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_merge_5
+  identity_key: id-v1:sha256hex_ID-012
+  resolution_action: merge
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-012
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: Identity.merge
+  confidence: high
+- case_id: ID-013
+  query: 'Identity merge evaluation #7'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_merge_6
+  identity_key: id-v1:sha256hex_ID-013
+  resolution_action: merge
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-013
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: Identity.merge
+  confidence: medium
+- case_id: ID-014
+  query: 'Identity merge evaluation #8'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_merge_7
+  identity_key: id-v1:sha256hex_ID-014
+  resolution_action: merge
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-014
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: Identity.merge
+  confidence: high
+- case_id: ID-015
+  query: 'Identity merge evaluation #9'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_merge_8
+  identity_key: id-v1:sha256hex_ID-015
+  resolution_action: merge
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-015
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: Identity.merge
+  confidence: medium
+- case_id: ID-016
+  query: 'Identity merge evaluation #10'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_merge_9
+  identity_key: id-v1:sha256hex_ID-016
+  resolution_action: merge
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-016
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: Identity.merge
+  confidence: high
+- case_id: ID-017
+  query: 'Identity supersede evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_supersede_3
+  identity_key: id-v1:sha256hex_ID-017
+  resolution_action: supersede
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-017
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: Identity.supersede
+  confidence: high
+- case_id: ID-018
+  query: 'Identity supersede evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_supersede_4
+  identity_key: id-v1:sha256hex_ID-018
+  resolution_action: supersede
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-018
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: Identity.supersede
+  confidence: medium
+- case_id: ID-019
+  query: 'Identity supersede evaluation #6'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_supersede_5
+  identity_key: id-v1:sha256hex_ID-019
+  resolution_action: supersede
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-019
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: Identity.supersede
+  confidence: high
+- case_id: ID-020
+  query: 'Identity supersede evaluation #7'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_supersede_6
+  identity_key: id-v1:sha256hex_ID-020
+  resolution_action: supersede
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-020
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: Identity.supersede
+  confidence: medium
+- case_id: ID-021
+  query: 'Identity supersede evaluation #8'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_supersede_7
+  identity_key: id-v1:sha256hex_ID-021
+  resolution_action: supersede
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-021
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: Identity.supersede
+  confidence: high
+- case_id: ID-022
+  query: 'Identity supersede evaluation #9'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_supersede_8
+  identity_key: id-v1:sha256hex_ID-022
+  resolution_action: supersede
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-022
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: Identity.supersede
+  confidence: medium
+- case_id: ID-023
+  query: 'Identity supersede evaluation #10'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_supersede_9
+  identity_key: id-v1:sha256hex_ID-023
+  resolution_action: supersede
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-023
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: Identity.supersede
+  confidence: high
+- case_id: ID-024
+  query: 'Identity keep_separate evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_keep_separate_3
+  identity_key: id-v1:sha256hex_ID-024
+  resolution_action: keep_separate
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-024
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: Identity.keep_separate
+  confidence: high
+- case_id: ID-025
+  query: 'Identity keep_separate evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_keep_separate_4
+  identity_key: id-v1:sha256hex_ID-025
+  resolution_action: keep_separate
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-025
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: Identity.keep_separate
+  confidence: medium
+- case_id: ID-026
+  query: 'Identity keep_separate evaluation #6'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_keep_separate_5
+  identity_key: id-v1:sha256hex_ID-026
+  resolution_action: keep_separate
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-026
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: Identity.keep_separate
+  confidence: high
+- case_id: ID-027
+  query: 'Identity keep_separate evaluation #7'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_keep_separate_6
+  identity_key: id-v1:sha256hex_ID-027
+  resolution_action: keep_separate
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-027
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: Identity.keep_separate
+  confidence: medium
+- case_id: ID-028
+  query: 'Identity keep_separate evaluation #8'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_keep_separate_7
+  identity_key: id-v1:sha256hex_ID-028
+  resolution_action: keep_separate
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-028
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: Identity.keep_separate
+  confidence: high
+- case_id: ID-029
+  query: 'Identity keep_separate evaluation #9'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_keep_separate_8
+  identity_key: id-v1:sha256hex_ID-029
+  resolution_action: keep_separate
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-029
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: partial
+  coverage_dimension: Identity.keep_separate
+  confidence: medium
+- case_id: ID-030
+  query: 'Identity keep_separate evaluation #10'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: identity_resolution
+    id: id_keep_separate_9
+  identity_key: id-v1:sha256hex_ID-030
+  resolution_action: keep_separate
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_ID-030
+    score: 0.9
+  evidence_refs: []
+  task_result: success
+  tag: full
+  coverage_dimension: Identity.keep_separate
   confidence: high

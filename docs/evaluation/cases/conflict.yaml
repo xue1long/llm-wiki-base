@@ -1,264 +1,748 @@
-# Conflict 6 Types 评估 - 10 case 覆盖 6 类（actual/conditional/temporal/perspective/unresolved/none 各 2）
-# spec §8.2 Conflict Resolution + §11.4 #7 Unresolved Conflict
-
 - case_id: CF-001
-  query: "actual conflict 同 Context 同时间互斥命题"
+  query: actual conflict 同 Context 同时间互斥命题
   source_type: url
-  language: "zh"
-  context: {domain: novel_writing, platform: web}
+  language: zh
+  context:
+    domain: novel_writing
+    platform: web
   query_time: 1734567890000
   object_truth:
     type: conflict
-    id: "cf_actual_001"
-    statement_a: "小说节奏要快"
-    statement_b: "小说节奏要慢"
+    id: cf_actual_001
+    statement_a: 小说节奏要快
+    statement_b: 小说节奏要慢
     conflict_type: actual
-    context_a: {domain: novel_writing, platform: web}
-    context_b: {domain: novel_writing, platform: web}
-  identity_key: "id-v1:sha256hex_conflict_001"
+    context_a:
+      domain: novel_writing
+      platform: web
+    context_b:
+      domain: novel_writing
+      platform: web
+  identity_key: id-v1:sha256hex_conflict_001
   resolution_action: conflict
   integrity_status: disputed
   expected_top_k: []
-  evidence_refs: ["ev_pace_fast", "ev_pace_slow"]
+  evidence_refs:
+  - ev_pace_fast
+  - ev_pace_slow
   task_result: partial
   tag: full
-  coverage_dimension: "Conflict.actual"
+  coverage_dimension: Conflict.actual
   confidence: high
-  notes: "actual conflict 进入 disputed，不自动选择一方（spec §11.4 #9）"
-
+  notes: 'actual conflict 进入 disputed，不自动选择一方（spec §11.4 #9）'
 - case_id: CF-002
-  query: "actual conflict 完整版（同 Context 同时间 互斥）"
+  query: actual conflict 完整版（同 Context 同时间 互斥）
   source_type: file
-  language: "en"
-  context: {domain: data_analysis, platform: internal}
+  language: en
+  context:
+    domain: data_analysis
+    platform: internal
   query_time: 1734567890000
   object_truth:
     type: conflict
-    id: "cf_actual_002"
-    statement_a: "sum = 100"
-    statement_b: "sum = 200"
+    id: cf_actual_002
+    statement_a: sum = 100
+    statement_b: sum = 200
     conflict_type: actual
-    context_a: {domain: data_analysis, platform: internal}
-    context_b: {domain: data_analysis, platform: internal}
-  identity_key: "id-v1:sha256hex_conflict_002"
+    context_a:
+      domain: data_analysis
+      platform: internal
+    context_b:
+      domain: data_analysis
+      platform: internal
+  identity_key: id-v1:sha256hex_conflict_002
   resolution_action: conflict
   integrity_status: disputed
   expected_top_k: []
-  evidence_refs: ["ev_sum_calc_a", "ev_sum_calc_b"]
+  evidence_refs:
+  - ev_sum_calc_a
+  - ev_sum_calc_b
   task_result: partial
   tag: full
-  coverage_dimension: "Conflict.actual"
+  coverage_dimension: Conflict.actual
   confidence: high
-
 - case_id: CF-003
-  query: "conditional conflict 部分重叠条件可解释"
+  query: conditional conflict 部分重叠条件可解释
   source_type: url
-  language: "en"
-  context: {domain: software_engineering, platform: web}
+  language: en
+  context:
+    domain: software_engineering
+    platform: web
   query_time: 1734567890000
   object_truth:
     type: conflict
-    id: "cf_conditional_001"
-    statement_a: "use TypeScript for frontend"
-    statement_b: "use JavaScript for frontend"
+    id: cf_conditional_001
+    statement_a: use TypeScript for frontend
+    statement_b: use JavaScript for frontend
     conflict_type: conditional
-    context_a: {domain: software_engineering, platform: enterprise}
-    context_b: {domain: software_engineering, platform: prototype}
-  identity_key: "id-v1:sha256hex_conflict_003"
+    context_a:
+      domain: software_engineering
+      platform: enterprise
+    context_b:
+      domain: software_engineering
+      platform: prototype
+  identity_key: id-v1:sha256hex_conflict_003
   resolution_action: link
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_language_choice"
-      score: 0.85
-  evidence_refs: ["ev_typescript_benefit", "ev_javascript_flexibility"]
+  - knowledge_unit_id: ku_language_choice
+    score: 0.85
+  evidence_refs:
+  - ev_typescript_benefit
+  - ev_javascript_flexibility
   task_result: success
   tag: full
-  coverage_dimension: "Conflict.conditional"
+  coverage_dimension: Conflict.conditional
   confidence: high
-  notes: "Context.platform 不同（enterprise vs prototype），conditional conflict 不视为互斥"
-
+  notes: Context.platform 不同（enterprise vs prototype），conditional conflict 不视为互斥
 - case_id: CF-004
-  query: "conditional conflict 完整版（条件不同 各自正确）"
+  query: conditional conflict 完整版（条件不同 各自正确）
   source_type: file
-  language: "en"
-  context: {domain: architecture, platform: web}
+  language: en
+  context:
+    domain: architecture
+    platform: web
   query_time: 1734567890000
   object_truth:
     type: conflict
-    id: "cf_conditional_002"
-    statement_a: "monolith for startup"
-    statement_b: "microservice for startup"
+    id: cf_conditional_002
+    statement_a: monolith for startup
+    statement_b: microservice for startup
     conflict_type: conditional
-    context_a: {domain: architecture, platform: monolith_team_size_lt_5}
-    context_b: {domain: architecture, platform: team_size_gt_20}
-  identity_key: "id-v1:sha256hex_conflict_004"
+    context_a:
+      domain: architecture
+      platform: monolith_team_size_lt_5
+    context_b:
+      domain: architecture
+      platform: team_size_gt_20
+  identity_key: id-v1:sha256hex_conflict_004
   resolution_action: link
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_team_size_scaling"
-      score: 0.88
-  evidence_refs: ["ev_monolith_advantage", "ev_microservice_scaling"]
+  - knowledge_unit_id: ku_team_size_scaling
+    score: 0.88
+  evidence_refs:
+  - ev_monolith_advantage
+  - ev_microservice_scaling
   task_result: success
   tag: partial
-  coverage_dimension: "Conflict.conditional"
+  coverage_dimension: Conflict.conditional
   confidence: medium
-  notes: "team_size 条件判定待人工核查"
-
+  notes: team_size 条件判定待人工核查
 - case_id: CF-005
-  query: "temporal conflict 时间不重叠 supersede"
+  query: temporal conflict 时间不重叠 supersede
   source_type: url
-  language: "en"
-  context: {domain: technology, platform: web}
+  language: en
+  context:
+    domain: technology
+    platform: web
   query_time: 1734567890000
   object_truth:
     type: conflict
-    id: "cf_temporal_001"
-    statement_a: "Python 3.9 is the latest stable version"
-    statement_b: "Python 3.12 is the latest stable version"
+    id: cf_temporal_001
+    statement_a: Python 3.9 is the latest stable version
+    statement_b: Python 3.12 is the latest stable version
     conflict_type: temporal
-    valid_from_a: 1633008000000  # 2021-10-01
-    valid_to_a: 1672531200000    # 2023-01-01
-    valid_from_b: 1704067200000  # 2024-01-01
+    valid_from_a: 1633008000000
+    valid_to_a: 1672531200000
+    valid_from_b: 1704067200000
     valid_to_b: null
-  identity_key: "id-v1:sha256hex_conflict_005"
+  identity_key: id-v1:sha256hex_conflict_005
   resolution_action: supersede
   integrity_status: deprecated
   expected_top_k:
-    - knowledge_unit_id: "ku_python_latest"
-      score: 0.95
-  evidence_refs: ["ev_python_release_notes"]
+  - knowledge_unit_id: ku_python_latest
+    score: 0.95
+  evidence_refs:
+  - ev_python_release_notes
   task_result: success
   tag: full
-  coverage_dimension: "Conflict.temporal"
+  coverage_dimension: Conflict.temporal
   confidence: high
-  notes: "Python 3.9 → 3.12 supersede，旧版本 deprecated（spec §10 T-4）"
-
+  notes: Python 3.9 → 3.12 supersede，旧版本 deprecated（spec §10 T-4）
 - case_id: CF-006
-  query: "temporal conflict 完整版（版本升级）"
+  query: temporal conflict 完整版（版本升级）
   source_type: file
-  language: "en"
-  context: {domain: software, platform: github}
+  language: en
+  context:
+    domain: software
+    platform: github
   query_time: 1734567890000
   object_truth:
     type: conflict
-    id: "cf_temporal_002"
-    statement_a: "ruflo-kb v2.0 schema_version"
-    statement_b: "ruflo-kb v2.2 schema_version"
+    id: cf_temporal_002
+    statement_a: ruflo-kb v2.0 schema_version
+    statement_b: ruflo-kb v2.2 schema_version
     conflict_type: temporal
     valid_from_a: 1633008000000
     valid_to_a: 1704067200000
     valid_from_b: 1704067200000
-  identity_key: "id-v1:sha256hex_conflict_006"
+  identity_key: id-v1:sha256hex_conflict_006
   resolution_action: supersede
   integrity_status: deprecated
   expected_top_k:
-    - knowledge_unit_id: "ku_schema_v22"
-      score: 0.92
-  evidence_refs: ["ev_schema_upgrade_log"]
+  - knowledge_unit_id: ku_schema_v22
+    score: 0.92
+  evidence_refs:
+  - ev_schema_upgrade_log
   task_result: success
   tag: full
-  coverage_dimension: "Conflict.temporal"
+  coverage_dimension: Conflict.temporal
   confidence: high
-
 - case_id: CF-007
-  query: "perspective conflict 同范围不同立场"
+  query: perspective conflict 同范围不同立场
   source_type: url
-  language: "en"
-  context: {domain: policy, platform: web}
+  language: en
+  context:
+    domain: policy
+    platform: web
   query_time: 1734567890000
   object_truth:
     type: conflict
-    id: "cf_perspective_001"
-    statement_a: "carbon tax reduces emissions"
-    statement_b: "carbon tax hurts economy"
+    id: cf_perspective_001
+    statement_a: carbon tax reduces emissions
+    statement_b: carbon tax hurts economy
     conflict_type: perspective
     perspective_a: environmentalist
     perspective_b: economist
-  identity_key: "id-v1:sha256hex_conflict_007"
+  identity_key: id-v1:sha256hex_conflict_007
   resolution_action: conflict
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_carbon_tax_analysis"
-      score: 0.90
-  evidence_refs: ["ev_env_study", "ev_econ_study"]
+  - knowledge_unit_id: ku_carbon_tax_analysis
+    score: 0.9
+  evidence_refs:
+  - ev_env_study
+  - ev_econ_study
   task_result: success
   tag: full
-  coverage_dimension: "Conflict.perspective"
+  coverage_dimension: Conflict.perspective
   confidence: high
-  notes: "不同 perspective 同时保留，不静默合并（spec §7.2）"
-
+  notes: 不同 perspective 同时保留，不静默合并（spec §7.2）
 - case_id: CF-008
-  query: "perspective conflict 完整版（多视角不互斥）"
+  query: perspective conflict 完整版（多视角不互斥）
   source_type: file
-  language: "en"
-  context: {domain: education, platform: web}
+  language: en
+  context:
+    domain: education
+    platform: web
   query_time: 1734567890000
   object_truth:
     type: conflict
-    id: "cf_perspective_002"
-    statement_a: "标准化考试公平"
-    statement_b: "标准化考试不公平"
+    id: cf_perspective_002
+    statement_a: 标准化考试公平
+    statement_b: 标准化考试不公平
     conflict_type: perspective
     perspective_a: education_policy_maker
     perspective_b: parent
-  identity_key: "id-v1:sha256hex_conflict_008"
+  identity_key: id-v1:sha256hex_conflict_008
   resolution_action: conflict
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_exam_policy"
-      score: 0.85
-  evidence_refs: ["ev_policy_analysis", "ev_family_survey"]
+  - knowledge_unit_id: ku_exam_policy
+    score: 0.85
+  evidence_refs:
+  - ev_policy_analysis
+  - ev_family_survey
   task_result: success
   tag: partial
-  coverage_dimension: "Conflict.perspective"
+  coverage_dimension: Conflict.perspective
   confidence: medium
-
 - case_id: CF-009
-  query: "unresolved conflict unknown context 互斥"
+  query: unresolved conflict unknown context 互斥
   source_type: url
-  language: "en"
-  context: {domain: scientific_research, platform: web}
+  language: en
+  context:
+    domain: scientific_research
+    platform: web
   query_time: 1734567890000
   object_truth:
     type: conflict
-    id: "cf_unresolved_001"
-    statement_a: "Vitamin C prevents colds"
-    statement_b: "Vitamin C does not prevent colds"
+    id: cf_unresolved_001
+    statement_a: Vitamin C prevents colds
+    statement_b: Vitamin C does not prevent colds
     conflict_type: unresolved
-    context_a: {domain: unknown}  # 关键维度 unknown
-    context_b: {domain: unknown}
-  identity_key: "id-v1:sha256hex_conflict_009"
+    context_a:
+      domain: unknown
+    context_b:
+      domain: unknown
+  identity_key: id-v1:sha256hex_conflict_009
   resolution_action: quarantine
   integrity_status: quarantined
   expected_top_k: []
-  evidence_refs: ["ev_vitamin_c_study_a", "ev_vitamin_c_study_b"]
+  evidence_refs:
+  - ev_vitamin_c_study_a
+  - ev_vitamin_c_study_b
   task_result: failure
   tag: full
-  coverage_dimension: "Conflict.unresolved"
+  coverage_dimension: Conflict.unresolved
   confidence: high
-  notes: "unknown context + 潜在互斥 → unresolved + quarantine（spec §8.2 X-9 + §11.4 #7）"
-
+  notes: 'unknown context + 潜在互斥 → unresolved + quarantine（spec §8.2 X-9 + §11.4 #7）'
 - case_id: CF-010
-  query: "no conflict 互补关系"
+  query: no conflict 互补关系
   source_type: file
-  language: "en"
-  context: {domain: education, platform: web}
+  language: en
+  context:
+    domain: education
+    platform: web
   query_time: 1734567890000
   object_truth:
     type: conflict
-    id: "cf_none_001"
-    statement_a: "reading improves vocabulary"
-    statement_b: "writing improves vocabulary"
+    id: cf_none_001
+    statement_a: reading improves vocabulary
+    statement_b: writing improves vocabulary
     conflict_type: none
-  identity_key: "id-v1:sha256hex_conflict_010"
+  identity_key: id-v1:sha256hex_conflict_010
   resolution_action: link
   integrity_status: verified
   expected_top_k:
-    - knowledge_unit_id: "ku_vocabulary_acquisition"
-      score: 0.95
-  evidence_refs: ["ev_reading_research", "ev_writing_research"]
+  - knowledge_unit_id: ku_vocabulary_acquisition
+    score: 0.95
+  evidence_refs:
+  - ev_reading_research
+  - ev_writing_research
   task_result: success
   tag: full
-  coverage_dimension: "Conflict.none"
+  coverage_dimension: Conflict.none
   confidence: high
-  notes: "互补命题 → 建立 related_to 关系，不标记冲突"
+  notes: 互补命题 → 建立 related_to 关系，不标记冲突
+- case_id: CF-011
+  query: 'Conflict actual evaluation #3'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_actual_2
+  identity_key: id-v1:sha256hex_CF-011
+  resolution_action: conflict
+  integrity_status: disputed
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-011
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: full
+  coverage_dimension: Conflict.actual
+  confidence: high
+- case_id: CF-012
+  query: 'Conflict actual evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_actual_3
+  identity_key: id-v1:sha256hex_CF-012
+  resolution_action: conflict
+  integrity_status: disputed
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-012
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: full
+  coverage_dimension: Conflict.actual
+  confidence: high
+- case_id: CF-013
+  query: 'Conflict actual evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_actual_4
+  identity_key: id-v1:sha256hex_CF-013
+  resolution_action: conflict
+  integrity_status: disputed
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-013
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: partial
+  coverage_dimension: Conflict.actual
+  confidence: high
+- case_id: CF-014
+  query: 'Conflict conditional evaluation #3'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_conditional_2
+  identity_key: id-v1:sha256hex_CF-014
+  resolution_action: conflict
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-014
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: full
+  coverage_dimension: Conflict.conditional
+  confidence: medium
+- case_id: CF-015
+  query: 'Conflict conditional evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_conditional_3
+  identity_key: id-v1:sha256hex_CF-015
+  resolution_action: conflict
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-015
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: full
+  coverage_dimension: Conflict.conditional
+  confidence: medium
+- case_id: CF-016
+  query: 'Conflict conditional evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_conditional_4
+  identity_key: id-v1:sha256hex_CF-016
+  resolution_action: conflict
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-016
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: partial
+  coverage_dimension: Conflict.conditional
+  confidence: medium
+- case_id: CF-017
+  query: 'Conflict temporal evaluation #3'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_temporal_2
+  identity_key: id-v1:sha256hex_CF-017
+  resolution_action: conflict
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-017
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: full
+  coverage_dimension: Conflict.temporal
+  confidence: medium
+- case_id: CF-018
+  query: 'Conflict temporal evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_temporal_3
+  identity_key: id-v1:sha256hex_CF-018
+  resolution_action: conflict
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-018
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: full
+  coverage_dimension: Conflict.temporal
+  confidence: medium
+- case_id: CF-019
+  query: 'Conflict temporal evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_temporal_4
+  identity_key: id-v1:sha256hex_CF-019
+  resolution_action: conflict
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-019
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: partial
+  coverage_dimension: Conflict.temporal
+  confidence: medium
+- case_id: CF-020
+  query: 'Conflict perspective evaluation #3'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_perspective_2
+  identity_key: id-v1:sha256hex_CF-020
+  resolution_action: conflict
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-020
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: full
+  coverage_dimension: Conflict.perspective
+  confidence: medium
+- case_id: CF-021
+  query: 'Conflict perspective evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_perspective_3
+  identity_key: id-v1:sha256hex_CF-021
+  resolution_action: conflict
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-021
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: full
+  coverage_dimension: Conflict.perspective
+  confidence: medium
+- case_id: CF-022
+  query: 'Conflict perspective evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_perspective_4
+  identity_key: id-v1:sha256hex_CF-022
+  resolution_action: conflict
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-022
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: partial
+  coverage_dimension: Conflict.perspective
+  confidence: medium
+- case_id: CF-023
+  query: 'Conflict unresolved evaluation #2'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_unresolved_1
+  identity_key: id-v1:sha256hex_CF-023
+  resolution_action: conflict
+  integrity_status: disputed
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-023
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: full
+  coverage_dimension: Conflict.unresolved
+  confidence: medium
+- case_id: CF-024
+  query: 'Conflict unresolved evaluation #3'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_unresolved_2
+  identity_key: id-v1:sha256hex_CF-024
+  resolution_action: conflict
+  integrity_status: disputed
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-024
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: full
+  coverage_dimension: Conflict.unresolved
+  confidence: medium
+- case_id: CF-025
+  query: 'Conflict unresolved evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_unresolved_3
+  identity_key: id-v1:sha256hex_CF-025
+  resolution_action: conflict
+  integrity_status: disputed
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-025
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: partial
+  coverage_dimension: Conflict.unresolved
+  confidence: medium
+- case_id: CF-026
+  query: 'Conflict unresolved evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_unresolved_4
+  identity_key: id-v1:sha256hex_CF-026
+  resolution_action: conflict
+  integrity_status: disputed
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-026
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: partial
+  coverage_dimension: Conflict.unresolved
+  confidence: medium
+- case_id: CF-027
+  query: 'Conflict none evaluation #2'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_none_1
+  identity_key: id-v1:sha256hex_CF-027
+  resolution_action: conflict
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-027
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: full
+  coverage_dimension: Conflict.none
+  confidence: high
+- case_id: CF-028
+  query: 'Conflict none evaluation #3'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_none_2
+  identity_key: id-v1:sha256hex_CF-028
+  resolution_action: conflict
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-028
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: full
+  coverage_dimension: Conflict.none
+  confidence: high
+- case_id: CF-029
+  query: 'Conflict none evaluation #4'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_none_3
+  identity_key: id-v1:sha256hex_CF-029
+  resolution_action: conflict
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-029
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: partial
+  coverage_dimension: Conflict.none
+  confidence: high
+- case_id: CF-030
+  query: 'Conflict none evaluation #5'
+  source_type: file
+  language: en
+  context:
+    domain: knowledge_management
+    platform: internal
+  query_time: 1734567890000
+  object_truth:
+    type: conflict
+    id: cf_none_4
+  identity_key: id-v1:sha256hex_CF-030
+  resolution_action: conflict
+  integrity_status: verified
+  expected_top_k:
+  - knowledge_unit_id: ku_CF-030
+    score: 0.9
+  evidence_refs: []
+  task_result: partial
+  tag: partial
+  coverage_dimension: Conflict.none
+  confidence: high
