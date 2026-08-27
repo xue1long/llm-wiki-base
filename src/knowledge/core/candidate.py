@@ -10,9 +10,17 @@ Transition rules:
   VALIDATED -> PROMOTED  (CandidatePromoter creates KnowledgeObject)
   REJECTED -> PENDING    (re-review)
   PROMOTED is terminal
+
+C-4 / G5 (路线 v2.2 §C-4 + K-2 加固) 新增 2 个 back-compat 默认字段：
+
+* ``knowledge_mode`` — Observed/Synthesized/Unknown 标签（spec §7）
+* ``failure_reason`` — 截断/失败原因（K-2 加固 5 场景 fail-closed）
+
+既有字段全部不动；新增字段默认值保证 C-0 ~ C-3 既有调用方零回归。
 """
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Literal
 
 from src.knowledge.core.object import KnowledgeType
 
@@ -63,3 +71,7 @@ class KnowledgeCandidate:
     chunk_index: int | None = None
     chunk_total: int | None = None
     custom_type: str = ""
+    # C-4 / G5: Observed/Synthesized/Unknown mode tag (spec §7).
+    # Default "unknown" = fail-closed sentinel for K-2 truncation handling.
+    knowledge_mode: Literal["observed", "synthesized", "unknown"] = "unknown"
+    failure_reason: str | None = None
