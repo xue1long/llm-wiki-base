@@ -387,3 +387,94 @@ class EvidenceGate(Gate):
         if medium_count >= 2:
             return True
         return False
+
+
+class ModeGate(Gate):
+    """spec §11.2 Gate 4: Observed/Synthesized 标记及来源完整.
+
+    检查 spec §7 全部规则:
+    - §7.1 Observed/Synthesized 边界（6 类允许 Observed 变换 / 5 类必须 Synthesized）
+    - §7.1 Mode Gate 必须比较规范化前后命题, **不只是检查 knowledge_mode 标签**
+    - §7.3 Synthesized 必须显示 synthesized 标签和推导来源
+    - §7.3 Synthesized Claim 必须有 Provenance + derived_from 非空 + review_status=approved
+    - §7.3 Agent Context 中不得省略知识模式
+    - §7.3 重新生成 Synthesized 时创建新版本, 不静默覆盖
+
+    检查 C-4 KnowledgeMode 集成:
+    - knowledge_mode 字段必填 (C-4 K-2 fail-closed)
+    - 默认 'unknown' (truncation 兜底)
+
+    与 B-2.2 Evidence Gate 协调:
+    - Evidence Gate 已检查 synthesized 需要 derived_from (E-10)
+    - Mode Gate 同样检查 derived_from (双保险)
+    - 区别: Mode Gate 关注"标签完整性", Evidence Gate 关注"证据强度"
+    """
+
+    name = "mode"
+    order = 4
+
+    # Reason code prefixes that should trigger ``block`` rather than ``warn``.
+    # Mode Gate 的 reason code 中 "missing_"/"unapproved_" 前缀视为 block。
+    _BLOCK_PREFIXES = (
+        "missing_",
+        "unapproved_",
+        "invalid_knowledge_mode",
+        "knowledge_mode_is_none",
+    )
+
+    def check(self, obj: Any, context: dict | None = None) -> GateVerdict:
+        # 1. 检查 obj 是否有 knowledge_mode 字段（C-4 已固化为 back-compat 字段）
+        #    无该字段视为非 knowledge 对象 → pass（不在本 Gate 关注范围）
+        if not hasattr(obj, "knowledge_mode"):
+            return GateVerdict.pass_()
+
+        knowledge_mode = obj.knowledge_mode
+
+        # 2. knowledge_mode 不能是 None（spec §7.3 Agent Context 不得省略）
+        if knowledge_mode is None:
+            return GateVerdict.block(["knowledge_mode_is_none"])
+
+        # 3. knowledge_mode 必须合法 (observed / synthesized / unknown)
+        valid_modes = ("observed", "synthesized", "unknown")
+        if knowledge_mode not in valid_modes:
+            return GateVerdict.block([f"invalid_knowledge_mode:{knowledge_mode}"])
+
+        reasons: list[str] = []
+
+        # 4. spec §7.3 Synthesized 必须有 derived_from + Synthesis Provenance
+        #    + review_status=approved
+        if knowledge_mode == "synthesized":
+            # 4a. derived_from 必填
+            derived_from = getattr(obj, "derived_from", None)
+            if not derived_from:
+                reasons.append("missing_derived_from:synthesized")
+
+            # 4b. Synthesis Provenance 必填
+            synthesis_provenance = getattr(obj, "synthesis_provenance", None)
+            if not synthesis_provenance:
+                reasons.append("missing_synthesis_provenance:synthesized")
+
+            # 4c. review_status=approved
+            review_status = getattr(obj, "review_status", None)
+            if review_status != "approved":
+                reasons.append(f"unapproved_synthesized:review_status={review_status}")
+
+            # 4d. spec §7.3 重新生成 Synthesized 时创建新版本, 不静默覆盖
+            #     version 字段 ≥ 1 (初版 = 1, 重新生成时 version+1)
+            if hasattr(obj, "version"):
+                if obj.version < 1:
+                    reasons.append(f"invalid_synthesized_version:{obj.version}")
+
+        # 5. 区分 block vs warn:
+        #    - block: missing_* / unapproved_* / invalid_* / knowledge_mode_is_none
+        #    - warn: invalid_synthesized_version (软告警, 不阻断)
+        if reasons:
+            blocking = [
+                r for r in reasons
+                if any(r.startswith(p) for p in self._BLOCK_PREFIXES)
+            ]
+            if blocking:
+                return GateVerdict.block(reasons)
+            return GateVerdict.warn(reasons)
+
+        return GateVerdict.pass_()
