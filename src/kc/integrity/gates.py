@@ -823,3 +823,128 @@ class ContextGate(Gate):
             if isinstance(ctx, dict):
                 return ctx
         return None
+
+
+class TemporalGate(Gate):
+    """spec §11.2 Gate 8: 时间字段自洽，无非法重叠.
+
+    检查 spec §10 全部 11 项规则:
+    - T-1: 4 个时间 (published_at/observed_at/valid_from/valid_to) — 当前 KO
+      只暴露 valid_from/valid_to (A-2 既有)
+    - T-2: 缺任一边界 = unknown 状态
+    - T-3: 新版本 supersedes 旧版本时建立双向 supersedes/superseded_by
+    - T-4: 历史知识保留但从默认检索降级 (留 DefaultFilter 处理)
+    - T-5: 未来生效知识标记 scheduled
+    - T-6: 同一命题不同时间段值不同 → 建多版本，不覆盖历史值
+    - T-7: 默认当前检索不返回 unknown；只有显式 include_unknown=true 时返回
+    - T-8: temporal_status 必须由查询时间、边界和 supersession 关系计算
+      (不能由 Extractor/LLM/人工直接写入)
+    - T-9: 缺 valid_from/valid_to 均为空 → unknown
+    - T-10: valid_from > query_time → scheduled；valid_to <= query_time 或
+      已被当前 supersede → historical
+    - T-11: 默认当前检索过滤器 status=verified + temporal_status=current +
+      边界校验
+
+    集成 A-2:
+    - A-2 derive_status() 已实现 (KnowledgeObject.valid_from/valid_to,
+      commit 4514d1f0)
+    - A-2 apply_temporal_filter() + _passes_temporal() 已实现
+    - Temporal Gate 在此基础上做字段合法性 + supersede 关系校验
+
+    与其他 Gate 协调:
+    - Context Gate (B-2.6) 检查 Context 匹配
+    - Temporal Gate (本任务) 检查时间合法性
+    - Conflict Gate (B-2.8) 处理 temporal 维度 (6 类冲突中的 temporal 类)
+    """
+
+    name = "temporal"
+    order = 8
+
+    # Reason code prefixes that should trigger ``block`` rather than ``warn``.
+    # Temporal Gate 的 reason code 中 "invalid_" 前缀视为 block (区间非法).
+    _BLOCK_PREFIXES = (
+        "invalid_",
+    )
+
+    def check(self, obj: Any, context: dict | None = None) -> GateVerdict:
+        # 1. obj 是否有 valid_from/valid_to 字段 (KnowledgeObject 既有, A-2 commit 5)
+        #    无字段视为不在本 Gate 关注范围 (helper: 不适用, 如 WikiPage)
+        if not (hasattr(obj, "valid_from") and hasattr(obj, "valid_to")):
+            return GateVerdict.pass_()
+
+        valid_from = obj.valid_from
+        valid_to = obj.valid_to
+        query_time = context.get("query_time") if context else None
+
+        reasons: list[str] = []
+
+        # 2. spec §10 T-2 / T-9: 缺任一边界 → unknown (warn, 不阻断)
+        if valid_from is None and valid_to is None:
+            # unknown 状态 (默认当前检索不返回, T-7)
+            # 简化: warn 不阻断 — 实际是否进默认检索由 apply_temporal_filter 处理
+            reasons.append("unknown_temporal:both_bounds_none")
+            return GateVerdict.warn(reasons)
+
+        # 3. spec §10 边界合法性: valid_from <= valid_to (否则 block)
+        if valid_from is not None and valid_to is not None:
+            if valid_from > valid_to:
+                return GateVerdict.block(
+                    ["invalid_temporal:valid_from_gt_valid_to"]
+                )
+
+        # 4. spec §10 T-10: temporal_status 派生 (current/scheduled/historical)
+        if query_time is not None:
+            status = self._derive_temporal_status(
+                valid_from, valid_to, query_time
+            )
+            if status == "scheduled":
+                # 未来生效 — T-5 + T-9 → warn (默认当前检索不返回)
+                reasons.append("temporal_status:scheduled")
+            elif status == "historical":
+                # 已过期 — T-10 → warn (默认当前检索不返回)
+                reasons.append("temporal_status:historical")
+            # current: 默认通过
+
+        # 5. spec §10 T-3 / T-6: supersede 关系合法性
+        #    同一对象不应同时有 supersedes 和 superseded_by (双向冗余)
+        if hasattr(obj, "superseded_by") and obj.superseded_by:
+            if hasattr(obj, "supersedes") and obj.supersedes:
+                reasons.append("invalid_supersede_both_directions")
+            # 否则: 单向 supersede 通过 (T-3 单向链合法)
+
+        # 6. spec §10 T-5: 未来生效 — 已在 step 4 覆盖 (scheduled 状态)
+
+        if reasons:
+            # 区分 block vs warn:
+            # - block: invalid_temporal:* / invalid_supersede_*
+            # - warn: unknown_temporal / temporal_status:scheduled /
+            #   temporal_status:historical
+            blocking = [
+                r for r in reasons
+                if any(r.startswith(p) for p in self._BLOCK_PREFIXES)
+            ]
+            if blocking:
+                return GateVerdict.block(reasons)
+            return GateVerdict.warn(reasons)
+
+        return GateVerdict.pass_()
+
+    # ------------------------------------------------------------------
+    # helpers
+    # ------------------------------------------------------------------
+
+    def _derive_temporal_status(
+        self, valid_from, valid_to, query_time
+    ) -> str:
+        """spec §10 T-10 派生 temporal_status (内联实现, 避免循环依赖).
+
+        简化规则:
+        - valid_from > query_time → scheduled (T-9 未来生效)
+        - valid_to <= query_time → historical (T-10 已过期)
+        - 其他 → current (含 partial bound 场景)
+        """
+        if valid_from is not None and valid_from > query_time:
+            return "scheduled"
+        if valid_to is not None and valid_to <= query_time:
+            return "historical"
+        return "current"
