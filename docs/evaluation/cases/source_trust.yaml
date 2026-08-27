@@ -1,0 +1,106 @@
+# Source Trust Profile 评估 - 5 case 覆盖 5 级 authority_level
+# spec §5.1 Source Trust Profile
+
+- case_id: ST-001
+  query: "How to validate Source Trust Profile for primary authority?"
+  source_type: url
+  language: "en"
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: "stp_primary_001"
+  identity_key: "id-v1:sha256hex_stp_primary_001"
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+    - knowledge_unit_id: "ku_authority_validation"
+      score: 0.98
+  evidence_refs: ["ev_authority_doc_001"]
+  task_result: success
+  tag: full
+  coverage_dimension: "SourceTrust.primary"
+  confidence: high
+
+- case_id: ST-002
+  query: "Official government source verification"
+  source_type: api
+  language: "en"
+  context: {domain: government_data, platform: api}
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: "stp_official_001"
+  identity_key: "id-v1:sha256hex_stp_official_001"
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+    - knowledge_unit_id: "ku_official_validation"
+      score: 0.95
+  evidence_refs: ["ev_official_doc_002"]
+  task_result: success
+  tag: full
+  coverage_dimension: "SourceTrust.official"
+  confidence: high
+
+- case_id: ST-003
+  query: "Expert peer-reviewed source classification"
+  source_type: repository
+  language: "en"
+  context: {domain: academic_research, platform: github}
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: "stp_expert_001"
+  identity_key: "id-v1:sha256hex_stp_expert_001"
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+    - knowledge_unit_id: "ku_expert_validation"
+      score: 0.92
+  evidence_refs: ["ev_peer_review_003"]
+  task_result: success
+  tag: partial
+  coverage_dimension: "SourceTrust.expert"
+  confidence: medium
+  notes: "evidence_refs 待人工核查更多独立 peer review"
+
+- case_id: ST-004
+  query: "Secondary source trust downgrade"
+  source_type: web_snapshot
+  language: "zh"
+  context: {domain: news_media, platform: web}
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: "stp_secondary_001"
+  identity_key: "id-v1:sha256hex_stp_secondary_001"
+  resolution_action: quarantine
+  integrity_status: quarantined
+  expected_top_k: []
+  evidence_refs: []
+  task_result: failure
+  tag: partial
+  coverage_dimension: "SourceTrust.secondary"
+  confidence: medium
+  notes: "secondary source 自动 quarantine，等待人工核查"
+
+- case_id: ST-005
+  query: "Unknown source trust evaluation"
+  source_type: manual
+  language: "en"
+  context: {domain: unknown, platform: manual}
+  query_time: 1734567890000
+  object_truth:
+    type: source_trust_profile
+    id: "stp_unknown_001"
+  identity_key: "id-v1:sha256hex_stp_unknown_001"
+  resolution_action: quarantine
+  integrity_status: candidate
+  expected_top_k: []
+  evidence_refs: []
+  task_result: failure
+  tag: synthetic
+  coverage_dimension: "SourceTrust.unknown"
+  confidence: low
+  notes: "synthetic case，待真实 unknown source 人工补齐"

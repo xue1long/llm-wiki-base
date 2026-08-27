@@ -1,0 +1,125 @@
+# Evidence Span Accuracy 评估 - 5 case 覆盖 5 种 evidence_type
+# spec §6 Evidence Strength + §A2 Gate
+
+- case_id: ES-001
+  query: "direct_quote span 精确定位"
+  source_type: file
+  language: "zh"
+  context: {domain: novel_writing, platform: web}
+  query_time: 1734567890000
+  object_truth:
+    type: evidence
+    id: "ev_direct_quote_001"
+    quote: "期待感是网络小说最重要的内核元素"
+    quote_hash: "sha256:abc123def456"
+    span_start: 120
+    span_end: 156
+  identity_key: "id-v1:sha256hex_evidence_001"
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+    - knowledge_unit_id: "ku_qu_期待感_001"
+      score: 0.98
+  evidence_refs: ["ev_direct_quote_001"]
+  task_result: success
+  tag: full
+  coverage_dimension: "EvidenceType.direct_quote"
+  confidence: high
+
+- case_id: ES-002
+  query: "structured_source schema 定位"
+  source_type: api
+  language: "en"
+  context: {domain: database_schema, platform: api}
+  query_time: 1734567890000
+  object_truth:
+    type: evidence
+    id: "ev_structured_001"
+    schema_id: "schema_user_v3"
+    record_key: "user_12345"
+    field_path: "user.email"
+    value: "alice@example.com"
+  identity_key: "id-v1:sha256hex_evidence_002"
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+    - knowledge_unit_id: "ku_db_field_validation"
+      score: 0.95
+  evidence_refs: ["ev_structured_001"]
+  task_result: success
+  tag: full
+  coverage_dimension: "EvidenceType.structured_source"
+  confidence: high
+
+- case_id: ES-003
+  query: "code evidence hash 定位"
+  source_type: repository
+  language: "en"
+  context: {domain: software_engineering, platform: github}
+  query_time: 1734567890000
+  object_truth:
+    type: evidence
+    id: "ev_code_001"
+    repository: "ruflo-kb"
+    commit_hash: "abc123def456"
+    file_path: "src/kc/backup/core_snapshot.py"
+    line_range: "120-156"
+  identity_key: "id-v1:sha256hex_evidence_003"
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+    - knowledge_unit_id: "ku_backup_api_design"
+      score: 0.93
+  evidence_refs: ["ev_code_001"]
+  task_result: success
+  tag: full
+  coverage_dimension: "EvidenceType.code"
+  confidence: high
+
+- case_id: ES-004
+  query: "computed evidence 可复算验证"
+  source_type: api
+  language: "en"
+  context: {domain: statistics, platform: internal}
+  query_time: 1734567890000
+  object_truth:
+    type: evidence
+    id: "ev_computed_001"
+    algorithm: "moving_average_7d"
+    algorithm_version: "v1.2"
+    input_ids: ["ev_input_a", "ev_input_b", "ev_input_c"]
+    result_hash: "sha256:def789abc"
+  identity_key: "id-v1:sha256hex_evidence_004"
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+    - knowledge_unit_id: "ku_metric_calculation"
+      score: 0.90
+  evidence_refs: ["ev_computed_001"]
+  task_result: success
+  tag: partial
+  coverage_dimension: "EvidenceType.computed"
+  confidence: medium
+  notes: "computed evidence 需补充 algorithm_version 跨版本一致性测试"
+
+- case_id: ES-005
+  query: "inferred evidence weak 降级"
+  source_type: manual
+  language: "en"
+  context: {domain: inference, platform: llm}
+  query_time: 1734567890000
+  object_truth:
+    type: evidence
+    id: "ev_inferred_001"
+    inference_method: "llm_synthesis"
+    strength: "weak"
+  identity_key: "id-v1:sha256hex_evidence_005"
+  resolution_action: quarantine
+  integrity_status: quarantined
+  expected_top_k: []
+  evidence_refs: []
+  task_result: failure
+  tag: full
+  coverage_dimension: "EvidenceType.inferred"
+  confidence: high
+  notes: "inferred evidence 默认 weak，单独不能支撑 observed fact 发布（spec §6 E-4）"
