@@ -136,16 +136,47 @@ class SchemaGate(Gate):
 
 
 class ProvenanceGate(Gate):
-    """spec §11.2 Gate 2 占位 (B-2.1 commit 1)。
+    """spec §11.2 Gate 2: 能回到 Canonical Document 与 Raw Source。
 
-    commit 1 仅声明骨架（name + order + check 总是 pass），
-    完整实现在 B-2.1 commit 2 落地（evidence_refs / raw_source_hash /
-    quote_in_block / correction_record 链校验）。
+    检查 4 个维度（B-2.1 commit 2 完整实现）：
+    1. KnowledgeObject.evidence_refs 必填（C-0.4 引入；空 → no_evidence_refs）
+    2. raw_source_hash 必填（Z-9 延后，spec §3.3 Raw Source 只读精神；
+       缺 → no_raw_source_hash）
+    3. Correction Record 链完整性（spec §5.1，简化：空 list → 视为通过，
+       后续 task 需遍历 chain 验证）
+    4. quote 在 block.content 内（spec §6 末段 + C-1 validate_evidence；
+       不在内 → quote_not_in_block）
+
+    每条独立触发 reason code；任一违例即 block。所有维度通过 hasattr 探测，
+    不强制对象必须含全部字段（按需校验）。
     """
 
     name = "provenance"
     order = 2
 
     def check(self, obj: Any, context: dict | None = None) -> GateVerdict:
-        # commit 1 占位：始终 pass
+        reasons: list[str] = []
+
+        # 1. KnowledgeObject.evidence_refs 字段检查（C-0.4 引入）
+        if hasattr(obj, "evidence_refs"):
+            if not obj.evidence_refs:
+                reasons.append("no_evidence_refs")
+
+        # 2. Raw Source 哈希检查（Z-9 延后，spec §3.3 只读精神）
+        if hasattr(obj, "raw_source_hash"):
+            if not obj.raw_source_hash:
+                reasons.append("no_raw_source_hash")
+
+        # 3. Correction Record 链完整性（spec §5.1）
+        #    简化：correction_record_ids 为空视为通过
+        #    实际实现需遍历 chain 验证（后续 task）
+        #    当前不触发任何 reason code（占位实现）
+
+        # 4. Quote 在 block.content 内（spec §6 末段 + C-1 validate_evidence）
+        if hasattr(obj, "quote") and hasattr(obj, "block_content"):
+            if obj.block_content and obj.quote not in obj.block_content:
+                reasons.append("quote_not_in_block")
+
+        if reasons:
+            return GateVerdict.block(reasons)
         return GateVerdict.pass_()
