@@ -264,6 +264,24 @@ def cleanup_kc_backups(
 
 # ── batch entry point ─────────────────────────────────────────────────────
 
+def cleanup_kc_evidence(paths: WikiPaths) -> int:
+    """K-7 whitelist: `.index/evidence/` 是生产数据，不清理.
+
+    No-op but explicitly registered so the whitelist is auditable
+    (路线 v2.2 §B-4 commit 2 / K-7).
+    """
+    return 0
+
+
+def cleanup_kc_diffs(paths: WikiPaths) -> int:
+    """K-7 whitelist: `.index/diffs/` 是审计数据，不清理.
+
+    No-op but explicitly registered so the whitelist is auditable
+    (路线 v2.2 §B-4 commit 2 / K-7).
+    """
+    return 0
+
+
 def cleanup_all(paths: WikiPaths) -> dict[str, int]:
     """Run all cleanup functions; return ``{cache_name: items_deleted}``."""
     results: dict[str, int] = {}
@@ -275,6 +293,8 @@ def cleanup_all(paths: WikiPaths) -> dict[str, int]:
         ("dedup_history", cleanup_dedup_history),
         ("backups", cleanup_backups),
         ("kc_backups", cleanup_kc_backups),
+        ("kc_evidence_whitelist", cleanup_kc_evidence),  # K-7: 白名单 no-op
+        ("kc_diffs_whitelist", cleanup_kc_diffs),        # K-7: 白名单 no-op
     ]
     for name, fn in cleaners:
         try:
