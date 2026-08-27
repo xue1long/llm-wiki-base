@@ -1,0 +1,197 @@
+# Relation Registry (B-2.10 commit 1)
+# spec §3.6 9 类 + WikiPage 17 类 + x-* 自定义
+# ADR: docs/adr/2026-08-26-relation-registry.md
+
+version: 1
+spec_version: "KC v2.1 §3.6"
+
+# spec §3.6 9 类受控关系
+spec_relations:
+  - name: is_a
+    spec_ref: "§3.6"
+    directionality: "bidirectional"
+    inverse: null  # 自反
+    cardinality: "many-to-many"
+    description: "概念继承 / 类属关系"
+
+  - name: part_of
+    spec_ref: "§3.6"
+    directionality: "bidirectional"
+    inverse: has_part
+    cardinality: "many-to-one"
+    description: "组合关系 / 部分-整体"
+
+  - name: related_to
+    spec_ref: "§3.6"
+    directionality: "bidirectional"
+    inverse: null  # 对称
+    cardinality: "many-to-many"
+    description: "一般关联"
+
+  - name: depends_on
+    spec_ref: "§3.6"
+    directionality: "directed"
+    inverse: depended_by
+    cardinality: "many-to-one"
+    description: "依赖关系"
+
+  - name: supports
+    spec_ref: "§3.6"
+    directionality: "directed"
+    inverse: supported_by
+    cardinality: "many-to-one"
+    description: "证据支持"
+
+  - name: contradicts
+    spec_ref: "§3.6"
+    directionality: "bidirectional"
+    inverse: null  # 对称
+    cardinality: "many-to-many"
+    description: "矛盾关系"
+
+  - name: example_of
+    spec_ref: "§3.6"
+    directionality: "directed"
+    inverse: has_example
+    cardinality: "many-to-one"
+    description: "示例关系"
+
+  - name: supersedes
+    spec_ref: "§3.6"
+    directionality: "directed"
+    inverse: superseded_by
+    cardinality: "many-to-one"
+    description: "版本取代"
+
+  - name: derived_from
+    spec_ref: "§3.6"
+    directionality: "directed"
+    inverse: null
+    cardinality: "many-to-one"
+    description: "派生关系"
+
+# WikiPage 17 类 built-in (标记 legacy, 兼容历史)
+legacy_relations:
+  - name: is_part_of
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: contains
+    mode: legacy
+    note: "兼容历史, 优先 spec §3.6 part_of"
+  - name: contains
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: is_part_of
+    mode: legacy
+    note: "兼容历史, 优先 spec §3.6 part_of (inverse)"
+  - name: references
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: referenced_by
+    mode: legacy
+    note: "兼容历史"
+  - name: referenced_by
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: references
+    mode: legacy
+    note: "兼容历史"
+  - name: causes
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: caused_by
+    mode: legacy
+    note: "兼容历史"
+  - name: caused_by
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: causes
+    mode: legacy
+    note: "兼容历史"
+  - name: supports
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: supported_by
+    mode: legacy
+    note: "与 spec §3.6 supports 重复, 优先 spec 版本"
+  - name: supported_by
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: supports
+    mode: legacy
+    note: "与 spec §3.6 supports.inverse 重复"
+  - name: supersedes
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: superseded_by
+    mode: legacy
+    note: "与 spec §3.6 supersedes 重复, 优先 spec 版本"
+  - name: superseded_by
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: supersedes
+    mode: legacy
+    note: "与 spec §3.6 supersedes.inverse 重复"
+  - name: depends_on
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: required_by
+    mode: legacy
+    note: "与 spec §3.6 depends_on 重复, 优先 spec 版本"
+  - name: required_by
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: depends_on
+    mode: legacy
+    note: "与 spec §3.6 depends_on.inverse 重复"
+  - name: analogous_to
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "bidirectional"
+    inverse: null  # symmetric
+    mode: legacy
+    note: "对称关系, 兼容历史"
+  - name: opposite_of
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "bidirectional"
+    inverse: null  # symmetric
+    mode: legacy
+    note: "对称关系, 兼容历史"
+  - name: derived_from
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: derives
+    mode: legacy
+    note: "与 spec §3.6 derived_from 重复, 优先 spec 版本"
+  - name: derives
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "directed"
+    inverse: derived_from
+    mode: legacy
+    note: "与 spec §3.6 derived_from.inverse 重复"
+  - name: contradicts
+    spec_ref: "WikiPage built-in (legacy)"
+    directionality: "bidirectional"
+    inverse: null  # symmetric
+    mode: legacy
+    note: "与 spec §3.6 contradicts 重复, 优先 spec 版本"
+
+# 自定义 x-* 命名空间
+custom_namespace:
+  prefix: "x-"
+  registration_required: true
+  registry_path: ".kc/relation_registry.yaml"
+  existing:
+    - name: x-novel-character-arc
+      registered: "2026-08-26"
+      registered_by: "novel-wiki ingestion"
+    - name: x-novel-plot-thread
+      registered: "2026-08-26"
+      registered_by: "novel-wiki ingestion"
+
+# Relation Gate 校验规则
+gate_rules:
+  - "relation_type in spec_relations → allowed (no further check)"
+  - "relation_type in legacy_relations → allowed (warn: prefer spec version)"
+  - "relation_type starts with custom_namespace.prefix AND in existing → allowed"
+  - "relation_type starts with custom_namespace.prefix AND NOT in existing → block (require ADR)"
+  - "relation_type NOT in any registry → block (unknown relation type)"
