@@ -23,6 +23,7 @@ from typing import Any, Literal
 
 from ..conflicts.classifier import ConflictClassifier
 from ..contracts.evidence import Evidence
+from ..contracts.relation_registry import RelationRegistry
 from ..contracts.strength_policy import StrengthPolicy
 from ..domain.knowledge_unit import (
     KnowledgeUnit,
@@ -1195,3 +1196,120 @@ class RetrievalGate(Gate):
         if valid_to is not None and valid_to <= query_time:
             return "historical"
         return "current"
+
+
+class RelationGate(Gate):
+    """spec §11.2 Gate 10: 关系类型在受控集合中.
+
+    检查 spec §3.6 9 类受控关系 + WikiPage 17 类 built-in + x-* 自定义命名空间:
+
+    - 顶层直调 RelationRegistry.is_allowed() (与 ConflictGate 直调
+      ConflictClassifier 同模式; 注入式设计, 默认 None → 简化内联判定)
+    - WikiPage.relations 列表中每条 relation 校验
+    - spec §3.6 9 类受控 → pass (reason: 'spec')
+    - WikiPage 17 类 legacy → warn (legacy_relation_prefer_spec:<name>;
+      推荐用 spec 版本, 不阻断)
+    - x-* 已登记 → pass (reason: 'custom')
+    - x-* 未登记 → block (x_unregistered:<name>; 需 ADR 登记到
+      .kc/relation_registry.yaml)
+    - 未知关系 (不在 registry) → block (unknown_relation:<name>)
+
+    简化内联判定路径 (registry=None 时):
+    - 仅检查 x-* 格式与 9 spec 类, 不查 x-* 已登记 (避免加载 YAML 失败)
+    - 用于离线测试 + 无 IntegrityGate 注入场景
+
+    集成:
+    - B-2.10 commit 1 ADR (docs/adr/2026-08-26-relation-registry.md) + YAML schema
+    - B-2.10 commit 2 RelationRegistry + is_allowed() (5 种判定)
+    - WikiPage.relations: list["Relation"] 既有 (17 built-in + x-*)
+    - A-4 Approval Gate (relation 创建 = merge/split/supersede/
+      concept_identity_change 之一 → spec §11.4 #4 硬门槛):
+      留 known_limitations (由 IntegrityGate 流水线集成, RelationGate 不重复)
+
+    区分 block vs warn:
+    - block: x_unregistered / unknown_relation (无 ADR 落地)
+    - warn: legacy_relation_prefer_spec (兼容历史, 推荐用 spec 版本)
+    """
+
+    name = "relation"
+    order = 10
+
+    # Reason code prefixes that should trigger ``block`` rather than ``warn``.
+    # Relation Gate 的 reason code 中 "x_unregistered" / "unknown_" 前缀视为 block.
+    _BLOCK_PREFIXES = (
+        "x_unregistered",
+        "unknown_",
+    )
+
+    # 简化内联判定的 spec §3.6 9 类 (registry=None 时使用 — 不依赖 YAML 加载)
+    _SPEC_9_NAMES = frozenset({
+        "is_a", "part_of", "related_to", "depends_on", "supports",
+        "contradicts", "example_of", "supersedes", "derived_from",
+    })
+
+    def __init__(
+        self,
+        registry: RelationRegistry | None = None,
+    ) -> None:
+        """注入 RelationRegistry (默认 None → 简化内联判定).
+
+        完整部署由 IntegrityGate 流水线注入同一实例 (避免重复加载 YAML).
+        单元测试可直接构造 RelationRegistry 或传 None 走内联简化路径.
+        """
+        self.registry = registry
+
+    def check(self, obj: Any, context: dict | None = None) -> GateVerdict:
+        # 1. obj 是否有 relations 字段 (WikiPage 有, KnowledgeObject 没有)
+        #    无 relations 字段视为不在本 Gate 关注范围 (helper: 不适用 → pass)
+        if not hasattr(obj, "relations"):
+            return GateVerdict.pass_()
+
+        relations = obj.relations or []
+        if not relations:
+            return GateVerdict.pass_()  # 无 relations → pass
+
+        reasons: list[str] = []
+
+        # 2. 顶层直调 RelationRegistry.is_allowed() (如已注入)
+        if self.registry is not None:
+            for rel in relations:
+                rel_name = getattr(rel, "type", None) or getattr(rel, "name", None)
+                if rel_name is None:
+                    continue
+                allowed, reason = self.registry.is_allowed(rel_name)
+                if not allowed:
+                    if reason == "custom_unregistered":
+                        reasons.append(f"x_unregistered:{rel_name}")
+                    elif reason == "unknown":
+                        reasons.append(f"unknown_relation:{rel_name}")
+                elif reason == "legacy":
+                    reasons.append(f"legacy_relation_prefer_spec:{rel_name}")
+                # reason ∈ {"spec", "custom"} → pass (不记录)
+        else:
+            # 3. 简化内联判定 (无 registry 注入 — 避免加载 YAML 失败)
+            for rel in relations:
+                rel_name = getattr(rel, "type", None) or getattr(rel, "name", None)
+                if rel_name is None:
+                    continue
+                if rel_name in self._SPEC_9_NAMES:
+                    continue  # spec §3.6 受控 → pass
+                if rel_name.startswith("x-"):
+                    # 简化: 仅检查 x-* 格式, 不检查是否登记 (完整检查需 registry)
+                    # 兼容历史: 不阻断, 留 known_limitations
+                    continue
+                # 非 spec 9 类 + 非 x-* → legacy 或未知
+                reasons.append(f"legacy_relation_prefer_spec:{rel_name}")
+
+        if reasons:
+            # 区分 block vs warn:
+            # - block: x_unregistered / unknown_ (无 ADR 落地)
+            # - warn: legacy_relation_prefer_spec (兼容历史)
+            blocking = [
+                r for r in reasons
+                if any(r.startswith(p) for p in self._BLOCK_PREFIXES)
+            ]
+            if blocking:
+                return GateVerdict.block(reasons)
+            return GateVerdict.warn(reasons)
+
+        return GateVerdict.pass_()
