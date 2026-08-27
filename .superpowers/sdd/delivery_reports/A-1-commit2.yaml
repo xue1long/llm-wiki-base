@@ -1,0 +1,55 @@
+# Knowledge Compiler v2.2 路线任务交付报告 (A-1 commit 2 — ResolutionEvent writer demo)
+#
+# 任务: A-1 commit 2 — 为 Identity Resolution 阶段 (B-2) 提供 resolution_event 持久化工具
+# 范围: scripts/kc_record_resolution_event.py — append-only JSONL writer
+#       提供 record_event + demo_split_decision + make_event_from_split_decision 工具
+# 关联: docs/superpowers/plans/2026-08-26-kc-spec-roadmap.md §A-1 + spec §5.11
+# commit (A-1 commit 2): scripts/kc_record_resolution_event.py + delivery_report
+#
+# 纪律: 新脚本不直接执行 (本 commit 只建工具链, 为后续 A-3 / B-2 集成时使用)
+#       提供 make_event_from_split_decision 桥接 should_split_ku + ResolutionEvent
+#       遵循 spec §5.11 append-only + 必填字段 (action/reason_codes/policy_version/model/confidence)
+
+phase: A-1-commit2  # 路线 §A-1 ResolutionEvent 持久化工具
+
+changed_files:
+  - scripts/kc_record_resolution_event.py  # 新文件: append-only JSONL writer + make_event helper
+
+contracts_changed:
+  # 不修改 src/ Contract; 仅消费 ResolutionEvent (spec §5.11) 落地
+  - scripts/kc_record_resolution_event.py  # 消费 ResolutionEvent @dataclass(frozen=True)
+
+tests_run:
+  - "python -c 'import importlib.util; spec=importlib.util.spec_from_file_location(...); spec.loader.exec_module(m)' — module imports cleanly"  # 0 import errors
+  - "python -c 'make_event_from_split_decision(...); assert action==split' — builder emits split event for internal_questions>1"  # 1 PASS
+
+evaluation_dataset_version:
+  # 与 A-1 dry-run (e9812664) 对齐: novel-wiki 4892 页面, 66 叙事类 choice_3 拆分 demo
+  "A-1 dry-run (commit e9812664) — demo_split_decision() 体现 66 叙事类拆分启发式"
+
+metrics:
+  spec_section_5_11_append_only: "implemented (record_event writes JSONL line)"
+  spec_section_5_11_mandatory_fields: "implemented (action/reason_codes/policy_version/model/confidence/approval_id)"
+  spec_section_4_4_helper_bridge: "implemented (make_event_from_split_decision bridges should_split_ku helper)"
+  scripts_created: 1
+  resolution_event_builder_helpers: 2  # record_event + make_event_from_split_decision
+  baseline_test_kc_passing: 64  # 未变化 (commit 2 不动 src/)
+  baseline_test_kc_regression_count: 0
+
+hard_gate_failures:  # 空 = 通过
+  # 仅工具脚本; 不发布数据, 无 spec §11.4 硬门槛风险
+  []
+
+migration_required: false  # 纯新增脚本; 无数据迁移
+
+rollback_procedure:  # 回滚步骤（一句话描述）
+  "git revert <commit> 即可移除该脚本 (纯新增, 无既有文件触及)"
+
+known_limitations:
+  - "新脚本不直接执行 (本 commit 仅建工具链, 为后续 A-3/B-2 集成时使用)"
+  - "make_event_from_split_decision 是 demo: 真实 Identity Resolution 由 B-2 任务接入"
+  - "record_event 不并发安全: 多次并发写入可能丢失行, 由 caller 保证 serialize"
+  - ".index/resolution_events.jsonl 路径: 与 .index/lancedb/ 平级, 项目内可见"
+
+# === 关键字段：spec §16.2 EX-3 硬规则 ===
+next_phase_ready: true  # 工具链就绪; baseline 0 regression; spec §5.11 字段齐全
