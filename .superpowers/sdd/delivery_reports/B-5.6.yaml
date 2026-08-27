@@ -1,0 +1,39 @@
+# Knowledge Compiler v2.1 路线任务交付报告 (A-0 / Z-6, spec §16.2)
+# Task: B-5.6 5 类端到端演化演练
+
+# === 必填字段 (spec §16.2 完整 11 字段) ===
+
+phase: "B-5.6 5 类端到端演化演练 (spec §14 A9-8 + §17 D-20)"
+
+changed_files:
+  - "scripts/kc_evolution_drill.py"
+  - "tests/test_kc/test_evolution_drill.py"
+
+contracts_changed:
+  - "scripts/kc_evolution_drill.py"
+
+tests_run:
+  - "PYTHONPATH=. pytest tests/test_kc/test_evolution_drill.py --import-mode=importlib"
+
+evaluation_dataset_version: "2026-08-26-100case"
+
+metrics:
+  evolution_scenarios: 5
+  evolution_passed: true
+  correction: true
+  withdrawal: true
+  evidence_invalidation: true
+  conflict_resolution: true
+  supersede: true
+  spec_17_d20: "5 类演化结果符合金标 落地"
+
+hard_gate_failures: []
+
+migration_required: false
+
+rollback_procedure: "git revert 9f01236c 即可"
+
+known_limitations:
+  - "演练用 mock 对象 (不真实 ingest), 状态迁移逻辑真实"
+
+next_phase_ready: true

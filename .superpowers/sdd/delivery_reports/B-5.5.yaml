@@ -1,0 +1,37 @@
+# Knowledge Compiler v2.1 路线任务交付报告 (A-0 / Z-6, spec §16.2)
+# Task: B-5.5 连续 20 次批量增量演练
+
+# === 必填字段 (spec §16.2 完整 11 字段) ===
+
+phase: "B-5.5 连续 20 次批量增量演练 (spec §14 A9-7 + §17 D-19)"
+
+changed_files:
+  - "scripts/kc_incremental_drill.py"
+  - "tests/test_kc/test_incremental_drill.py"
+
+contracts_changed:
+  - "scripts/kc_incremental_drill.py"
+
+tests_run:
+  - "PYTHONPATH=. pytest tests/test_kc/test_incremental_drill.py --import-mode=importlib"
+
+evaluation_dataset_version: "2026-08-26-100case"
+
+metrics:
+  drill_batches: 20
+  drill_passed: true
+  total_duplicates: 0
+  total_lost_versions: 0
+  recompile_triggers: 0
+  spec_17_d19: "连续 20 次增量无重复 identity_key 落地"
+
+hard_gate_failures: []
+
+migration_required: false
+
+rollback_procedure: "git revert d8263961 即可"
+
+known_limitations:
+  - "演练用 mock 对象 (不真实 ingest), 状态迁移逻辑真实"
+
+next_phase_ready: true

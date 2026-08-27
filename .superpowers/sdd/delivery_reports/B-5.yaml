@@ -1,0 +1,43 @@
+# Knowledge Compiler v2.1 路线任务交付报告 (A-0 / Z-6, spec §16.2)
+# Task: B-5 金标 29→100 case 扩展
+
+# === 必填字段 (spec §16.2 完整 11 字段) ===
+
+phase: "B-5 金标 29→100 case 扩展 (spec §15 + §14 A0 Gate + F-2)"
+
+changed_files:
+  - "scripts/kc_gold_expand.py"
+  - "docs/evaluation/cases/source_trust.yaml"
+  - "docs/evaluation/cases/evidence_span.yaml"
+  - "docs/evaluation/cases/conflict.yaml"
+  - "docs/evaluation/cases/identity.yaml"
+  - "tests/test_eval/test_gold_dataset_100_cases.py"
+  - "tests/test_eval/test_gold_dataset_29_cases.py (deleted)"
+
+contracts_changed:
+  - "docs/evaluation/cases/conflict.yaml"
+  - "docs/evaluation/cases/identity.yaml"
+
+tests_run:
+  - "PYTHONPATH=. pytest tests/test_eval/test_gold_dataset_100_cases.py --import-mode=importlib"
+  - "PYTHONPATH=. pytest tests/test_eval --import-mode=importlib"
+
+evaluation_dataset_version: "2026-08-26-100case"
+
+metrics:
+  gold_cases_total: 100
+  gold_cases_passed: 100
+  tag_breakdown: "full=65, partial=33, synthetic=2"
+  coverage_matrix_complete: true
+  a0_gate_condition: "100 case 完整覆盖矩阵无缺口"
+
+hard_gate_failures: []
+
+migration_required: false
+
+rollback_procedure: "git revert 588b4a1a + d07c0b97 即可 (恢复 29 case)"
+
+known_limitations:
+  - "新增 71 case 为生成脚本生成, 部分 partial/synthetic 待人工核查升级为 full"
+
+next_phase_ready: true
