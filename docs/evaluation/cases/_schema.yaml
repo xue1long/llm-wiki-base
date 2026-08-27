@@ -1,0 +1,124 @@
+# Knowledge Compiler v2.1 gold case schema (spec §15)
+# =====================================================
+#
+# This file documents the **required and optional fields** every gold case in
+# `docs/evaluation/cases/*.yaml` MUST carry, plus the F-2 grading scale
+# (`tag: full | partial | synthetic`).
+#
+# A gold case is a single labelled (query, context) → (expected_top_k,
+# resolution_action, integrity_status, …) fixture used to evaluate the
+# Knowledge Compiler pipeline end-to-end (ingest → resolution → retrieval).
+#
+# A0 Gate (B-5) will load every file matching `*.yaml` under this directory,
+# pass each entry through `scripts.kc_eval.evaluate_gold_case`, and produce
+# a coverage report via `evaluate_gold_dataset`.
+
+required_fields:
+  case_id:
+    type: string
+    description: Unique case identifier (e.g. TC-001).
+    example: "TC-001"
+  query:
+    type: string
+    description: The triggering query / task description.
+    example: "如何写爽点"
+  source_type:
+    type: string
+    enum: [file, url, api, repository, manual, web_snapshot]
+    description: Source kind used to ingest the case (spec §5 ingestion).
+  language:
+    type: string
+    description: BCP-47 language tag for the query / expected response.
+    example: "zh"
+  context:
+    type: object
+    description: >-
+      Contextual metadata for the query: keys from
+      {domain, platform, audience, geography, language, goal,
+      conditions, perspective}.
+    example: {domain: novel_writing, platform: web}
+  query_time:
+    type: integer
+    description: Unix milliseconds when the query was issued.
+    example: 1734567890000
+  object_truth:
+    type: object
+    description: >-
+      Expected object of truth — one of {knowledge_unit, concept, claim,
+      evidence}. Used to verify resolution produced the right shape.
+    example: {type: knowledge_unit, id: ku_xyz}
+  identity_key:
+    type: string
+    description: >-
+      The `id-v1:<sha256hex>` identity key that id-v1 hashing should
+      produce for `object_truth` (spec §5.10).
+    example: "id-v1:sha256hex..."
+  resolution_action:
+    type: string
+    enum: [create, merge, update, link, conflict, supersede, quarantine, split, keep_separate]
+    description: Expected Resolution Action the pipeline should take (spec §5.11).
+  integrity_status:
+    type: string
+    enum: [candidate, verified, disputed, stale, deprecated, quarantined, rejected]
+    description: Expected Integrity Status of the produced object (spec §11.1).
+  expected_top_k:
+    type: array
+    description: >-
+      Expected Top-K retrieval results, each {knowledge_unit_id, score}.
+      Used to compute hit@k, MRR, and nDCG against the live retrieval.
+    items: {knowledge_unit_id: string, score: number}
+  evidence_refs:
+    type: array
+    description: Expected Evidence IDs the response must cite.
+    items: string
+  task_result:
+    type: string
+    enum: [success, failure, partial]
+    description: >-
+      Expected Agent Task outcome (spec §12.3) — whether the
+      orchestrator should report success / partial / failure.
+
+optional_fields:
+  tag:
+    type: string
+    enum: [full, partial, synthetic]
+    description: >-
+      Case completeness tier (F-2 decision, Route B 29→100):
+        * `full`     — all 11 fields present, human-verified
+        * `partial`  — most fields present, gaps annotated in `notes`
+        * `synthetic`— LLM-proposed, rule-verified; `confidence` MUST be low
+    default: "full"
+  confidence:
+    type: string
+    enum: [high, medium, low]
+    description: Case confidence (K-3 hardening).
+    default: "high"
+  coverage_dimension:
+    type: string
+    description: >-
+      Logical dimension this case covers; drives `coverage_matrix` in the
+      evaluator report. Examples:
+        source_trust, evidence_span, conflict.actual, conflict.conditional,
+        conflict.temporal, conflict.perspective, conflict.unresolved,
+        identity.merge, identity.supersede, identity.keep_separate
+  notes:
+    type: string
+    description: Free-form human annotation; mandatory for `partial` cases.
+
+# Gap annotations (initial state for the 29-case starter dataset, F-2).
+gap_annotation:
+  - dimension: "Conflict.actual"
+    missing_count: 2
+    note: >-
+      Needs more actual-conflict samples. Two `synthetic` cases will be
+      promoted to `full` after human review during B-4.
+  - dimension: "Identity.supersede"
+    missing_count: 1
+    note: >-
+      Only one verified supersede example; one `synthetic` slot will be
+      collected from production in B-4.
+  - dimension: "Conflict.perspective"
+    missing_count: 1
+    note: >-
+      Perspective conflicts are rare in current sources; one placeholder
+      case is `synthetic` and must be replaced before A0.
