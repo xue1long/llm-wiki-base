@@ -1,0 +1,49 @@
+{
+  "page_type_distribution": {
+    "unknown": 2,
+    "claim": 10,
+    "concept": 2234,
+    "entity": 1341,
+    "source": 1251,
+    "synthesis": 56
+  },
+  "narrative_pages": 66,
+  "narrative_length_distribution": {
+    "min": 6,
+    "max": 1769,
+    "avg": 728.1,
+    "median": 741,
+    "count": 66
+  },
+  "narrative_sample_paths": [
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\claims\\pilot_05fc0c24df52f8e3ced07812.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\claims\\pilot_06f726f51e6bbd12297ff5ca.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\claims\\pilot_3f14555774841e604fad216c.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\claims\\pilot_43c875cbcad6b2cfa382a81c.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\claims\\pilot_450887109cce46bd10f93dbd.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\claims\\pilot_83d9539e4f709f655ad4f54f.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\claims\\pilot_86c998fdf498ec3f12bf4cbc.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\claims\\pilot_8c1ad0aa7e36fd1819cfc745.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\claims\\pilot_a6f8656936192505d9c52896.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\claims\\pilot_d3c57e79816e58d6647d250e.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\synthesis\\东方玄幻创作中的中国古典典籍应用指南.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\synthesis\\中国古代行政区划沿革综述.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\synthesis\\中国少数民族五大源流综述.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\synthesis\\中国现当代小说人物分析案例综述.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\synthesis\\书名选取方法综述.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\synthesis\\人物塑造综合技法-动机构建与性格转变.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\synthesis\\人物鲜活三法综述-履霜知寒-随境动静-含章王事.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\synthesis\\人身-36-致命穴详解.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\synthesis\\传统小说理论-描写技法综述.md",
+    "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki\\wiki\\synthesis\\侦探小说开局模式与读者性别偏好综述.md"
+  ],
+  "wiki_pages": 4892,
+  "unknown_pages": 2,
+  "narrative_pages_estimated_upper": 1957,
+  "choice_1_cost": 0,
+  "choice_2_cost": 978,
+  "choice_3_cost": 4,
+  "precision_ratio": 0.1,
+  "llm_split_unit_cost_cny": 0.5,
+  "recommendation": "choice_3"
+}
