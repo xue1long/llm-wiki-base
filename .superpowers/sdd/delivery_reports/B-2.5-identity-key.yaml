@@ -1,0 +1,38 @@
+# Knowledge Compiler v2.1 路线任务交付报告 (A-0 / Z-6, spec §16.2)
+# Task: B-2.5 identity_key 总验收 (v2.2 重大补位 #1)
+
+# === 必填字段 (spec §16.2 完整 11 字段) ===
+
+phase: "B-2.5 identity_key 总验收 (v2.2 重大补位 #1)"
+
+changed_files:
+  - "src/kc/integrity/identity_key.py"
+  - "tests/test_kc/test_identity_key_consistency.py"
+
+contracts_changed:
+  - "src/kc/integrity/identity_key.py"
+
+tests_run:
+  - "PYTHONPATH=. pytest tests/test_kc/test_identity_key_consistency.py --import-mode=importlib"
+  - "PYTHONPATH=. pytest tests/test_kc --import-mode=importlib --timeout=120"
+
+evaluation_dataset_version: "2026-08-26-29case"
+
+metrics:
+  identity_key_tests: "18 passed"
+  spec_5_13_rows_covered: "all"
+  v2_2_supplement_1_complete: true
+  id_v1_algorithm: "implemented"
+  conflict_refs_sorted: true
+
+hard_gate_failures: []
+
+migration_required: false
+
+rollback_procedure: "git revert 6868cd25 即可"
+
+known_limitations:
+  - "mock 对象测试 (真实 Source/RawSource/Concept/Claim/Context/Validity/Synthesis dataclass 未创建)"
+  - "Z-9 Raw Source sha256 延后 (当前 md5)"
+
+next_phase_ready: true
