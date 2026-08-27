@@ -1,0 +1,58 @@
+# Knowledge Compiler v2.2 §A-5 交付报告（路线 v2.2 命名/目录/契约/依赖 4 类规范定稿）
+#
+# A-5 是纯文档任务（5 个 markdown + 0 代码改动 + 0 测试）。
+# 字段填值依据 spec §16.2 必填字段；本任务无需 `evaluation_dataset_version`
+# 与具体指标（无 eval 产物），相关字段使用 N/A 占位。
+
+# === 必填字段（spec §16.2 必填字段）===
+
+phase: "A-5 命名/目录/契约/依赖 4 类规范定稿"
+
+changed_files:
+  - docs/conventions/naming.md
+  - docs/conventions/directory.md
+  - docs/conventions/contract.md
+  - docs/conventions/dependencies.md
+  - docs/conventions/metric_threshold_change_adr.md
+
+contracts_changed:
+  # 纯文档任务，无代码层契约变更
+  - N/A（纯文档任务；contract.md 描述的是 contract 层规范本身）
+
+tests_run:
+  # 纯文档任务，无代码测试
+  - "无（文档任务，无代码改动）"
+
+evaluation_dataset_version:
+  # 纯文档任务，无 eval 跑批
+  - "N/A（纯文档任务，无指标产出）"
+
+metrics:
+  # 纯文档任务，无指标。下列字段仅记录任务本身的元数据。
+  docs_added: 5
+  lines_added_total: 902
+  naming_doc_lines: 129
+  directory_doc_lines: 155
+  contract_doc_lines: 181
+  dependencies_doc_lines: 149
+  metric_threshold_adr_template_lines: 121
+
+hard_gate_failures:
+  # 纯文档任务，无指标门槛可失败
+  []
+
+migration_required: false  # 纯文档任务，无数据迁移
+
+rollback_procedure: "git revert <commit-hash-of-A-5> 或直接删除 docs/conventions/ 下 5 个文件"
+
+known_limitations:
+  # 本任务纯文档，已知限制
+  - "缩写大小写规则无现成 ruff 规则，依赖 code review 守门"
+  - "字段去重（同义字段禁引入）无 lint 强制，靠 review + 模板示例约束"
+  - "ruff N801/N802/N803 等命名 lint 增强属于后续路线任务（L-2），本任务仅定稿规范文档"
+  - "metric_threshold_change_adr.md 是模板，首次落地需由后续 PR 引用并完善 §Metrics/§Dataset Diff 真实数值"
+  - "scripts/check_top_level_dirs.py / check_dependencies.py 自动化属于后续路线任务（L-2），本任务仅定稿规范文档"
+
+# === 关键字段：spec §16.2 EX-3 硬规则 ===
+
+next_phase_ready: true  # hard_gate_failures 为空 → 通过 A-0 守门
