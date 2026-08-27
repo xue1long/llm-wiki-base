@@ -1,0 +1,37 @@
+# Knowledge Compiler v2.1 路线任务交付报告 (A-0 / Z-6, spec §16.2)
+# Task: B-4 Publication Batch commit 1
+
+# === 必填字段 (spec §16.2 完整 11 字段) ===
+
+phase: "B-4 Publication Batch (commit 1, spec §5.13 + D-21)"
+
+changed_files:
+  - "src/kc/publish/__init__.py"
+  - "src/kc/publish/batch.py"
+  - "tests/test_kc/test_publication_batch.py"
+
+contracts_changed:
+  - "src/kc/publish/batch.py"
+
+tests_run:
+  - "PYTHONPATH=. pytest tests/test_kc/test_publication_batch.py --import-mode=importlib"
+  - "PYTHONPATH=. pytest tests/test_kc --import-mode=importlib --timeout=120"
+
+evaluation_dataset_version: "2026-08-26-29case"
+
+metrics:
+  publication_batch_tests: "7 passed"
+  spec_e5_13_fields_covered: "all"
+  spec_e17_d21_water_level: true
+  atomic_publish: true
+
+hard_gate_failures: []
+
+migration_required: false
+
+rollback_procedure: "git revert e5a39e9d 即可"
+
+known_limitations:
+  - "K-7 cache cleanup 白名单 (commit 2 5dc542c4) 已实施"
+
+next_phase_ready: true

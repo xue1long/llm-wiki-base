@@ -1,0 +1,35 @@
+# Knowledge Compiler v2.1 路线任务交付报告 (A-0 / Z-6, spec §16.2)
+# Task: B-4 Cache Whitelist commit 2
+
+# === 必填字段 (spec §16.2 完整 11 字段) ===
+
+phase: "B-4 Cache Whitelist (commit 2 / K-7)"
+
+changed_files:
+  - "src/maintenance/cache_cleanup.py"
+  - "tests/test_kc/test_cache_whitelist.py"
+
+contracts_changed:
+  - "src/maintenance/cache_cleanup.py"
+
+tests_run:
+  - "PYTHONPATH=. pytest tests/test_kc/test_cache_whitelist.py --import-mode=importlib"
+
+evaluation_dataset_version: "2026-08-26-29case"
+
+metrics:
+  cache_whitelist_tests: "3 passed"
+  k7_complete: true
+  evidence_dir_protected: true
+  diffs_dir_protected: true
+
+hard_gate_failures: []
+
+migration_required: false
+
+rollback_procedure: "git revert 5dc542c4 即可"
+
+known_limitations:
+  - "全量 pytest 120s 超时, 单文件测试 3/3 已验证"
+
+next_phase_ready: true
