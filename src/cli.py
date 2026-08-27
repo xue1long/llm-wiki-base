@@ -367,6 +367,10 @@ def main():
     capture_cmd.register(subparsers)
     capture_cmd.register_mark_verify(subparsers)
 
+    # B-3: 30-day transition CLI (closure enable / migrate-legacy)
+    from .cli_ext.closure_cmd import register as register_closure_cmd
+    register_closure_cmd(subparsers)
+
     # MCP (stdio Model Context Protocol server)
     p_mcp = subparsers.add_parser("mcp", help="Start stdio MCP server")
     p_mcp.set_defaults(func=lambda args: asyncio.run(_run_mcp()))
