@@ -1,0 +1,66 @@
+# Knowledge Compiler v2.1 路线任务交付报告模板 (A-0 / Z-6, spec §16.2)
+#
+# 使用方式:
+#   1. 复制本文件到 .superpowers/sdd/delivery_reports/<task_id>.yaml
+#   2. 填入实际值（特别是 hard_gate_failures 和 next_phase_ready）
+#   3. 跑 PYTHONPATH=. python scripts/kc_check_delivery_report.py <dr_path>
+#
+# 硬规则（spec §16.2 EX-3）:
+#   - 当 hard_gate_failures 非空时，next_phase_ready 必须 false
+#   - 否则 CI 校验 FAIL，commit 阻断
+
+# === 必填字段（spec §16.2 必填字段）===
+
+phase: <TASK_ID>  # 例如 "C-1 Evidence 一等公民"
+
+changed_files:  # 本次 commit 修改的所有文件（含新增）
+  - <file_path_1>
+  - <file_path_2>
+
+contracts_changed:  # 本次 commit 涉及的 Contract（数据契约层）
+  - <contract_path_1>
+
+tests_run:  # 本次 commit 运行的测试命令
+  - "PYTHONPATH=. pytest tests/test_kc --import-mode=importlib"
+
+evaluation_dataset_version:  # 本次 commit 关联的评估数据集版本
+  # 例如 "2026-08-26-29case"（金标 29 case） / "2026-08-26-c35-10task"（Agent Task）
+
+metrics:  # 本次 commit 产出的关键指标（spec §15 16 项指标子集）
+  # 示例键（按当前阶段选取）:
+  # - real_data_span_accuracy: 0.97
+  # - evidence_persistence_tests: "10 passed"
+  # - identity_resolution_precision: 0.95
+  # - merge_proposal_precision: 0.99
+  # - retrieval_recall_at_5: 0.92
+  # - agent_task_success_rate: 0.90
+  # - citation_accuracy: 1.0
+  <key>: <value>
+
+hard_gate_failures:  # spec §11.4 硬门槛，列出失败项（空 = 通过）
+  # - "Unsupported Fact > 0"
+  # - "Critical Evidence Missing > 0"
+  # - "Observed/Synthesized 混层 > 0"
+  # - "无审计记录的 merge/supersede > 0"
+  # - "Broken Provenance Link > 0"
+  # - "Actual Conflict 被覆盖 > 0"
+  # - "Unresolved Conflict 被发布 > 0"
+  # - "Published Dependency Closure Error > 0"
+  # - "Evidence Semantic Support Error > 0"
+  # - "Schema Validation Error > 0"
+  []
+
+migration_required: false  # 本次 commit 是否需要数据迁移
+
+rollback_procedure:  # 回滚步骤（一句话描述）
+  # 例如 "删除 .index/evidence/ + WikiPage.evidence_refs 字段即可"
+  <rollback_steps>
+
+known_limitations:  # 已知限制（公开透明）
+  # - "MCP semantic 路径不反查 evidence"
+  # - "evidence_refs 字段在 v2.1 状态用 KO.id 作身份键（B-2.5 后统一）"
+  []
+
+# === 关键字段：spec §16.2 EX-3 硬规则 ===
+
+next_phase_ready: <true|false>  # ⚠️ 当 hard_gate_failures 非空时必须 false
