@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from ..conflicts.classifier import ConflictClassifier
 from ..contracts.evidence import Evidence
 from ..contracts.strength_policy import StrengthPolicy
 from ..domain.knowledge_unit import (
@@ -667,3 +668,158 @@ class GranularityGate(Gate):
             return GateVerdict.warn(reasons)
 
         return GateVerdict.pass_()
+
+
+class ContextGate(Gate):
+    """spec §11.2 Gate 7: 适用范围明确或标记 unknown.
+
+    检查 spec §5.1 Context 8 维度 + §8.3 5 匹配语义 + §8.2 X-9:
+
+    - §5.1 Context 8 维度: domain / platform / audience / geography / language /
+      goal / conditions / perspective (决定性 5 维度: 前 5)
+    - §8.3 5 匹配语义: exact / compatible / disjoint / unresolved / ignored
+    - §8.2 X-9: 任一决定性维度 unknown + 潜在互斥 → unresolved (warn 阶段;
+      实际 unresolved 分类由 Conflict Gate B-2.8 完成)
+    - 候选比较对象 context 缺失 → block (无法判定匹配语义)
+    - K-5 加固: WikiPage.category / taxonomy_sub 必须映射到 Context.domain /
+      Context.platform
+
+    与其他 Gate 协调:
+    - Schema Gate 先验证字段存在 (B-2.1)
+    - Identity Gate / Granularity Gate 先确认 KU 粒度 (B-2.4/B-2.5)
+    - 本 Gate: Context 匹配判定
+    - 后续 Temporal Gate (B-2.7) 与 Conflict Gate (B-2.8) 在本 Gate 基础上
+      处理 temporal / conflict 维度
+    """
+
+    name = "context"
+    order = 7
+
+    # spec §5.1 决定性 5 维度 (任意缺失或 unknown 触发 X-9)
+    DECISIVE_DIMS: tuple[str, ...] = (
+        "domain", "platform", "audience", "geography", "language",
+    )
+
+    # Reason code prefixes that should trigger ``block`` rather than ``warn``.
+    # Context Gate 的 reason code 中 "missing_candidate_b_" / "no_common_"
+    # 前缀视为 block (候选比较对象缺失或候选无共同维度)。
+    # 注意: 不使用通用 "missing_" — K-5 映射 (missing_domain_from_k5_taxonomy)
+    # 是软告警 (warn), 不阻断。
+    _BLOCK_PREFIXES = (
+        "missing_candidate_b_",
+        "no_common_",
+    )
+
+    def __init__(
+        self,
+        conflict_classifier: ConflictClassifier | None = None,
+    ) -> None:
+        """注入 ConflictClassifier (默认 None → 仍可独立运行; 集成路径由 B-2.8 接力).
+
+        当前 Gate 不直接调用 ConflictClassifier.classify() (那是 B-2.8 工作);
+        仅 import 该模块证明 A-3 集成点存在, 并保留扩展接口 (v2.2 后续可让
+        Context Gate 在比较路径直接复用 ConflictClassifier 的
+        _has_unknown_dimension 判定)。
+        """
+        self.conflict_classifier = conflict_classifier or ConflictClassifier()
+
+    def check(self, obj: Any, context: dict | None = None) -> GateVerdict:
+        # 1. obj 是否有 context 字段 (KnowledgeObject / WikiPage / Conflict 等)
+        #    无 context 字段视为不在本 Gate 关注范围 (helper: 不适用)
+        context_a = self._get_context(obj)
+        if context_a is None:
+            return GateVerdict.pass_()
+
+        reasons: list[str] = []
+
+        # 2. spec §5.1 决定性 5 维度探测: 任一 unknown → warn (X-9)
+        for dim in self.DECISIVE_DIMS:
+            val = context_a.get(dim)
+            if val in (None, "", "unknown"):
+                # §8.2 X-9: 任一决定性维度 unknown + 潜在互斥 → unresolved
+                # 简化: unknown 决定性维度 → warn (不阻断, 留痕)
+                # 实际 unresolved 类由 Conflict Gate 在 B-2.8 接力分类
+                reasons.append(f"unknown_decisive_dimension:{dim}")
+
+        # 3. spec §8.3 候选比较路径: 仅在有 candidate_b_context 时触发
+        if context and "candidate_b_context" in context:
+            context_b = context["candidate_b_context"]
+            if context_b is None:
+                return GateVerdict.block(["missing_candidate_b_context"])
+
+            # exact 至少 1 维度相同 (共享维度且值相等)
+            common = set(context_a.keys()) & set(context_b.keys())
+            if not common:
+                reasons.append("no_common_dimension")
+
+            # disjoint: domain + platform 都同时 disjoint 才算 disjoint
+            # (spec §8.3 — 单维度不同不视为 disjoint, 避免过度阻断)
+            for dim in ("domain", "platform"):
+                val_a = context_a.get(dim)
+                val_b = context_b.get(dim)
+                if (
+                    val_a
+                    and val_b
+                    and val_a != val_b
+                    and val_a != "unknown"
+                    and val_b != "unknown"
+                ):
+                    reasons.append(f"disjoint_dimension:{dim}")
+
+            # unresolved: 双方在任一决定性维度都 unknown → X-9
+            for dim in self.DECISIVE_DIMS:
+                val_a = context_a.get(dim)
+                val_b = context_b.get(dim)
+                if (
+                    val_a in (None, "", "unknown")
+                    and val_b in (None, "", "unknown")
+                ):
+                    reasons.append(f"unresolved_dimension:{dim}")
+
+        # 4. K-5 加固: WikiPage.category → Context.domain 必填映射
+        #    category/taxonomy_sub 有值时, 对应 Context 维度必填
+        if hasattr(obj, "category") and obj.category:
+            if "domain" not in context_a:
+                reasons.append("missing_domain_from_k5_taxonomy")
+        if hasattr(obj, "taxonomy_sub") and obj.taxonomy_sub:
+            if "platform" not in context_a:
+                reasons.append("missing_platform_from_k5_taxonomy")
+
+        if reasons:
+            # 区分 block vs warn:
+            # - block: missing_candidate_b_context / no_common_dimension
+            # - warn: unknown_decisive_dimension / disjoint_dimension /
+            #   unresolved_dimension / missing_domain_from_k5_taxonomy /
+            #   missing_platform_from_k5_taxonomy
+            blocking = [
+                r for r in reasons
+                if any(r.startswith(p) for p in self._BLOCK_PREFIXES)
+            ]
+            if blocking:
+                return GateVerdict.block(reasons)
+            return GateVerdict.warn(reasons)
+
+        return GateVerdict.pass_()
+
+    # ------------------------------------------------------------------
+    # helpers
+    # ------------------------------------------------------------------
+
+    def _get_context(self, obj: Any) -> dict | None:
+        """获取 obj 的 context 字典 (兼容 KnowledgeObject / WikiPage / Conflict).
+
+        路径探测顺序:
+        1. ``obj.context`` (KnowledgeObject 主流形态)
+        2. ``obj.context_a`` (Conflict 对象 — 比较路径的 a 侧)
+        3. ``obj._ko_extra["context"]`` (WikiPage 兼容路径 — frontmatter 序列化)
+        """
+        if hasattr(obj, "context") and isinstance(obj.context, dict):
+            return obj.context
+        if hasattr(obj, "context_a") and isinstance(obj.context_a, dict):
+            return obj.context_a
+        if hasattr(obj, "_ko_extra") and isinstance(obj._ko_extra, dict):
+            ko_extra = obj._ko_extra or {}
+            ctx = ko_extra.get("context")
+            if isinstance(ctx, dict):
+                return ctx
+        return None
