@@ -67,3 +67,5 @@ class KnowledgeObject:
     created_at: int = 0
     updated_at: int = 0
     custom_type: str = ""
+    valid_from: int | None = None  # spec §10 / §5.9: knowledge start-of-validity (Unix ms)
+    valid_to: int | None = None    # spec §10 / §5.9: knowledge end-of-validity (Unix ms)
