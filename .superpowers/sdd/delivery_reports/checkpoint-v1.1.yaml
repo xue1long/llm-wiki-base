@@ -1,0 +1,114 @@
+# Knowledge Compiler v2.2 路线 阶段报告 v1.1 (31 commits / B-2 design 完成)
+#
+# 任务: 路线 v2.2 阶段报告 checkpoint v1.1（v1.0 之后增量更新）
+# 范围: v1.0 之后追加 B-2 design 阶段（commit e663e26f），5 个决策点待用户审阅
+# 关联: docs/architecture/路线_v2.2_阶段报告_v1.0.md + docs/architecture/B-2_11_Gate_design.md
+# commit: "docs(sdd): add 路线 v2.2 阶段报告 v1.1 (31 commits / B-2 design 完成)"
+
+phase: "路线 v2.2 阶段报告 v1.1 (31 commits / B-2 design 完成)"  # checkpoint v1.1（v1.0 增量）
+
+changed_files:  # 本次 commit 新增的所有文件（v1.1 checkpoint 纯文档任务）
+  - docs/architecture/路线_v2.2_阶段报告_v1.1.md  # 新文件: v1.0 增量报告 (~200 行 markdown, 11 节 + 2 附录)
+  - .superpowers/sdd/delivery_reports/checkpoint-v1.1.yaml  # 本文件 CI 守门
+
+contracts_changed:  # 本次 commit 涉及的 Contract（数据契约层）—— v1.1 checkpoint 纯文档，不修改任何 Contract
+  # v1.1 报告 §2.1.1 引用了以下 Contract 模块（仅引用 / 不变更）
+  - src/kc/contracts/evidence.py  # Evidence frozen dataclass (C-1)
+  - src/kc/contracts/mode.py  # Observed/Synthesized 标签 (C-4)
+  - src/kc/contracts/structured_fact.py  # StructuredFact (C-4.5)
+  - src/kc/contracts/temporal.py  # Temporal Validity (A-2)
+  - src/kc/domain/knowledge_unit.py  # KnowledgeUnit + identity_key (A-1)
+  - src/kc/conflicts/classifier.py  # ConflictClassifier 6-type (A-3)
+  - src/kc/semantic_support/checker.py  # SemanticSupportChecker (B-1)
+  - src/kc/governance/approval.py  # Approval + ApprovalGate (A-4)
+  - src/kc/retrieval/filter.py  # DefaultFilter (C-2)
+
+tests_run:  # 本次 commit 运行的测试命令——v1.1 是 checkpoint 纯文档任务，spec §16 报告频率 2/3 不强制测试
+  # 0 新增测试（B-2 design 无代码改动 + checkpoint v1.1 无代码改动）
+  # 累计测试数保持 125 passed（v1.0 实测）
+  []
+
+evaluation_dataset_version:  # 本次 checkpoint 关联的评估数据集
+  "2026-08-26-c32-29case + 2026-08-26-c35-10task"  # 同 v1.0，B-2 design 不新增评估集
+  # C-3.2: 4 YAML × 29 case (conflict:10 / identity:9 / evidence_span:5 / source_trust:5)
+  # C-3.5: 1 YAML × 10 agent_task
+  # B-2 design 阶段：design doc §11 计划 ≥82 测试（11 Gate 错误注入 + 8 闭包 + 10 硬门槛 + 13 identity_key + 3 health_report）—— 实施时落地
+
+metrics:  # 本次 checkpoint v1.1 产出的关键指标（v1.0 增量）
+  # === 增量（v1.0 → v1.1）===
+  v1_1_incremental_commits: 1  # e663e26f (B-2 design)
+  v1_1_design_doc_lines: 817  # docs/architecture/B-2_11_Gate_design.md
+  v1_1_design_doc_sections: 11  # 11 节 + 2 附录
+  v1_1_decision_points: 5  # Relation Gate / B-2 节奏 / 8 commit 计划 / B-3 CLI / hybrid_search 集成
+  v1_1_gates_documented: 11  # B-2 design 覆盖 11 Gate
+  v1_1_gates_ready: 10  # 10/11 Gate 前置就绪（Relation Gate 需 ADR 留位）
+  v1_1_implementation_commits_planned: 8  # B-2.1 ~ B-2.8
+  v1_1_estimated_effort_days: "15-22 (单人 3-4 周)"
+  v1_1_identity_key_lines_total: 13  # B-2.5 总验收字段数
+  v1_1_identity_key_lines_implemented: 5  # A-1 + C-4.5 已实现 5/13
+  v1_1_code_changes: 0  # 纯文档 checkpoint + 纯规划 B-2 design
+
+  # === 累计（v1.0 + v1.1）===
+  commits_total: 31  # git log --oneline 2c7660e5~..HEAD 测得 31 个 commit
+  tasks_completed: 24  # C 段 14 + A 段 5 + B 段 1 + 配套 4
+  tasks_total: 26
+  tasks_design_ready: 1  # B-2 design 就绪（不计入 completed）
+  completion_rate: "24/26 + 1 design = 92%"
+
+  # === 测试统计（无增量，B-2 design + checkpoint v1.1 均为文档任务）===
+  test_kc_passed: 77  # 同 v1.0（B-2 design 不改代码）
+  test_eval_passed: 13  # 同 v1.0
+  test_dev_relay_passed: 5  # 同 v1.0
+  test_ko_extra_passed: 5  # 同 v1.0（与 v1.0 报告一致；v1.0 报告头说明 27 是细分）
+  other_baseline_passed: 25  # 同 v1.0
+  total_new_tests_passed: 125  # 77 + 13 + 5 + 5 + 25 = 125
+  test_regression_count: 0
+
+  # === spec §17 DoD 23 项 ===
+  spec_dod_fully_achieved: 6  # D-6 / D-7 / D-8 / D-15 / D-22 / D-23（同 v1.0）
+  spec_dod_partially_achieved: 11  # D-2/D-3/D-4/D-5/D-9/D-10/D-11/D-12/D-13/D-14/D-16/D-17
+  spec_dod_design_ready: 4  # D-1/D-19/D-20/D-21（B-2 design 完成，从 🔴 升级到 🟡）
+  spec_dod_not_achieved: 2  # D-18 + 评估集 100+ 缺口（B-2 实施后将进一步提升）
+
+  # === B-2 design 影响 ===
+  v2_2_major_addition_1: "B-2.5 identity_key 总验收（13 行字段统一校验）"
+  v2_2_major_addition_2: "B-2.6 Knowledge Health Report（quality_score 加权：硬门槛 10 / 普通 Gate 1）"
+  gate_dependency_graph_format: "Mermaid"
+  risk_matrix_items: 3  # Relation Gate / 6749 verified_at=0 / Source Trust Profile
+
+  # === 文件交付 ===
+  b_2_design_doc_added: 1  # docs/architecture/B-2_11_Gate_design.md
+  b_2_design_report_added: 1  # .superpowers/sdd/delivery_reports/B-2-design.yaml
+  v1_1_checkpoint_report_added: 1  # docs/architecture/路线_v2.2_阶段报告_v1.1.md
+  v1_1_delivery_report_added: 1  # 本文件
+
+hard_gate_failures:  # spec §11.4 硬门槛，列出失败项（空 = 通过）
+  # 本次 checkpoint v1.1 + B-2 design 均为文档/规划任务
+  # 不修改任何代码 → 不引入新硬门槛违反
+  # spec §11.4 硬门槛的实际违反检查留待 B-2 实施阶段
+  []
+
+migration_required: false  # 纯文档任务，0 改代码
+
+rollback_procedure:  # 回滚步骤
+  "git revert <commit> 即可移除本次 checkpoint v1.1 全部改动（1 新文件 markdown + 1 新文件 YAML）"
+
+known_limitations:  # 已知限制（公开透明）
+  - "checkpoint v1.1 是 v1.0 的增量（92% 完成态不变），B-2 11 Gate 实施仍未开工"
+  - "v1.1 报告路径：docs/architecture/路线_v2.2_阶段报告_v1.1.md（v1.0 文件 318 行保持不变）"
+  - "B-2 design 阶段产出但**未实施**——0 改代码 + 0 改其他文件"
+  - "5 个决策点待用户审阅（Relation Gate / B-2 节奏 / 8 commit 计划 / B-3 CLI / hybrid_search 集成）"
+  - "Relation Gate 是唯一前置依赖未完成的 Gate，需用户决策 Relation ADR 留位策略（决策点 1）"
+  - "6749 WikiPage backfill（valid_from/valid_to 字段）留到 B-2.4 实施"
+  - "C-2.5 hybrid_search 集成（决策点 5）建议留到 B-3 之后独立任务"
+  - "B-2.5 identity_key 13 行字段目前已实现 5/13 行（B-2 design 已列缺失 8 行清单）"
+  - "test_ko_extra_* 数量：v1.0 报告口径 27，本 checkpoint 取 5（拆分粒度差异）—— 同 v1.0 已知差异"
+  - "评估数据集缺口（B-2 实施后预计可达 ≥82 测试，符合 design §11 测试矩阵规划）"
+
+# === 关键字段：spec §16.2 EX-3 硬规则 ===
+# ⚠️ 关键判断：
+#   - hard_gate_failures 为空（[]）—— 硬门槛未失败
+#   - next_phase_ready: false —— 但因 v1.1 是 checkpoint 文档，5 个决策点需用户审阅才能进入 B-2 实施
+#   - spec §16.2 EX-3 硬规则：硬门槛非空时 next_phase_ready 必须 false
+#     此处硬门槛为空 → next_phase_ready: false 是合规的（checkpoint 需要用户决策）
+next_phase_ready: false  # v1.1 是 checkpoint 文档，5 个决策点待用户审阅（不进入 B-2 实施）
