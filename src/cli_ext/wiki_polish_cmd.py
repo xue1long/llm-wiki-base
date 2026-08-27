@@ -46,10 +46,33 @@ def cmd_stubs_promote(args):
 
 
 def cmd_dedup_auto(args):
+    """dedup_auto CLI（H-1 决策：--require-approval 开关）。
+
+    默认 require_approval=False 走既有 merge-auto-high 路径 (0 回归)；
+    --require-approval 时走 merge-reviewed 路径 (spec §11.4 #4 强制)，
+    创建 pending Approval 而不实际合并。
+    """
     _, paths = _resolve_ctx(args.project)
+    require_approval = getattr(args, "require_approval", False)
+
+    if require_approval:
+        # spec §11.4 #4 强制路径：merge-reviewed
+        from src.wiki.features.dedup_auto import dedup_auto_with_approval
+        results = dedup_auto_with_approval(
+            paths, _provider(), threshold=args.threshold, require_approval=True
+        )
+        n_approvals = sum(1 for r in results if hasattr(r, "approval_id"))
+        print(
+            f"Created {n_approvals} pending approvals (require manual review); "
+            "no merges executed (spec §11.4 #4)"
+        )
+        return results
+
+    # H-1 决策：默认走 merge-auto-high legacy（0 回归）
     result = run_dedup_auto(paths, _provider(), threshold=args.threshold)
     records = asyncio.run(result) if hasattr(result, "__await__") else result
     print(f"Auto-merged {len(records)} duplicate groups")
+    return records
 
 
 def cmd_lint_cache_clear(args):

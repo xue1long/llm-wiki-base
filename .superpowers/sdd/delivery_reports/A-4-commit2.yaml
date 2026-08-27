@@ -1,0 +1,93 @@
+# Knowledge Compiler v2.2 路线任务交付报告 (A-4 commit 2 — dedup_auto dual-mode)
+#
+# 任务: A-4 / G7 commit 2 — dedup_auto 双模式改造
+#       H-1 决策: --require-approval 开关（默认 False 兼容历史）
+#       spec §11.4 #4: 无审计 merge/supersede = 0 落地
+# 范围: src/wiki/features/dedup_auto.py 增加 dedup_auto_with_approval wrapper
+#       src/cli_ext/wiki_polish_cmd.py 增加 require_approval 分支
+#       src/cli.py 增加 --require-approval argparse flag
+#       tests/test_kc/test_dedup_auto_approval.py 3 TDD 测试
+# 关联: docs/superpowers/plans/2026-08-26-kc-spec-roadmap.md §A-4 + G7 + H-1
+#       spec §11.4 #4 无审计 merge/supersede = 0
+# commit 2: "refactor(dedup): add --require-approval flag for merge-reviewed mode (A-4 / G7 commit 2)"
+
+phase: A-4-commit2  # 路线 §A-4 commit 2 — dedup_auto 双模式 wrapper
+
+changed_files:
+  - src/wiki/features/dedup_auto.py            # 改文件 1: 增加 dedup_auto_with_approval wrapper (不动既有 dedup_auto 函数体)
+  - src/cli_ext/wiki_polish_cmd.py             # 改文件 2: cmd_dedup_auto 增加 require_approval 分支 (既有路径 0 行为变化)
+  - src/cli.py                                 # 改文件 3 (surgical): 增加 --require-approval argparse flag
+  - tests/test_kc/test_dedup_auto_approval.py  # 新文件: 3 TDD 测试
+
+contracts_changed:
+  # 不修改 spec §5.11 Approval 既有 contract (commit 1 已落地)
+  # 仅消费 ApprovalGate / Approval dataclass; 不修改字段 / literal
+  # src/cli.py argparse 新增 --require-approval flag (default False)
+  # 这是 CLI 层 contract 扩展, 不影响既有 KnowledgeUnit / WikiPage 字段
+  - src/cli.py  # 新增 --require-approval argparse flag (H-1 决策)
+
+tests_run:
+  - "PYTHONPATH=. python -m pytest tests/test_kc/test_dedup_auto_approval.py --import-mode=importlib -v"  # 3/3 PASS
+  - "PYTHONPATH=. python -m pytest tests/test_wiki/test_dedup_auto.py tests/test_wiki/test_dedup_atomic.py tests/test_cli_ext/test_cmd_wiki_polish.py --import-mode=importlib -v"  # 7/7 PASS (既有 dedup_auto + atomic + cli_ext 测试, 0 回归, H-1 硬要求)
+  - "PYTHONPATH=. python -m pytest tests/test_wiki/test_dedup_auto.py tests/test_wiki/test_dedup_atomic.py tests/test_cli_ext/test_cmd_wiki_polish.py tests/test_kc/test_approval.py tests/test_kc/test_dedup_auto_approval.py --import-mode=importlib -q"  # 13/13 PASS
+  - "PYTHONPATH=. python -m pytest tests/test_kc --import-mode=importlib -q --ignore=tests/test_kc/test_kc_ku_dryrun.py"  # 77 passed (baseline 71 + 3 approval + 3 dedup_auto_approval), 0 regression
+
+evaluation_dataset_version:
+  # A-4 commit 2 是 spec §11.4 #4 dedup_auto 双模式落地;
+  # 评估数据集关联 A-1 dry-run (commit e9812664, novel-wiki 4892 页面) -
+  # 当前 3 个 TDD 测试覆盖:
+  #   - default require_approval=False legacy 行为 (0 回归)
+  #   - require_approval=True 创建 pending Approval (不实际 merge)
+  #   - 既有 dedup_auto 0 回归
+  "A-4 commit 2 TDD 3case — default legacy + require_approval pending only + 既有 0 回归"
+
+metrics:
+  spec_section_11_4_4_dedup_dual_mode: "implemented (require_approval=True → merge-reviewed; False → merge-auto-high legacy)"
+  h1_decision_default_false: "implemented (require_approval 默认 False 兼容历史)"
+  h1_decision_opt_in_audit: "implemented (require_approval=True 走 Approval 门禁)"
+  spec_section_5_11_approval_consumed: "implemented (dedup_auto_with_approval 创建 Approval; persist append-only 到 .index/approvals.jsonl)"
+  spec_section_11_4_4_no_merge_without_audit: "implemented (require_approval=True 不删 entity 文件, 不写 dedup_history, 仅创建 pending Approval)"
+  legacy_preserve_zero_regression: "implemented (dedup_auto 函数体 0 改动; cmd_dedup_auto 既有路径 0 行为变化)"
+  cli_argparse_opt_in_flag: "implemented (--require-approval argparse action=store_true, default False)"
+  # 测试结果
+  dedup_auto_approval_tests_passed: 3
+  dedup_auto_approval_tests_total: 3
+  baseline_test_wiki_dedup_auto_passing: 2
+  baseline_test_wiki_dedup_auto_regression_count: 0  # H-1 决策硬要求: 0 回归
+  baseline_test_wiki_dedup_atomic_passing: 1
+  baseline_test_wiki_dedup_atomic_regression_count: 0
+  baseline_test_cli_ext_wiki_polish_passing: 4
+  baseline_test_cli_ext_wiki_polish_regression_count: 0
+  baseline_test_kc_passing: 71  # commit 2 之前的 test_kc PASS 数 (排除 kc_ku_dryrun 慢测试)
+  baseline_test_kc_regression_count: 0
+  # v2.2 决策落地
+  v22_h1_opt_in_flag: "CLI --require-approval flag (default False)"
+  v22_a4_spec_11_4_4_hard_gate: "无审计 merge = 0 (通过 ApprovalGate.check_authorization 强制)"
+  # 文件预算
+  new_files: 1  # test_dedup_auto_approval.py
+  modified_files: 3  # dedup_auto.py + wiki_polish_cmd.py + cli.py
+
+hard_gate_failures:
+  # spec §11.4 #4 — 无审计 merge/supersede = 0
+  # A-4 commit 2 实现后:
+  #   - dedup_auto_with_approval(require_approval=True) 仅创建 pending Approval,
+  #     不实际 merge, 不删 entity, 不写 dedup_history
+  #   - dedup_auto 函数体 0 改动 (legacy merge-auto-high 行为保持)
+  #   - 既有 dedup_auto 2 测试 + atomic 1 测试 + cli_ext 4 测试 0 回归
+  # 3 测试覆盖 §11.4 #4 硬门槛 + 0 回归验证
+  []
+
+migration_required: false  # 不修改 Approval / KnowledgeUnit / WikiPage 既有字段；零数据迁移
+
+rollback_procedure:
+  "git revert <commit> 即可移除 A-4 commit 2 全部改动（修改 3 个文件 + 新增 1 个测试文件）"
+
+known_limitations:
+  - "dedup_auto_with_approval(require_approval=True) 仅创建 pending Approval; reviewer 审批后需手动执行实际 merge (人工流程, 非本任务范围)"
+  - "find_duplicates 现有实现依赖 LLM provider (provider=None 时返回空 list); commit 2 不修改既有 find_duplicates 逻辑"
+  - "Approval 持久化是 append-only JSONL (.index/approvals.jsonl); 不并发安全 (与 commit 1 既有限制一致)"
+  - "cmd_dedup_auto 在 --require-approval=True 时 print 提示创建 pending 数; 不显示 approval_id 列表 (caller 可通过 ApprovalGate.get_approval 自行查询)"
+  - "cli.py argparse --require-approval flag 仅在 `dedup auto` 子命令生效; 不影响 dedup 其他子命令"
+
+# === 关键字段：spec §16.2 EX-3 硬规则 ===
+next_phase_ready: true  # 3/3 dedup_auto_approval 测试通过；既有 dedup_auto / atomic / cli_ext 7 测试 0 回归；baseline test_kc 71 → 77 (0 regression)；spec §11.4 #4 + H-1 决策全部落地

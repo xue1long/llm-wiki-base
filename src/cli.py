@@ -494,6 +494,11 @@ def main():
     p_dedup_sub = p_dedup.add_subparsers(dest="dedup_command", required=True)
     p_dauto = p_dedup_sub.add_parser("auto")
     p_dauto.add_argument("--threshold", default="high", choices=["high", "medium", "low"])
+    p_dauto.add_argument(
+        "--require-approval",
+        action="store_true",
+        help="spec §11.4 #4 强制：merge-reviewed 走 Approval 门禁（H-1 决策：默认 False 兼容历史）",
+    )
     p_dauto.add_argument("--project")
     p_dauto.set_defaults(func=cmd_dedup_auto)
     p_lint = subparsers.add_parser("lint", help="Run wiki lint with caching")
