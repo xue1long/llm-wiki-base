@@ -23,7 +23,11 @@ from typing import Any, Literal
 
 from ..contracts.evidence import Evidence
 from ..contracts.strength_policy import StrengthPolicy
-from ..domain.knowledge_unit import KnowledgeUnit
+from ..domain.knowledge_unit import (
+    KnowledgeUnit,
+    should_merge_ku,
+    should_split_ku,
+)
 from ..governance.approval import ApprovalGate
 from ..semantic_support.checker import SemanticSupportChecker
 
@@ -562,6 +566,98 @@ class IdentityGate(Gate):
         #    当前 KnowledgeUnit 未实现 resolution_event_id 字段 — 留 known_limitations
 
         if reasons:
+            blocking = [
+                r for r in reasons
+                if any(r.startswith(p) for p in self._BLOCK_PREFIXES)
+            ]
+            if blocking:
+                return GateVerdict.block(reasons)
+            return GateVerdict.warn(reasons)
+
+        return GateVerdict.pass_()
+
+
+class GranularityGate(Gate):
+    """spec §11.2 Gate 6: 对象粒度符合三层模型。
+
+    检查 spec §4.2 + §4.4 拆分/合并规则:
+    - §4.2 KU 必须能用一个问题描述 (question 字段必填)
+    - §4.4 拆分条件 (任一满足即拆):
+        1. 内部 Claim 回答两个不同问题 (internal_questions > 1)
+        2. 平台/受众/领域不同 (not same_platform / same_audience)
+        3. 有效时间区间不同 (not time_ranges_overlap)
+        4. 一部分更新频繁导致其他部分重编译 (update_correlation < 0.5)
+    - §4.4 合并条件 (全部满足才合):
+        1. 同问题 (same_question)
+        2. Context 兼容 (context_compatible)
+        3. 时间兼容 (time_compatible)
+        4. 合并后仍能独立检索 (can_stay_independent)
+        5. 不隐藏冲突 (no_hidden_conflict)
+    - §4.4 拆分/合并决策写入 resolution_event (A-1 commit 2 已实现持久化,
+      B-2.5 commit 1 在 KnowledgeUnit 加了 resolution_event_id 字段)
+
+    集成 A-1 helpers:
+    - should_split_ku (4 条件 OR-of)
+    - should_merge_ku (5 条件 AND-of)
+    - KnowledgeUnit.question 必填 (spec §4.2)
+    - KnowledgeUnit.resolution_event_id 关联 A-1 commit 2 ResolutionEvent
+
+    区分 block vs warn:
+    - block: missing_question:ku_cannot_be_described /
+      split_triggered_no_resolution_event / merge_triggered_no_resolution_event
+    - warn: deprecated_without_resolution_event
+    """
+
+    name = "granularity"
+    order = 6
+
+    # Reason code prefixes that should trigger ``block`` rather than ``warn``.
+    _BLOCK_PREFIXES = (
+        "missing_",
+        "split_",
+        "merge_",
+    )
+
+    def check(self, obj: Any, context: dict | None = None) -> GateVerdict:
+        # 1. obj 是 KnowledgeUnit 才有 granularity 校验
+        if not isinstance(obj, KnowledgeUnit):
+            return GateVerdict.pass_()  # 非 KU 不适用 (留 Schema/Identity Gate 处理)
+
+        reasons: list[str] = []
+
+        # 2. spec §4.2: KU 必须能用一个问题描述
+        if not obj.question or not obj.question.strip():
+            return GateVerdict.block(["missing_question:ku_cannot_be_described"])
+
+        # 3. spec §4.4 拆分条件 (任一满足即拆, 触发记录 resolution_event)
+        #    should_split_ku 4 条件 OR-of
+        #    通过 context["should_split_params"] 传入拆分判定参数
+        #    (实际部署由 caller 评估, GranularityGate 仅做关联校验)
+        if context and "should_split_params" in context:
+            params = context["should_split_params"]
+            if should_split_ku(**params):
+                # 拆分触发: 要求有 resolution_event_id 关联
+                if not obj.resolution_event_id:
+                    reasons.append("split_triggered_no_resolution_event")
+
+        # 4. spec §4.4 合并条件 (全部满足才合, 触发记录 resolution_event)
+        #    should_merge_ku 5 条件 AND-of
+        if context and "should_merge_params" in context:
+            params = context["should_merge_params"]
+            if should_merge_ku(**params):
+                # 合并触发: 要求有 resolution_event_id 关联
+                if not obj.resolution_event_id:
+                    reasons.append("merge_triggered_no_resolution_event")
+
+        # 5. spec §4.4: deprecated status 应有 resolution_event 留痕
+        #    简化检查: status='deprecated' 但无 resolution_event_id → warn (软告警)
+        if obj.status == "deprecated" and not obj.resolution_event_id:
+            reasons.append("deprecated_without_resolution_event")
+
+        if reasons:
+            # 区分 block vs warn:
+            # - block: missing_/split_/merge_ 前缀
+            # - warn: deprecated_ 前缀 (软告警, 不阻断)
             blocking = [
                 r for r in reasons
                 if any(r.startswith(p) for p in self._BLOCK_PREFIXES)
