@@ -1,0 +1,77 @@
+# Knowledge Compiler v2.2 路线任务交付报告 (A-1 KnowledgeUnit 单独建模, G3)
+#
+# 任务: A-1 KnowledgeUnit 单独建模 — spec §4.2 + §5.4 + §4.4 KU
+# 范围: src/kc/domain/ 包 + KnowledgeUnit dataclass + id-v1 identity_key
+#       + split/merge 辅助函数 + ResolutionEvent + KO 加 ku_id 字段
+# 关联: docs/superpowers/plans/2026-08-26-kc-spec-roadmap.md §A-1 + G3
+#       spec §4.2 (三层粒度) + §4.4 (拆分/合并) + §5.4 (KU schema) + §5.11 (ResolutionEvent)
+# commit (A-1 commit 1): KnowledgeUnit + identity_key + ku_id back-compat
+
+phase: A-1  # 路线 §A-1 KnowledgeUnit 单独建模
+
+changed_files:  # 本次 commit 修改的所有文件（含新增）
+  - src/kc/domain/knowledge_unit.py        # 新文件: KnowledgeUnit + identity_key + helpers
+  - src/kc/domain/__init__.py              # 修改: 暴露 KnowledgeUnit / ResolutionEvent 等
+  - src/knowledge/core/object.py           # 修改: KnowledgeObject 加 ku_id 字段 (back-compat None)
+  - tests/test_kc/test_knowledge_unit.py   # 新文件: 5 TDD 测试
+
+contracts_changed:  # 本次 commit 涉及的 Contract（数据契约层）
+  # KnowledgeUnit dataclass 是 spec §5.4 KU 数据契约的 A-1 切片实现
+  # 字段集合与 spec §5.4 一致; 8 unit_type + 6 status 与 spec §5.4 一致
+  - src/kc/domain/knowledge_unit.py  # KnowledgeUnit + UnitType + KUStatus + ResolutionAction + ResolutionEvent
+  # KnowledgeObject.ku_id 是 spec §5.4 KO-KU 反向引用的 back-compat 添加
+  - src/knowledge/core/object.py    # KnowledgeObject.ku_id: str | None
+
+tests_run:  # 本次 commit 运行的测试命令
+  - "PYTHONPATH=. python -m pytest tests/test_kc/test_knowledge_unit.py --import-mode=importlib -v"  # 5/5 PASS
+  - "PYTHONPATH=. python -m pytest tests/test_kc tests/test_knowledge/test_object.py --import-mode=importlib -q"  # 94 passed (89 prior + 5 new), 0 regression
+
+evaluation_dataset_version:  # 本次 commit 关联的评估数据集版本
+  # A-1 是 KU dataclass + identity_key 基础设施; 评估集成是 B-2 (Identity Resolution)
+  # 当前与 A-1 dry-run (e9812664) 对齐: novel-wiki 4892 页面, 66 叙事类应按 choice_3 拆分
+  "A-1 dry-run (commit e9812664): novel-wiki 4892 pages / 66 narrative (1.3%) — choice_3 backfill ¥4"
+
+metrics:  # 本次 commit 产出的关键指标
+  # spec §4.2 三层粒度
+  spec_section_4_2_three_tier_granularity: "implemented (Entity/Concept → KU → Claim/StructuredFact)"
+  # spec §4.4 拆分/合并条件
+  spec_section_4_4_split_conditions: "implemented (should_split_ku: 4 conditions OR-of)"
+  spec_section_4_4_merge_conditions: "implemented (should_merge_ku: 5 conditions AND-of)"
+  # spec §5.4 KU schema
+  spec_section_5_4_ku_dataclass: "implemented (8 unit_type + 6 status + 8 字段组)"
+  spec_section_5_4_ko_ku_relation: "implemented (KnowledgeObject.ku_id back-compat field)"
+  # spec §5 id-v1 identity_key 算法
+  spec_section_5_identity_key_algorithm: "implemented (sha256 + NFKC + lowercase + canonical JSON)"
+  # spec §5.11 ResolutionEvent
+  spec_section_5_11_resolution_event: "implemented (action + reason_codes + policy_version + model + confidence + approval_id)"
+  # 测试结果
+  knowledge_unit_tests_passed: 5
+  knowledge_unit_tests_total: 5
+  baseline_test_kc_passing: 64
+  baseline_test_object_passing: 20
+  baseline_test_regression_count: 0
+  # H-5 ADR 支持
+  h5_adr_choice_3_supported_by: "should_split_ku helper (KU 精准拆分依据)"
+  # 文件预算
+  new_files: 3  # knowledge_unit.py + test_knowledge_unit.py + __init__.py 是 2 新 + 1 改
+  modified_files: 2  # src/kc/domain/__init__.py + src/knowledge/core/object.py
+
+hard_gate_failures:  # spec §11.4 硬门槛（空 = 通过）
+  # KnowledgeUnit 是不可变 frozen dataclass; 无 Observed/Synthesized 混层风险
+  # ResolutionEvent 含 audit_id, 无无审计 merge/supersede 风险
+  []
+
+migration_required: false  # 新增独立字段 back-compat 默认 None; 零数据迁移
+
+rollback_procedure:  # 回滚步骤（一句话描述）
+  "git revert <commit> 即可移除 A-1 全部改动 (ku_id 字段默认 None 不破坏既有)"
+
+known_limitations:  # 已知限制（公开透明）
+  - "KnowledgeUnit 仅建模 schema + 拆分/合并决策, 实际 Identity Resolution 流程由 B-2 任务接入"
+  - "should_split_ku 是纯函数判定; 实际 backfill 由 A-1 dry-run 推荐 choice_3 + 后续 KU backfill 任务执行"
+  - "_normalize 把 None 映射为空字符串, 避免 dict 中 None vs missing 的歧义 (spec §5 id-v1 algorithm)"
+  - "src/kc/domain/ 包尚未被现有 kc 流程主动调用 (无 coupling); A-3 Conflict/B-2 Resolution 阶段才会接入"
+  - "knowledge_unit.py 引入 unicodedata + hashlib 新依赖 (stdlib 既有, 不需新增)"
+
+# === 关键字段：spec §16.2 EX-3 硬规则 ===
+next_phase_ready: true  # 5/5 测试通过; baseline 0 regression; spec §4.2/§4.4/§5.4/§5.11 切片全部落地

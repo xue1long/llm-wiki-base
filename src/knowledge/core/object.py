@@ -69,3 +69,4 @@ class KnowledgeObject:
     custom_type: str = ""
     valid_from: int | None = None  # spec §10 / §5.9: knowledge start-of-validity (Unix ms)
     valid_to: int | None = None    # spec §10 / §5.9: knowledge end-of-validity (Unix ms)
+    ku_id: str | None = None       # spec §5.4: 关联的 KU id (1:N 反向引用; back-compat 默认 None)
