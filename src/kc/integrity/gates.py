@@ -1065,3 +1065,133 @@ class ConflictGate(Gate):
         if reasons:
             return GateVerdict.warn(reasons)
         return GateVerdict.pass_()
+
+
+class RetrievalGate(Gate):
+    """spec §11.2 Gate 11: 发布对象可按 ID、主题和证据链检索.
+
+    检查 spec §12.1 默认当前检索过滤器 (4 条件 AND):
+
+    1. status = verified (C-2 DefaultFilter workflow_state 维度, 既有)
+    2. temporal_status = current (A-2 derive_status 内联简化)
+    3. 边界校验 (valid_from <= query_time < valid_to)
+    4. 显式 include_unknown=true 时返回 unknown (T-7)
+
+    集成:
+    - C-2 DefaultFilter.passes() (workflow_state 维度, 既有
+      src/kc/retrieval/filter.py — 本 Gate 内联简化等价逻辑,
+      避免循环依赖 — 与 TemporalGate 内联简化 _derive_temporal_status 同一策略)
+    - A-2 apply_temporal_filter (temporal 维度, 内联简化 _derive_temporal_status,
+      与 TemporalGate 同一实现 — 简化规则: valid_from > query_time → scheduled,
+      valid_to <= query_time → historical, 其他 → current)
+    - B-1 SemanticSupportChecker (evidence 维度, 默认 OFF — 仅在注入时启用)
+
+    与前 9 Gate 协调:
+    - 前 9 Gate 是"是否发布" (发布闭包): Schema / Provenance / Evidence /
+      Mode / Identity / Granularity / Context / Temporal / Conflict
+    - Retrieval Gate 是"发布后能否被默认检索" (检索闭包):
+      发布过 ≠ 进入默认检索 (即 default_current_retrieval_filter)
+    - 关系: 前 9 Gate 全部通过 → 发布; Retrieval Gate 通过 → 进默认检索结果
+
+    简化设计:
+    - 仅检查 workflow_state + temporal (C-2 + A-2 维度)
+    - evidence 维度 (B-1 SemanticSupportChecker) 留待 v2.2 后续注入
+    - lifecycle 维度 (KO _ko_extra.lifecycle) 由 C-2 DefaultFilter 既有
+      覆盖, 本 Gate 不重复 (helper: 一致性靠 v2.2 B-3 任务串联)
+    """
+
+    name = "retrieval"
+    order = 11
+
+    # Reason code prefixes that should trigger ``block`` rather than ``warn``.
+    # Retrieval Gate 的 reason code 中 "not_" 前缀视为 block (workflow_state 不对).
+    # temporal_* 前缀视为 warn (T-9 / T-10 默认当前检索不返回 — 仅留痕不阻断).
+    _BLOCK_PREFIXES = (
+        "not_",
+    )
+
+    def __init__(
+        self,
+        semantic_checker: SemanticSupportChecker | None = None,
+    ) -> None:
+        """注入 SemanticSupportChecker (B-1, 默认 OFF).
+
+        默认 None → 不调用 evidence 维度检查 (v2.2 当前阶段简化);
+        IntegrityGate 后续可注入同一实例做完整 3 维度串联.
+        """
+        self.semantic_checker = semantic_checker
+
+    def check(self, obj: Any, context: dict | None = None) -> GateVerdict:
+        # 1. obj 是否有 workflow_state 字段 (WikiPage 有, KnowledgeObject 没有)
+        #    无 workflow_state 视为不在本 Gate 关注范围 (helper: 不适用)
+        if not hasattr(obj, "workflow_state"):
+            return GateVerdict.pass_()
+
+        reasons: list[str] = []
+        query_time = context.get("query_time") if context else None
+
+        # 2. C-2 DefaultFilter workflow_state 维度 (内联简化):
+        #    spec §12.1 R-1: workflow_state 必须 = verified
+        if obj.workflow_state != "verified":
+            reasons.append(f"not_verified:workflow_state={obj.workflow_state}")
+
+        # 3. A-2 temporal 维度 (内联简化 _derive_temporal_status):
+        #    spec §12.1 R-2 + §10 T-10: temporal_status 必须 = current
+        #    仅在 query_time 存在且 obj 有 valid_from/valid_to 字段时检查
+        if query_time is not None and hasattr(obj, "valid_from") and hasattr(obj, "valid_to"):
+            status = self._derive_temporal_status(
+                obj.valid_from, obj.valid_to, query_time
+            )
+            if status == "scheduled":
+                # T-9: 未来生效 → warn (默认当前检索不返回)
+                reasons.append("temporal_scheduled")
+            elif status == "historical":
+                # T-10: 已过期 → warn (默认当前检索不返回)
+                reasons.append("temporal_historical")
+            elif status == "unknown":
+                # T-7: 缺任一边界 → unknown 状态 (warn 不阻断)
+                reasons.append("temporal_unknown")
+            # current: 默认通过
+
+        # 4. spec §12.1 + §10 T-7: 显式 include_unknown=true 时返回 unknown
+        #    (与 C-2 DefaultFilter 一致 — 显式 opt-in 允许 unknown 状态进入检索)
+        if context and context.get("include_unknown"):
+            # 移除 temporal_unknown 阻断 (允许显式查询包含)
+            reasons = [r for r in reasons if r != "temporal_unknown"]
+
+        if reasons:
+            # 区分 block vs warn:
+            # - block: not_verified (workflow_state 不对)
+            # - warn: temporal_scheduled / temporal_historical / temporal_unknown
+            blocking = [
+                r for r in reasons
+                if any(r.startswith(p) for p in self._BLOCK_PREFIXES)
+            ]
+            if blocking:
+                return GateVerdict.block(reasons)
+            return GateVerdict.warn(reasons)
+
+        return GateVerdict.pass_()
+
+    # ------------------------------------------------------------------
+    # helpers
+    # ------------------------------------------------------------------
+
+    def _derive_temporal_status(
+        self, valid_from, valid_to, query_time
+    ) -> str:
+        """spec §10 T-10 派生 temporal_status (内联实现, 与 TemporalGate 一致).
+
+        简化规则 (避免循环依赖 — 与 TemporalGate._derive_temporal_status 同一策略):
+        - valid_from > query_time → scheduled (T-9 未来生效)
+        - valid_to <= query_time → historical (T-10 已过期)
+        - valid_from / valid_to 都为 None → unknown (T-7 / L-6 加固)
+        - 其他 → current (含 partial bound 场景)
+        """
+        if valid_from is None and valid_to is None:
+            return "unknown"
+        if valid_from is not None and valid_from > query_time:
+            return "scheduled"
+        if valid_to is not None and valid_to <= query_time:
+            return "historical"
+        return "current"
