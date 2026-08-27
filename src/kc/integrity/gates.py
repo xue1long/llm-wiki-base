@@ -948,3 +948,120 @@ class TemporalGate(Gate):
         if valid_to is not None and valid_to <= query_time:
             return "historical"
         return "current"
+
+
+class ConflictGate(Gate):
+    """spec §11.2 Gate 9: 真实冲突不被静默覆盖.
+
+    检查 spec §8.2 6 类冲突 (actual/conditional/temporal/perspective/none/
+    unresolved):
+
+    - actual / unresolved → block (spec §11.4 #6 #7 硬门槛)
+    - temporal 未建立 supersede 关系 → block (spec §8.2 X-6 — 时间不重叠
+      需 supersede 关系才能放行)
+    - conditional / temporal (有 supersede) / perspective → warn
+      (条件冲突可发布但带限定, 不阻断默认发布)
+    - none → pass
+
+    集成 A-3 ConflictClassifier:
+    - 顶层直调 classify() (与 TemporalGate 内联简化相反 — ConflictClassifier
+      是天然使用者, 不内联是合理设计)
+    - 利用已有 6 类判定 (B-2.6 Context Gate 也调用, 但不重复 — 本 Gate 是
+      最终 block/warn 决策者)
+
+    spec §11.4 硬门槛:
+    - #6: Actual Conflict 被覆盖 > 0 → block
+    - #7: Unresolved Conflict 被发布 > 0 → block
+
+    与其他 Gate 协调:
+    - Context Gate (B-2.6) 先判定 Context 匹配, 在 Context match 的基础上
+      Conflict Gate 才做 6 类冲突分类 (本 Gate 仅在 candidate_b 存在时
+      启用比较路径)
+    - Temporal Gate (B-2.7) 已校验时间字段合法性; Conflict Gate 在此基础上
+      调用 A-3 判定 temporal 维度是否触发 supersede 关系
+    - 后续 Retrieval Gate (B-2.9) 在本 Gate 通过后, 串联 default
+      retrieval 过滤器
+    """
+
+    name = "conflict"
+    order = 9
+
+    def __init__(
+        self,
+        conflict_classifier: ConflictClassifier | None = None,
+    ) -> None:
+        """注入 ConflictClassifier (默认 None → 仍可独立运行, 内部实例化).
+
+        A-3 ConflictClassifier 已是天然使用者 — 顶层直调是合理设计, 不像
+        Temporal Gate 那样内联简化避免循环依赖. 这里保留注入接口, 由
+        IntegrityGate 统一注入同一实例 (v2.2 后续).
+        """
+        self.conflict_classifier = conflict_classifier or ConflictClassifier()
+
+    def check(self, obj: Any, context: dict | None = None) -> GateVerdict:
+        # 1. 仅当有 candidate_b context 时检查冲突
+        #    Context Gate (B-2.6) 已有 candidate_b_context 字段; Conflict Gate
+        #    约定使用 ``candidate_b`` 字段 (整对象, 含 text/content/context_a
+        #    等) — 由 IntegrityGate 协调保证 caller 已把对象塞入 context.
+        #    缺 candidate_b → 不适用 → pass (helper).
+        if not context or "candidate_b" not in context:
+            return GateVerdict.pass_()
+
+        candidate_a = obj
+        candidate_b = context["candidate_b"]
+        if candidate_b is None:
+            return GateVerdict.pass_()
+
+        # 2. 调用 A-3 ConflictClassifier 6 类判定 (顶层直调)
+        #    输入兼容: text 优先, content 兜底 — ConflictObject 形态, 也兼容
+        #    KnowledgeObject (其 text/content 字段) / WikiPage (content 字段).
+        try:
+            conflict = self.conflict_classifier.classify(
+                statement_a=getattr(candidate_a, "text", "") or getattr(candidate_a, "content", ""),
+                statement_b=getattr(candidate_b, "text", "") or getattr(candidate_b, "content", ""),
+                context_a=getattr(candidate_a, "context_a", None),
+                context_b=getattr(candidate_b, "context_b", None),
+                valid_from_a=getattr(candidate_a, "valid_from_a", None),
+                valid_to_a=getattr(candidate_a, "valid_to_a", None),
+                valid_from_b=getattr(candidate_b, "valid_from_b", None),
+                valid_to_b=getattr(candidate_b, "valid_to_b", None),
+            )
+        except Exception as e:
+            # ConflictClassifier 异常 → warn (不阻断, 但记录 — fail-closed-but-usable)
+            return GateVerdict.warn(
+                [f"conflict_classifier_error:{type(e).__name__}"]
+            )
+
+        # 3. spec §11.4 #6 + #7 硬门槛 + §8.2 X-6 (temporal supersede):
+        #    actual / unresolved → block; temporal 无 supersede → block;
+        #    conditional / temporal 有 supersede / perspective → warn;
+        #    none → pass.
+        reasons: list[str] = []
+        if conflict.conflict_type == "actual":
+            # spec §11.4 #6: Actual Conflict 被覆盖 > 0 → block
+            reasons.append("actual_conflict:actual")
+            return GateVerdict.block(reasons)
+        elif conflict.conflict_type == "unresolved":
+            # spec §11.4 #7: Unresolved Conflict 被发布 > 0 → block
+            reasons.append("unresolved_conflict:unresolved")
+            return GateVerdict.block(reasons)
+        elif conflict.conflict_type == "temporal":
+            # spec §8.2 X-6: 时间不重叠需 supersede 关系才能放行
+            has_supersede = (
+                (hasattr(candidate_a, "superseded_by") and candidate_a.superseded_by)
+                or (hasattr(candidate_b, "supersedes") and candidate_b.supersedes)
+            )
+            if not has_supersede:
+                reasons.append("temporal_conflict_no_supersede")
+                return GateVerdict.block(reasons)
+            else:
+                reasons.append("temporal_conflict_superseded")
+        elif conflict.conflict_type == "conditional":
+            reasons.append("conditional_conflict")
+        elif conflict.conflict_type == "perspective":
+            reasons.append("perspective_conflict")
+        # none: pass
+
+        if reasons:
+            return GateVerdict.warn(reasons)
+        return GateVerdict.pass_()
