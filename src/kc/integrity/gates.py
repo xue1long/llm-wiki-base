@@ -23,6 +23,8 @@ from typing import Any, Literal
 
 from ..contracts.evidence import Evidence
 from ..contracts.strength_policy import StrengthPolicy
+from ..domain.knowledge_unit import KnowledgeUnit
+from ..governance.approval import ApprovalGate
 from ..semantic_support.checker import SemanticSupportChecker
 
 
@@ -468,6 +470,97 @@ class ModeGate(Gate):
         # 5. 区分 block vs warn:
         #    - block: missing_* / unapproved_* / invalid_* / knowledge_mode_is_none
         #    - warn: invalid_synthesized_version (软告警, 不阻断)
+        if reasons:
+            blocking = [
+                r for r in reasons
+                if any(r.startswith(p) for p in self._BLOCK_PREFIXES)
+            ]
+            if blocking:
+                return GateVerdict.block(reasons)
+            return GateVerdict.warn(reasons)
+
+        return GateVerdict.pass_()
+
+
+class IdentityGate(Gate):
+    """spec §11.2 Gate 5: 概念归属和别名解析可解释。
+
+    检查 (B-2.4 简化实现):
+    1. KnowledgeUnit.identity_key 格式合法 (id-v1: 前缀) — spec §5.4
+    2. 高风险写操作有 approved approval (merge/split/supersede/
+       concept_identity_change) — spec §5.11 + §11.4 #4 "无审计 merge/supersede = 0"
+    3. 合并条件辅助: 同问题 + 上下文/时间兼容 — spec §4.4
+       (完整 should_merge_ku 5 条件由 A-1 helpers 提供, B-2.4 仅做基础探测)
+
+    与既有模块集成:
+    - A-1 KnowledgeUnit.identity_key @property (id-v1 算法已实现, 确定性)
+    - A-4 ApprovalGate.check_authorization(operation, target_ids)
+    - A-1 should_split_ku / should_merge_ku helpers (留 known_limitations)
+    - spec §4.4 ResolutionEvent 写入由 B-2.5+ 提供 (留 known_limitations)
+
+    区分 block vs warn:
+    - block: invalid_identity_key_format
+    - warn: missing_approval:high_risk_operation / merge_questions_missing
+    """
+
+    name = "identity"
+    order = 5
+
+    # Reason code prefixes that should trigger ``block`` rather than ``warn``.
+    # Identity Gate 的 reason code 中 "invalid_" 前缀视为 block。
+    _BLOCK_PREFIXES = ("invalid_",)
+
+    def __init__(
+        self,
+        approval_gate: ApprovalGate | None = None,
+    ) -> None:
+        """注入 ApprovalGate (默认 None → 不做 approval 检查, 仅做 identity_key 校验).
+
+        实际部署时由 IntegrityGate 流水线注入; 单元测试可直接 mock ApprovalGate.
+        """
+        self.approval_gate = approval_gate
+
+    def check(self, obj: Any, context: dict | None = None) -> GateVerdict:
+        reasons: list[str] = []
+
+        # 1. 仅 KnowledgeUnit 对象进入 Identity Gate 检查
+        if not isinstance(obj, KnowledgeUnit):
+            return GateVerdict.pass_()  # 非 KU 不适用 (留 Schema/Evidence Gate 处理)
+
+        # 2. identity_key 必填 + 符合 id-v1 算法 (spec §5.4)
+        #    identity_key 是 @property 自动从字段计算 — 当字段被手工篡改或绕过
+        #    @property 强行写入 __dict__ 时, 这里探测格式合法性
+        identity_key = obj.identity_key
+        if not identity_key or not identity_key.startswith("id-v1:"):
+            return GateVerdict.block(["invalid_identity_key_format"])
+
+        # 3. spec §11.4 #4: 高风险写操作 (verified/disputed/stale/deprecated 状态
+        #    隐含已通过 merge/split/supersede) 必须有 approved approval
+        #    status in ("quarantined", "candidate") 视为未触发高风险操作, 不检查
+        if self.approval_gate is not None:
+            if obj.status in ("verified", "disputed", "stale", "deprecated"):
+                # 简化检查: merge 操作 + 单一 target_id
+                # 实际更精细: 拆分/合并/废弃/identity_change 分别检查
+                # (详见 A-4 ApprovalGate.check_authorization 完整实现)
+                if not self.approval_gate.check_authorization(
+                    "merge", [obj.ku_id]
+                ):
+                    reasons.append("missing_approval:high_risk_operation")
+
+        # 4. spec §4.4 合并条件辅助检查 (candidate_b 同问题)
+        #    完整 should_merge_ku 5 条件由 caller 调用, 此处仅探测 question 缺失
+        if context and "candidate_b" in context:
+            candidate_b = context["candidate_b"]
+            if not isinstance(candidate_b, KnowledgeUnit):
+                reasons.append("invalid_candidate_b_type")
+            elif identity_key == candidate_b.identity_key:
+                # identity_key 相同 → 应该合并, 检查 question 必填
+                if not obj.question or not candidate_b.question:
+                    reasons.append("merge_questions_missing")
+
+        # 5. 拆分/合并决策应写入 ResolutionEvent (spec §4.4)
+        #    当前 KnowledgeUnit 未实现 resolution_event_id 字段 — 留 known_limitations
+
         if reasons:
             blocking = [
                 r for r in reasons
