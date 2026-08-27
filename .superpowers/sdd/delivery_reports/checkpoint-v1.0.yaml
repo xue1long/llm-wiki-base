@@ -1,0 +1,101 @@
+# Knowledge Compiler v2.2 路线 阶段报告 v1.0 (29 commits / 92% 完成)
+#
+# 任务: 路线 v2.2 阶段报告 checkpoint v1.0
+# 范围: 汇总 C 段 + A 段主线完成态，记录剩余 B-2 任务（spec §11 枢纽）
+# 关联: docs/superpowers/plans/2026-08-26-kc-spec-roadmap.md + docs/architecture/路线_v2.2_阶段报告_v1.0.md
+# commit: "docs(sdd): add 路线 v2.2 阶段报告 v1.0 (29 commits / 92% 完成)"
+
+phase: "路线 v2.2 阶段报告 v1.0 (29 commits / 92% 完成)"  # checkpoint v1.0
+
+changed_files:
+  - docs/architecture/路线_v2.2_阶段报告_v1.0.md  # 新文件: 13 节路线阶段报告 (300+ 行 markdown)
+
+contracts_changed:
+  # 路线 v2.2 阶段报告 v1.0 是纯文档 checkpoint 任务，不修改任何 Contract
+  # 但报告 §6 引用了以下 Contract 模块（仅引用 / 不变更）
+  - src/kc/contracts/evidence.py  # Evidence frozen dataclass (C-1)
+  - src/kc/contracts/mode.py  # Observed/Synthesized 标签 (C-4)
+  - src/kc/contracts/structured_fact.py  # StructuredFact (C-4.5)
+  - src/kc/contracts/strength_policy.py  # StrengthPolicy
+  - src/kc/contracts/status.py  # status enum
+  - src/kc/domain/knowledge_unit.py  # KnowledgeUnit + identity_key (A-1)
+  - src/kc/conflicts/classifier.py  # ConflictClassifier (A-3)
+  - src/kc/semantic_support/checker.py  # SemanticSupportChecker (B-1)
+  - src/kc/governance/approval.py  # Approval + ApprovalGate (A-4)
+  - src/kc/retrieval/filter.py  # DefaultFilter (C-2)
+  - src/kc/evidence/storage.py  # EvidenceStorage (C-1)
+
+tests_run:
+  # 本次 commit 运行的测试命令（汇总所有已落地任务的测试范围）
+  - "PYTHONPATH=. python -m pytest tests/test_kc --import-mode=importlib -q"  # 80 passed
+  - "PYTHONPATH=. python -m pytest tests/test_eval --import-mode=importlib -q"  # 13 passed
+  - "PYTHONPATH=. python -m pytest tests/test_dev_relay --import-mode=importlib -q"  # 5 passed
+  - "PYTHONPATH=. python -m pytest tests/test_wiki/test_ko_extra_evidence_refs_migration.py tests/test_wiki/test_ko_extra_memory_decision_migration.py tests/test_wiki/test_ko_extra_provenance_preserved.py tests/test_wiki/test_ko_extra_roundtrip.py tests/test_wiki/test_ko_extra_source_status_migration.py --import-mode=importlib -q"  # 27 passed
+  # 合计: 125 passed in 79.32s, 0 regression
+
+evaluation_dataset_version:
+  # 本次 checkpoint 关联的评估数据集
+  "2026-08-26-c32-29case + 2026-08-26-c35-10task"
+  # C-3.2: 4 YAML × 29 case (conflict:10 / identity:9 / evidence_span:5 / source_trust:5)
+  # C-3.5: 1 YAML × 10 agent_task
+
+metrics:
+  # === 进度 ===
+  commits_total: 30  # git log --oneline 2c7660e5~..HEAD 测得 30 个 commit
+  commits_accounted_per_progress_md: 29  # 路线账本 progress.md 口径 29（差异为 batch delivery_reports 行计入）
+  tasks_completed: 24  # C 段 14 + A 段 5 + B 段 1 + 配套 4
+  tasks_total: 26
+  completion_rate: "24/26 = 92%"
+
+  # === 测试统计 ===
+  test_kc_passed: 80  # 起始 19 → 结束 80, 净增 +61
+  test_eval_passed: 13  # 起始 0 → 结束 13
+  test_dev_relay_passed: 5  # 起始 0 → 结束 5
+  test_ko_extra_passed: 27  # 起始 0 → 结束 27
+  total_new_tests_passed: 125  # 80 + 13 + 5 + 27
+  test_regression_count: 0
+
+  # === spec §17 DoD 23 项 ===
+  spec_dod_fully_achieved: 6  # D-6 / D-7 / D-8 / D-15 / D-22 / D-23
+  spec_dod_partially_achieved: 11  # D-2/D-3/D-4/D-5/D-9/D-10/D-11/D-12/D-13/D-14/D-16/D-17
+  spec_dod_not_achieved: 6  # D-1/D-18/D-19/D-20/D-21 + 评估集 100+ 缺口
+
+  # === 评估指标 ===
+  agent_task_success_rate: 0.9  # C-3.5 实测 (10 task)
+  citation_accuracy: 1.0  # C-3.5 实测
+
+  # === A-1 dry-run 实测 ===
+  novel_wiki_total_pages: 4892
+  novel_wiki_narrative_pages: 66  # 1.3%
+  backfill_cost_choice_3_cny: 4  # 实测 ¥4 vs H-5 ADR 估算 ¥250
+
+  # === 文件交付 ===
+  src_kc_files_added: 21  # Knowledge Core 新模块
+  delivery_reports_total: 12  # 11 task + 1 template + 1 checkpoint
+  architecture_docs_added: 5  # docs/architecture/ 5 个规范文档
+  evaluation_cases_yaml: 4  # 4 个金标 YAML
+  evaluation_agent_tasks_yaml: 1  # 1 个 Agent Task YAML
+  adr_total: 4  # ku-split-strategy + llm-kb-design-absorption + ADR-001 + _template
+  scripts_kc_added: 8  # kc_eval / kc_agent_eval / kc_dashboard / kc_check_delivery_report / kc_ku_dryrun / kc_ku_cost_estimator / kc_core_backup_drill / kc_record_resolution_event
+
+hard_gate_failures:
+  # 本次 checkpoint 不修改任何代码，不引入新硬门槛违反
+  # 已达成 6 项 DoD 完全通过 + 11 项部分达成（路线 v2.2 实施态未达 spec §17 全部 23 项，是预期状态）
+  []
+
+migration_required: false  # 纯文档任务，0 改代码
+
+rollback_procedure:
+  "git revert <commit> 即可移除本次 checkpoint 全部改动（1 新文件 markdown + 1 新文件 YAML）"
+
+known_limitations:
+  - "checkpoint v1.0 是里程碑式阶段报告（92% 完成），B-2 11 Gate + B 段 6 任务未开工"
+  - "commits 数差异：git log 实测 30，progress.md 账本口径 29（差异 1 个 batch delivery_reports commit 行计入方式）"
+  - "spec §17 DoD 23 项：6 完全 + 11 部分 + 6 未达成（评估集 100+ / Wiki Book 重建 / 5 类演化端到端 等留 B 段）"
+  - "测试数差异：路线账本 progress.md 累计 116 测试，本 checkpoint 实测 125（test_ko_extra_* 拆分粒度差异）"
+  - "下一阶段 B-2 是 spec §11 枢纽，需先做依赖图 design doc，避免 B-2.5/2.6/3/5 串行阻塞"
+  - "C-2 DefaultFilter 未集成 hybrid_search.py（留 B-3 阶段，避免大范围回归）"
+  - "A-1 KU 主任务仅建模型（KnowledgeUnit + identity_key），6749 WikiPage 实际 backfill 留 B-2 之后"
+
+# === 关键字段：spec §16.2 EX-3 硬规则 ===
+next_phase_ready: true  # 路线 v2.2 阶段报告 v1.0 完成；92% 任务落地；6/23 DoD 完全达成；剩余 B-2 可立即开工
