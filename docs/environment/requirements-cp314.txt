@@ -8,12 +8,13 @@
 # Runtime
 lancedb==0.27.1
 pypdf>=4.0.0
+pymupdf>=1.24.0
 python-docx>=1.0.0
 openpyxl>=3.1.0
 pyyaml>=6.0
 httpx>=0.25.0
 platformdirs>=4.0
-mcp>=0.1.0
+mcp==1.28.1
 
 # Native / heavy (see wheels/ for offline install)
 pyarrow==25.0.0

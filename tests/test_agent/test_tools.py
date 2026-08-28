@@ -2,6 +2,7 @@
 import asyncio
 import sys
 import types
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,7 +18,10 @@ def _install_hybrid_search_stub():
     src.searcher.qa and src.searcher.searcher since test_searcher imports from
     those too.
     """
+    if getattr(sys.modules.get("lancedb"), "__file__", None) is not None:
+        return
     searcher_pkg = types.ModuleType("src.searcher")
+    searcher_pkg.__path__ = [str(Path(__file__).parents[2] / "src" / "searcher")]
     sys.modules["src.searcher"] = searcher_pkg
 
     hybrid_mod = types.ModuleType("src.searcher.hybrid_search")
