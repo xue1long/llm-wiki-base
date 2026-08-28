@@ -24,8 +24,9 @@ class TestOfficeConverter:
     def test_can_handle_xlsx(self):
         assert self.converter.can_handle("data.xlsx") is True
 
-    def test_can_handle_xls(self):
-        assert self.converter.can_handle("old.xls") is True
+    def test_cannot_handle_legacy_xls(self):
+        """openpyxl cannot read the legacy OLE workbook format."""
+        assert self.converter.can_handle("old.xls") is False
 
     def test_cannot_handle_pdf(self):
         assert self.converter.can_handle("report.pdf") is False

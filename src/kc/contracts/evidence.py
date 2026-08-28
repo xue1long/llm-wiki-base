@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from hashlib import sha256
 from typing import Literal
 
+from src.kc.domain.ids import evidence_id as make_evidence_id
+
 
 # ── type aliases (spec §5.7) ─────────────────────────────────────────────
 
@@ -56,6 +58,12 @@ def evidence_for_quote(
 ) -> Evidence:
     """Create a candidate Evidence value with a deterministic quote hash."""
     return Evidence(
+        evidence_id=make_evidence_id(
+            document_id,
+            block_id,
+            sha256(quote.encode("utf-8")).hexdigest(),
+            tuple(supports),
+        ),
         document_id=document_id,
         block_id=block_id,
         quote=quote,

@@ -7,6 +7,7 @@ from typing import Any
 
 from src.kc.compiler.normalize import CanonicalDocument
 from src.kc.contracts.evidence import Evidence
+from src.kc.domain.ids import evidence_id
 
 MIN_SHORT_QUOTE_CHARS = 8
 
@@ -34,12 +35,16 @@ def validate_evidence(document: CanonicalDocument, value: dict[str, Any]) -> Evi
     quote_hash = value.get("quote_hash", sha256(quote.encode("utf-8")).hexdigest())
     if quote_hash != sha256(quote.encode("utf-8")).hexdigest():
         raise EvidenceValidationError("evidence quote hash mismatch")
+    supports = tuple(value.get("supports", ()))
     return Evidence(
+        evidence_id=evidence_id(
+            document.document_id, block.block_id, quote_hash, supports
+        ),
         document_id=document.document_id,
         block_id=block.block_id,
         quote=quote,
         quote_hash=quote_hash,
-        supports=tuple(value.get("supports", ())),
+        supports=supports,
         confidence=float(value.get("confidence", 0.0)),
         status="structurally_verified",
     )

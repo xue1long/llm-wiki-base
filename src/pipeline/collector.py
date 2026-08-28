@@ -342,7 +342,7 @@ async def collect(
 
         if ext == ".pdf":
             content = extract_pdf_text(str(file_path))
-        elif ext in [".docx", ".doc", ".xlsx", ".xls"]:
+        elif ext in [".docx", ".doc", ".xlsx"]:
             content = extract_office_text(str(file_path))
         elif ext in [".html", ".htm"]:
             raw_bytes = file_path.read_bytes()

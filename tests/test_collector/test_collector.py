@@ -48,6 +48,13 @@ class TestRawWriter:
         assert rel == "raw/sources/custom.md"
         assert (tmp_path / rel).exists()
 
+    @pytest.mark.parametrize("filename", ["../escape.md", "nested/escape.md", "C:/escape.md"])
+    def test_write_rejects_custom_filename_outside_raw_sources(self, tmp_path, filename):
+        result = ConvertResult(content="content", title="T", source_type="md")
+
+        with pytest.raises(ValueError, match="basename"):
+            write_to_raw(result, tmp_path, filename=filename)
+
     def test_write_image_with_raw_bytes(self, tmp_path):
         """图片类型：写原始图片 + 描述 .md。"""
         raw_dir = tmp_path / "raw" / "sources"

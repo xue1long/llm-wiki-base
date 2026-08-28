@@ -82,3 +82,18 @@ class TestHtmlConverter:
 
         assert result.title == "From Bytes"
         assert result.metadata["format"] == "html"
+
+    def test_convert_html_preserves_markdown_table_rows(self):
+        html = (
+            "<html><head><title>Table</title></head><body>"
+            "<table><tr><th>Name</th><th>Age</th></tr>"
+            "<tr><td>Alice</td><td>30</td></tr></table>"
+            "</body></html>"
+        )
+
+        markdown = self.converter._html_to_markdown(html, "Table")
+
+        assert "| Name | Age |" in markdown
+        assert "| Alice | 30 |" in markdown
+        assert "| --- | --- |" in markdown
+        assert "| Name | Age |\n| --- | --- |\n| Alice | 30 |" in markdown

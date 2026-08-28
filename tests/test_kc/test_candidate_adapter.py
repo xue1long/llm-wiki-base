@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
-from src.kc.api import candidate_to_payload, compile_text
+from src.kc.api import candidate_to_payload, compile_source, compile_text
 from src.kc.compiler.evidence import EvidenceValidationError, validate_evidence
 from src.kc.compiler.verify import verify_claim
 from src.kc.contracts.status import PublicationState, can_publish
@@ -72,6 +74,28 @@ def test_compile_text_builds_projection_from_valid_candidate() -> None:
     assert result["document_id"]
     assert result["projections"][0]["body"] == "KC 统一证据适配。"
     assert result["projections"][0]["evidence_ids"]
+    assert result["projections"][0]["evidence_ids"][0].startswith("evidence_")
+    assert result["projections"][0]["evidence"][0]["evidence_id"] == result["projections"][0]["evidence_ids"][0]
+
+
+@pytest.mark.asyncio
+async def test_compile_source_accepts_pre_normalized_binary_document() -> None:
+    """Converted PDF/DOCX/XLSX text must not be parsed as binary again."""
+    source = "raw/sources/demo.pdf"
+    document = normalize_text("已转换的 PDF 文本。", source=source)
+    candidate = _candidate(source)
+    candidate["claims"][0]["statement"] = "已转换的 PDF 文本。"
+    candidate["evidence"][0]["quote"] = "已转换的 PDF 文本。"
+    payload = candidate_to_payload(candidate, document)
+
+    result = await compile_source(
+        source,
+        document=document,
+        candidate_json=json.dumps(payload, ensure_ascii=False),
+    )
+
+    assert result["document_id"] == document.document_id
+    assert result["projections"][0]["body"] == "已转换的 PDF 文本。"
 
 
 def test_candidate_adapter_rejects_quote_matching_multiple_blocks() -> None:
@@ -99,6 +123,18 @@ def test_validated_evidence_uses_structural_status() -> None:
     )
 
     assert evidence.status == "structurally_verified"
+
+
+def test_evidence_id_is_stable_and_claim_scoped() -> None:
+    document = normalize_text("KC 统一证据适配。", source="raw/sources/demo.md")
+    value = {"block_id": document.blocks[0].block_id, "quote": document.blocks[0].content}
+
+    first = validate_evidence(document, {**value, "supports": ("claim-a",)})
+    same = validate_evidence(document, {**value, "supports": ("claim-a",)})
+    other = validate_evidence(document, {**value, "supports": ("claim-b",)})
+
+    assert first.evidence_id == same.evidence_id
+    assert first.evidence_id != other.evidence_id
 
 
 def test_claim_review_returns_structural_state_not_truth_verified() -> None:

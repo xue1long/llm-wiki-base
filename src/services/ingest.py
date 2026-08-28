@@ -27,7 +27,7 @@ from ..wiki.features.folder_ingest import collect_files, folder_context_for
 
 _logger = logging.getLogger(__name__)
 
-_SUPPORTED_EXTENSIONS = {".md", ".txt", ".pdf", ".docx", ".doc", ".xlsx", ".xls", ".html"}
+_SUPPORTED_EXTENSIONS = {".md", ".txt", ".pdf", ".docx", ".doc", ".xlsx", ".html"}
 
 
 

@@ -22,3 +22,4 @@ def test_create_app_returns_fastapi():
     paths = _all_paths(app)
     assert "/health" in paths
     assert "/api/v1/projects" in paths
+    assert "/api/v1/kc/compile" in paths

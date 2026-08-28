@@ -646,13 +646,21 @@ async def generate_ingest(
         if not hasattr(candidate, "claims") or not candidate.claims or not candidate.evidence:
             raise ValueError("candidate requires non-empty claims and evidence")
         _source_key = canonical_raw_key(str(source_path), paths.root)
+        _candidate_status = getattr(candidate, "status", None)
+        if getattr(_candidate_status, "value", _candidate_status) == "rejected":
+            raise ValueError("candidate status is rejected")
+        _candidate_source_id = getattr(candidate, "source_id", "")
+        if not _candidate_source_id:
+            raise ValueError("candidate requires source_id")
+        if canonical_raw_key(str(_candidate_source_id), paths.root) != _source_key:
+            raise ValueError("candidate source_id does not match source")
         document = normalize_text(_sanitized_source_text, source=_source_key)
         payload = candidate_to_payload(
             asdict(candidate), document, source_root=paths.root
         )
         _kc_review = await compile_source(
             _source_key,
-            content=_sanitized_source_text.encode("utf-8"),
+            document=document,
             candidate_json=json.dumps(payload, ensure_ascii=False),
         )
         if not _kc_review.get("document_id") or not _kc_review.get("projections"):

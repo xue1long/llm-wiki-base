@@ -25,3 +25,21 @@ def test_vector_reconcile_reports_publication_counters(monkeypatch, capsys):
     output = capsys.readouterr().out
     assert "intent=1" in output
     assert "pending=1" in output
+
+
+def test_vector_status_reports_publication_states(monkeypatch, capsys):
+    monkeypatch.setattr(vector_cmd, "resolve_project", lambda *args, **kwargs: (None, object()))
+    monkeypatch.setattr(
+        vector_cmd,
+        "list_pending",
+        lambda *args, **kwargs: {
+            "before-commit": {"publication_state": "intent", "hash": "a", "ts": 1, "title": "A"},
+            "after-commit": {"publication_state": "pending", "hash": "b", "ts": 2, "title": "B"},
+        },
+    )
+
+    vector_cmd.cmd_vector_status(Namespace(project="demo"))
+
+    output = capsys.readouterr().out
+    assert "intent=1" in output
+    assert "pending=1" in output

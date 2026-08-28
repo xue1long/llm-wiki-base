@@ -2,6 +2,8 @@
 
 from fastapi import APIRouter, HTTPException
 
+from src.kc.compiler.normalize import normalize_text
+
 router = APIRouter(prefix="/api/v1/kc", tags=["knowledge-compiler"])
 
 
@@ -12,7 +14,7 @@ async def compile_knowledge(body: dict):
     try:
         return await compile_source(
             str(body["source"]),
-            content=str(body["content"]).encode("utf-8"),
+            document=normalize_text(str(body["content"]), source=str(body["source"])),
             candidate_json=str(body["candidate_json"]),
         )
     except (KeyError, TypeError, ValueError) as exc:

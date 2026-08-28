@@ -10,6 +10,8 @@ Coverage:
 """
 import json
 
+import pytest
+
 from src.vector import pending as pending_mod
 from src.wiki.core.paths import WikiPaths
 from src.wiki.core.types import PageType, WikiPage
@@ -217,6 +219,19 @@ def test_scan_skips_indexed_and_pending(tmp_path):
     assert data["already-pending"]["publication_state"] == "pending"
 
 
+def test_scan_treats_indexed_chunk_as_indexed_page(tmp_path):
+    paths = _paths(tmp_path)
+    page = _page("chunked-page")
+    _write_page(paths, page)
+
+    added = pending_mod.scan_wiki_vector_diff(
+        paths, table=None, page_ids_in_table=["chunked-page-chunk-0"]
+    )
+
+    assert added == 0
+    assert pending_mod.list_pending(paths) == {}
+
+
 def test_pending_file_is_json(tmp_path):
     """The ledger is plain JSON under .index/ (scannable, no corruption)."""
     paths = _paths(tmp_path)
@@ -225,3 +240,15 @@ def test_pending_file_is_json(tmp_path):
     raw = (paths.index / "vector_pending.json").read_text(encoding="utf-8")
     data = json.loads(raw)
     assert "json-check" in data
+
+
+def test_corrupt_ledger_fails_closed_without_overwrite(tmp_path):
+    paths = _paths(tmp_path)
+    ledger = pending_mod.pending_path(paths)
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    ledger.write_text("{not-json", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="ledger"):
+        pending_mod.mark_pending(paths, [_page("must-survive")])
+
+    assert ledger.read_text(encoding="utf-8") == "{not-json"

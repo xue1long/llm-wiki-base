@@ -12,6 +12,7 @@ from src.kc.adapters.wiki_projection import project_wiki
 from src.kc.compiler.compile import compile_claim
 from src.kc.compiler.evidence import canonical_quote, validate_evidence
 from src.kc.compiler.extract import parse_candidate_json
+from src.kc.compiler.normalize import normalize_text
 from src.utils.path import canonical_raw_key
 
 
@@ -76,21 +77,41 @@ def candidate_to_payload(candidate: dict[str, Any], document, *, source_root=Non
     return {"claims": claims}
 
 
-async def compile_source(source: str, *, content: bytes, candidate_json: str) -> dict:
-    document = await LegacyCollector().collect(source, content=content)
+async def compile_source(
+    source: str,
+    *,
+    content: bytes | None = None,
+    candidate_json: str,
+    document=None,
+) -> dict:
+    if document is None:
+        if content is None:
+            raise ValueError("compile_source requires content or document")
+        document = await LegacyCollector().collect(source, content=content)
     candidate = parse_candidate_json(candidate_json)
     projections = []
     for claim in candidate["claims"]:
-        evidence = tuple(validate_evidence(document, item) for item in claim["evidence"])
+        evidence = tuple(
+            validate_evidence(document, {**item, "supports": (claim["id"],)})
+            for item in claim["evidence"]
+        )
         obj = compile_claim(claim, document, evidence)
-        projection = project_wiki(obj, evidence_ids=tuple(item.block_id for item in evidence), evidence=evidence)
+        projection = project_wiki(
+            obj,
+            evidence_ids=tuple(item.evidence_id for item in evidence),
+            evidence=evidence,
+        )
         projection["document_id"] = document.document_id
         projections.append(projection)
     return {"document_id": document.document_id, "projections": projections}
 
 
 def compile_text(source: str, text: str, candidate: dict) -> dict:
-    return asyncio.run(compile_source(source, content=text.encode("utf-8"), candidate_json=json.dumps(candidate)))
+    return asyncio.run(compile_source(
+        source,
+        document=normalize_text(text, source=source),
+        candidate_json=json.dumps(candidate),
+    ))
 
 
 if __name__ == "__main__":

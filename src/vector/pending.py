@@ -43,9 +43,11 @@ def _load(paths: WikiPaths) -> dict:
         return {}
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
-        return data if isinstance(data, dict) else {}
-    except (OSError, ValueError):
-        return {}
+    except (OSError, ValueError) as exc:
+        raise ValueError("vector pending ledger is unreadable") from exc
+    if not isinstance(data, dict):
+        raise ValueError("vector pending ledger must contain an object")
+    return data
 
 
 def _save(paths: WikiPaths, data: dict) -> None:
@@ -242,6 +244,11 @@ def scan_wiki_vector_diff(
     wiki has that the vector store lacks.
     """
     existing = set(page_ids_in_table)
+    existing.update(
+        value.rsplit("-chunk-", 1)[0]
+        for value in page_ids_in_table
+        if "-chunk-" in value
+    )
     data = _load(paths)
     added = 0
 

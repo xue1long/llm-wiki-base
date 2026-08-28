@@ -15,7 +15,7 @@ from ...utils.extract.office import extract_docx_text, extract_xlsx_text
 class OfficeConverter(ConverterBase):
     """DOCX / XLSX → 结构化 Markdown。"""
 
-    _EXTS = {".docx", ".xlsx", ".xls"}
+    _EXTS = {".docx", ".xlsx"}
 
     def can_handle(self, source: str | Path) -> bool:
         return Path(str(source)).suffix.lower() in self._EXTS

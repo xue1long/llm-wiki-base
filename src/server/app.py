@@ -193,8 +193,13 @@ def create_app() -> FastAPI:
                 _table = get_table(_paths)
                 if _table is not None:
                     try:
-                        _ids = [r["id"] for r in _table.to_pandas().to_dict("records")] \
+                        _rows = _table.to_pandas().to_dict("records") \
                             if hasattr(_table, "to_pandas") else []
+                        _ids = [
+                            r.get("task_id") or r.get("id")
+                            for r in _rows
+                            if r.get("task_id") or r.get("id")
+                        ]
                         _added = scan_wiki_vector_diff(_paths, _table, _ids)
                         if _added:
                             _logger.info(
@@ -325,10 +330,10 @@ def create_app() -> FastAPI:
         finally:
             clear_correlation()
 
-    from .routes import health, projects, files, search, ingest, reviews, chat, schema, agent_cli, analysis, providers, tags, quality, heat, templates, scenario_templates, capture
+    from .routes import health, projects, files, search, ingest, reviews, chat, schema, agent_cli, analysis, providers, tags, quality, heat, templates, scenario_templates, capture, kc
     for router in [health.router, projects.router, files.router, search.router,
                    ingest.router, reviews.router, chat.router, schema.router, agent_cli.router,
-                   analysis.router, providers.router, tags.router, quality.router, heat.router, templates.router, scenario_templates.router, capture.router]:
+                   analysis.router, providers.router, tags.router, quality.router, heat.router, templates.router, scenario_templates.router, capture.router, kc.router]:
         app.include_router(router)
 
     # R5: readiness probe (per-component, 200/503) — /health stays liveness.

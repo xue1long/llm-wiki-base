@@ -29,7 +29,7 @@ def extract_office_text(file_path: str) -> str:
 
     if ext == ".docx":
         return extract_docx_text(file_path)
-    elif ext in (".xlsx", ".xls"):
+    elif ext == ".xlsx":
         return extract_xlsx_text(file_path)
     else:
         raise ValueError(f"Unsupported office format: {ext}")

@@ -19,3 +19,13 @@ def block_id(
     normalization_version: str,
 ) -> str:
     return "block_" + _digest(document, ordinal, block_text, normalization_version)
+
+
+def evidence_id(
+    document_id: str,
+    block_id: str,
+    quote_hash: str = "",
+    supports: tuple[str, ...] = (),
+) -> str:
+    """Return a stable identity for one claim-scoped evidence reference."""
+    return "evidence_" + _digest(document_id, block_id, quote_hash, *supports)

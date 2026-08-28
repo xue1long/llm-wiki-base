@@ -24,7 +24,15 @@ def cmd_vector_status(args: argparse.Namespace) -> None:
     if not data:
         print("No pending vector entries.")
         return
-    print(f"{len(data)} pending vector entr(ies):")
+    intent_count = sum(
+        1 for meta in data.values()
+        if meta.get("publication_state", "pending") == "intent"
+    )
+    pending_count = len(data) - intent_count
+    print(
+        f"{len(data)} pending vector entr(ies): "
+        f"intent={intent_count}, pending={pending_count}"
+    )
     for pid, meta in sorted(data.items()):
         print(f"  {pid}  hash={meta.get('hash', '')[:8]}  "
               f"ts={meta.get('ts', '')}  title={meta.get('title', '')}")

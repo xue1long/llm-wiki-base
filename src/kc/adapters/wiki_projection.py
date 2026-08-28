@@ -13,7 +13,12 @@ def project_wiki(obj: KnowledgeObject, *, evidence_ids: tuple[str, ...], evidenc
         "knowledge_object_id": obj.id,
         "evidence_ids": list(evidence_ids),
         "evidence": [
-            {"document_id": item.document_id, "block_id": item.block_id, "quote": item.quote}
+            {
+                "evidence_id": item.evidence_id,
+                "document_id": item.document_id,
+                "block_id": item.block_id,
+                "quote": item.quote,
+            }
             for item in (evidence or ())
         ],
         "source_refs": list(source_paths or (obj.provenance.source_path,)),

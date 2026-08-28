@@ -28,6 +28,11 @@ def write_to_raw(
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     name = filename or _derive_filename(result)
+    if filename is not None and (
+        not name or Path(name).is_absolute() or Path(name).name != name
+        or name in {".", ".."}
+    ):
+        raise ValueError("filename must be a basename")
     dest = raw_dir / name
 
     # 图片类型：保留原始图片 + 写描述 .md

@@ -71,7 +71,20 @@ class HtmlConverter(ConverterBase):
         md = convert_html_tables_to_markdown(html)
 
         # 2. 剩余 HTML 转纯文本
-        text = html_to_text(md)
+        tables: list[str] = []
+
+        def _protect_table(match: re.Match) -> str:
+            tables.append(match.group(0).rstrip())
+            return f"__KC_TABLE_{len(tables) - 1}__"
+
+        protected = re.sub(
+            r"(?:\|[^\r\n]*\|(?:\r?\n|(?=<)|$)){2,}",
+            _protect_table,
+            md,
+        )
+        text = html_to_text(protected)
+        for index, table in enumerate(tables):
+            text = text.replace(f"__KC_TABLE_{index}__", table)
 
         # 3. 加标题
         if title and not text.strip().startswith(f"# {title}"):
