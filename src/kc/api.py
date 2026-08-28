@@ -1,0 +1,105 @@
+"""Small synchronous API seam used by CLI and HTTP adapters."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from hashlib import sha256
+from typing import Any
+
+from src.kc.adapters.legacy_collector import LegacyCollector
+from src.kc.adapters.wiki_projection import project_wiki
+from src.kc.compiler.compile import compile_claim
+from src.kc.compiler.evidence import canonical_quote, validate_evidence
+from src.kc.compiler.extract import parse_candidate_json
+from src.utils.path import canonical_raw_key
+
+
+def candidate_to_payload(candidate: dict[str, Any], document, *, source_root=None) -> dict[str, Any]:
+    """Adapt pipeline candidate evidence refs to the strict KC payload."""
+    source = str(document.source)
+    if source_root is not None:
+        source = canonical_raw_key(source, source_root)
+    raw_evidence = candidate.get("evidence")
+    if not isinstance(raw_evidence, list):
+        raise ValueError("candidate evidence must be a list")
+
+    evidence_by_ref: list[dict[str, Any]] = []
+    for item in raw_evidence:
+        item_source = item.get("source_path") if isinstance(item, dict) else None
+        if source_root is not None and isinstance(item_source, str):
+            try:
+                item_source = canonical_raw_key(item_source, source_root)
+            except ValueError:
+                item_source = None
+        if not isinstance(item, dict) or item_source != source:
+            raise ValueError("evidence source_path does not match document source")
+        quote = item.get("quote")
+        quote = canonical_quote(quote) if isinstance(quote, str) else quote
+        matches = [
+            block for block in document.blocks
+            if isinstance(quote, str) and quote and quote in block.content
+        ]
+        if len(matches) > 1:
+            raise ValueError("evidence quote must match a unique block")
+        block = matches[0] if matches else None
+        if block is None:
+            raise ValueError("evidence quote does not match a document block")
+        evidence_by_ref.append({
+            "block_id": block.block_id,
+            "quote": quote,
+            "quote_hash": sha256(quote.encode("utf-8")).hexdigest(),
+            "confidence": float(candidate.get("confidence", 0.0)),
+        })
+
+    claims: list[dict[str, Any]] = []
+    for index, claim in enumerate(candidate.get("claims", [])):
+        if not isinstance(claim, dict) or not isinstance(claim.get("statement"), str):
+            raise ValueError("candidate claim requires statement")
+        refs = claim.get("evidence_refs")
+        if not isinstance(refs, list) or not refs or any(
+            not isinstance(ref, int) or ref < 0 or ref >= len(evidence_by_ref)
+            for ref in refs
+        ):
+            raise ValueError("claim evidence_refs are invalid")
+        text = claim["statement"].strip()
+        if not text:
+            raise ValueError("candidate claim requires statement")
+        claim_id = sha256(
+            f"{candidate.get('source_id', source)}:{index}:{text}".encode("utf-8")
+        ).hexdigest()[:16]
+        claims.append({
+            "id": claim_id,
+            "text": text,
+            "evidence": [evidence_by_ref[ref] for ref in refs],
+        })
+    return {"claims": claims}
+
+
+async def compile_source(source: str, *, content: bytes, candidate_json: str) -> dict:
+    document = await LegacyCollector().collect(source, content=content)
+    candidate = parse_candidate_json(candidate_json)
+    projections = []
+    for claim in candidate["claims"]:
+        evidence = tuple(validate_evidence(document, item) for item in claim["evidence"])
+        obj = compile_claim(claim, document, evidence)
+        projection = project_wiki(obj, evidence_ids=tuple(item.block_id for item in evidence), evidence=evidence)
+        projection["document_id"] = document.document_id
+        projections.append(projection)
+    return {"document_id": document.document_id, "projections": projections}
+
+
+def compile_text(source: str, text: str, candidate: dict) -> dict:
+    return asyncio.run(compile_source(source, content=text.encode("utf-8"), candidate_json=json.dumps(candidate)))
+
+
+if __name__ == "__main__":
+    import argparse
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(description="Compile one text source through Knowledge Compiler")
+    parser.add_argument("source")
+    parser.add_argument("candidate_json")
+    args = parser.parse_args()
+    path = Path(args.source)
+    print(json.dumps(compile_text(str(path), path.read_text(encoding="utf-8"), json.loads(args.candidate_json)), ensure_ascii=False))

@@ -24,13 +24,16 @@ _QUEUE_SEED = {
 }
 
 
-def test_retry_liveness_module_can_run_twice_without_queue_contamination():
+def test_retry_liveness_module_can_run_twice_without_queue_contamination(tmp_path):
     """A stale persisted task must not poison either consecutive module run."""
     repo_root = Path(__file__).resolve().parents[2]
-    queue_file = repo_root / ".kb-queue.json"
+    queue_file = tmp_path / ".kb-queue.json"
     retry_module = Path(__file__).with_name("test_queue_retry_liveness.py")
     environment = os.environ.copy()
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+    environment.pop("PYTEST_CURRENT_TEST", None)
+    environment.pop("PYTEST_ADDOPTS", None)
     environment["PYTHONPATH"] = os.pathsep.join(
         part for part in (str(repo_root), environment.get("PYTHONPATH", "")) if part
     )
@@ -45,14 +48,16 @@ def test_retry_liveness_module_can_run_twice_without_queue_contamination():
                     "pytest",
                     "--import-mode=importlib",
                     "-q",
+                    "--basetemp",
+                    str(tmp_path / f"child-{run_number}"),
                     str(retry_module),
                 ],
-                cwd=repo_root,
+                cwd=tmp_path,
                 env=environment,
                 capture_output=True,
                 text=True,
             )
-            for _ in range(2)
+            for run_number in range(1, 3)
         ]
     finally:
         queue_file.unlink(missing_ok=True)

@@ -46,9 +46,21 @@ def test_enqueue_file_source_detected(monkeypatch, tmp_path):
         return "task-456"
     monkeypatch.setattr(ingest_service, "enqueue_task", fake_enqueue)
 
-    result = ingest_service.enqueue_source("u", "/some/file/path.md")
+    result = ingest_service.enqueue_source("u", "raw/sources/input.md")
     assert result["status"] == "queued"
     assert captured["stype"] == "file"
+
+
+def test_enqueue_external_absolute_file_is_rejected(monkeypatch, tmp_path):
+    """Absolute files outside the project must not bypass the collector boundary."""
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    _stub_resolve(monkeypatch, project_dir)
+
+    import pytest
+
+    with pytest.raises(ingest_service.IngestPathError):
+        ingest_service.enqueue_source("u", "C:/outside/input.md")
 
 
 def test_enqueue_folder_source(monkeypatch, tmp_path):

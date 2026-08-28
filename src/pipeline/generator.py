@@ -41,6 +41,7 @@ from ..wiki.templates import (
     render_body,
     required_slot_names,
 )
+from ..wiki.templates.types import Template
 from ..knowledge.core.candidate import KnowledgeCandidate
 from ..knowledge.core.object import KnowledgeObject
 from ..llm.types import TruncatedResponseError

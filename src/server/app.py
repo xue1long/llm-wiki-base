@@ -175,10 +175,21 @@ def create_app() -> FastAPI:
             # the vector table as pending so a later reconcile (CLI or
             # server-side) re-indexes them. Best-effort; never fails boot.
             try:
-                from ..vector.pending import scan_wiki_vector_diff
+                from ..vector.pending import list_pending, scan_wiki_vector_diff
                 from ..vector.store import get_table
                 from ..wiki.core.paths import WikiPaths
                 _paths = WikiPaths(project_root)
+                _ledger = list_pending(_paths)
+                _intent_count = sum(
+                    1 for meta in _ledger.values()
+                    if meta.get("publication_state", "pending") == "intent"
+                )
+                _pending_count = len(_ledger) - _intent_count
+                if _ledger:
+                    _logger.info(
+                        "[startup] vector publication outstanding: intent=%d pending=%d",
+                        _intent_count, _pending_count,
+                    )
                 _table = get_table(_paths)
                 if _table is not None:
                     try:

@@ -5,9 +5,10 @@ derived, but there was no explicit sync state — a page written to disk
 whose vector upsert failed left search silently missing the page.
 
 Design (architecture-remediation R7, plan-audit hardening):
-- ``mark_pending(paths, pages)`` records page id + body hash into
-  ``.index/vector_pending.json`` *inside the same batch* as the wiki
-  write (best-effort, not a transaction).
+- ``mark_intent(paths, pages)`` records a pre-commit publication intent;
+  ``promote_intent`` changes it to ``pending`` after the Wiki commit.
+- ``mark_pending(paths, pages)`` remains the compatibility entry point for
+  already-committed pages.
 - ``clear_pending(paths, page_ids)`` removes entries after a successful
   upsert.
 - ``reconcile_pending(paths)`` re-upserts pending pages whose body hash
@@ -58,6 +59,38 @@ def body_hash(body: str) -> str:
     return hashlib.sha256(body.encode("utf-8")).hexdigest()[:16]
 
 
+def _page_entry(page, publication_state: str) -> dict:
+    return {
+        "hash": body_hash(page.body or ""),
+        "ts": int(time.time()),
+        "title": getattr(page, "title", "") or page.id,
+        "publication_state": publication_state,
+    }
+
+
+def mark_intent(paths: WikiPaths, pages: list) -> int:
+    """Record publication intent before the Wiki batch is written."""
+    data = _load(paths)
+    for page in pages:
+        data[page.id] = _page_entry(page, "intent")
+    _save(paths, data)
+    return len(pages)
+
+
+def promote_intent(paths: WikiPaths, page_ids: list[str]) -> int:
+    """Mark intents as pending after their Wiki batch commits."""
+    data = _load(paths)
+    promoted = 0
+    for page_id in page_ids:
+        entry = data.get(page_id)
+        if entry is not None and entry.get("publication_state", "pending") == "intent":
+            entry["publication_state"] = "pending"
+            promoted += 1
+    if promoted:
+        _save(paths, data)
+    return promoted
+
+
 def mark_pending(paths: WikiPaths, pages: list) -> int:
     """Record pages needing vector indexing (wiki already committed).
 
@@ -65,13 +98,8 @@ def mark_pending(paths: WikiPaths, pages: list) -> int:
     batch commit; a later successful upsert clears the entry.
     """
     data = _load(paths)
-    now = int(time.time())
     for page in pages:
-        data[page.id] = {
-            "hash": body_hash(page.body or ""),
-            "ts": now,
-            "title": getattr(page, "title", "") or page.id,
-        }
+        data[page.id] = _page_entry(page, "pending")
     _save(paths, data)
     return len(pages)
 
@@ -132,19 +160,43 @@ def reconcile_pending(
 
     data = _load(paths)
     if not data:
-        return {"attempted": 0, "ok": 0, "failed": 0, "failed_ids": []}
+        return {
+            "attempted": 0,
+            "ok": 0,
+            "failed": 0,
+            "failed_ids": [],
+            "intent": 0,
+            "pending": 0,
+            "recovered": 0,
+            "orphaned": 0,
+        }
 
     attempted = 0
     ok_ids: list[str] = []
     failed_ids: list[str] = []
+    orphaned = 0
+    recovered = 0
+    intent_count = 0
+    pending_count = 0
 
     for pid, meta in list(data.items()):
         attempted += 1
+        state = meta.get("publication_state", "pending")
+        if state == "intent":
+            intent_count += 1
+        else:
+            pending_count += 1
         try:
             f = _find_page_file(paths, pid)
             if f is None:
-                # Page deleted from the wiki → drop the pending entry.
-                failed_ids.append(pid)
+                if state == "intent":
+                    # The Wiki batch never committed; discard the orphaned
+                    # pre-commit intent without hiding a committed page.
+                    del data[pid]
+                    orphaned += 1
+                else:
+                    # Preserve the existing pending deletion behavior.
+                    failed_ids.append(pid)
                 continue
             page = read_page(f)
             if body_hash(page.body or "") != meta.get("hash"):
@@ -152,12 +204,16 @@ def reconcile_pending(
             success = embed_and_upsert(page, paths, table)
             if success:
                 ok_ids.append(pid)
+                if state == "intent":
+                    recovered += 1
             else:
                 failed_ids.append(pid)
         except Exception as e:
             _logger.warning("[vector-pending] reconcile failed for %s: %s", pid, e)
             failed_ids.append(pid)
 
+    if orphaned:
+        _save(paths, data)
     clear_pending(paths, ok_ids)
     # Refresh hashes for re-indexed-but-failed pages is not done (they
     # stay pending with the old hash so a later retry re-checks).
@@ -166,6 +222,10 @@ def reconcile_pending(
         "ok": len(ok_ids),
         "failed": len(failed_ids),
         "failed_ids": failed_ids,
+        "intent": intent_count,
+        "pending": pending_count,
+        "recovered": recovered,
+        "orphaned": orphaned,
     }
 
 
@@ -183,17 +243,12 @@ def scan_wiki_vector_diff(
     """
     existing = set(page_ids_in_table)
     data = _load(paths)
-    now = int(time.time())
     added = 0
 
     for page in _iter_wiki_pages(paths):
         if page.id in existing or page.id in data:
             continue
-        data[page.id] = {
-            "hash": body_hash(page.body or ""),
-            "ts": now,
-            "title": getattr(page, "title", "") or page.id,
-        }
+        data[page.id] = _page_entry(page, "pending")
         added += 1
 
     if added:

@@ -50,6 +50,27 @@ def test_mark_and_clear_roundtrip(tmp_path):
     assert pending_mod.list_pending(paths) == {}
 
 
+def test_mark_intent_persists_intent_state(tmp_path):
+    paths = _paths(tmp_path)
+    page = _page("intent-page")
+
+    assert pending_mod.mark_intent(paths, [page]) == 1
+
+    data = pending_mod.list_pending(paths)
+    assert data["intent-page"]["publication_state"] == "intent"
+
+
+def test_promote_intent_marks_committed_page_pending(tmp_path):
+    paths = _paths(tmp_path)
+    page = _page("promote-page")
+    pending_mod.mark_intent(paths, [page])
+
+    assert pending_mod.promote_intent(paths, ["promote-page"]) == 1
+
+    data = pending_mod.list_pending(paths)
+    assert data["promote-page"]["publication_state"] == "pending"
+
+
 def test_mark_absent_clear_is_noop(tmp_path):
     paths = _paths(tmp_path)
     assert pending_mod.clear_pending(paths, ["nope"]) == 0
@@ -110,20 +131,58 @@ def test_reconcile_raises_keeps_pending(tmp_path):
 def test_reconcile_empty_is_noop(tmp_path):
     paths = _paths(tmp_path)
     result = pending_mod.reconcile_pending(paths, lambda *a, **k: True)
-    assert result == {"attempted": 0, "ok": 0, "failed": 0, "failed_ids": []}
+    assert result["attempted"] == 0
+    assert result["ok"] == 0
+    assert result["failed"] == 0
+    assert result["failed_ids"] == []
+    assert result["intent"] == 0
+    assert result["pending"] == 0
+    assert result["recovered"] == 0
+    assert result["orphaned"] == 0
 
 
-def test_reconcile_removes_deleted_page_entry(tmp_path):
-    """A pending page deleted from the wiki drops its entry (no dangling)."""
+def test_reconcile_recovers_intent_and_is_idempotent(tmp_path):
+    paths = _paths(tmp_path)
+    page = _page("recoverable")
+    _write_page(paths, page)
+    pending_mod.mark_intent(paths, [page])
+    calls = []
+
+    def _upsert(page, paths, table=None):
+        calls.append(page.id)
+        return True
+
+    first = pending_mod.reconcile_pending(paths, _upsert)
+    second = pending_mod.reconcile_pending(paths, _upsert)
+
+    assert first["recovered"] == 1
+    assert first["intent"] == 1
+    assert second["attempted"] == 0
+    assert calls == ["recoverable"]
+
+
+def test_reconcile_removes_orphaned_intent_only(tmp_path):
+    paths = _paths(tmp_path)
+    page = _page("orphaned")
+    pending_mod.mark_intent(paths, [page])
+
+    result = pending_mod.reconcile_pending(paths, lambda *a, **k: True)
+
+    assert result["orphaned"] == 1
+    assert result["failed"] == 0
+    assert pending_mod.list_pending(paths) == {}
+
+
+def test_reconcile_keeps_missing_pending_entry(tmp_path):
+    """A committed-page pending entry stays retryable when its file is absent."""
     paths = _paths(tmp_path)
     p1 = _page("deleted-page")
     pending_mod.mark_pending(paths, [p1])  # never written to wiki
 
     result = pending_mod.reconcile_pending(paths, lambda *a, **k: True)
     assert result["attempted"] == 1
-    # The page file does not exist → entry dropped (failed_ids but cleared
-    # from the ledger on next reconcile since no file means nothing to keep).
-    assert pending_mod.list_pending(paths) == {} or result["failed"] == 1
+    assert result["failed"] == 1
+    assert pending_mod.list_pending(paths)["deleted-page"]["publication_state"] == "pending"
 
 
 # ---------------------------------------------------------------------------
@@ -139,6 +198,7 @@ def test_scan_marks_missing_pages(tmp_path):
     assert added == 1
     data = pending_mod.list_pending(paths)
     assert "in-wiki" in data
+    assert data["in-wiki"]["publication_state"] == "pending"
 
 
 def test_scan_skips_indexed_and_pending(tmp_path):
@@ -154,6 +214,7 @@ def test_scan_skips_indexed_and_pending(tmp_path):
     data = pending_mod.list_pending(paths)
     assert "indexed" not in data
     assert "already-pending" in data
+    assert data["already-pending"]["publication_state"] == "pending"
 
 
 def test_pending_file_is_json(tmp_path):

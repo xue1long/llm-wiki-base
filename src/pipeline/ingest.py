@@ -30,7 +30,9 @@ getattr(_generator_module, "generate")). The compat shim that re-exports
 """
 from __future__ import annotations
 import hashlib
+import json
 import logging
+import os
 import re
 import unicodedata
 from pathlib import Path
@@ -38,7 +40,7 @@ from pathlib import Path
 from ..wiki.core.paths import WikiPaths
 from ..wiki.core.id_generator import normalize_id_chars
 from ..wiki.schema_registry import SchemaRegistry
-from ..utils.path import normalize_source_path
+from ..utils.path import canonical_raw_key, normalize_source_path
 from ..wiki.core.types import PageType, WikiPage
 from ..lib.atomic_ctx import AtomicContext
 from ..lib.write_hooks import flush_pending_writes
@@ -613,13 +615,62 @@ async def generate_ingest(
     # truncated to 8000 chars, losing most content).
     analysis = None  # type: ignore[assignment]
     pages: list[WikiPage] = []
+    _kc_review: dict | None = None
     from .generator import get_max_source_chars as _get_max_source_chars
     # 1.3 H6：单调用内闭环 resolver —— 缺失 slug 反馈进 generator，不整链重跑。
     from .reconcile import make_missing_slugs_resolver
     _missing_resolver = make_missing_slugs_resolver(
         paths, produced_prefix={_source_slug_for_map},
     )
-    if len(_sanitized_source_text) > _get_max_source_chars():
+    _candidate_mode = os.environ.get("RUFLO_PIPELINE_MODE", "candidate") == "candidate"
+    if _candidate_mode:
+        from dataclasses import asdict
+        from .analyzer import analyze
+        from .generator import generate_from_candidate
+        from src.kc.api import candidate_to_payload, compile_source
+        from src.kc.compiler.normalize import normalize_text
+
+        candidate = await analyze(
+            source_text=_sanitized_source_text,
+            source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
+            existing_wiki_index=_existing_wiki_index,
+            folder_context=folder_context,
+            provider=provider,
+            task_id=task_id,
+            source_path=str(source_path),
+            output_format="json",
+            schema_content=_schema_text,
+            purpose_content=_purpose_text,
+            taxonomy_content=_taxonomy_text,
+        )
+        if not hasattr(candidate, "claims") or not candidate.claims or not candidate.evidence:
+            raise ValueError("candidate requires non-empty claims and evidence")
+        _source_key = canonical_raw_key(str(source_path), paths.root)
+        document = normalize_text(_sanitized_source_text, source=_source_key)
+        payload = candidate_to_payload(
+            asdict(candidate), document, source_root=paths.root
+        )
+        _kc_review = await compile_source(
+            _source_key,
+            content=_sanitized_source_text.encode("utf-8"),
+            candidate_json=json.dumps(payload, ensure_ascii=False),
+        )
+        if not _kc_review.get("document_id") or not _kc_review.get("projections"):
+            raise ValueError("KC structural review returned no projections")
+        pages = await generate_from_candidate(
+            candidate=candidate,
+            paths=paths,
+            existing_wiki_index=_existing_wiki_index,
+            provider=provider,
+            source_slug_map=_source_slug_map,
+            source_text=_sanitized_source_text,
+            schema_registry=schema_registry,
+            taxonomy_content=_taxonomy_text,
+            missing_slugs_resolver=_missing_resolver,
+            processing_depth_hint=_processing_depth_hint,
+        )
+        analysis = None
+    elif len(_sanitized_source_text) > _get_max_source_chars():
         try:
             analysis = await _analyze_chunked(
                 source_text=_sanitized_source_text,
@@ -661,7 +712,7 @@ async def generate_ingest(
                 _chunked_err,
             )
             analysis = None
-    if analysis is None:
+    if analysis is None and not _candidate_mode:
         try:
             from .generator import unified_generate
             pages = await unified_generate(
@@ -1039,6 +1090,24 @@ async def generate_ingest(
             f"{_missing_slugs[:5]}{'...' if len(_missing_slugs) > 5 else ''}"
         )
 
+    # L2: keep page-level provenance for the KC structural review without
+    # inventing a claim-to-page mapping.  Existing WikiPage serialization
+    # already round-trips evidence_refs and _ko_extra.
+    if _kc_review is not None:
+        _evidence_refs = [
+            f"{_kc_review['document_id']}:{evidence_id}"
+            for projection in _kc_review["projections"]
+            for evidence_id in projection.get("evidence_ids", ())
+        ]
+        _evidence_refs = list(dict.fromkeys(_evidence_refs))
+        for _page in pages:
+            _page.evidence_refs = _evidence_refs.copy()
+            _page._ko_extra = {
+                **(getattr(_page, "_ko_extra", {}) or {}),
+                "kc_document_id": _kc_review["document_id"],
+                "kc_projection_version": "kc-wiki-v1",
+            }
+
     # Rule-based quality gate — catches ghost pages, empty bodies, intra-batch dupes.
     # Zero LLM cost; stub pages (processing_depth="stub") are exempt from
     # empty-body and duplicate checks.
@@ -1327,6 +1396,12 @@ async def commit_ingest(
                 _page.id, source_path, _add,
             )
 
+    from ..vector.pending import mark_intent, promote_intent
+    _publication_pages = pages + _extra
+    # L3: create the vector publication intent before the first Wiki write.
+    # Failure is fail-closed so a committed page can never lack a recovery hint.
+    mark_intent(paths, _publication_pages)
+
     with AtomicContext(flush_callback=flush_pending_writes):
         for page in pages:
             write_page(paths, page,
@@ -1344,18 +1419,17 @@ async def commit_ingest(
             task_id=task_id,
             detail=f"generated {len(pages)} pages from {Path(str(source_path)).name}",
         )
+    # L3: Wiki committed successfully — make the intent explicitly pending.
+    # If promotion fails, the intent remains durable and is recoverable on the
+    # next reconcile/startup pass.
+    try:
+        promote_intent(paths, [page.id for page in _publication_pages])
+    except Exception:
+        _logger.warning("[commit_ingest] vector publication promotion failed (non-fatal)",
+                        exc_info=True)
+
     if triage_result is not None:
         write_triage_result(paths, triage_result)
-
-    # R7: Wiki committed successfully — record vector-pending entries so
-    # a later upsert failure is discoverable and retryable (derived state
-    # never silently drifts from the source of truth).
-    try:
-        from ..vector.pending import mark_pending
-        mark_pending(paths, pages + _extra)
-    except Exception:
-        _logger.warning("[commit_ingest] vector pending mark failed (non-fatal)",
-                        exc_info=True)
 
     # 1.3 O6：未解析引用 → gap 账本（原子写，继承 blocklist/上限/doc-title 过滤）。
     if missing_slugs:

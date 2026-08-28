@@ -36,7 +36,7 @@ def cmd_vector_reconcile(args: argparse.Namespace) -> None:
 
     ctx, paths = resolve_project(args.project, by_id_only=True)
 
-    async def _embed_and_upsert(page, paths, table=None) -> bool:
+    def _embed_and_upsert(page, paths, table=None) -> bool:
         """Chunk/embed/upsert one page; return True on success."""
         from src.llm.embedding_runtime import get_embedding_provider
         from src.types import VectorChunk
@@ -58,7 +58,7 @@ def cmd_vector_reconcile(args: argparse.Namespace) -> None:
         chunks = chunk_markdown(content)
         if not chunks:
             return True
-        results = await provider.embed(chunks)
+        results = asyncio.run(provider.embed(chunks))
         if results and hasattr(results[0], "embedding"):
             embeddings = [e.embedding for e in results]
         else:
@@ -80,12 +80,13 @@ def cmd_vector_reconcile(args: argparse.Namespace) -> None:
         vector_upsert_chunks(lance_chunks)
         return True
 
-    async def _run():
-        return reconcile_pending(paths, _embed_and_upsert)
-
-    result = asyncio.run(_run())
+    result = reconcile_pending(paths, _embed_and_upsert)
     print(f"Reconciled {result['attempted']} pending entr(ies): "
-          f"{result['ok']} ok, {result['failed']} failed")
+          f"{result['ok']} ok, {result['failed']} failed "
+          f"(intent={result.get('intent', 0)}, "
+          f"pending={result.get('pending', 0)}, "
+          f"recovered={result.get('recovered', 0)}, "
+          f"orphaned={result.get('orphaned', 0)})")
     if result["failed_ids"]:
         print("Failed (will retry on next reconcile / startup):")
         for pid in result["failed_ids"]:
