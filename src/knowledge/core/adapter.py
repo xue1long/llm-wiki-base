@@ -49,6 +49,7 @@ _KNOWLEDGETYPE_TO_PAGETYPE: dict[KnowledgeType, PageType] = {
 def _provenance_to_dict(p: Provenance) -> dict:
     return {
         "source_path": p.source_path,
+        "source_paths": list(p.source_paths),
         "page": p.page,
         "quote": p.quote,
         "ingested_at": p.ingested_at,
@@ -59,6 +60,7 @@ def _provenance_to_dict(p: Provenance) -> dict:
 def _provenance_from_dict(d: dict) -> Provenance:
     return Provenance(
         source_path=d.get("source_path", ""),
+        source_paths=tuple(d.get("source_paths", ()) or ()),
         page=d.get("page"),
         quote=d.get("quote", ""),
         ingested_at=d.get("ingested_at", 0),
@@ -168,9 +170,11 @@ def knowledge_object_to_wiki_page(obj: KnowledgeObject) -> WikiPage:
 
     # WP-only fields restored from incoming ko_extra (if any)
     new_extra["sources"] = list(ko_extra.get("sources", []))
-    # Seed sources from provenance when not already present
-    if obj.provenance.source_path and obj.provenance.source_path not in new_extra["sources"]:
-        new_extra["sources"].append(obj.provenance.source_path)
+    # Seed all sources from provenance when not already present
+    source_paths = obj.provenance.source_paths or (obj.provenance.source_path,)
+    for source_path in source_paths:
+        if source_path and source_path not in new_extra["sources"]:
+            new_extra["sources"].append(source_path)
     new_extra["processing_depth"] = ko_extra.get("processing_depth", "concept")
     new_extra["is_immutable"] = bool(ko_extra.get("is_immutable", False))
     new_extra["last_used_at"] = int(ko_extra.get("last_used_at", 0))

@@ -34,6 +34,7 @@ class Provenance:
     """Source provenance — where a piece of knowledge came from."""
 
     source_path: str
+    source_paths: tuple[str, ...] = ()
     page: int | None = None
     quote: str = ""
     ingested_at: int = 0
