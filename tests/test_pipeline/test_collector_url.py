@@ -86,6 +86,8 @@ async def test_url_redirect_to_loopback_blocked():
     def stub_gethostbyname(host):
         if host == "127.0.0.1":
             return "127.0.0.1"
+        if host == "example.com":
+            return "93.184.216.34"
         return orig_gethostbyname(host)
 
     with (

@@ -181,14 +181,26 @@ class ConflictDetector:
         Returns:
             List of (claim_a, claim_b) tuples sorted by descending similarity.
         """
-        candidates: list[tuple[Claim, Claim]] = []
+        return [(a, b) for a, b, _ in self._screen_candidates_with_similarity(claims)]
+
+    def _screen_candidates_with_similarity(
+        self, claims: list[Claim]
+    ) -> list[tuple[Claim, Claim, float]]:
+        """Screen pairs while retaining the computed similarity."""
+        candidates: list[tuple[Claim, Claim, float]] = []
         n = len(claims)
+        token_sets = [self._tokenize(claim.statement) for claim in claims]
 
         for i in range(n):
             for j in range(i + 1, n):
-                similarity = self._compute_similarity(claims[i], claims[j])
+                words_a = token_sets[i]
+                words_b = token_sets[j]
+                if not words_a or not words_b:
+                    similarity = 0.0
+                else:
+                    similarity = len(words_a & words_b) / len(words_a | words_b)
                 if similarity >= self._WORD_OVERLAP_THRESHOLD:
-                    candidates.append((claims[i], claims[j]))
+                    candidates.append((claims[i], claims[j], similarity))
 
         return candidates
 
@@ -197,7 +209,13 @@ class ConflictDetector:
     # ------------------------------------------------------------------
 
     def _check_contradiction(
-        self, claim_a: Claim, claim_b: Claim
+        self,
+        claim_a: Claim,
+        claim_b: Claim,
+        *,
+        similarity: float | None = None,
+        has_neg_a: bool | None = None,
+        has_neg_b: bool | None = None,
     ) -> ConflictReport | None:
         """Stage 2: determine if two similar claims actually contradict each other.
 
@@ -211,12 +229,15 @@ class ConflictDetector:
             return None
 
         # Near-identical statements (Jaccard > 0.9) are not conflicts
-        similarity = self._compute_similarity(claim_a, claim_b)
+        if similarity is None:
+            similarity = self._compute_similarity(claim_a, claim_b)
         if similarity > self._NEAR_IDENTICAL_THRESHOLD:
             return None
 
-        has_neg_a = self._has_negation(text_a)
-        has_neg_b = self._has_negation(text_b)
+        if has_neg_a is None:
+            has_neg_a = self._has_negation(text_a)
+        if has_neg_b is None:
+            has_neg_b = self._has_negation(text_b)
 
         # Core heuristic: one claim has negation, the other doesn't → contradiction
         if has_neg_a != has_neg_b:
@@ -340,12 +361,22 @@ class ConflictDetector:
         This is the core algorithm shared by both normal and sampled paths.
         """
         # Stage 1 — Candidate Screening
-        candidates = self._screen_candidates(claims)
+        candidates = self._screen_candidates_with_similarity(claims)
+        negations = {
+            id(claim): self._has_negation(claim.statement)
+            for claim in claims
+        }
 
         # Stage 2 — Contradiction Determination
         reports: list[ConflictReport] = []
-        for claim_a, claim_b in candidates:
-            report = self._check_contradiction(claim_a, claim_b)
+        for claim_a, claim_b, similarity in candidates:
+            report = self._check_contradiction(
+                claim_a,
+                claim_b,
+                similarity=similarity,
+                has_neg_a=negations[id(claim_a)],
+                has_neg_b=negations[id(claim_b)],
+            )
             if report is not None:
                 report.entity = entity_name
                 reports.append(report)

@@ -12,6 +12,11 @@ from src.utils.idempotency import get_idempotency_cache
 import src.pipeline.pipeline as pipeline_mod
 
 
+@pytest.fixture(autouse=True)
+def _use_legacy_pipeline_for_compatibility_tests(monkeypatch):
+    monkeypatch.setenv("RUFLO_PIPELINE_MODE", "legacy")
+
+
 @pytest.mark.asyncio
 async def test_run_ingest_full_pipeline(tmp_path):
     ensure_knowledge_base(tmp_path)

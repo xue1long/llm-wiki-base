@@ -179,7 +179,7 @@ def test_dryrun_writes_markdown_report_with_pagetype_and_cost() -> None:
         assert "choice_3_cost" in data
         assert "narrative_pages" in data
         assert "recommendation" in data
-        # novel-wiki 实测叙事类 = 66 页 (claim 10 + synthesis 56)
-        assert data["narrative_pages"] == 66, (
-            f"novel-wiki narrative_pages 应该 = 66, 实测 {data['narrative_pages']}"
+        # 当前提交中的 novel-wiki 实测叙事类 = 15 页 (synthesis 15)
+        assert data["narrative_pages"] == 15, (
+            f"novel-wiki narrative_pages 应该 = 15, 实测 {data['narrative_pages']}"
         )

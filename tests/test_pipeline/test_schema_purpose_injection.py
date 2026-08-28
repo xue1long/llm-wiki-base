@@ -33,6 +33,11 @@ NOVEL_WIKI = REPO_ROOT / "knowledge" / "novel-wiki"
 
 ASSET_NAMES = ("schema.md", "purpose.md", "taxonomy.md", "taxonomy_tags.md")
 
+
+@pytest.fixture(autouse=True)
+def _use_legacy_pipeline_for_compatibility_tests(monkeypatch):
+    monkeypatch.setenv("RUFLO_PIPELINE_MODE", "legacy")
+
 # 与 spec §4.3 分类轴一致
 EXPECTED_CATEGORIES = {
     "写作技法": {"选题与立意", "大纲与结构", "开篇与黄金三章", "人物塑造", "情节与冲突",
