@@ -167,6 +167,21 @@ class TestKnowledgeObjectToWikiPageBasic:
         assert wp.category == ""
         assert wp.taxonomy_sub == ""
 
+    def test_all_provenance_source_paths_survive_adapter_round_trip(self):
+        ko = KnowledgeObject(
+            id="multi-source", type=KnowledgeType.CLAIM, title="C", content="c",
+            lifecycle=LifecycleState.CREATED, confidence=0.5,
+            provenance=Provenance(
+                source_path="/a.md", source_paths=("/a.md", "/b.md"),
+            ),
+        )
+
+        round_tripped = knowledge_object_to_wiki_page(
+            wiki_page_to_knowledge_object(knowledge_object_to_wiki_page(ko))
+        )
+
+        assert round_tripped.sources == ["/a.md", "/b.md"]
+
     def test_relations_preserved(self):
         r = Relation(target_id="t-2", type="supports", weight=0.9)
         ko = KnowledgeObject(

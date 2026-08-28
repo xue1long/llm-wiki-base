@@ -20,6 +20,7 @@ def compile_claim(claim: dict, document: CanonicalDocument, evidence: tuple[Evid
         confidence=max(item.confidence for item in evidence),
         provenance=Provenance(
             source_path=document.source,
+            source_paths=document.sources,
             quote=quote,
             ingestor_version=document.parser_version,
         ),

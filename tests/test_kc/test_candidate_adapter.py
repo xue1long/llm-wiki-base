@@ -137,6 +137,27 @@ def test_evidence_id_is_stable_and_claim_scoped() -> None:
     assert first.evidence_id != other.evidence_id
 
 
+def test_projection_preserves_duplicate_document_source_refs() -> None:
+    from src.kc.adapters.wiki_projection import project_wiki
+    from src.kc.compiler.compile import compile_claim
+    from src.kc.compiler.evidence import validate_evidence
+    from src.kc.compiler.normalize import normalize_text, with_sources
+
+    document = with_sources(
+        normalize_text("Fact", source="a.md"),
+        ("b.md",),
+    )
+    evidence = validate_evidence(
+        document,
+        {"block_id": document.blocks[0].block_id, "quote": "Fact"},
+    )
+    obj = compile_claim({"id": "claim-1", "text": "Fact"}, document, (evidence,))
+
+    projection = project_wiki(obj, evidence_ids=(evidence.evidence_id,), evidence=(evidence,))
+
+    assert projection["source_refs"] == ["a.md", "b.md"]
+
+
 def test_claim_review_returns_structural_state_not_truth_verified() -> None:
     document = normalize_text("KC 统一证据适配。", source="raw/sources/demo.md")
     evidence = validate_evidence(
