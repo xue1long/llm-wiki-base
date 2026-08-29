@@ -21,6 +21,8 @@ import hashlib
 import json
 import shutil
 
+import pytest
+
 from src.knowledge.core.object import (
     KnowledgeObject,
     KnowledgeType,
@@ -275,3 +277,409 @@ def test_restore_is_idempotent_no_new_events(tmp_path):
     second_count = sum(1 for _ in events_file.open(encoding="utf-8"))
     assert second_count == first_count
     assert _sha256_file(events_file) == first_hash
+
+
+# ---------------------------------------------------------------------------
+# OPEN-4: real event-source replay (replay_object_from_events)
+# ---------------------------------------------------------------------------
+
+
+def _write_replay_events(events_dir, events: list[dict]) -> Path:
+    """Write *events* as JSON lines to events.jsonl under *events_dir*.
+
+    The schema mirrors what ``JSONLEventStore.append_event`` writes:
+    ``action`` carries the event type, ``stream_id`` keys the object,
+    ``event_version`` is the per-object counter, ``timestamp`` is epoch ms,
+    and the remaining keys are the spread payload.
+    """
+    events_dir.mkdir(parents=True, exist_ok=True)
+    events_file = events_dir / "events.jsonl"
+    lines = [json.dumps(ev, ensure_ascii=False) for ev in events]
+    events_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return events_file
+
+
+def test_replay_object_from_events_returns_initial_state(tmp_path):
+    """Single ``kc.object.created`` event → replay returns that payload.
+
+    Verifies the new event-source replay surface in
+    ``src.kc.integrity.replay`` — distinct from the existing snapshot-based
+    ``KnowledgeKernel.replay_object`` so we can drop the
+    ``event_replay_stub`` reason_code while preserving prior contracts.
+    """
+    from src.kc.integrity.replay import replay_object_from_events
+
+    events_dir = tmp_path / "knowledge_graph"
+    _write_replay_events(
+        events_dir,
+        [
+            {
+                "action": "kc.object.created",
+                "stream_id": "ku-001",
+                "event_version": 1,
+                "timestamp": 1_700_000_000_000,
+                "object_id": "ku-001",
+                "object_type": "KnowledgeUnit",
+                "content": "alpha",
+                "title": "KU One",
+            }
+        ],
+    )
+
+    state = replay_object_from_events(
+        "ku-001", target_version=1, events_dir=events_dir
+    )
+
+    assert state["object_id"] == "ku-001"
+    assert state["object_type"] == "KnowledgeUnit"
+    assert state["content"] == "alpha"
+    assert state["title"] == "KU One"
+    assert state["version"] == 1
+
+
+def test_replay_object_from_events_applies_updates_in_order(tmp_path):
+    """Multiple events applied in event_version order yield the correct
+    state at any intermediate target_version."""
+    from src.kc.integrity.replay import replay_object_from_events
+
+    events_dir = tmp_path / "knowledge_graph"
+    _write_replay_events(
+        events_dir,
+        [
+            {
+                "action": "kc.object.created",
+                "stream_id": "ku-002",
+                "event_version": 1,
+                "timestamp": 1_700_000_001_000,
+                "object_id": "ku-002",
+                "object_type": "KnowledgeUnit",
+                "content": "v1",
+                "confidence": 0.5,
+            },
+            {
+                "action": "kc.object.updated",
+                "stream_id": "ku-002",
+                "event_version": 2,
+                "timestamp": 1_700_000_002_000,
+                "object_id": "ku-002",
+                "object_type": "KnowledgeUnit",
+                "content": "v2",
+            },
+            {
+                "action": "kc.object.updated",
+                "stream_id": "ku-002",
+                "event_version": 3,
+                "timestamp": 1_700_000_003_000,
+                "object_id": "ku-002",
+                "object_type": "KnowledgeUnit",
+                "confidence": 0.9,
+            },
+        ],
+    )
+
+    state_v1 = replay_object_from_events("ku-002", 1, events_dir=events_dir)
+    state_v2 = replay_object_from_events("ku-002", 2, events_dir=events_dir)
+    state_v3 = replay_object_from_events("ku-002", 3, events_dir=events_dir)
+
+    # v1: initial state
+    assert state_v1["content"] == "v1"
+    assert state_v1["confidence"] == 0.5
+    assert state_v1["version"] == 1
+
+    # v2: content updated, confidence unchanged
+    assert state_v2["content"] == "v2"
+    assert state_v2["confidence"] == 0.5
+    assert state_v2["version"] == 2
+
+    # v3: confidence updated, content retained
+    assert state_v3["content"] == "v2"
+    assert state_v3["confidence"] == 0.9
+    assert state_v3["version"] == 3
+
+
+def test_replay_object_from_events_raises_when_object_deleted_before_target(tmp_path):
+    """If a ``kc.object.deleted`` event was recorded at version K and the
+    caller asks for ``target_version >= K``, replay raises — never returns
+    a state the object was no longer in."""
+    from src.kc.integrity.replay import (
+        ObjectDeletedBeforeTargetVersion,
+        replay_object_from_events,
+    )
+
+    events_dir = tmp_path / "knowledge_graph"
+    _write_replay_events(
+        events_dir,
+        [
+            {
+                "action": "kc.object.created",
+                "stream_id": "ev-9",
+                "event_version": 1,
+                "timestamp": 1_700_000_010_000,
+                "object_id": "ev-9",
+                "object_type": "Evidence",
+                "content": "alive",
+            },
+            {
+                "action": "kc.object.deleted",
+                "stream_id": "ev-9",
+                "event_version": 2,
+                "timestamp": 1_700_000_011_000,
+                "object_id": "ev-9",
+                "object_type": "Evidence",
+            },
+        ],
+    )
+
+    # target_version == 1: still alive (deletion hasn't been observed yet)
+    state_v1 = replay_object_from_events("ev-9", 1, events_dir=events_dir)
+    assert state_v1["content"] == "alive"
+
+    # target_version >= 2: deletion takes effect — must raise.
+    for bad_version in (2, 3, 5):
+        with pytest.raises(ObjectDeletedBeforeTargetVersion) as excinfo:
+            replay_object_from_events("ev-9", bad_version, events_dir=events_dir)
+        assert "ev-9" in str(excinfo.value)
+        assert str(bad_version) in str(excinfo.value)
+
+
+def test_replay_object_from_events_raises_when_target_version_exceeds_history(tmp_path):
+    """When ``target_version`` is greater than the number of events for
+    the object, replay raises a clear exception (distinct from the
+    deletion case) so callers can distinguish the two error modes."""
+    from src.kc.integrity.replay import (
+        TargetVersionBeyondHistory,
+        replay_object_from_events,
+    )
+
+    events_dir = tmp_path / "knowledge_graph"
+    _write_replay_events(
+        events_dir,
+        [
+            {
+                "action": "kc.object.created",
+                "stream_id": "sf-1",
+                "event_version": 1,
+                "timestamp": 1_700_000_020_000,
+                "object_id": "sf-1",
+                "object_type": "StructuredFact",
+                "content": "fact",
+            }
+        ],
+    )
+
+    with pytest.raises(TargetVersionBeyondHistory) as excinfo:
+        replay_object_from_events("sf-1", 2, events_dir=events_dir)
+    assert "sf-1" in str(excinfo.value)
+    assert "1" in str(excinfo.value)  # actual history length
+
+
+def test_replay_object_from_events_returns_none_when_object_unknown(tmp_path):
+    """Unknown object_id → ``None`` (consistent with the snapshot
+    surface's ``unknown_object_id`` reason code)."""
+    from src.kc.integrity.replay import replay_object_from_events
+
+    events_dir = tmp_path / "knowledge_graph"
+    _write_replay_events(
+        events_dir,
+        [
+            {
+                "action": "kc.object.created",
+                "stream_id": "ku-known",
+                "event_version": 1,
+                "timestamp": 1_700_000_030_000,
+                "object_id": "ku-known",
+                "object_type": "KnowledgeUnit",
+                "content": "x",
+            }
+        ],
+    )
+
+    assert replay_object_from_events("ku-missing", 1, events_dir=events_dir) is None
+
+
+def test_replay_object_from_events_supports_multiple_object_types(tmp_path):
+    """The event-source replay surface must accept the same
+    ``KnowledgeUnit`` / ``Evidence`` / ``StructuredFact`` / ``Approval``
+    / ``PublicationBatch`` shape — the dispatch happens by the
+    ``object_type`` field on each event, not by hardcoded branches."""
+    from src.kc.integrity.replay import replay_object_from_events
+
+    events_dir = tmp_path / "knowledge_graph"
+    _write_replay_events(
+        events_dir,
+        [
+            {
+                "action": "kc.object.created",
+                "stream_id": "ku-A",
+                "event_version": 1,
+                "timestamp": 1_700_000_040_000,
+                "object_id": "ku-A",
+                "object_type": "KnowledgeUnit",
+                "content": "ku",
+            },
+            {
+                "action": "kc.object.created",
+                "stream_id": "ev-A",
+                "event_version": 1,
+                "timestamp": 1_700_000_041_000,
+                "object_id": "ev-A",
+                "object_type": "Evidence",
+                "content": "ev",
+            },
+            {
+                "action": "kc.object.created",
+                "stream_id": "sf-A",
+                "event_version": 1,
+                "timestamp": 1_700_000_042_000,
+                "object_id": "sf-A",
+                "object_type": "StructuredFact",
+                "content": "sf",
+            },
+            {
+                "action": "kc.object.created",
+                "stream_id": "ap-A",
+                "event_version": 1,
+                "timestamp": 1_700_000_043_000,
+                "object_id": "ap-A",
+                "object_type": "Approval",
+                "content": "ap",
+            },
+            {
+                "action": "kc.object.created",
+                "stream_id": "pb-A",
+                "event_version": 1,
+                "timestamp": 1_700_000_044_000,
+                "object_id": "pb-A",
+                "object_type": "PublicationBatch",
+                "content": "pb",
+            },
+        ],
+    )
+
+    for object_id, expected_type in [
+        ("ku-A", "KnowledgeUnit"),
+        ("ev-A", "Evidence"),
+        ("sf-A", "StructuredFact"),
+        ("ap-A", "Approval"),
+        ("pb-A", "PublicationBatch"),
+    ]:
+        state = replay_object_from_events(object_id, 1, events_dir=events_dir)
+        assert state["object_type"] == expected_type
+        assert state["version"] == 1
+
+
+def test_replay_object_from_events_uses_event_ordering_from_jsonl_file(tmp_path):
+    """Out-of-order ``event_version`` values on disk (e.g. write races,
+    recovery) still produce correct state because replay sorts by
+    ``event_version`` — the contract OPEN-1's file lock makes cheap but
+    the replay surface must remain correct without it."""
+    from src.kc.integrity.replay import replay_object_from_events
+
+    events_dir = tmp_path / "knowledge_graph"
+    _write_replay_events(
+        events_dir,
+        [
+            # Intentionally written with v3 first, then v1, then v2.
+            {
+                "action": "kc.object.updated",
+                "stream_id": "ku-order",
+                "event_version": 3,
+                "timestamp": 1_700_000_050_000,
+                "object_id": "ku-order",
+                "object_type": "KnowledgeUnit",
+                "content": "v3",
+            },
+            {
+                "action": "kc.object.created",
+                "stream_id": "ku-order",
+                "event_version": 1,
+                "timestamp": 1_700_000_051_000,
+                "object_id": "ku-order",
+                "object_type": "KnowledgeUnit",
+                "content": "v1",
+            },
+            {
+                "action": "kc.object.updated",
+                "stream_id": "ku-order",
+                "event_version": 2,
+                "timestamp": 1_700_000_052_000,
+                "object_id": "ku-order",
+                "object_type": "KnowledgeUnit",
+                "content": "v2",
+            },
+        ],
+    )
+
+    state_v2 = replay_object_from_events("ku-order", 2, events_dir=events_dir)
+    assert state_v2["content"] == "v2"
+
+    state_v3 = replay_object_from_events("ku-order", 3, events_dir=events_dir)
+    assert state_v3["content"] == "v3"
+
+
+def test_replay_object_from_events_skips_unrelated_streams(tmp_path):
+    """Events for *other* objects in the same file must not leak into the
+    replayed state for ``object_id``."""
+    from src.kc.integrity.replay import replay_object_from_events
+
+    events_dir = tmp_path / "knowledge_graph"
+    _write_replay_events(
+        events_dir,
+        [
+            {
+                "action": "kc.object.created",
+                "stream_id": "ku-X",
+                "event_version": 1,
+                "timestamp": 1_700_000_060_000,
+                "object_id": "ku-X",
+                "object_type": "KnowledgeUnit",
+                "content": "X",
+            },
+            {
+                "action": "kc.object.updated",
+                "stream_id": "ku-Y",
+                "event_version": 2,
+                "timestamp": 1_700_000_061_000,
+                "object_id": "ku-Y",
+                "object_type": "KnowledgeUnit",
+                "content": "Y",
+            },
+        ],
+    )
+
+    state_x = replay_object_from_events("ku-X", 1, events_dir=events_dir)
+    assert state_x["content"] == "X"
+    assert "version" in state_x and state_x["version"] == 1
+
+
+def test_existing_event_replay_stub_placeholder_is_not_depended_on_by_new_surface(tmp_path):
+    """The new ``replay_object_from_events`` is independent of the
+    snapshot-based :meth:`KnowledgeKernel.replay_object` and the
+    ``event_replay_stub`` reason code in
+    :meth:`KnowledgeKernel.replay_core_from_events`. Both prior surfaces
+    remain unchanged; this test freezes the new surface's independence
+    so a future refactor doesn't silently couple them."""
+    from src.kc.integrity.replay import replay_object_from_events
+
+    events_dir = tmp_path / "knowledge_graph"
+    _write_replay_events(
+        events_dir,
+        [
+            {
+                "action": "kc.object.created",
+                "stream_id": "ku-indep",
+                "event_version": 1,
+                "timestamp": 1_700_000_070_000,
+                "object_id": "ku-indep",
+                "object_type": "KnowledgeUnit",
+                "content": "independent",
+            }
+        ],
+    )
+
+    # The new surface resolves state purely from the JSONL file — no
+    # VersionManager involvement, no event_replay_stub reason code.
+    state = replay_object_from_events("ku-indep", 1, events_dir=events_dir)
+    assert state is not None
+    assert state["content"] == "independent"
+    assert "event_replay_stub" not in state
