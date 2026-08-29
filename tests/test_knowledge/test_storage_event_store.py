@@ -266,6 +266,93 @@ def test_jsonl_handles_invalid_lines(store):
 
 
 # ---------------------------------------------------------------------------
+# Test JSONLEventStore: append_event (operation_id-keyed idempotency)
+# ---------------------------------------------------------------------------
+
+
+def test_append_event_first_write_returns_ok(store):
+    """首次 append_event -> {"status": "ok", "event": {...}}，含 operation_id + payload_hash."""
+    result = store.append_event("s1", "e1", {"k": "v"}, operation_id="op-1")
+    assert result["status"] == "ok"
+    event = result["event"]
+    assert event["operation_id"] == "op-1"
+    assert event["payload_hash"]
+    assert event["stream_id"] == "s1"
+    assert event["action"] == "e1"
+    assert event["event_version"] == 1
+
+
+def test_append_event_idempotent_replay_returns_duplicate(store):
+    """相同 operation_id + 相同 payload -> duplicate，返回原事件，不写新事件."""
+    r1 = store.append_event("s1", "e1", {"k": "v"}, operation_id="op-1")
+    r2 = store.append_event("s1", "e1", {"k": "v"}, operation_id="op-1")
+    assert r1["status"] == "ok"
+    assert r2["status"] == "duplicate"
+    assert r2["event"] == r1["event"]
+    assert store.count() == 1
+
+
+def test_append_event_version_conflict_on_different_payload_hash(store):
+    """相同 operation_id、不同 payload_hash -> version_conflict，不写任何事件."""
+    r1 = store.append_event("s1", "e1", {"k": "v1"}, operation_id="op-1")
+    assert r1["status"] == "ok"
+    r2 = store.append_event("s1", "e1", {"k": "v2"}, operation_id="op-1")
+    assert r2["status"] == "version_conflict"
+    assert r2["stored_payload_hash"] == r1["event"]["payload_hash"]
+    assert store.count() == 1
+
+
+def test_append_event_default_payload_hash_is_canonical_sha256(store):
+    """payload_hash 默认 = sha256(canonical JSON, sorted keys)."""
+    import hashlib
+
+    payload = {"b": 2, "a": 1}
+    result = store.append_event("s1", "e1", payload, operation_id="op-1")
+    canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    expected = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    assert result["event"]["payload_hash"] == expected
+
+
+def test_append_event_explicit_payload_hash_is_honored(store):
+    """显式传入的 payload_hash 被原样记录."""
+    result = store.append_event("s1", "e1", {"k": "v"}, operation_id="op-1", payload_hash="hash-abc")
+    assert result["event"]["payload_hash"] == "hash-abc"
+
+
+def test_append_event_cold_start_replay(tmp_path):
+    """同一文件上的新 store 实例仍能识别已记录的 operation（冷启动重放）."""
+    store1 = JSONLEventStore(index_path=tmp_path)
+    r1 = store1.append_event("s1", "e1", {"k": "v"}, operation_id="op-1")
+    assert r1["status"] == "ok"
+
+    store2 = JSONLEventStore(index_path=tmp_path)
+    r2 = store2.append_event("s1", "e1", {"k": "v"}, operation_id="op-1")
+    assert r2["status"] == "duplicate"
+    assert store2.count() == 1
+
+
+def test_append_event_coexists_with_append(store):
+    """append() 与 append_event() 共用同一事件文件与版本计数器."""
+    v1 = store.append("s1", "legacy", {"n": 1})
+    r = store.append_event("s1", "idem", {"n": 2}, operation_id="op-1")
+    assert v1 == 1
+    assert r["event"]["event_version"] == 2
+    assert store.count() == 2
+
+
+def test_facade_append_event_pass_through(tmp_path):
+    """StorageFacade 暴露 append_event 作为到活动 event store 的透传."""
+    from src.knowledge.storage.facade import StorageConfig, StorageFacade
+
+    facade = StorageFacade(StorageConfig(wiki_path=tmp_path, index_path=tmp_path))
+    r1 = facade.append_event("s1", "e1", {"k": "v"}, operation_id="op-1")
+    r2 = facade.append_event("s1", "e1", {"k": "v"}, operation_id="op-1")
+    assert r1["status"] == "ok"
+    assert r2["status"] == "duplicate"
+    assert facade.events.count() == 1
+
+
+# ---------------------------------------------------------------------------
 # Test EventStore ABC
 # ---------------------------------------------------------------------------
 

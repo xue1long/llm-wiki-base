@@ -7,6 +7,7 @@ from src.kc.integrity.identity_key import (
     compute_identity_key,
     validate_identity_key,
     IdentityKeyCheck,
+    make_operation_id,
 )
 
 
@@ -277,3 +278,35 @@ def test_validate_identity_key_returns_dataclass():
     assert check.object_id == "<unknown>"  # 无 id/ku_id
     assert check.identity_key.startswith("id-v1:")
     assert check.expected_identity_key == check.identity_key
+
+
+# ---------- make_operation_id ----------
+
+def test_make_operation_id_deterministic():
+    """同一组业务输入 → 相同 operation id（跨 run 稳定）."""
+    a = make_operation_id("create", "concept", "id-v1:abc", "hash123")
+    b = make_operation_id("create", "concept", "id-v1:abc", "hash123")
+    assert a == b
+
+
+def test_make_operation_id_shape():
+    """id-v1:<sha256> 形状."""
+    op = make_operation_id("create", "concept", "id-v1:abc", "hash123")
+    assert op.startswith("id-v1:")
+    assert len(op) == len("id-v1:") + 64  # sha256 hex
+
+
+def test_make_operation_id_normalizes_fields():
+    """字符串字段规范化 (NFKC/strip/折叠空白/小写) 不影响 operation id."""
+    a = make_operation_id(" Create ", "CONCEPT", "  ID-V1:ABC  ", "Hash")
+    b = make_operation_id("create", "concept", "id-v1:abc", "hash")
+    assert a == b
+
+
+def test_make_operation_id_differs_on_business_input():
+    """不同业务输入 → 不同 operation id."""
+    a = make_operation_id("create", "concept", "id-v1:abc", "hash1")
+    b = make_operation_id("create", "concept", "id-v1:abc", "hash2")
+    c = make_operation_id("update", "concept", "id-v1:abc", "hash1")
+    assert a != b
+    assert a != c

@@ -12,6 +12,15 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 import json
 import time
+from hashlib import sha256
+
+
+def compute_payload_hash(payload: dict) -> str:
+    """Canonical payload hash — sha256 of canonical JSON (sorted keys)."""
+    canonical = json.dumps(
+        payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+    )
+    return sha256(canonical.encode("utf-8")).hexdigest()
 
 
 class EventStore(ABC):
@@ -25,6 +34,28 @@ class EventStore(ABC):
     def append(self, stream_id: str, event_type: str, payload: dict) -> int:
         """Append an event. Returns the event version number."""
         ...
+
+    def append_event(
+        self,
+        stream_id: str,
+        event_type: str,
+        payload: dict,
+        *,
+        operation_id: str,
+        payload_hash: str | None = None,
+    ) -> dict:
+        """Idempotent event append keyed by *operation_id* (additive to append()).
+
+        Returns:
+            ``{"status": "ok", "event": {...}}`` — first write.
+            ``{"status": "duplicate", "event": {...}}`` — idempotent replay
+            (same operation_id + same payload_hash); the original event is returned.
+            ``{"status": "version_conflict", "event": {...}, "stored_payload_hash": ...}``
+            — same operation_id but different payload_hash; nothing is written.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement append_event"
+        )
 
     @abstractmethod
     def read_stream(self, stream_id: str, since_version: int = 0) -> list[dict]:
@@ -56,6 +87,7 @@ class JSONLEventStore(EventStore):
         self._events_path = Path(index_path) / "knowledge_graph" / "events.jsonl"
         self._events_path.parent.mkdir(parents=True, exist_ok=True)
         self._version_counter = self._load_version()
+        self._operation_index: dict[str, dict] | None = None
 
     def _load_version(self) -> int:
         """Count existing lines to determine current version."""
@@ -64,6 +96,84 @@ class JSONLEventStore(EventStore):
                 return sum(1 for _ in fh)
         except (FileNotFoundError, OSError):
             return 0
+
+    def _load_operation_index(self) -> dict[str, dict]:
+        """Lazily scan the file for operation_id-keyed events.
+
+        The file is authoritative for cold-start replay; the in-memory index is
+        a session cache updated on new writes.
+        """
+        if self._operation_index is None:
+            index: dict[str, dict] = {}
+            try:
+                with open(self._events_path, "r", encoding="utf-8") as fh:
+                    for line in fh:
+                        stripped = line.strip()
+                        if not stripped:
+                            continue
+                        try:
+                            event = json.loads(stripped)
+                        except json.JSONDecodeError:
+                            continue
+                        op_id = event.get("operation_id")
+                        if op_id:
+                            index[op_id] = event
+            except (FileNotFoundError, OSError):
+                pass
+            self._operation_index = index
+        return self._operation_index
+
+    def append_event(
+        self,
+        stream_id: str,
+        event_type: str,
+        payload: dict,
+        *,
+        operation_id: str,
+        payload_hash: str | None = None,
+    ) -> dict:
+        """Idempotent event append keyed by *operation_id*.
+
+        Replaying the same operation_id with the same payload returns the
+        original event (``duplicate``); a different payload_hash under the same
+        operation_id fails closed with ``version_conflict`` and writes nothing.
+        """
+        if payload_hash is None:
+            payload_hash = compute_payload_hash(payload)
+        index = self._load_operation_index()
+        existing = index.get(operation_id)
+        if existing is not None:
+            if existing.get("payload_hash") != payload_hash:
+                return {
+                    "status": "version_conflict",
+                    "event": {
+                        "action": event_type,
+                        **payload,
+                        "timestamp": int(time.time() * 1000),
+                        "stream_id": stream_id,
+                        "operation_id": operation_id,
+                        "payload_hash": payload_hash,
+                    },
+                    "stored_payload_hash": existing.get("payload_hash"),
+                }
+            return {"status": "duplicate", "event": existing}
+
+        self._version_counter += 1
+        event = {
+            "action": event_type,
+            **payload,
+            "timestamp": int(time.time() * 1000),
+            "stream_id": stream_id,
+            "event_version": self._version_counter,
+            "operation_id": operation_id,
+            "payload_hash": payload_hash,
+        }
+        line = json.dumps(event, ensure_ascii=False) + "\n"
+        with open(self._events_path, "a", encoding="utf-8") as fh:
+            fh.write(line)
+            fh.flush()
+        index[operation_id] = event
+        return {"status": "ok", "event": event}
 
     def append(self, stream_id: str, event_type: str, payload: dict) -> int:
         """Append event as JSON line. Increment and return version.

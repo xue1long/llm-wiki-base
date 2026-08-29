@@ -232,6 +232,23 @@ def compute_identity_key(obj: Any) -> str:
     return f"unsupported:{obj_type}"
 
 
+def make_operation_id(operation, object_type, identity_key, input_hash) -> str:
+    """生成确定性的 operation id (id-v1:<sha256>).
+
+    操作键只由规范化业务输入组成 (operation, object_type, identity_key,
+    input_hash)，不包含随机 run id；相同业务操作跨 run 得到相同 operation id，
+    供 EventStore 幂等去重与审计追溯使用。
+    """
+    return _id_v1(
+        {
+            "operation": operation,
+            "object_type": object_type,
+            "identity_key": identity_key,
+            "input_hash": input_hash,
+        }
+    )
+
+
 def validate_identity_key(obj: Any) -> IdentityKeyCheck:
     """校验单个对象的 identity_key 一致性.
 
