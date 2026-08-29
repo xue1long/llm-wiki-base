@@ -67,6 +67,8 @@ from .core_view import (
     KnowledgeCoreView,
     SimpleKnowledgeCoreView,
 )
+from .template import BookTemplate, BookView, compute_book_rendered_hash
+from .markdown import render_chapter, render_chapter_from_dict
 
 __all__ = [
     "Book",
@@ -97,4 +99,9 @@ __all__ = [
     "generate_outline_proposal_id",
     "map_ku_to_chapter",
     "map_unit_type_to_block_type",
+    "BookTemplate",
+    "BookView",
+    "compute_book_rendered_hash",
+    "render_chapter",
+    "render_chapter_from_dict",
 ]

@@ -220,6 +220,7 @@ class ChapterRender:
     integrity_report: IntegrityReport | None
     reason_codes: tuple[str, ...]
     unsupported_fact_count: int
+    conflicts: tuple[Any, ...] | None = None
 
 
 @dataclass(frozen=True)
