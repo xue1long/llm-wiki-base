@@ -77,6 +77,18 @@ class KnowledgeCoreView(Protocol):
         * Returns empty tuple if chapter has no source KUs.
         """
 
+    def ku_evidence_ids(self, ku_id: str) -> tuple[str, ...]:
+        """Return the evidence ids backing the given KU.
+
+        B-T3.5 (B-T3b Important-fix): the canonical place where the
+        Knowledge Core exposes the KU ↔ Evidence mapping. Returns
+        empty tuple when the KU has no evidence or is unknown —
+        callers handle absence (compile_chapter treats empty as
+        ``unsupported_fact=True`` for that block, which is the
+        correct semantic — a block with no evidence IS an unsupported
+        fact).
+        """
+
 
 class SimpleKnowledgeCoreView:
     """In-memory ``KnowledgeCoreView`` for testing + B-T3b compilation.
@@ -107,11 +119,13 @@ class SimpleKnowledgeCoreView:
         kus: dict[str, KnowledgeUnit] | None = None,
         evidences: dict[str, Evidence] | None = None,
         claims: dict[str, Any] | None = None,
+        ku_evidence_map: dict[str, tuple[str, ...]] | None = None,
         publication_version: int = 0,
     ) -> None:
         self.kus: dict[str, KnowledgeUnit] = dict(kus or {})
         self.evidences: dict[str, Evidence] = dict(evidences or {})
         self.claims: dict[str, Any] = dict(claims or {})
+        self.ku_evidence_map: dict[str, tuple[str, ...]] = dict(ku_evidence_map or {})
         self.publication_version: int = int(publication_version)
 
     # ── Single-item lookups — missing → None ─────────────────────────────
@@ -153,6 +167,17 @@ class SimpleKnowledgeCoreView:
                 f"{missing} (chapter_id={chapter.id!r}, expected={list(ids)})"
             )
         return tuple(self.kus[ku_id] for ku_id in ids)
+
+    # ── Per-KU evidence wiring (B-T3.5) ──────────────────────────────────
+
+    def ku_evidence_ids(self, ku_id: str) -> tuple[str, ...]:
+        """Return the evidence ids for ``ku_id`` or empty tuple.
+
+        Missing KU id (or KU with no evidence) → empty tuple.
+        Caller is responsible for treating empty as a signal that
+        the block is unsupported.
+        """
+        return self.ku_evidence_map.get(ku_id, ())
 
 
 __all__ = [
