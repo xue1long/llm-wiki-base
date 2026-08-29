@@ -168,6 +168,24 @@ class StorageFacade:
         assert self._event_store is not None
         return self._event_store
 
+    def append_event(
+        self,
+        stream_id: str,
+        event_type: str,
+        payload: dict,
+        *,
+        operation_id: str,
+        payload_hash: str | None = None,
+    ) -> dict:
+        """Idempotent event append — pass-through to the active event store."""
+        return self.events.append_event(
+            stream_id,
+            event_type,
+            payload,
+            operation_id=operation_id,
+            payload_hash=payload_hash,
+        )
+
     # ------------------------------------------------------------------
     # Config introspection
     # ------------------------------------------------------------------

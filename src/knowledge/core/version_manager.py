@@ -144,6 +144,26 @@ class VersionManager:
 
     # ---- snapshot ----------------------------------------------------------
 
+    def _canonical_content(self, data: dict) -> str:
+        """Canonical JSON of a snapshot dict, excluding the versions bookkeeping field."""
+        content = dict(data)
+        content.pop("versions", None)
+        return json.dumps(content, sort_keys=True, ensure_ascii=False)
+
+    def _latest_snapshot(self, object_id: str) -> tuple[VersionRef, dict] | None:
+        """Return ``(VersionRef, snapshot_data)`` of the most-recent snapshot,
+        or None when the object has no snapshots yet."""
+        manifest = self._load_manifest(object_id)
+        if not manifest:
+            return None
+        latest = manifest[-1]
+        ref = VersionRef(
+            version_id=latest["version_id"],
+            timestamp=latest["timestamp"],
+            change_description=latest.get("change_description", ""),
+        )
+        return ref, self._load_version_data(object_id, latest["version_id"])
+
     def snapshot(self, obj: KnowledgeObject) -> VersionRef:
         """Snapshot *obj* before mutation and persist it.
 
@@ -151,7 +171,20 @@ class VersionManager:
         Side-effects: appends the ``VersionRef`` to ``obj.versions``,
         writes the snapshot JSON, updates the manifest, updates the global
         index, and applies retention.
+
+        Dedupe: a fresh duplicate of the same identity (``obj.id``) with
+        identical canonical content as the most-recent snapshot returns the
+        existing most-recent ``VersionRef`` instead of creating a new version.
         """
+        if not obj.versions:
+            latest = self._latest_snapshot(obj.id)
+            if latest is not None:
+                latest_ref, latest_data = latest
+                if self._canonical_content(
+                    _serialize_object(obj)
+                ) == self._canonical_content(latest_data):
+                    return latest_ref
+
         timestamp = int(time.time() * 1000)
         version_id = f"v_{timestamp}_{uuid.uuid4().hex[:8]}"
         vref = VersionRef(version_id=version_id, timestamp=timestamp)
