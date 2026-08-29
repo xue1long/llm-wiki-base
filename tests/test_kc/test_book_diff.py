@@ -18,6 +18,7 @@ def _chapter(
     title: str,
     order: int,
     source_knowledge_unit_ids: list[str],
+    knowledge_block_ids: list[str] | None = None,
     publication_version: int = 1,
     stable_key: str | None = None,
 ) -> Chapter:
@@ -27,6 +28,7 @@ def _chapter(
         stable_key=stable_key or id,
         title=title,
         order=order,
+        knowledge_block_ids=knowledge_block_ids or [],
         source_knowledge_unit_ids=source_knowledge_unit_ids,
         publication_version=publication_version,
     )
@@ -96,6 +98,49 @@ def test_compute_book_diff_only_reports_ku_changes_when_source_ids_change() -> N
             order=2,
             source_knowledge_unit_ids=["ku_a", "ku_shared"],
             publication_version=9,
+        ),
+    )
+
+    diff = compute_book_diff(old, new, old_chapters=old_chapters, new_chapters=new_chapters)
+
+    assert diff.added_chapter_ids == ()
+    assert diff.removed_chapter_ids == ()
+    assert diff.changed_chapter_ids == ("ch_a",)
+    assert diff.changed_knowledge_unit_ids == ()
+
+
+def test_compute_book_diff_uses_book_ids_when_chapters_are_not_provided() -> None:
+    old = _book(chapter_ids=["ch_a", "ch_b"])
+    new = _book(chapter_ids=["ch_b", "ch_a"])
+
+    diff = compute_book_diff(old, new)
+
+    assert diff.added_chapter_ids == ()
+    assert diff.removed_chapter_ids == ()
+    assert diff.changed_chapter_ids == ("ch_b", "ch_a")
+    assert diff.changed_knowledge_unit_ids == ()
+
+
+def test_compute_book_diff_detects_knowledge_block_id_changes() -> None:
+    old = _book(chapter_ids=["ch_a"])
+    new = _book(chapter_ids=["ch_a"])
+
+    old_chapters = (
+        _chapter(
+            id="ch_a",
+            title="A",
+            order=1,
+            knowledge_block_ids=["kb_1", "kb_2"],
+            source_knowledge_unit_ids=["ku_a"],
+        ),
+    )
+    new_chapters = (
+        _chapter(
+            id="ch_a",
+            title="A",
+            order=1,
+            knowledge_block_ids=["kb_1", "kb_3"],
+            source_knowledge_unit_ids=["ku_a"],
         ),
     )
 
