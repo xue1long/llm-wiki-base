@@ -21,7 +21,33 @@ class RetrievalResult:
     score: float
     content: str = ""
     evidence: tuple[RetrievalEvidence, ...] = ()
-    provenance: str = "legacy"
+    evidence_refs: tuple[str, ...] = ()
+    provenance: str | None = None
+    knowledge_mode: str | None = None
+    context: dict[str, Any] | None = None
+    validity: dict[str, Any] | None = None
+    publication_version: int | None = None
+    version: int | None = None
+
+
+def _normalize_evidence_refs(
+    value: dict[str, Any],
+    evidence: tuple[RetrievalEvidence, ...],
+) -> tuple[str, ...]:
+    raw_refs = value.get("evidence_refs")
+    if isinstance(raw_refs, (list, tuple)):
+        return tuple(str(item) for item in raw_refs if item not in (None, ""))
+    return tuple(
+        f"{item.document_id}:{item.block_id}" if item.document_id else item.block_id
+        for item in evidence
+        if item.block_id
+    )
+
+
+def _normalize_optional_int(raw: Any) -> int | None:
+    if raw in (None, ""):
+        return None
+    return int(raw)
 
 
 def normalize_result(value: dict[str, Any]) -> RetrievalResult:
@@ -34,13 +60,26 @@ def normalize_result(value: dict[str, Any]) -> RetrievalResult:
         for item in value.get("evidence", ())
         if isinstance(item, dict) and item.get("block_id")
     )
+    raw_provenance = value.get("provenance")
+    raw_context = value.get("context")
+    raw_validity = value.get("validity")
     return RetrievalResult(
         id=str(value.get("id") or value.get("page_id") or value.get("path", "")),
         title=str(value.get("title", "")),
         score=float(value.get("score", 0.0)),
         content=str(value.get("content", value.get("snippet", ""))),
         evidence=evidence,
-        provenance="evidence" if evidence else "legacy",
+        evidence_refs=_normalize_evidence_refs(value, evidence),
+        provenance=str(raw_provenance) if raw_provenance not in (None, "") else None,
+        knowledge_mode=(
+            str(value.get("knowledge_mode"))
+            if value.get("knowledge_mode") not in (None, "")
+            else None
+        ),
+        context=raw_context if isinstance(raw_context, dict) else None,
+        validity=raw_validity if isinstance(raw_validity, dict) else None,
+        publication_version=_normalize_optional_int(value.get("publication_version")),
+        version=_normalize_optional_int(value.get("version")),
     )
 
 

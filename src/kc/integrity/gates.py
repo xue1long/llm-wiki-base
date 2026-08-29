@@ -179,6 +179,12 @@ class ProvenanceGate(Gate):
             if not obj.evidence_refs:
                 reasons.append("no_evidence_refs")
 
+        if (
+            getattr(obj, "knowledge_mode", None) == "synthesized"
+            and not getattr(obj, "derived_from", None)
+        ):
+            reasons.append("missing_derived_from:synthesized")
+
         # 2. Raw Source 哈希检查（Z-9 延后，spec §3.3 只读精神）
         if hasattr(obj, "raw_source_hash"):
             if not obj.raw_source_hash:

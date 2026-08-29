@@ -13,6 +13,18 @@ Scope of this module:
   surfaced through the parallel KO ``_ko_extra.lifecycle`` channel —
   when set, they dominate the workflow_state gate.
 
+- **evidence gate (Task 2)**: verified pages without ``evidence_refs``
+  cannot enter the default retrieval result set. Per plan
+  2026-08-29-kc-integrity-idempotency-layered.md Task 2, the retrieval
+  boundary must reject verified pages whose evidence_refs is missing
+  (no fabrication). Surfaced as ``missing_evidence_refs`` in audits.
+
+- **closure gate (Task 2)**: verified pages whose ``closure_report``
+  is not strictly passed (passed is True) are rejected. Per plan Task 2,
+  truthy non-boolean ``closure_report["passed"]`` is rejected (strict
+  ``is True`` check) so legacy fixtures that recorded "false" / "true"
+  strings do not silently pass. Surfaced as ``closure_not_passed``.
+
 - **temporal gate**: stubbed here (spec §10 T-7 unknown defaults to
   ``current`` for backward compat). WikiPage has no native
   ``valid_from`` / ``valid_to`` fields yet (A-2 task); the temporal
@@ -21,12 +33,12 @@ Scope of this module:
 
 The full 8-condition default-published-closure (B-3 task) builds on
 top of this filter; the B-3 task is the right place to wire the
-remaining conditions (evidence integrity, heat, is_immutable, etc.).
-This module is intentionally narrow so it can be exercised in isolation.
+remaining conditions (heat, is_immutable, etc.). This module is
+intentionally narrow so it can be exercised in isolation.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -47,6 +59,48 @@ _BLOCKED_LIFECYCLE_STATES: frozenset[str] = frozenset({
     "QUARANTINED", # spec §11.4 #2 — Critical Evidence Missing counter
     "REJECTED",    # spec §11.3 closed-loop — terminal KO state
 })
+
+
+def _get_ko_extra(page: Any) -> dict:
+    """Return ``page._ko_extra`` if it is a dict, else empty dict.
+
+    Tolerates legacy pages that may have ``_ko_extra`` set to ``None``
+    or another type — the typed attribute is a v2.x addition.
+    """
+    ko_extra = getattr(page, "_ko_extra", None)
+    if isinstance(ko_extra, dict):
+        return ko_extra
+    return {}
+
+
+def _get_closure_report(page: Any) -> Any:
+    """Read the closure report from a page, preferring the typed field.
+
+    Lookup order:
+        1. ``page.closure_report`` (typed attribute, set by integrity pipeline)
+        2. ``page._ko_extra["closure_report"]`` (legacy frontmatter key)
+
+    Returns the raw report (or dict), or ``None`` if absent.
+    """
+    report = getattr(page, "closure_report", None)
+    if report is not None:
+        return report
+    return _get_ko_extra(page).get("closure_report")
+
+
+def _closure_passed(report: Any) -> bool:
+    """Return True iff *report* explicitly passes the closure check.
+
+    Strict boolean ``passed is True`` — truthy non-boolean values
+    (legacy fixtures that wrote "false" / "true" strings) are rejected
+    so missing evidence / fake-passes cannot leak into default
+    retrieval. See plan Task 2 (Spec §12.1 + 2026-08-29-... Task 2).
+    """
+    if report is None:
+        return False
+    if isinstance(report, dict):
+        return report.get("passed") is True
+    return getattr(report, "passed", None) is True
 
 
 @dataclass
@@ -99,10 +153,8 @@ class DefaultFilter:
         #    WikiPage has no native lifecycle field; the value rides
         #    on _ko_extra. We tolerate _ko_extra being absent or
         #    non-dict (legacy pages may have it as None).
-        ko_extra = getattr(page, "_ko_extra", None)
-        lifecycle = ""
-        if isinstance(ko_extra, dict):
-            lifecycle = str(ko_extra.get("lifecycle", "") or "")
+        ko_extra = _get_ko_extra(page)
+        lifecycle = str(ko_extra.get("lifecycle", "") or "")
 
         if lifecycle == "DISPUTED" and not self.include_disputed:
             return False
@@ -113,7 +165,19 @@ class DefaultFilter:
         if lifecycle == "REJECTED" and not self.include_rejected:
             return False
 
-        # 3. temporal gate (spec §12.1 valid_from / valid_to).
+        # 3. evidence gate (Task 2: 强制证据链).
+        #    verified pages without evidence_refs do not pass.
+        #    We refuse to fabricate refs — missing info means missing.
+        if not getattr(page, "evidence_refs", None):
+            return False
+
+        # 4. closure gate (Task 2: 默认检索边界).
+        #    verified pages whose closure_report is not strictly
+        #    passed (passed is True) do not pass.
+        if not _closure_passed(_get_closure_report(page)):
+            return False
+
+        # 5. temporal gate (spec §12.1 valid_from / valid_to).
         #    WikiPage does not currently carry valid_from/valid_to;
         #    A-2 task will introduce them. Until then the gate is a
         #    pass-through (unknown defaults to current, spec §10 T-7).

@@ -130,6 +130,17 @@ def wiki_page_to_knowledge_object(page: WikiPage) -> KnowledgeObject:
         created_at=page.created_at,
         updated_at=page.updated_at,
     )
+    ko.evidence_refs = list(page.evidence_refs)  # type: ignore[attr-defined]
+    for field_name in (
+        "knowledge_mode",
+        "context",
+        "validity",
+        "publication_version",
+        "version",
+        "closure_report",
+    ):
+        if field_name in ko_extra:
+            setattr(ko, field_name, ko_extra[field_name])
 
     # Augment _ko_extra with WP-only fields so the reverse conversion can
     # restore them exactly.
@@ -160,7 +171,7 @@ def knowledge_object_to_wiki_page(obj: KnowledgeObject) -> WikiPage:
     ko_extra: dict = _get_ko_extra(obj)
 
     # ---- Build _ko_extra for the resulting WikiPage ----
-    new_extra: dict = {}
+    new_extra: dict = dict(ko_extra)
 
     # KO-specific fields
     new_extra["lifecycle"] = obj.lifecycle.value
@@ -182,6 +193,16 @@ def knowledge_object_to_wiki_page(obj: KnowledgeObject) -> WikiPage:
     new_extra["tags"] = list(ko_extra.get("tags", []))
     new_extra["category"] = ko_extra.get("category", "")
     new_extra["taxonomy_sub"] = ko_extra.get("taxonomy_sub", "")
+    for field_name in (
+        "knowledge_mode",
+        "context",
+        "validity",
+        "publication_version",
+        "version",
+        "closure_report",
+    ):
+        if hasattr(obj, field_name):
+            new_extra[field_name] = getattr(obj, field_name)
 
     # ---- Build the WikiPage ----
     wp = WikiPage(
@@ -202,6 +223,7 @@ def knowledge_object_to_wiki_page(obj: KnowledgeObject) -> WikiPage:
         tags=new_extra["tags"],
         category=new_extra["category"],
         taxonomy_sub=new_extra["taxonomy_sub"],
+        evidence_refs=list(getattr(obj, "evidence_refs", ())),
     )
 
     # Attach _ko_extra for downstream use (future frontmatter serialization)

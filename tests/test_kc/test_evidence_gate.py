@@ -257,6 +257,24 @@ def test_evidence_gate_rejected_source_trust_blocks():
     assert "rejected_source_trust" in verdict.reasons
 
 
+def test_evidence_gate_rule_based_semantic_failure_blocks() -> None:
+    """Rule-based semantic failure blocks without needing runtime judgment."""
+    claim = ClaimLike(
+        id="claim_007",
+        text="Mitochondria are the powerhouse of the cell",
+        knowledge_mode="observed",
+        claim_type="fact",
+        evidences=[_direct_quote("ev_strong_007", quote="量子纠缠是物理学现象")],
+    )
+    gate = EvidenceGate(semantic_checker=SemanticSupportChecker())
+
+    verdict = gate.check(claim, context={"evidences": claim.evidences})
+
+    assert verdict.passed is False
+    assert verdict.blocked is True
+    assert "insufficient_semantic_support:ev_strong_007" in verdict.reasons
+
+
 # ─── 辅助 imports 验证（保证模块结构正确）────────────────────────────────
 
 
