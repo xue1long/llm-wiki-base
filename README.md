@@ -63,11 +63,11 @@ python -m src.cli llm-providers set-default minimax
 
 ```bash
 # 启动 HTTP API server
-python -m src.cli serve --host 127.0.0.1 --port 8765
+python -m src.cli serve --host 127.0.0.1
 
 # 摄取文档(MD/PDF/DOCX/XLSX/URL)
 PROJECT=$(python -m src.cli project list | awk '/my-kb/{print $1; exit}')
-curl -X POST "http://127.0.0.1:8765/api/v1/projects/$PROJECT/ingest" \
+curl -X POST "http://127.0.0.1:19828/api/v1/projects/$PROJECT/ingest" \
   -H "Content-Type: application/json" \
   -d '{"source": "/path/to/document.md"}'
 ```
@@ -174,7 +174,7 @@ python -m src.cli llm-providers set-default <name>
 python -m src.cli wiki-templates {list,show,edit,reset,status,diff,upgrade}
 
 # 服务
-python -m src.cli serve --host 127.0.0.1 --port 8765
+python -m src.cli serve --host 127.0.0.1
 python -m src.cli serve-stop
 python -m src.cli serve-status
 

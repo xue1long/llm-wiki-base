@@ -136,7 +136,7 @@
 
 - **`project`**：`init` / `list` / `info` / `current` / `select` / `import` / `forget` / `rename` / `discover`
 - **`schema`**：`list` / `diff` / `upgrade`（schema 迁移）
-- **`serve`**：启动 API + WebUI（默认 8765，start.bat 用 19828）
+- **`serve`**：启动 API + WebUI（默认端口 19828）
 - **`ingest`** / **`search`**：命令行直接摄取与检索
 - **`providers`**（来自 `llm_providers_cmd`）：`add` / `list` / `set-default` / `test` / `remove`
 - **`fields` / `tags`**（来自 `fields_cmd`）：校验 wiki 字段与受控 tag 命名空间

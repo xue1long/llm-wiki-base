@@ -60,16 +60,16 @@ def test_novel_bundled_template_registered():
     # 必需根级文件齐备
     for must in ("purpose.md", "schema.md", "taxonomy.md", "taxonomy_tags.md"):
         assert must in t.files, f"missing {must}"
-    # 四个页面模板齐备
+    # 页面模板齐备
     wt = {f for f in t.files if f.startswith(".wiki-templates/")}
     assert wt == {
         ".wiki-templates/source.md",
         ".wiki-templates/entity.md",
         ".wiki-templates/concept.md",
         ".wiki-templates/synthesis.md",
+        ".wiki-templates/procedure.md",
     }
-    # C 决策：页面模板版本头为 2.0.0（非源 3.0.0），规避版本门炸弹且符合 H3
-    assert "wiki-template-version: 2.0.0" in t.files[".wiki-templates/concept.md"]
+    assert "wiki-template-version: 3.0.0" in t.files[".wiki-templates/concept.md"]
 
 
 def test_novel_apply_template_scaffold(tmp_path):
@@ -78,6 +78,6 @@ def test_novel_apply_template_scaffold(tmp_path):
     assert {"purpose.md", "schema.md", "taxonomy.md", "taxonomy_tags.md"} <= names
     # 页面模板落到 .wiki-templates/
     assert (tmp_path / ".wiki-templates" / "concept.md").exists()
-    # 应用副本版本头仍为 2.0.0
+    # 应用副本版本头为当前标准 3.0.0
     head = (tmp_path / ".wiki-templates" / "concept.md").read_text(encoding="utf-8").splitlines()[0]
-    assert "wiki-template-version: 2.0.0" in head
+    assert "wiki-template-version: 3.0.0" in head

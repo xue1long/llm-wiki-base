@@ -10,21 +10,14 @@
   <aside id="sidebar">
     <div class="brand">
       <div class="brand-title">ruflo-kb</div>
-      <div class="brand-sub" id="projectName">加载中...</div>
       <div class="health"><span id="healthDot" class="dot"></span><span id="healthText">未连接</span></div>
-      <div class="project-selector-wrap">
-        <button id="projectDropdownBtn" class="project-dropdown-btn" style="display:none;">
-          <span id="projectDropdownLabel">选择项目</span>
-          <span class="dropdown-arrow">▾</span>
-        </button>
-        <div id="projectDropdown" class="project-dropdown" style="display:none;"></div>
-        <button id="newProjectBtn" title="新建项目" style="display:none;">+</button>
-      </div>
+      <button id="newProjectBtn" title="新建项目" style="display:none;">+ 新建项目</button>
     </div>
     <nav id="nav">
       <button data-view="search" class="nav-btn active">搜索</button>
       <button data-view="browse" class="nav-btn">浏览</button>
       <button data-view="ingest" class="nav-btn">摄取</button>
+      <button data-view="collect" class="nav-btn">采集</button>
       <button data-view="chat" class="nav-btn">对话</button>
       <button data-view="graph" class="nav-btn">图谱</button>
       <button data-view="heat" class="nav-btn">热度</button>
@@ -67,6 +60,7 @@
   <script src="/js/views/search.js"></script>
   <script src="/js/views/browse.js"></script>
   <script src="/js/views/ingest.js"></script>
+  <script src="/js/views/collect.js"></script>
   <script src="/js/views/chat.js"></script>
   <script src="/js/views/graph.js"></script>
   <script src="/js/views/heat.js"></script>

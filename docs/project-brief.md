@@ -24,7 +24,7 @@ ruflo-kb（多 Agent 知识库平台 / Knowledge OS），当前版本 v2.0.0
 8. 命令行操作：21 个子命令（python -m src.cli）
 
 ■ 可选扩展
-1. HTTP API：`` python -m src.cli serve --host 127.0.0.1 --port 8765 ``（FastAPI + uvicorn）
+1. HTTP API：`` python -m src.cli serve --host 127.0.0.1 ``（FastAPI + uvicorn，默认端口 19828）
 2. Web UI：`` web/ `` 静态前端（index.html + js + style.css），需对接 serve 提供的 API
 3. MCP Server：暴露 wiki 工具给外部 Agent（依赖 mcp 包）
 4. 知识图谱：`` src/knowledge/graph/ ``（内存图 + JSONL 事件日志 + 周期快照）

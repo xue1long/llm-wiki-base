@@ -438,9 +438,9 @@ window.App = {
 
 ```bash
 # 启动服务
-python -m src.cli serve --host 127.0.0.1 --port 8765
+python -m src.cli serve --host 127.0.0.1
 
-# 浏览器打开 http://127.0.0.1:8765
+# 浏览器打开 http://127.0.0.1:19828
 
 # 手动检查：
 # - [ ] 7 个视图正常渲染

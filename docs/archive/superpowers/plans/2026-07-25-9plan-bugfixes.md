@@ -48,7 +48,7 @@ app.include_router(get_router())
 - `test_metrics_endpoint_persists_counter` — write a counter, GET /metrics, verify row in metrics.db
 
 **Acceptance:**
-- `curl http://127.0.0.1:8765/metrics` returns 200 with Prometheus text
+- `curl http://127.0.0.1:19828/metrics` returns 200 with Prometheus text
 - `python -m pytest tests/test_server/test_metrics_endpoint.py -v` passes
 - Existing 828 tests still pass
 
