@@ -19,3 +19,9 @@ Verification:
 Notes:
 - Unrelated dirty files under `knowledge/novel-wiki/` were left untouched.
 - No knowledge/novel-wiki changes were made for Task 2.
+
+Fix round 1:
+- Adjusted `compute_book_diff()` so `changed_chapter_ids` follow new Book order, while `changed_knowledge_unit_ids` preserve deterministic old-chapter then new-chapter/Book order.
+- Verified with the brief test command in the local 3.14 venv:
+  - `PYTHONPATH=. python -m pytest tests/test_kc/test_book_diff.py tests/test_kc/test_book_mapper.py --import-mode=importlib -q`
+  - Result: `61 passed, 1 warning`
