@@ -1,25 +1,31 @@
 """Book view subsystem (A8 — 简化 Book 视图, spec §12.5).
 
-Surface — four dataclasses + id generation policy + KU → Chapter mapper:
+Surface — four dataclasses + id generation policy + KU → Chapter mapper
++ Evidence Binder + KnowledgeCoreView:
 
-    Book                  — top-level container (id, title, template_id,
-                            outline_version, publication_version, chapter_ids)
-    Chapter               — ordered slice of a Book (stable_key anchors
-                            OutlineProposal migrations)
-    KnowledgeBlock        — content atom (6 block_types, StatementRef list,
-                            observed/synthesized knowledge_mode)
-    OutlineProposal       — outline-change proposal with migration +
-                            rollback mappings; lifecycle vocabulary:
-                            proposed | approved | rejected | applied
-    BookChapterRegistry   — immutable view of a Book's chapters with
-                            lookup helpers (B-T2)
-    MappingDecision       — KU → Chapter mapper result (B-T2)
-    MappingHint           — optional steer for the mapper (B-T2)
-    derive_stable_key     — canonical stable_key derivation (B-T2)
-    map_ku_to_chapter     — primary KU → Chapter mapper entry (B-T2)
+    Book                       — top-level container (id, title, template_id,
+                                 outline_version, publication_version,
+                                 chapter_ids)
+    Chapter                    — ordered slice of a Book (stable_key anchors
+                                 OutlineProposal migrations)
+    KnowledgeBlock             — content atom (6 block_types, StatementRef
+                                 list, observed/synthesized knowledge_mode)
+    OutlineProposal            — outline-change proposal with migration +
+                                 rollback mappings; lifecycle vocabulary:
+                                 proposed | approved | rejected | applied
+    BookChapterRegistry        — immutable view of a Book's chapters with
+                                 lookup helpers (B-T2)
+    MappingDecision            — KU → Chapter mapper result (B-T2)
+    MappingHint                — optional steer for the mapper (B-T2)
+    derive_stable_key          — canonical stable_key derivation (B-T2)
+    map_ku_to_chapter          — primary KU → Chapter mapper entry (B-T2)
+    EvidenceRef                — block → evidence binding snapshot (B-T3a)
+    bind_evidence              — resolve block.evidence_refs (B-T3a)
+    KnowledgeCoreView          — read-only view of the Knowledge Core (B-T3a)
+    SimpleKnowledgeCoreView    — in-memory default KnowledgeCoreView (B-T3a)
 
-No compiler, no binder, no outline engine, no Markdown renderer — those
-land in B-T3 onwards.
+No compiler, no outline engine, no Markdown renderer — those land in B-T3b
+and B-T4.
 """
 from .contract import (
     KnowledgeBlock,
@@ -44,19 +50,35 @@ from .mapper import (
     derive_stable_key,
     map_ku_to_chapter,
 )
+from .binder import (
+    EvidenceRef,
+    EvidenceRefStrength,
+    EvidenceRefType,
+    bind_evidence,
+)
+from .core_view import (
+    KnowledgeCoreView,
+    SimpleKnowledgeCoreView,
+)
 
 __all__ = [
     "Book",
     "BookChapterRegistry",
     "Chapter",
+    "EvidenceRef",
+    "EvidenceRefStrength",
+    "EvidenceRefType",
     "KnowledgeBlock",
     "KnowledgeBlockType",
+    "KnowledgeCoreView",
     "KnowledgeMode",
     "MappingDecision",
     "MappingHint",
     "OutlineProposal",
     "OutlineProposalStatus",
+    "SimpleKnowledgeCoreView",
     "StatementRef",
+    "bind_evidence",
     "derive_stable_key",
     "generate_book_id",
     "generate_chapter_id",
