@@ -70,6 +70,12 @@ def create_outline_proposal(
 
     copied_migration = dict(migration_mapping)
     copied_rollback = dict(rollback_mapping)
+    migration_targets = set(copied_migration.values())
+    missing_coverage = [chapter_id for chapter_id in affected if chapter_id not in migration_targets]
+    if missing_coverage:
+        raise ValueError(
+            "OutlineProposal affected chapters must be covered by migration mapping values"
+        )
     _validate_mapping_pair(copied_migration, copied_rollback)
 
     return OutlineProposal(
