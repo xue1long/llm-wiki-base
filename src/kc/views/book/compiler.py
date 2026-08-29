@@ -17,23 +17,23 @@ The compile_chapter() entry point is the B-T3b task deliverable. It does
 NOT render Markdown (B-T3c), build outline proposals (B-T4), or create a
 PublicationBatch (downstream).
 
-Block construction strategy (B-T3b):
+Block construction strategy (B-T3b + B-T3.5 fix):
 
     The B-T1 ``Chapter`` schema exposes ``source_knowledge_unit_ids`` and
     ``knowledge_block_ids`` but does NOT carry a per-KU → evidence id
-    mapping. To keep B-T3b read-only against ``Chapter`` and ``KU``, the
-    evidence wiring is supplied via an optional kwarg:
+    mapping. B-T3b introduced a ``block_evidence_refs=...`` kwarg as a
+    transition mechanism; B-T3.5 moves that wiring onto the
+    ``KnowledgeCoreView`` Protocol itself (see ``KnowledgeCoreView
+    .ku_evidence_ids`` in ``core_view.py``). Each block's
+    ``evidence_refs`` is now seeded via ``core_view.ku_evidence_ids(
+    ku.ku_id)`` BEFORE ``bind_evidence`` is called.
 
-        block_evidence_refs: dict[str, tuple[str, ...]] | None = None
-            Mapping from KU id → tuple of evidence ids (in stable order).
-            When ``None``, every block has ``evidence_refs=[]`` and
-            ``unsupported_fact=False`` (no false positives on empty blocks).
-            When provided, each block's ``evidence_refs`` is seeded with
-            the mapped ids BEFORE ``bind_evidence`` is called.
-
-    This keeps compile_chapter a pure function (no I/O, no mutation of
-    the chapter). Future B-T3c/beyond tasks can resolve the mapping from
-    a real mapper without changing compile_chapter's signature.
+    A KU missing from the mapping yields an empty tuple — the block
+    becomes ``unsupported_fact=True`` (Gate A8 "Unsupported Fact = 0"
+    surfaced explicitly via the ``unsupported_fact_count`` field). This
+    keeps compile_chapter a pure function (no I/O, no mutation of the
+    chapter) and removes the foot-gun where callers could forget to wire
+    evidence.
 
 StrengthPolicy wiring (the B-T3b contribution vs. B-T3a):
 
@@ -356,7 +356,6 @@ def compile_chapter(
     integrity_gate: IntegrityGate,
     *,
     strength_policy: StrengthPolicy | None = None,
-    block_evidence_refs: dict[str, tuple[str, ...]] | None = None,
 ) -> ChapterRender | CompileError:
     """Compile a ``Chapter`` into a ``ChapterRender`` (or a structured
     ``CompileError`` on failure).
@@ -371,7 +370,10 @@ def compile_chapter(
             a.  ``integrity_gate.check(ku, context={...})`` →
                 ``IntegrityReport``.  ``blocked=True`` is recorded per KU
                 but compile continues to aggregate the full failure.
-            b.  Build a placeholder ``KnowledgeBlock``.
+            b.  Build a placeholder ``KnowledgeBlock`` whose
+                ``evidence_refs`` are seeded from
+                ``core_view.ku_evidence_ids(ku.ku_id)`` (B-T3.5 — moved
+                off the B-T3b ``block_evidence_refs`` kwarg).
             c.  ``bind_evidence(block, core_view)`` →
                 ``tuple[EvidenceRef, ...]``.  Failure (missing evidence
                 id) → ``CompileError(category='evidence_unsupported')``.
@@ -391,20 +393,16 @@ def compile_chapter(
 
     Args:
         chapter            Source ``Chapter`` (read-only).
-        core_view          Read-only view of the Knowledge Core.
+        core_view          Read-only view of the Knowledge Core. The
+                           per-KU evidence wiring is sourced from
+                           ``core_view.ku_evidence_ids(ku.ku_id)`` —
+                           B-T3.5 surface on the Protocol.
         integrity_gate     The 11 Gate orchestrator.  Treated as a black
                            box — only ``IntegrityReport.blocked``,
                            ``get_blocking_reasons()``, and ``warnings``
                            are consumed (per B-T3b hard rules).
         strength_policy    Optional StrengthPolicy; defaults to a fresh
                            ``StrengthPolicy()`` (stateless, no caching).
-        block_evidence_refs  Optional per-KU mapping
-                           (``{ku_id: (evidence_id, ...)}``).  When
-                           provided, the corresponding block's
-                           ``evidence_refs`` is pre-populated before
-                           ``bind_evidence``.  When ``None``, every
-                           block has empty ``evidence_refs`` and no
-                           binding is attempted.
 
     Returns:
         ``ChapterRender`` on success, ``CompileError`` on failure.
@@ -422,7 +420,6 @@ def compile_chapter(
             core_view,
             integrity_gate,
             strength_policy,
-            block_evidence_refs or {},
         )
     except Exception as exc:
         # Catch-all for any unexpected exception escaping the inner pipeline.
@@ -444,7 +441,6 @@ def _compile_chapter_inner(
     core_view: KnowledgeCoreView,
     integrity_gate: IntegrityGate,
     strength_policy: StrengthPolicy,
-    block_evidence_refs: dict[str, tuple[str, ...]],
 ) -> ChapterRender | CompileError:
     """Inner pipeline wrapped by ``compile_chapter`` for the catch-all.
 
@@ -505,7 +501,7 @@ def _compile_chapter_inner(
             continue
 
         # 2b: placeholder block
-        evidence_ids_for_ku = block_evidence_refs.get(ku.ku_id, ())
+        evidence_ids_for_ku = core_view.ku_evidence_ids(ku.ku_id)
         block = _build_block_for_ku(
             ku,
             chapter.id,

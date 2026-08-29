@@ -362,26 +362,33 @@ def test_b_happy_path_three_kus_three_blocks_six_evidence_refs() -> None:
     """Happy path: 1 chapter / 3 KUs / each KU has 2 evidences → 3 blocks / 6
     EvidenceRefs / unsupported_fact_count == 0.
 
-    Uses the documented ``block_evidence_refs`` kwarg to wire per-KU
-    evidence ids (B-T3b's pure-function interface).
+    Uses ``SimpleKnowledgeCoreView(ku_evidence_map=...)`` to wire per-KU
+    evidence ids (B-T3.5 — wired through the ``KnowledgeCoreView``
+    Protocol via ``ku_evidence_ids``).
     """
     chapter, cv, gate = _make_three_ku_chapter()
     ku1 = cv.get_ku("ku_b_aaa0000_aaa")
     ku2 = cv.get_ku("ku_b_bbb0000_bbb")
     ku3 = cv.get_ku("ku_b_ccc0000_ccc")
 
-    block_evidence_refs = {
-        ku1.ku_id: ("ev_b_first_aaa", "ev_b_first_bbb"),
-        ku2.ku_id: ("ev_b_second_aaa", "ev_b_second_bbb"),
-        ku3.ku_id: ("ev_b_third_aaa", "ev_b_third_bbb"),
-    }
+    # Move the per-KU evidence mapping onto the core_view (B-T3.5).
+    cv = SimpleKnowledgeCoreView(
+        kus=cv.kus,
+        evidences=cv.evidences,
+        claims=cv.claims,
+        ku_evidence_map={
+            ku1.ku_id: ("ev_b_first_aaa", "ev_b_first_bbb"),
+            ku2.ku_id: ("ev_b_second_aaa", "ev_b_second_bbb"),
+            ku3.ku_id: ("ev_b_third_aaa", "ev_b_third_bbb"),
+        },
+        publication_version=cv.publication_version,
+    )
 
     result = compile_chapter(
         chapter,
         cv,
         gate,
         strength_policy=StrengthPolicy(),
-        block_evidence_refs=block_evidence_refs,
     )
 
     assert isinstance(result, ChapterRender)
@@ -643,14 +650,15 @@ def test_d_bind_evidence_missing_returns_evidence_unsupported_error() -> None:
     """If a KU's evidence cannot be bound (evidence id not in core_view),
     the compile fails with category='evidence_unsupported'.
 
-    Setup: ONE KU, ONE evidence id in ``block_evidence_refs`` mapping
-    that does NOT exist in core_view. This triggers bind_evidence's
-    atomic ValueError, which compile_chapter converts to
+    Setup: ONE KU, ONE evidence id in ``ku_evidence_map`` that does NOT
+    exist in core_view. This triggers bind_evidence's atomic ValueError,
+    which compile_chapter converts to
     CompileError(category='evidence_unsupported')."""
     ku = _ku(ku_id="ku_d_evidence_miss", concept_id="c_ev_miss")
     cv = SimpleKnowledgeCoreView(
         kus={"ku_d_evidence_miss": ku},
         evidences={},  # empty core_view — any evidence id is missing
+        ku_evidence_map={"ku_d_evidence_miss": ("ev_d_does_not_exist",)},
         publication_version=0,
     )
     chapter = Chapter(
@@ -661,13 +669,12 @@ def test_d_bind_evidence_missing_returns_evidence_unsupported_error() -> None:
         order=1,
         source_knowledge_unit_ids=["ku_d_evidence_miss"],
     )
-    # Wire the KU to a NON-EXISTENT evidence id (gate passes on the KU;
-    # bind_evidence fails atomically).
+    # The KU is wired to a NON-EXISTENT evidence id via ku_evidence_map
+    # (B-T3.5); bind_evidence fails atomically.
     result = compile_chapter(
         chapter,
         cv,
         IntegrityGate(),
-        block_evidence_refs={"ku_d_evidence_miss": ("ev_d_does_not_exist",)},
     )
 
     assert isinstance(result, CompileError)
@@ -945,3 +952,119 @@ def test_g_bt3a_evidence_ref_strength_placeholder_still_medium_via_binder() -> N
         "B-T3a's binder should still return strength='medium' for all refs; "
         "the StrengthPolicy computation belongs in B-T3b's compile_chapter."
     )
+
+
+# ─── H. B-T3.5 migration: ku_evidence_map on the core_view ──────────────
+
+
+def test_compile_chapter_no_kwarg_needed_works_with_ku_evidence_map_only() -> None:
+    """B-T3.5: the B-T3b ``block_evidence_refs=...`` kwarg is GONE. The
+    evidence wiring lives on ``SimpleKnowledgeCoreView(ku_evidence_map=...)``.
+    Proves that compile_chapter does NOT accept a kwarg named
+    ``block_evidence_refs`` — any test still using it would fail with
+    TypeError. Here we exercise the new wiring only."""
+    ku = _ku(ku_id="ku_h_migration_x", concept_id="c_h_mig")
+    ev = _evidence(evidence_id="ev_h_migration_a", evidence_type="direct_quote")
+    cv = SimpleKnowledgeCoreView(
+        kus={"ku_h_migration_x": ku},
+        evidences={"ev_h_migration_a": ev},
+        ku_evidence_map={"ku_h_migration_x": ("ev_h_migration_a",)},
+        publication_version=0,
+    )
+    chapter = Chapter(
+        id="ch_h_migration",
+        book_id="book_h",
+        stable_key="c_h_mig::definition",
+        title="x",
+        order=1,
+        source_knowledge_unit_ids=["ku_h_migration_x"],
+    )
+
+    # Calling WITHOUT the legacy kwarg must succeed (binding works via
+    # core_view.ku_evidence_ids).
+    result = compile_chapter(chapter, cv, IntegrityGate())
+
+    assert isinstance(result, ChapterRender)
+    assert result.blocks[0].knowledge_block.evidence_refs == ["ev_h_migration_a"]
+    assert result.unsupported_fact_count == 0
+
+    # And the kwarg must NOT be a valid parameter anymore — TypeError
+    # proves the kwarg is gone.
+    import pytest as _pytest  # local alias to keep import surface unchanged
+
+    with _pytest.raises(TypeError):
+        compile_chapter(
+            chapter,
+            cv,
+            IntegrityGate(),
+            block_evidence_refs={"ku_h_migration_x": ("ev_h_migration_a",)},
+        )
+
+
+def test_compile_chapter_missing_ku_in_evidence_map_marks_block_unsupported() -> None:
+    """B-T3.5: empty ``ku_evidence_map`` (or a KU not in the map) → empty
+    ``evidence_refs`` on the corresponding block → ``unsupported_fact=True``
+    for that block (correct semantic: a block with no evidence IS an
+    unsupported fact). Compile succeeds (no bind_evidence failure because
+    the block has no refs to look up)."""
+    ku = _ku(ku_id="ku_h_unsupported_x", concept_id="c_h_unsup")
+    cv = SimpleKnowledgeCoreView(
+        kus={"ku_h_unsupported_x": ku},
+        evidences={},
+        # Empty map — every KU is treated as having no evidence.
+        publication_version=0,
+    )
+    chapter = Chapter(
+        id="ch_h_unsupported",
+        book_id="book_h_unsup",
+        stable_key="c_h_unsup::definition",
+        title="x",
+        order=1,
+        source_knowledge_unit_ids=["ku_h_unsupported_x"],
+    )
+
+    result = compile_chapter(chapter, cv, IntegrityGate())
+
+    assert isinstance(result, ChapterRender)
+    assert len(result.blocks) == 1
+    # Block carries zero evidence_refs (because ku_evidence_map is empty).
+    assert result.blocks[0].knowledge_block.evidence_refs == []
+    # And that zero count flags the block as an unsupported fact.
+    assert result.blocks[0].unsupported_fact is True
+    assert result.unsupported_fact_count == 1
+
+
+def test_compile_chapter_propagates_ku_evidence_map_correctly() -> None:
+    """B-T3.5 sanity check: a KU with evidence in ``ku_evidence_map`` and
+    the same id resolvable in ``evidences`` ends up with non-empty
+    ``evidence_refs`` and ``unsupported_fact=False``."""
+    ku = _ku(ku_id="ku_h_sanity_x", concept_id="c_h_san", unit_type="definition")
+    ev1 = _evidence(evidence_id="ev_h_san_1", quote="q1")
+    ev2 = _evidence(evidence_id="ev_h_san_2", quote="q2")
+    cv = SimpleKnowledgeCoreView(
+        kus={"ku_h_sanity_x": ku},
+        evidences={"ev_h_san_1": ev1, "ev_h_san_2": ev2},
+        ku_evidence_map={"ku_h_sanity_x": ("ev_h_san_1", "ev_h_san_2")},
+        publication_version=11,
+    )
+    chapter = Chapter(
+        id="ch_h_sanity",
+        book_id="book_h_san",
+        stable_key="c_h_san::definition",
+        title="x",
+        order=1,
+        source_knowledge_unit_ids=["ku_h_sanity_x"],
+    )
+
+    result = compile_chapter(chapter, cv, IntegrityGate())
+
+    assert isinstance(result, ChapterRender)
+    assert len(result.blocks) == 1
+    cb = result.blocks[0]
+    assert cb.knowledge_block.evidence_refs == ["ev_h_san_1", "ev_h_san_2"]
+    assert cb.unsupported_fact is False
+    # 2 bound EvidenceRefs — both direct_quote → strength "strong"
+    assert len(cb.evidence_refs) == 2
+    assert all(ref.strength == "strong" for ref in cb.evidence_refs)
+    # publication_version comes from core_view (spec §17 D-21)
+    assert result.publication_version == 11

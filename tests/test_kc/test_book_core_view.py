@@ -213,12 +213,70 @@ def test_simple_knowledge_core_view_implements_the_protocol():
     """
     cv = SimpleKnowledgeCoreView()
 
-    # All five Protocol methods must exist and be callable.
+    # All six Protocol methods must exist and be callable.
     assert callable(getattr(cv, "get_ku", None))
     assert callable(getattr(cv, "get_evidence", None))
     assert callable(getattr(cv, "get_claim", None))
     assert callable(getattr(cv, "current_publication_version", None))
     assert callable(getattr(cv, "kus_for_chapter", None))
+    assert callable(getattr(cv, "ku_evidence_ids", None))
 
     # KnowledgeCoreView itself is a Protocol (a typing construct).
     assert KnowledgeCoreView is not None
+
+
+# ─── 10. ku_evidence_ids (B-T3.5) ────────────────────────────────────────
+
+
+def test_ku_evidence_ids_found_returns_tuple_in_stable_order():
+    """B-T3.5: when ``ku_id`` is in ``ku_evidence_map``, return its tuple of
+    evidence ids verbatim (order is the caller's responsibility)."""
+    cv = SimpleKnowledgeCoreView(
+        ku_evidence_map={
+            "ku_evi001_aaa": ("ev_first_aaa", "ev_first_bbb"),
+        }
+    )
+
+    result = cv.ku_evidence_ids("ku_evi001_aaa")
+
+    assert result == ("ev_first_aaa", "ev_first_bbb")
+
+
+def test_ku_evidence_ids_missing_ku_id_returns_empty_tuple():
+    """B-T3.5: when ``ku_id`` is not in ``ku_evidence_map``, return ``()``
+    (NOT raise). The caller (``compile_chapter``) treats empty as a signal
+    that the block is unsupported."""
+    cv = SimpleKnowledgeCoreView(
+        ku_evidence_map={
+            "ku_evi002_aaa": ("ev_only_one",),
+        }
+    )
+
+    assert cv.ku_evidence_ids("ku_evi002_missing") == ()
+
+
+def test_ku_evidence_ids_empty_mapping_returns_empty_tuple():
+    """B-T3.5: a view with an empty ``ku_evidence_map`` returns ``()`` for
+    every ku_id (graceful degradation — every block becomes unsupported,
+    which is the correct semantic)."""
+    cv = SimpleKnowledgeCoreView()  # no ku_evidence_map → defaults to {}
+
+    assert cv.ku_evidence_ids("ku_evi003_any") == ()
+
+
+def test_ku_evidence_ids_preserves_input_order():
+    """B-T3.5: ``ku_evidence_ids`` is a pure read — same input always
+    returns the same tuple (idempotent, no mutation of internal state)."""
+    cv = SimpleKnowledgeCoreView(
+        ku_evidence_map={
+            "ku_evi004_a": ("ev_a1", "ev_a2", "ev_a3"),
+        }
+    )
+
+    first = cv.ku_evidence_ids("ku_evi004_a")
+    second = cv.ku_evidence_ids("ku_evi004_a")
+    third = cv.ku_evidence_ids("ku_evi004_a")
+
+    assert first == second == third
+    # Internal mapping was NOT mutated.
+    assert cv.ku_evidence_map["ku_evi004_a"] == ("ev_a1", "ev_a2", "ev_a3")
