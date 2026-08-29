@@ -25,7 +25,7 @@ from pathlib import Path
 from src.knowledge.core.object import KnowledgeObject
 from src.wiki.core.paths import WikiPaths
 
-from .core_snapshot import restore_snapshot
+from .core_snapshot import RestoreReport, restore_snapshot
 
 EVENT_STREAM_REL_PATH = ".index/knowledge_graph/events.jsonl"
 
@@ -73,32 +73,21 @@ def _next_drill_timestamp() -> int:
 
 
 def _verify_identity_consistency(
-    snapshot_id: str,
-    paths: WikiPaths,
     snapshot_identity_keys: set[str],
     objects: list[KnowledgeObject],
 ) -> bool:
     """Compare snapshot's recorded identity_keys against the live KO.id set.
 
-    The snapshot's ``identity_keys.txt`` is authoritative (created by
-    ``create_snapshot``); the live caller objects must match exactly. Extra
-    ids in the caller set are tolerated (caller may have created new KO after
-    the snapshot — restore will not roll those back).
+    The snapshot's ``identity_keys`` (surfaced through RestoreReport / read
+    from ``identity_keys.txt``) is authoritative; the live caller objects must
+    match exactly. Extra ids in the caller set are tolerated (caller may have
+    created new KO after the snapshot — restore will not roll those back).
     """
-    backup_dir = paths.llm_wiki / "backups" / snapshot_id
-    identity_path = backup_dir / "identity_keys.txt"
-    if not identity_path.exists():
-        return False
-    expected = {
-        line.strip()
-        for line in identity_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    }
     caller_keys = {obj.id for obj in objects}
     # snapshot ↔ caller: caller may have *extra* new ids (not in snapshot).
     # We require snapshot.identity_keys ⊆ caller_keys (every snapshot object
     # still representable from the live state).
-    return expected.issubset(caller_keys)
+    return snapshot_identity_keys.issubset(caller_keys)
 
 
 def run_drill(
@@ -137,9 +126,10 @@ def run_drill(
     events_sha_before = _sha256_file(events_path)
     before_ko_count = len(objects)
 
-    # Step 1: Rehydrate snapshot (validates identity consistency)
+    # Step 1: Restore from durable storage (validates identity + event stream)
+    restore_report: RestoreReport | None = None
     try:
-        restore_snapshot(snapshot_id, paths, modified_objects=objects)
+        restore_report = restore_snapshot(snapshot_id, paths, modified_objects=objects)
     except FileNotFoundError as e:
         failed_steps.append(f"restore: snapshot not found: {e}")
     except ValueError as e:
@@ -147,28 +137,34 @@ def run_drill(
     except Exception as e:  # noqa: BLE001 — surface any restore failure
         failed_steps.append(f"restore: unexpected: {e!r}")
 
-    # Step 2: Reload the snapshot's identity_keys for comparison
-    identity_keys_path = paths.llm_wiki / "backups" / snapshot_id / "identity_keys.txt"
-    snapshot_identity_keys: set[str] = set()
-    if identity_keys_path.exists():
-        snapshot_identity_keys = {
-            line.strip()
-            for line in identity_keys_path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        }
+    # Step 2: Snapshot identity_keys — from the RestoreReport when available
+    if restore_report is not None:
+        if "restore_mismatch" in restore_report.reason_codes:
+            failed_steps.append("restore: event stream mismatch (restore_mismatch)")
+        snapshot_identity_keys = set(restore_report.identity_keys)
+    else:
+        identity_keys_path = paths.llm_wiki / "backups" / snapshot_id / "identity_keys.txt"
+        snapshot_identity_keys: set[str] = set()
+        if identity_keys_path.exists():
+            snapshot_identity_keys = {
+                line.strip()
+                for line in identity_keys_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            }
 
     # Step 3: Verify identity consistency (snapshot ⊆ caller)
     identity_consistency = _verify_identity_consistency(
-        snapshot_id=snapshot_id,
-        paths=paths,
-        snapshot_identity_keys=snapshot_identity_keys,
-        objects=objects,
+        snapshot_identity_keys, objects
     )
     if not identity_consistency:
         failed_steps.append("verify: caller KO.id set missing snapshot keys")
 
-    # Step 4: Event stream comparison
-    events_sha_after = _sha256_file(events_path)
+    # Step 4: Event stream comparison — post-restore hash from the report
+    events_sha_after = (
+        restore_report.event_hash
+        if restore_report is not None
+        else _sha256_file(events_path)
+    )
 
     drill_status = "PASS" if (not failed_steps) else "FAILED"
 
