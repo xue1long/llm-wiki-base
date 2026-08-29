@@ -779,7 +779,7 @@ async def test_generate_ingest_rewrites_legacy_hash_source_link(tmp_path: Path) 
     assert src_slug, meta
     by_id = {p.id: p for p in pages}
     ent = by_id["飞书云文档"]
-    assert f"[[{src_slug}]]" in ent.body, ent.body
+    assert f"[[sources/{src_slug}]]" in ent.body, ent.body
     assert any(r.target_id == src_slug for r in ent.relations), ent.relations
 
 

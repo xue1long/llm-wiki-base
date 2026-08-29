@@ -37,6 +37,9 @@ def normalize_reconcile_slug(raw: str) -> str:
     # 剥 [[ ]] 与 |alias / #section 残渣
     s = re.sub(r"^\[\[|\]\]$", "", s)
     s = s.split("|")[0].split("#")[0].strip()
+    # GBrain links are path-qualified (``concepts/foo``); reconciliation
+    # compares page ids, so discard the directory before slugifying.
+    s = s.replace("\\", "/").rsplit("/", 1)[-1]
     # 剥 PageType 前缀
     for pfx in _KNOWN_TYPE_PREFIXES:
         if s.startswith(pfx) and len(s) > len(pfx):

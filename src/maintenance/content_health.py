@@ -7,6 +7,7 @@ from collections import Counter
 from pathlib import Path
 
 from ..wiki.core.paths import WikiPaths
+from ..wiki.features.slug_utils import normalize_reconcile_slug
 from ..wiki.storage.page_writer import read_page
 
 
@@ -42,7 +43,9 @@ def build_content_health(paths: WikiPaths) -> dict:
             except json.JSONDecodeError:
                 continue
 
-    inbound = targets & page_ids
+    normalized_page_ids = {normalize_reconcile_slug(page_id) for page_id in page_ids}
+    normalized_targets = {normalize_reconcile_slug(target) for target in targets}
+    inbound = normalized_targets & normalized_page_ids
     return {
         "page_count": len(pages),
         "page_types": dict(Counter(p.type.value for p in pages)),
@@ -53,7 +56,7 @@ def build_content_health(paths: WikiPaths) -> dict:
         "orphan_count": sum(
             p.type.value != "source" and p.id not in inbound for p in pages
         ),
-        "dangling_link_count": len(targets - page_ids),
+        "dangling_link_count": len(normalized_targets - normalized_page_ids),
         "triage_non_process_count": triage_failures,
         "check_errors": check_errors,
     }
