@@ -1,3 +1,4 @@
+<!-- wiki-template-version: 3.0.0 -->
 <!-- capture-type: article -->
 
 ## 来源元数据

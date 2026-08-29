@@ -1,3 +1,4 @@
+<!-- wiki-template-version: 3.0.0 -->
 <!-- capture-type: inspiration -->
 
 ## 灵感核心
