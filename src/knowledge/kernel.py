@@ -7,6 +7,9 @@ Task 4（plan 2026-08-29-kc-integrity-idempotency-layered.md）扩展：
 - ``replay_object(object_id, version=None)`` 通过 VersionManager 历史快照
   重建 KnowledgeObject；不应用 events.jsonl 中"版本之间"的事件（旧版本
   的状态由旧版快照数据给出）。
+- ``replay_core_from_events(object_id, stream_id)`` 事件序列重放的
+  placeholder：读取 events.jsonl 事件流但应用 no-op，返回
+  ``reason_codes=("event_replay_stub",)``（真实事件源重放未接线）。
 """
 
 from dataclasses import dataclass
@@ -210,6 +213,56 @@ class KnowledgeKernel:
             version=version if version is not None else len(history),
             object=obj,
             reason_codes=(),
+        )
+
+    def replay_core_from_events(
+        self,
+        object_id: str,
+        stream_id: str,
+    ) -> ReplayResult:
+        """Event-sequence replay — placeholder (real event sourcing not wired).
+
+        The plan's P0 wording 「按事件序列重放」 (replay the object state
+        from the ``kc.object.created`` / ``kc.object.updated`` event
+        sequence in ``events.jsonl``) is not literally implemented — this
+        plan replays from durable version snapshots via
+        :meth:`replay_object`. This method is the honest placeholder for
+        the event-sequence surface: it reads the stream via
+        ``JSONLEventStore.read_stream``, iterates the replayable events as
+        a no-op, applies no state, and reports ``("event_replay_stub",)``.
+        It never claims to have replayed state it did not apply (see
+        progress.md Known Limitations — Task 4 event replay). A future
+        ``replay_core`` will apply created/updated events and raise
+        ``ValueError`` on unknown or corrupt events.
+
+        Args:
+            object_id: The KnowledgeObject id being replayed
+                (informational).
+            stream_id: The event stream id to read from ``events.jsonl``.
+
+        Returns:
+            ``ReplayResult`` with ``object=None`` (no state derived) and
+            ``reason_codes=("event_replay_stub",)``.
+        """
+        from src.knowledge.storage.event_store import JSONLEventStore
+
+        store = JSONLEventStore(
+            index_path=Path(self.versions.base_path) / ".index"
+        )
+        events = store.read_stream(stream_id)
+        # Placeholder — apply a no-op over the replayable events. Real
+        # event sourcing (created/updated → object state, ValueError on
+        # unknown/corrupt) is a follow-up.
+        _ = [
+            e
+            for e in events
+            if e.get("action") in ("kc.object.created", "kc.object.updated")
+        ]
+        return ReplayResult(
+            object_id=object_id,
+            version=None,
+            object=None,
+            reason_codes=("event_replay_stub",),
         )
 
 
