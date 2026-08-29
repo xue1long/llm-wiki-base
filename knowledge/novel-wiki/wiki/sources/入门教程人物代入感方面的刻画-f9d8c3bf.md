@@ -21,6 +21,9 @@ category: ''
 taxonomy_sub: ''
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程人物代入感方面的刻画-f9d8c3bf
 ---
 
 <!-- wiki-template-version: 3.0.0 -->

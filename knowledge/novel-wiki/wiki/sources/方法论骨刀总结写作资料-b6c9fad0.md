@@ -47,6 +47,9 @@ category: 写作技法
 taxonomy_sub: 大纲与结构
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论骨刀总结写作资料-b6c9fad0
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -78,3 +81,13 @@ custom_type: ''
 ## 可信度声明
 
 UGC（用户生成内容）; 内容为个人创作心得与方法论总结，未经官方或学术验证。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[entities/北京圣东方国信科技有限公司]]
+- references: [[entities/飞书云文档]]
+- derives: [[concepts/一集一闯关]]
+- derives: [[concepts/一集一升级]]
+- referenced_by: [[entities/北京圣东方国信科技有限公司]]
+- referenced_by: [[entities/飞书云文档]]

@@ -20,6 +20,9 @@ category: ''
 taxonomy_sub: ''
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/新人须知尾号五新人指南-2efec2ee
 ---
 
 <!-- wiki-template-version: 3.0.0 -->

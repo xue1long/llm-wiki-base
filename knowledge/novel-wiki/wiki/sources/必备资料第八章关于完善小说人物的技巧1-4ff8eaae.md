@@ -21,6 +21,9 @@ category: ''
 taxonomy_sub: ''
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料第八章关于完善小说人物的技巧1-4ff8eaae
 ---
 
 <!-- wiki-template-version: 3.0.0 -->

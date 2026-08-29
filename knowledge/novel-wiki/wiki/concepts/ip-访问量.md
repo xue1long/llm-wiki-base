@@ -21,6 +21,9 @@ category: 读者与市场
 taxonomy_sub: 数据分析
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: concepts/ip-访问量
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -58,8 +61,8 @@ IP访问量可能存在刷量、重复IP等干扰，需结合其他指标综合�
 
 - [[用户活跃度IPPV比]]
 - [[PV浏览量]]
-- [[起点中文网]]
+- [[entities/起点中文网]]
 
 ## 参考来源
 
-- [[入门教程各大小说网站人气对比方便选择参考-6cc808cb]]
+- [[sources/入门教程各大小说网站人气对比方便选择参考-6cc808cb]]

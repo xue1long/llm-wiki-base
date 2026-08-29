@@ -25,6 +25,9 @@ category: 案例与素材
 taxonomy_sub: 作品案例
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: entities/罗斯金-john-ruskin
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -44,4 +47,4 @@ custom_type: ''
 
 ## 相关引用
 
-- [[入门教程小说写作的指路明灯-cf474244]]
+- [[sources/入门教程小说写作的指路明灯-cf474244]]

@@ -60,6 +60,9 @@ category: 写作技法
 taxonomy_sub: 文笔与语言
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料散文的写作技巧是什么-cfac16f9
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -87,3 +90,17 @@ custom_type: ''
 ## 可信度声明
 
 UGC（个人分享的写作技巧，非官方出版物）
+
+## Related pages
+
+<!-- gbrain:relations -->
+- contains: [[entities/散文]]
+- contains: [[concepts/感情体验]]
+- contains: [[concepts/细节]]
+- contains: [[concepts/记叙散文模式]]
+- contains: [[concepts/抒情散文模式]]
+- referenced_by: [[entities/散文]]
+- referenced_by: [[concepts/感情体验]]
+- referenced_by: [[concepts/细节]]
+- referenced_by: [[concepts/记叙散文模式]]
+- referenced_by: [[concepts/抒情散文模式]]

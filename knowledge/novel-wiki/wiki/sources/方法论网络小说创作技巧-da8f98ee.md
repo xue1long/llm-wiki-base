@@ -37,6 +37,9 @@ category: 写作技法
 taxonomy_sub: 人物塑造
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论网络小说创作技巧-da8f98ee
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -65,3 +68,10 @@ custom_type: ''
 ## 可信度声明
 
 UGC (飞书云文档，用户上传/转载); 来源为公司文档，非官方出版社或学术机构，可信度中等。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derives: [[concepts/人物塑造]]
+- derives: [[concepts/小说的真实与虚构]]
+- derives: [[concepts/小说家权力]]

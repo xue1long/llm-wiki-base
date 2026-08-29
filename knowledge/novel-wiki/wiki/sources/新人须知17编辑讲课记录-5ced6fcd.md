@@ -38,6 +38,9 @@ category: 写作技法
 taxonomy_sub: 世界观设定
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/新人须知17编辑讲课记录-5ced6fcd
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -67,3 +70,11 @@ custom_type: ''
 ## 可信度声明
 
 UGC来源，17K签约编辑夏天在官方作者群的讲课记录。编辑有近千万字创作经验和签约指导经验，内容具有实践指导价值，但属个人经验总结而非系统性理论。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[entities/夏天-17k-编辑]]
+- references: [[concepts/架构细节]]
+- references: [[concepts/世界背景设定]]
+- references: [[concepts/烘托描写]]

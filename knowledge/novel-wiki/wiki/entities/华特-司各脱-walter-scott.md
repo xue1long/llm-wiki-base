@@ -27,6 +27,9 @@ category: ''
 taxonomy_sub: ''
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: entities/华特-司各脱-walter-scott
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -46,4 +49,9 @@ custom_type: ''
 
 ## 相关引用
 
-- [[方法论小说写作的指路明灯-76464b85]]
+- [[sources/方法论小说写作的指路明灯-76464b85]]
+
+## Related pages
+
+<!-- gbrain:relations -->
+- referenced_by: [[sources/方法论小说写作的指路明灯-76464b85]]

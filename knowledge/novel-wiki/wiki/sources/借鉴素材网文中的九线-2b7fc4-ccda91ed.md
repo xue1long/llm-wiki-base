@@ -37,6 +37,9 @@ category: 案例与素材
 taxonomy_sub: 桥段与梗
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/借鉴素材网文中的九线-2b7fc4-ccda91ed
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -64,3 +67,11 @@ custom_type: ''
 ## 可信度声明
 
 UGC来源，飞书云文档上的个人总结，可信度中等，但内容为网络文学写作经验总结，具有参考价值。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/九线]]
+- references: [[concepts/主角智慧性格]]
+- references: [[entities/冒牌大英雄]]
+- references: [[entities/斗破苍穹]]

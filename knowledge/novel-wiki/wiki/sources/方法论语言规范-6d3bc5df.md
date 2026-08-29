@@ -34,6 +34,9 @@ category: 写作技法
 taxonomy_sub: 文笔与语言
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论语言规范-6d3bc5df
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -60,3 +63,10 @@ custom_type: ''
 ## 可信度声明
 
 本书籍/文档，内容属于语言学基础规范，具有普遍指导意义。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/语言规范]]
+- references: [[concepts/误读]]
+- references: [[concepts/生造词语]]

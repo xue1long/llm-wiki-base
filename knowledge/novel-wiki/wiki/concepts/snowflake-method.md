@@ -11,7 +11,7 @@ relations:
   type: derived_from
   weight: 1.0
   context: 作为文中提到的具体方法论被引用
-- target: 方法论写作技巧之15条小技巧-33e074fb
+- target: 方法论写作技巧之-15-条小技巧-33e074fb
   type: referenced_by
   weight: 0.8
   context: 文中提到的用于构思小说的具体方法
@@ -33,6 +33,9 @@ category: ''
 taxonomy_sub: 大纲与结构
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: concepts/snowflake-method
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -66,10 +69,10 @@ custom_type: ''
 
 ## 相关概念
 
-- [[先计划-再写]]
-- [[随便涂鸦]]
-- [[集中精神]]
+- [[concepts/先计划-再写]]
+- [[concepts/随便涂鸦]]
+- [[concepts/集中精神]]
 
 ## 参考来源
 
-- [[方法论写作技巧之15条小技巧-33e074fb]]
+- [[sources/方法论写作技巧之15条小技巧-33e074fb]]

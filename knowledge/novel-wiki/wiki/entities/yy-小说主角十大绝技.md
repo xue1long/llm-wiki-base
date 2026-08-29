@@ -29,6 +29,9 @@ category: 案例与素材
 taxonomy_sub: 桥段与梗
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: entities/yy-小说主角十大绝技
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -48,5 +51,11 @@ custom_type: ''
 
 ## 相关引用
 
-- [[入门教程写作方法-2050a9cb]]
-- [[yy-小说-103-个经典桥段]]
+- [[sources/入门教程写作方法-2050a9cb]]
+- [[entities/yy-小说-103-个经典桥段]]
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[sources/入门教程写作方法-2050a9cb]]
+- analogous_to: [[entities/yy-小说-103-个经典桥段]]

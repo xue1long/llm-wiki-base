@@ -33,6 +33,9 @@ category: 案例与素材
 taxonomy_sub: 片段与金句
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/借鉴素材人物描写必读-e5eca6fd
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -62,3 +65,10 @@ custom_type: ''
 ## 可信度声明
 
 UGC素材，由墨止谚整理分享，可信度中等（个人经验，未经系统验证）。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derives: [[entities/墨止谚]]
+- derives: [[entities/作家联盟群]]
+- derives: [[sources/方法论精彩描写身份-f88d80aa]]

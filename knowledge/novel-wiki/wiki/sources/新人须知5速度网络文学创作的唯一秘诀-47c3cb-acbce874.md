@@ -34,6 +34,9 @@ category: 写作技法
 taxonomy_sub: 开篇与黄金三章
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/新人须知5速度网络文学创作的唯一秘诀-47c3cb-acbce874
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -61,3 +64,10 @@ custom_type: ''
 ## 可信度声明
 
 UGC (用户生成内容) / 平台内部培训资料。内容源自网络文学创作培训，观点直接服务于商业写作实践，具有较高的行业经验参考价值。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/快速吸引读者阅读]]
+- references: [[concepts/读者沉迷]]
+- references: [[concepts/代入感]]

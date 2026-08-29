@@ -38,6 +38,9 @@ category: 写作技法
 taxonomy_sub: 修改与打磨
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程编辑眼中的好文-cbb5dcdb
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -67,3 +70,11 @@ custom_type: ''
 ## 可信度声明
 
 该页面属于企业飞书云文档中的经验性教程，内容主要体现网络文学编辑个人或团队的筛书与沟通观点，不属于官方行业统计或经过验证的学术研究。按项目规则标记为 UGC/转载性质，适合作为经验参考，不宜将其中关于读者反应、订阅和签约的判断视为普遍规律。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- is_part_of: [[entities/飞书云文档]]
+- derives: [[concepts/提问的艺术]]
+- derives: [[concepts/偷懒找书法]]
+- derives: [[concepts/好文评判六要素]]

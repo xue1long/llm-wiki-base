@@ -53,6 +53,9 @@ category: 案例与素材
 taxonomy_sub: 作品案例
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: entities/司各脱-walter-scott
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -72,4 +75,15 @@ custom_type: ''
 
 ## 相关引用
 
-- [[入门教程小说写作的指路明灯-cf474244]]
+- [[sources/入门教程小说写作的指路明灯-cf474244]]
+
+## Related pages
+
+<!-- gbrain:relations -->
+- supported_by: [[concepts/现实之灯]]
+- supported_by: [[concepts/理想之灯]]
+- supported_by: [[concepts/公正之灯]]
+- supported_by: [[concepts/忘我之灯]]
+- supported_by: [[concepts/纯洁之灯]]
+- supported_by: [[concepts/人性之灯]]
+- supported_by: [[concepts/高尚之灯]]

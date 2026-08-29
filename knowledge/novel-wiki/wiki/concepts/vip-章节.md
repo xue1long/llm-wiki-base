@@ -24,6 +24,9 @@ category: ''
 taxonomy_sub: ''
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: concepts/vip-章节
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -56,11 +59,16 @@ UGC来源，来自起点中文网三组责编的官方指南。
 
 ## 相关概念
 
-- [[a-签]]
-- [[上架政策]]
-- [[稿费]]
-- [[起点中文网]]
+- [[concepts/a-签]]
+- [[concepts/上架政策]]
+- [[concepts/稿费]]
+- [[entities/起点中文网]]
 
 ## 参考来源
 
-- [[入门教程尾号五新人指南-f59f3dc0]]
+- [[sources/入门教程尾号五新人指南-f59f3dc0]]
+
+## Related pages
+
+<!-- gbrain:relations -->
+- is_part_of: [[concepts/上架政策]]

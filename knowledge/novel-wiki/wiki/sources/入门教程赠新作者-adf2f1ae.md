@@ -34,6 +34,9 @@ category: 写作技法
 taxonomy_sub: 大纲与结构
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程赠新作者-adf2f1ae
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -61,3 +64,10 @@ custom_type: ''
 ## 可信度声明
 
 该文为飞书云文档中的教程型UGC素材，发布组织标注为北京圣东方国信科技有限公司，来源并非官方平台规则或学术出版物。内容可作为新作者的大纲实践参考，但其中方法论主要是作者经验，评级为C。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derives: [[concepts/大纲]]
+- derives: [[concepts/小说大纲模版结构]]
+- is_part_of: [[entities/飞书云文档]]

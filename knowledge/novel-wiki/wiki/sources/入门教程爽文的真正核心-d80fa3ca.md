@@ -39,6 +39,9 @@ category: 写作技法
 taxonomy_sub: 爽点与情绪
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程爽文的真正核心-d80fa3ca
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -67,4 +70,12 @@ custom_type: ''
 
 ## 可信度声明
 
-这是来自飞书云文档的UGC转载/课程记录，主讲者为网文作者辰机唐红豆，内容主要是个人创作经验与案例分析，不属于平台官方规则或经过实证的普适定律。关于《吞噬星空》、土豆、辰东等作品和作者的评价，应视为讲述者的经验判断；建议与[[入门教程教你如何增加网文爽点的精彩度-e667c0a2]]、[[入门教程爽文的五种归纳-a0060376]]等材料交叉验证。
+这是来自飞书云文档的UGC转载/课程记录，主讲者为网文作者辰机唐红豆，内容主要是个人创作经验与案例分析，不属于平台官方规则或经过实证的普适定律。关于《吞噬星空》、土豆、辰东等作品和作者的评价，应视为讲述者的经验判断；建议与[[sources/入门教程教你如何增加网文爽点的精彩度-e667c0a2]]、[[sources/入门教程爽文的五种归纳-a0060376]]等材料交叉验证。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/爽点]]
+- references: [[concepts/装逼打脸套路]]
+- references: [[concepts/情节结构]]
+- references: [[entities/唐家三少]]

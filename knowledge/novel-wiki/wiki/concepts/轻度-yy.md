@@ -33,6 +33,9 @@ category: 写作技法
 taxonomy_sub: 爽点与情绪
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: concepts/轻度-yy
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -67,11 +70,16 @@ custom_type: ''
 
 ## 相关概念
 
-- [[yy-小说-103-个经典桥段]]
-- [[yy-爽文]]
+- [[entities/yy-小说-103-个经典桥段]]
+- [[concepts/yy-爽文]]
 - [[言情类-网络小说题材]]
-- [[都市小说]]
+- [[concepts/都市小说]]
 
 ## 参考来源
 
-- [[方法论论如何写言情小说-b2bae806]]
+- [[sources/方法论论如何写言情小说-b2bae806]]
+
+## Related pages
+
+<!-- gbrain:relations -->
+- is_part_of: [[entities/yy-小说-103-个经典桥段]]

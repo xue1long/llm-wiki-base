@@ -44,6 +44,9 @@ category: 案例与素材
 taxonomy_sub: 片段与金句
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料怎么渲染一场惊心动魄的战斗场面2-d99fe8-adac8cea
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -71,3 +74,12 @@ Markdown网页转录，非OCR、非ASR；正文可读性良好，但原文存在
 ## 可信度声明
 
 该文属于飞书云文档中的用户生成写作教程，内容主要是经验性套路总结，并非经过出版或实验验证的通用规则。可作为玄幻擂台战斗的素材与写作参考，可信度评为UGC经验型。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derives: [[concepts/打斗场景气氛渲染]]
+- derives: [[concepts/废材流]]
+- derives: [[concepts/金手指]]
+- is_part_of: [[entities/飞书云文档]]
+- references: [[entities/北京圣东方国信科技有限公司]]

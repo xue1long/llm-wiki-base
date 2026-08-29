@@ -22,6 +22,9 @@ category: 案例与素材
 taxonomy_sub: 片段与金句
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: entities/minghui
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -41,4 +44,4 @@ minghui 是一位活跃于网络文学社群的写手或爱好者，曾整理并
 
 ## 相关引用
 
-- [[方法论明辉巨谈装b路子-73c1b67c]]
+- [[sources/方法论明辉巨谈装b路子-73c1b67c]]

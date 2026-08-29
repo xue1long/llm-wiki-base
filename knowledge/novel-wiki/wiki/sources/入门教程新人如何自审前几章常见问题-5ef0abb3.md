@@ -20,6 +20,9 @@ category: 案例与素材
 taxonomy_sub: ''
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程新人如何自审前几章常见问题-5ef0abb3
 ---
 
 <!-- wiki-template-version: 3.0.0 -->

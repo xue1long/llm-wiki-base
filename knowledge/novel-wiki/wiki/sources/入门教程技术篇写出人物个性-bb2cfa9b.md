@@ -38,6 +38,9 @@ category: 写作技法
 taxonomy_sub: 人物塑造
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程技术篇写出人物个性-bb2cfa9b
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -65,3 +68,11 @@ custom_type: ''
 ## 可信度声明
 
 UGC，来源为网络教程，作者身份未详细验证，但内容具体且引用实例，可信度中等。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/人物个性]]
+- references: [[concepts/语言行动描写]]
+- references: [[concepts/细节描写]]
+- referenced_by: [[entities/焦文林]]

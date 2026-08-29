@@ -46,6 +46,9 @@ category: 心态与职业
 taxonomy_sub: 职业规划
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料网络小说写作宝典如何做有生存能力的作者-bea2ce46
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -75,3 +78,13 @@ custom_type: ''
 ## 可信度声明
 
 UGC，基于网文作者经验总结的写作宝典，具有实践参考价值。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/存稿]]
+- references: [[concepts/更新]]
+- references: [[concepts/签约]]
+- references: [[concepts/上架时机]]
+- references: [[entities/新作者联盟]]
+- references: [[entities/三江]]

@@ -36,6 +36,9 @@ category: 平台规则
 taxonomy_sub: 作者运营
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论如何运营你的作品-f4dadb89
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -61,3 +64,10 @@ custom_type: ''
 ## 可信度声明
 
 来源类型: UGC (飞书云文档); 依据: 文档由北京圣东方国信科技有限公司发布，内容基于经验分享，属于行业UGC范畴。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/书名与简介的重要性]]
+- references: [[sources/入门教程操作篇如何运营你的作品-17ec4be3]]
+- references: [[concepts/作品基础功底十项要求]]

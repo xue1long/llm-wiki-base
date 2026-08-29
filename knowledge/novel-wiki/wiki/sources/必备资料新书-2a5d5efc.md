@@ -32,6 +32,9 @@ category: 案例与素材
 taxonomy_sub: 作品案例
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料新书-2a5d5efc
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -62,3 +65,8 @@ custom_type: ''
 ## 可信度声明
 
 UGC网络小说片段，可信度中等，可作为案例素材使用
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[sources/必备资料新书-2a5d5efc]]

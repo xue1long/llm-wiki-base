@@ -15,11 +15,11 @@ relations:
   type: references
   weight: 1.0
   context: 文章核心方法论即为调用五种感觉来增强真实感，与已有概念'五种感觉描写法'高度相关。
-- target: 拉威尔-斯潘塞
+- target: 拉威尔--斯潘塞
   type: references
   weight: 1.0
   context: 该来源引用了拉威尔·斯潘塞的名言作为核心论据。
-- target: 节奏控制-句子结构法
+- target: 节奏控制--句子结构法
   type: derives
   weight: 1.0
   context: 该概念详细阐述了来源文本中关于句子结构控制节奏的段落。
@@ -53,6 +53,9 @@ category: 写作技法
 taxonomy_sub: 文笔与语言
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论小说要给人以现实感-ddbcd71a
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -80,3 +83,11 @@ custom_type: ''
 ## 可信度声明
 
 来源性质为UGC（用户生成内容），但内容源自一位自称有写作经验的作者分享，其观点与常见写作教学理论相符，具有实践参考价值。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/五感描写法]]
+- references: [[concepts/五种感觉描写法]]
+- references: [[concepts/感官描写]]
+- derives: [[concepts/五感描写法]]

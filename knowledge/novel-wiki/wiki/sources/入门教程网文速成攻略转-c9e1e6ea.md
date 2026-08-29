@@ -7,7 +7,7 @@ sources:
 created_at: 1787041452162
 updated_at: 1787041452162
 relations:
-- target: 抄袭-写作禁忌
+- target: 抄袭--写作禁忌
   type: derives
   weight: 1.0
   context: 概念内容直接提炼自来源对逆向创作、高仿及抄袭边界的讨论。
@@ -43,6 +43,9 @@ category: 写作技法
 taxonomy_sub: 修改与打磨
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程网文速成攻略转-c9e1e6ea
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -71,3 +74,10 @@ custom_type: ''
 ## 可信度声明
 
 该文属于网络转载的UGC教程，来源为飞书云文档，正文署名和发布者信息不明确，且包含明显的社群宣传内容。文中关于创作效率、工作室产量、出版文字误差和作品改写关系的说法没有提供可核验数据或权威出处，只能作为一种个人观点和争议案例阅读；涉及版权的判断不应视为法律意见。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[entities/盘龙]]
+- derives: [[concepts/类型流行元素借鉴]]
+- derives: [[concepts/大纲的重要性]]

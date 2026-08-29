@@ -41,6 +41,9 @@ category: 写作技法
 taxonomy_sub: 选题与立意
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料新人经验如何选择适合自己的题材-acb5f9d1
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -69,3 +72,10 @@ custom_type: ''
 ## 可信度声明
 
 该材料属于未署名的 UGC/教程型经验文章，主要依据作者个人观察、案例和平台规则转述，未提供官方链接或可核验发布日期。关于起点规则、同人签约及敏感题材限制的表述具有时效性，应视为历史经验而非当前官方政策；可信度评定为中低，适合用于经验参考，不宜直接作为合规结论。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derives: [[concepts/题材选择]]
+- references: [[concepts/作品包装]]
+- references: [[entities/起点中文网]]

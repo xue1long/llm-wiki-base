@@ -20,6 +20,9 @@ category: 写作技法
 taxonomy_sub: 情节与冲突
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料第九章关于小说情节设计1-b0adb42b
 ---
 
 <!-- wiki-template-version: 3.0.0 -->

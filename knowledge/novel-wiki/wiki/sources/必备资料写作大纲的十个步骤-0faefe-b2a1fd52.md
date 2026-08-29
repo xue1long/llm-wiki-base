@@ -54,6 +54,9 @@ category: 写作技法
 taxonomy_sub: 大纲与结构
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料写作大纲的十个步骤-0faefe-b2a1fd52
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -82,3 +85,15 @@ Markdown文本转录，非OCR或ASR；整体可读性良好。原文在“描述
 ## 可信度声明
 
 该文属于飞书云文档中的写作经验分享，性质为UGC/转载型教程；内容主要是作者个人方法论，未提供实验数据或官方平台规则依据，因此适合作为经验参考，不宜视为普遍有效的硬性规范。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/大纲写法]]
+- referenced_by: [[entities/北京圣东方国信科技有限公司]]
+- is_part_of: [[entities/飞书云文档]]
+- references: [[concepts/题材选择]]
+- references: [[concepts/主角性格设定]]
+- references: [[entities/金庸]]
+- references: [[concepts/地图勾画法]]
+- references: [[concepts/升级序列多级化]]

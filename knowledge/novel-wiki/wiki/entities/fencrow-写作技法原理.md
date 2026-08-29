@@ -25,6 +25,9 @@ category: 心态与职业
 taxonomy_sub: 写作心态
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: entities/fencrow-写作技法原理
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -44,4 +47,9 @@ fencrow是一位在网络论坛分享写作经验的写手，他总结了自己�
 
 ## 相关引用
 
-- [[方法论关于写作技法原理转自奇幻世界网火沙论坛-8fb45929]]
+- [[sources/方法论关于写作技法原理转自奇幻世界网火沙论坛-8fb45929]]
+
+## Related pages
+
+<!-- gbrain:relations -->
+- is_part_of: [[sources/方法论关于写作技法原理转自奇幻世界网火沙论坛-8fb45929]]

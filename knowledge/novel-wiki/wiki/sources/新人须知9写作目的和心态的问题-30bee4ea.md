@@ -33,6 +33,9 @@ category: 心态与职业
 taxonomy_sub: 写作心态
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/新人须知9写作目的和心态的问题-30bee4ea
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -61,3 +64,9 @@ custom_type: ''
 ## 可信度声明
 
 UGC; 内容源于网络写作教程，带有个人经验分享性质，数据（如起点收藏榜数据）未注明来源。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/写作心态]]
+- references: [[concepts/新人作者常见困难]]

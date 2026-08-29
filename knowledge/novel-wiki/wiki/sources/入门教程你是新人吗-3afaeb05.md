@@ -41,6 +41,9 @@ category: 平台规则
 taxonomy_sub: 全勤与福利
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程你是新人吗-3afaeb05
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -69,3 +72,11 @@ custom_type: ''
 ## 可信度声明
 
 UGC 来源。正文以“华夏天空青衫一营E组宣”落款，属于小组招募宣传而非平台官方规则文件；全勤数额、网编计酬等具体口径需以招募方私聊或平台正式公告为准。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[entities/华夏天空网站青衫-e-组]]
+- derives: [[concepts/华夏天空-2016-征文新福利]]
+- derives: [[concepts/全勤起算时机]]
+- referenced_by: [[concepts/网编招募标准]]

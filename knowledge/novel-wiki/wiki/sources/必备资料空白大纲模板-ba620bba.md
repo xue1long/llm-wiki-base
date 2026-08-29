@@ -42,6 +42,9 @@ category: 写作技法
 taxonomy_sub: 大纲与结构
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料空白大纲模板-ba620bba
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -69,3 +72,12 @@ custom_type: ''
 ## 可信度声明
 
 该页面属于飞书云文档中的用户提供模板，发布组织标注为北京圣东方国信科技有限公司。它适合作为写作实践参考，不属于平台官方规则或经过学术验证的写作理论，因此可信度评为UGC参考。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- contains: [[concepts/大纲]]
+- contains: [[concepts/人物设定]]
+- is_part_of: [[entities/飞书云文档]]
+- referenced_by: [[entities/北京圣东方国信科技有限公司]]
+- references: [[entities/北京圣东方国信科技有限公司]]

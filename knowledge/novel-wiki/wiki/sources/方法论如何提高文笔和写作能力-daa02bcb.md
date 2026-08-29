@@ -11,11 +11,11 @@ relations:
   type: derives
   weight: 1.0
   context: 核心概念完全提取自此来源文档
-- target: 多模仿-写作技法
+- target: 多模仿--写作技法
   type: derives
   weight: 1.0
   context: 核心观点提取自此来源文档
-- target: 多写-强迫练习
+- target: 多写--强迫练习
   type: derives
   weight: 1.0
   context: 核心观点提取自此来源文档
@@ -34,6 +34,9 @@ category: ''
 taxonomy_sub: ''
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论如何提高文笔和写作能力-daa02bcb
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -60,3 +63,8 @@ custom_type: ''
 ## 可信度声明
 
 UGC; 来源为个人经验分享的飞书文档，属于用户生成内容，观点具有主观性和实践指导性，但非权威或学术论据。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derives: [[concepts/写作素材积累]]

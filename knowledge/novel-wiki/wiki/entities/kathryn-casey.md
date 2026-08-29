@@ -25,6 +25,9 @@ category: 心态与职业
 taxonomy_sub: 职业规划
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: entities/kathryn-casey
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -44,5 +47,10 @@ Kathryn Casey 是一位已出版多部作品并举办签售会的美国作者，
 
 ## 相关引用
 
-- [[入门教程作家是怎么炼成的新手必看-de5255-8affc531]]
-- [[小白作者培训学院]]
+- [[sources/入门教程作家是怎么炼成的新手必看-de5255-8affc531]]
+- [[entities/小白作者培训学院]]
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[sources/入门教程作家是怎么炼成的新手必看-de5255-8affc531]]

@@ -21,6 +21,9 @@ category: ''
 taxonomy_sub: ''
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: entities/heather-grove
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -40,4 +43,4 @@ Heather Grove是《创建角色的365个问题》的作者。该书为作家和�
 
 ## 相关引用
 
-- [[方法论转载创建角色的365个问题-aca423d2]]
+- [[sources/方法论转载创建角色的365个问题-aca423d2]]

@@ -43,6 +43,9 @@ category: 写作技法
 taxonomy_sub: 人物塑造
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程网络商业写作新手指南之角色塑造-dc4fb2a4
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -71,3 +74,12 @@ custom_type: ''
 ## 可信度声明
 
 本页属于UGC教程转载或用户整理类素材，来源为飞书云文档，发布组织为北京圣东方国信科技有限公司。内容主要是作者个人经验和判断，适合作为网文创作观点参考，不宜视为经过平台数据或学术研究验证的普遍规律。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derives: [[concepts/人物塑造]]
+- derives: [[concepts/商业网文写作]]
+- references: [[concepts/动漫化创作]]
+- references: [[entities/风姿物语]]
+- references: [[entities/紫川]]

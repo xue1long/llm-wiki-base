@@ -45,6 +45,9 @@ category: 平台规则
 taxonomy_sub: 全勤与福利
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/借鉴素材必备华夏天空作家福利-4c7de1bf
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -75,3 +78,13 @@ custom_type: ''
 ## 可信度声明
 
 素材/ugc + 可信度/ugc：文档来自“借鉴素材”合集中的飞书云文档转载，原文疑似华夏天空平台官方福利公告（含“华夏独创”等平台自述用语），但本拷贝为 UGC 转载，未附官方原始链接，政策细节亦为2014年版本，需以平台现行公告为准。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/华夏天空作家福利]]
+- references: [[entities/华夏天空]]
+- references: [[entities/新作者福利计划]]
+- references: [[concepts/上架政策]]
+- references: [[concepts/推广币]]
+- referenced_by: [[entities/华夏天空]]

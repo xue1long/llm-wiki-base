@@ -32,6 +32,9 @@ category: 心态与职业
 taxonomy_sub: 写作心态
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程新写手全面的指南-fdce714d
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -58,3 +61,10 @@ custom_type: ''
 ## 可信度声明
 
 UGC; 作者个人经验总结，可信度中等。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- referenced_by: [[entities/起点中文网]]
+- referenced_by: [[concepts/兴趣型写手]]
+- referenced_by: [[concepts/写手成长三部曲]]

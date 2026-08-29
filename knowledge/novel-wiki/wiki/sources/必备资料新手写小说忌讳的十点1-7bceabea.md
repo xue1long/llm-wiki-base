@@ -37,6 +37,9 @@ category: 写作技法
 taxonomy_sub: 文笔与语言
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料新手写小说忌讳的十点1-7bceabea
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -65,3 +68,11 @@ custom_type: ''
 ## 可信度声明
 
 该文属于来自飞书云文档的 UGC/教程类资料，发布组织标注为北京圣东方国信科技有限公司，但未提供作者姓名、编辑审校信息或第三方实证。内容适合作为新手写作经验参考，关于括号、人物数量和姓名难度的建议应结合具体题材与叙事目的判断。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/写作忌讳]]
+- supports: [[concepts/正文纯净原则]]
+- supports: [[concepts/人物角色数量控制]]
+- supports: [[concepts/简单易记命名准则]]

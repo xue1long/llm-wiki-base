@@ -11,7 +11,7 @@ relations:
   type: references
   weight: 1.0
   context: 源文本为此作品的世界观设定
-- target: 林雷-巴鲁克
+- target: 林雷--巴鲁克
   type: references
   weight: 1.0
   context: 源文本提及此角色
@@ -32,6 +32,9 @@ category: 案例与素材
 taxonomy_sub: 作品案例
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/book-official-4544a940
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -58,3 +61,9 @@ custom_type: ''
 ## 可信度声明
 
 官方来源（起点中文网），可信度高
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[entities/盘龙]]
+- references: [[concepts/四大元素法则]]

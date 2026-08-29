@@ -50,6 +50,9 @@ category: 写作技法
 taxonomy_sub: 大纲与结构
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料剧情大纲格式-fe26ceb1
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -78,3 +81,14 @@ custom_type: ''
 ## 可信度声明
 
 该页面属于来源于飞书云文档的 UGC/转载型写作资料，发布组织标注为北京圣东方国信科技有限公司，来源提供了原始文档 URL、下载时间和修改时间。内容是写作规范与经验性建议，不是经过独立验证的行业标准，因此可信度评级为B，适合作为大纲编排参考而非唯一标准。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derives: [[concepts/大纲]]
+- derives: [[concepts/细纲]]
+- references: [[entities/飞书云文档]]
+- references: [[entities/北京圣东方国信科技有限公司]]
+- supports: [[concepts/剧情节奏]]
+- referenced_by: [[entities/北京圣东方国信科技有限公司]]
+- is_part_of: [[entities/飞书云文档]]

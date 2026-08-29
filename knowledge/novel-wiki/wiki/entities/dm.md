@@ -30,6 +30,9 @@ category: 案例与素材
 taxonomy_sub: 作品案例
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: entities/dm
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -49,4 +52,10 @@ DM（Dungeon Master，地下城主）是角色扮演游戏中的主持人和仲�
 
 ## 相关引用
 
-- [[入门教程创造角色-27fffe79]]
+- [[sources/入门教程创造角色-27fffe79]]
+
+## Related pages
+
+<!-- gbrain:relations -->
+- supports: [[concepts/人物构建]]
+- referenced_by: [[sources/入门教程创造角色-27fffe79]]

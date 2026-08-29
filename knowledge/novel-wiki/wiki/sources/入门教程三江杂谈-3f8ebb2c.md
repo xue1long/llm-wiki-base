@@ -49,6 +49,9 @@ category: 写作技法
 taxonomy_sub: 修改与打磨
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程三江杂谈-3f8ebb2c
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -77,3 +80,14 @@ custom_type: ''
 ## 可信度声明
 
 UGC 经验分享；作者为起点编辑部/314，发布于飞书云文档（北京圣东方国信科技有限公司），属编辑经验谈性质的网络教程。文中关于起点中文网规则（2000 字更新门槛、VIP 千字计费、全勤等）的具体数值需以平台现行政策为准。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- contains: [[concepts/作品包装]]
+- derives: [[concepts/废弃章节清理]]
+- derives: [[concepts/章节字数控制]]
+- derives: [[concepts/书评区管理]]
+- derives: [[concepts/笔名选择]]
+- derives: [[concepts/老书联动运营]]
+- references: [[entities/起点编辑部]]

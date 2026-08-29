@@ -39,6 +39,9 @@ category: 写作技法
 taxonomy_sub: 节奏与悬念
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论小小说创作中的悬置紧张法zt-ae9fea47
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -66,3 +69,9 @@ custom_type: ''
 ## 可信度声明
 
 来源类型：书籍/文章；可信度：B；依据：文章结构完整，有理论阐述、具体分类和详实的文学作品案例分析，出自《文学院》刊物，具有教学参考价值。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[entities/王任叔]]
+- references: [[entities/河豚子]]

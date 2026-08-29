@@ -38,6 +38,9 @@ category: 写作技法
 taxonomy_sub: 大纲与结构
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料写作大纲的十大步骤-edcf74e6
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -66,3 +69,11 @@ custom_type: ''
 ## 可信度声明
 
 这是由企业飞书云文档发布的网文写作经验类UGC/转载素材，不属于平台官方规则或学术研究。内容主要是作者个人方法论，具有实践参考价值但缺少系统数据验证，可信度评为C。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- supports: [[concepts/地图勾画法]]
+- supports: [[concepts/升级序列多级化]]
+- supports: [[concepts/主角性格设定]]
+- references: [[entities/唐家三少]]

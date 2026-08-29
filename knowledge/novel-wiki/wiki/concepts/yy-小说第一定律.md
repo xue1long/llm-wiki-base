@@ -15,7 +15,7 @@ relations:
   type: supports
   weight: 0.9
   context: “主角超强”是该定律的具体要求
-- target: 借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6-34f66af8
+- target: 借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结-6-34f66af8
   type: is_part_of
   weight: 0.85
   context: 提出YY小说第一定律
@@ -41,6 +41,9 @@ category: 写作技法
 taxonomy_sub: 爽点与情绪
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: concepts/yy-小说第一定律
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -75,10 +78,17 @@ UGC 经验总结；类比能量守恒定律属于作者个人修辞，不是严�
 
 ## 相关概念
 
-- [[主角超强]]
-- [[扩句法]]
-- [[yy-爽文]]
+- [[concepts/主角超强]]
+- [[concepts/扩句法]]
+- [[concepts/yy-爽文]]
 
 ## 参考来源
 
-- [[借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6-34f66af8]]
+- [[sources/借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6-34f66af8]]
+
+## Related pages
+
+<!-- gbrain:relations -->
+- supports: [[concepts/主角超强]]
+- required_by: [[concepts/扩句法]]
+- analogous_to: [[concepts/yy-爽文]]

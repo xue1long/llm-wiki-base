@@ -45,6 +45,9 @@ category: 写作技法
 taxonomy_sub: 人物塑造
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论黄易与古龙金庸之比较-084cacbc
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -72,3 +75,12 @@ custom_type: ''
 ## 可信度声明
 
 UGC/个人评论; 依据: 文章为作者个人观点分析，带有主观评论色彩，但论证有据，对比清晰。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[entities/金庸]]
+- references: [[entities/古龙]]
+- references: [[entities/黄易]]
+- derives: [[concepts/气机牵引]]
+- derives: [[concepts/历史武侠]]

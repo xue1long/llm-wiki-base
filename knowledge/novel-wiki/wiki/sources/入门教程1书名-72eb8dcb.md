@@ -41,6 +41,9 @@ category: ''
 taxonomy_sub: ''
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程1书名-72eb8dcb
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -68,3 +71,11 @@ custom_type: ''
 ## 可信度声明
 
 UGC素材，来自飞书云文档，发布组织为北京圣东方国信科技有限公司，可信度中等。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/网文书名命名法则]]
+- references: [[concepts/书名与内容不符]]
+- references: [[concepts/恶趣味书名]]
+- references: [[concepts/情色化书名风险]]

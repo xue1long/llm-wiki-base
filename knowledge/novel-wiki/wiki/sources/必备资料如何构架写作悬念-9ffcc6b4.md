@@ -34,6 +34,9 @@ category: 写作技法
 taxonomy_sub: 节奏与悬念
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料如何构架写作悬念-9ffcc6b4
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -61,3 +64,10 @@ Markdown文本转录，主体内容可读性良好；包含飞书云文档的登
 ## 可信度声明
 
 该材料来自飞书云文档，发布组织标注为北京圣东方国信科技有限公司，属于网络教程类UGC/机构分享材料。内容主要是作者个人观点和经验总结，未提供实验数据、平台统计或多方论证，因此适合作为写作经验参考，证据强度为中低。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derives: [[concepts/商业网文写作]]
+- supports: [[concepts/读者导向写作]]
+- references: [[entities/北京圣东方国信科技有限公司]]

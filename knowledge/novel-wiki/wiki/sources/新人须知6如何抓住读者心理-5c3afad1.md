@@ -51,6 +51,9 @@ category: 读者与市场
 taxonomy_sub: 读者心态
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/新人须知6如何抓住读者心理-5c3afad1
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -81,3 +84,14 @@ custom_type: ''
 ## 可信度声明
 
 UGC; 来源为网文写作培训教程，内容基于实战经验，具有参考价值
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/读者心态]]
+- references: [[concepts/代入感]]
+- references: [[concepts/爽点]]
+- references: [[concepts/更新速度的重要性]]
+- references: [[concepts/读者习惯养成]]
+- references: [[concepts/绿帽情节]]
+- references: [[concepts/矛盾冲突]]

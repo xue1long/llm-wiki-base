@@ -39,6 +39,9 @@ category: 写作技法
 taxonomy_sub: 爽点与情绪
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程谈商业网文的爽点-f6ea8cc7
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -67,3 +70,11 @@ custom_type: ''
 ## 可信度声明
 
 该文属于网络写手之家整理收藏的UGC写作教程，作者以编辑视角分享经验，但未提供可核验的订阅数据、实验结果或平台官方规则。因此适合作为网文创作经验参考，可信度评为UGC经验型，不能视为普遍适用的定律。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/爽点]]
+- references: [[entities/网络小说网络写手之家]]
+- references: [[concepts/商业网文写作]]
+- references: [[concepts/读者爽感]]

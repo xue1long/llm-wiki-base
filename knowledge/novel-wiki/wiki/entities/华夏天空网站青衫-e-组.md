@@ -25,6 +25,9 @@ category: 读者与市场
 taxonomy_sub: 作者运营
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: entities/华夏天空网站青衫-e-组
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -49,6 +52,11 @@ custom_type: ''
 
 ## 相关引用
 
-- [[入门教程你是新人吗-3afaeb05]]
-- [[华夏天空]]
-- [[华夏天空作家福利]]
+- [[sources/入门教程你是新人吗-3afaeb05]]
+- [[entities/华夏天空]]
+- [[concepts/华夏天空作家福利]]
+
+## Related pages
+
+<!-- gbrain:relations -->
+- referenced_by: [[sources/入门教程你是新人吗-3afaeb05]]

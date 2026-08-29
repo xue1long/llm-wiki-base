@@ -15,7 +15,7 @@ relations:
   type: references
   weight: 1.0
   context: 该文档包含并阐释了《踏莎行·春色将阑》一词
-- target: 踏莎行-春色将阑
+- target: 踏莎行--春色将阑
   type: references
   weight: 1.0
   context: 该来源文档收录并演绎了这首词
@@ -44,6 +44,9 @@ category: 案例与素材
 taxonomy_sub: 诗词素材
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料踏莎行春色将阑寇准-0aceeb4d
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -70,3 +73,11 @@ custom_type: ''
 ## 可信度声明
 
 UGC素材，来源为飞书云文档，可信度中等
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[entities/寇准]]
+- referenced_by: [[concepts/青梅竹马]]
+- referenced_by: [[concepts/密约]]
+- referenced_by: [[concepts/离情]]

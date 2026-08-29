@@ -47,6 +47,9 @@ category: 写作技法
 taxonomy_sub: 选题与立意
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程网络小说选题要求-8c7c0ebe
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -75,3 +78,13 @@ custom_type: ''
 ## 可信度声明
 
 该文属于论坛用户原创或转载的UGC写作培训帖，不是平台正式公告或法律文本。其关于写作方法的内容可作为经验性参考；关于签约、出版及审核边界的说法具有明显时代和平台语境，应结合现行平台规则与法律法规复核。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derived_from: [[concepts/题材选择]]
+- references: [[entities/血红]]
+- derives: [[concepts/基调与写作风格]]
+- derived_from: [[concepts/跟风写作戒律]]
+- derived_from: [[concepts/写作禁忌]]
+- supports: [[concepts/兴趣型写手]]

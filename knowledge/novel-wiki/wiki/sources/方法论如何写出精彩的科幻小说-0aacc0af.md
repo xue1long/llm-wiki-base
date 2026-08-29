@@ -54,6 +54,9 @@ category: 写作技法
 taxonomy_sub: 人物塑造
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论如何写出精彩的科幻小说-0aacc0af
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -84,3 +87,15 @@ custom_type: ''
 ## 可信度声明
 
 UGC; 依据: 文本为转贴的讲座内容，作者未明确，但引用了多位著名科幻作家（叶永烈、艾萨克·阿西莫夫、王晋康等）的观点和作品作为例证，具有方法论指导价值。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/科幻小说长篇创作方法]]
+- derives: [[concepts/科幻幻想核心设计]]
+- derives: [[concepts/科幻构思如何驱动情节]]
+- derives: [[concepts/科幻人物性格与关系冲突]]
+- derives: [[concepts/科幻小说叙述角度选择]]
+- derives: [[concepts/科幻环境与氛围营造]]
+- derives: [[concepts/细节描写]]
+- derives: [[concepts/科幻小说长篇创作方法]]

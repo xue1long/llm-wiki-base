@@ -39,6 +39,9 @@ category: 写作技法
 taxonomy_sub: 节奏与悬念
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料22期待感让你的作品能够引人入胜1-a59f91-aea1cdcd
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -67,3 +70,11 @@ custom_type: ''
 ## 可信度声明
 
 该材料属于企业名下飞书云文档中的网文写作培训记录，内容更接近经验性方法论而非经过实证检验的学术结论。按项目规则标记为UGC/转载类素材，适合作为写作经验参考；其中关于读者付费、开头效果和伏笔作用的判断需要结合具体题材与读者反馈验证。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- contains: [[concepts/期待感]]
+- contains: [[concepts/伏笔手法]]
+- references: [[entities/飞书云文档]]
+- references: [[entities/北京圣东方国信科技有限公司]]

@@ -34,6 +34,9 @@ category: 写作技法
 taxonomy_sub: 选题与立意
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程网络小说选题要求-756acb-5daece4c
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -61,3 +64,10 @@ custom_type: ''
 ## 可信度声明
 
 该页面属于论坛写作培训类UGC转载/整理内容，作者为派派小说论坛用户雨桑之未落，内容主要是个人写作经验与案例判断，并非平台官方规则或经过验证的学术研究。依据有限，适合作为经验性参考，不宜视为普遍有效的市场结论。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- supports: [[concepts/题材选择]]
+- supports: [[concepts/基调--写作风格]]
+- references: [[entities/血红]]

@@ -29,6 +29,9 @@ category: 平台规则
 taxonomy_sub: 版权与运营
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: entities/zzsck
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -48,4 +51,10 @@ ZZSCK是来源文中提及的发布组织或平台名称。在该来源中，它
 
 ## 相关引用
 
-- [[补充教程写穿越小说角色前要注意的十个问题-e992c96e]]
+- [[sources/补充教程写穿越小说角色前要注意的十个问题-e992c96e]]
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[sources/补充教程写穿越小说角色前要注意的十个问题-e992c96e]]
+- referenced_by: [[sources/补充教程写穿越小说角色前要注意的十个问题-e992c96e]]

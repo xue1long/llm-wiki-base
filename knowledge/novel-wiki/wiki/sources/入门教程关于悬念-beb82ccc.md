@@ -38,6 +38,9 @@ category: 写作技法
 taxonomy_sub: 开篇与黄金三章
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程关于悬念-beb82ccc
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -65,3 +68,11 @@ custom_type: ''
 ## 可信度声明
 
 素材/ugc；可信度/ugc
+
+## Related pages
+
+<!-- gbrain:relations -->
+- referenced_by: [[entities/北京圣东方国信科技有限公司]]
+- references: [[concepts/悬念式开篇]]
+- references: [[concepts/进行式开篇]]
+- references: [[concepts/悬念保持]]

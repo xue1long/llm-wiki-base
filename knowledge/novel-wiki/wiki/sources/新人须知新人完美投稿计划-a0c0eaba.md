@@ -29,6 +29,9 @@ category: 平台规则
 taxonomy_sub: 签约
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/新人须知新人完美投稿计划-a0c0eaba
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -57,3 +60,9 @@ custom_type: ''
 ## 可信度声明
 
 UGC; 依据: 来源为飞书云文档，由“北京圣东方国信科技有限公司”发布，内容为行业经验分享，属于用户生成内容（UGC），但因其发布平台和内容性质，具有一定的行业参考价值。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derives: [[concepts/投稿邮件规范]]
+- derives: [[concepts/书名与简介的重要性]]

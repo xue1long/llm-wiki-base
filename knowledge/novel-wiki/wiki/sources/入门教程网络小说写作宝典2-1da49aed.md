@@ -39,6 +39,9 @@ category: 心态与职业
 taxonomy_sub: 职业规划
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程网络小说写作宝典2-1da49aed
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -66,3 +69,10 @@ custom_type: ''
 ## 可信度声明
 
 素材/ugc来源：飞书云文档中的教程转载或经验性文章，发布组织为北京圣东方国信科技有限公司。内容属于作者经验与策略建议，不是平台官方规则；关于字数、榜单和曝光的判断应结合具体平台现行政策核验。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derives: [[concepts/更新速度的重要性]]
+- supports: [[concepts/坚持日更]]
+- derives: [[concepts/小说字数要求]]

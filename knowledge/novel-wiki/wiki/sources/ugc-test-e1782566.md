@@ -25,6 +25,9 @@ category: ''
 taxonomy_sub: ''
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/ugc-test-e1782566
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -51,3 +54,8 @@ custom_type: ''
 ## 可信度声明
 
 UGC；来源为百度贴吧网络作家吧用户投稿，代表个人经验，可信度有限
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/黄金三章]]

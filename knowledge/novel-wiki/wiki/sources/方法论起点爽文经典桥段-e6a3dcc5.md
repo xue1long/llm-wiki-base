@@ -11,11 +11,11 @@ relations:
   type: referenced_by
   weight: 1.0
   context: 本文是爽文创作方法论的详细阐述来源
-- target: 主角轰杀反派-经典畅快桥段
+- target: 主角轰杀反派--经典畅快桥段
   type: referenced_by
   weight: 1.0
   context: 本文详细分析了此桥段的运用与误区
-- target: 优越感-爽文三要素之一
+- target: 优越感--爽文三要素之一
   type: referenced_by
   weight: 1.0
   context: 本文定义了优越感是爽文的三要素之一
@@ -41,6 +41,9 @@ category: 案例与素材
 taxonomy_sub: 桥段与梗
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论起点爽文经典桥段-e6a3dcc5
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -68,3 +71,9 @@ custom_type: ''
 ## 可信度声明
 
 UGC；来源为飞书云文档，内容面向网络小说创作新手，属于经验分享类杂谈。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- referenced_by: [[concepts/爽文]]
+- referenced_by: [[entities/yy-小说-103-个经典桥段]]

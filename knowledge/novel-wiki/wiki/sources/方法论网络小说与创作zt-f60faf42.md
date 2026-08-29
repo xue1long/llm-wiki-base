@@ -30,6 +30,9 @@ category: 读者与市场
 taxonomy_sub: 读者心态
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论网络小说与创作zt-f60faf42
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -60,3 +63,8 @@ custom_type: ''
 ## 可信度声明
 
 UGC; 依据: 文章为个人创作经验与观察总结，属于网络论坛帖子，作者署名merlyn。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- contains: [[concepts/诚实的喜鹊]]

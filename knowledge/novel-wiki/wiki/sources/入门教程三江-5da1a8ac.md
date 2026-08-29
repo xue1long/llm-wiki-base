@@ -33,6 +33,9 @@ category: ''
 taxonomy_sub: ''
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程三江-5da1a8ac
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -60,3 +63,10 @@ custom_type: ''
 ## 可信度声明
 
 UGC来源，网络教程，可信度中等
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[entities/三江]]
+- references: [[concepts/签约]]
+- references: [[concepts/a-签]]

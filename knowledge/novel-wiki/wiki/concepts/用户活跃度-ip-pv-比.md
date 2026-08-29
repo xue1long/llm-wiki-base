@@ -21,6 +21,9 @@ category: 读者与市场
 taxonomy_sub: 数据分析
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: concepts/用户活跃度-ip-pv-比
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -58,9 +61,9 @@ custom_type: ''
 
 - [[IP访问量]]
 - [[PV浏览量]]
-- [[起点中文网]]
-- [[晋江文学城]]
+- [[entities/起点中文网]]
+- [[entities/晋江文学城]]
 
 ## 参考来源
 
-- [[入门教程各大小说网站人气对比方便选择参考-6cc808cb]]
+- [[sources/入门教程各大小说网站人气对比方便选择参考-6cc808cb]]

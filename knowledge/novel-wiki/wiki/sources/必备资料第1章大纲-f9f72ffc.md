@@ -20,6 +20,9 @@ category: 案例与素材
 taxonomy_sub: 作品案例
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料第1章大纲-f9f72ffc
 ---
 
 <!-- wiki-template-version: 3.0.0 -->

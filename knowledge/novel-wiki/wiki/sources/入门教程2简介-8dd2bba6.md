@@ -38,6 +38,9 @@ category: 写作技法
 taxonomy_sub: 开篇与黄金三章
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程2简介-8dd2bba6
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -66,3 +69,10 @@ custom_type: ''
 ## 可信度声明
 
 UGC 网文写作入门教程，发布在飞书云文档，发布组织为北京圣东方国信科技有限公司；未署名作者，属经验分享类内容，按 UGC 可信度处理。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- contains: [[concepts/网络小说简介]]
+- contains: [[entities/错跟总裁潜规则]]
+- contains: [[entities/大明-1937]]

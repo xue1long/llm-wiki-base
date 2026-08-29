@@ -34,6 +34,9 @@ category: 写作技法
 taxonomy_sub: 情节与冲突
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论要素-d5aaacbe
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -69,3 +72,10 @@ custom_type: ''
 ## 可信度声明
 
 UGC（用户生成内容）；来源于飞书云文档，属于创作方法论分享，具体观点为经验总结，可信度标记为 ugc。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- referenced_by: [[concepts/对比]]
+- referenced_by: [[concepts/悬念]]
+- referenced_by: [[concepts/冲突]]

@@ -44,6 +44,9 @@ category: 平台规则
 taxonomy_sub: 签约
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论经典重温功夫在文外杂志新手的三十六个注意事项-eaaf1dfa
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -71,3 +74,11 @@ custom_type: ''
 ## 可信度声明
 
 UGC；来自杂志编辑的个人经验分享，属于行业内部实践指南，实用性高但带有主观性。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- contains: [[concepts/投稿邮件规范]]
+- derives: [[concepts/编辑与作者的关系]]
+- derives: [[concepts/稿件修改要求]]
+- derives: [[concepts/投稿邮件规范]]

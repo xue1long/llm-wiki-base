@@ -26,6 +26,9 @@ category: 写作技法
 taxonomy_sub: 情节与冲突
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: concepts/yy-小说十六创作法则
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -59,13 +62,13 @@ custom_type: ''
 
 ## 相关概念
 
-- [[金手指设定]]
-- [[爽点设计-具体方法与案例]]
-- [[主角人物设定]]
-- [[情节构成]]
-- [[配角炮灰]]
-- [[与主角互动的细节]]
+- [[concepts/金手指设定]]
+- [[concepts/爽点设计-具体方法与案例]]
+- [[concepts/主角人物设定]]
+- [[concepts/情节构成]]
+- [[concepts/配角炮灰]]
+- [[concepts/与主角互动的细节]]
 
 ## 参考来源
 
-- [[方法论yy小说模式-942f4f92]]
+- [[sources/方法论yy小说模式-942f4f92]]

@@ -83,6 +83,9 @@ category: 写作技法
 taxonomy_sub: 爽点与情绪
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: concepts/yy-爽文
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -120,12 +123,28 @@ YY爽文是以读者或作者代入主角后获得快感为重要驱动力的网
 
 ## 相关概念
 
-- [[题材选择]]
-- [[爽点]]
-- [[代入感]]
-- [[人物欲望驱动]]
-- [[读者爽感]]
+- [[concepts/题材选择]]
+- [[concepts/爽点]]
+- [[concepts/代入感]]
+- [[concepts/人物欲望驱动]]
+- [[concepts/读者爽感]]
 
 ## 参考来源
 
-- [[必备资料新人经验如何选择适合自己的题材1-149e9736]]
+- [[sources/必备资料新人经验如何选择适合自己的题材1-149e9736]]
+
+## Related pages
+
+<!-- gbrain:relations -->
+- supports: [[concepts/题材选择]]
+- contains: [[entities/yy-小说-103-个经典桥段]]
+- derives: [[concepts/主角愤怒寻仇桥段]]
+- referenced_by: [[sources/方法论新人成神之路写手必读-1be12c3c]]
+- derived_from: [[concepts/爽点]]
+- depends_on: [[concepts/代入感]]
+- supports: [[concepts/人物欲望驱动]]
+- derives: [[concepts/优越感桥段]]
+- contains: [[concepts/升级练功小说]]
+- contains: [[concepts/升级流小说]]
+- referenced_by: [[sources/新人须知更俗写作心得访谈-b858680c]]
+- referenced_by: [[sources/方法论爽文经典桥段套路-06fe9a47]]

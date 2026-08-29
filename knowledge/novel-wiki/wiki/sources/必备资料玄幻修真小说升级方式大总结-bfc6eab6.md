@@ -40,6 +40,9 @@ category: 题材体系
 taxonomy_sub: 玄幻
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/必备资料玄幻修真小说升级方式大总结-bfc6eab6
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -68,3 +71,11 @@ custom_type: ''
 ## 可信度声明
 
 （（此处内容源于对来源的概括，细节以原始素材为准））
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derives: [[concepts/玄幻快速升级特征]]
+- derives: [[concepts/奇遇]]
+- references: [[entities/斗破苍穹]]
+- derives: [[concepts/升级流小说]]

@@ -74,6 +74,9 @@ category: ''
 taxonomy_sub: ''
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/补充教程小说结局的十三种方式精-a0efec19
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -106,3 +109,21 @@ custom_type: ''
 未标注来源类型（默认按普通素材）
 
 > ⚠️ **页面数超限**: 本文档生成了 26 页（上限 15），可能过度拆分。建议人工检查并合并薄页。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[entities/马原]]
+- derives: [[concepts/死亡结局]]
+- derives: [[concepts/大团圆结局]]
+- derives: [[concepts/诗意结局]]
+- derives: [[concepts/揭谜结局]]
+- derives: [[concepts/解嘲结局]]
+- derives: [[concepts/有去无归结局]]
+- derives: [[concepts/梦魇结局]]
+- derives: [[concepts/循环往复结局]]
+- derives: [[concepts/得而复失结局]]
+- derives: [[concepts/走出叙事人视野结局]]
+- derives: [[concepts/以死来终止结局]]
+- derives: [[concepts/歪打正着结局]]
+- derives: [[concepts/迷失结局]]

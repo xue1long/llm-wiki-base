@@ -11,7 +11,7 @@ relations:
   type: references
   weight: 1.0
   context: 来源文档的核心概念是「1VS1 公平对决」打斗公式。
-- target: 1vs1-公平对决-打斗七公式之一
+- target: 1vs1-公平对决--打斗七公式之一
   type: references
   weight: 1.0
   context: 该概念来源于此源文档的详细阐述。
@@ -49,6 +49,9 @@ category: 案例与素材
 taxonomy_sub: 桥段与梗
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论打斗七公式重要-0b48abcb
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -78,3 +81,11 @@ custom_type: ''
 ## 可信度声明
 
 UGC（用户生成内容），来自飞书云文档，发布者为科技公司，具体作者未署名。内容为写作方法论，属于经验总结，非学术研究。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[concepts/1vs1-公平对决]]
+- referenced_by: [[entities/打斗七公式]]
+- analogous_to: [[concepts/七分铺垫三分打斗法则]]
+- analogous_to: [[concepts/小高潮式打斗]]

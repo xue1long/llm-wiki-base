@@ -25,6 +25,9 @@ category: ''
 taxonomy_sub: ''
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/入门教程技术篇剧情开展讲解-fbba53d2
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -54,3 +57,8 @@ custom_type: ''
 ## 可信度声明
 
 UGC，来自飞书云文档，为个人写作经验分享，可信度中等。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- references: [[entities/紫川]]

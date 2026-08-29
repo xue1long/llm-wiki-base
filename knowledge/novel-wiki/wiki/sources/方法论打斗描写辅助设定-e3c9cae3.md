@@ -32,6 +32,9 @@ category: ''
 taxonomy_sub: 对话与描写
 related_entities: []
 custom_type: ''
+workflow_state: draft
+verified_at: 0
+slug: sources/方法论打斗描写辅助设定-e3c9cae3
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
@@ -59,3 +62,9 @@ custom_type: ''
 ## 可信度声明
 
 UGC; 来源为飞书云文档，作者为‘北京圣东方国信科技有限公司’，属于方法论性质的写作教程，内容具有实践指导性，但缺乏学术或行业权威背书。
+
+## Related pages
+
+<!-- gbrain:relations -->
+- derives: [[concepts/七分铺垫三分打斗法则]]
+- references: [[entities/打斗七公式]]
