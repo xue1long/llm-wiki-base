@@ -52,6 +52,14 @@ class EventStore(ABC):
             (same operation_id + same payload_hash); the original event is returned.
             ``{"status": "version_conflict", "event": {...}, "stored_payload_hash": ...}``
             — same operation_id but different payload_hash; nothing is written.
+
+        Note (fail-closed default): backends that do not override this
+        method (e.g. ``PostgresEventStore``) inherit this default and
+        fail closed with ``NotImplementedError`` — idempotent append is
+        only available where explicitly implemented (currently
+        ``JSONLEventStore``). Callers must treat a raised
+        ``NotImplementedError`` as "append not supported", never as a
+        silent non-idempotent write.
         """
         raise NotImplementedError(
             f"{type(self).__name__} does not implement append_event"
@@ -137,6 +145,14 @@ class JSONLEventStore(EventStore):
         Replaying the same operation_id with the same payload returns the
         original event (``duplicate``); a different payload_hash under the same
         operation_id fails closed with ``version_conflict`` and writes nothing.
+
+        Note (Z-3 follow-up): the operation-index lookup and the file
+        append are not a single atomic step. Within one process the
+        in-memory ``_operation_index`` is updated before returning, so
+        the check-then-write window is safe; two *processes* appending
+        concurrently could both observe "no existing event" and write
+        duplicates. Cross-process serialisation (file lock) is deferred
+        to the Z-3 follow-up.
         """
         if payload_hash is None:
             payload_hash = compute_payload_hash(payload)

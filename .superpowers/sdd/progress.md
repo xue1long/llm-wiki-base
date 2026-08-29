@@ -484,9 +484,29 @@ batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首�
 - Task 3 I-2：`PostgresEventStore.append_event` 继承 ABC 的 `NotImplementedError` 默认值；Postgres 真实现不在本计划范围。
 - Task 3 I-3：VersionManager dedupe 仅作用于 fresh 实例（`obj.versions` 空）；保留 `tests/test_knowledge/test_version_manager.py::test_retention_*` 通过。
 - Task 4：drill.py 与 `src/kc/backup/__init__.py` 文档字符串 `restore_snapshot -> bool` 已过期（实现已返回 RestoreReport）；属 follow-up 文档清理。
+- Task 4（Finding I-2）：`replay_object` 只读 VersionManager 快照，不读 events.jsonl。P0「按事件序列重放」措辞解释为 snapshot+version 序列重放，而非 event-source 重放。Future：在 kc.object.created/updated 事件上实现 replay_core，未知/损坏事件抛 ValueError。
 - Task 6：`temporal_filter` / `RetrievalGate` 对 WikiPage 与 KnowledgeObject 走差异化语义——WikiPage 两 None 走 back-compat pass-through，KnowledgeObject 走严格 unknown-drop。
 - 环境真实 LLM provider 不可用 → Agent runtime evaluation `mode=runtime, runtime_verified=true` 案例 = 0；当前 `docs/evaluation/kc_mvp_cases.yaml` 30 条全 `mode=mock`，evaluator 报告 `not_evaluable=True`、`runtime_count=0`。
 
 ### next_phase_ready
 
 `false`：P1 评估基线 30 条 mock 通过但 runtime_verified=0（环境限制）；任务 7 E2E 全 deterministic 通过；任务 0–5 P0 gate 在 `tests/test_kc` + `tests/test_vector` + `tests/test_pipeline/test_ingest_vector_publication` 1462 + 27 全绿。下一阶段前置 = 配置 runtime LLM provider（xiaomi-mimo / sfkey-glm 任一）后运行 `scripts/kc_agent_eval.py --dataset docs/evaluation/kc_mvp_cases.yaml`，待 `runtime_count >= 1` 再置 `true`。
+
+## Review-Findings Batch（2026-08-29）✅ 全分支 review 整改
+
+最终 whole-branch review（plan `2026-08-29-kc-trustworthy-mvp.md`，即 `2026-08-29-kc-integrity-idempotency-layered.md`）5 项 Important + 2 项 Nit 一次批量整改，单 commit `fix(kc): address final review findings batch`：
+
+| # | Finding | 整改 |
+|---|---|---|
+| I-1 | `get_kernel` 单一全局实例跨项目串扰（`get_kernel(root_a) is get_kernel(root_b)`） | 改为按规范化 root 路径的 per-project dict：同 root 同实例、异 root 异实例、`get_kernel(None)` 返回当前项目已有实例（非跨项目）；`tests/test_kc/test_kernel_isolation.py` 6 测试；既有 `tests/test_knowledge/test_kernel.py` 0 改动仍全过 |
+| I-2 | `replay_object` 只读 VersionManager 快照而非 events.jsonl（P0「按事件序列重放」措辞歧义） | 文档化进 Known Limitations（见上）；无代码改动 |
+| I-3 | `DefaultFilter` temporal 门是 stub（`_ = query_time; return True`） | 接线 `_passes_temporal`（WikiPage None/None back-compat pass-through，KnowledgeObject None/None strict unknown-drop，`type(page).__name__ == "WikiPage"` 判别）；`test_default_retrieval_filter.py` 加 5 个区间测试（current / historical / scheduled / legacy / invalid from>to） |
+| I-4 | MVP 30 case 中 10 个负路径 case（quarantine/conflict/supersede，空 evidence_refs/expected_top_k）缺 `not_applicable` 标记 | 10 个负路径 case 加 `not_applicable: true`；`scripts/kc_eval.py::evaluate_gold_case` 加 contract gate（`invalid_fields`：`not_applicable` 缺失 / `not_applicable_misplaced` 误标；作用于 Task-6 风格 case，legacy 数据集不动）；`tests/test_kc/test_eval_contract.py` 6 测试 + `tests/test_kc/test_agent_eval.py` 4 测试（mock 结果不计入 success_rate / citation_accuracy） |
+| I-5 | `src/kc/backup/__init__.py` docstring `restore_snapshot -> bool` 过期 | 更新为 `-> RestoreReport`（doc-only） |
+| Nit 1 | filter.py 28-32 / 180-186 过期注释（"WikiPage 无 valid_from/valid_to"） | 更新为 Task 6 语义：WikiPage 已有 None 默认字段；None/None 差异化 pass-through（WikiPage）/ unknown-drop（KnowledgeObject） |
+| Nit 2 | event_store docstring 补注 | `JSONLEventStore.append_event` 补 TOCTOU check-then-write 窗口说明（Z-3 follow-up，跨进程需文件锁）；ABC `append_event` 默认补 fail-closed `NotImplementedError` 说明 |
+
+**整改后回归（4 目录）**：`pytest --import-mode=importlib tests/test_kc tests/test_knowledge tests/test_wiki tests/test_vector` → **1482 passed / 6 failed**。
+- 4 个 failed 为 **pre-existing template-parser**（`test_wiki/test_lint.py::test_lint_missing_section_warns_v2_template`、`test_wiki/test_stubs.py::test_materialize_one`、`test_wiki/test_stubs_atomic.py::test_stub_unlink_uses_sentinel`、`test_wiki/test_templates_resolver.py::test_resolve_cache_does_not_break_missing_file_error`），与本次整改无关。
+- 另 2 个 failed（`test_kc_ku_dryrun::test_dryrun_writes_markdown_report_with_pagetype_and_cost`、untracked `test_ku_split_strategy::test_estimator_json_output_on_novel_wiki`）系并发 workspace 进程 stash-pop 在 `knowledge/novel-wiki/wiki/**` 页内注入 conflict marker 所致——clean HEAD worktree 下前者通过、后者文件不存在，**均非本批量回归**。
+- 本批量新增 21 个测试全部通过；既有的 1458 个 passing 测试无一回归。

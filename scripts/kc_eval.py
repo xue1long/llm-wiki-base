@@ -56,6 +56,8 @@ def evaluate_gold_case(case: dict[str, Any]) -> dict[str, Any]:
             "scores": {
                 "schema_completeness": <float 0..1>,
                 "missing_fields": [..],
+                "invalid_fields": [..],   # Finding I-4 contract violations
+                "not_applicable": <bool>,
                 "tag": <str>,
                 "confidence": <str>,
             },
@@ -67,12 +69,38 @@ def evaluate_gold_case(case: dict[str, Any]) -> dict[str, Any]:
     completeness = (len(REQUIRED_FIELDS) - len(missing)) / len(REQUIRED_FIELDS)
     passed = len(missing) == 0
 
+    # Finding I-4 (final review): negative-path cases — empty
+    # expected_top_k AND empty evidence_refs — must explicitly declare
+    # ``not_applicable: true`` so "no expectations" is a deliberate
+    # contract, not a data gap; a ``not_applicable: true`` marker on a
+    # positive-path case is equally wrong. Enforcement is scoped to
+    # Task-6 style cases that carry the evaluation-contract fields
+    # (``mode`` / ``runtime_verified``); legacy pre-Task-6 datasets
+    # predate the contract and are left untouched.
+    is_task6_style = "mode" in case
+    negative_path = (
+        is_task6_style
+        and not case.get("expected_top_k")
+        and not case.get("evidence_refs")
+    )
+    not_applicable = case.get("not_applicable") is True
+
+    invalid_fields: list[str] = []
+    if negative_path and not not_applicable:
+        invalid_fields.append("not_applicable")
+    if is_task6_style and not negative_path and not_applicable:
+        invalid_fields.append("not_applicable_misplaced")
+    if invalid_fields:
+        passed = False
+
     return {
         "case_id": case_id,
         "passed": passed,
         "scores": {
             "schema_completeness": completeness,
             "missing_fields": missing,
+            "invalid_fields": invalid_fields,
+            "not_applicable": not_applicable,
             "tag": case.get("tag", "full"),
             "confidence": case.get("confidence", "high"),
         },

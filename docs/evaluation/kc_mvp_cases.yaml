@@ -7,6 +7,11 @@
 # explicit `mode` and `runtime_verified` flag so the evaluator can split
 # mock results from product pass rate.
 #
+# Negative-path cases (task_result: failure with empty expected_top_k AND
+# empty evidence_refs — quarantine/conflict/supersede outcomes) additionally
+# declare `not_applicable: true` so the evaluator never mistakes "no
+# expectations" for a data gap (final review Finding I-4).
+#
 # Dimension coverage (30 cases):
 #   - source_trust          5 cases (primary, official, internal, rejected, restricted)
 #   - evidence_span         6 cases (direct_quote, structured_source, code, computed, multi_source, inferred)
@@ -73,6 +78,7 @@
   confidence: high
   mode: mock
   runtime_verified: false
+  not_applicable: true
 
 - case_id: ST-MVP-04
   query: Rejected source trust — refuse to publish derived facts
@@ -92,6 +98,7 @@
   confidence: high
   mode: mock
   runtime_verified: false
+  not_applicable: true
 
 - case_id: ST-MVP-05
   query: Trusted community contribution (accepted variant)
@@ -231,6 +238,7 @@
   confidence: medium
   mode: mock
   runtime_verified: false
+  not_applicable: true
 
 - case_id: ID-MVP-01
   query: Two KUs with identical question should merge
@@ -371,6 +379,7 @@
   confidence: high
   mode: mock
   runtime_verified: false
+  not_applicable: true
 
 - case_id: CF-MVP-03
   query: Conditional conflict — context differs, both publishable
@@ -450,6 +459,7 @@
   confidence: high
   mode: mock
   runtime_verified: false
+  not_applicable: true
 
 - case_id: CF-MVP-07
   query: Temporal conflict without supersede — must be blocked
@@ -469,6 +479,7 @@
   confidence: high
   mode: mock
   runtime_verified: false
+  not_applicable: true
 
 - case_id: CF-MVP-08
   query: Type mismatch — claim vs evidence dimension conflict
@@ -488,6 +499,7 @@
   confidence: medium
   mode: mock
   runtime_verified: false
+  not_applicable: true
 
 - case_id: RT-MVP-01
   query: Top-3 retrieval over verified knowledge units
@@ -549,6 +561,7 @@
   confidence: medium
   mode: mock
   runtime_verified: false
+  not_applicable: true
 
 - case_id: TM-MVP-01
   query: Current validity — page valid_from <= now < valid_to
@@ -588,6 +601,7 @@
   confidence: high
   mode: mock
   runtime_verified: false
+  not_applicable: true
 
 - case_id: TM-MVP-03
   query: Historical validity — valid_to <= now → historical, drop from default
@@ -607,3 +621,4 @@
   confidence: high
   mode: mock
   runtime_verified: false
+  not_applicable: true

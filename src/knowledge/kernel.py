@@ -217,23 +217,53 @@ class KnowledgeKernel:
 # Per-project singleton
 # ---------------------------------------------------------------------------
 
+#: Per-project kernels keyed by normalized root path (Finding I-1: final
+#: whole-branch review — a single global instance made
+#: ``get_kernel(root_a) is get_kernel(root_b)``, leaking state across
+#: projects). The same normalized root always maps to the same instance;
+#: different roots map to different instances.
+_kernel_instances: dict[str, KnowledgeKernel] = {}
+
+#: Active/default kernel — the instance most recently returned by a
+#: ``get_kernel(project_path)`` call. Kept as a module attribute under
+#: its historical name so ``get_kernel(None)`` (and the existing tests
+#: that reset it to ``None``) keep working: after initialisation,
+#: ``get_kernel(None)`` returns the existing kernel for that project,
+#: never a cross-project kernel.
 _kernel_instance: KnowledgeKernel | None = None
+
+
+def _normalize_root(project_path: Path) -> str:
+    """Return a stable, normalized registry key for *project_path*."""
+    return str(Path(project_path).resolve())
 
 
 def get_kernel(project_path: Path | None = None) -> KnowledgeKernel:
     """Return the per-project KnowledgeKernel singleton.
 
-    The first call must include *project_path* to initialise the kernel.
-    Subsequent calls with ``None`` return the same instance.
+    Each distinct normalized *project_path* gets its own kernel (Finding
+    I-1: per-project isolation). The first call must include
+    *project_path* to initialise a kernel; the same root always returns
+    the same instance and different roots return different instances.
+    Subsequent calls with ``None`` return the active kernel — the one
+    most recently created via a *project_path* call — so a project that
+    has already been initialised can be re-acquired without repeating
+    the path.
 
-    Raises ``RuntimeError`` if called without *project_path* before
-    initialisation.
+    Raises ``RuntimeError`` if called without *project_path* before any
+    kernel has been initialised.
     """
     global _kernel_instance
-    if _kernel_instance is None:
-        if project_path is None:
+    if project_path is None:
+        if _kernel_instance is None:
             raise RuntimeError(
                 "KnowledgeKernel not initialised — call get_kernel(project_path) first"
             )
-        _kernel_instance = KnowledgeKernel(project_path)
-    return _kernel_instance
+        return _kernel_instance
+    root = _normalize_root(project_path)
+    kernel = _kernel_instances.get(root)
+    if kernel is None:
+        kernel = KnowledgeKernel(Path(root))
+        _kernel_instances[root] = kernel
+    _kernel_instance = kernel
+    return kernel
