@@ -456,3 +456,37 @@ batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首�
 - operation/idempotency 部分仅冻结后续统一报告字段形状：`passed`、`reason_codes`、`operation_id`。
 - 该 closure 契约测试与现有 `tests/test_kc/test_default_closure.py` 的 simplified-pass 基线是**有意冲突**；不在 Task 0 修改旧测试，留到 Task 1 一并调整 `closure.py` 与 legacy fixtures。
 
+
+## KC Task 0–7（2026-08-29）✅ 分层完成
+
+按 `docs/superpowers/plans/2026-08-29-kc-integrity-idempotency-layered.md` 8 任务逐项交付：TDD + per-task review + 独立 commit；最终全分支 review + 报告见下方。
+
+| Task | Commit | 范围 |
+|---|---|---|
+| 0 | `b55d57ad` test(kc): freeze task 0 closure and idempotency contract | `tests/test_kc/test_integrity_idempotency_contract.py` 冻结 fail-closed 报告字段 |
+| 1 | `4fe574e3` fix(kc): make publication closure fail closed | `closure.py` 移除 simplified/assumed 通路；缺失依赖 → `missing_integrity_report` 等 reason code |
+| 2 | `d6d97902` fix(kc): enforce evidence and provenance boundaries | `DefaultFilter` 拒缺 evidence / closure 未通过；`ProvenanceGate` 拒 synthesized 缺 derived_from；adapter round-trip 7 个 additive 字段；filter.py 文档复原 |
+| 3 | `f44969cf` feat(kc): add deterministic event idempotency | `compute_identity_key` 不变；`make_operation_id`；`append_event(operation_id, payload_hash)` ok/duplicate/version_conflict；VersionManager dedupe 限 fresh 实例 |
+| 4 | `78168323` feat(kc): restore core from durable storage and replay events | `RestoreReport` 替代 bool；`snapshot_from_storage` 免调用者传入对象；`KnowledgeKernel.replay_object`；`EVENT_STREAM_PATH` 修正；restore byte-faithful idempotent |
+| 5 | `a83211df` fix(kc): make vector publication retryable and idempotent | `tests/test_kc/test_pending_idempotency.py` 7 个 KC 层跨切场景 |
+| 6 | `be24606b` feat(kc): add temporal and staging-based view recovery | WikiPage `valid_from/valid_to` additive；`rebuild_wiki_view` staging-first；`scripts/kc_agent_eval.py` mode/runtime_verified；`docs/evaluation/kc_mvp_cases.yaml` 30 cases × 30 dimensions |
+| 7 | `3ab15486` test(kc): verify integrity idempotency and recovery boundaries | 9 个 E2E 场景覆盖：候选拒绝/完整发布/重复 ingest/Core replay/backup restore/vector pending 重试/legacy 页 round-trip/staging 失败保留旧页/delivery summary |
+
+### 分层验证结果
+
+- P0 子集（test_kc + test_vector + test_pipeline/test_ingest_vector_publication）：300 passed
+- P0+P1 stable 子集（test_kc + test_knowledge + test_wiki + test_vector）：1462 passed
+- P0+P1 真实分层（含 test_pipeline 但跳过已知破损 `test_retry.py`/`test_ndg_calibrate.py`/`test_phase4_batch_key.py` —— scripts.phase4_batch / phase4_orchestrator 等无法作为 importable package；属环境限制，与本计划无关）：1894 passed / 62 failed（失败均为 pre-existing）
+
+### Known Limitations / Parked（入 known_limitations）
+
+- Task 3 I-1：`append_event` check-then-write 非原子；并发 ingest 走文件锁是后续 Z-3。
+- Task 3 I-2：`PostgresEventStore.append_event` 继承 ABC 的 `NotImplementedError` 默认值；Postgres 真实现不在本计划范围。
+- Task 3 I-3：VersionManager dedupe 仅作用于 fresh 实例（`obj.versions` 空）；保留 `tests/test_knowledge/test_version_manager.py::test_retention_*` 通过。
+- Task 4：drill.py 与 `src/kc/backup/__init__.py` 文档字符串 `restore_snapshot -> bool` 已过期（实现已返回 RestoreReport）；属 follow-up 文档清理。
+- Task 6：`temporal_filter` / `RetrievalGate` 对 WikiPage 与 KnowledgeObject 走差异化语义——WikiPage 两 None 走 back-compat pass-through，KnowledgeObject 走严格 unknown-drop。
+- 环境真实 LLM provider 不可用 → Agent runtime evaluation `mode=runtime, runtime_verified=true` 案例 = 0；当前 `docs/evaluation/kc_mvp_cases.yaml` 30 条全 `mode=mock`，evaluator 报告 `not_evaluable=True`、`runtime_count=0`。
+
+### next_phase_ready
+
+`false`：P1 评估基线 30 条 mock 通过但 runtime_verified=0（环境限制）；任务 7 E2E 全 deterministic 通过；任务 0–5 P0 gate 在 `tests/test_kc` + `tests/test_vector` + `tests/test_pipeline/test_ingest_vector_publication` 1462 + 27 全绿。下一阶段前置 = 配置 runtime LLM provider（xiaomi-mimo / sfkey-glm 任一）后运行 `scripts/kc_agent_eval.py --dataset docs/evaluation/kc_mvp_cases.yaml`，待 `runtime_count >= 1` 再置 `true`。
