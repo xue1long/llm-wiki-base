@@ -42,6 +42,8 @@ def _now_ms() -> int:
 def make_wiki_page(
     workflow_state: str = "draft",
     custom_lifecycle: str | None = None,
+    evidence_refs: list[str] | None = None,
+    closure_passed: bool | None = True,
     **kwargs,
 ) -> WikiPage:
     """Build a test WikiPage with the given workflow_state.
@@ -56,9 +58,12 @@ def make_wiki_page(
         id=kwargs.get("id", "test_001"),
         title=kwargs.get("title", "test"),
         type=PageType(kwargs.get("type", "concept")),
+        evidence_refs=list(
+            ["doc_001:block_001"] if evidence_refs is None else evidence_refs
+        ),
     )
     page.workflow_state = workflow_state
-    if custom_lifecycle is not None:
+    if custom_lifecycle is not None or closure_passed is not None:
         # WikiPage has no native lifecycle field; spec §11.4 error-injection
         # categories ride on the KO ``_ko_extra`` bag (mirrors C-0 Commit 2
         # migration of decision_record and C-0 Commit 4 of evidence_refs).
@@ -66,7 +71,10 @@ def make_wiki_page(
         # use setattr so the helper works on fresh WikiPage instances.
         existing = getattr(page, "_ko_extra", None) or {}
         page._ko_extra = dict(existing)
-        page._ko_extra["lifecycle"] = custom_lifecycle
+        if custom_lifecycle is not None:
+            page._ko_extra["lifecycle"] = custom_lifecycle
+        if closure_passed is not None:
+            page._ko_extra["closure_report"] = {"passed": closure_passed}
     return page
 
 
@@ -179,3 +187,32 @@ def test_apply_default_filter_drops_candidate_and_quarantined() -> None:
     kept = apply_default_filter(pages, query_time=_now_ms())
     kept_ids = [p.id for p in kept]
     assert kept_ids == ["p1"]
+
+
+def test_default_filter_rejects_verified_page_without_evidence_refs() -> None:
+    """Verified page with no evidence refs must not surface by default."""
+    page = make_wiki_page(
+        workflow_state="verified",
+        evidence_refs=[],
+    )
+
+    f = DefaultFilter()
+    assert f.passes(page, query_time=_now_ms()) is False
+
+
+def test_default_filter_rejects_verified_page_without_passing_closure_report() -> None:
+    """Verified page without a passing closure report must not surface by default."""
+    page = make_wiki_page(
+        workflow_state="verified",
+        closure_passed=False,
+    )
+
+    f = DefaultFilter()
+    assert f.passes(page, query_time=_now_ms()) is False
+
+
+def test_default_filter_rejects_truthy_non_boolean_closure_state() -> None:
+    page = make_wiki_page(workflow_state="verified")
+    page._ko_extra["closure_report"] = {"passed": "false"}
+
+    assert DefaultFilter().passes(page, query_time=_now_ms()) is False

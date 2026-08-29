@@ -62,6 +62,8 @@ class SupportVerdict:
     supports_temporal: bool
     # spec §6 末段：仅 Span 可定位不构成支持 → span_overlap=True 是必要条件
     span_overlap: bool
+    judgment_source: Literal["rule", "mock", "llm"] = "rule"
+    quality_metric_eligible: bool = False
 
 
 # ── main checker ────────────────────────────────────────────────────────
@@ -348,4 +350,6 @@ class SemanticSupportChecker:
             supports_scope=claim_scope is None or claim_scope is not None,
             supports_temporal=claim_vf is None or claim_vt is None,
             span_overlap=True,
+            judgment_source="mock",
+            quality_metric_eligible=False,
         )

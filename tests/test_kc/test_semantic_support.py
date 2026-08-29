@@ -73,6 +73,8 @@ def test_semantic_support_quote_in_block_passes():
     assert verdict.span_overlap is True
     assert verdict.evidence_id == "ev_test_001"
     assert verdict.claim_id == "cl_test_001"
+    assert verdict.judgment_source == "rule"
+    assert verdict.quality_metric_eligible is False
     assert 0.0 <= verdict.confidence <= 1.0
 
 
@@ -99,6 +101,8 @@ def test_semantic_support_quote_not_in_block_fails():
     assert verdict.span_overlap is False
     assert verdict.supports_scope is False
     assert verdict.supports_temporal is False
+    assert verdict.judgment_source == "rule"
+    assert verdict.quality_metric_eligible is False
     # 置信度应高：判定"不充分"是高置信度的负面结论
     assert verdict.confidence >= 0.5
 
@@ -123,6 +127,8 @@ def test_semantic_support_contradicts():
 
     assert verdict.support_type == "contradicts"
     assert verdict.span_overlap is True
+    assert verdict.judgment_source == "rule"
+    assert verdict.quality_metric_eligible is False
     assert verdict.confidence >= 0.7
     # 矛盾应当附带 reasoning 说明
     assert "矛盾" in verdict.reasoning or "contradict" in verdict.reasoning.lower()
@@ -156,6 +162,8 @@ def test_semantic_support_off_by_default():
 
     # 抽样次数累加是 OK 的（属于本地状态），但 cost 必须为 0
     assert verdict is not None
+    assert verdict.judgment_source == "rule"
+    assert verdict.quality_metric_eligible is False
     assert verdict.support_type in {
         "supports", "partially_supports", "irrelevant",
         "contradicts", "insufficient",
@@ -187,7 +195,7 @@ def test_semantic_support_on_provider_interface():
     # 第 1~9 次调用 → 不命中抽样（_should_sample 内部 count 从 0 起）
     # 第 10 次调用 → 命中抽样（count == 10, 10 % 10 == 0）
     for i in range(1, 11):
-        checker.check(
+        verdict = checker.check(
             evidence=evidence,
             claim_text="Active span content appears here",
             claim_id=f"cl_on_{i:03d}",
@@ -197,5 +205,7 @@ def test_semantic_support_on_provider_interface():
     assert checker.cost_used_cny > 0.0, (
         "第 10 次调用应命中 1/10 抽样并触发 LLM mock"
     )
+    assert verdict.judgment_source == "mock"
+    assert verdict.quality_metric_eligible is False
     # 成本应当远低于上限
     assert checker.cost_used_cny < checker.cost_limit_cny
