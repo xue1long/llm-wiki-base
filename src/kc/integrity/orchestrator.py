@@ -226,7 +226,7 @@ class IntegrityGate:
         Notes:
             - 默认会先执行 self.check(obj) 获取 integrity_report
               (如已提供则跳过, 避免重复执行 11 Gate)
-            - 简化实现: 8 条件骨架已落地, 完整 data model 集成留 B-3.x 后续
+            - 闭包校验 fail-closed；依赖状态快照缺失时拒绝发布
         """
         from .closure import check_default_closure
 
