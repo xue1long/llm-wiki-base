@@ -75,6 +75,7 @@ from .outline import (
     apply_outline_proposal,
     create_outline_proposal,
 )
+from .rebuild import BookRebuildReport, rebuild_book
 
 __all__ = [
     "Book",
@@ -106,6 +107,7 @@ __all__ = [
     "map_ku_to_chapter",
     "map_unit_type_to_block_type",
     "BookTemplate",
+    "BookRebuildReport",
     "BookView",
     "BookDiff",
     "affected_chapters",
@@ -114,6 +116,7 @@ __all__ = [
     "compute_book_diff",
     "compute_book_rendered_hash",
     "create_outline_proposal",
+    "rebuild_book",
     "render_chapter",
     "render_chapter_from_dict",
 ]
