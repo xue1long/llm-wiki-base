@@ -69,6 +69,11 @@ from .core_view import (
 )
 from .template import BookTemplate, BookView, compute_book_rendered_hash
 from .markdown import render_chapter, render_chapter_from_dict
+from .outline import (
+    approve_outline_proposal,
+    apply_outline_proposal,
+    create_outline_proposal,
+)
 
 __all__ = [
     "Book",
@@ -101,7 +106,10 @@ __all__ = [
     "map_unit_type_to_block_type",
     "BookTemplate",
     "BookView",
+    "approve_outline_proposal",
+    "apply_outline_proposal",
     "compute_book_rendered_hash",
+    "create_outline_proposal",
     "render_chapter",
     "render_chapter_from_dict",
 ]
