@@ -537,3 +537,81 @@ batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首�
 ```
 $env:PYTHONPATH='.'; python scripts/kc_agent_eval.py --dataset docs/evaluation/agent_tasks/agent_tasks.yaml
 ```
+
+---
+
+## OPEN-3 / OPEN-4 Resolution + A8 B-T1 Batch（2026-08-29）✅
+
+紧随上批的两条主线（OPEN-3/4 解锁 + A8 Book View 第一刀），按"文件路径隔离"错峰推进，5 个独立 commit 一次性交付：
+
+| Commit | 范围 | 落地 |
+|---|---|---|
+| `9a02d41e` `feat(kc-views): implement Book/Chapter/KnowledgeBlock/OutlineProposal contract (B-T1)` | A8 第 14 节 §12.5 Contract 严格遵循 | `src/kc/views/book/{__init__.py,contract.py,id_policy.py}` + `tests/test_kc/test_book_contract.py` 41 测试 |
+| `8fc54594` `fix(kc): wire real agent runtime eval and event-source replay (OPEN-3/4)` | OPEN-3 + OPEN-4 双线合并提交（改动紧耦合） | `scripts/kc_agent_eval.py` + `src/kc/integrity/replay.py` + `tests/test_kc/test_agent_eval.py`（+6 测试）+ `tests/test_kc/test_core_replay.py`（+9 测试） |
+
+OPEN-3 接线：100% 完成
+- 新增 `evaluate_agent_task_dataset(runtime_provider=..., provider_name=...)` 异步调用入口；每调用日志 `task_id` / `provider_name` / `latency_ms` / `success` / reason code
+- `--dry-run`（默认）保留 mock 契约；`--runtime` 加载 `ProviderRegistry.get_default()`；`--provider <name>` 指定具体 provider
+- 无 provider 时 stderr 提示 `llm-providers add` / `MINIMAX_API_KEY`，failure_reasons 加 `no_provider`，`runtime_count` 仍为 0
+- 已通过 fake provider 注入验证：`runtime_count=1` / `not_evaluable=False` / `passed_count=1` / `success_rate=1.0`
+
+OPEN-4 replay 实现：100% 完成
+- 新增 `src/kc/integrity/replay.py::replay_object_from_events(object_id, target_version, *, events_dir, object_type=None)`
+- 读取 `{events_dir}/events.jsonl`，按 `event_version` 排序，折叠 `[:target_version]` 返回 state dict
+- 支持 `kc.object.created` / `kc.object.updated` / `kc.object.deleted` 三类事件
+- 三类异常：`ObjectDeletedBeforeTargetVersion`（deletion 优先）/ `TargetVersionBeyondHistory`（超出历史）/ `ReplayObjectError` 基类
+- 字段驱动多类型 dispatch（`KnowledgeUnit` / `Evidence` / `StructuredFact` / `Approval` / `PublicationBatch`），无硬编码分支
+- **不**返回 `event_replay_stub` reason_code（保留：旧 `KnowledgeKernel.replay_core_from_events` 契约被 `tests/test_knowledge/test_kernel.py` 锁定，本批仅加新 surface 不破坏旧 API）
+- **不**改 event store schema、**不**依赖 VersionManager、**不**引入新依赖
+
+OPEN-3 / OPEN-4 状态从 Z-3 follow-up 移至 RESOLVED。
+
+A8 B-T1 字段对齐 §12.5（DEVELOPMENT_PLAN.md 行 1018—1054）：✅ 零偏差
+- `Book` 6 字段（id/title/template_id/outline_version 默认 1 / publication_version 默认 0 / chapter_ids）
+- `Chapter` 8 字段（含 `stable_key` 锚定 OutlineProposal 迁移）
+- `KnowledgeBlock` 7 字段 + 嵌套 `StatementRef`（`{object_type: claim|structured_fact, object_id}`），`block_type` 6 值枚举
+- `OutlineProposal` 8 字段（含 `migration_mapping` / `rollback_mapping`），`status` 4 值枚举
+- id 策略：`book_<uuid8>_<slug>` / `ch_<uuid8>_<slug>` / `kb_<uuid8>_<slug>` / `op_<uuid8>_<slug>`（slug 折叠非 `[a-z0-9]` 为 `-`，≤40 字符，空降级 `untitled`）
+
+B-T1 偏差记录（代码 + docstring 双标注）：
+1. `knowledge_mode` / `status` 用字符串默认值而非 Enum 默认值（与 spec §12.5 YAML 示例裸字符串一致；`from_dict` 仍以 Enum/Frozenset 验证）
+2. Slug 规则折叠任意非 `[a-z0-9]` 为 `-`（而非仅折叠空白），结果仍在 `[a-z0-9-]*` 内
+
+### Workspace Cleanup Commits（同期，路径隔离同步提交）
+
+3 个 `chore(workspace)` commit 隔离 OPEN-3/4 + B-T1 之前工作区累积的预存改动（与 KC 主线正交，不污染 git log）：
+
+| Commit | 范围 | 文件数 |
+|---|---|---|
+| `4d2798e1` `chore(workspace): refresh docs, web, scripts, tests, and top-level files` | AGENTS.md / CLAUDE.md / README.md + `docs/`（ADR / architecture / plans / reports / migration / evaluation）+ `web/`（index.html / router.js / browse.js / collect.js / style.css）+ `tests/test_cli_ext/test_scenario_templates.py` + `scripts/_batch_report.txt` | 50 |
+| `24f18172` `chore(templates): refresh bundled wiki templates and add procedure template` | `src/templates/bundled/capture/` × 3 + `src/templates/bundled/novel/` × 5（含新 `procedure.md`）+ `schema.md` | 9 |
+| `7ebf033a` `chore(src): refresh hybrid_search and server app` | `src/searcher/hybrid_search.py` + `src/server/app.py` | 2 |
+
+`knowledge/novel-wiki/` 4420 项 + 7 个未追踪脚本保留原状，待后续手工决策。
+
+### 本批回归（4 目录 + KC 全集，commit `8fc54594` 后实测）
+
+- `tests/test_kc/test_agent_eval.py`：10/10 passed（新增 6 测试全过）
+- `tests/test_kc/test_core_replay.py`：15/15 passed（新增 9 测试全过）
+- `tests/test_kc/test_event_idempotency.py`：6/6 passed（无回归）
+- `tests/test_kc/test_book_contract.py`：41/41 passed（A8 B-T1 范围）
+- 全 `tests/test_kc/`（排除 A8 workstream 子集）：319 passed / 2 failed（2 失败为既有 pre-existing）
+- `tests/test_knowledge/`：660/660 passed
+- 综合 `tests/test_kc` + `tests/test_knowledge` + `tests/test_wiki` + `tests/test_vector`：dirty-worktree 口径 ≈ **1502+ passed / 6 failed**（4 个 pre-existing template-parser + 2 个并发 workspace stash-pop 注入 conflict marker 致 novel-wiki 命中失败；均非本批回归）
+
+### Known Limitations（新增）
+
+- B-T1：Book Contract 是纯数据类（dataclass + 序列化 + id 策略）。B-T2 起才实现 KU → Chapter Mapper / Chapter Compiler / Evidence Binder / Markdown Renderer / Outline Proposal Engine / Book Diff。
+- OPEN-3：要求生产环境配置真实 provider（xiaomi-mimo / sfkey-glm / anthropic / minimax 等）才能产出 `runtime_count > 0`；fake provider 仅做单元测试。
+- OPEN-4：旧 `KnowledgeKernel.replay_core_from_events` 仍保留 stub 行为（契约锁定），新 surface `replay_object_from_events` 是补充入口；未来 A4 Gate 验收应明确调用新接口。
+- 重放 surface 字段驱动 dispatch：新增 `object_type`（如未来 `KnowledgeFragment`）无需改 replay.py，仅事件 schema 演进。
+- `knowledge/novel-wiki/` 4420 项 + 7 个未追踪脚本未处理。
+
+### next_phase_ready（本批后）
+
+置 `true`：OPEN-3 / OPEN-4 全部 RESOLVED；A8 B-T1 落地，剩余 B-T2—B-T5 + 评估资产 + Knowledge、Wiki、Book Diff + 20 次批量增量演练为后续阶段。
+
+下一阶段前置（建议）：
+1. 推 B-T2（KU → Chapter Mapper + 30 case 金标），独立 subagent，文件范围 `src/kc/views/book/mapper.py` + `tests/test_kc/test_book_mapper.py` + `tests/fixtures/book_mapping.yaml`
+2. 决策 `knowledge/novel-wiki/` 4420 项 + 7 个未追踪脚本（commit / stash / 丢弃三选一）
+3. 真实环境 `scripts/kc_agent_eval.py --runtime --dataset docs/evaluation/agent_tasks/agent_tasks.yaml` 复测，确认 `runtime_count >= 1`
