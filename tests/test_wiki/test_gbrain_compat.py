@@ -1,4 +1,5 @@
 import yaml
+import asyncio
 
 from src.wiki.core.paths import WikiPaths
 from src.wiki.core.types import PageType, WikiPage
@@ -59,3 +60,19 @@ def test_target_map_drops_ambiguous_ids(tmp_path):
     (paths.wiki_entities / "same.md").write_text("x", encoding="utf-8")
     (paths.wiki_concepts / "same.md").write_text("x", encoding="utf-8")
     assert "same" not in build_target_slugs(paths)
+
+
+def test_commit_qualifies_links_between_new_pages(tmp_path):
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "raw.md"
+    raw.write_text("raw", encoding="utf-8")
+    from src.pipeline.ingest import commit_ingest
+
+    concept = WikiPage(id="concept", title="Concept", type=PageType.CONCEPT, body="body")
+    source = WikiPage(id="source", title="Source", type=PageType.SOURCE,
+                      body="See [[concept]]")
+    asyncio.run(commit_ingest(paths, raw, [concept, source], task_id="batch"))
+
+    written = (paths.wiki_sources / "source.md").read_text(encoding="utf-8")
+    assert "[[concepts/concept]]" in written

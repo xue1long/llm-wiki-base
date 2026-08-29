@@ -1442,6 +1442,31 @@ async def commit_ingest(
 
     from ..vector.pending import mark_intent, promote_intent
     _publication_pages = pages + _extra
+    # A page_writer call cannot see sibling pages that are still buffered in
+    # this AtomicContext. Build the complete batch map first so links from a
+    # newly-created source page to a newly-created concept are qualified too.
+    from ..wiki.features.gbrain_compat import (
+        build_target_slugs, materialize_relations, rewrite_wikilinks,
+    )
+    from ..wiki.storage.page_writer import page_path_for
+    _registry = SchemaRegistry.from_project(paths.root)
+    _batch_targets = [
+        (
+            _page.id,
+            page_path_for(
+                paths, _page.type, _page.id, _registry,
+                getattr(_page, "custom_type", "") or "",
+            ),
+        )
+        for _page in _publication_pages
+    ]
+    _target_slugs = build_target_slugs(paths, _batch_targets)
+    for _page in _publication_pages:
+        _page.body = materialize_relations(
+            rewrite_wikilinks(_page.body, _target_slugs),
+            _page.relations,
+            _target_slugs,
+        )
     # L3: create the vector publication intent before the first Wiki write.
     # Failure is fail-closed so a committed page can never lack a recovery hint.
     mark_intent(paths, _publication_pages)
