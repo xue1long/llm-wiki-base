@@ -1,0 +1,136 @@
+{
+  "book": {
+    "id": "book-1",
+    "title": "Fixture Book",
+    "template_id": "default_v1",
+    "outline_version": 1,
+    "publication_version": 999,
+    "chapter_ids": [
+      "ch-1",
+      "ch-2",
+      "ch-3"
+    ]
+  },
+  "chapters": [
+    {
+      "id": "ch-1",
+      "book_id": "book-1",
+      "stable_key": "stable-ch-1",
+      "title": "Chapter 1",
+      "order": 1,
+      "knowledge_block_ids": [],
+      "source_knowledge_unit_ids": [
+        "ku-1"
+      ],
+      "publication_version": 1
+    },
+    {
+      "id": "ch-2",
+      "book_id": "book-1",
+      "stable_key": "stable-ch-2",
+      "title": "Chapter 2",
+      "order": 2,
+      "knowledge_block_ids": [],
+      "source_knowledge_unit_ids": [
+        "ku-2",
+        "ku-4"
+      ],
+      "publication_version": 2
+    },
+    {
+      "id": "ch-3",
+      "book_id": "book-1",
+      "stable_key": "stable-ch-3",
+      "title": "Chapter 3",
+      "order": 3,
+      "knowledge_block_ids": [],
+      "source_knowledge_unit_ids": [
+        "ku-3"
+      ],
+      "publication_version": 3
+    }
+  ],
+  "knowledge_units": [
+    {
+      "ku_id": "ku-1",
+      "concept_id": "concept-ku-1",
+      "question": "What is one?",
+      "title": "One",
+      "unit_type": "definition",
+      "knowledge_mode": "observed"
+    },
+    {
+      "ku_id": "ku-2",
+      "concept_id": "concept-ku-2",
+      "question": "How does two work?",
+      "title": "Two",
+      "unit_type": "mechanism",
+      "knowledge_mode": "observed"
+    },
+    {
+      "ku_id": "ku-3",
+      "concept_id": "concept-ku-3",
+      "question": "Why is three important?",
+      "title": "Three",
+      "unit_type": "principle",
+      "knowledge_mode": "observed"
+    },
+    {
+      "ku_id": "ku-4",
+      "concept_id": "concept-ku-4",
+      "question": "When do we use four?",
+      "title": "Four",
+      "unit_type": "case",
+      "knowledge_mode": "observed"
+    }
+  ],
+  "evidences": [
+    {
+      "evidence_id": "ev-1",
+      "document_id": "doc-1",
+      "block_id": "block-1",
+      "quote": "quote for ev-1",
+      "quote_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "evidence_type": "direct_quote"
+    },
+    {
+      "evidence_id": "ev-2",
+      "document_id": "doc-2",
+      "block_id": "block-2",
+      "quote": "quote for ev-2",
+      "quote_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+      "evidence_type": "direct_quote"
+    },
+    {
+      "evidence_id": "ev-3",
+      "document_id": "doc-3",
+      "block_id": "block-3",
+      "quote": "quote for ev-3",
+      "quote_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+      "evidence_type": "direct_quote"
+    },
+    {
+      "evidence_id": "ev-4",
+      "document_id": "doc-4",
+      "block_id": "block-4",
+      "quote": "quote for ev-4",
+      "quote_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+      "evidence_type": "direct_quote"
+    }
+  ],
+  "ku_evidence_map": {
+    "ku-1": [
+      "ev-1"
+    ],
+    "ku-2": [
+      "ev-2"
+    ],
+    "ku-3": [
+      "ev-3"
+    ],
+    "ku-4": [
+      "ev-4"
+    ]
+  },
+  "publication_version": 7
+}
