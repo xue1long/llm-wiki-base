@@ -89,6 +89,14 @@ class WikiPage:
     # String list of ``"<doc_id>:<block_id>"`` (or ``"<doc_id>"`` when the
     # legacy entry had no block_id). Empty when no evidence is attached.
     evidence_refs: list[str] = field(default_factory=list)
+    # Task 6 (plan 2026-08-29-...): temporal validity window. Both None
+    # is treated as "unknown" (back-compat default for legacy pages with
+    # no temporal fields). The interval is half-open [valid_from,
+    # valid_to) per spec §10. Additive — pages written before this
+    # field existed round-trip cleanly via ``from_dict`` (defaults
+    # preserve the legacy unknown state).
+    valid_from: int | None = None
+    valid_to: int | None = None
 
     def to_frontmatter_dict(self) -> dict:
         d = {
@@ -117,6 +125,14 @@ class WikiPage:
             d["decision_record"] = self.decision_record
         if self.evidence_refs:
             d["evidence_refs"] = list(self.evidence_refs)
+        # Temporal fields — emit each bound independently when it is set
+        # (additive: legacy pages with neither bound stay "unknown" and
+        # the frontmatter is not cluttered with null entries; pages with
+        # only one bound carry only that one).
+        if self.valid_from is not None:
+            d["valid_from"] = self.valid_from
+        if self.valid_to is not None:
+            d["valid_to"] = self.valid_to
         ko_extra = getattr(self, "_ko_extra", None)
         if isinstance(ko_extra, dict):
             d["_ko_extra"] = ko_extra
@@ -149,6 +165,8 @@ class WikiPage:
             verified_at=int(d.get("verified_at", 0)),
             decision_record=d.get("decision_record"),
             evidence_refs=list(d.get("evidence_refs", []) or []),
+            valid_from=d.get("valid_from"),
+            valid_to=d.get("valid_to"),
         )
         # S1: restore _ko_extra for round-trip (capture source_status, etc.)
         ko_extra = d.get("_ko_extra")

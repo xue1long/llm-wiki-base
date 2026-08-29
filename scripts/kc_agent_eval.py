@@ -48,6 +48,15 @@ class AgentTaskResult:
     conflict_status_matched: bool
     omitted_reasons: list[str] = field(default_factory=list)
     failure_reasons: list[str] = field(default_factory=list)
+    # Task 6 (plan 2026-08-29-...): ``mode`` records the evaluation mode
+    # (``"mock"`` when judged by dry-run fixtures, ``"runtime"`` when the
+    # real agent was executed). ``runtime_verified`` mirrors whether a
+    # real provider was available at evaluation time. Aggregate reports
+    # (see ``evaluate_agent_task_dataset``) separate mock results from
+    # the product pass rate — only ``runtime_verified=True`` tasks count
+    # toward ``success_rate``.
+    mode: str = "mock"
+    runtime_verified: bool = False
 
 
 def evaluate_agent_task(task: dict[str, Any]) -> AgentTaskResult:
@@ -55,12 +64,20 @@ def evaluate_agent_task(task: dict[str, Any]) -> AgentTaskResult:
 
     Mode A: dry-run with mock_response (not real agent runtime call).
     Real agent runtime integration is Z-3 follow-up task.
+
+    Task 6 (plan 2026-08-29-...): every task carries an explicit
+    ``mode`` (``mock`` | ``runtime``) and ``runtime_verified`` flag.
+    When ``runtime_verified`` is False the task is recorded for
+    traceability but excluded from the product-level ``success_rate``
+    in the aggregate report.
     """
     task_id = task["task_id"]
     criteria = task["success_criteria"]
     mock = task.get("mock_response", {})
     items = mock.get("knowledge_items", [])
     omitted = mock.get("omitted_candidates", [])
+    mode = str(task.get("mode", "mock"))
+    runtime_verified = bool(task.get("runtime_verified", False))
 
     failure_reasons: list[str] = []
 
@@ -126,40 +143,58 @@ def evaluate_agent_task(task: dict[str, Any]) -> AgentTaskResult:
         conflict_status_matched=conflict_status_matched,
         omitted_reasons=omitted_reasons,
         failure_reasons=failure_reasons,
+        mode=mode,
+        runtime_verified=runtime_verified,
     )
 
 
 def evaluate_agent_task_dataset(dataset_path: Path) -> dict[str, Any]:
-    """Evaluate all agent tasks in YAML file. Returns success rate + citation accuracy."""
+    """Evaluate all agent tasks in YAML file. Returns success rate + citation accuracy.
+
+    Task 6 (plan 2026-08-29-...): mock results are recorded for
+    traceability but excluded from ``success_rate`` (the product
+    pass rate). The aggregate splits results into ``runtime_results``
+    and ``mock_results``; downstream consumers can verify that
+    ``runtime_count == 0`` → ``not_evaluable`` flag is True.
+    """
     tasks = yaml.safe_load(dataset_path.read_text(encoding="utf-8")) or []
 
     results = [evaluate_agent_task(t) for t in tasks]
-    passed = sum(1 for r in results if r.passed)
+    runtime_results = [r for r in results if r.runtime_verified]
+    mock_results = [r for r in results if not r.runtime_verified]
+    passed = sum(1 for r in runtime_results if r.passed)
     total = len(results)
+    runtime_total = len(runtime_results)
 
-    # Citation Accuracy = sum(citations_valid) / sum(expected citations across tasks)
-    total_citations_valid = sum(r.citations_valid for r in results)
-    total_citations_expected = sum(r.citations_expected for r in results)
+    # Citation Accuracy — over RUNTIME results only (mock not eligible)
+    total_citations_valid = sum(r.citations_valid for r in runtime_results)
+    total_citations_expected = sum(r.citations_expected for r in runtime_results)
     citation_accuracy = (
         total_citations_valid / total_citations_expected
         if total_citations_expected > 0
         else 0.0
     )
 
-    success_rate = passed / total if total > 0 else 0.0
+    # Success rate — over runtime results only (mock excluded).
+    success_rate = passed / runtime_total if runtime_total > 0 else 0.0
 
     return {
         "dataset_path": str(dataset_path),
         "task_count": total,
+        "runtime_count": runtime_total,
+        "mock_count": len(mock_results),
         "passed_count": passed,
         "success_rate": success_rate,
         "citation_accuracy": citation_accuracy,
         "total_citations_valid": total_citations_valid,
         "total_citations_expected": total_citations_expected,
+        "not_evaluable": runtime_total == 0,
         "results": [
             {
                 "task_id": r.task_id,
                 "passed": r.passed,
+                "mode": r.mode,
+                "runtime_verified": r.runtime_verified,
                 "units_returned": r.units_returned,
                 "units_expected": r.units_expected,
                 "citations_valid": r.citations_valid,
@@ -168,6 +203,14 @@ def evaluate_agent_task_dataset(dataset_path: Path) -> dict[str, Any]:
                 "failure_reasons": r.failure_reasons,
             }
             for r in results
+        ],
+        "runtime_results": [
+            {"task_id": r.task_id, "passed": r.passed, "mode": r.mode}
+            for r in runtime_results
+        ],
+        "mock_results": [
+            {"task_id": r.task_id, "passed": r.passed, "mode": r.mode}
+            for r in mock_results
         ],
     }
 

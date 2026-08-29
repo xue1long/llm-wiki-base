@@ -81,24 +81,28 @@ def _passes_temporal(page: object, query_time: int) -> bool:
     """Return True iff *page* should pass the default temporal gate.
 
     spec §12.1 R-2 default current-retrieval filter is
-    ``temporal_status = current``. WikiPage does not yet carry native
-    valid_from / valid_to fields — only KnowledgeObject does — so the
-    default is pass-through (every page has unknown temporal status and
-    is treated as current for back-compat until B-3 wires the seam).
-    Once WikiPage gains the fields, this helper is the natural place
-    to enforce the gate.
+    ``temporal_status = current``. Task 6 (plan 2026-08-29-...) added
+    native ``valid_from`` / ``valid_to`` to WikiPage as optional fields
+    defaulting to ``None``. For back-compat, WikiPage with BOTH bounds
+    set to None is treated as currently-valid (legacy behaviour
+    preserved). KnowledgeObject has had these fields since A-2 and the
+    strict spec semantics (both None → "unknown" → drop) still apply.
     """
-    # Back-compat: pages without valid_from / valid_to attributes
-    # (e.g. legacy WikiPage instances) are treated as currently-valid.
-    if not hasattr(page, "valid_from") or not hasattr(page, "valid_to"):
+    valid_from = getattr(page, "valid_from", None)
+    valid_to = getattr(page, "valid_to", None)
+    # Back-compat: WikiPage without temporal fields is pass-through.
+    if (
+        type(page).__name__ == "WikiPage"
+        and valid_from is None
+        and valid_to is None
+    ):
         return True
 
     try:
         status = derive_status(page, query_time=query_time)  # type: ignore[arg-type]
     except Exception:
         # Fail-closed-but-usable: a malformed page is treated as
-        # currently-valid rather than dropped, so the rest of the
-        # default filter (workflow_state / lifecycle) still gates it.
+        # currently-valid rather than dropped.
         return True
 
     return status == "current"
@@ -116,11 +120,21 @@ def apply_temporal_filter(
     dropped unless ``include_unknown_temporal=True`` is passed —
     mirrors the DefaultFilter explicit-query opt-in semantics
     (spec §11.4).
+
+    Task 6 back-compat: WikiPage without temporal fields passes
+    through (legacy behaviour). KnowledgeObject with None/None is
+    strictly unknown and dropped unless opt-in.
     """
     kept = []
     for p in pages:
-        # Back-compat path: pages without valid_from/valid_to always pass.
-        if not hasattr(p, "valid_from") or not hasattr(p, "valid_to"):
+        valid_from = getattr(p, "valid_from", None)
+        valid_to = getattr(p, "valid_to", None)
+        # WikiPage back-compat: no temporal fields at all → pass.
+        if (
+            type(p).__name__ == "WikiPage"
+            and valid_from is None
+            and valid_to is None
+        ):
             kept.append(p)
             continue
         try:

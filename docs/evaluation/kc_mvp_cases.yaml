@@ -1,0 +1,609 @@
+# KC MVP evaluation baseline (Task 6, plan 2026-08-29-...)
+# =========================================================
+#
+# Task 6 / P1 gate "30–50 真实领域评估基线" — 30 MVP cases covering the
+# minimum dimension matrix the KC needs to publish a credible pass/fail
+# signal. Each case declares the full schema (see _schema.yaml) plus an
+# explicit `mode` and `runtime_verified` flag so the evaluator can split
+# mock results from product pass rate.
+#
+# Dimension coverage (30 cases):
+#   - source_trust          5 cases (primary, official, internal, rejected, restricted)
+#   - evidence_span         6 cases (direct_quote, structured_source, code, computed, multi_source, inferred)
+#   - identity              5 cases (merge, split, supersede, keep_separate, alias)
+#   - conflict              8 cases (none, actual, conditional, temporal, perspective, unresolved, supersede, type-mismatch)
+#   - retrieval             3 cases (top-k, citation accuracy, mode=unknown)
+#   - temporal              3 cases (current, scheduled, historical)
+
+- case_id: ST-MVP-01
+  query: How do we classify a primary-authority source as accepted?
+  source_type: manual
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567890000
+  object_truth: {type: source_trust_profile, id: stp_primary_mvp}
+  identity_key: id-v1:mvp_stp_primary
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_trust_primary, score: 0.95}
+  evidence_refs: [ev_primary_doc_001]
+  task_result: success
+  tag: full
+  coverage_dimension: source_trust.primary
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: ST-MVP-02
+  query: Government API source verification at scale
+  source_type: api
+  language: en
+  context: {domain: government_data, platform: api}
+  query_time: 1734567891000
+  object_truth: {type: source_trust_profile, id: stp_government_mvp}
+  identity_key: id-v1:mvp_stp_government
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_gov_verification, score: 0.93}
+  evidence_refs: [ev_gov_api_doc]
+  task_result: success
+  tag: full
+  coverage_dimension: source_trust.official
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: ST-MVP-03
+  query: Internal wiki page with restricted source trust status
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: internal}
+  query_time: 1734567892000
+  object_truth: {type: source_trust_profile, id: stp_restricted_mvp}
+  identity_key: id-v1:mvp_stp_restricted
+  resolution_action: quarantine
+  integrity_status: quarantined
+  expected_top_k: []
+  evidence_refs: []
+  task_result: failure
+  tag: full
+  coverage_dimension: source_trust.restricted
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: ST-MVP-04
+  query: Rejected source trust — refuse to publish derived facts
+  source_type: url
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567893000
+  object_truth: {type: source_trust_profile, id: stp_rejected_mvp}
+  identity_key: id-v1:mvp_stp_rejected
+  resolution_action: quarantine
+  integrity_status: rejected
+  expected_top_k: []
+  evidence_refs: []
+  task_result: failure
+  tag: full
+  coverage_dimension: source_trust.rejected
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: ST-MVP-05
+  query: Trusted community contribution (accepted variant)
+  source_type: manual
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567894000
+  object_truth: {type: source_trust_profile, id: stp_community_mvp}
+  identity_key: id-v1:mvp_stp_community
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_community_trust, score: 0.9}
+  evidence_refs: [ev_community_doc]
+  task_result: success
+  tag: full
+  coverage_dimension: source_trust.accepted
+  confidence: medium
+  mode: mock
+  runtime_verified: false
+
+- case_id: ES-MVP-01
+  query: Direct quote evidence — strength policy strong default
+  source_type: manual
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567900000
+  object_truth: {type: claim, id: claim_quote_mvp}
+  identity_key: id-v1:mvp_claim_quote
+  resolution_action: link
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_quote_claim, score: 0.97}
+  evidence_refs: [ev_direct_quote_doc:block_001]
+  task_result: success
+  tag: full
+  coverage_dimension: evidence_span.direct_quote
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: ES-MVP-02
+  query: Structured source — record-key lookup
+  source_type: api
+  language: en
+  context: {domain: knowledge_management, platform: api}
+  query_time: 1734567901000
+  object_truth: {type: structured_fact, id: sf_struct_mvp}
+  identity_key: id-v1:mvp_sf_struct
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_struct_fact, score: 0.92}
+  evidence_refs: [ev_structured_record:row_42]
+  task_result: success
+  tag: full
+  coverage_dimension: evidence_span.structured_source
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: ES-MVP-03
+  query: Code evidence — fixed commit hash
+  source_type: repository
+  language: en
+  context: {domain: knowledge_management, platform: github}
+  query_time: 1734567902000
+  object_truth: {type: claim, id: claim_code_mvp}
+  identity_key: id-v1:mvp_claim_code
+  resolution_action: link
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_code_claim, score: 0.91}
+  evidence_refs: [ev_repo_commit:abc1234]
+  task_result: success
+  tag: full
+  coverage_dimension: evidence_span.code
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: ES-MVP-04
+  query: Computed evidence — algorithm + input version required
+  source_type: api
+  language: en
+  context: {domain: knowledge_management, platform: api}
+  query_time: 1734567903000
+  object_truth: {type: structured_fact, id: sf_computed_mvp}
+  identity_key: id-v1:mvp_sf_computed
+  resolution_action: create
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_computed_fact, score: 0.86}
+  evidence_refs: [ev_computed_run_42]
+  task_result: success
+  tag: full
+  coverage_dimension: evidence_span.computed
+  confidence: medium
+  mode: mock
+  runtime_verified: false
+
+- case_id: ES-MVP-05
+  query: Multi-source corroboration — two independent mediums
+  source_type: url
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567904000
+  object_truth: {type: claim, id: claim_multi_mvp}
+  identity_key: id-v1:mvp_claim_multi
+  resolution_action: link
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_multi_source_claim, score: 0.93}
+  evidence_refs: [ev_source_a, ev_source_b]
+  task_result: success
+  tag: full
+  coverage_dimension: evidence_span.multi_source
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: ES-MVP-06
+  query: Inferred evidence — synthesized only
+  source_type: manual
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567905000
+  object_truth: {type: claim, id: claim_inferred_mvp}
+  identity_key: id-v1:mvp_claim_inferred
+  resolution_action: supersede
+  integrity_status: deprecated
+  expected_top_k: []
+  evidence_refs: []
+  task_result: failure
+  tag: full
+  coverage_dimension: evidence_span.inferred
+  confidence: medium
+  mode: mock
+  runtime_verified: false
+
+- case_id: ID-MVP-01
+  query: Two KUs with identical question should merge
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567910000
+  object_truth: {type: knowledge_unit, id: ku_merge_target_mvp}
+  identity_key: id-v1:mvp_ku_merge
+  resolution_action: merge
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_merge_target_mvp, score: 0.95}
+  evidence_refs: [ev_merge_doc]
+  task_result: success
+  tag: full
+  coverage_dimension: identity.merge
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: ID-MVP-02
+  query: KU with internal questions > 1 must split
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567911000
+  object_truth: {type: knowledge_unit, id: ku_split_a_mvp}
+  identity_key: id-v1:mvp_ku_split_a
+  resolution_action: split
+  integrity_status: candidate
+  expected_top_k:
+  - {knowledge_unit_id: ku_split_a_mvp, score: 0.9}
+  - {knowledge_unit_id: ku_split_b_mvp, score: 0.85}
+  evidence_refs: [ev_split_doc]
+  task_result: partial
+  tag: full
+  coverage_dimension: identity.split
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: ID-MVP-03
+  query: Newer KU supersede older KU on temporal supersede
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567912000
+  object_truth: {type: knowledge_unit, id: ku_supersede_new_mvp}
+  identity_key: id-v1:mvp_ku_supersede_new
+  resolution_action: supersede
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_supersede_new_mvp, score: 0.92}
+  evidence_refs: [ev_supersede_doc]
+  task_result: success
+  tag: full
+  coverage_dimension: identity.supersede
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: ID-MVP-04
+  query: Distinct KUs with same concept name should keep separate
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567913000
+  object_truth: {type: knowledge_unit, id: ku_keep_separate_a_mvp}
+  identity_key: id-v1:mvp_ku_keep_separate_a
+  resolution_action: keep_separate
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_keep_separate_a_mvp, score: 0.9}
+  evidence_refs: [ev_keep_separate_doc]
+  task_result: success
+  tag: full
+  coverage_dimension: identity.keep_separate
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: ID-MVP-05
+  query: Alias resolution — different slug → canonical concept
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567914000
+  object_truth: {type: concept, id: concept_alias_target_mvp}
+  identity_key: id-v1:mvp_concept_alias_target
+  resolution_action: link
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_alias_target, score: 0.91}
+  evidence_refs: [ev_alias_doc]
+  task_result: success
+  tag: full
+  coverage_dimension: identity.alias
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: CF-MVP-01
+  query: Two facts agree — no conflict
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567920000
+  object_truth: {type: claim, id: claim_no_conflict_mvp}
+  identity_key: id-v1:mvp_claim_no_conflict
+  resolution_action: keep
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_no_conflict, score: 0.95}
+  evidence_refs: [ev_no_conflict_doc]
+  task_result: success
+  tag: full
+  coverage_dimension: conflict.none
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: CF-MVP-02
+  query: Genuinely conflicting facts — actual conflict, block
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567921000
+  object_truth: {type: claim, id: claim_actual_a_mvp}
+  identity_key: id-v1:mvp_claim_actual_a
+  resolution_action: conflict
+  integrity_status: disputed
+  expected_top_k: []
+  evidence_refs: []
+  task_result: failure
+  tag: full
+  coverage_dimension: conflict.actual
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: CF-MVP-03
+  query: Conditional conflict — context differs, both publishable
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567922000
+  object_truth: {type: claim, id: claim_cond_a_mvp}
+  identity_key: id-v1:mvp_claim_cond_a
+  resolution_action: keep
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_cond_a, score: 0.88}
+  evidence_refs: [ev_cond_doc]
+  task_result: success
+  tag: full
+  coverage_dimension: conflict.conditional
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: CF-MVP-04
+  query: Temporal conflict — newer KU supersedes older
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567923000
+  object_truth: {type: claim, id: claim_temporal_new_mvp}
+  identity_key: id-v1:mvp_claim_temporal_new
+  resolution_action: supersede
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_temporal_new, score: 0.92}
+  evidence_refs: [ev_temporal_doc]
+  task_result: success
+  tag: full
+  coverage_dimension: conflict.temporal
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: CF-MVP-05
+  query: Perspective conflict — both views preserved
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567924000
+  object_truth: {type: claim, id: claim_persp_a_mvp}
+  identity_key: id-v1:mvp_claim_persp_a
+  resolution_action: keep
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_persp_a, score: 0.86}
+  evidence_refs: [ev_persp_doc]
+  task_result: success
+  tag: full
+  coverage_dimension: conflict.perspective
+  confidence: medium
+  mode: mock
+  runtime_verified: false
+
+- case_id: CF-MVP-06
+  query: Unresolved conflict — block publication
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567925000
+  object_truth: {type: claim, id: claim_unresolved_mvp}
+  identity_key: id-v1:mvp_claim_unresolved
+  resolution_action: quarantine
+  integrity_status: quarantined
+  expected_top_k: []
+  evidence_refs: []
+  task_result: failure
+  tag: full
+  coverage_dimension: conflict.unresolved
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: CF-MVP-07
+  query: Temporal conflict without supersede — must be blocked
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567926000
+  object_truth: {type: claim, id: claim_temporal_nosup_mvp}
+  identity_key: id-v1:mvp_claim_temporal_nosup
+  resolution_action: quarantine
+  integrity_status: quarantined
+  expected_top_k: []
+  evidence_refs: []
+  task_result: failure
+  tag: full
+  coverage_dimension: conflict.temporal.no_supersede
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: CF-MVP-08
+  query: Type mismatch — claim vs evidence dimension conflict
+  source_type: file
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567927000
+  object_truth: {type: claim, id: claim_type_mismatch_mvp}
+  identity_key: id-v1:mvp_claim_type_mismatch
+  resolution_action: conflict
+  integrity_status: disputed
+  expected_top_k: []
+  evidence_refs: []
+  task_result: failure
+  tag: full
+  coverage_dimension: conflict.type_mismatch
+  confidence: medium
+  mode: mock
+  runtime_verified: false
+
+- case_id: RT-MVP-01
+  query: Top-3 retrieval over verified knowledge units
+  source_type: manual
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567930000
+  object_truth: {type: knowledge_unit, id: ku_top3_mvp}
+  identity_key: id-v1:mvp_ku_top3
+  resolution_action: keep
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_top3_mvp, score: 0.95}
+  - {knowledge_unit_id: ku_top3_alt, score: 0.82}
+  - {knowledge_unit_id: ku_top3_other, score: 0.71}
+  evidence_refs: [ev_top3_doc]
+  task_result: success
+  tag: full
+  coverage_dimension: retrieval.top_k
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: RT-MVP-02
+  query: Citation accuracy — every claim cites at least one evidence
+  source_type: manual
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567931000
+  object_truth: {type: claim, id: claim_citation_mvp}
+  identity_key: id-v1:mvp_claim_citation
+  resolution_action: link
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_citation, score: 0.94}
+  evidence_refs: [ev_citation_doc:block_001, ev_citation_doc:block_002]
+  task_result: success
+  tag: full
+  coverage_dimension: retrieval.citation_accuracy
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: RT-MVP-03
+  query: Unknown knowledge_mode — must be excluded from default retrieval
+  source_type: manual
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567932000
+  object_truth: {type: knowledge_unit, id: ku_unknown_mvp}
+  identity_key: id-v1:mvp_ku_unknown
+  resolution_action: keep
+  integrity_status: candidate
+  expected_top_k: []
+  evidence_refs: []
+  task_result: failure
+  tag: full
+  coverage_dimension: retrieval.unknown
+  confidence: medium
+  mode: mock
+  runtime_verified: false
+
+- case_id: TM-MVP-01
+  query: Current validity — page valid_from <= now < valid_to
+  source_type: manual
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567940000
+  object_truth: {type: knowledge_unit, id: ku_current_mvp}
+  identity_key: id-v1:mvp_ku_current
+  resolution_action: keep
+  integrity_status: verified
+  expected_top_k:
+  - {knowledge_unit_id: ku_current_mvp, score: 0.95}
+  evidence_refs: [ev_current_doc]
+  task_result: success
+  tag: full
+  coverage_dimension: temporal.current
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: TM-MVP-02
+  query: Scheduled validity — valid_from > now → not in default retrieval
+  source_type: manual
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567941000
+  object_truth: {type: knowledge_unit, id: ku_scheduled_mvp}
+  identity_key: id-v1:mvp_ku_scheduled
+  resolution_action: keep
+  integrity_status: candidate
+  expected_top_k: []
+  evidence_refs: []
+  task_result: failure
+  tag: full
+  coverage_dimension: temporal.scheduled
+  confidence: high
+  mode: mock
+  runtime_verified: false
+
+- case_id: TM-MVP-03
+  query: Historical validity — valid_to <= now → historical, drop from default
+  source_type: manual
+  language: en
+  context: {domain: knowledge_management, platform: web}
+  query_time: 1734567942000
+  object_truth: {type: knowledge_unit, id: ku_historical_mvp}
+  identity_key: id-v1:mvp_ku_historical
+  resolution_action: archive
+  integrity_status: deprecated
+  expected_top_k: []
+  evidence_refs: []
+  task_result: failure
+  tag: full
+  coverage_dimension: temporal.historical
+  confidence: high
+  mode: mock
+  runtime_verified: false
