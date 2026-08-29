@@ -56,6 +56,13 @@ from .binder import (
     EvidenceRefType,
     bind_evidence,
 )
+from .compiler import (
+    ChapterRender,
+    CompileError,
+    CompiledBlock,
+    compile_chapter,
+    map_unit_type_to_block_type,
+)
 from .core_view import (
     KnowledgeCoreView,
     SimpleKnowledgeCoreView,
@@ -65,6 +72,9 @@ __all__ = [
     "Book",
     "BookChapterRegistry",
     "Chapter",
+    "ChapterRender",
+    "CompileError",
+    "CompiledBlock",
     "EvidenceRef",
     "EvidenceRefStrength",
     "EvidenceRefType",
@@ -79,10 +89,12 @@ __all__ = [
     "SimpleKnowledgeCoreView",
     "StatementRef",
     "bind_evidence",
+    "compile_chapter",
     "derive_stable_key",
     "generate_book_id",
     "generate_chapter_id",
     "generate_knowledge_block_id",
     "generate_outline_proposal_id",
     "map_ku_to_chapter",
+    "map_unit_type_to_block_type",
 ]
