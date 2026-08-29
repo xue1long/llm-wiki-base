@@ -174,8 +174,21 @@ def _build_resolution_context(paths, source_path, source_slug: str, raw_stem: st
     title_index: dict[str, list[str]] = {}
     try:
         from src.wiki.features.indexer import read_index
+        _type_dirs = {
+            PageType.SOURCE: "sources",
+            PageType.ENTITY: "entities",
+            PageType.CONCEPT: "concepts",
+            PageType.SYNTHESIS: "synthesis",
+        }
         for _slug, _pt, _title in read_index(paths):
             existing.add(normalize_reconcile_slug(_slug))
+            _pt_value = _pt.value if isinstance(_pt, PageType) else str(_pt)
+            _dir = _type_dirs.get(_pt) or {
+                "source": "sources", "entity": "entities",
+                "concept": "concepts", "synthesis": "synthesis",
+            }.get(_pt_value)
+            if _dir:
+                existing.add(normalize_reconcile_slug(f"{_dir}/{_slug}"))
             _key = normalize_reconcile_slug(_title or _slug)
             title_index.setdefault(_key, []).append(_slug)
     except Exception:
@@ -327,6 +340,26 @@ def _normalize_generated_pages(
         reg = None
 
     now = int(__import__("time").time() * 1000)
+    from src.wiki.features.gbrain_compat import (
+        build_target_slugs, materialize_relations, rewrite_wikilinks,
+    )
+    from src.wiki.storage.page_writer import page_path_for
+
+    # GBrain imports wiki/ directly, so its canonical slug is the path below
+    # wiki/, not the ruflo page ID. Build this once for the whole publication
+    # and use it for every generated body/link.
+    from src.wiki.schema_registry import SchemaRegistry
+    registry = SchemaRegistry.from_project(paths.root)
+    current_page_paths = []
+    for page in pages:
+        try:
+            page_path = page_path_for(paths, page.type, page.id,
+                                      registry=registry,
+                                      custom_type=page.custom_type)
+            current_page_paths.append((page.id, page_path))
+        except (ValueError, OSError):
+            continue
+    target_slugs = build_target_slugs(paths, current_page_paths)
     from src.pipeline.generator import RELATION_TYPES as _RELATION_TYPES
     _valid_relation_types = set(_RELATION_TYPES)
     for page in pages:
@@ -372,6 +405,9 @@ def _normalize_generated_pages(
                             page.id, rel.target_id, res.canonical_target, res.kind,
                         )
                         rel.target_id = res.canonical_target
+        if page.body:
+            page.body = rewrite_wikilinks(page.body, target_slugs)
+        page.body = materialize_relations(page.body, page.relations, target_slugs)
     return pages
 
 

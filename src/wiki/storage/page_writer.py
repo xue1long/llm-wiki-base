@@ -136,7 +136,16 @@ def write_page(paths: WikiPaths, page: WikiPage,
         _snapshot_raw(paths, page.id, path)
     else:
         validate_tag_compliance(page.tags)
+    from ..features.gbrain_compat import (
+        build_target_slugs, gbrain_slug_for_path, materialize_relations,
+        rewrite_wikilinks,
+    )
+    target_slugs = build_target_slugs(paths, [(page.id, path)])
+    page.body = materialize_relations(
+        rewrite_wikilinks(page.body, target_slugs), page.relations, target_slugs,
+    )
     fm = page.to_frontmatter_dict()
+    fm["slug"] = gbrain_slug_for_path(paths, path)
     fm_text = yaml.dump(fm, allow_unicode=True, sort_keys=False, default_flow_style=False)
     content = f"---\n{fm_text}---\n\n{page.body}"
     safe_write(path, content)

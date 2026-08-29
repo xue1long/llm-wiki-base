@@ -6,11 +6,11 @@ rules:
     reserved: [index, log]
   frontmatter:
     required: [id, title, type]
-    optional: [sources, relations, grade, processing_depth, is_immutable, heat, last_used_at, zombie_since, tags, created_at, updated_at, related_entities, category, taxonomy_sub]  # category, taxonomy_sub  experimental（STS 未定稿）
+    optional: [slug, sources, relations, grade, processing_depth, is_immutable, heat, last_used_at, zombie_since, tags, created_at, updated_at, related_entities, category, taxonomy_sub]  # category, taxonomy_sub  experimental（STS 未定稿）
   body:
     min_length: 1
     max_length: 50000  # 单个 body 最大字符数
-    wikilink_syntax: "[[slug]]"
+    wikilink_syntax: "[[directory/slug]]"
     allowed_markdown:
       - bold
       - italic
@@ -77,6 +77,20 @@ python scripts/migrate_pinyin_to_cjk_aliases.py --apply
 | `title` | str | 显示标题 |
 | `type` | PageType | `source` \| `entity` \| `concept` \| `synthesis` |
 
+### GBrain 兼容 slug
+
+`slug` 由写盘层根据页面相对 `wiki/` 的路径确定，LLM 不得自行指定：
+
+```text
+wiki/concepts/foo.md → slug: concepts/foo
+wiki/sources/foo.md  → slug: sources/foo
+```
+
+新页面正文中的跨页链接统一写成 `[[目录/slug]]`。读取旧页面时仍兼容裸链接
+`[[slug]]`；下次页面写入时会自动规范化为路径限定链接。`relations` 继续保存
+ruflo 的结构化关系，同时写入一个 Markdown 关系区块，供 GBrain 的 Markdown
+导入器建立链接图。
+
 ### 可选字段
 
 `sources`、`relations`、`grade`、`processing_depth`、`is_immutable`、`heat`、`last_used_at`、`zombie_since`、`tags`
@@ -102,7 +116,7 @@ Tags 使用受控命名空间前缀，格式为 `prefix/name`。可用前缀：
 
 - 不得为空（空 body → LINT-EMPTY-BODY INFO 告警）
 - 支持 Markdown：`**bold**`、`*italic*`、`## 标题`、`### 子标题`、`- 列表`
-- 跨页引用使用 `[[slug]]` 语法，如 `[[shuang-dian]]`
+- 跨页引用使用路径限定的 `[[directory/slug]]` 语法，如 `[[concepts/shuang-dian]]`
 
 ## PageType 语义（4 种 page type 的判定标准）
 
@@ -209,7 +223,7 @@ Generator 的 JSON schema 把 `body_markdown: string` 替换成 `slots: object`�
         "definition": "...",
         "characteristics": ["特性 1", "特性 2"],
         "examples": ["例 1"],
-        "related_concepts": ["[[other-slug]]"],
+        "related_concepts": ["[[concepts/other-slug]]"],
         "references": ["来源"]
       }
     }

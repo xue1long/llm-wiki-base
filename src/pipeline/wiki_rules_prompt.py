@@ -14,7 +14,7 @@ FRONTMATTER_RULES = {
 BODY_RULES = {
     "min_length": 1,
     "max_length": 50000,
-    "wikilink_syntax": "[[slug]]",
+    "wikilink_syntax": "[[directory/slug]]",
     "allowed_markdown": ['bold', 'italic', 'headings', 'lists', 'wikilinks'],
 }
 
@@ -102,7 +102,7 @@ Tags 使用受控命名空间前缀，格式为 `prefix/name`。可用前缀：
 
 - 不得为空（空 body → LINT-EMPTY-BODY INFO 告警）
 - 支持 Markdown：`**bold**`、`*italic*`、`## 标题`、`### 子标题`、`- 列表`
-- 跨页引用使用 `[[slug]]` 语法，如 `[[shuang-dian]]`
+- 跨页引用使用路径限定的 `[[directory/slug]]` 语法，如 `[[concepts/shuang-dian]]`；系统会在写盘时将已知裸链接自动规范化。
 
 ## PageType 语义（4 种 page type 的判定标准）
 
@@ -209,7 +209,7 @@ Generator 的 JSON schema 把 `body_markdown: string` 替换成 `slots: object`�
         "definition": "...",
         "characteristics": ["特性 1", "特性 2"],
         "examples": ["例 1"],
-        "related_concepts": ["[[other-slug]]"],
+        "related_concepts": ["[[concepts/other-slug]]"],
         "references": ["来源"]
       }
     }

@@ -165,3 +165,7 @@ WebUI 聚类（id 166，内聚度 0.99）独立成团：`api` / `escapeHtml` / `
 ## 六、一句话总结
 
 **ruflo-kb 是一个「把素材自动变成可检索知识库」的本地 LLM 工具**：能摄取并生成结构化 wiki、建向量库做语义检索、提供对话与知识图谱浏览，并通过 WebUI / REST API / CLI / MCP 四种接口对外服务，同时内置任务队列、熔断、lint、schema 校验、人工 review 与多 LLM provider 管理能力。
+
+### GBrain 直接消费
+
+Wiki 写盘层会自动写入相对 `wiki/` 的路径型 `slug`（如 `concepts/foo`），将已知裸 wikilink 规范化为 `[[concepts/foo]]`，并把结构化 `relations` 物化为 Markdown 链接。因此无需转换导出，GBrain 可直接执行 `gbrain import <project>/wiki --no-embed`，随后运行 `gbrain embed --stale` 建立自己的向量索引。

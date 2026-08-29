@@ -34,6 +34,9 @@ def resolve_wikilink(project_root: Path, target: str) -> bool:
     if not project_root.exists():
         return False
     paths = WikiPaths(project_root)
+    if "/" in target or "\\" in target:
+        normalized = target.replace("\\", "/").lstrip("/")
+        return (paths.wiki / f"{normalized}.md").exists()
     type_dirs = (
         "wiki_sources", "wiki_entities", "wiki_concepts",
         "wiki_synthesis", "wiki_stubs",
