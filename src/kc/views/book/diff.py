@@ -30,6 +30,7 @@ def _chapter_changed(old: Chapter, new: Chapter, *, old_index: int, new_index: i
         or old.stable_key != new.stable_key
         or old.title != new.title
         or old.order != new.order
+        or old.knowledge_block_ids != new.knowledge_block_ids
         or old.source_knowledge_unit_ids != new.source_knowledge_unit_ids
         or old.publication_version != new.publication_version
         or old_index != new_index
@@ -70,11 +71,13 @@ def compute_book_diff(
 ) -> BookDiff:
     old_ids = _dedupe_preserve_order(tuple(old.chapter_ids))
     new_ids = _dedupe_preserve_order(tuple(new.chapter_ids))
+    old_id_set = set(old_ids)
+    new_id_set = set(new_ids)
     old_chapter_map = {chapter.id: chapter for chapter in old_chapters}
     new_chapter_map = {chapter.id: chapter for chapter in new_chapters}
 
-    added_chapter_ids = tuple(chapter_id for chapter_id in new_ids if chapter_id not in old_chapter_map)
-    removed_chapter_ids = tuple(chapter_id for chapter_id in old_ids if chapter_id not in new_chapter_map)
+    added_chapter_ids = tuple(chapter_id for chapter_id in new_ids if chapter_id not in old_id_set)
+    removed_chapter_ids = tuple(chapter_id for chapter_id in old_ids if chapter_id not in new_id_set)
 
     changed_chapter_ids: list[str] = []
     changed_knowledge_unit_ids: list[str] = []
@@ -92,26 +95,32 @@ def compute_book_diff(
                 changed_knowledge_unit_ids.append(ku_id)
 
     for chapter_id in new_ids:
+        if chapter_id not in old_id_set or chapter_id not in new_id_set:
+            continue
         old_chapter = old_chapter_map.get(chapter_id)
         new_chapter = new_chapter_map.get(chapter_id)
-        if old_chapter is None or new_chapter is None:
-            continue
-        if _chapter_changed(
-            old_chapter,
-            new_chapter,
-            old_index=old_positions[chapter_id],
-            new_index=new_positions[chapter_id],
-        ):
+        if old_chapter is not None and new_chapter is not None:
+            changed = _chapter_changed(
+                old_chapter,
+                new_chapter,
+                old_index=old_positions[chapter_id],
+                new_index=new_positions[chapter_id],
+            )
+        else:
+            changed = old_positions[chapter_id] != new_positions[chapter_id]
+        if changed:
             changed_chapter_ids.append(chapter_id)
 
     for chapter_id in removed_chapter_ids:
         _append_ku_delta(chapter_id)
 
     for chapter_id in old_ids:
-        if chapter_id not in old_chapter_map or chapter_id not in new_chapter_map:
+        if chapter_id not in old_id_set or chapter_id not in new_id_set:
             continue
-        old_chapter = old_chapter_map[chapter_id]
-        new_chapter = new_chapter_map[chapter_id]
+        old_chapter = old_chapter_map.get(chapter_id)
+        new_chapter = new_chapter_map.get(chapter_id)
+        if old_chapter is None or new_chapter is None:
+            continue
         if _chapter_changed(
             old_chapter,
             new_chapter,

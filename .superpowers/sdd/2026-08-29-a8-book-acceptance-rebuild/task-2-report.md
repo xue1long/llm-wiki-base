@@ -25,3 +25,10 @@ Fix round 1:
 - Verified with the brief test command in the local 3.14 venv:
   - `PYTHONPATH=. python -m pytest tests/test_kc/test_book_diff.py tests/test_kc/test_book_mapper.py --import-mode=importlib -q`
   - Result: `61 passed, 1 warning`
+
+Fix round 2:
+- Changed `compute_book_diff()` to compare `old.chapter_ids` vs `new.chapter_ids` even when `old_chapters` / `new_chapters` are omitted.
+- Added regression coverage for pure Book-level order changes and `knowledge_block_ids` changes.
+- Re-ran the exact brief test command in the local 3.14 venv:
+  - `PYTHONPATH=. python -m pytest tests/test_kc/test_book_diff.py tests/test_kc/test_book_mapper.py --import-mode=importlib -q`
+  - Result: `63 passed, 1 warning`
