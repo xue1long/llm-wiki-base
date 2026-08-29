@@ -475,7 +475,7 @@ batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首�
 ### 分层验证结果
 
 - P0 子集（test_kc + test_vector + test_pipeline/test_ingest_vector_publication）：300 passed
-- P0+P1 stable 子集（test_kc + test_knowledge + test_wiki + test_vector）：1462 passed
+- P0+P1 stable 子集（test_kc + test_knowledge + test_wiki + test_vector）：1458 passed（+ 4 pre-existing template-parser failures）
 - P0+P1 真实分层（含 test_pipeline 但跳过已知破损 `test_retry.py`/`test_ndg_calibrate.py`/`test_phase4_batch_key.py` —— scripts.phase4_batch / phase4_orchestrator 等无法作为 importable package；属环境限制，与本计划无关）：1894 passed / 62 failed（失败均为 pre-existing）
 
 ### Known Limitations / Parked（入 known_limitations）
@@ -490,7 +490,7 @@ batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首�
 
 ### next_phase_ready
 
-`false`：P1 评估基线 30 条 mock 通过但 runtime_verified=0（环境限制）；任务 7 E2E 全 deterministic 通过；任务 0–5 P0 gate 在 `tests/test_kc` + `tests/test_vector` + `tests/test_pipeline/test_ingest_vector_publication` 1462 + 27 全绿。下一阶段前置 = 配置 runtime LLM provider（xiaomi-mimo / sfkey-glm 任一）后运行 `scripts/kc_agent_eval.py --dataset docs/evaluation/kc_mvp_cases.yaml`，待 `runtime_count >= 1` 再置 `true`。
+`false`：P1 评估基线 30 条 mock 通过但 runtime_verified=0（环境限制）；任务 7 E2E 全 deterministic 通过；任务 0–5 P0 gate 在 `tests/test_kc` + `tests/test_vector` + `tests/test_pipeline/test_ingest_vector_publication` 1458（+ 4 pre-existing）+ 27 全绿。下一阶段前置 = 配置 runtime LLM provider（xiaomi-mimo / sfkey-glm 任一）后运行 `scripts/kc_agent_eval.py --dataset docs/evaluation/kc_mvp_cases.yaml`，待 `runtime_count >= 1` 再置 `true`。
 
 ## Review-Findings Batch（2026-08-29）✅ 全分支 review 整改
 
@@ -506,7 +506,34 @@ batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首�
 | Nit 1 | filter.py 28-32 / 180-186 过期注释（"WikiPage 无 valid_from/valid_to"） | 更新为 Task 6 语义：WikiPage 已有 None 默认字段；None/None 差异化 pass-through（WikiPage）/ unknown-drop（KnowledgeObject） |
 | Nit 2 | event_store docstring 补注 | `JSONLEventStore.append_event` 补 TOCTOU check-then-write 窗口说明（Z-3 follow-up，跨进程需文件锁）；ABC `append_event` 默认补 fail-closed `NotImplementedError` 说明 |
 
-**整改后回归（4 目录）**：`pytest --import-mode=importlib tests/test_kc tests/test_knowledge tests/test_wiki tests/test_vector` → **1482 passed / 6 failed**。
+**整改后回归（4 目录）**：`pytest --import-mode=importlib tests/test_kc tests/test_knowledge tests/test_wiki tests/test_vector` → **1482 passed / 6 failed**（dirty-worktree 实测；clean HEAD 口径 = 1458 既有 + 21 新增 = 1479 passing + 4 pre-existing failing）。
 - 4 个 failed 为 **pre-existing template-parser**（`test_wiki/test_lint.py::test_lint_missing_section_warns_v2_template`、`test_wiki/test_stubs.py::test_materialize_one`、`test_wiki/test_stubs_atomic.py::test_stub_unlink_uses_sentinel`、`test_wiki/test_templates_resolver.py::test_resolve_cache_does_not_break_missing_file_error`），与本次整改无关。
 - 另 2 个 failed（`test_kc_ku_dryrun::test_dryrun_writes_markdown_report_with_pagetype_and_cost`、untracked `test_ku_split_strategy::test_estimator_json_output_on_novel_wiki`）系并发 workspace 进程 stash-pop 在 `knowledge/novel-wiki/wiki/**` 页内注入 conflict marker 所致——clean HEAD worktree 下前者通过、后者文件不存在，**均非本批量回归**。
 - 本批量新增 21 个测试全部通过；既有的 1458 个 passing 测试无一回归。
+
+## Open Items Resolution Batch（2026-08-29）✅
+
+最终 review 报告的剩余未解决项一次性整改（单 commit `fix(kc): resolve open items batch`），逐项状态：
+
+| # | 项 | 状态 | 说明 |
+|---|---|---|---|
+| OPEN-1 | Task 3 I-1 TOCTOU：`append_event` check-then-write 无跨进程文件锁 | ✅ RESOLVED | `JSONLEventStore` 新增 `_EventFileLock`（POSIX `fcntl.flock(fd, LOCK_EX)` / Windows `msvcrt.locking(fd, LK_LOCK, 1)`，锁文件 = `events.jsonl` 兄弟 `events.lock`）包裹「索引重查 + 追加」。fast-path 缓存命中免锁；miss 走锁内磁盘刷新重查，保证跨线程/跨进程同一 `operation_id` 恰好一个 `ok` 一个 `duplicate`。新增 2 个并发回归测试（同一实例 + 两个冷启动实例），10 次压测稳定 |
+| OPEN-2 | Task 3 I-2：`PostgresEventStore.append_event` 默认 docstring | ✅ RESOLVED | 类 docstring 补注：继承 ABC 默认 `NotImplementedError`（fail-closed）；真实 Postgres 实现延后；Postgres 后端仅配置存在（本计划无生产调用方）；引用 plan Task 3 OPEN-2 / progress Known Limitations。零行为变更 |
+| OPEN-3 | Agent runtime eval（`runtime_count=0`） | ⚠ OPEN-BLOCKED-ON-TOOLING（Z-3 follow-up） | provider 配置**已存在**（`%LOCALAPPDATA%\ruflo-kb\ruflo-kb\llm-providers.json`，default glm-5.2 + sfkey-glm/xiaomi-mimo/anthropic/minimax 等），但 `scripts/kc_agent_eval.py` 是 mock-fixture dry-run 评估器，**无任何真实 provider 调用路径**（脚本 docstring 明示 real agent runtime = Z-3 follow-up）；且其数据集 schema 为 `task_id`，与 `kc_mvp_cases.yaml`（`case_id`）不匹配——按 progress 原命令 `--dataset docs/evaluation/kc_mvp_cases.yaml` 运行直接 `KeyError: 'task_id'`。实测：`kc_agent_eval --dataset docs/evaluation/agent_tasks/agent_tasks.yaml` → 10 任务全 mock、`runtime_count=0`、`not_evaluable=true`；`kc_eval --dataset kc_mvp_cases.yaml`（正确评估器）→ 30/30 schema 通过（mock-only）。`runtime_count>=1` 需实现真实 agent runtime 接线（Z-3），非纯配置可解 → `next_phase_ready` 保持 `false` |
+| OPEN-4 | Task 4 event-source replay（P0「按事件序列重放」措辞未字面满足） | ✅ RESOLVED（stub） | `KnowledgeKernel.replay_core_from_events(object_id, stream_id)` 加入 `src/knowledge/kernel.py`：经 `JSONLEventStore.read_stream` 读 events.jsonl，对 `kc.object.created/updated` 事件应用 no-op，返回 `reason_codes=("event_replay_stub",)`（诚实声明真实事件源重放未接线；未来 replay_core 将应用事件并对未知/损坏事件抛 ValueError）。新增 3 测试：`replay_object` 快照语义不变 + stub 返回 + 空流 stub |
+| OPEN-5 | 4 个 pre-existing template-parser 失败 | ✅ VERIFIED（非本批范围） | clean HEAD 复现 4/4（均 `TemplateParseError`）：`test_wiki/test_lint.py::test_lint_missing_section_warns_v2_template`、`test_wiki/test_stubs.py::test_materialize_one`、`test_wiki/test_stubs_atomic.py::test_stub_unlink_uses_sentinel`、`test_wiki/test_templates_resolver.py::test_resolve_cache_does_not_break_missing_file_error` |
+| OPEN-6 | `src/kc/backup/__init__.py` docstring | ✅ RESOLVED（前批已修） | `git show 83841b6c -- src/kc/backup/__init__.py` 确认 `restore_snapshot(...) -> RestoreReport` 已在 final-review commit 修复，本批仅核验 |
+| OPEN-7 | Ledger 数字准确性 | ✅ RESOLVED | "1462 passed" → "1458 passed（+ 4 pre-existing template-parser failures）"；`next_phase_ready` 段落 1462+27 同步；Review-Findings 段标注 clean HEAD 口径 |
+
+**本批回归（4 目录，dirty-worktree 实测）**：`pytest --import-mode=importlib tests/test_kc tests/test_knowledge tests/test_wiki tests/test_vector` → **1487 passed / 6 failed**。
+- 4 个 failed = pre-existing template-parser（同 OPEN-5，非本批范围）。
+- 另 2 个 failed（`test_kc_ku_dryrun::test_dryrun_writes_markdown_report_with_pagetype_and_cost`、untracked `test_ku_split_strategy::test_estimator_json_output_on_novel_wiki`）系并发 workspace 进程 stash-pop 在 `knowledge/novel-wiki/wiki/**` 注入 conflict marker 所致——与上一批记录一致，非本批回归（本批未触碰该目录）。
+- 本批新增 5 个测试（OPEN-1 ×2 并发 + OPEN-4 ×3 重放）全部通过；clean HEAD 口径 passing = 1458 既有 + 21（上批）+ 5（本批）= 1484。
+
+### next_phase_ready（本批后）
+
+保持 `false`：OPEN-3 确认 provider 已配置，但 runtime eval 管线无真实调用路径（Z-3 follow-up），`runtime_count >= 1` 无法通过配置达成；其余 OPEN 项已闭环。解锁命令（provider 已就绪，缺的是 runtime 接线；当前输出 `runtime_count=0 / not_evaluable=true`，需先实现真实 agent runtime eval 并产出 `runtime_verified=true` 案例才可置 `true`）：
+
+```
+$env:PYTHONPATH='.'; python scripts/kc_agent_eval.py --dataset docs/evaluation/agent_tasks/agent_tasks.yaml
+```

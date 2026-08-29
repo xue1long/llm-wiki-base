@@ -340,6 +340,80 @@ def test_append_event_coexists_with_append(store):
     assert store.count() == 2
 
 
+def test_append_event_concurrent_same_instance_exactly_one_ok(tmp_path):
+    """两线程（同一 store 实例）并发 append_event 同一 operation_id →
+    恰好一个 ok、一个 duplicate（非 version_conflict），且只写一条事件."""
+    import threading
+
+    store = JSONLEventStore(index_path=tmp_path)
+    results: list[dict] = []
+    errors: list[BaseException] = []
+    barrier = threading.Barrier(2)
+
+    def worker():
+        try:
+            barrier.wait(timeout=10)
+        except BaseException as exc:  # pragma: no cover - barrier should not fail
+            errors.append(exc)
+            return
+        try:
+            results.append(
+                store.append_event("s1", "e1", {"k": "v"}, operation_id="op-race")
+            )
+        except BaseException as exc:  # pragma: no cover - assertion helper
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert not errors
+    assert sorted(r["status"] for r in results) == ["duplicate", "ok"]
+    assert all(r["event"]["operation_id"] == "op-race" for r in results)
+    assert store.count() == 1
+
+
+def test_append_event_concurrent_two_instances_same_file_exactly_one_ok(tmp_path):
+    """两个 store 实例（各自冷启动索引，模拟并发进程）指向同一文件并发
+    append_event 同一 operation_id → 恰好一个 ok、一个 duplicate."""
+    import threading
+
+    store_a = JSONLEventStore(index_path=tmp_path)
+    store_b = JSONLEventStore(index_path=tmp_path)
+    results: list[dict] = []
+    errors: list[BaseException] = []
+    barrier = threading.Barrier(2)
+
+    def worker(store):
+        try:
+            barrier.wait(timeout=10)
+        except BaseException as exc:  # pragma: no cover - barrier should not fail
+            errors.append(exc)
+            return
+        try:
+            results.append(
+                store.append_event("s1", "e1", {"k": "v"}, operation_id="op-race-2")
+            )
+        except BaseException as exc:  # pragma: no cover - assertion helper
+            errors.append(exc)
+
+    threads = [
+        threading.Thread(target=worker, args=(store_a,)),
+        threading.Thread(target=worker, args=(store_b,)),
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert not errors
+    assert sorted(r["status"] for r in results) == ["duplicate", "ok"]
+    assert store_a.count() == 1
+    assert store_b.count() == 1
+
+
 def test_facade_append_event_pass_through(tmp_path):
     """StorageFacade 暴露 append_event 作为到活动 event store 的透传."""
     from src.knowledge.storage.facade import StorageConfig, StorageFacade

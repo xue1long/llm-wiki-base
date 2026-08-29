@@ -179,6 +179,46 @@ class TestGetHistory:
 
 
 # ---------------------------------------------------------------------------
+# replay_object / replay_core_from_events (Task 4 event-sequence surface)
+# ---------------------------------------------------------------------------
+
+
+class TestReplay:
+    def test_replay_object_reconstructs_from_snapshot(self, kernel, sample_object):
+        """replay_object 返回基于 VersionManager 快照的状态（既有行为不变）."""
+        kernel.versions.snapshot(sample_object)
+        result = kernel.replay_object("test-001")
+        assert result.reason_codes == ()
+        assert result.object is not None
+        assert result.object.id == "test-001"
+        assert result.object.content == sample_object.content
+
+    def test_replay_core_from_events_returns_stub(self, kernel):
+        """replay_core_from_events 读取事件流但声明 stub（真实事件源重放未接线）."""
+        from src.knowledge.storage.event_store import JSONLEventStore
+
+        store = JSONLEventStore(index_path=kernel.versions.base_path / ".index")
+        store.append("stream-ko-1", "kc.object.created", {"object_id": "ko-1"})
+        store.append("stream-ko-1", "kc.object.updated", {"object_id": "ko-1"})
+
+        result = kernel.replay_core_from_events("ko-1", "stream-ko-1")
+
+        assert result.object_id == "ko-1"
+        assert result.version is None
+        assert result.object is None
+        assert result.reason_codes == ("event_replay_stub",)
+        # 事件流本身被读取（stub 不写、不改变任何状态）
+        assert store.count("stream-ko-1") == 2
+
+    def test_replay_core_from_events_empty_stream_returns_stub(self, kernel):
+        """流不存在/为空 → 同样返回 stub（不抛错，不声明重放成功）."""
+        result = kernel.replay_core_from_events("ko-missing", "no-such-stream")
+        assert result.object_id == "ko-missing"
+        assert result.object is None
+        assert result.reason_codes == ("event_replay_stub",)
+
+
+# ---------------------------------------------------------------------------
 # Singleton
 # ---------------------------------------------------------------------------
 
