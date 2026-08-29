@@ -9,7 +9,10 @@
   App._tagIndex = null;
 
   App.renderBrowse = function renderBrowse(root) {
+    let browseProjectId = App.state.projectId;
+
     root.innerHTML = `
+      <div class="browse-page-header" id="browsePageHeader"></div>
       <div class="tag-filter" id="tagFilter">
         <div class="tag-filter-header">
           <span class="tag-filter-title">标签筛选</span>
@@ -28,10 +31,33 @@
       </div>
     `;
 
+    // Instance selector
+    const headerEl = document.getElementById("browsePageHeader");
+    App.renderProjectSelect(headerEl, {
+      selectedId: browseProjectId,
+      onChange: async (id) => {
+        browseProjectId = id;
+        await App.switchProject(id);
+        // reload tree
+        Promise.all([
+          App.api(`/api/v1/projects/${browseProjectId}/tag-index`).catch(() => ({ namespaces: {} })),
+          App.api(`/api/v1/projects/${browseProjectId}/files?root=wiki&recursive=true&max_files=2000&include_tags=true`).catch(() => ({ files: [] })),
+        ]).then(([tagIdx, filesData]) => {
+          App._tagIndex = tagIdx;
+          const allFiles = (filesData.files || []).filter(f => !f.isDir && f.path.endsWith(".md"));
+          App._allWikiFiles = allFiles;
+          renderTagFilter(tagIdx);
+          renderTree(allFiles);
+        });
+      },
+      label: "浏览实例",
+      showNewBtn: true,
+    });
+
     // Load tag index and files in parallel
     Promise.all([
-      App.api(`/api/v1/projects/${App.state.projectId}/tag-index`).catch(() => ({ namespaces: {} })),
-      App.api(`/api/v1/projects/${App.state.projectId}/files?root=wiki&recursive=true&max_files=2000&include_tags=true`).catch(() => ({ files: [] })),
+      App.api(`/api/v1/projects/${browseProjectId}/tag-index`).catch(() => ({ namespaces: {} })),
+      App.api(`/api/v1/projects/${browseProjectId}/files?root=wiki&recursive=true&max_files=2000&include_tags=true`).catch(() => ({ files: [] })),
     ]).then(([tagIdx, filesData]) => {
       App._tagIndex = tagIdx;
       const allFiles = (filesData.files || []).filter(f => !f.isDir && f.path.endsWith(".md"));
@@ -226,7 +252,7 @@
       backlinksEl.innerHTML = "";
       try {
         const stripped = App.normalizeWikiPath(path);
-        const fc = await App.api(`/api/v1/projects/${App.state.projectId}/files/content?path=${encodeURIComponent(stripped)}`);
+        const fc = await App.api(`/api/v1/projects/${browseProjectId}/files/content?path=${encodeURIComponent(stripped)}`);
         const { fm, body } = App.parseFrontmatter(fc.content || "");
         readerBody.innerHTML = App.renderFrontmatter(fm) + `<div class="reader-body">${App.renderMd(body)}</div>`;
 
@@ -271,7 +297,7 @@
   // Keep ingestOneRaw and formatSize for backward compat (also used by ingest view).
   App.ingestOneRaw = async function ingestOneRaw(path, onDone, onError, onProgress) {
     try {
-      const r = await App.api(`/api/v1/projects/${App.state.projectId}/ingest`, {
+      const r = await App.api(`/api/v1/projects/${browseProjectId}/ingest`, {
         method: "POST",
         body: { source: path, folderContext: null },
       });
@@ -281,7 +307,7 @@
       for (let i = 0; i < 600; i++) {
         await new Promise(res => setTimeout(res, POLL_MS));
         let rec;
-        try { rec = await App.api(`/api/v1/projects/${App.state.projectId}/ingest/status/${encodeURIComponent(r.taskId)}`); }
+        try { rec = await App.api(`/api/v1/projects/${browseProjectId}/ingest/status/${encodeURIComponent(r.taskId)}`); }
         catch { break; }
         if (onProgress) { onProgress(rec); }
         if (rec.status === "succeeded") { onDone(); return; }

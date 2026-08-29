@@ -95,12 +95,12 @@ python -m src.cli llm-providers set-default anthropic-prov
 
 **Interfaces:**
 - Consumes: LLM provider 已配置
-- Produces: 运行中的 HTTP server（默认 8765 端口）
+- Produces: 运行中的 HTTP server（默认 19828 端口）
 
 - [ ] **Step 1: 启动 server（后台）**
 
 ```bash
-python -m src.cli serve --host 127.0.0.1 --port 8765
+python -m src.cli serve --host 127.0.0.1
 ```
 
 预期：server 启动，无报错。
@@ -108,7 +108,7 @@ python -m src.cli serve --host 127.0.0.1 --port 8765
 - [ ] **Step 2: 验证 server 就绪**
 
 ```bash
-curl http://127.0.0.1:8765/health
+curl http://127.0.0.1:19828/health
 ```
 
 预期：返回 `{"status":"ok"}` 或类似 JSON。
@@ -136,7 +136,7 @@ python -m src.cli project list
 
 对每份文件执行：
 ```bash
-curl -X POST http://127.0.0.1:8765/api/v1/projects/{PROJECT_ID}/ingest \
+curl -X POST http://127.0.0.1:19828/api/v1/projects/{PROJECT_ID}/ingest \
   -H "Content-Type: application/json" \
   -d '{"source": "F:\\2026-7-21\\agent-knowledge\\ruflo-kb\\raw\\sources\\必备资料11大纲和细纲.md"}'
 ```
@@ -146,7 +146,7 @@ curl -X POST http://127.0.0.1:8765/api/v1/projects/{PROJECT_ID}/ingest \
 - [ ] **Step 3: 摄入 1 份 Inbox/Processing 文件**
 
 ```bash
-curl -X POST http://127.0.0.1:8765/api/v1/projects/{PROJECT_ID}/ingest \
+curl -X POST http://127.0.0.1:19828/api/v1/projects/{PROJECT_ID}/ingest \
   -H "Content-Type: application/json" \
   -d '{"source": "F:\\2026-7-21\\agent-knowledge\\ruflo-kb\\Inbox\\Processing\\必备资料912怎么写出小说爽点.md"}'
 ```

@@ -230,6 +230,19 @@
 | **文件/目录展开** | 行 198 | 展开/折叠目录树 | — | 纯前端交互 |
 | **文件编辑** | 行 257 | 点击文件行打开编辑 | `GET /api/v1/projects/{id}/files/content?path=...` | |
 
+## 采集页（Collect）
+
+**文件：** [web/js/views/collect.js](../web/js/views/collect.js)
+
+| 按钮 | 位置 | 功能 | 后端 API | 说明 |
+|------|------|------|----------|------|
+| **上传文件** | 采集页左侧 | 转换文件并写入 `raw/sources/` | `POST /api/v1/projects/{id}/collect` | multipart 上传；超限返回 413 |
+| **采集 URL** | URL 区 | 抓取 URL 并转换为 Markdown | `POST /api/v1/projects/{id}/collect-url` | |
+| **采集文本** | 文本区 | 将粘贴文本转换并写入 raw | `POST /api/v1/projects/{id}/collect` | 通过文本文件上传 |
+| **立即摄取** | 预览面板 | 将已采集 raw 文件送入 LLM Pipeline | `POST /api/v1/projects/{id}/ingest` | 异步任务 |
+| **浏览 raw 文件** | 预览面板 | 跳转 Browse 查看 raw 文件 | — | 纯前端导航 |
+| **预览** | 采集历史 | 重新打开本次会话的采集结果 | — | 纯前端行为 |
+
 ---
 
 ## 新增按钮流程
@@ -256,5 +269,6 @@
 | 设置按钮 | `settings.js` | `provider\|settings\|设置\|添加\|删除\|编辑` |
 | 状态页面 | `status.js` | `status\|refresh\|刷新\|queue\|review\|审查` |
 | 浏览文件 | `browse.js` | `browse\|tag\|浏览\|文件` |
+| 采集相关按钮 | `collect.js` | `collect\|采集\|上传\|预览` |
 | 后端 API 调用 | `api.js` | `App.api\|fetch` |
 | 样式 | `style.css` | 按钮类名 |

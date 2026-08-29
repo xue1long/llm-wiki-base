@@ -32,7 +32,7 @@ $env:RUFLO_LLM_PROVIDER = "ollama"
 python -m src.cli llm-providers set-default ollama
 
 # Restart server
-python -m src.cli serve --host 127.0.0.1 --port 8765
+python -m src.cli serve --host 127.0.0.1
 ```
 
 **Expected:** JSON parse failures drop to near-zero. Ollama respects `response_format` with JSON schema.

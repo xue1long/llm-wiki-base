@@ -32,7 +32,7 @@
       content.innerHTML = `<div class="card">需要先注册项目。</div>`;
       return;
     }
-    const fn = { search: App.renderSearch, browse: App.renderBrowse, ingest: App.renderIngest, chat: App.renderChat, graph: App.renderGraph, heat: App.renderHeat, templates: App.renderTemplates, status: App.renderStatus, settings: App.renderSettings }[name];
+    const fn = { search: App.renderSearch, browse: App.renderBrowse, ingest: App.renderIngest, collect: App.renderCollect, chat: App.renderChat, graph: App.renderGraph, heat: App.renderHeat, templates: App.renderTemplates, status: App.renderStatus, settings: App.renderSettings }[name];
     if (fn) fn(content);
   };
 
@@ -40,7 +40,7 @@
   App.updateBreadcrumb = function updateBreadcrumb(path) {
     const bc = document.getElementById("breadcrumb");
     const view = App.state.currentView;
-    const labels = { search: "搜索", browse: "浏览", ingest: "摄取", chat: "对话", graph: "图谱", heat: "热度", templates: "模板", status: "状态", settings: "设置" };
+    const labels = { search: "搜索", browse: "浏览", ingest: "摄取", collect: "采集", chat: "对话", graph: "图谱", heat: "热度", templates: "模板", status: "状态", settings: "设置" };
     let html = `<a data-nav="search">ruflo-kb</a>`;
     if (view !== "search") {
       html += `<span class="breadcrumb-sep">/</span><a data-nav="${view}">${labels[view] || view}</a>`;
@@ -79,97 +79,67 @@
     setTimeout(() => { if (el.isConnected) el.remove(); }, 3000);
   };
 
-  // ---------- Dropdown ----------
-  function renderDropdown() {
-    const dd = document.getElementById("projectDropdown");
-    const current = App.state.projects.find(p => p.id === App.state.projectId);
-    dd.innerHTML = App.state.projects.map(p => `
-      <div class="project-dropdown-item${p.id === App.state.projectId ? " active" : ""}" data-id="${App.escapeHtml(p.id)}">
-        <span class="proj-name" title="${App.escapeHtml(p.path || "")}">
-          <span class="proj-name-text">${App.escapeHtml(p.name)}</span>
-          <span class="proj-path">${App.escapeHtml(p.path || "")}</span>
-        </span>
-        <button class="proj-del" data-id="${App.escapeHtml(p.id)}" data-name="${App.escapeHtml(p.name)}" title="删除记录">&times;</button>
-      </div>
-    `).join("");
-
-    dd.querySelectorAll(".proj-name").forEach(el => {
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const id = el.parentElement.dataset.id;
-        switchProject(id);
-        dd.style.display = "none";
-      });
+  // ---------- In-page project selector (shared by ingest / browse / collect) ----------
+  // Renders a <select> into the given container and returns the select element.
+  // When the user picks a different project, calls onChange(projectId).
+  App.renderProjectSelect = function renderProjectSelect(container, opts) {
+    const { selectedId, onChange, label, showNewBtn } = Object.assign({ selectedId: App.state.projectId, onChange: null, label: "目标实例", showNewBtn: false }, opts || {});
+    const projects = App.state.projects || [];
+    const wrap = document.createElement("div");
+    wrap.className = "page-project-selector";
+    wrap.innerHTML = `
+      <label class="page-project-label">${App.escapeHtml(label)}</label>
+      <select class="page-project-select"></select>
+      ${showNewBtn ? '<button class="btn-sm page-project-new-btn" title="新建项目">+ 新建</button>' : ''}
+    `;
+    container.appendChild(wrap);
+    const sel = wrap.querySelector("select");
+    sel.innerHTML = projects.map(p =>
+      `<option value="${App.escapeHtml(p.id)}" ${p.id === selectedId ? "selected" : ""}>${App.escapeHtml(p.name)} — ${App.escapeHtml(p.path || "")}</option>`
+    ).join("");
+    sel.addEventListener("change", () => {
+      if (onChange) onChange(sel.value);
     });
-
-    dd.querySelectorAll(".proj-del").forEach(btn => {
-      btn.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const id = btn.dataset.id;
-        const name = btn.dataset.name;
-        if (!window.confirm(`确定要从列表中删除项目「${name}」吗？\n\n注意：只删除注册记录，不会删除磁盘文件。`)) return;
-        await deleteProject(id);
-        dd.style.display = "none";
-      });
-    });
-
-    const label = document.getElementById("projectDropdownLabel");
-    label.textContent = current ? current.name : "选择项目";
-    label.title = current ? (current.path || current.name) : "";
-  }
-
-  function toggleDropdown() {
-    const dd = document.getElementById("projectDropdown");
-    dd.style.display = dd.style.display === "none" ? "block" : "none";
-  }
-
-  async function deleteProject(id) {
-    try {
-      await App.api(`/api/v1/projects/${id}`, { method: "DELETE" });
-      App.state.projects = App.state.projects.filter(p => p.id !== id);
-      if (App.state.projectId === id) {
-        if (App.state.projects.length) {
-          App.state.projectId = App.state.projects[0].id;
-          App.state.projectName = App.state.projects[0].name;
-        } else {
-          App.state.projectId = null;
-          App.state.projectName = null;
-          document.getElementById("projectName").textContent = "(无项目)";
+    if (showNewBtn) {
+      wrap.querySelector(".page-project-new-btn").addEventListener("click", async () => {
+        const name = window.prompt("输入项目名称：");
+        if (!name || !name.trim()) return;
+        try {
+          const data = await App.api("/api/v1/scenario-templates");
+          const templates = data.templates || [];
+          const choices = templates.map((t, i) => `${i + 1}. ${t.icon || ""}${t.name}`).join("\n");
+          const selected = window.prompt(`选择知识库模板（输入编号，默认 1）：\n${choices}`, "1");
+          const index = Math.max(1, Number.parseInt(selected || "1", 10)) - 1;
+          const chosen = templates[index] || templates[0];
+          await App.createNewProject(name.trim(), chosen && chosen.id);
+          // refresh select
+          sel.innerHTML = App.state.projects.map(p =>
+            `<option value="${App.escapeHtml(p.id)}" ${p.id === App.state.projectId ? "selected" : ""}>${App.escapeHtml(p.name)} — ${App.escapeHtml(p.path || "")}</option>`
+          ).join("");
+          if (onChange) onChange(App.state.projectId);
+        } catch (e) {
+          App.setBanner("创建失败: " + e.message, "err");
         }
-      }
-      renderDropdown();
-      if (App.state.projectId) {
-        switchProject(App.state.projectId);
-      } else {
-        App.showView("search");
-      }
-      App.setBanner("已删除", "info");
-    } catch (e) {
-      App.setBanner("删除失败: " + e.message, "err");
+      });
     }
-  }
+    return sel;
+  };
 
-  // ---------- Project switch ----------
-  async function switchProject(id) {
+  // ---------- Project switch (public) ----------
+  App.switchProject = async function switchProject(id) {
     const chosen = App.state.projects.find(p => p.id === id);
     if (!chosen) return;
     App.state.projectId = chosen.id;
     App.state.projectName = chosen.name;
-    document.getElementById("projectName").textContent = App.state.projectName;
-    document.getElementById("projectName").title = chosen.path || chosen.name;
     App.state.sessionId = null;
     App.state.pendingBrowseTarget = null;
     try {
       await App.api(`/api/v1/projects/${id}/select`, { method: "POST" });
-    } catch (e) {
-      // non-fatal
-    }
-    renderDropdown();
-    App.showView(App.state.currentView);
-  }
+    } catch (e) { /* non-fatal */ }
+  };
 
-  // ---------- New project ----------
-  async function createProject(name, template) {
+  // ---------- New project (public) ----------
+  App.createNewProject = async function createNewProject(name, template) {
     const result = await App.api("/api/v1/projects", {
       method: "POST",
       body: { name, template },
@@ -178,9 +148,11 @@
     App.state.projects.unshift(newProject);
     App.state.projectId = newProject.id;
     App.state.projectName = newProject.name;
-    renderDropdown();
-    await switchProject(newProject.id);
-  }
+    try {
+      await App.api(`/api/v1/projects/${newProject.id}/select`, { method: "POST" });
+    } catch (e) { /* non-fatal */ }
+    return newProject;
+  };
 
   // ---------- Theme ----------
   function getTheme() {
@@ -218,25 +190,13 @@
       App.state.projects = list;
       if (!list.length) {
         App.setBanner("未找到已注册项目，请先新建项目", "err");
-        document.getElementById("projectName").textContent = "(无项目)";
         return;
       }
       const chosen = list[0];
       App.state.projectId = chosen.id;
       App.state.projectName = chosen.name;
-      document.getElementById("projectName").textContent = App.state.projectName;
-      document.getElementById("projectName").title = chosen.path || chosen.name;
 
-      renderDropdown();
-      document.getElementById("projectDropdownBtn").style.display = "flex";
       document.getElementById("newProjectBtn").style.display = "inline-block";
-      document.getElementById("projectDropdownBtn").addEventListener("click", toggleDropdown);
-      document.addEventListener("click", (e) => {
-        const wrap = document.querySelector(".project-selector-wrap");
-        if (wrap && !wrap.contains(e.target)) {
-          document.getElementById("projectDropdown").style.display = "none";
-        }
-      });
       document.getElementById("newProjectBtn").addEventListener("click", async () => {
         const name = window.prompt("输入项目名称：");
         if (!name || !name.trim()) return;
@@ -247,7 +207,8 @@
           const selected = window.prompt(`选择知识库模板（输入编号，默认 1）：\n${choices}`, "1");
           const index = Math.max(1, Number.parseInt(selected || "1", 10)) - 1;
           const chosen = templates[index] || templates[0];
-          await createProject(name.trim(), chosen && chosen.id);
+          await App.createNewProject(name.trim(), chosen && chosen.id);
+          App.showView(App.state.currentView);
         } catch (e) {
           App.setBanner("创建失败: " + e.message, "err");
         }

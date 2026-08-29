@@ -1,0 +1,26 @@
+[
+  {
+    "query": "Fact",
+    "expected_block_id": "b1",
+    "result": {
+      "id": "p1",
+      "title": "Fact page",
+      "score": 0.9,
+      "evidence": [{"document_id": "d1", "block_id": "b1", "quote": "Fact"}]
+    }
+  },
+  {
+    "query": "Definition",
+    "expected_block_id": "b2",
+    "result": {
+      "id": "p2",
+      "title": "Definition page",
+      "score": 0.8,
+      "evidence": [{"document_id": "d2", "block_id": "b2", "quote": "Definition"}]
+    }
+  },
+  {
+    "query": "Legacy page",
+    "result": {"id": "p3", "title": "Legacy page", "score": 0.7, "snippet": "old provenance"}
+  }
+]

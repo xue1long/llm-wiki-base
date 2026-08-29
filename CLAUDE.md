@@ -1,4 +1,4 @@
-﻿# CLAUDE.md
+# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -96,18 +96,18 @@ python -m src.cli llm-providers add minimax openai-compatible \
   --base-url "$MINIMAX_BASE_URL" --model "$MINIMAX_CHAT_MODEL" --api-key "$MINIMAX_API_KEY"
 
 # 3. Start the server
-python -m src.cli serve --host 127.0.0.1 --port 8765
+python -m src.cli serve --host 127.0.0.1
 
 # 4. Find the project_id
 python -m src.cli project list
 
 # 5. Enqueue ingestion (URL or single file)
 PROJECT=<id from step 4>
-curl -X POST http://127.0.0.1:8765/api/v1/projects/$PROJECT/ingest \
+curl -X POST http://127.0.0.1:19828/api/v1/projects/$PROJECT/ingest \
   -H "Content-Type: application/json" \
   -d '{"source": "https://example.com/paper.pdf"}'                # URL
 
-curl -X POST http://127.0.0.1:8765/api/v1/projects/$PROJECT/ingest \
+curl -X POST http://127.0.0.1:19828/api/v1/projects/$PROJECT/ingest \
   -H "Content-Type: application/json" \
   -d '{"source": "/abs/path/to/notes.docx"}'                       # file (absolute path; resolved to the project's wiki tree)
 ```
