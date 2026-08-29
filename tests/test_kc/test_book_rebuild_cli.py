@@ -136,3 +136,69 @@ def test_cli_bad_snapshot_returns_nonzero_and_structured_json_failure(tmp_path: 
     assert report["status"] == "failed"
     assert report["failed_object_ids"] == ["snapshot"]
     assert any(str(code).startswith("snapshot:") for code in report["reason_codes"])
+
+
+def test_cli_rejects_duplicate_snapshot_ids_with_structured_failure(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    for section in ("chapters", "knowledge_units", "evidences"):
+        snapshot = json.loads(FIXTURE.read_text(encoding="utf-8"))
+        snapshot[section].append(dict(snapshot[section][0]))
+        bad_snapshot = tmp_path / f"duplicate-{section}.json"
+        bad_snapshot.write_text(json.dumps(snapshot), encoding="utf-8")
+
+        proc = _run_cli(project_root, bad_snapshot, "--dry-run")
+
+        assert proc.returncode != 0
+        report = _report(proc)
+        assert report["failed_object_ids"] == ["snapshot"]
+        assert any(
+            f"snapshot:{section}:duplicate_id" in str(code)
+            for code in report["reason_codes"]
+        )
+
+
+def test_cli_rejects_malformed_nested_snapshot_fields(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    cases = (
+        ("book", "title", 7, "expected_string"),
+        ("chapters", 0, {"id": "ch-1"}, "missing_book_id"),
+        ("knowledge_units", 0, {"ku_id": "ku-1"}, "missing_concept_id"),
+        ("evidences", 0, {"evidence_id": "ev-1"}, "missing_document_id"),
+        ("publication_version", None, "7", "expected_int"),
+    )
+    for index, (section, field, value, expected) in enumerate(cases):
+        snapshot = json.loads(FIXTURE.read_text(encoding="utf-8"))
+        if field is None:
+            snapshot[section] = value
+        elif section == "book":
+            snapshot[section][field] = value
+        else:
+            snapshot[section][field] = value
+        bad_snapshot = tmp_path / f"malformed-{index}.json"
+        bad_snapshot.write_text(json.dumps(snapshot), encoding="utf-8")
+
+        proc = _run_cli(project_root, bad_snapshot, "--dry-run")
+
+        assert proc.returncode != 0
+        report = _report(proc)
+        assert report["failed_object_ids"] == ["snapshot"]
+        assert any(expected in str(code) for code in report["reason_codes"])
+
+
+def test_cli_serializes_rebuild_failure_object_ids(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    snapshot = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    snapshot["chapters"][0]["source_knowledge_unit_ids"] = ["missing-ku"]
+    bad_snapshot = tmp_path / "rebuild-failure.json"
+    bad_snapshot.write_text(json.dumps(snapshot), encoding="utf-8")
+
+    proc = _run_cli(project_root, bad_snapshot, "--dry-run")
+
+    assert proc.returncode != 0
+    report = _report(proc)
+    assert report["status"] == "failed"
+    assert report["failed_chapter_ids"] == ["ch-1"]
+    assert report["failed_object_ids"] == ["ch-1"]
