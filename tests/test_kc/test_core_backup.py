@@ -118,8 +118,9 @@ def test_restore_validates_identity_key_consistency(tmp_path):
     # 加 1 个原本不在 snapshot 的 KO，模拟数据漂移
     modified.append(_make_object("ko-extra", title="Extra", content="NEW"))
 
-    ok = restore_snapshot(snap.snapshot_id, paths, modified_objects=modified)
-    assert ok is True
+    report = restore_snapshot(snap.snapshot_id, paths, modified_objects=modified)
+    assert report.reason_codes == ()
+    assert report.identity_keys == sorted(["ko-1", "ko-2", "ko-3"])
 
     # KO.id 列表与 snapshot 时一致 (ko-extra 应被忽略，不在 snapshot 中)
     restored_dir = paths.llm_wiki / "backups" / snap.snapshot_id
