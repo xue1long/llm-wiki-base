@@ -615,3 +615,10 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 1. 推 B-T2（KU → Chapter Mapper + 30 case 金标），独立 subagent，文件范围 `src/kc/views/book/mapper.py` + `tests/test_kc/test_book_mapper.py` + `tests/fixtures/book_mapping.yaml`
 2. 决策 `knowledge/novel-wiki/` 4420 项 + 7 个未追踪脚本（commit / stash / 丢弃三选一）
 3. 真实环境 `scripts/kc_agent_eval.py --runtime --dataset docs/evaluation/agent_tasks/agent_tasks.yaml` 复测，确认 `runtime_count >= 1`
+
+### A8 Book 完整验收（2026-08-30）
+
+- ✅ B-T1～B-T5（Contract、Mapper、Core/Compiler、Markdown、Outline、Diff、Rebuild、CLI、Gate E2E）完成。
+- ✅ `scripts/kc_book_a8_accept.py --fixture tests/fixtures/book_rebuild_fixture.json`：8/8 checks passed；mapper 32/32；Unsupported Fact 0。
+- ✅ Book 相关测试：214 passed；完整 `tests/test_kc`：526 passed / 2 个既有 `knowledge/novel-wiki/` 数据漂移失败（历史期望 15/66，当前实际 51）。
+- ✅ next_phase_ready：A8 完成，下一阶段为 A9。
