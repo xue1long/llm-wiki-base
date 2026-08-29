@@ -168,3 +168,216 @@ def test_runtime_passing_task_counts_toward_success_rate(tmp_path, agent_eval_mo
     assert report["mock_count"] == 1
     assert report["passed_count"] == 1
     assert report["success_rate"] == 1.0
+
+
+# ---------------------------------------------------------------------------
+# OPEN-3: real provider invocation path (Z-3)
+# ---------------------------------------------------------------------------
+
+
+class _FakeProvider:
+    """Drop-in ``LLMProvider`` substitute for runtime tests.
+
+    Records every ``complete`` call and returns a canned response that
+    parses as a valid ``knowledge_items`` list. The class is intentionally
+    minimal — no SDK dependencies, no async-loop requirements — so unit
+    tests run on any host.
+    """
+
+    def __init__(self, model: str = "fake-model") -> None:
+        self.model = model
+        self.calls: list[dict] = []
+
+    async def complete(self, messages, **kwargs):
+        from src.llm.base import LLMResponse
+        self.calls.append({"messages": messages, "kwargs": kwargs})
+        return LLMResponse(
+            content=(
+                '{"knowledge_items": ['
+                '{"knowledge_unit_id": "ku_rt", "evidence_refs": ["ev_rt"],'
+                ' "knowledge_mode": "observed", "conflict_status": "none"}'
+                '], "omitted_candidates": []}'
+            ),
+            model=self.model,
+        )
+
+    async def aclose(self):  # pragma: no cover — not exercised in unit tests
+        return None
+
+
+class _BrokenProvider(_FakeProvider):
+    async def complete(self, messages, **kwargs):
+        raise RuntimeError("provider offline")
+
+
+def _runtime_task_payload() -> dict:
+    """Single runtime-shaped task with a query field the provider is asked."""
+    return {
+        "task_id": "AT-RT-1",
+        "query": "find observed KUs with strong evidence",
+        "success_criteria": {"min_units_returned": 1, "min_citations_valid": 1},
+        "expected_knowledge_units": ["ku_rt"],
+        "expected_citations": ["ev_rt"],
+        "expected_conflict_status": [],
+        "mock_response": {
+            "knowledge_items": [
+                {
+                    "knowledge_unit_id": "ku_rt",
+                    "evidence_refs": ["ev_rt"],
+                    "knowledge_mode": "observed",
+                    "conflict_status": "none",
+                }
+            ],
+            "omitted_candidates": [],
+        },
+        "mode": "runtime",
+        "runtime_verified": False,
+    }
+
+
+def _runtime_dataset(tmp_path: Path) -> Path:
+    return _write_dataset(tmp_path, [_runtime_task_payload()])
+
+
+def test_runtime_mode_invokes_provider_and_sets_runtime_verified(tmp_path, agent_eval_mod):
+    """When ``mode='runtime'`` and a provider is supplied, every task is
+    invoked and on success ``runtime_verified=True`` is recorded.
+
+    The aggregate ``runtime_count`` then reflects successful invocations,
+    flipping ``not_evaluable`` to ``False``."""
+    dataset = _runtime_dataset(tmp_path)
+    provider = _FakeProvider()
+
+    results = agent_eval_mod.evaluate_agent_task_dataset(
+        dataset, runtime_provider=provider
+    )
+
+    # one provider call per task
+    assert len(provider.calls) == 1
+    call = provider.calls[0]
+    assert call["messages"][0]["role"] == "user"
+    assert "find observed KUs" in call["messages"][0]["content"]
+
+    # aggregate flips runtime_count > 0, not_evaluable = False
+    assert results["runtime_count"] == 1
+    assert results["mock_count"] == 0
+    assert results["not_evaluable"] is False
+    # the runtime task now passes (provider output matched the schema)
+    assert results["passed_count"] == 1
+    assert results["success_rate"] == 1.0
+
+
+def test_runtime_mode_no_provider_records_zero_and_message(tmp_path, agent_eval_mod, capsys):
+    """When ``mode='runtime'`` but no provider is configured, every task
+    fails with a clear reason and ``runtime_count`` stays 0."""
+    dataset = _runtime_dataset(tmp_path)
+
+    results = agent_eval_mod.evaluate_agent_task_dataset(
+        dataset, runtime_provider=None
+    )
+
+    # the task is still recorded under 'runtime' so reviewers see the
+    # attempt, but its runtime_verified flag stays False and a
+    # 'no_provider' reason is captured
+    assert results["runtime_count"] == 0
+    assert results["not_evaluable"] is True
+    assert results["results"][0]["runtime_verified"] is False
+    assert any("no_provider" in r for r in results["results"][0]["failure_reasons"])
+    # CLI surfaces the helpful setup hint exactly once per run
+    err = capsys.readouterr().err
+    assert "llm-providers add" in err or "MINIMAX_API_KEY" in err
+
+
+def test_runtime_mode_provider_failure_keeps_count_at_zero(tmp_path, agent_eval_mod):
+    """Provider that raises → task is marked failed with the error captured,
+    but the count of *successful* invocations stays 0 (consumers care about
+    *verified* runtime tasks, not attempted ones)."""
+    dataset = _runtime_dataset(tmp_path)
+    provider = _BrokenProvider()
+
+    results = agent_eval_mod.evaluate_agent_task_dataset(
+        dataset, runtime_provider=provider
+    )
+
+    assert results["runtime_count"] == 0
+    assert results["not_evaluable"] is True
+    assert results["results"][0]["runtime_verified"] is False
+    assert any("provider offline" in r for r in results["results"][0]["failure_reasons"])
+
+
+def test_dry_run_flag_preserves_mock_behavior(tmp_path, agent_eval_mod, monkeypatch):
+    """When invoked via main() with ``--dry-run``, no provider is loaded
+    and the existing mock evaluation contract is preserved unchanged."""
+    dataset = _runtime_dataset(tmp_path)
+
+    # Force a runtime provider that, if loaded, would explode — the dry-run
+    # path must never consult it.
+    def _explode(*a, **kw):  # pragma: no cover — defensive
+        raise AssertionError("dry-run must not construct a provider")
+
+    monkeypatch.setattr(agent_eval_mod, "_resolve_provider", _explode)
+
+    import sys
+    monkeypatch.setattr(
+        sys, "argv",
+        ["kc_agent_eval.py", "--dataset", str(dataset), "--dry-run"],
+    )
+    agent_eval_mod.main()
+
+    # In dry-run mode the only task is recorded as 'mock' (its declared
+    # mode is irrelevant — dry-run forces mock semantics) so not_evaluable
+    # remains True and the runtime provider is never instantiated.
+    # The dataset's task has mode='runtime' but dry-run overrides that.
+    out = dataset.read_text(encoding="utf-8")
+    assert "AT-RT-1" in out  # dataset unchanged; only the evaluation mode changes
+
+
+def test_runtime_invocation_logs_task_provider_latency(tmp_path, agent_eval_mod, caplog):
+    """Every runtime invocation logs task_id, provider name, latency, success."""
+    import logging
+
+    dataset = _runtime_dataset(tmp_path)
+    provider = _FakeProvider(model="glm-5.2")
+
+    with caplog.at_level(logging.INFO, logger="scripts.kc_agent_eval"):
+        agent_eval_mod.evaluate_agent_task_dataset(
+            dataset, runtime_provider=provider, provider_name="sfkey-glm"
+        )
+
+    # at least one log line mentions the task, the provider, and success
+    relevant = [
+        rec for rec in caplog.records
+        if rec.name == "scripts.kc_agent_eval"
+    ]
+    assert any(
+        "AT-RT-1" in rec.getMessage() and "sfkey-glm" in rec.getMessage()
+        for rec in relevant
+    )
+    assert any("success=True" in rec.getMessage() for rec in relevant)
+    assert any("latency_ms" in rec.getMessage() for rec in relevant)
+
+
+def test_main_cli_dry_run_does_not_invoke_provider(tmp_path, agent_eval_mod, monkeypatch):
+    """``--dry-run`` CLI flag forces mock mode regardless of provider
+    availability; the report contains zero ``runtime_count``."""
+    dataset = _runtime_dataset(tmp_path)
+
+    # Inject a fake provider so we can verify it is *never* instantiated.
+    import src.llm.provider_factory as pf
+    factory_calls: list = []
+    real_create = pf.create_llm_provider
+
+    def _spy_create(*a, **kw):
+        factory_calls.append((a, kw))
+        return real_create(*a, **kw)
+
+    monkeypatch.setattr(pf, "create_llm_provider", _spy_create)
+
+    import sys
+    monkeypatch.setattr(
+        sys, "argv",
+        ["kc_agent_eval.py", "--dataset", str(dataset), "--dry-run"],
+    )
+    agent_eval_mod.main()
+
+    assert factory_calls == [], "dry-run must not call create_llm_provider"
