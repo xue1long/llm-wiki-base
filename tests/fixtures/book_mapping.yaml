@@ -1,0 +1,578 @@
+# Gold standard for B-T2 KU → Chapter Mapper (spec §12.5 + §14 A8 step 1243 + §17 D-18).
+#
+# Each case asserts one mapping decision. The accuracy metric is the fraction
+# of cases where (chapter_id, stable_key, confidence, reason) ALL match.
+#
+# Gate A8 requires accuracy >= 0.90. This dataset exercises:
+#   - 8 exact_ku_match (KU id is already in source_knowledge_unit_ids)
+#   - 6 exact_stable_key (mapping hint provided, chapter found by stable_key)
+#   - 8 concept_unit_type_match (no exact hit, derivation matches)
+#   - 6 needs_new_chapter (no match at all)
+#   - 4 edge / boundary (empty registry, multiple matches, hint collision, etc.)
+#
+# Stable key derivation rule (B-T2 canonical):
+#     derive_stable_key(ku) = f"{ku.concept_id}::{ku.unit_type}"
+#
+# Resolution order (must match §9 / A3 + task spec):
+#     1. exact_ku_match        confidence 1.00  reason="exact_ku_match"
+#     2. exact_stable_key      confidence 0.95  reason="exact_stable_key"
+#     3. concept_unit_type     confidence 0.85  reason="concept_unit_type_match"
+#     4. needs_new_chapter     confidence 0.00  reason="needs_new_chapter"
+
+# ─── exact_ku_match (8 cases) ────────────────────────────────────────────
+
+- case_id: case_001
+  description: KU id is in chapter.source_knowledge_unit_ids — exact hit, 1.0
+  ku:
+    id: ku_001_def_intent
+    concept_id: concept_intent_design
+    unit_type: definition
+  existing_chapters:
+    - chapter_id: ch_001_intent_def
+      stable_key: concept_intent_design::definition
+      source_knowledge_unit_ids: [ku_001_def_intent, ku_001_other]
+  expected:
+    chapter_id: ch_001_intent_def
+    stable_key: concept_intent_design::definition
+    confidence: 1.0
+    reason: exact_ku_match
+
+- case_id: case_002
+  description: KU id is the only source in the matching chapter
+  ku:
+    id: ku_002_principle_open
+    concept_id: concept_open_source
+    unit_type: principle
+  existing_chapters:
+    - chapter_id: ch_002_open_prin
+      stable_key: concept_open_source::principle
+      source_knowledge_unit_ids: [ku_002_principle_open]
+  expected:
+    chapter_id: ch_002_open_prin
+    stable_key: concept_open_source::principle
+    confidence: 1.0
+    reason: exact_ku_match
+
+- case_id: case_003
+  description: exact_ku_match in the SECOND of multiple chapters
+  ku:
+    id: ku_003_mech_cache
+    concept_id: concept_cache_strategy
+    unit_type: mechanism
+  existing_chapters:
+    - chapter_id: ch_003_cache_def
+      stable_key: concept_cache_strategy::definition
+      source_knowledge_unit_ids: [ku_003_def_cache]
+    - chapter_id: ch_003_cache_mech
+      stable_key: concept_cache_strategy::mechanism
+      source_knowledge_unit_ids: [ku_003_mech_cache]
+  expected:
+    chapter_id: ch_003_cache_mech
+    stable_key: concept_cache_strategy::mechanism
+    confidence: 1.0
+    reason: exact_ku_match
+
+- case_id: case_004
+  description: exact_ku_match even when other chapters share the concept
+  ku:
+    id: ku_004_process_build
+    concept_id: concept_ci_pipeline
+    unit_type: process
+  existing_chapters:
+    - chapter_id: ch_004_ci_def
+      stable_key: concept_ci_pipeline::definition
+      source_knowledge_unit_ids: [ku_004_def_ci]
+    - chapter_id: ch_004_ci_proc
+      stable_key: concept_ci_pipeline::process
+      source_knowledge_unit_ids: [ku_004_process_build, ku_004_proc_other]
+    - chapter_id: ch_004_ci_meth
+      stable_key: concept_ci_pipeline::method
+      source_knowledge_unit_ids: [ku_004_meth_ci]
+  expected:
+    chapter_id: ch_004_ci_proc
+    stable_key: concept_ci_pipeline::process
+    confidence: 1.0
+    reason: exact_ku_match
+
+- case_id: case_005
+  description: exact_ku_match when the chapter also matches by derivation
+  ku:
+    id: ku_005_pattern_match
+    concept_id: concept_pattern_search
+    unit_type: pattern
+  existing_chapters:
+    - chapter_id: ch_005_pat_match
+      stable_key: concept_pattern_search::pattern
+      source_knowledge_unit_ids: [ku_005_pattern_match]
+  expected:
+    chapter_id: ch_005_pat_match
+    stable_key: concept_pattern_search::pattern
+    confidence: 1.0
+    reason: exact_ku_match
+
+- case_id: case_006
+  description: exact_ku_match for a "case" unit_type (rare spec value)
+  ku:
+    id: ku_006_case_study
+    concept_id: concept_incident_response
+    unit_type: case
+  existing_chapters:
+    - chapter_id: ch_006_ir_cases
+      stable_key: concept_incident_response::case
+      source_knowledge_unit_ids: [ku_006_case_study]
+  expected:
+    chapter_id: ch_006_ir_cases
+    stable_key: concept_incident_response::case
+    confidence: 1.0
+    reason: exact_ku_match
+
+- case_id: case_007
+  description: exact_ku_match for an "event" unit_type (rare spec value)
+  ku:
+    id: ku_007_event_outage
+    concept_id: concept_platform_outage
+    unit_type: event
+  existing_chapters:
+    - chapter_id: ch_007_outage_events
+      stable_key: concept_platform_outage::event
+      source_knowledge_unit_ids: [ku_007_event_outage]
+  expected:
+    chapter_id: ch_007_outage_events
+    stable_key: concept_platform_outage::event
+    confidence: 1.0
+    reason: exact_ku_match
+
+- case_id: case_008
+  description: exact_ku_match for "mechanism" unit_type
+  ku:
+    id: ku_008_mech_x
+    concept_id: concept_quantum_lock
+    unit_type: mechanism
+  existing_chapters:
+    - chapter_id: ch_008_quantum_mech
+      stable_key: concept_quantum_lock::mechanism
+      source_knowledge_unit_ids: [ku_008_mech_x]
+  expected:
+    chapter_id: ch_008_quantum_mech
+    stable_key: concept_quantum_lock::mechanism
+    confidence: 1.0
+    reason: exact_ku_match
+
+# ─── exact_stable_key (6 cases) ──────────────────────────────────────────
+
+- case_id: case_009
+  description: MappingHint(stable_key=...) matches a chapter (single)
+  ku:
+    id: ku_009_def_brand
+    concept_id: concept_brand_guidelines
+    unit_type: definition
+  hint_stable_key: concept_brand_guidelines::method
+  existing_chapters:
+    - chapter_id: ch_009_brand_method
+      stable_key: concept_brand_guidelines::method
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_009_brand_method
+    stable_key: concept_brand_guidelines::method
+    confidence: 0.95
+    reason: exact_stable_key
+
+- case_id: case_010
+  description: hint_stable_key points to a chapter that has a different concept
+  ku:
+    id: ku_010_ku_x
+    concept_id: concept_distillation
+    unit_type: definition
+  hint_stable_key: concept_atomic_layer::principle
+  existing_chapters:
+    - chapter_id: ch_010_layer_principle
+      stable_key: concept_atomic_layer::principle
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_010_layer_principle
+    stable_key: concept_atomic_layer::principle
+    confidence: 0.95
+    reason: exact_stable_key
+
+- case_id: case_011
+  description: hint_stable_key while another chapter matches by derivation (hint wins)
+  ku:
+    id: ku_011_ku_y
+    concept_id: concept_render_pipeline
+    unit_type: definition
+  hint_stable_key: concept_render_pipeline::pattern
+  existing_chapters:
+    - chapter_id: ch_011_render_def
+      stable_key: concept_render_pipeline::definition
+      source_knowledge_unit_ids: []
+    - chapter_id: ch_011_render_pat
+      stable_key: concept_render_pipeline::pattern
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_011_render_pat
+    stable_key: concept_render_pipeline::pattern
+    confidence: 0.95
+    reason: exact_stable_key
+
+- case_id: case_012
+  description: hint_stable_key for a "method" unit_type chapter
+  ku:
+    id: ku_012_ku_z
+    concept_id: concept_search_engine
+    unit_type: definition
+  hint_stable_key: concept_search_engine::method
+  existing_chapters:
+    - chapter_id: ch_012_se_method
+      stable_key: concept_search_engine::method
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_012_se_method
+    stable_key: concept_search_engine::method
+    confidence: 0.95
+    reason: exact_stable_key
+
+- case_id: case_013
+  description: hint_stable_key picks the FIRST matching chapter (deterministic)
+  ku:
+    id: ku_013_ku_w
+    concept_id: concept_data_lake
+    unit_type: definition
+  hint_stable_key: concept_data_lake::principle
+  existing_chapters:
+    - chapter_id: ch_013_lake_first
+      stable_key: concept_data_lake::principle
+      source_knowledge_unit_ids: []
+    - chapter_id: ch_013_lake_second
+      stable_key: concept_data_lake::principle
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_013_lake_first
+    stable_key: concept_data_lake::principle
+    confidence: 0.95
+    reason: exact_stable_key
+
+- case_id: case_014
+  description: hint_stable_key for an "event" chapter
+  ku:
+    id: ku_014_ku_v
+    concept_id: concept_deployment_pipelines
+    unit_type: definition
+  hint_stable_key: concept_deployment_pipelines::event
+  existing_chapters:
+    - chapter_id: ch_014_dep_events
+      stable_key: concept_deployment_pipelines::event
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_014_dep_events
+    stable_key: concept_deployment_pipelines::event
+    confidence: 0.95
+    reason: exact_stable_key
+
+# ─── concept_unit_type_match (8 cases) ──────────────────────────────────
+
+- case_id: case_015
+  description: no KU match, no hint — derive concept::unit_type, find chapter
+  ku:
+    id: ku_015_fresh_def
+    concept_id: concept_visual_design
+    unit_type: definition
+  existing_chapters:
+    - chapter_id: ch_015_visual_def
+      stable_key: concept_visual_design::definition
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_015_visual_def
+    stable_key: concept_visual_design::definition
+    confidence: 0.85
+    reason: concept_unit_type_match
+
+- case_id: case_016
+  description: derivation match for "principle"
+  ku:
+    id: ku_016_fresh_prin
+    concept_id: concept_caching_layer
+    unit_type: principle
+  existing_chapters:
+    - chapter_id: ch_016_cache_prin
+      stable_key: concept_caching_layer::principle
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_016_cache_prin
+    stable_key: concept_caching_layer::principle
+    confidence: 0.85
+    reason: concept_unit_type_match
+
+- case_id: case_017
+  description: derivation match for "process"
+  ku:
+    id: ku_017_fresh_proc
+    concept_id: concept_etl_pipeline
+    unit_type: process
+  existing_chapters:
+    - chapter_id: ch_017_etl_proc
+      stable_key: concept_etl_pipeline::process
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_017_etl_proc
+    stable_key: concept_etl_pipeline::process
+    confidence: 0.85
+    reason: concept_unit_type_match
+
+- case_id: case_018
+  description: derivation match — registry also has other concept's chapter
+  ku:
+    id: ku_018_fresh_pat
+    concept_id: concept_service_mesh
+    unit_type: pattern
+  existing_chapters:
+    - chapter_id: ch_018_mesh_pat
+      stable_key: concept_service_mesh::pattern
+      source_knowledge_unit_ids: []
+    - chapter_id: ch_018_other_def
+      stable_key: concept_other::definition
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_018_mesh_pat
+    stable_key: concept_service_mesh::pattern
+    confidence: 0.85
+    reason: concept_unit_type_match
+
+- case_id: case_019
+  description: derivation match for "method"
+  ku:
+    id: ku_019_fresh_meth
+    concept_id: concept_indexing_strategy
+    unit_type: method
+  existing_chapters:
+    - chapter_id: ch_019_idx_meth
+      stable_key: concept_indexing_strategy::method
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_019_idx_meth
+    stable_key: concept_indexing_strategy::method
+    confidence: 0.85
+    reason: concept_unit_type_match
+
+- case_id: case_020
+  description: derivation match for "case"
+  ku:
+    id: ku_020_fresh_case
+    concept_id: concept_incident_review
+    unit_type: case
+  existing_chapters:
+    - chapter_id: ch_020_ir_case
+      stable_key: concept_incident_review::case
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_020_ir_case
+    stable_key: concept_incident_review::case
+    confidence: 0.85
+    reason: concept_unit_type_match
+
+- case_id: case_021
+  description: derivation match — multiple chapters for same concept, derivation hits one
+  ku:
+    id: ku_021_fresh_def
+    concept_id: concept_distributed_lock
+    unit_type: definition
+  existing_chapters:
+    - chapter_id: ch_021_lock_def
+      stable_key: concept_distributed_lock::definition
+      source_knowledge_unit_ids: []
+    - chapter_id: ch_021_lock_proc
+      stable_key: concept_distributed_lock::process
+      source_knowledge_unit_ids: []
+    - chapter_id: ch_021_lock_pat
+      stable_key: concept_distributed_lock::pattern
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_021_lock_def
+    stable_key: concept_distributed_lock::definition
+    confidence: 0.85
+    reason: concept_unit_type_match
+
+- case_id: case_022
+  description: derivation match for "event"
+  ku:
+    id: ku_022_fresh_event
+    concept_id: concept_release_train
+    unit_type: event
+  existing_chapters:
+    - chapter_id: ch_022_train_event
+      stable_key: concept_release_train::event
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_022_train_event
+    stable_key: concept_release_train::event
+    confidence: 0.85
+    reason: concept_unit_type_match
+
+# ─── needs_new_chapter (6 cases) ────────────────────────────────────────
+
+- case_id: case_023
+  description: empty registry — caller must create
+  ku:
+    id: ku_023_new_def
+    concept_id: concept_orphan_a
+    unit_type: definition
+  existing_chapters: []
+  expected:
+    chapter_id: null
+    stable_key: concept_orphan_a::definition
+    confidence: 0.0
+    reason: needs_new_chapter
+
+- case_id: case_024
+  description: registry has chapters for different concepts
+  ku:
+    id: ku_024_new_prin
+    concept_id: concept_orphan_b
+    unit_type: principle
+  existing_chapters:
+    - chapter_id: ch_024_other_def
+      stable_key: concept_other::definition
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: null
+    stable_key: concept_orphan_b::principle
+    confidence: 0.0
+    reason: needs_new_chapter
+
+- case_id: case_025
+  description: registry has same concept but different unit_type
+  ku:
+    id: ku_025_new_case
+    concept_id: concept_quantum_lock
+    unit_type: case
+  existing_chapters:
+    - chapter_id: ch_025_quantum_mech
+      stable_key: concept_quantum_lock::mechanism
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: null
+    stable_key: concept_quantum_lock::case
+    confidence: 0.0
+    reason: needs_new_chapter
+
+- case_id: case_026
+  description: registry has same concept+unit_type but for a different chapter id (collision avoided by concept derivation)
+  ku:
+    id: ku_026_new_pat
+    concept_id: concept_audio_codec
+    unit_type: pattern
+  existing_chapters:
+    - chapter_id: ch_026_codec_def
+      stable_key: concept_audio_codec::definition
+      source_knowledge_unit_ids: []
+    - chapter_id: ch_026_codec_proc
+      stable_key: concept_audio_codec::process
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: null
+    stable_key: concept_audio_codec::pattern
+    confidence: 0.0
+    reason: needs_new_chapter
+
+- case_id: case_027
+  description: needs_new_chapter — "method" unit_type, novel concept
+  ku:
+    id: ku_027_new_meth
+    concept_id: concept_secret_rotation
+    unit_type: method
+  existing_chapters:
+    - chapter_id: ch_027_rot_def
+      stable_key: concept_secret_rotation::definition
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: null
+    stable_key: concept_secret_rotation::method
+    confidence: 0.0
+    reason: needs_new_chapter
+
+- case_id: case_028
+  description: needs_new_chapter — "principle" unit_type, novel concept
+  ku:
+    id: ku_028_new_prin
+    concept_id: concept_retry_strategy
+    unit_type: principle
+  existing_chapters: []
+  expected:
+    chapter_id: null
+    stable_key: concept_retry_strategy::principle
+    confidence: 0.0
+    reason: needs_new_chapter
+
+# ─── edge / boundary (4 cases) ──────────────────────────────────────────
+
+- case_id: case_029
+  description: empty registry, hint provided but irrelevant — still needs_new
+  ku:
+    id: ku_029_new_def
+    concept_id: concept_orphan_edge
+    unit_type: definition
+  hint_stable_key: concept_other::pattern
+  existing_chapters: []
+  expected:
+    chapter_id: null
+    stable_key: concept_orphan_edge::definition
+    confidence: 0.0
+    reason: needs_new_chapter
+
+- case_id: case_030
+  description: hint matches AND concept::unit_type also matches — hint wins (higher confidence)
+  ku:
+    id: ku_030_fresh_def
+    concept_id: concept_query_planner
+    unit_type: definition
+  hint_stable_key: concept_query_planner::pattern
+  existing_chapters:
+    - chapter_id: ch_030_qp_def
+      stable_key: concept_query_planner::definition
+      source_knowledge_unit_ids: []
+    - chapter_id: ch_030_qp_pat
+      stable_key: concept_query_planner::pattern
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_030_qp_pat
+    stable_key: concept_query_planner::pattern
+    confidence: 0.95
+    reason: exact_stable_key
+
+- case_id: case_031
+  description: exact_ku_match BEATS hint (priority order, even when hint also matches)
+  ku:
+    id: ku_031_match
+    concept_id: concept_ledger_storage
+    unit_type: definition
+  hint_stable_key: concept_ledger_storage::pattern
+  existing_chapters:
+    - chapter_id: ch_031_ledger_def
+      stable_key: concept_ledger_storage::definition
+      source_knowledge_unit_ids: [ku_031_match]
+    - chapter_id: ch_031_ledger_pat
+      stable_key: concept_ledger_storage::pattern
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_031_ledger_def
+    stable_key: concept_ledger_storage::definition
+    confidence: 1.0
+    reason: exact_ku_match
+
+- case_id: case_032
+  description: two chapters share stable_key — first occurrence wins (deterministic)
+  ku:
+    id: ku_032_fresh_proc
+    concept_id: concept_backpressure
+    unit_type: process
+  existing_chapters:
+    - chapter_id: ch_032_bp_first
+      stable_key: concept_backpressure::process
+      source_knowledge_unit_ids: []
+    - chapter_id: ch_032_bp_second
+      stable_key: concept_backpressure::process
+      source_knowledge_unit_ids: []
+  expected:
+    chapter_id: ch_032_bp_first
+    stable_key: concept_backpressure::process
+    confidence: 0.85
+    reason: concept_unit_type_match
