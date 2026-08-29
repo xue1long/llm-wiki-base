@@ -1145,7 +1145,20 @@ class RetrievalGate(Gate):
         # 3. A-2 temporal 维度 (内联简化 _derive_temporal_status):
         #    spec §12.1 R-2 + §10 T-10: temporal_status 必须 = current
         #    仅在 query_time 存在且 obj 有 valid_from/valid_to 字段时检查
-        if query_time is not None and hasattr(obj, "valid_from") and hasattr(obj, "valid_to"):
+        #    Task 6 back-compat: WikiPage 现在原生有这两个字段（默认 None）,
+        #    None/None 在 WikiPage 上视为 legacy "未设置时间字段" → 跳过告警;
+        #    KnowledgeObject 上 None/None 仍然严格走 unknown → warn.
+        wiki_page_backcompat = (
+            type(obj).__name__ == "WikiPage"
+            and getattr(obj, "valid_from", None) is None
+            and getattr(obj, "valid_to", None) is None
+        )
+        if (
+            query_time is not None
+            and hasattr(obj, "valid_from")
+            and hasattr(obj, "valid_to")
+            and not wiki_page_backcompat
+        ):
             status = self._derive_temporal_status(
                 obj.valid_from, obj.valid_to, query_time
             )

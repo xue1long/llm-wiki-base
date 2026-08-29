@@ -19,13 +19,22 @@ Inputs are duck-typed (dict or dataclass — anything with the expected
 attributes). This decouples the compiler from the C-1 / C-4 dataclass
 shape evolution: if those schemas grow, the compiler only needs the
 attribute readers updated, not the call sites.
+
+Task 6（plan 2026-08-29-kc-integrity-idempotency-layered.md）扩展：
+- ``rebuild_wiki_view(paths, view_inputs) -> RebuildReport`` 先生成
+  内存/staging；全部编译成功后逐个调既有 writer；任何编译或写入失败
+  → ``reason_codes`` 含失败原因，未完成页面保持原状。
 """
 from __future__ import annotations
 
+import logging
 import time
+from dataclasses import dataclass, field
 from typing import Any
 
 from .wiki_template import WikiTemplate, WikiView, compute_rendered_hash
+
+_logger = logging.getLogger(__name__)
 
 
 def _get(obj: Any, key: str, default: Any = None) -> Any:
@@ -243,4 +252,156 @@ class WikiTemplateCompiler:
         return f"wiki-view-{digest}"
 
 
-__all__ = ["WikiTemplateCompiler"]
+@dataclass
+class RebuildReport:
+    """Result of ``rebuild_wiki_view`` — staging-first rebuild report.
+
+    Task 6 frozen interface. The staging-first contract means:
+
+    *   All views are compiled in memory first.
+    *   Only after every view compiles successfully do we start writing
+        to disk via the existing ``write_page``.
+    *   On any compile failure: no pages are written.
+    *   On any write failure: subsequent writes are skipped (already
+        written pages remain — Wiki is the source of truth; the caller
+        decides whether to roll back / clean up). The failing page id
+        appears in ``failed_ids`` and pages after it appear in
+        ``skipped_ids``.
+
+    Attributes:
+        passed:            True iff every input view compiled AND every
+                           page was written successfully.
+        page_ids:          Pages successfully written (in input order).
+        failed_ids:        Page ids that failed to compile OR write.
+        skipped_ids:       Page ids skipped because an earlier input
+                           failed (write order halted).
+        reason_codes:      Empty tuple on success; otherwise contains one
+                           of ``compile_failed``, ``write_failed``.
+    """
+
+    passed: bool
+    page_ids: list[str] = field(default_factory=list)
+    failed_ids: list[str] = field(default_factory=list)
+    skipped_ids: list[str] = field(default_factory=list)
+    reason_codes: tuple[str, ...] = field(default_factory=tuple)
+
+
+def _compile_one(
+    compiler: "WikiTemplateCompiler",
+    view_input: dict,
+) -> tuple[Any, Any, str | None]:
+    """Compile one view input. Returns (page, view, failure_code).
+
+    A view_input is a dict carrying:
+        page:               WikiPage-shaped object (must expose .id, .title, .body)
+        topic_scope:        {"concept_ids": [...], "context_filters": {...}}
+        publication_version: int
+        knowledge_units:    list of duck-typed KU items
+        conflicts:          list of duck-typed Conflict items
+        evidence_lookup:    dict[ku_id] -> Evidence-shaped
+
+    Failure conditions (compile-only, no I/O):
+        * missing/empty knowledge_units → ("compile_failed", "empty_top_k")
+        * missing/empty evidence_lookup → ("compile_failed", "empty_evidence")
+    """
+    page = view_input.get("page")
+    knowledge_units = view_input.get("knowledge_units", [])
+    evidence_lookup = view_input.get("evidence_lookup", {})
+    if not knowledge_units:
+        return page, None, "empty_top_k"
+    if not evidence_lookup:
+        return page, None, "empty_evidence"
+    try:
+        view = compiler.compile(
+            topic_scope=view_input.get("topic_scope", {}),
+            knowledge_units=knowledge_units,
+            conflicts=view_input.get("conflicts", []),
+            evidence_lookup=evidence_lookup,
+            publication_version=view_input.get("publication_version", 1),
+            query_time=view_input.get("query_time"),
+        )
+    except Exception as e:  # noqa: BLE001 — compiler may raise on bad input
+        _logger.warning("rebuild_wiki_view: compile failed for %s: %s",
+                        getattr(page, "id", None), e)
+        return page, None, f"compile_exception:{type(e).__name__}"
+    return page, view, None
+
+
+def rebuild_wiki_view(
+    paths: Any,
+    view_inputs: list[dict],
+    *,
+    template: WikiTemplate | None = None,
+) -> RebuildReport:
+    """Staging-first rebuild of Wiki pages from compiled views.
+
+    Task 6 §Step 3: compile every input view in memory first; if any
+    compile fails, abort with ``compile_failed`` in ``reason_codes``
+    and do NOT call ``write_page`` (so existing wiki content is left
+    untouched). If every compile succeeds, write pages in input order
+    via the existing ``src.wiki.storage.page_writer.write_page``;
+    a mid-batch write failure stops subsequent writes (those pages
+    appear in ``skipped_ids``).
+
+    Reuses the existing wiki writer (``write_page``) — no second
+    writer / no global publication waterline. Wiki stays the source
+    of truth; the rebuild path only publishes compiled views that
+    have already passed the compile-time evidence gate.
+    """
+    from src.wiki.storage.page_writer import write_page
+
+    compiler = WikiTemplateCompiler(template=template)
+
+    # Stage 1: compile every input in memory.
+    compiled: list[tuple[Any, Any, str | None]] = []
+    for vi in view_inputs:
+        compiled.append(_compile_one(compiler, vi))
+
+    page_ids: list[str] = []
+    failed_ids: list[str] = []
+    reason_codes: list[str] = []
+    if any(failure is not None for _, _, failure in compiled):
+        reason_codes.append("compile_failed")
+        for page, _view, failure in compiled:
+            if failure is not None:
+                failed_ids.append(getattr(page, "id", "<missing_id>") or "<missing_id>")
+        return RebuildReport(
+            passed=False,
+            page_ids=[],
+            failed_ids=failed_ids,
+            skipped_ids=[],
+            reason_codes=tuple(reason_codes),
+        )
+
+    # Stage 2: write each page in order. A failure halts subsequent writes.
+    skipped: list[str] = []
+    halted = False
+    for page, view, _failure in compiled:
+        if halted:
+            skipped.append(getattr(page, "id", "<missing_id>") or "<missing_id>")
+            continue
+        try:
+            write_page(paths, page)
+        except Exception as e:  # noqa: BLE001 — surface writer failures
+            _logger.warning(
+                "rebuild_wiki_view: write_page failed for %s: %s",
+                getattr(page, "id", None), e,
+            )
+            failed_ids.append(getattr(page, "id", "<missing_id>") or "<missing_id>")
+            halted = True
+            continue
+        page_ids.append(getattr(page, "id", "<missing_id>") or "<missing_id>")
+
+    if halted:
+        reason_codes.append("write_failed")
+
+    return RebuildReport(
+        passed=not halted,
+        page_ids=page_ids,
+        failed_ids=failed_ids,
+        skipped_ids=skipped,
+        reason_codes=tuple(reason_codes),
+    )
+
+
+__all__ = ["WikiTemplateCompiler", "RebuildReport", "rebuild_wiki_view"]
