@@ -7,7 +7,7 @@ reproduce it.
 
 Public surface:
     create_snapshot(paths, objects=...) -> Snapshot
-    restore_snapshot(snapshot_id, paths, modified_objects=...) -> bool
+    restore_snapshot(snapshot_id, paths, modified_objects=...) -> RestoreReport
 
 Storage layout (.llm-wiki/backups/<snapshot_id>/):
     snapshot.json          — {identity_key: serialized KnowledgeObject}

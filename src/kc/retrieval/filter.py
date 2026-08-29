@@ -25,11 +25,15 @@ Scope of this module:
   ``is True`` check) so legacy fixtures that recorded "false" / "true"
   strings do not silently pass. Surfaced as ``closure_not_passed``.
 
-- **temporal gate**: stubbed here (spec §10 T-7 unknown defaults to
-  ``current`` for backward compat). WikiPage has no native
-  ``valid_from`` / ``valid_to`` fields yet (A-2 task); the temporal
-  check is a single ``return True`` line for now so the seam is in
-  place for the future upgrade without an API change.
+- **temporal gate (Task 6 wiring)**: default current-retrieval only
+  keeps pages whose ``temporal_status`` is ``current`` (spec §12.1 R-2,
+  derived by ``src.kc.compiler.temporal``). Task 6 added native
+  ``valid_from`` / ``valid_to`` to WikiPage as optional fields defaulting
+  to ``None``: a WikiPage with BOTH bounds ``None`` is a back-compat
+  pass-through (legacy pages stay visible), while a KnowledgeObject with
+  both bounds ``None`` is strictly ``unknown`` and dropped (spec §10
+  T-7). Historical / scheduled / unknown pages fail the default gate
+  unless explicitly queried (spec §11.4).
 
 The full 8-condition default-published-closure (B-3 task) builds on
 top of this filter; the B-3 task is the right place to wire the
@@ -38,8 +42,11 @@ intentionally narrow so it can be exercised in isolation.
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Any
+
+from ..compiler.temporal import _passes_temporal
 
 
 #: Workflow states that pass the default retrieval status gate.
@@ -137,8 +144,10 @@ class DefaultFilter:
             page: WikiPage instance (or anything exposing the same
                 ``workflow_state`` / ``_ko_extra`` attribute surface).
             query_time: Unix-millisecond timestamp of the query. ``None``
-                is treated as "current time"; the temporal check is a
-                pass-through stub here (A-2 task will tighten it).
+                is treated as "current time". The temporal gate (Task 6)
+                keeps only ``current`` pages; WikiPage with both bounds
+                None is a back-compat pass-through, KnowledgeObject with
+                both None is a strict unknown-drop (spec §10 T-7).
 
         Returns:
             ``True`` only when the page clears every gate below.
@@ -177,13 +186,17 @@ class DefaultFilter:
         if not _closure_passed(_get_closure_report(page)):
             return False
 
-        # 5. temporal gate (spec §12.1 valid_from / valid_to).
-        #    WikiPage does not currently carry valid_from/valid_to;
-        #    A-2 task will introduce them. Until then the gate is a
-        #    pass-through (unknown defaults to current, spec §10 T-7).
-        #    We deliberately accept query_time without consuming it
-        #    so the API stays stable for A-2.
-        _ = query_time
+        # 5. temporal gate (spec §12.1 R-2 + §10 T-7, Task 6 wiring).
+        #    WikiPage now carries valid_from/valid_to (additive None
+        #    defaults): WikiPage with both None is a back-compat
+        #    pass-through; KnowledgeObject with both None is a strict
+        #    unknown-drop. Non-current statuses (historical / scheduled /
+        #    unknown KO) fail the default gate unless explicitly queried
+        #    (spec §11.4). query_time None = "current time".
+        if query_time is None:
+            query_time = int(time.time() * 1000)
+        if not _passes_temporal(page, query_time=query_time):
+            return False
 
         return True
 

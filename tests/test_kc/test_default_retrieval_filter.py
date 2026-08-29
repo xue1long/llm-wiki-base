@@ -44,6 +44,8 @@ def make_wiki_page(
     custom_lifecycle: str | None = None,
     evidence_refs: list[str] | None = None,
     closure_passed: bool | None = True,
+    valid_from: int | None = None,
+    valid_to: int | None = None,
     **kwargs,
 ) -> WikiPage:
     """Build a test WikiPage with the given workflow_state.
@@ -53,6 +55,9 @@ def make_wiki_page(
     ``DISPUTED``. These are spec §11.4 categories, not WikiPage native
     fields — they're carried by the parallel KO model and surface on the
     page through the ``_ko_extra`` channel.
+
+    ``valid_from`` / ``valid_to`` are the Task 6 additive temporal
+    fields (None defaults keep legacy pages pass-through).
     """
     page = WikiPage(
         id=kwargs.get("id", "test_001"),
@@ -61,6 +66,8 @@ def make_wiki_page(
         evidence_refs=list(
             ["doc_001:block_001"] if evidence_refs is None else evidence_refs
         ),
+        valid_from=valid_from,
+        valid_to=valid_to,
     )
     page.workflow_state = workflow_state
     if custom_lifecycle is not None or closure_passed is not None:
@@ -216,3 +223,63 @@ def test_default_filter_rejects_truthy_non_boolean_closure_state() -> None:
     page._ko_extra["closure_report"] = {"passed": "false"}
 
     assert DefaultFilter().passes(page, query_time=_now_ms()) is False
+
+
+# ── temporal gate interval tests (Finding I-3, Task 6 wiring) ───────────────
+# The temporal gate (spec §12.1 R-2) keeps only ``current`` pages:
+#   [from, to)  current    → passes
+#   > to        historical → dropped
+#   < from      scheduled  → dropped
+#   None/None   legacy     → back-compat pass-through (WikiPage)
+#   from > to   invalid    → never current → dropped
+
+
+def test_default_filter_temporal_current_interval_passes() -> None:
+    """query_time ∈ [valid_from, valid_to) → current → passes."""
+    now = _now_ms()
+    page = make_wiki_page(
+        workflow_state="verified",
+        valid_from=now - 60_000,
+        valid_to=now + 60_000,
+    )
+    assert DefaultFilter().passes(page, query_time=now) is True
+
+
+def test_default_filter_temporal_historical_interval_dropped() -> None:
+    """query_time > valid_to → historical → dropped from default retrieval."""
+    now = _now_ms()
+    page = make_wiki_page(
+        workflow_state="verified",
+        valid_from=now - 120_000,
+        valid_to=now - 60_000,
+    )
+    assert DefaultFilter().passes(page, query_time=now) is False
+
+
+def test_default_filter_temporal_scheduled_interval_dropped() -> None:
+    """query_time < valid_from → scheduled → dropped from default retrieval."""
+    now = _now_ms()
+    page = make_wiki_page(
+        workflow_state="verified",
+        valid_from=now + 60_000,
+        valid_to=now + 120_000,
+    )
+    assert DefaultFilter().passes(page, query_time=now) is False
+
+
+def test_default_filter_temporal_legacy_none_bounds_pass_through() -> None:
+    """WikiPage with both bounds None → back-compat pass-through (Task 6)."""
+    now = _now_ms()
+    page = make_wiki_page(workflow_state="verified")  # valid_from/to None
+    assert DefaultFilter().passes(page, query_time=now) is True
+
+
+def test_default_filter_temporal_invalid_interval_dropped() -> None:
+    """valid_from > valid_to is never current → dropped."""
+    now = _now_ms()
+    page = make_wiki_page(
+        workflow_state="verified",
+        valid_from=now + 60_000,
+        valid_to=now - 60_000,
+    )
+    assert DefaultFilter().passes(page, query_time=now) is False
