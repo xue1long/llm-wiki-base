@@ -33,3 +33,15 @@
 
 - `graphify` maintenance command is currently broken on this host with `uv trampoline failed to canonicalize script path`, so I could not refresh the graph after the code change.
 - `rendered_hashes` are now deterministic inside rebuild because the compiler currently mints random knowledge-block ids; the rebuild layer normalizes them before rendering instead of changing compiler behavior in Task 3.
+
+## Fix round 1
+
+- Rejected requested chapter IDs that are not in `book.chapter_ids`, before any compilation or write.
+- Passed a fixed publication-version snapshot to every `compile_chapter()` call, so report, Markdown, and metadata share one Core version.
+- Added rollback coverage for an `os.replace` failure after the first target chapter has already been replaced.
+
+### TDD evidence
+
+- Red: `tests/test_kc/test_book_rebuild.py` → `2 failed, 11 passed` (foreign chapter was committed; changing Core was read 4 times).
+- Green: `tests/test_kc/test_book_rebuild.py` → `13 passed`.
+- Required regression: `tests/test_kc/test_book_rebuild.py tests/test_kc/test_book_markdown.py tests/test_kc/test_book_compiler.py` → `55 passed`.

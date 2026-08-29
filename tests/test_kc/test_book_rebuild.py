@@ -137,6 +137,16 @@ class _AlwaysBlockIntegrityGate(IntegrityGate):
         self._gates = (_AlwaysBlockGate(),)
 
 
+class _ChangingPublicationCoreView(SimpleKnowledgeCoreView):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.version_reads = 0
+
+    def current_publication_version(self) -> int:
+        self.version_reads += 1
+        return self.publication_version + self.version_reads - 1
+
+
 def test_empty_book_returns_planned_not_evaluable_and_writes_nothing(tmp_path: Path) -> None:
     output_dir = tmp_path / "book"
 
@@ -230,6 +240,37 @@ def test_target_subset_rebuilds_only_requested_chapters_and_preserves_unrelated_
     assert not (output_dir / "ch-3.md").exists()
 
 
+def test_target_chapter_outside_book_is_rejected_and_existing_page_is_preserved(tmp_path: Path) -> None:
+    book, chapters, core_view = _fixture(publication_version=5)
+    foreign_chapter = Chapter(
+        id="ch-foreign",
+        book_id="book-other",
+        stable_key="stable-ch-foreign",
+        title="Foreign chapter",
+        order=1,
+        source_knowledge_unit_ids=["ku-1"],
+    )
+    output_dir = tmp_path / "book"
+    output_dir.mkdir()
+    foreign_path = output_dir / "ch-foreign.md"
+    foreign_path.write_text("foreign old content", encoding="utf-8")
+
+    report = rebuild_book(
+        book,
+        chapters + (foreign_chapter,),
+        core_view,
+        IntegrityGate(),
+        target_chapter_ids=("ch-foreign",),
+        output_dir=output_dir,
+        apply=True,
+    )
+
+    assert report.status == "failed"
+    assert report.failed_chapter_ids == ("ch-foreign",)
+    assert report.reason_codes == ("chapter_resolution:not_in_book",)
+    assert foreign_path.read_text(encoding="utf-8") == "foreign old content"
+
+
 def test_report_publication_version_comes_from_core_view_not_book_or_chapter() -> None:
     book, chapters, core_view = _fixture(publication_version=19)
 
@@ -243,6 +284,34 @@ def test_report_publication_version_comes_from_core_view_not_book_or_chapter() -
 
     assert report.status == "planned"
     assert report.publication_version == 19
+
+
+def test_rebuild_uses_one_publication_version_snapshot_for_report_and_output(tmp_path: Path) -> None:
+    book, chapters, core_view = _fixture(publication_version=7)
+    changing_core_view = _ChangingPublicationCoreView(
+        kus=core_view.kus,
+        evidences=core_view.evidences,
+        ku_evidence_map=core_view.ku_evidence_map,
+        publication_version=7,
+    )
+    output_dir = tmp_path / "book"
+
+    report = rebuild_book(
+        book,
+        chapters,
+        changing_core_view,
+        IntegrityGate(),
+        output_dir=output_dir,
+        apply=True,
+    )
+
+    assert report.status == "committed"
+    assert report.publication_version == 7
+    assert changing_core_view.version_reads == 1
+    for chapter in chapters:
+        assert "publication_version: 7" in (output_dir / f"{chapter.id}.md").read_text(encoding="utf-8")
+        metadata = json.loads((output_dir / f"{chapter.id}.json").read_text(encoding="utf-8"))
+        assert metadata["publication_version"] == 7
 
 
 def test_missing_evidence_returns_failed_and_preserves_existing_files(tmp_path: Path) -> None:
@@ -370,6 +439,49 @@ def test_staging_failure_returns_failed_and_preserves_existing_files(tmp_path: P
     assert report.reason_codes == ("write_exception:OSError",)
     assert old_md.read_text(encoding="utf-8") == "old md"
     assert old_json.read_text(encoding="utf-8") == '{"rendered_hash":"old"}'
+
+
+def test_commit_replace_failure_restores_files_already_replaced(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    book, chapters, core_view = _fixture(publication_version=7)
+    output_dir = tmp_path / "book"
+    output_dir.mkdir()
+    old_contents = {
+        path.name: f"old {path.name}"
+        for chapter_id in ("ch-1", "ch-2")
+        for path in (output_dir / f"{chapter_id}.md", output_dir / f"{chapter_id}.json")
+    }
+    for filename, content in old_contents.items():
+        (output_dir / filename).write_text(content, encoding="utf-8")
+
+    real_replace = rebuild_mod.os.replace
+
+    def _fail_second_chapter_markdown(source: str | Path, target: str | Path) -> None:
+        source_path = Path(source)
+        target_path = Path(target)
+        if (
+            source_path.name == "ch-2.md"
+            and source_path.parent != output_dir
+            and target_path == output_dir / "ch-2.md"
+        ):
+            raise OSError("replace failed after ch-1")
+        real_replace(source, target)
+
+    monkeypatch.setattr(rebuild_mod.os, "replace", _fail_second_chapter_markdown)
+
+    report = rebuild_book(
+        book,
+        chapters,
+        core_view,
+        IntegrityGate(),
+        target_chapter_ids=("ch-1", "ch-2"),
+        output_dir=output_dir,
+        apply=True,
+    )
+
+    assert report.status == "failed"
+    assert report.reason_codes == ("write_exception:OSError",)
+    for filename, content in old_contents.items():
+        assert (output_dir / filename).read_text(encoding="utf-8") == content
 
 
 def test_repeated_rebuilds_produce_equal_rendered_hashes() -> None:
