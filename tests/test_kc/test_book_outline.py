@@ -52,12 +52,12 @@ def _proposal_kwargs() -> dict[str, object]:
 def test_create_outline_proposal_dedupes_inputs_and_defaults_to_proposed():
     book = _book()
     migration_mapping = {
-        "stable_a": "ch_1_new",
-        "stable_b": "ch_2_new",
+        "stable_a": "ch_1",
+        "stable_b": "ch_2",
     }
     rollback_mapping = {
-        "ch_1_new": "stable_a",
-        "ch_2_new": "stable_b",
+        "ch_1": "stable_a",
+        "ch_2": "stable_b",
     }
 
     proposal = create_outline_proposal(
@@ -87,8 +87,8 @@ def test_create_outline_proposal_rejects_empty_triggers():
             book,
             trigger_knowledge_unit_ids=(),
             affected_chapter_ids=("ch_1",),
-            migration_mapping={"stable_a": "ch_1_new"},
-            rollback_mapping={"ch_1_new": "stable_a"},
+            migration_mapping={"stable_a": "ch_1"},
+            rollback_mapping={"ch_1": "stable_a"},
         )
 
 
@@ -100,12 +100,12 @@ def test_create_outline_proposal_rejects_unknown_affected_chapter():
             trigger_knowledge_unit_ids=("ku_1",),
             affected_chapter_ids=("ch_1", "ch_3"),
             migration_mapping={
-                "stable_a": "ch_1_new",
-                "stable_b": "ch_2_new",
+                "stable_a": "ch_1",
+                "stable_b": "ch_2",
             },
             rollback_mapping={
-                "ch_1_new": "stable_a",
-                "ch_2_new": "stable_b",
+                "ch_1": "stable_a",
+                "ch_2": "stable_b",
             },
         )
 
@@ -118,11 +118,29 @@ def test_create_outline_proposal_rejects_incomplete_mappings():
             trigger_knowledge_unit_ids=("ku_1",),
             affected_chapter_ids=("ch_1", "ch_2"),
             migration_mapping={
-                "stable_a": "ch_1_new",
+                "stable_a": "ch_1",
             },
             rollback_mapping={
-                "ch_1_new": "stable_a",
-                "ch_2_new": "stable_b",
+                "ch_1": "stable_a",
+                "ch_2": "stable_b",
+            },
+        )
+
+
+def test_create_outline_proposal_rejects_affected_chapter_without_migration_coverage():
+    book = _book()
+    with pytest.raises(ValueError):
+        create_outline_proposal(
+            book,
+            trigger_knowledge_unit_ids=("ku_1",),
+            affected_chapter_ids=("ch_1", "ch_2"),
+            migration_mapping={
+                "stable_a": "ch_1",
+                "stable_b": "ch_3",
+            },
+            rollback_mapping={
+                "ch_1": "stable_a",
+                "ch_3": "stable_b",
             },
         )
 
@@ -134,12 +152,12 @@ def test_approve_and_apply_outline_proposal_are_frozen_and_non_mutating():
         trigger_knowledge_unit_ids=("ku_1", "ku_2"),
         affected_chapter_ids=("ch_1", "ch_2"),
         migration_mapping={
-            "stable_a": "ch_1_new",
-            "stable_b": "ch_2_new",
+            "stable_a": "ch_1",
+            "stable_b": "ch_2",
         },
         rollback_mapping={
-            "ch_1_new": "stable_a",
-            "ch_2_new": "stable_b",
+            "ch_1": "stable_a",
+            "ch_2": "stable_b",
         },
     )
 
@@ -176,8 +194,8 @@ def test_apply_outline_proposal_rejects_non_approved_status(status):
         book_id=book.id,
         trigger_knowledge_unit_ids=["ku_1"],
         affected_chapter_ids=["ch_1"],
-        migration_mapping={"stable_a": "ch_1_new"},
-        rollback_mapping={"ch_1_new": "stable_a"},
+        migration_mapping={"stable_a": "ch_1"},
+        rollback_mapping={"ch_1": "stable_a"},
         status=status,
         reviewer="reviewer-1",
     )
@@ -193,8 +211,8 @@ def test_apply_outline_proposal_increments_outline_version_once():
             book,
             trigger_knowledge_unit_ids=("ku_1",),
             affected_chapter_ids=("ch_1",),
-            migration_mapping={"stable_a": "ch_1_new"},
-            rollback_mapping={"ch_1_new": "stable_a"},
+            migration_mapping={"stable_a": "ch_1"},
+            rollback_mapping={"ch_1": "stable_a"},
         ),
         reviewer="reviewer-1",
     )
