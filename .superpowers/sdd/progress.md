@@ -450,3 +450,9 @@ batch 8 已 committed（accept_batch）；batch 9 已 committed。batch 10 首�
 - 备注：3 个超大/大文件——方法论写书技巧.md（43.6K chars，4 chunk，chunked 产出 7 页，2 处 truncation 由 retry ladder 兜底，6 gap 记账：悬置紧张法/主角设定的真实性/情节与故事/e-m-福斯特/发掷力/刚劲与柔劲）；方法论关于写作技法原理转自奇幻世界网火沙论坛.md（13.3K chars）产出 3 页；5 raw 被 sanitizer high_repetition 标记（rejected=True 仅入库判断，不阻断提交）；2 个 gap 记账（文笔与语言/对话与描写，来自 新人须知小说写作新手上路基本写作教程.md）；taxonomy unknown category/sub（空 category、习惯与方法、写作心态）仍为 write_page 宽松警告（非 strict，不阻断）。
 - 经验：xiaomi-mimo（mimo-v2.5）全程 200 OK，仅 2 次 finish_reason=length 截断均由第 1/2 级重试消化；batch 18 一次通过无 resume；继续 phase4_batch.py + PYTHONPATH=. 直跑。
 
+## KC Task 0（2026-08-29）🔄 reviewer fix
+
+- `tests/test_kc/test_integrity_idempotency_contract.py` 收缩为 Task 0 合法边界：保留 `check_default_closure(..., integrity_report=None)` 的 fail-closed 契约测试；移除依赖未来 `JSONLEventStore.append_event(...)->dict` 的两个执行性测试，不在 Task 0 提前实现 Task 3 API。
+- operation/idempotency 部分仅冻结后续统一报告字段形状：`passed`、`reason_codes`、`operation_id`。
+- 该 closure 契约测试与现有 `tests/test_kc/test_default_closure.py` 的 simplified-pass 基线是**有意冲突**；不在 Task 0 修改旧测试，留到 Task 1 一并调整 `closure.py` 与 legacy fixtures。
+
