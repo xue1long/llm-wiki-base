@@ -31,6 +31,18 @@ class BookRebuildReport:
     not_evaluable: bool = False
 
 
+class _PublicationVersionSnapshot:
+    def __init__(self, core_view: KnowledgeCoreView, publication_version: int) -> None:
+        self._core_view = core_view
+        self._publication_version = publication_version
+
+    def current_publication_version(self) -> int:
+        return self._publication_version
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._core_view, name)
+
+
 def _ordered_unique(items: tuple[str, ...]) -> tuple[str, ...]:
     seen: set[str] = set()
     ordered: list[str] = []
@@ -105,17 +117,22 @@ def _selected_chapters(
     book: Book,
     chapters: tuple[Chapter, ...],
     target_chapter_ids: tuple[str, ...] | None,
-) -> tuple[tuple[Chapter, ...], tuple[str, ...]]:
+) -> tuple[tuple[Chapter, ...], tuple[str, ...], str | None]:
     chapter_map = {chapter.id: chapter for chapter in chapters}
     requested_ids = (
         _ordered_unique(target_chapter_ids)
         if target_chapter_ids is not None
         else _ordered_unique(tuple(book.chapter_ids))
     )
+    not_in_book = tuple(
+        chapter_id for chapter_id in requested_ids if chapter_id not in book.chapter_ids
+    )
+    if not_in_book:
+        return (), not_in_book, "chapter_resolution:not_in_book"
     missing = tuple(chapter_id for chapter_id in requested_ids if chapter_id not in chapter_map)
     if missing:
-        return (), missing
-    return tuple(chapter_map[chapter_id] for chapter_id in requested_ids), ()
+        return (), missing, "chapter_resolution:missing_chapters"
+    return tuple(chapter_map[chapter_id] for chapter_id in requested_ids), (), None
 
 
 def _stage_paths(stage_dir: Path, chapter_id: str) -> tuple[Path, Path]:
@@ -160,7 +177,7 @@ def rebuild_book(
     apply: bool = False,
 ) -> BookRebuildReport:
     publication_version = core_view.current_publication_version()
-    selected, missing = _selected_chapters(book, chapters, target_chapter_ids)
+    selected, missing, selection_reason = _selected_chapters(book, chapters, target_chapter_ids)
     if missing:
         return BookRebuildReport(
             status="failed",
@@ -168,7 +185,7 @@ def rebuild_book(
             publication_version=publication_version,
             rebuilt_chapter_ids=(),
             failed_chapter_ids=missing,
-            reason_codes=("chapter_resolution:missing_chapters",),
+            reason_codes=(selection_reason or "chapter_resolution:missing_chapters",),
             rendered_hashes={},
         )
     if not selected:
@@ -185,8 +202,9 @@ def rebuild_book(
 
     rendered_views: dict[str, BookView] = {}
     rendered_hashes: dict[str, str] = {}
+    snapshot_core_view = _PublicationVersionSnapshot(core_view, publication_version)
     for chapter in selected:
-        compiled = compile_chapter(chapter, core_view, integrity_gate)
+        compiled = compile_chapter(chapter, snapshot_core_view, integrity_gate)
         if isinstance(compiled, CompileError):
             return BookRebuildReport(
                 status="failed",
