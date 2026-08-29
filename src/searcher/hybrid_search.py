@@ -7,7 +7,9 @@ process-global singleton). Initialisation happens at app startup.
 import logging
 import re
 from pathlib import Path
-from typing import TypedDict, TYPE_CHECKING
+from typing import NotRequired, TypedDict, TYPE_CHECKING
+
+import yaml
 
 if TYPE_CHECKING:
     from ..vector.search import ChunkSearchResult
@@ -17,7 +19,6 @@ from ..llm.embedding_runtime import (
     get_embedding_provider as _runtime_get_embedding_provider,
 )
 from ..utils.path import normalize_source_path
-from ..vector.search import vector_search_chunks
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +33,19 @@ class SearchResult(TypedDict):
     content: str
     score: float
     source: str
+    evidence: NotRequired[list[dict]]
 
 
 # Public re-export — preserves the prior ``hybrid_search.get_embedding_provider``
 # attribute surface for downstream callers.
 get_embedding_provider = _runtime_get_embedding_provider
+
+
+def vector_search_chunks(*args, **kwargs):
+    """Lazy compatibility wrapper for the vector search entry point."""
+    from ..vector.search import vector_search_chunks as _vector_search_chunks
+
+    return _vector_search_chunks(*args, **kwargs)
 
 
 def rrf_fusion(
@@ -215,6 +224,18 @@ async def _keyword_search(
         if query_lower in content_lower:
             matches = len(re.findall(re.escape(query_lower), content_lower))
             title_match = 2 if query_lower in file.stem.lower() else 0
+            evidence = []
+            if content.startswith("---\n"):
+                end = content.find("\n---", 4)
+                if end > 0:
+                    try:
+                        frontmatter = yaml.safe_load(content[4:end]) or {}
+                    except yaml.YAMLError:
+                        frontmatter = {}
+                    if isinstance(frontmatter, dict):
+                        extra = frontmatter.get("_ko_extra", {})
+                        if isinstance(extra, dict) and isinstance(extra.get("evidence"), list):
+                            evidence = extra["evidence"]
 
             results.append(SearchResult(
                 path=file.relative_to(paths.root).as_posix() if paths is not None else str(file),
@@ -223,6 +244,8 @@ async def _keyword_search(
                 score=float(matches + title_match),
                 source="keyword",
             ))
+            if evidence:
+                results[-1]["evidence"] = evidence
 
     results.sort(key=lambda x: x["score"], reverse=True)
     return results
