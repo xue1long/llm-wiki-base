@@ -50,23 +50,56 @@ def _require_int(value: Any, name: str) -> int:
     return value
 
 
+def _require_string(value: Any, name: str) -> str:
+    if not isinstance(value, str):
+        raise SnapshotError(f"snapshot:{name}:expected_string")
+    return value
+
+
+def _require_fields(payload: dict[str, Any], fields: tuple[str, ...], name: str) -> None:
+    for field in fields:
+        if field not in payload:
+            raise SnapshotError(f"snapshot:{name}:missing_{field}")
+
+
+def _require_string_list_field(payload: dict[str, Any], field: str, name: str) -> None:
+    if field in payload:
+        _require_string_list(payload[field], f"{name}:{field}")
+
+
 def _load_book(payload: dict[str, Any]) -> Book:
-    try:
-        return Book.from_dict(payload)
-    except Exception as exc:
-        field = exc.args[0] if isinstance(exc, KeyError) and exc.args else type(exc).__name__
-        raise SnapshotError(f"snapshot:book:{field}") from exc
+    _require_fields(
+        payload,
+        ("id", "title", "template_id", "outline_version", "publication_version", "chapter_ids"),
+        "book",
+    )
+    for field in ("id", "title", "template_id"):
+        _require_string(payload[field], f"book:{field}")
+    _require_int(payload["outline_version"], "book:outline_version")
+    _require_int(payload["publication_version"], "book:publication_version")
+    _require_string_list(payload["chapter_ids"], "book:chapter_ids")
+    return Book.from_dict(payload)
 
 
 def _load_chapters(payloads: list[Any]) -> tuple[Chapter, ...]:
     chapters: list[Chapter] = []
+    seen_ids: set[str] = set()
     for index, raw in enumerate(payloads):
         chapter_payload = _require_mapping(raw, f"chapters[{index}]")
-        try:
-            chapters.append(Chapter.from_dict(chapter_payload))
-        except Exception as exc:
-            field = exc.args[0] if isinstance(exc, KeyError) and exc.args else type(exc).__name__
-            raise SnapshotError(f"snapshot:chapters[{index}]:{field}") from exc
+        name = f"chapters[{index}]"
+        _require_fields(chapter_payload, ("id", "book_id", "stable_key", "title", "order"), name)
+        for field in ("id", "book_id", "stable_key", "title"):
+            _require_string(chapter_payload[field], f"{name}:{field}")
+        _require_int(chapter_payload["order"], f"{name}:order")
+        _require_string_list_field(chapter_payload, "knowledge_block_ids", name)
+        _require_string_list_field(chapter_payload, "source_knowledge_unit_ids", name)
+        if "publication_version" in chapter_payload:
+            _require_int(chapter_payload["publication_version"], f"{name}:publication_version")
+        chapter_id = chapter_payload["id"]
+        if chapter_id in seen_ids:
+            raise SnapshotError(f"snapshot:chapters:duplicate_id:{chapter_id}")
+        seen_ids.add(chapter_id)
+        chapters.append(Chapter.from_dict(chapter_payload))
     return tuple(chapters)
 
 
@@ -74,10 +107,17 @@ def _load_knowledge_units(payloads: list[Any]) -> dict[str, KnowledgeUnit]:
     units: dict[str, KnowledgeUnit] = {}
     for index, raw in enumerate(payloads):
         unit_payload = _require_mapping(raw, f"knowledge_units[{index}]")
-        try:
-            unit = KnowledgeUnit(**unit_payload)
-        except Exception as exc:
-            raise SnapshotError(f"snapshot:knowledge_units[{index}]:{type(exc).__name__}") from exc
+        name = f"knowledge_units[{index}]"
+        _require_fields(unit_payload, ("ku_id", "concept_id", "question", "title", "unit_type"), name)
+        for field in ("ku_id", "concept_id", "question", "title", "unit_type"):
+            _require_string(unit_payload[field], f"{name}:{field}")
+        for field in ("claim_ids", "structured_fact_ids"):
+            _require_string_list_field(unit_payload, field, name)
+            if field in unit_payload:
+                unit_payload[field] = tuple(unit_payload[field])
+        unit = KnowledgeUnit(**unit_payload)
+        if unit.ku_id in units:
+            raise SnapshotError(f"snapshot:knowledge_units:duplicate_id:{unit.ku_id}")
         units[unit.ku_id] = unit
     return units
 
@@ -86,10 +126,16 @@ def _load_evidences(payloads: list[Any]) -> dict[str, Evidence]:
     evidences: dict[str, Evidence] = {}
     for index, raw in enumerate(payloads):
         evidence_payload = _require_mapping(raw, f"evidences[{index}]")
-        try:
-            evidence = Evidence(**evidence_payload)
-        except Exception as exc:
-            raise SnapshotError(f"snapshot:evidences[{index}]:{type(exc).__name__}") from exc
+        name = f"evidences[{index}]"
+        _require_fields(evidence_payload, ("evidence_id", "document_id", "block_id", "quote", "quote_hash", "evidence_type"), name)
+        for field in ("evidence_id", "document_id", "block_id", "quote", "quote_hash", "evidence_type"):
+            _require_string(evidence_payload[field], f"{name}:{field}")
+        if "supports" in evidence_payload:
+            _require_string_list(evidence_payload["supports"], f"{name}:supports")
+            evidence_payload["supports"] = tuple(evidence_payload["supports"])
+        evidence = Evidence(**evidence_payload)
+        if evidence.evidence_id in evidences:
+            raise SnapshotError(f"snapshot:evidences:duplicate_id:{evidence.evidence_id}")
         evidences[evidence.evidence_id] = evidence
     return evidences
 
@@ -159,6 +205,7 @@ def _report_to_dict(
         "publication_version": report.publication_version,
         "rebuilt_chapter_ids": list(report.rebuilt_chapter_ids),
         "failed_chapter_ids": list(report.failed_chapter_ids),
+        "failed_object_ids": list(report.failed_chapter_ids),
         "reason_codes": list(report.reason_codes),
         "rendered_hashes": dict(report.rendered_hashes),
         "not_evaluable": report.not_evaluable,
