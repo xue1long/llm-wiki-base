@@ -83,6 +83,14 @@ def compute_book_diff(
     old_positions = {chapter_id: index for index, chapter_id in enumerate(old_ids)}
     new_positions = {chapter_id: index for index, chapter_id in enumerate(new_ids)}
 
+    def _append_ku_delta(chapter_id: str) -> None:
+        old_chapter = old_chapter_map.get(chapter_id)
+        new_chapter = new_chapter_map.get(chapter_id)
+        for ku_id in _source_ku_delta(old_chapter, new_chapter):
+            if ku_id not in seen_kus:
+                seen_kus.add(ku_id)
+                changed_knowledge_unit_ids.append(ku_id)
+
     for chapter_id in new_ids:
         old_chapter = old_chapter_map.get(chapter_id)
         new_chapter = new_chapter_map.get(chapter_id)
@@ -95,22 +103,25 @@ def compute_book_diff(
             new_index=new_positions[chapter_id],
         ):
             changed_chapter_ids.append(chapter_id)
-            for ku_id in _source_ku_delta(old_chapter, new_chapter):
-                if ku_id not in seen_kus:
-                    seen_kus.add(ku_id)
-                    changed_knowledge_unit_ids.append(ku_id)
 
     for chapter_id in removed_chapter_ids:
-        for ku_id in _source_ku_delta(old_chapter_map.get(chapter_id), None):
-            if ku_id not in seen_kus:
-                seen_kus.add(ku_id)
-                changed_knowledge_unit_ids.append(ku_id)
+        _append_ku_delta(chapter_id)
+
+    for chapter_id in old_ids:
+        if chapter_id not in old_chapter_map or chapter_id not in new_chapter_map:
+            continue
+        old_chapter = old_chapter_map[chapter_id]
+        new_chapter = new_chapter_map[chapter_id]
+        if _chapter_changed(
+            old_chapter,
+            new_chapter,
+            old_index=old_positions[chapter_id],
+            new_index=new_positions[chapter_id],
+        ):
+            _append_ku_delta(chapter_id)
 
     for chapter_id in added_chapter_ids:
-        for ku_id in _source_ku_delta(None, new_chapter_map.get(chapter_id)):
-            if ku_id not in seen_kus:
-                seen_kus.add(ku_id)
-                changed_knowledge_unit_ids.append(ku_id)
+        _append_ku_delta(chapter_id)
 
     return BookDiff(
         added_chapter_ids=added_chapter_ids,
