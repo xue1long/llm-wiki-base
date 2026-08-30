@@ -211,6 +211,19 @@ def create_app() -> FastAPI:
             except Exception:
                 pass
 
+            # KC publication recovery: retry staged bundles after a crash or
+            # vector outage; failures remain staged and never block startup.
+            try:
+                from src.kc.mainline import recover_staged_bundles
+                _recovered = await recover_staged_bundles(project_root)
+                if _recovered:
+                    _logger.info(
+                        "[startup] KC publication recovery: %d bundle(s) processed",
+                        len(_recovered),
+                    )
+            except Exception:
+                _logger.warning("[startup] KC publication recovery failed", exc_info=True)
+
             # R15: warn at startup when the provider registry file is
             # world/group-accessible (it holds plaintext API keys). Advisory
             # only — never fails boot.
