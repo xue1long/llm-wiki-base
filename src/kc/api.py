@@ -90,12 +90,14 @@ async def compile_source(
         document = await LegacyCollector().collect(source, content=content)
     candidate = parse_candidate_json(candidate_json)
     projections = []
+    objects = []
     for claim in candidate["claims"]:
         evidence = tuple(
             validate_evidence(document, {**item, "supports": (claim["id"],)})
             for item in claim["evidence"]
         )
         obj = compile_claim(claim, document, evidence)
+        objects.append(obj)
         projection = project_wiki(
             obj,
             evidence_ids=tuple(item.evidence_id for item in evidence),
@@ -103,7 +105,7 @@ async def compile_source(
         )
         projection["document_id"] = document.document_id
         projections.append(projection)
-    return {"document_id": document.document_id, "projections": projections}
+    return {"document_id": document.document_id, "projections": projections, "objects": objects}
 
 
 def compile_text(source: str, text: str, candidate: dict) -> dict:

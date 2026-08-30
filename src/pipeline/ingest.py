@@ -652,6 +652,7 @@ async def generate_ingest(
     analysis = None  # type: ignore[assignment]
     pages: list[WikiPage] = []
     _kc_review: dict | None = None
+    _kc_promotion = None
     from .generator import get_max_source_chars as _get_max_source_chars
     # 1.3 H6：单调用内闭环 resolver —— 缺失 slug 反馈进 generator，不整链重跑。
     from .reconcile import make_missing_slugs_resolver
@@ -660,11 +661,10 @@ async def generate_ingest(
     )
     _candidate_mode = os.environ.get("RUFLO_PIPELINE_MODE", "candidate") == "candidate"
     if _candidate_mode:
-        from dataclasses import asdict
         from .analyzer import analyze
         from .generator import generate_from_candidate
-        from src.kc.api import candidate_to_payload, compile_source
         from src.kc.compiler.normalize import normalize_text
+        from src.kc.mainline import CandidatePromoter, CandidateReviewer
 
         candidate = await analyze(
             source_text=_sanitized_source_text,
@@ -691,16 +691,23 @@ async def generate_ingest(
         if canonical_raw_key(str(_candidate_source_id), paths.root) != _source_key:
             raise ValueError("candidate source_id does not match source")
         document = normalize_text(_sanitized_source_text, source=_source_key)
-        payload = candidate_to_payload(
-            asdict(candidate), document, source_root=paths.root
+        review = await CandidateReviewer().review(
+            candidate, document, source_root=paths.root
         )
-        _kc_review = await compile_source(
-            _source_key,
+        if review.status != "validated" or not review.projections:
+            raise ValueError(
+                candidate.failure_reason or "KC structural review rejected candidate"
+            )
+        _kc_review = {
+            "document_id": review.document_id,
+            "projections": list(review.projections),
+        }
+        _kc_promotion = CandidatePromoter().promote(
+            candidate,
+            review,
+            project_root=paths.root,
             document=document,
-            candidate_json=json.dumps(payload, ensure_ascii=False),
         )
-        if not _kc_review.get("document_id") or not _kc_review.get("projections"):
-            raise ValueError("KC structural review returned no projections")
         pages = await generate_from_candidate(
             candidate=candidate,
             paths=paths,
@@ -1150,6 +1157,7 @@ async def generate_ingest(
                 **(getattr(_page, "_ko_extra", {}) or {}),
                 "kc_document_id": _kc_review["document_id"],
                 "kc_projection_version": "kc-wiki-v1",
+                "knowledge_object_ids": list(getattr(_kc_promotion, "object_ids", ())),
             }
 
     # Rule-based quality gate — catches ghost pages, empty bodies, intra-batch dupes.
@@ -1191,6 +1199,9 @@ async def generate_ingest(
         "extra_pages_count": len(extra_pages),
         "rejected": bool(_result.warnings),
         "warnings": _result.warnings,
+        "kc_bundle_key": getattr(_kc_promotion, "bundle_key", None),
+        "kc_object_ids": list(getattr(_kc_promotion, "object_ids", ())),
+        "kc_manifest_path": str(getattr(_kc_promotion, "manifest_path", "")) if _kc_promotion else None,
         # 1.3 O6：未解析引用（commit 路径写 KnowledgeGapStore）
         "missing_slugs": [
             {"slug": s, "referenced_by": [r]} for s, r in _missing_gaps
@@ -1381,6 +1392,7 @@ async def commit_ingest(
     missing_slugs: list | None = None,
     event: str = "ingest",
     expected_page_hashes: dict[str, str] | None = None,
+    kc_bundle_key: str | None = None,
 ):
     """Phase 2 (NDG split): write pages + index update + log.
 
@@ -1497,6 +1509,14 @@ async def commit_ingest(
         _logger.warning("[commit_ingest] vector publication promotion failed (non-fatal)",
                         exc_info=True)
 
+    if kc_bundle_key:
+        from src.kc.mainline import index_and_publish_bundle
+        await index_and_publish_bundle(
+            paths.root,
+            bundle_key=kc_bundle_key,
+            pages=_publication_pages,
+        )
+
     if triage_result is not None:
         write_triage_result(paths, triage_result)
 
@@ -1556,6 +1576,7 @@ async def run_ingest(
         task_id=task_id,
         triage_result=_meta.get("triage"),
         missing_slugs=_meta.get("missing_slugs"),
+        kc_bundle_key=_meta.get("kc_bundle_key"),
     )
     return pages
 
