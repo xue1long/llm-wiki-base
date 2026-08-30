@@ -34,11 +34,6 @@ async def run_pilot(project: Path, limit: int = 3, provider_name: str | None = N
     if not sources:
         raise ValueError("no markdown sources found")
     paths = WikiPaths(project)
-    from scripts.batch_build import init_embedding
-    from src.vector.store import init_vector_store_for_paths
-
-    await init_embedding()
-    init_vector_store_for_paths(paths)
     provider = create_llm_provider(provider_name) if provider_name else _get_provider()
     results = []
     for source in sources:
