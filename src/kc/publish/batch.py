@@ -127,6 +127,10 @@ class PublicationGate:
         """当前默认读取水位 (spec §11.3 旧版本失效确认前不提供默认查询)."""
         return self._current_version
 
+    def get_batch(self, batch_id: str) -> PublicationBatch | None:
+        """Return a registered batch for recovery/publish retries."""
+        return self._active_batches.get(batch_id)
+
     def is_current(self, publication_version: int) -> bool:
         """检查对象版本是否在当前默认水位."""
         return publication_version == self._current_version
