@@ -218,7 +218,7 @@ flowchart TD
 - `generate_from_knowledge_object`
 - `KnowledgeObject` 生命周期、版本、Claim、冲突、记忆与溯源
 
-但当前 `generate_ingest` 主链没有调用 Reviewer、Promoter 或 `generate_from_knowledge_object`。默认短文路径仍是 `unified_generate`，失败才回退到 Analyze → Generate；长文路径优先分块 Analyze → Generate。因此 Knowledge OS 是“可用领域能力”，不是当前 HTTP 摄取的主数据通路。
+默认 Candidate 摄取路径现已调用结构化 Reviewer，并将 Candidate 提升为 KnowledgeObject bundle 持久化到 `.index/kc/bundles/`；Wiki commit、Core bundle、index 和 vector 状态由 PublicationBatch 统一登记。vector 未完成时 bundle 保持 staged，不提升默认 publication waterline；服务启动会扫描并恢复 staged bundle。legacy/unified 仍是显式兼容路径，不属于默认 KC 主线。
 
 `PipelineService` 虽注册 `CollectorStage / AnalyzerStage / GeneratorStage`，实际只执行 `self._stages[:1]` 的 Collector，后续统一委托 `run_ingest`。这项事实是理解系统的关键，不能从 stage 列表推断实际运行顺序。
 
