@@ -243,4 +243,31 @@ async def index_and_publish_bundle(
         return finalize_bundle(project_root, bundle_key=bundle_key, page_ids=tuple(page.id for page in pages), vector_ready=False)
 
 
-__all__ = ["CandidatePromoter", "CandidateReviewer", "PublicationResult", "PromotionResult", "ReviewResult", "finalize_bundle", "index_and_publish_bundle"]
+async def recover_staged_bundles(project_root: Path) -> list[PublicationResult]:
+    """Retry staged bundles after a process crash or vector outage."""
+    from src.wiki.core.paths import WikiPaths
+    from src.wiki.storage.page_writer import read_page
+
+    paths = WikiPaths(project_root)
+    bundle_root = Path(project_root) / ".index" / "kc" / "bundles"
+    results: list[PublicationResult] = []
+    if not bundle_root.exists():
+        return results
+    for manifest_path in sorted(bundle_root.glob("*/manifest.json")):
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("status") != "staged" or manifest.get("stores", {}).get("vector") != "pending":
+            continue
+        pages = []
+        for page_id in manifest.get("page_ids", []):
+            matches = [p for p in paths.wiki.rglob("*.md") if p.stem == page_id]
+            if matches:
+                pages.append(read_page(matches[0]))
+        if len(pages) != len(manifest.get("page_ids", [])):
+            continue
+        results.append(await index_and_publish_bundle(
+            Path(project_root), bundle_key=manifest["bundle_key"], pages=pages
+        ))
+    return results
+
+
+__all__ = ["CandidatePromoter", "CandidateReviewer", "PublicationResult", "PromotionResult", "ReviewResult", "finalize_bundle", "index_and_publish_bundle", "recover_staged_bundles"]
