@@ -28,26 +28,30 @@ def _error_summary(exc: BaseException) -> str:
     return " <- ".join(parts)
 
 
-async def run_pilot(project: Path, limit: int = 3, provider_name: str | None = None) -> dict:
+async def run_pilot(project: Path, limit: int = 3, provider_name: str | None = None, concurrency: int = 3) -> dict:
     project = project.resolve()
     sources = select_sources(project, limit)
     if not sources:
         raise ValueError("no markdown sources found")
     paths = WikiPaths(project)
     provider = create_llm_provider(provider_name) if provider_name else _get_provider()
-    results = []
-    for source in sources:
-        try:
-            pages = await run_ingest(
-                paths=paths,
-                source_path=source,
-                source_text=source.read_text(encoding="utf-8", errors="replace"),
-                provider=provider,
-                task_id=f"novel-wiki-pilot-{source.stem[:24]}",
-            )
-            results.append({"source": source.relative_to(project).as_posix(), "status": "success", "pages": len(pages)})
-        except Exception as exc:  # keep the pilot report source-scoped
-            results.append({"source": source.relative_to(project).as_posix(), "status": "failed", "error": _error_summary(exc)})
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def process(source: Path) -> dict:
+        async with semaphore:
+            try:
+                pages = await run_ingest(
+                    paths=paths,
+                    source_path=source,
+                    source_text=source.read_text(encoding="utf-8", errors="replace"),
+                    provider=provider,
+                    task_id=f"novel-wiki-pilot-{source.stem[:24]}",
+                )
+                return {"source": source.relative_to(project).as_posix(), "status": "success", "pages": len(pages)}
+            except Exception as exc:  # keep the pilot report source-scoped
+                return {"source": source.relative_to(project).as_posix(), "status": "failed", "error": _error_summary(exc)}
+
+    results = await asyncio.gather(*(process(source) for source in sources))
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "project_root": str(project),
@@ -63,9 +67,10 @@ def main() -> int:
     parser.add_argument("--project-root", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=3)
     parser.add_argument("--provider", default=None, help="explicit registry provider name")
+    parser.add_argument("--concurrency", type=int, default=3)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    report = asyncio.run(run_pilot(args.project_root, args.limit, args.provider))
+    report = asyncio.run(run_pilot(args.project_root, args.limit, args.provider, args.concurrency))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
