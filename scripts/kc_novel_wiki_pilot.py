@@ -17,6 +17,16 @@ def select_sources(project: Path, limit: int) -> list[Path]:
     return sorted(root.rglob("*.md"), key=lambda p: (p.stat().st_size, p.as_posix()))[:limit]
 
 
+def _error_summary(exc: BaseException) -> str:
+    """Keep the deepest provider error visible in the pilot report."""
+    parts = [f"{type(exc).__name__}: {exc}"]
+    cause = exc.__cause__
+    while cause is not None:
+        parts.append(f"{type(cause).__name__}: {cause}")
+        cause = cause.__cause__
+    return " <- ".join(parts)
+
+
 async def run_pilot(project: Path, limit: int = 3) -> dict:
     project = project.resolve()
     sources = select_sources(project, limit)
@@ -36,7 +46,7 @@ async def run_pilot(project: Path, limit: int = 3) -> dict:
             )
             results.append({"source": source.relative_to(project).as_posix(), "status": "success", "pages": len(pages)})
         except Exception as exc:  # keep the pilot report source-scoped
-            results.append({"source": source.relative_to(project).as_posix(), "status": "failed", "error": f"{type(exc).__name__}: {exc}"})
+            results.append({"source": source.relative_to(project).as_posix(), "status": "failed", "error": _error_summary(exc)})
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "project_root": str(project),
