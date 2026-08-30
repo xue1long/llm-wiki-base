@@ -7,6 +7,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from src.llm.provider_factory import create_llm_provider
 from src.pipeline import _get_provider, run_ingest
 from src.wiki.core.paths import WikiPaths
 
@@ -27,13 +28,18 @@ def _error_summary(exc: BaseException) -> str:
     return " <- ".join(parts)
 
 
-async def run_pilot(project: Path, limit: int = 3) -> dict:
+async def run_pilot(project: Path, limit: int = 3, provider_name: str | None = None) -> dict:
     project = project.resolve()
     sources = select_sources(project, limit)
     if not sources:
         raise ValueError("no markdown sources found")
     paths = WikiPaths(project)
-    provider = _get_provider()
+    from scripts.batch_build import init_embedding
+    from src.vector.store import init_vector_store_for_paths
+
+    await init_embedding()
+    init_vector_store_for_paths(paths)
+    provider = create_llm_provider(provider_name) if provider_name else _get_provider()
     results = []
     for source in sources:
         try:
@@ -61,9 +67,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-root", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=3)
+    parser.add_argument("--provider", default=None, help="explicit registry provider name")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    report = asyncio.run(run_pilot(args.project_root, args.limit))
+    report = asyncio.run(run_pilot(args.project_root, args.limit, args.provider))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
