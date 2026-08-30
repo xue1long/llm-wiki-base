@@ -265,7 +265,7 @@ def _compute_reverse_relations(paths, pages):
         try:
             pg = read_page(f)
         except Exception:
-            logger.warning("Failed to read page %s for relation target", target_id, exc_info=True)
+            _logger.warning("Failed to read page %s for relation target", target_id, exc_info=True)
             return None
         extra[target_id] = pg
         return pg
