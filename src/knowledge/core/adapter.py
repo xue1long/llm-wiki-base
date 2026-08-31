@@ -23,10 +23,6 @@ _PAGETYPE_TO_KNOWLEDGETYPE: dict[PageType, KnowledgeType] = {
     PageType.SOURCE: KnowledgeType.DOCUMENT,
     PageType.ENTITY: KnowledgeType.ENTITY,
     PageType.CONCEPT: KnowledgeType.CONCEPT,
-    PageType.CLAIM: KnowledgeType.CLAIM,
-    PageType.DECISION: KnowledgeType.DECISION,
-    PageType.PROCEDURE: KnowledgeType.PROCEDURE,
-    PageType.EVENT: KnowledgeType.EVENT,
     PageType.SYNTHESIS: KnowledgeType.SYNTHESIS,
 }
 
@@ -34,10 +30,6 @@ _KNOWLEDGETYPE_TO_PAGETYPE: dict[KnowledgeType, PageType] = {
     KnowledgeType.DOCUMENT: PageType.SOURCE,
     KnowledgeType.ENTITY: PageType.ENTITY,
     KnowledgeType.CONCEPT: PageType.CONCEPT,
-    KnowledgeType.CLAIM: PageType.CLAIM,
-    KnowledgeType.DECISION: PageType.DECISION,
-    KnowledgeType.PROCEDURE: PageType.PROCEDURE,
-    KnowledgeType.EVENT: PageType.EVENT,
     KnowledgeType.SYNTHESIS: PageType.SYNTHESIS,
 }
 

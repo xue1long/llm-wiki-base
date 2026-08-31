@@ -5,8 +5,13 @@ rules:
     max_length: 64
     reserved: [index, log]
   frontmatter:
-    required: [id, title, type]
-    optional: [slug, sources, relations, grade, processing_depth, is_immutable, heat, last_used_at, zombie_since, tags, created_at, updated_at, related_entities, category, taxonomy_sub]  # category, taxonomy_sub  experimental（STS 未定稿）
+    required: [id, title, type, sources, created_at, updated_at]
+    optional: [relations, tags]
+    # V4 (ADR-002, 2026-08-31): the on-disk frontmatter is exactly 8 keys
+    # — anything else is in-memory only on WikiPage (see §1.3 below) and is
+    # NOT written to disk. The validator script
+    # scripts/validate_novel_wiki_frontmatter.py is the source of truth for
+    # enforcement.
   body:
     min_length: 1
     max_length: 50000  # 单个 body 最大字符数
@@ -19,288 +24,268 @@ rules:
       - wikilinks
 ---
 
-# Wiki 规范
+# Wiki 规范（V4 · 2026-08-31）
 
-## ID 命名规则
+## 0. 概述
 
-ID 有两种可用格式：
+本规范定义 Wiki 页面的**磁盘 frontmatter**（写入 `wiki/<type>/<id>.md` 的 YAML 部分）的字段集与行为。V4 收紧了 frontmatter：磁盘上**只允许 8 个键**，其他字段保留在内存 `WikiPage` 对象上供业务使用，但**不写入磁盘**。
 
-- kebab-case slug（**含 CJK 支持**, 2026-07-26 cut-over）：如 `shuang-dian`、`ceo-romance`、`网络文学`、`仙侠小说`
-- UUID v7 (`card_<13hex>_<8hex>_<slug>`)：如 `card_018f3a8e2b1c4_a3f9d12c_lin-feng`，v2.2+ 默认生成
+### 0.1 V4 与 v2.2 的差异
 
-### 字符集
+| 维度 | v2.2 | **V4** |
+|---|---|---|
+| frontmatter 字段数 | 19 键（含 dead fields） | **8 键**（严格白名单）|
+| `slug` 字段 | 写入 frontmatter | **不写入**（路径派生） |
+| `grade` / `heat` / `processing_depth` / `workflow_state` | 写入 | **不写入**（内存模型）|
+| `is_immutable` 守卫 | 写入 + 拒绝覆盖 | **完全删除** |
+| `category` / `taxonomy_sub` | 写入 | **不写入**（用 `relations[taxonomy_of]`）|
+| `related_entities` | 写入（始终 `[]`）| **不写入** |
+| `_ko_extra` 镜像通道 | 写入 | **不写入** |
+| `confidence` / `provenance` / `versions` / `lifecycle` / `lock_until`（V3 提议）| 提议从未实现 | **根本不接受** |
 
-ID 字符（与 ``slugify()`` 一致）：
+### 0.2 V4 不变性
 
+- **frontmatter = 8 键严格白名单**：CI 拒绝任何非白名单字段
+- **slug 永不存 frontmatter**：从 `<type_dir>/<id>` 派生
+- **KO 写入层是终极守门人**：即使 LLM 输出 dead fields，写盘时也丢弃
+
+---
+
+## 1. 字段集（V4 · 8 键）
+
+### 1.1 必填字段（6 项）
+
+| 字段 | 类型 | 业务语义 |
+|---|---|---|
+| `id` | str | 文件系统唯一键；wikilink 路由 |
+| `title` | str | 人类可读标题 |
+| `type` | enum | `source` \| `entity` \| `concept` \| `synthesis`（4 选 1）|
+| `sources` | list[str] | 原始来源路径（与 `raw/sources/...` 对应）|
+| `created_at` | int (ms) | 物理创建时间 |
+| `updated_at` | int (ms) | 物理更新时间 |
+
+### 1.2 可选字段（2 项）
+
+| 字段 | 类型 | 业务语义 |
+|---|---|---|
+| `relations` | list[dict] | 知识图谱边。21 个内置类型 + `x-*` 自定义 |
+| `tags` | list[str] | 业务轻量标签 |
+
+### 1.3 不写入 frontmatter 的字段（内存模型保留）
+
+`WikiPage` dataclass 仍保留以下字段供业务逻辑使用，但**绝不写入磁盘**：
+
+- `body` (str) —— Markdown body（页面正文，不算 frontmatter 字段）
+- `grade` (str) —— A/B/C 评级（来自 KO confidence，但 V4 不持久化）
+- `processing_depth` (str) —— concept/memory/operation（仅用于 stub 页面识别）
+- `is_immutable` (bool) —— 保留字段定义但未启用守卫
+- `heat` / `last_used_at` / `zombie_since` —— 热度衰减（未启用）
+- `workflow_state` / `verified_at` —— 治理状态（未启用）
+- `category` / `taxonomy_sub` —— 用 `relations[taxonomy_of]` 替代
+- `custom_type` / `related_entities` —— schema.md 子类型机制未启用
+- `_ko_extra` / `evidence_` / `decision_record` —— KO 镜像通道废弃
+- `valid_from` / `valid_to` —— 时间窗口（未启用）
+- `slug` —— 路径派生
+
+### 1.4 字段填充规则
+
+- **`grade`**：默认 `B`（内存模型）；render 层不计算（novel-wiki 场景不需要）
+- **`slug`**：从 `<type_dir>/<id>` 派生，frontmatter 不存
+- **`category`**：用 `relations[taxonomy_of]` 表达
+- **`relations`**：21 个内置类型（references/referenced_by/contains/is_part_of/...） + `x-*` 自定义
+- **`tags`**：无 type 约束，可含命名空间前缀如 `题材/玄幻`
+- **`sources`**：与 `raw/sources/...` 路径对应（KO 写入时自动规范化）
+
+### 1.5 ID 命名规则
+
+ID 两种格式：
+- **kebab-case slug**（含 CJK 支持）：如 `shuang-dian`、`ceo-romance`、`网络文学`
+- **UUID v7** (`card_<13hex>_<8hex>_<slug>`)：v2.2+ 默认生成
+
+字符集：
 - ASCII `a-z`、`0-9`、连字符 `-`
-- CJK 基本区 `U+4E00–U+9FFF`（保留原字）
+- CJK 基本区 `U+4E00–U+9FFF`
 
-**禁止**：
+**禁止**：大写 ASCII、下划线 `_`、Latin Extended、控制字符、`[` / `]`
 
-- 大写 ASCII（kebab-case 是小写）
-- 下划线 `_`（kebab-case 用 `-`）
-- Latin Extended（`é`、`ñ` 等）—— 不在当前 slugify 范围内，需要时手动加 alias
-- 文件路径分隔符、控制字符、`[` / `]`
+### 1.6 type 系统（4 选 1）
 
-### 中文 slug
-
-`slugify()` 在切到 CJK 后（commit 9d92eab）：
-
-- 保留 CJK 原字（不再走 pinyin 转写）
-- NFC 标准化输入（处理 macOS HFS+ NFD）
-- `混Test合` → `混-test-合`（运行边界用连字符）
-- `café` → `café`（拉丁扩展字符作为变音符融合不分割）
-
-LLM 提示词（commit 8025eaa）已更新为：
-
-> Slugs (id、relations[].target) 可直接使用中文 (CJK),也可使用 ASCII kebab-case — 保留概念的自然字面,**无需拼音转写**;专有名词/英文术语在 ASCII 段仍保持原始写法。
-
-### 历史迁移
-
-如果旧 wiki 还存在 pinyin slug（切到 CJK 之前的产物），可运行：
-
-```bash
-python scripts/migrate_pinyin_to_cjk_aliases.py --apply
-```
-
-脚本读取每个页面的标题，用新的 CJK-aware `slugify()` 算出"应为"的 CJK slug，并把 `cjk_slug → existing_pinyin_id` 写入 `.llm-wiki/slug_aliases.json`。**不会**重命名文件（破坏性操作）。
-
-审计工具（H4）同意两种格式；不得使用 `index`、`log` 等保留 ID。
-
-## Frontmatter 字段
-
-### 必须字段
-
-| 字段 | 类型 | 说明 |
+| type | KB 目录 | 用途 |
 |---|---|---|
-| `id` | str | 与文件名一致，不含 `.md` |
-| `title` | str | 显示标题 |
-| `type` | PageType | `source` \| `entity` \| `concept` \| `synthesis` |
+| `source` | `wiki/sources/` | 原始素材引用 |
+| `entity` | `wiki/entities/` | 实体（人物/平台/作品）|
+| `concept` | `wiki/concepts/` | 抽象概念/技巧 |
+| `synthesis` | `wiki/synthesis/` | 多源汇总 |
 
-### GBrain 兼容 slug
+**删除**：`claim`（早期 KO 试点残留，迁移到 `source`）
 
-`slug` 由写盘层根据页面相对 `wiki/` 的路径确定，LLM 不得自行指定：
+---
 
-```text
-wiki/concepts/foo.md → slug: concepts/foo
-wiki/sources/foo.md  → slug: sources/foo
+## 2. Frontmatter 模板
+
+```yaml
+---
+id: <与文件名一致，13-64 字符>
+type: <source|entity|concept|synthesis>
+title: <非空，≤80 字符>
+sources: []                      # raw/sources/... 相对项目根；多源合并时多行
+created_at: <Unix ms>
+updated_at: <Unix ms>
+relations: []                    # 21 类型 + x-* 扩展
+tags: []                         # 业务轻量标签（无 type 约束）
+---
+
+
 ```
 
-新页面正文中的跨页链接统一写成 `[[目录/slug]]`。读取旧页面时仍兼容裸链接
-`[[slug]]`；下次页面写入时会自动规范化为路径限定链接。`relations` 继续保存
-ruflo 的结构化关系，同时写入一个 Markdown 关系区块，供 GBrain 的 Markdown
-导入器建立链接图。
+### 2.1 反例（CI 拒绝）
 
-### 可选字段
-
-`sources`、`relations`、`grade`、`processing_depth`、`is_immutable`、`heat`、`last_used_at`、`zombie_since`、`tags`
-
-### Tags 规则
-
-Tags 使用受控命名空间前缀，格式为 `prefix/name`。可用前缀：
-
-| 前缀 | 说明 |
+| 反例 | CI 触发 |
 |---|---|
-| `题材/` | 题材类型 |
-| `功能/` | 功能类型 |
-| `角色/` | 角色类型 |
-| `事件/` | 事件类型 |
-| `情绪/` | 情绪氛围 |
-| `实体/` | 是什么 (What) |
-| `场景阶段/` | 何时用 (When) |
-| `状态/` | 生命周期 |
-| `素材/` | 素材品类（2026-08-01 新增，如 `素材/ugc`、`素材/原创`、`素材/投稿`） |
-| `可信度/` | 可信度（2026-08-01 新增，如 `可信度/ugc`、`可信度/book`、`可信度/mixed`） |
+| 保留 `tags:` 作为 frontmatter 顶层字段 | 报错（应转为 `relations[taxonomy_of]`） |
+| `relations: target: 玄幻小说`（缺前缀） | 报错（必带命名空间前缀）|
+| 写 `confidence` / `provenance` / `versions` / `lifecycle` / `lock_until` | 报错（V4 不接受）|
+| 写 `grade` / `processing_depth` / `is_immutable` / `heat` 等 | 报错（V4 不写盘） |
+| `slug` 手写且与路径不一致 | WARN + 覆盖 |
 
-## Body 规则
+---
 
-- 不得为空（空 body → LINT-EMPTY-BODY INFO 告警）
-- 支持 Markdown：`**bold**`、`*italic*`、`## 标题`、`### 子标题`、`- 列表`
-- 跨页引用使用路径限定的 `[[directory/slug]]` 语法，如 `[[concepts/shuang-dian]]`
+## 3. Body 规则
 
-## PageType 语义（4 种 page type 的判定标准）
+- `min_length`: 1 字符
+- `max_length`: 50000 字符
+- `wikilink_syntax`: `[[directory/slug]]` 或 `[[directory/slug|alias]]`
+- `allowed_markdown`: bold / italic / headings / lists / wikilinks
 
-### 页面层与知识层分离
+---
 
-本项目存在两层类型，需要区分：
-
-- **页面层** `WikiPage.type`（`PageType`）只有 4 类：`source` / `entity` / `concept` / `synthesis`。
-- **知识层** `KnowledgeType` 有 8 类：`document` / `entity` / `concept` / `claim` / `decision` / `procedure` / `event` / `synthesis`。JSON analyzer 允许产出 `claim` / `decision` / `procedure` / `event` 等知识候选；但**生成页面时**经 `KO_TYPE_TO_PAGE_TYPE` 映射折叠：`claim` / `decision` / `procedure` / `event` → `concept`。
-- `PageType` 枚举保留 8 个值仅为兼容解析历史数据（如旧 `type: procedure` 页面），不应新建此类页面。
-- 因此规范页只有 4 类；知识层的 `claim` 等概念不等价于页面类型。
-
-正确分类是知识库图谱可用的前提。每条 `suggested_pages` 必须落到下面 4 类之一：
-
-| type | 判定标准 | 典型例子 |
-|---|---|---|
-| `source` | 原始摄入的文档/URL。每个摄取任务自动产生一条,保存原文摘要 + 元数据,不依赖 LLM 决定 | 摄取的 PDF/MD/URL 本身 |
-| `entity` | 具象实体:**有名字、可数、可唯一标识的对象**。人物、组织、具体作品、地点、特定流派名 | `李白`、`佛本是道`、`阅文集团`、`起点中文网`、`洪荒封神流`(具体流派) |
-| `concept` | 抽象概念:**可跨页复用、不依附具体作品**的主题/技巧/原则/题材大类 | `仙侠小说`(题材大类)、`画面感`(写作技巧)、`长生`(主题)、`伏笔`(叙事技巧) |
-| `synthesis` | 跨页综合分析:对多个 concept/entity 的对比、综述、汇总 | "仙侠 vs 玄幻对比"、"仙侠流派综述" |
-
-**判定启发式**:
-- 问"它是某个人/某本书/某个具体东西吗?" → entity
-- 问"它是一个抽象的方法/原则/类别吗?" → concept
-- 问"它是把多个东西综合起来的对比/汇总吗?" → synthesis
-- 问"它是原始摄取的文档吗?" → source
-
-**反例(常见误判)**:
-- `佛本是道`(具体作品) ❌ concept → ✅ entity
-- `李白`(历史人物) ❌ concept → ✅ entity
-- `网络文学`(题材大类) ❌ entity → ✅ concept
-- `画面感`(抽象技巧) ✓ concept
-
-## Wiki Page Templates (Plan 25)
-
-每种 `PageType` 都有一个**章节模板**,Generator 提示 LLM 按模板填充 slot,保证知识库结构一致。
-
-**模板格式** — 普通 Markdown,用 HTML 注释做标记:
-
-```markdown
-<!-- wiki-template-version: 1.0.0 -->
-<!-- wiki-template-type: concept -->
-
-## 定义
-
-<!-- slot:definition -->
-
-## 例子
-
-<!-- slot:examples -->
-
-## 别名
-
-<!-- if:has_aliases -->
-
-<!-- slot:aliases -->
-
-<!-- /if:has_aliases -->
-```
-
-**标记种类**:
-
-| 标记 | 含义 |
-|---|---|
-| `<!-- wiki-template-version: X.Y.Z -->` | 模板版本(必需) |
-| `<!-- wiki-template-type: TYPE -->` | PageType(必需,parser 验证) |
-| `<!-- slot:NAME -->` | LLM 应填充的位置 |
-| `<!-- slot:NAME? -->` | 可选 slot,空则省略整个章节 |
-| `<!-- if:LABEL -->...<!-- /if:LABEL -->` | 同 `?`,LABEL 只是标签 |
-| `<!-- include:_base.md -->` | 引用片段(深度 ≤ 3 防循环) |
-
-**优先级(三级)**:
-1. `<project>/.wiki-templates/<type>.md` (项目级覆盖)
-2. `~/.config/ruflo-kb/wiki-templates/<type>.md` (用户全局)
-3. `src/wiki/templates/bundled/<type>.md` (bundled 默认)
-
-**默认模板**:每个 PageType 在 bundled/ 都有 4-5 个章节骨架。详见 `src/wiki/templates/bundled/`。
-
-**CLI 管理**:
-```bash
-python -m src.cli wiki-templates list         # 列出所有 PageType
-python -m src.cli wiki-templates show concept # 查看模板内容
-python -m src.cli wiki-templates edit concept # 复制 bundled → user/,打开编辑器
-python -m src.cli wiki-templates edit concept --project novel-wiki  # 复制到项目
-python -m src.cli wiki-templates reset concept # 删除 user/ 覆盖,回落到 bundled
-```
-
-## v2.3 Schema (Plan 27, 2026-07-26) — 模板驱动的 body 生成
-
-自 v2.3 起,wiki 页面的 body **不再**是 LLM 自由发挥的字符串,而是由 Generator 强制按模板 slot 填充后渲染的产物。bundled 模板版本号从 `1.0.0` 升到 `2.0.0`,以此把"v1 自由发挥"和"v2 结构化"区分开。
-
-### 新的 LLM 响应结构
-
-Generator 的 JSON schema 把 `body_markdown: string` 替换成 `slots: object`。LLM 必须为每个 PageType 的所有 required slot 提供非空内容;可选 slot (`<!-- slot:NAME? -->` 或 `<!-- if:X -->` 包裹) 允许省略或返回空列表,被省略时其整个 heading 也被丢弃。
-
-```jsonc
-{
-  "pages": [
-    {
-      "id": "<slug>",
-      "type": "concept",
-      "title": "<title>",
-      "slots": {
-        "definition": "...",
-        "characteristics": ["特性 1", "特性 2"],
-        "examples": ["例 1"],
-        "related_concepts": ["[[concepts/other-slug]]"],
-        "references": ["来源"]
-      }
-    }
-  ]
-}
-```
-
-### 三道防线(防回归)
-
-1. **Schema 防护**:Provider 用 JSON schema 拒绝 `slots` 缺失或每个 slot 值为空字符串的情况。
-2. **代码校验 + 一次 retry**:Generator 在 retry 一次仍未填补所有 required slot 时,以 server-side 占位字符 (`（系统占位：此项由系统补齐，请人工补充）`) 填充,并 `WARN` 到 `log.md`。
-3. **Lint 兜底**:`cli lint` 新增 `LINT-MISSING-SECTION` WARNING。**仅**对版本 `>= 2.0.0` 的页面触发,旧版页面不受影响。
-
-### v2.3 升级路径
-
-- **新摄入的内容**自动按 v2.3 schema 渲染。每个 wiki 文件首行的 `<!-- wiki-template-version: 2.0.0 -->` 注释让 lint 能识别并校验。
-- **已有的 v1 wiki 页面** (`wiki-template-version: 1.0.0`) 保持原样,不被 lint 强制重写。如要让旧页面也通过结构性检查,简单做法是重新摄取对应的源文件。
-- **升级占位字符到有意义内容**:对带 `(见下游概念页)` / `(待补充)` 等占位的页面,运行对应 raw 文件的 `POST /api/v1/projects/<id>/ingest` 让 Generator 重新生成;占位会被真实抽取内容替换。
-
-### 不变的部分
-
-- `WikiPage` 数据模型的 `body: str` 字段保持不变 — 仍是单一 markdown 字符串落地。
-- `page_writer.write_page` / `read_page` 不动 — 行为完全向后兼容。
-- features (relations / heat / indexer / review / dedup / 等) 不动 — 它们对 body 内容不敏感。
-- 任意项目级 / 用户级模板 (`<project>/.wiki-templates/`, `~/.config/ruflo-kb/wiki-templates/`) 都可以独立 bump 到 2.0.0 享受新校验。
-
-## v2.4 Source Page 文件名（2026-07-26）
-
-v2.4 起，`wiki/sources/*.md` 文件名不再是队列任务 ID（`kb-{time}-{8hex}.md`），而是**源文件的中文 stem + 短路径 hash**。这是 ingest pipeline 的 `source_slug` 生成方式变更，不影响 `WikiPage` 数据模型。
-
-### 例子
-
-| 源文件 | 旧 wiki 文件名 | 新 wiki 文件名 |
-|---|---|---|
-| `必备资料15顺眼谈文章的画面感.md` | `kb-20260726173322-4c1dd21e.md` | `必备资料15顺眼谈文章的画面感-43c5df10.md` |
-
-### 实现 (`src/pipeline/ingest.py:561-570`)
+## 4. 写盘协议
 
 ```python
-_raw_stem_for_slug = Path(str(source_path)).stem
-_norm_stem_for_slug = unicodedata.normalize("NFC", _raw_stem_for_slug)
-_slug_stem_for_map = slugify(_norm_stem_for_slug)   # CJK 原字保留；ASCII 空格/标点被 slug 化（如 "Annual Report 2024" → "annual-report-2024"）
-_path_hash_for_slug = hashlib.md5(str(source_path).encode("utf-8")).hexdigest()[:8]
-_source_slug_for_map = (
-    f"{_slug_stem_for_map}-{_path_hash_for_slug}"
-    if _slug_stem_for_map else
-    task_id if task_id.startswith("kb-") else f"kb-{task_id}"
-)
-source_title = _norm_stem_for_slug   # 去掉 .md 后缀
+from src.wiki.storage.page_writer import write_page
+
+write_page(paths, WikiPage(
+    id="my-page",
+    title="My Page",
+    type=PageType.CONCEPT,
+    body="## 定义\n\n内容",
+    sources=["raw/sources/source.md"],
+    relations=[Relation(target="other-page", type="references", weight=1.0)],
+    tags=[],
+))
 ```
 
-- **不拼音化**：源文件 stem 直接作为 slug 的一部分（CJK 原字保留）。
-- **slugify 仅对 ASCII 生效**：纯中文文件名（如 `必备资料15…md`）slugify 原样保留；含空格/标点的英文文件名（如 `Annual Report 2024.md`）会被 slug 化为 `annual-report-2024-<hash>`，而非原样保留空格。
-- **NFC 标准化**避免 macOS HFS+ NFD 文件名导致不同 hash。
-- **8hex 短 hash** (32-bit 熵)：吸收 race condition（两个并发摄取同源文件不会撞）；跨 platform 跨 server 稳定。
-- **`title`** 也修了：之前是 `必备资料15顺眼谈文章的画面感.md`（带扩展名），现在是 `必备资料15顺眼谈文章的画面感`。
-- **`task_id`** 仅写到 source-meta slot 的 `任务 ID` 字段（审计追溯），不再做文件名。
+**V4 行为**：
+- `WikiPage.to_frontmatter_dict()` 仅输出 8 键
+- 内存模型上的 dead fields 不会出现在写入文件
+- stub 页面（`processing_depth="stub"`）写入 `_stubs/` 目录
+- 写入路径无 `is_immutable` 检查（覆盖允许）
 
-### 迁移现有 wiki
+---
 
-```bash
-# Dry-run: 列出现有 kb-*.md 的迁移方案
-python -m src.cli wiki-migrate-source-slugs --project <project_id>
+## 5. 验证
 
-# 实际 rename + rewrite index.md / log.md
-python -m src.cli wiki-migrate-source-slugs --project <project_id> --apply
+### 5.1 V4 frontmatter 验证脚本
+
+```
+$ python scripts/validate_novel_wiki_frontmatter.py
+[validate-v4] scanned=4892
+[validate-v4] P0=0  ← 全部通过 V4 严格白名单
 ```
 
-行为：
-- 默认 `--dry-run` 列映射；`--apply` 实际重命名 + 改 index/log 引用
-- 跳过已经迁移的文件（id 与 filename 不一致）
-- 跳过无法找到 raw path 的文件（提示重新摄取）
+脚本：`scripts/validate_novel_wiki_frontmatter.py`
 
-### 不影响的部分
+### 5.2 手工验证清单
 
-- `WikiPage.id` 现在存中文 — 已支持（2026-07-26 CJK cut-over）
-- `[[wikilink]]` 解析、`relations[].target` 字段、index.md 引用都能用中文 slug
-- `page_writer.write_page` / `read_page` 不动
-- 队列幂等性 (`md5(source + folder_context)`) 完全独立 — 跨次摄取仍能去重
+1. frontmatter 必须有合法闭合符 `---\n...\n---\n`（不允许 `---` 黏在上一行）
+2. 必填字段齐全：`id` / `title` / `type` / `sources` / `created_at` / `updated_at`
+3. `type` ∈ `{source, entity, concept, synthesis}`
+4. `id` 必须等于文件名 stem
+5. 不含 V4 禁字段（`confidence` / `provenance` / `versions` / `lifecycle` / `lock_until`）
+6. `relations` 中 `taxonomy_of` / `belongs_to_audience` / `hosted_on_platform` / `has_credibility` 的 target 必须带命名空间前缀
 
+---
+
+## 6. V4 迁移
+
+### 6.1 已执行（2026-08-31）
+
+- `knowledge/novel-wiki/wiki/` 4892 页全部迁移到 V4
+- 迁移脚本：`scripts/migrate_novel_wiki_to_v4.py`（含 round-trip 验证）
+
+### 6.2 字段转换
+
+| 旧字段 | V4 转换 |
+|---|---|
+| `category: 写作技法` | `relations: [{target: taxonomy/写作技法, type: taxonomy_of}]` |
+| `taxonomy_sub: 人物塑造` | `relations: [{target: taxonomy/人物塑造, type: taxonomy_of}]` |
+| `tags: [题材/玄幻]` | `relations: [{target: taxonomy/玄幻, type: taxonomy_of}]` |
+| `tags: [读者群/女性向]` | `relations: [{target: audience/女性向, type: belongs_to_audience}]` |
+| `tags: [平台/飞书]` | `relations: [{target: platform/飞书, type: hosted_on_platform}]` |
+| `tags: [可信度/ugc]` | `relations: [{target: credibility/ugc, type: has_credibility}]` |
+| `type=claim` | `type=source`（文件移到 `wiki/sources/`）|
+| `heat` / `is_immutable` / `last_used_at` / `zombie_since` / `related_entities` / `_ko_extra` | 删除 |
+| `grade` / `processing_depth` / `workflow_state` / `verified_at` / `custom_type` | 保留为内存模型字段，不写盘 |
+
+---
+
+## 7. 关系类型（21 个内置）
+
+### 7.1 知识图谱边（17 个）
+
+| 类型 | 替的旧 tag 前缀 |
+|---|---|
+| `references` | — |
+| `referenced_by` | — |
+| `contains` | — |
+| `is_part_of` | — |
+| `supports` | — |
+| `supported_by` | — |
+| `derives` | — |
+| `derived_from` | — |
+| `analogous_to` | — |
+| `depends_on` | — |
+| `required_by` | — |
+| `opposite_of` | — |
+| `causes` | — |
+| `caused_by` | — |
+| `contradicts` | — |
+| `supersedes` | — |
+| `superseded_by` | — |
+
+### 7.2 命名空间前缀（4 个，替代旧 tags）
+
+| 类型 | target 命名空间 | 替代 |
+|---|---|---|
+| `taxonomy_of` | `taxonomy/<名>` | `category` / `taxonomy_sub` / `tags[题材/...]` |
+| `belongs_to_audience` | `audience/<名>` | `tags[读者群/...]` |
+| `hosted_on_platform` | `platform/<名>` | `tags[平台/...]` |
+| `has_credibility` | `credibility/<name>` | `tags[可信度/...]` |
+
+### 7.3 自定义 x-*
+
+`x-*` 需在 `wiki/novel-wiki/relations.md` 注册，未注册触发 `LINT-UNKNOWN-RELATION-TYPE`。
+
+---
+
+## 8. stub 处理
+
+- stub 页面（`processing_depth="stub"`）写入 `wiki/_stubs/`
+- stub 由 KO 模型标注，写盘由 `page_writer` 路由
+- stub 升级（materialize）从 `_stubs/<id>.md` 移到 `wiki/<type>/<id>.md`
+
+---
+
+## 9. 与既有文档的关系
+
+| 文档 | 关系 |
+|---|---|
+| [docs/architecture/novel-wiki-fields-template-2026-08-31.md](../architecture/novel-wiki-fields-template-2026-08-31.md) | novel-wiki V4 模板（与本文档一致）|
+| [docs/adr/ADR-002-wiki-fields-long-term-evolution.md](../adr/ADR-002-wiki-fields-long-term-evolution.md) | ADR-002 V4 决策 |
+| [scripts/validate_novel_wiki_frontmatter.py](../../scripts/validate_novel_wiki_frontmatter.py) | V4 验证脚本 |
+| [scripts/migrate_novel_wiki_to_v4.py](../../scripts/migrate_novel_wiki_to_v4.py) | V4 迁移脚本 |
+
+---
+
+**生效日期**：2026-08-31
+**Schema 版本**：`NOVEL_WIKI_FIELD_SCHEMA_VERSION = "4.0.0"`

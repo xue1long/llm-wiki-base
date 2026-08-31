@@ -27,14 +27,11 @@ def _format_legacy_evidence(item: dict) -> str:
 
 
 class PageType(str, Enum):
+    """V4 strict whitelist — only 4 page types."""
     SOURCE = "source"
     ENTITY = "entity"
     CONCEPT = "concept"
     SYNTHESIS = "synthesis"
-    CLAIM = "claim"
-    DECISION = "decision"
-    PROCEDURE = "procedure"
-    EVENT = "event"
 
 
 _TYPE_TO_DIR: dict[PageType, str] = {
@@ -42,10 +39,6 @@ _TYPE_TO_DIR: dict[PageType, str] = {
     PageType.ENTITY: "wiki_entities",
     PageType.CONCEPT: "wiki_concepts",
     PageType.SYNTHESIS: "wiki_synthesis",
-    PageType.CLAIM: "wiki_claims",
-    PageType.DECISION: "wiki_decisions",
-    PageType.PROCEDURE: "wiki_concepts",
-    PageType.EVENT: "wiki_concepts",
 }
 
 
@@ -99,7 +92,19 @@ class WikiPage:
     valid_to: int | None = None
 
     def to_frontmatter_dict(self) -> dict:
-        d = {
+        """Serialize the page to a V4 8-key strict-whitelist frontmatter dict.
+
+        V4 schema (per docs/architecture/novel-wiki-fields-template-2026-08-31.md):
+            id, title, type, relations, tags, sources, created_at, updated_at
+
+        All other fields (grade/processing_depth/heat/workflow_state/
+        decision_record/evidence_refs/valid_from/valid_to/_ko_extra/...) are
+        kept on the in-memory dataclass for backward compatibility with code
+        that constructs WikiPage objects directly, but are NOT written to
+        disk. The 8 V4 keys are the only contract between WikiPage and the
+        on-disk frontmatter.
+        """
+        return {
             "id": self.id,
             "title": self.title,
             "type": self.type.value,
@@ -107,36 +112,8 @@ class WikiPage:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "relations": [r.to_dict() for r in self.relations],
-            "grade": self.grade,
-            "processing_depth": self.processing_depth,
-            "is_immutable": self.is_immutable,
-            "heat": self.heat,
-            "last_used_at": self.last_used_at,
-            "zombie_since": self.zombie_since,
             "tags": list(self.tags),
-            "category": self.category,
-            "taxonomy_sub": self.taxonomy_sub,
-            "related_entities": list(self.related_entities),
-            "custom_type": self.custom_type,
-            "workflow_state": self.workflow_state,
-            "verified_at": self.verified_at,
         }
-        if self.decision_record is not None:
-            d["decision_record"] = self.decision_record
-        if self.evidence_refs:
-            d["evidence_refs"] = list(self.evidence_refs)
-        # Temporal fields — emit each bound independently when it is set
-        # (additive: legacy pages with neither bound stay "unknown" and
-        # the frontmatter is not cluttered with null entries; pages with
-        # only one bound carry only that one).
-        if self.valid_from is not None:
-            d["valid_from"] = self.valid_from
-        if self.valid_to is not None:
-            d["valid_to"] = self.valid_to
-        ko_extra = getattr(self, "_ko_extra", None)
-        if isinstance(ko_extra, dict):
-            d["_ko_extra"] = ko_extra
-        return d
 
     @classmethod
     def from_dict(cls, d: dict, body: str = "") -> "WikiPage":
@@ -206,9 +183,15 @@ class WikiPage:
         return page
 
 
-# Valid values for workflow_state (lint reference).
+# V4 has no workflow_state / processing_depth fields — they were removed
+# from the frontmatter schema in 2026-08-31. The in-memory dataclass still
+# keeps them for backward compatibility with code that constructs WikiPage
+# objects directly, but they are never written to disk. See ADR-002.
+
+# These two constants are kept for the legacy lint path — pages written by
+# pre-V4 pipelines still carry these fields in their frontmatter. The lint
+# uses these to flag invalid legacy values. New writes never include them.
 VALID_WORKFLOW_STATES = frozenset({"draft", "ready", "verified", "outdated"})
-# Valid values for processing_depth (lint reference).
 VALID_PROCESSING_DEPTHS = frozenset({"concept", "memory", "operation"})
 
 
