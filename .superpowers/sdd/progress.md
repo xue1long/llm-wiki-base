@@ -718,3 +718,4 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - 验收：`pipeline + KC + server` 矩阵 `1283 passed, 7 skipped, 41 warnings`；7 个跳过项仅依赖未物化的受保护 novel-wiki 资料。修复前暴露的 26 项中，代码/合同问题均已关闭；用户级模板覆盖造成的假失败已通过隔离临时用户配置排除。
 - 额外验收：ingest/KC 发布回归 `30 passed`；未改变 fail-closed 证据绑定；缺失/错误 `block_id` 仍拒绝，quote hash 仍按 canonical quote 重算。
 - 当前状态：集成分支已提交，待完成编译、受影响 CLI/project/wiki 测试、diff/range-diff/路径审计后，使用 old-SHA guard 快进 `main`；不 push，保留集成 worktree 作为回滚证据。
+- 完成：编译通过；受影响模板回归 `13 passed, 12 skipped`；隔离临时项目 `/health` 返回 HTTP 200；`git diff --check`、冲突检查、protected-path 审计通过；`main` 已用 old-SHA guard 快进至 `025e19b6`。graphify 仍受本机 uv trampoline 错误阻塞，未改全局工具环境。

@@ -62,3 +62,6 @@ Before updating `main`, verify the integration branch is clean, there are no
 unmerged index entries, the protected paths are absent from the integration
 worktree diff, `git diff --check` passes, and the main ref still equals the
 recorded baseline. Update `main` only with an old-SHA guarded fast-forward.
+
+Completed: those checks passed and `main` was fast-forwarded with the recorded
+old SHA to the verified integration commit. No push was performed.
