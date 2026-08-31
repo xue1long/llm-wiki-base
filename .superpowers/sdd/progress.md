@@ -709,3 +709,12 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - graphify 使用官方 `graphify update . --no-cluster` 完成结构更新：`20631 nodes / 42738 edges`。完整聚类模式因保留的大量测试临时目录长时间无进度，未强行清理目录；无聚类结构验证已通过。
 - 保护检查：`git diff --quiet -- knowledge/novel-wiki` 通过。最终验收报告：`docs/reports/2026-08-30-content-readiness-acceptance.md`。
 - 剩余外部事项：15 样本中 4 个 GLM5.2 `TruncatedResponseError`，已明确分类并保留失败链；需 provider 输出预算/服务稳定后单独复跑，不通过放宽证据门禁处理。
+
+### A12 Safe content-readiness integration（2026-08-31）
+
+- 从主线 `1c472d7f` 创建隔离集成分支 `codex/content-readiness-integration`；不做整段历史 merge，只按内容就绪/evidence-readiness 交付范围做语义移植。
+- 保护边界：集成工作树使用 sparse checkout 排除 `knowledge/`、`raw/`、`.index/`；原始 `knowledge/novel-wiki` 未读取、未复制、未修改。冲突按字段语义合并，未使用 ours/theirs 粗暴覆盖。
+- 集成提交：`51fcded7`（预处理与严格证据合同）、`4b58ce6f`（readiness gate/audit/inventory/pilot）、`86097aae`（非 candidate 审计初始化、发布测试显式 block_id、受保护 fixture 缺失时测试跳过）。
+- 验收：`pipeline + KC + server` 矩阵 `1283 passed, 7 skipped, 41 warnings`；7 个跳过项仅依赖未物化的受保护 novel-wiki 资料。修复前暴露的 26 项中，代码/合同问题均已关闭；用户级模板覆盖造成的假失败已通过隔离临时用户配置排除。
+- 额外验收：ingest/KC 发布回归 `30 passed`；未改变 fail-closed 证据绑定；缺失/错误 `block_id` 仍拒绝，quote hash 仍按 canonical quote 重算。
+- 当前状态：集成分支已提交，待完成编译、受影响 CLI/project/wiki 测试、diff/range-diff/路径审计后，使用 old-SHA guard 快进 `main`；不 push，保留集成 worktree 作为回滚证据。

@@ -15,6 +15,11 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 PROJECT_TEMPLATES = REPO_ROOT / "knowledge" / "novel-wiki" / ".wiki-templates"
 
+pytestmark = pytest.mark.skipif(
+    not (PROJECT_TEMPLATES / "concept.md").is_file(),
+    reason="protected novel-wiki project templates are not materialized",
+)
+
 EXPECTED = {
     "concept": {
         "version": (3, 0, 0),
