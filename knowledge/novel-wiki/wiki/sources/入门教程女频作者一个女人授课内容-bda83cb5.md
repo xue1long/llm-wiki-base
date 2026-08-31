@@ -1,39 +1,19 @@
 ---
 id: 入门教程女频作者一个女人授课内容-bda83cb5
 title: 入门教程女频作者一个女人授课内容
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程女频作者一个女人授课内容.md
 created_at: 1786952270106
 updated_at: 1786952270106
+type: source
 relations:
-- target: 一个女人
-  type: referenced_by
-  weight: 1.0
-  context: 授课内容源
-- target: 萧楚生
-  type: referenced_by
-  weight: 1.0
-  context: 主持该授课
-grade: A
-processing_depth: memory
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/教程
-category: ''
-taxonomy_sub: ''
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程女频作者一个女人授课内容-bda83cb5
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/入门教程女频作者一个女人授课内容.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

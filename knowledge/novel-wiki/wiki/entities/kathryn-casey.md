@@ -1,35 +1,20 @@
 ---
 id: kathryn-casey
 title: Kathryn Casey
-type: entity
-sources:
-- raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看_de5255.md
 created_at: 1786945340643
 updated_at: 1786945340643
+type: entity
 relations:
-- target: 入门教程作家是怎么炼成的新手必看-de5255-8affc531
-  type: references
-  weight: 0.9
-  context: 该来源页正文为她的写作职业经验谈
-grade: C
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 实体/人
-category: 心态与职业
-taxonomy_sub: 职业规划
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: entities/kathryn-casey
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+- 实体/人
+sources:
+- raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看_de5255.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->
 

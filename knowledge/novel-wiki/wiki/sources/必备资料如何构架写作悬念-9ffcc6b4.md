@@ -1,44 +1,19 @@
 ---
 id: 必备资料如何构架写作悬念-9ffcc6b4
 title: 必备资料如何构架写作悬念
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料如何构架写作悬念.md
 created_at: 1787073842123
 updated_at: 1787073842123
+type: source
 relations:
-- target: 商业网文写作
-  type: derives
-  weight: 1.0
-  context: 本概念页根据该源文对商业化写作的定义和论述整理。
-- target: 读者导向写作
-  type: supports
-  weight: 0.9
-  context: 正文强调先理解读者想看什么，再通过写作能力满足读者需求。
-- target: 北京圣东方国信科技有限公司
-  type: references
-  weight: 0.8
-  context: 源文件头部将其列为飞书文档发布组织。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/方法论
-category: 写作技法
-taxonomy_sub: 节奏与悬念
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料如何构架写作悬念-9ffcc6b4
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/必备资料如何构架写作悬念.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

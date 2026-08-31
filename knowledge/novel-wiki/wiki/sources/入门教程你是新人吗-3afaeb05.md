@@ -1,51 +1,19 @@
 ---
 id: 入门教程你是新人吗-3afaeb05
 title: 入门教程你是新人吗
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程你是新人吗.md
 created_at: 1786944279258
 updated_at: 1786944279258
+type: source
 relations:
-- target: 华夏天空青衫-e-组
-  type: contains
-  weight: 1.0
-  context: 文档主体即青衫E组的招募公告
-- target: 华夏天空网站青衫-e-组
-  type: references
-  weight: 1.0
-  context: 该来源文档是该小组发布的招募公告
-- target: 华夏天空-2016-征文新福利
-  type: derives
-  weight: 1.0
-  context: 福利内容直接来自该公告
-- target: 全勤起算时机
-  type: derives
-  weight: 1.0
-  context: 全勤起算时点直接取自该公告
-- target: 网编招募标准
-  type: referenced_by
-  weight: 1.0
-  context: 网编招募标准引自该公告
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/教程
-category: 平台规则
-taxonomy_sub: 全勤与福利
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程你是新人吗-3afaeb05
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/入门教程你是新人吗.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

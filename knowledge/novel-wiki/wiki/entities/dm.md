@@ -1,40 +1,20 @@
 ---
 id: dm
 title: DM
-type: entity
-sources:
-- raw/sources/01_新手入门/入门教程创造角色.md
 created_at: 1786945367682
 updated_at: 1786945367682
+type: entity
 relations:
-- target: 人物构建
-  type: supports
-  weight: 0.5
-  context: DM参与角色构建过程
-- target: 入门教程创造角色-27fffe79
-  type: referenced_by
-  weight: 0.3
-  context: 文档中提及DM
-grade: C
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
 - 实体/角色
-- 功能/参考
-- 素材/ugc
-- 可信度/ugc
-category: 案例与素材
-taxonomy_sub: 作品案例
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: entities/dm
+sources:
+- raw/sources/01_新手入门/入门教程创造角色.md
 ---
-
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->
 

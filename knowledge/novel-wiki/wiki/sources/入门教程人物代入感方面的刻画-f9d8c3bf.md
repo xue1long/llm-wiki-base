@@ -1,31 +1,19 @@
 ---
 id: 入门教程人物代入感方面的刻画-f9d8c3bf
 title: 入门教程人物代入感方面的刻画
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程人物代入感方面的刻画.md
 created_at: 1786944941183
 updated_at: 1786944941183
-relations: []
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/教程
-category: ''
-taxonomy_sub: ''
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程人物代入感方面的刻画-f9d8c3bf
----
+type: source
+relations:
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/入门教程人物代入感方面的刻画.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

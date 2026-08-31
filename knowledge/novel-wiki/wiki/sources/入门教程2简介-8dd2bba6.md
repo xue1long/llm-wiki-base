@@ -1,48 +1,19 @@
 ---
 id: 入门教程2简介-8dd2bba6
 title: '[入门教程]2、简介'
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程2简介.md
 created_at: 1786945100237
 updated_at: 1786945100237
+type: source
 relations:
-- target: 网络小说简介
-  type: contains
-  weight: 0.95
-  context: 教程核心讲述了网络小说简介的定义与作用
-- target: 跟我玩--阴死你
-  type: contains
-  weight: 0.9
-  context: 教程引用该作的简介作为都市小说范本
-- target: 错跟总裁潜规则
-  type: contains
-  weight: 0.9
-  context: 教程引用该作的简介作为言情小说范本
-- target: 大明-1937
-  type: contains
-  weight: 0.6
-  context: 教程列出该作作为后穿越历史小说简介范本
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 场景阶段/开篇
-category: 写作技法
-taxonomy_sub: 开篇与黄金三章
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程2简介-8dd2bba6
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/入门教程2简介.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

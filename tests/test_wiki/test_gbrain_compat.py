@@ -14,14 +14,18 @@ from src.wiki.storage.page_writer import page_path_for, write_page
 from src.wiki.features.relations import Relation
 
 
-def test_write_page_persists_path_qualified_gbrain_slug(tmp_path):
+def test_write_page_v4_no_slug_in_frontmatter(tmp_path):
+    """V4 (ADR-002): the path-qualified gbrain slug is NOT persisted to
+    frontmatter. It's derived from the file path at read time."""
     ensure_knowledge_base(tmp_path)
     paths = WikiPaths(tmp_path)
     write_page(paths, WikiPage(id="暗器", title="暗器", type=PageType.CONCEPT, body="body"))
 
     page_path = page_path_for(paths, PageType.CONCEPT, "暗器")
     frontmatter = yaml.safe_load(page_path.read_text(encoding="utf-8").split("---", 2)[1])
-    assert frontmatter["slug"] == "concepts/暗器"
+    # V4: no `slug` field in frontmatter.
+    assert "slug" not in frontmatter
+    # gbrain_slug_for_path still derives the slug from the file path.
     assert gbrain_slug_for_path(paths, page_path) == "concepts/暗器"
 
 

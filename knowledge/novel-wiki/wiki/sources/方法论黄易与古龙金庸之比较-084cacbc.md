@@ -1,55 +1,19 @@
 ---
 id: 方法论黄易与古龙金庸之比较-084cacbc
 title: 黄易与古龙、金庸之比较
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论黄易与古龙金庸之比较.md
 created_at: 1787118338836
 updated_at: 1787118338836
+type: source
 relations:
-- target: 金庸
-  type: references
-  weight: 1.0
-  context: 文章核心对比对象之一
-- target: 古龙
-  type: references
-  weight: 1.0
-  context: 文章核心对比对象之一
-- target: 黄易
-  type: references
-  weight: 1.0
-  context: 文章核心对比对象之一
-- target: 气机牵引
-  type: derives
-  weight: 1.0
-  context: 概念在文中被详细定义和对比
-- target: 历史武侠
-  type: derives
-  weight: 1.0
-  context: 概念是文章第一部分的核心议题
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/方法论
-- 题材/武侠
-- 场景阶段/人物构建
-- 场景阶段/情节设计
-- 场景阶段/设定
-category: 写作技法
-taxonomy_sub: 人物塑造
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论黄易与古龙金庸之比较-084cacbc
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/02_进阶技巧/方法论黄易与古龙金庸之比较.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

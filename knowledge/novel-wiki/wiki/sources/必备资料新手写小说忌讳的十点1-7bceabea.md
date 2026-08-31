@@ -1,47 +1,19 @@
 ---
 id: 必备资料新手写小说忌讳的十点1-7bceabea
 title: 必备资料新手写小说忌讳的十点(1)
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料新手写小说忌讳的十点1.md
 created_at: 1787075548096
 updated_at: 1787075548096
+type: source
 relations:
-- target: 写作忌讳
-  type: references
-  weight: 1.0
-  context: 来源围绕新手写小说需要避免的常见问题展开。
-- target: 正文纯净原则
-  type: supports
-  weight: 0.95
-  context: 来源明确主张删除正文中的作者互动和不必要解释。
-- target: 人物角色数量控制
-  type: supports
-  weight: 0.95
-  context: 来源建议开篇逐步引入人物并减少同时出现的角色数量。
-- target: 简单易记命名准则
-  type: supports
-  weight: 0.95
-  context: 来源强调人物姓名应简短、易读、易记。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/教程
-category: 写作技法
-taxonomy_sub: 文笔与语言
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料新手写小说忌讳的十点1-7bceabea
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/必备资料新手写小说忌讳的十点1.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

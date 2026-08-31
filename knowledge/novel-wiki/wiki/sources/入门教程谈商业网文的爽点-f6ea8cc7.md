@@ -1,49 +1,19 @@
 ---
 id: 入门教程谈商业网文的爽点-f6ea8cc7
 title: '[入门教程]谈商业网文的爽点'
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程谈商业网文的爽点.md
 created_at: 1787064813075
 updated_at: 1787064813075
+type: source
 relations:
-- target: 爽点
-  type: references
-  weight: 1.0
-  context: 全文围绕商业网文中的爽点定义、来源和持续展示展开。
-- target: 网络小说网络写手之家
-  type: references
-  weight: 1.0
-  context: 来源页明确说明文章由网络写手之家整理收藏。
-- target: 商业网文写作
-  type: references
-  weight: 0.95
-  context: 文章讨论商业网文如何吸引读者并促成付费。
-- target: 读者爽感
-  type: references
-  weight: 0.9
-  context: 文章将爽点建立在读者欲望和情绪共鸣之上。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/方法论
-- 情绪/爽
-category: 写作技法
-taxonomy_sub: 爽点与情绪
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程谈商业网文的爽点-f6ea8cc7
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/入门教程谈商业网文的爽点.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

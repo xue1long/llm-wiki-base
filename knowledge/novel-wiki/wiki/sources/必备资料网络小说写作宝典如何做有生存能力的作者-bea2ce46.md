@@ -1,56 +1,19 @@
 ---
 id: 必备资料网络小说写作宝典如何做有生存能力的作者-bea2ce46
 title: 必备资料：网络小说写作宝典——如何做有生存能力的作者
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者.md
 created_at: 1787083223733
 updated_at: 1787083223733
+type: source
 relations:
-- target: 存稿
-  type: references
-  weight: 1.0
-  context: 本文详细阐述了存稿作为生存之秘一的重要性
-- target: 更新
-  type: references
-  weight: 1.0
-  context: 本文详细阐述了更新作为生存之秘二的策略
-- target: 签约
-  type: references
-  weight: 1.0
-  context: 本文详细阐述了签约作为生存之秘四的流程
-- target: 上架时机
-  type: references
-  weight: 1.0
-  context: 本文详细阐述了上架作为生存之秘五的策略
-- target: 新作者联盟
-  type: references
-  weight: 0.7
-  context: 源文档在生存之秘三中提及新作者联盟作为获取广告和经验的重要渠道
-- target: 三江
-  type: references
-  weight: 0.6
-  context: 源文档在生存之秘四中提及三江推荐作为签约之外的选项
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 题材/玄幻
-category: 心态与职业
-taxonomy_sub: 职业规划
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料网络小说写作宝典如何做有生存能力的作者-bea2ce46
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

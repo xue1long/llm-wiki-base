@@ -1,54 +1,19 @@
 ---
 id: 必备资料怎么渲染一场惊心动魄的战斗场面2-d99fe8-adac8cea
 title: 必备资料怎么渲染一场惊心动魄的战斗场面(2)
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面2_d99fe8.md
 created_at: 1787074230330
 updated_at: 1787074230330
+type: source
 relations:
-- target: 打斗场景气氛渲染
-  type: derives
-  weight: 1.0
-  context: 概念内容直接整理自该来源。
-- target: 废材流
-  type: derives
-  weight: 1.0
-  context: 概念定义和步骤均整理自该来源。
-- target: 金手指
-  type: derives
-  weight: 1.0
-  context: 页面内容直接来源于该文的战斗案例。
-- target: 飞书云文档
-  type: is_part_of
-  weight: 0.95
-  context: 该来源文档由飞书云文档承载。
-- target: 北京圣东方国信科技有限公司
-  type: references
-  weight: 0.9
-  context: 该组织名称出现在来源页面元信息中。
-grade: A
-processing_depth: memory
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 题材/玄幻
-- 功能/教程
-- 功能/案例
-- 场景阶段/高潮
-category: 案例与素材
-taxonomy_sub: 片段与金句
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料怎么渲染一场惊心动魄的战斗场面2-d99fe8-adac8cea
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面2_d99fe8.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

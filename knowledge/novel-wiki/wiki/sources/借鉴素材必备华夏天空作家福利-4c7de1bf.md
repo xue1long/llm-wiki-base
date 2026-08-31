@@ -1,55 +1,19 @@
 ---
 id: 借鉴素材必备华夏天空作家福利-4c7de1bf
 title: 借鉴素材必备华夏天空作家福利
-type: source
-sources:
-- raw/sources/01_新手入门/借鉴素材必备华夏天空作家福利.md
 created_at: 1786967726773
 updated_at: 1786967726773
+type: source
 relations:
-- target: 华夏天空作家福利
-  type: references
-  weight: 0.95
-  context: 15项福利明细即华夏天空作家福利内容
-- target: 华夏天空
-  type: references
-  weight: 0.9
-  context: 来源为主体的平台福利公告
-- target: 新作者福利计划
-  type: references
-  weight: 0.85
-  context: 文档即系于2014年10月10日启动的新作者福利计划
-- target: 上架政策
-  type: references
-  weight: 0.85
-  context: 详细说明随时上架规则与推广币条件
-- target: 推广币
-  type: references
-  weight: 0.8
-  context: 文末附关于推广币的说明章节
-- target: 华夏天空
-  type: referenced_by
-  weight: 0.9
-  context: 本页内容主要依据该来源文档
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/参考
-category: 平台规则
-taxonomy_sub: 全勤与福利
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/借鉴素材必备华夏天空作家福利-4c7de1bf
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/借鉴素材必备华夏天空作家福利.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

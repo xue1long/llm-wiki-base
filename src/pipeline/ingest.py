@@ -377,9 +377,7 @@ def _normalize_generated_pages(
     current_page_paths = []
     for page in pages:
         try:
-            page_path = page_path_for(paths, page.type, page.id,
-                                      registry=registry,
-                                      custom_type=page.custom_type)
+            page_path = page_path_for(paths, page.type, page.id)
             current_page_paths.append((page.id, page_path))
         except (ValueError, OSError):
             continue
@@ -842,8 +840,7 @@ async def generate_ingest(
             processing_depth_hint=_processing_depth_hint,
         )
         analysis = None
-    elif len(_sanitized_source_text) > _get_max_source_chars():
-        try:
+    elif len(_sanitized_source_text) > _get_max_source_chars():        try:
             analysis = await _analyze_chunked(
                 source_text=_sanitized_source_text,
                 source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
@@ -1281,8 +1278,7 @@ async def generate_ingest(
                 "knowledge_object_ids": list(getattr(_kc_promotion, "object_ids", ())),
             }
 
-    # Rule-based quality gate — catches ghost pages, empty bodies, intra-batch dupes.
-    # Zero LLM cost; stub pages (processing_depth="stub") are exempt from
+    # Rule-based quality gate — catches ghost pages, empty bodies, intra-batch dupes.    # Zero LLM cost; stub pages (processing_depth="stub") are exempt from
     # empty-body and duplicate checks.
     # check_pages modifies page objects in-place (grade=C for degraded pages)
     # and returns a filtered list (duplicates removed).
@@ -1324,8 +1320,7 @@ async def generate_ingest(
         "kc_object_ids": list(getattr(_kc_promotion, "object_ids", ())),
         "kc_manifest_path": str(getattr(_kc_promotion, "manifest_path", "")) if _kc_promotion else None,
         "pilot_audit": _pilot_audit,
-        "readiness_audit": _readiness_audit,
-        # 1.3 O6：未解析引用（commit 路径写 KnowledgeGapStore）
+        "readiness_audit": _readiness_audit,        # 1.3 O6：未解析引用（commit 路径写 KnowledgeGapStore）
         "missing_slugs": [
             {"slug": s, "referenced_by": [r]} for s, r in _missing_gaps
         ],
@@ -1552,8 +1547,7 @@ async def commit_ingest(
     expected_page_hashes: dict[str, str] | None = None,
     kc_bundle_key: str | None = None,
     readiness_audit: dict | None = None,
-):
-    """Phase 2 (NDG split): write pages + index update + log.
+):    """Phase 2 (NDG split): write pages + index update + log.
 
     The I/O half that was previously at the tail of ``run_ingest``.
     ``extra_pages`` are pre-existing pages that gained inverse edges
@@ -1627,10 +1621,7 @@ async def commit_ingest(
     _batch_targets = [
         (
             _page.id,
-            page_path_for(
-                paths, _page.type, _page.id, _registry,
-                getattr(_page, "custom_type", "") or "",
-            ),
+            page_path_for(paths, _page.type, _page.id),
         )
         for _page in _publication_pages
     ]
@@ -1681,7 +1672,6 @@ async def commit_ingest(
 
     if triage_result is not None:
         write_triage_result(paths, triage_result)
-
     # 1.3 O6：未解析引用 → gap 账本（原子写，继承 blocklist/上限/doc-title 过滤）。
     if missing_slugs:
         from ..wiki.features.knowledge_gaps import KnowledgeGapStore
@@ -1739,8 +1729,7 @@ async def run_ingest(
         triage_result=_meta.get("triage"),
         missing_slugs=_meta.get("missing_slugs"),
         kc_bundle_key=_meta.get("kc_bundle_key"),
-        readiness_audit=_meta.get("readiness_audit"),
-    )
+        readiness_audit=_meta.get("readiness_audit"),    )
     return pages
 
 

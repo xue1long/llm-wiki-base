@@ -1,44 +1,19 @@
 ---
 id: 方法论语言规范-6d3bc5df
 title: '[方法论]语言规范'
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论语言规范.md
 created_at: 1787118223514
 updated_at: 1787118223514
+type: source
 relations:
-- target: 语言规范
-  type: references
-  weight: 1.0
-  context: 本源文档的核心主题是语言规范。
-- target: 误读
-  type: references
-  weight: 1.0
-  context: 文档详细论述了‘误读’这一语言不规范现象。
-- target: 生造词语
-  type: references
-  weight: 1.0
-  context: 文档详细论述了‘生造词语’这一语言不规范现象。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/规范
-- 题材/通用
-category: 写作技法
-taxonomy_sub: 文笔与语言
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论语言规范-6d3bc5df
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/02_进阶技巧/方法论语言规范.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

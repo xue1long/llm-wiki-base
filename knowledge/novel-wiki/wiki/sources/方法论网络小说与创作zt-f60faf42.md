@@ -1,40 +1,19 @@
 ---
 id: 方法论网络小说与创作zt-f60faf42
 title: 网络小说与创作ZT
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论网络小说与创作ZT.md
 created_at: 1787118310851
 updated_at: 1787118310851
+type: source
 relations:
-- target: 诚实的喜鹊
-  type: contains
-  weight: 1.0
-  context: 文章的核心倡导概念，旨在建立良好创作环境。
-- target: 网络小说--作者类型
-  type: contains
-  weight: 0.9
-  context: 文章将网络小说作者划分为三种类型进行详细论述。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 题材/网文
-- 功能/方法论
-category: 读者与市场
-taxonomy_sub: 读者心态
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论网络小说与创作zt-f60faf42
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/02_进阶技巧/方法论网络小说与创作ZT.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

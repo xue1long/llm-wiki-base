@@ -67,25 +67,35 @@ relations:
   type: referenced_by
   weight: 1.0
   context: 文章核心主题就是阐述如何创作爽文，其定义、特征和桥段设计都围绕此概念展开。
-grade: C
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/方法论
-- 情绪/爽文
-- 场景阶段/开篇
-category: 写作技法
-taxonomy_sub: 爽点与情绪
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: concepts/yy-爽文
+- target: taxonomy-写作技法
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: taxonomy-爽点与情绪
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: credibility-ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
+- target: taxonomy-方法论
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: taxonomy-爽文
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: taxonomy-开篇
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
+tags: []
 ---
 
 <!-- wiki-template-version: 3.0.0 -->

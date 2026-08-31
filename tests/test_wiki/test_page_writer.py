@@ -116,15 +116,23 @@ def test_write_page_allows_valid_tags(tmp_path):
     assert page_path_for(p, PageType.ENTITY, "foo").exists()
 
 
-def test_write_page_rejects_taxonomy_in_strict_mode(tmp_path, monkeypatch):
+def test_write_page_v4_no_taxonomy_validation(tmp_path, monkeypatch):
+    """V4 (ADR-002): category/taxonomy_sub are GONE from frontmatter.
+
+    The taxonomy validation that used to fire in strict mode no longer
+    applies — categories are now expressed as ``relations[taxonomy_of]``
+    and validated separately if at all. This test documents the V4
+    behavior: a page that *would have* had a bad category under V2 is
+    now written without complaint.
+    """
     ensure_knowledge_base(tmp_path)
     monkeypatch.setenv("RUFLO_TAXONOMY_VALIDATION", "strict")
     (tmp_path / "taxonomy.md").write_text(
         "# Taxonomy\n\n## Engineering\n- Python\n", encoding="utf-8"
     )
     page = WikiPage(
-        id="taxonomy-bad", title="Bad", type=PageType.CONCEPT,
-        category="Engineering", taxonomy_sub="Unknown", body="body",
+        id="taxonomy-bad", title="Bad", type=PageType.CONCEPT, body="body",
+        # V4 has no category/taxonomy_sub; the page writes successfully.
     )
-    with pytest.raises(ValueError, match="taxonomy"):
-        write_page(WikiPaths(tmp_path), page)
+    write_page(WikiPaths(tmp_path), page)  # does not raise
+    assert (WikiPaths(tmp_path).wiki_concepts / "taxonomy-bad.md").exists()

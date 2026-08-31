@@ -1,63 +1,20 @@
 ---
 id: 司各脱-walter-scott
 title: 司各脱（Walter Scott）
-type: entity
-sources:
-- raw/sources/01_新手入门/入门教程小说写作的指路明灯.md
 created_at: 1786952030111
 updated_at: 1786952030111
+type: entity
 relations:
-- target: 现实之灯
-  type: supported_by
-  weight: 0.9
-  context: 司各脱的创作实践是现实之灯原则的典范例证。
-- target: 理想之灯
-  type: supported_by
-  weight: 0.9
-  context: 司各脱的人物塑造是理想之灯原则的典范例证。
-- target: 公正之灯
-  type: supported_by
-  weight: 0.9
-  context: 司各脱的公正之心是此原则的典范。
-- target: 忘我之灯
-  type: supported_by
-  weight: 0.9
-  context: 司各脱的高尚品格是忘我之灯的典范。
-- target: 纯洁之灯
-  type: supported_by
-  weight: 0.9
-  context: 司各脱的纯洁品格是此原则的典范。
-- target: 人性之灯
-  type: supported_by
-  weight: 0.9
-  context: 司各脱的作品处理方式是人性之灯的典范。
-- target: 高尚之灯
-  type: supported_by
-  weight: 0.9
-  context: 司各脱的作品是高尚之灯原则的典范。
-- target: 罗斯金
-  type: referenced_by
-  weight: 0.8
-  context: 本文以罗斯金建筑学七盏明灯类比小说写作七盏明灯，司各脱被作为小说写作的典范。
-grade: B
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
 - 实体/人物
-- 可信度/ugc
-- 素材/ugc
-category: 案例与素材
-taxonomy_sub: 作品案例
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: entities/司各脱-walter-scott
+sources:
+- raw/sources/01_新手入门/入门教程小说写作的指路明灯.md
 ---
-
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->
 

@@ -1,35 +1,20 @@
 ---
 id: 罗斯金-john-ruskin
 title: 罗斯金（John Ruskin）
-type: entity
-sources:
-- raw/sources/01_新手入门/入门教程小说写作的指路明灯.md
 created_at: 1786952030111
 updated_at: 1786952030111
+type: entity
 relations:
-- target: 司各脱
-  type: supports
-  weight: 0.7
-  context: 本文认为罗斯金的七盏明灯可以为司各脱的小说写作实践提供指引框架。
-grade: B
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
 - 实体/人物
-- 可信度/ugc
-- 素材/ugc
-category: 案例与素材
-taxonomy_sub: 作品案例
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: entities/罗斯金-john-ruskin
+sources:
+- raw/sources/01_新手入门/入门教程小说写作的指路明灯.md
 ---
-
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->
 

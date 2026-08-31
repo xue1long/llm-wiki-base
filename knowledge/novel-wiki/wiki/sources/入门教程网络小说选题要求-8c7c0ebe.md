@@ -1,57 +1,20 @@
 ---
 id: 入门教程网络小说选题要求-8c7c0ebe
 title: 入门教程网络小说选题要求
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程网络小说选题要求.md
 created_at: 1787063527964
 updated_at: 1787063527964
+type: source
 relations:
-- target: 题材选择
-  type: derived_from
-  weight: 1.0
-  context: 正文围绕新人网络小说题材选择展开。
-- target: 血红
-  type: references
-  weight: 1.0
-  context: 实体信息直接来自该论坛培训帖。
-- target: 基调与写作风格
-  type: derives
-  weight: 1.0
-  context: 概念内容直接整理自该来源。
-- target: 跟风写作戒律
-  type: derived_from
-  weight: 0.9
-  context: 正文专门分析跟风写作的风险。
-- target: 写作禁忌
-  type: derived_from
-  weight: 0.9
-  context: 正文列举了内容和题材方面的禁忌。
-- target: 兴趣型写手
-  type: supports
-  weight: 0.85
-  context: 正文强调作者必须对所写题材有兴趣。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/方法论
-- 实体/论坛帖子
-category: 写作技法
-taxonomy_sub: 选题与立意
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程网络小说选题要求-8c7c0ebe
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+- 实体/论坛帖子
+sources:
+- raw/sources/01_新手入门/入门教程网络小说选题要求.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

@@ -100,7 +100,14 @@ def test_parse_preserves_safe_nested_directory_and_rejects_traversal():
     assert not reg.is_custom("absolute")
 
 
-def test_custom_page_round_trips_and_writes_to_schema_directory(tmp_path):
+def test_custom_page_routing_removed_v4(tmp_path):
+    """V4 (ADR-002): custom_type-based directory routing is REMOVED.
+
+    The 4 V4 page types (source/entity/concept/synthesis) map directly to
+    wiki/<type>/. Pages written under V4 lose the custom_type attribute
+    on disk (it is not in the 8-key whitelist). After re-read the
+    in-memory custom_type is the empty default.
+    """
     from src.wiki.core.paths import WikiPaths
     from src.wiki.core.types import PageType, WikiPage
     from src.wiki.storage.page_writer import read_page, write_page
@@ -115,11 +122,14 @@ def test_custom_page_round_trips_and_writes_to_schema_directory(tmp_path):
     )
     write_page(WikiPaths(tmp_path), page)
 
-    path = tmp_path / "wiki" / "thesis" / "argument.md"
+    # V4: page writes to wiki/concepts/, not wiki/thesis/.
+    path = tmp_path / "wiki" / "concepts" / "argument.md"
     assert path.exists()
     loaded = read_page(path)
     assert loaded.type == PageType.CONCEPT
-    assert loaded.custom_type == "thesis"
+    # V4: custom_type is NOT serialized — the on-disk page has no
+    # custom_type, so the in-memory attribute is the default "".
+    assert loaded.custom_type == ""
 
 
 def test_ensure_creates_declared_custom_directories(tmp_path):

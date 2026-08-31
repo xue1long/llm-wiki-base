@@ -1,31 +1,20 @@
 ---
 id: heather-grove
 title: Heather Grove
-type: entity
-sources:
-- raw/sources/02_进阶技巧/方法论转载创建角色的365个问题.md
 created_at: 1787118217920
 updated_at: 1787118217920
-relations: []
-grade: B
-processing_depth: memory
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+type: entity
+relations:
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
 - 实体/人
-- 素材/ugc
-- 可信度/ugc
-category: ''
-taxonomy_sub: ''
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: entities/heather-grove
+sources:
+- raw/sources/02_进阶技巧/方法论转载创建角色的365个问题.md
 ---
-
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->
 

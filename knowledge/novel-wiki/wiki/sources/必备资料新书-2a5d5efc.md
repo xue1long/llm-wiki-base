@@ -1,42 +1,19 @@
 ---
 id: 必备资料新书-2a5d5efc
 title: 《死，也比废人强！》前六章片段
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料新书.md
 created_at: 1787075401077
 updated_at: 1787075401077
+type: source
 relations:
-- target: 必备资料新书-2a5d5efc
-  type: references
-  weight: 1.0
-  context: 来源文件
-grade: A
-processing_depth: memory
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 题材/武侠
-- 题材/玄幻
-- 功能/案例
-- 情绪/爽
-- 情绪/热血
-- 场景阶段/开篇
-- 场景阶段/转折
-- 场景阶段/战斗
-category: 案例与素材
-taxonomy_sub: 作品案例
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料新书-2a5d5efc
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/必备资料新书.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

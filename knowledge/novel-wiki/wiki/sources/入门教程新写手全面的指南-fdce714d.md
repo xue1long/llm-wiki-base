@@ -1,42 +1,19 @@
 ---
 id: 入门教程新写手全面的指南-fdce714d
 title: 入门教程新写手全面的指南
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程新写手全面的指南.md
 created_at: 1786952858645
 updated_at: 1786952858645
+type: source
 relations:
-- target: 起点中文网
-  type: referenced_by
-  weight: 1.0
-  context: 源文本中推荐起点作为新手平台
-- target: 兴趣型写手
-  type: referenced_by
-  weight: 1.0
-  context: 来源定义和描述
-- target: 写手成长三部曲
-  type: referenced_by
-  weight: 1.0
-  context: 来源定义
-grade: A
-processing_depth: memory
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-category: 心态与职业
-taxonomy_sub: 写作心态
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程新写手全面的指南-fdce714d
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/入门教程新写手全面的指南.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

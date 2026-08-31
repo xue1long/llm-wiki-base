@@ -1,60 +1,19 @@
 ---
 id: 必备资料剧情大纲格式-fe26ceb1
 title: 必备资料剧情大纲格式
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料剧情大纲格式.md
 created_at: 1787073148038
 updated_at: 1787073148038
+type: source
 relations:
-- target: 大纲
-  type: derives
-  weight: 0.98
-  context: 原文直接讲解剧情大纲的结构与写法。
-- target: 细纲
-  type: derives
-  weight: 0.98
-  context: 原文专门规定每集细纲的长度、内容和章节标注方式。
-- target: 飞书云文档
-  type: references
-  weight: 0.95
-  context: 原文来源平台为飞书云文档。
-- target: 北京圣东方国信科技有限公司
-  type: references
-  weight: 0.9
-  context: 文档页眉标注该组织名称。
-- target: 剧情节奏
-  type: supports
-  weight: 0.86
-  context: 原文强调通过分集、分章和技能成长控制故事走向与节奏。
-- target: 北京圣东方国信科技有限公司
-  type: referenced_by
-  weight: 0.9
-  context: 来源页面显示该组织名称。
-- target: 飞书云文档
-  type: is_part_of
-  weight: 0.95
-  context: 该来源文档发布并保存于飞书云文档。
-grade: A
-processing_depth: memory
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/模板
-- 功能/教程
-category: 写作技法
-taxonomy_sub: 大纲与结构
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料剧情大纲格式-fe26ceb1
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/必备资料剧情大纲格式.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

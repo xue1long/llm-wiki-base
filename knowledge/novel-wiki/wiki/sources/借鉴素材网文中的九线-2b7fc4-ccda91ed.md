@@ -1,47 +1,19 @@
 ---
 id: 借鉴素材网文中的九线-2b7fc4-ccda91ed
 title: 借鉴素材网文中的九线
-type: source
-sources:
-- raw/sources/01_新手入门/借鉴素材网文中的九线_2b7fc4.md
 created_at: 1786944193841
 updated_at: 1786944193841
+type: source
 relations:
-- target: 九线
-  type: references
-  weight: 1.0
-  context: 本文是该概念的核心来源
-- target: 主角智慧性格
-  type: references
-  weight: 1.0
-  context: 本文详细阐述了该概念
-- target: 冒牌大英雄
-  type: references
-  weight: 0.8
-  context: 作为例子说明主角性格影响全书基调
-- target: 斗破苍穹
-  type: references
-  weight: 0.8
-  context: 作为对比案例说明不同主角性格的差异
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/教程
-category: 案例与素材
-taxonomy_sub: 桥段与梗
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/借鉴素材网文中的九线-2b7fc4-ccda91ed
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/借鉴素材网文中的九线_2b7fc4.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

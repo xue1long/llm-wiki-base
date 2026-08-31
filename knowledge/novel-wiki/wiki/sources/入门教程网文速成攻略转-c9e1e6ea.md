@@ -1,53 +1,22 @@
 ---
 id: 入门教程网文速成攻略转-c9e1e6ea
 title: '[入门教程]网文速成攻略【转】'
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程网文速成攻略转.md
 created_at: 1787041452162
 updated_at: 1787041452162
+type: source
 relations:
-- target: 抄袭--写作禁忌
-  type: derives
-  weight: 1.0
-  context: 概念内容直接提炼自来源对逆向创作、高仿及抄袭边界的讨论。
-- target: 抄袭--写作禁忌
-  type: referenced_by
-  weight: 0.98
-  context: 来源集中讨论模仿、改写与抄袭边界，直接涉及写作禁忌。
-- target: 盘龙
-  type: references
-  weight: 0.95
-  context: 《盘龙》在来源中作为创作周期和模仿讨论的具体案例。
-- target: 类型流行元素借鉴
-  type: derives
-  weight: 0.95
-  context: 来源讨论玄幻、都市和灵异等类型的共同套路及其改写方式。
-- target: 大纲的重要性
-  type: derives
-  weight: 0.94
-  context: 来源把大纲移植、章节推进和高潮低谷安排作为核心论述。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 素材/转载
-- 功能/教程
-- 功能/方法论
-category: 写作技法
-taxonomy_sub: 修改与打磨
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程网文速成攻略转-c9e1e6ea
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+  - target: credibility/转载
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/入门教程网文速成攻略转.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

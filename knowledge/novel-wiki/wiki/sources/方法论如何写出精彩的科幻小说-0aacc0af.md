@@ -1,64 +1,19 @@
 ---
 id: 方法论如何写出精彩的科幻小说-0aacc0af
 title: 方法论如何写出精彩的科幻小说
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论如何写出精彩的科幻小说.md
 created_at: 1787112583951
 updated_at: 1787112583951
+type: source
 relations:
-- target: 科幻小说长篇创作方法
-  type: references
-  weight: 1.0
-  context: 本源文件是关于科幻小说创作方法的讲座，与‘科幻小说长篇创作方法’概念页直接对应。
-- target: 科幻幻想核心设计
-  type: derives
-  weight: 1.0
-  context: 本概念页的核心内容来源于源文件“一 幻想要大胆”章节。
-- target: 科幻构思如何驱动情节
-  type: derives
-  weight: 1.0
-  context: 本概念页的核心内容来源于源文件“二 以人物性格的发展推动情节发展”章节。
-- target: 科幻人物性格与关系冲突
-  type: derives
-  weight: 1.0
-  context: 本概念页的核心内容来源于源文件“五 塑造栩栩如生的人物”章节。
-- target: 科幻小说叙述角度选择
-  type: derives
-  weight: 1.0
-  context: 本概念页的核心内容来源于源文件“三 故事要引人人胜”中关于叙述角度的部分。
-- target: 科幻环境与氛围营造
-  type: derives
-  weight: 1.0
-  context: 本概念页的核心内容来源于源文件“四 描写环境与氛围”章节。
-- target: 细节描写
-  type: derives
-  weight: 1.0
-  context: 本概念页的核心内容来源于源文件“七 细节要有血有肉”章节。
-- target: 科幻小说长篇创作方法
-  type: derives
-  weight: 1.0
-  context: 本概念页的核心观点和框架来源于该源文件。
-grade: A
-processing_depth: operation
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 题材/科幻
-- 功能/教程
-- 素材/ugc
-- 可信度/ugc
-category: 写作技法
-taxonomy_sub: 人物塑造
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论如何写出精彩的科幻小说-0aacc0af
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/02_进阶技巧/方法论如何写出精彩的科幻小说.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

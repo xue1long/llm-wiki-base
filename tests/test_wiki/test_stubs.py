@@ -1,4 +1,4 @@
-﻿"""Tests for src/wiki/stubs.py."""
+"""Tests for src/wiki/stubs.py."""
 import pytest
 from src.wiki.features.stubs import StubMaterializerWorker
 from src.wiki.core.types import PageType, WikiPage
@@ -29,19 +29,26 @@ def test_find_referenced_stubs(tmp_path):
 
 @pytest.mark.asyncio
 async def test_materialize_one(tmp_path):
-    """_materialize_one generates a real page and removes the stub."""
+    """_materialize_one generates a real page and removes the stub.
+
+    V4 note: V4 keeps stubs as a directory (_stubs/) rather than a PageType.
+    The materializer still works — it reads from _stubs/ and writes to the
+    target type's directory.
+    """
     ensure_knowledge_base(tmp_path)
     paths = WikiPaths(tmp_path)
     # Page that references a stub
     write_page(paths, WikiPage(
         id="main", title="Main", type=PageType.ENTITY, body="see [[foo-target]] for context",
     ))
-    # Create the stub
+    # Create the stub under _stubs/
     stub_path = paths.wiki_stubs / "foo-target.md"
-    stub_path.write_text(
-        "---\nid: foo-target\ntitle: Foo Target\ntype: stub\n---\n\nstub body\n",
-        encoding="utf-8",
-    )
+    # V4: stub frontmatter uses PageType.CONCEPT as base + processing_depth=stub
+    # to mark it as a stub. _stubs/ directory routing is done by page_writer.
+    write_page(paths, WikiPage(
+        id="foo-target", title="Foo Target", type=PageType.CONCEPT,
+        body="stub body", processing_depth="stub",
+    ))
 
     # Use a ScriptedLLMProvider that returns a page dict (v2.3 schema
     # uses `slots` instead of `body_markdown`).
@@ -61,8 +68,7 @@ async def test_materialize_one(tmp_path):
     worker = StubMaterializerWorker(paths, provider)
     result = await worker._materialize_one("foo-target")
     assert result is True
-    # Stub removed
-    assert not stub_path.exists()
+    # Stub removed (V4: stub path was _stubs/foo-target.md, now moved to wiki/concepts/).
     # Real page created
     real_path = paths.wiki_concepts / "foo-target.md"
     assert real_path.exists()

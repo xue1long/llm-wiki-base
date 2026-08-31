@@ -1,31 +1,19 @@
 ---
 id: 必备资料第八章关于完善小说人物的技巧1-4ff8eaae
 title: 必备资料第八章关于完善小说人物的技巧1
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1.md
 created_at: 1787078215975
 updated_at: 1787078215975
-relations: []
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/教程
-category: ''
-taxonomy_sub: ''
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料第八章关于完善小说人物的技巧1-4ff8eaae
----
+type: source
+relations:
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

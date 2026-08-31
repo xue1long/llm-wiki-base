@@ -1,35 +1,20 @@
 ---
 id: fencrow-写作技法原理
 title: fencrow写作技法原理
-type: entity
-sources:
-- raw/sources/02_进阶技巧/方法论关于写作技法原理转自奇幻世界网火沙论坛.md
 created_at: 1787109296100
 updated_at: 1787109296100
+type: entity
 relations:
-- target: 方法论关于写作技法原理转自奇幻世界网火沙论坛-8fb45929
-  type: is_part_of
-  weight: 1.0
-  context: 该观点体系主要阐述于来源文章中。
-grade: C
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
 - 实体/写手
-- 素材/ugc
-- 可信度/ugc
-category: 心态与职业
-taxonomy_sub: 写作心态
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: entities/fencrow-写作技法原理
+sources:
+- raw/sources/02_进阶技巧/方法论关于写作技法原理转自奇幻世界网火沙论坛.md
 ---
-
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->
 

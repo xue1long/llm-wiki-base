@@ -1,46 +1,19 @@
 ---
 id: 方法论如何运营你的作品-f4dadb89
 title: '[方法论]如何运营你的作品'
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论如何运营你的作品.md
 created_at: 1787115877312
 updated_at: 1787115877312
+type: source
 relations:
-- target: 书名与简介的重要性
-  type: references
-  weight: 1.0
-  context: 文档核心论点之一，强调笔名、书名、简介对作品吸引力的重要性。
-- target: 入门教程操作篇如何运营你的作品-17ec4be3
-  type: references
-  weight: 0.9
-  context: 同为运营主题的来源文档，内容可能互补或深化。
-- target: 作品基础功底十项要求
-  type: references
-  weight: 0.8
-  context: 文档提及作品需通顺无错，与基础功底要求相关。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/方法论
-- 题材/通用
-- 场景阶段/策划
-- 场景阶段/开篇
-category: 平台规则
-taxonomy_sub: 作者运营
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论如何运营你的作品-f4dadb89
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/02_进阶技巧/方法论如何运营你的作品.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

@@ -1,48 +1,19 @@
 ---
 id: 新人须知17编辑讲课记录-5ced6fcd
 title: 新人须知17编辑讲课记录
-type: source
-sources:
-- raw/sources/01_新手入门/新人须知17编辑讲课记录.md
 created_at: 1787084084411
 updated_at: 1787084084411
+type: source
 relations:
-- target: 夏天-17k-编辑
-  type: references
-  weight: 1.0
-  context: 本讲课记录的主讲人
-- target: 架构细节
-  type: references
-  weight: 0.9
-  context: 本源详细讲解的核心概念
-- target: 世界背景设定
-  type: references
-  weight: 0.8
-  context: 架构细节的子概念，本源详细展开
-- target: 烘托描写
-  type: references
-  weight: 0.7
-  context: 文字细节的一部分，本源简要讲解
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 题材/玄幻
-category: 写作技法
-taxonomy_sub: 世界观设定
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/新人须知17编辑讲课记录-5ced6fcd
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/新人须知17编辑讲课记录.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

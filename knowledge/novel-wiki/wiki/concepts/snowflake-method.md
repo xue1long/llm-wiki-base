@@ -19,23 +19,23 @@ relations:
   type: analogous_to
   weight: 0.7
   context: 是‘先计划，再写’这一写作建议的具体方法范例
-grade: C
-processing_depth: operation
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 功能/方法论
-- 素材/ugc
-- 可信度/ugc
-category: ''
-taxonomy_sub: 大纲与结构
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: concepts/snowflake-method
+- target: taxonomy-大纲与结构
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: taxonomy-方法论
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: credibility-ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
+tags: []
 ---
 
 <!-- wiki-template-version: 3.0.0 -->

@@ -27,23 +27,27 @@ relations:
   type: analogous_to
   weight: 0.6
   context: 两者都指向YY爽文的“强”核心
-grade: B
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/方法论
-category: 写作技法
-taxonomy_sub: 爽点与情绪
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: concepts/yy-小说第一定律
+- target: taxonomy-写作技法
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: taxonomy-爽点与情绪
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: credibility-ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
+- target: taxonomy-方法论
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
+tags: []
 ---
 
 <!-- wiki-template-version: 3.0.0 -->

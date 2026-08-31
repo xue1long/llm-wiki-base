@@ -1,39 +1,20 @@
 ---
 id: zzsck
 title: ZZSCK
-type: entity
-sources:
-- raw/sources/02_进阶技巧/补充教程写穿越小说角色前要注意的十个问题.md
 created_at: 1787118618271
 updated_at: 1787118618271
+type: entity
 relations:
-- target: 补充教程写穿越小说角色前要注意的十个问题-e992c96e
-  type: references
-  weight: 1.0
-  context: ZZSCK是发布该教程的主体。
-- target: 补充教程写穿越小说角色前要注意的十个问题-e992c96e
-  type: referenced_by
-  weight: 1.0
-  context: 来源文中提及的发布组织或作者。
-grade: C
-processing_depth: memory
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 实体/组织
-category: 平台规则
-taxonomy_sub: 版权与运营
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: entities/zzsck
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+- 实体/组织
+sources:
+- raw/sources/02_进阶技巧/补充教程写穿越小说角色前要注意的十个问题.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->
 

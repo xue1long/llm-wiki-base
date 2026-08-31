@@ -1,64 +1,19 @@
 ---
 id: 必备资料写作大纲的十个步骤-0faefe-b2a1fd52
 title: 必备资料写作大纲的十个步骤
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料写作大纲的十个步骤_0faefe.md
 created_at: 1787073056407
 updated_at: 1787073056407
+type: source
 relations:
-- target: 大纲写法
-  type: references
-  weight: 1.0
-  context: 来源直接讲解写作大纲的步骤与顺序。
-- target: 北京圣东方国信科技有限公司
-  type: referenced_by
-  weight: 1.0
-  context: 该组织名称出现在源文档页头。
-- target: 飞书云文档
-  type: is_part_of
-  weight: 1.0
-  context: 源文档明确标注其平台为飞书云文档。
-- target: 题材选择
-  type: references
-  weight: 0.95
-  context: 第1步要求先确认题材，并考虑市场与作者特长。
-- target: 主角性格设定
-  type: references
-  weight: 0.95
-  context: 第3步专门讨论主角性格对剧情和风格的影响。
-- target: 金庸
-  type: references
-  weight: 0.95
-  context: 来源在解释升级体系时直接提到金庸及《鹿鼎记》。
-- target: 地图勾画法
-  type: references
-  weight: 0.9
-  context: 第4步建议以地图变化概括主线情节。
-- target: 升级序列多级化
-  type: references
-  weight: 0.8
-  context: 第2步强调升级体系应尽可能详细。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/方法论
-category: 写作技法
-taxonomy_sub: 大纲与结构
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料写作大纲的十个步骤-0faefe-b2a1fd52
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/必备资料写作大纲的十个步骤_0faefe.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

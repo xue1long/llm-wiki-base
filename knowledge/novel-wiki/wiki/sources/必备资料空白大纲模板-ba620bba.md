@@ -1,52 +1,19 @@
 ---
 id: 必备资料空白大纲模板-ba620bba
 title: 必备资料空白大纲模板
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料空白大纲模板.md
 created_at: 1787075952646
 updated_at: 1787075952646
+type: source
 relations:
-- target: 大纲
-  type: contains
-  weight: 0.98
-  context: 源文档本身是小说大纲的空白模板。
-- target: 人物设定
-  type: contains
-  weight: 0.95
-  context: 模板包含主角姓名、年龄等人物设定字段。
-- target: 飞书云文档
-  type: is_part_of
-  weight: 0.95
-  context: 该源文档页面由飞书云文档承载。
-- target: 北京圣东方国信科技有限公司
-  type: referenced_by
-  weight: 0.85
-  context: 页面抬头标注该公司为发布组织。
-- target: 北京圣东方国信科技有限公司
-  type: references
-  weight: 0.85
-  context: 源文档页面抬头直接标注该组织名称。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/模板
-- 功能/参考
-category: 写作技法
-taxonomy_sub: 大纲与结构
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料空白大纲模板-ba620bba
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/必备资料空白大纲模板.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

@@ -1,54 +1,19 @@
 ---
 id: 必备资料踏莎行春色将阑寇准-0aceeb4d
 title: 必备资料踏莎行春色将阑寇准
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料踏莎行春色将阑寇准.md
 created_at: 1787077748918
 updated_at: 1787077748918
+type: source
 relations:
-- target: 寇准
-  type: references
-  weight: 1.0
-  context: 该文档以寇准的词为核心内容
-- target: 踏莎行春色将阑
-  type: references
-  weight: 1.0
-  context: 该文档包含并阐释了《踏莎行·春色将阑》一词
-- target: 踏莎行--春色将阑
-  type: references
-  weight: 1.0
-  context: 该来源文档收录并演绎了这首词
-- target: 青梅竹马
-  type: referenced_by
-  weight: 1.0
-  context: 该概念出现在源文本的叙事中
-- target: 密约
-  type: referenced_by
-  weight: 1.0
-  context: 该概念出现在源文本的原词和叙事中
-- target: 离情
-  type: referenced_by
-  weight: 1.0
-  context: 该概念出现在源文本的原词和叙事中
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-category: 案例与素材
-taxonomy_sub: 诗词素材
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料踏莎行春色将阑寇准-0aceeb4d
----
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
 
+tags:
+sources:
+- raw/sources/01_新手入门/必备资料踏莎行春色将阑寇准.md
+---
+---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

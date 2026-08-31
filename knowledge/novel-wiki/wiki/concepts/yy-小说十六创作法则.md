@@ -11,24 +11,31 @@ relations:
   type: derived_from
   weight: 1.0
   context: 本概念完全提取自源文件的十六个要点。
-grade: B
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
-tags:
-- 素材/ugc
-- 可信度/ugc
-- 功能/方法论
-- 场景阶段/发展
-category: 写作技法
-taxonomy_sub: 情节与冲突
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: concepts/yy-小说十六创作法则
+- target: taxonomy-写作技法
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: taxonomy-情节与冲突
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: credibility-ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
+- target: taxonomy-方法论
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: taxonomy-发展
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
+tags: []
 ---
 
 <!-- wiki-template-version: 3.0.0 -->
