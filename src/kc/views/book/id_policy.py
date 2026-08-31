@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from hashlib import sha256
 from typing import Final
 
 # Slug rules: lowercase, [a-z0-9-] only, whitespace -> '-', max 40 chars.
@@ -64,6 +65,12 @@ def generate_chapter_id(slug: str) -> str:
 def generate_knowledge_block_id(slug: str) -> str:
     """Generate a new KnowledgeBlock id with the ``kb_<uuid8>_<slug>`` shape."""
     return _make_id("kb", slug)
+
+
+def generate_stable_knowledge_block_id(chapter_id: str, knowledge_unit_id: str) -> str:
+    """Return a repeatable block id for one chapter/KU pair."""
+    key = f"{chapter_id}:{knowledge_unit_id}".encode("utf-8")
+    return f"kb_{sha256(key).hexdigest()[:8]}_block"
 
 
 def generate_outline_proposal_id(slug: str) -> str:

@@ -6,7 +6,6 @@ import os
 import shutil
 import tempfile
 from dataclasses import dataclass
-from hashlib import sha256
 from pathlib import Path
 from typing import Literal
 
@@ -15,6 +14,7 @@ from src.kc.integrity.orchestrator import IntegrityGate
 from .compiler import ChapterRender, CompileError, CompiledBlock, compile_chapter
 from .contract import Book, Chapter, KnowledgeBlock
 from .core_view import KnowledgeCoreView
+from .id_policy import generate_stable_knowledge_block_id
 from .markdown import render_chapter
 from .template import BookTemplate, BookView
 
@@ -58,19 +58,13 @@ def _write_text(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def _stable_block_id(chapter_id: str, knowledge_unit_id: str, index: int) -> str:
-    digest = sha256(f"{chapter_id}:{knowledge_unit_id}:{index}".encode("utf-8")).hexdigest()
-    return f"kb_rebuild_{digest[:16]}"
-
-
 def _normalize_render(render: ChapterRender) -> ChapterRender:
     normalized_blocks: list[CompiledBlock] = []
-    for index, block in enumerate(render.blocks):
+    for block in render.blocks:
         knowledge_unit_ids = list(block.knowledge_block.knowledge_unit_ids)
-        stable_id = _stable_block_id(
+        stable_id = generate_stable_knowledge_block_id(
             render.chapter.id,
             knowledge_unit_ids[0] if knowledge_unit_ids else "empty",
-            index,
         )
         normalized_blocks.append(
             CompiledBlock(

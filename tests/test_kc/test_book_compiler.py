@@ -418,6 +418,49 @@ def test_b_happy_path_three_kus_three_blocks_six_evidence_refs() -> None:
     assert result.integrity_report.object_id == ku1.ku_id
 
 
+def test_b_block_ids_are_stable_for_repeated_compilation() -> None:
+    """The same chapter/KU inputs must not receive fresh random block ids."""
+    chapter, cv, gate = _make_three_ku_chapter()
+    first = compile_chapter(chapter, cv, gate)
+    second = compile_chapter(chapter, cv, gate)
+
+    assert isinstance(first, ChapterRender)
+    assert isinstance(second, ChapterRender)
+    assert [block.knowledge_block.id for block in first.blocks] == [
+        block.knowledge_block.id for block in second.blocks
+    ]
+
+
+def test_b_block_id_does_not_change_when_ku_title_changes() -> None:
+    """Block identity follows source identity, not mutable display text."""
+    chapter, cv, gate = _make_three_ku_chapter()
+    first = compile_chapter(chapter, cv, gate)
+    renamed = {
+        ku_id: _ku(
+            ku_id=ku.ku_id,
+            concept_id=ku.concept_id,
+            title=f"Renamed {ku.title}",
+            unit_type=ku.unit_type,
+            knowledge_mode=ku.knowledge_mode,
+        )
+        for ku_id, ku in cv.kus.items()
+    }
+    renamed_view = SimpleKnowledgeCoreView(
+        kus=renamed,
+        evidences=cv.evidences,
+        claims=cv.claims,
+        ku_evidence_map=cv.ku_evidence_map,
+        publication_version=cv.publication_version,
+    )
+    second = compile_chapter(chapter, renamed_view, gate)
+
+    assert isinstance(first, ChapterRender)
+    assert isinstance(second, ChapterRender)
+    assert [block.knowledge_block.id for block in first.blocks] == [
+        block.knowledge_block.id for block in second.blocks
+    ]
+
+
 def test_b_blocks_ordered_by_source_knowledge_unit_ids() -> None:
     """The CompiledBlock tuple order matches chapter.source_knowledge_unit_ids
     order, not dict insertion order."""
