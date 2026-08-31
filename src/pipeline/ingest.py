@@ -353,9 +353,7 @@ def _normalize_generated_pages(
     current_page_paths = []
     for page in pages:
         try:
-            page_path = page_path_for(paths, page.type, page.id,
-                                      registry=registry,
-                                      custom_type=page.custom_type)
+            page_path = page_path_for(paths, page.type, page.id)
             current_page_paths.append((page.id, page_path))
         except (ValueError, OSError):
             continue
@@ -1465,10 +1463,7 @@ async def commit_ingest(
     _batch_targets = [
         (
             _page.id,
-            page_path_for(
-                paths, _page.type, _page.id, _registry,
-                getattr(_page, "custom_type", "") or "",
-            ),
+            page_path_for(paths, _page.type, _page.id),
         )
         for _page in _publication_pages
     ]
