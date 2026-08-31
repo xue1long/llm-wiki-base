@@ -48,6 +48,7 @@ from .cli_ext.llm_providers_cmd import (
     cmd_llm_providers_rotate_key,
 )
 from .cli_ext.health_cmd import cmd_health
+from .cli_ext.book_cmd import cmd_book_build, cmd_book_show
 from .cli_ext.content_health_cmd import cmd_content_health
 from .cli_ext.quality_cmd import (
     cmd_quality_score, cmd_quality_config_show, cmd_quality_config_set,
@@ -97,10 +98,12 @@ def _run_mcp():
     asyncio.run(mcp_main())
 
 
-def main():
-    _override_config_dir_from_env()
-    auto_register_on_first_run()  # idempotent
+def build_parser() -> "argparse.ArgumentParser":
+    """Build the CLI parser.
 
+    Extracted from ``main()`` so tests can assert subcommand wiring
+    (which handler each subcommand is bound to) without spawning a process.
+    """
     parser = argparse.ArgumentParser(description="ruflo-kb 多Agent知识库")
     subparsers = parser.add_subparsers(dest="command", help="子命令")
 
@@ -514,6 +517,44 @@ def main():
     p_lcache.add_argument("--project")
     p_lcache.set_defaults(func=cmd_lint_cache_clear)
 
+
+    p_book = subparsers.add_parser("book", help="Build/show the Book view (KC -> chapters)")
+    p_book_sub = p_book.add_subparsers(dest="book_command")
+
+    p_book_build = p_book_sub.add_parser(
+        "build", help="Compile the Book view (dry-run unless --apply)"
+    )
+    p_book_build.add_argument("--project", help="Project id or name")
+    p_book_build.add_argument("--out", help="Output directory (default: <project_root>/book)")
+    p_book_build.add_argument("--title", help="Override the Book title")
+    p_book_build.add_argument(
+        "--apply", action="store_true",
+        help="Write output to disk (default: dry-run, nothing is written)",
+    )
+    p_book_build.add_argument("--json", action="store_true", help="Emit JSON instead of text")
+    p_book_build.set_defaults(func=cmd_book_build)
+
+    p_book_show = p_book_sub.add_parser(
+        "show", help="Show what a Book build would produce (read-only)"
+    )
+    p_book_show.add_argument("--project", help="Project id or name")
+    p_book_show.add_argument("--json", action="store_true", help="Emit JSON instead of text")
+    p_book_show.set_defaults(func=cmd_book_show)
+
+    def _book_no_subcommand(_args):
+        p_book.print_help()
+
+    p_book.set_defaults(func=_book_no_subcommand)
+
+    return parser
+
+
+def main():
+    _override_config_dir_from_env()
+    auto_register_on_first_run()  # idempotent
+
+    parser = build_parser()
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -521,6 +562,7 @@ def main():
         sys.exit(1)
 
     args.func(args)
+
 
 if __name__ == "__main__":
     main()
