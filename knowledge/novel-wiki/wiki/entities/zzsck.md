@@ -5,28 +5,15 @@ created_at: 1787118618271
 updated_at: 1787118618271
 type: entity
 relations:
-- target: 补充教程写穿越小说角色前要注意的十个问题-e992c96e
-  type: references
-  weight: 1.0
-  context: ZZSCK是发布该教程的主体。
-- target: 补充教程写穿越小说角色前要注意的十个问题-e992c96e
-  type: referenced_by
-  weight: 1.0
-  context: 来源文中提及的发布组织或作者。
-- target: taxonomy/平台规则
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/版权与运营
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 - 实体/组织
 sources:
 - raw/sources/02_进阶技巧/补充教程写穿越小说角色前要注意的十个问题.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->

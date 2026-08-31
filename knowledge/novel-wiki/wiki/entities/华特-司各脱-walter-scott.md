@@ -5,22 +5,16 @@ created_at: 1787116250964
 updated_at: 1787116250964
 type: entity
 relations:
-- target: 方法论小说写作的指路明灯-76464b85
-  type: referenced_by
-  weight: 1.0
-  context: 司各脱是本文的核心榜样与例证，其创作被用来阐释七盏明灯的每一条原则。
-- target: taxonomy/参考
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
 - 实体/人
 - 实体/作者
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论小说写作的指路明灯.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->

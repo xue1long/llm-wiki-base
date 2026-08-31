@@ -5,34 +5,14 @@ created_at: 1787109039728
 updated_at: 1787109039728
 type: source
 relations:
-- target: 新人须知-9-写作目的和心态的问题-30bee4ea
-  type: contains
-  weight: 1.0
-  context: Source page contains the referenced entity and concept pages.
-- target: 写作心态
-  type: references
-  weight: 0.9
-  context: 原文核心讨论了不同写作目的对应的心态问题。
-- target: 新人作者常见困难
-  type: references
-  weight: 0.9
-  context: 原文详细列举了作者可能遇到的创作瓶颈、修改误区等困难。
-- target: taxonomy/心态与职业
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/写作心态
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/新人须知9写作目的和心态的问题.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

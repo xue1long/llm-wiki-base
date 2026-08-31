@@ -5,44 +5,14 @@ created_at: 1787064813075
 updated_at: 1787064813075
 type: source
 relations:
-- target: 爽点
-  type: references
-  weight: 1.0
-  context: 全文围绕商业网文中的爽点定义、来源和持续展示展开。
-- target: 网络小说网络写手之家
-  type: references
-  weight: 1.0
-  context: 来源页明确说明文章由网络写手之家整理收藏。
-- target: 商业网文写作
-  type: references
-  weight: 0.95
-  context: 文章讨论商业网文如何吸引读者并促成付费。
-- target: 读者爽感
-  type: references
-  weight: 0.9
-  context: 文章将爽点建立在读者欲望和情绪共鸣之上。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/爽点与情绪
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/爽
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程谈商业网文的爽点.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

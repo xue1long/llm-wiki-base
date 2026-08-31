@@ -5,21 +5,16 @@ created_at: 1787118344617
 updated_at: 1787118344617
 type: entity
 relations:
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/片段与金句
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
 - 实体/人
 - 实体/写手
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论明辉巨谈装B路子.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->

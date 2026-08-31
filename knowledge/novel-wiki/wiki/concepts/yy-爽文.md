@@ -1,9 +1,11 @@
 ---
 id: yy-爽文
 title: YY爽文
+type: concept
+sources:
+- raw/sources/01_新手入门/必备资料新人经验如何选择适合自己的题材1.md
 created_at: 1787075565368
 updated_at: 1787075565368
-type: concept
 relations:
 - target: 题材选择
   type: supports
@@ -65,29 +67,37 @@ relations:
   type: referenced_by
   weight: 1.0
   context: 文章核心主题就是阐述如何创作爽文，其定义、特征和桥段设计都围绕此概念展开。
-- target: taxonomy/写作技法
+- target: taxonomy-写作技法
   type: taxonomy_of
   weight: 1.0
-- target: taxonomy/爽点与情绪
+  context: ''
+- target: taxonomy-爽点与情绪
   type: taxonomy_of
   weight: 1.0
+  context: ''
+- target: credibility-ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
+- target: taxonomy-方法论
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: taxonomy-爽文
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: taxonomy-开篇
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
 - target: credibility/ugc
   type: has_credibility
   weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/爽文
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/开篇
-  type: taxonomy_of
-  weight: 1.0
-tags:
-- 素材/ugc
-sources:
-- raw/sources/01_新手入门/必备资料新人经验如何选择适合自己的题材1.md
+  context: ''
+tags: []
 ---
+
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: concept -->
 

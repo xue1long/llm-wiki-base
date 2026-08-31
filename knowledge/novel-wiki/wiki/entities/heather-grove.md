@@ -5,14 +5,15 @@ created_at: 1787118217920
 updated_at: 1787118217920
 type: entity
 relations:
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
 - 实体/人
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论转载创建角色的365个问题.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->

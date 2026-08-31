@@ -5,19 +5,14 @@ created_at: 1787075994633
 updated_at: 1787075994633
 type: source
 relations:
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/作品案例
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/必备资料第1章大纲.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

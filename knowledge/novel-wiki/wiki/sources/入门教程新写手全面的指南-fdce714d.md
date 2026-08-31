@@ -5,31 +5,14 @@ created_at: 1786952858645
 updated_at: 1786952858645
 type: source
 relations:
-- target: 起点中文网
-  type: referenced_by
-  weight: 1.0
-  context: 源文本中推荐起点作为新手平台
-- target: 兴趣型写手
-  type: referenced_by
-  weight: 1.0
-  context: 来源定义和描述
-- target: 写手成长三部曲
-  type: referenced_by
-  weight: 1.0
-  context: 来源定义
-- target: taxonomy/心态与职业
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/写作心态
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程新写手全面的指南.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

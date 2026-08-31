@@ -5,31 +5,14 @@ created_at: 1787115857075
 updated_at: 1787115857075
 type: source
 relations:
-- target: 写作素材积累
-  type: derives
-  weight: 1.0
-  context: 核心概念完全提取自此来源文档
-- target: 多模仿--写作技法
-  type: derives
-  weight: 1.0
-  context: 核心观点提取自此来源文档
-- target: 多写--强迫练习
-  type: derives
-  weight: 1.0
-  context: 核心观点提取自此来源文档
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/通用
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论如何提高文笔和写作能力.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

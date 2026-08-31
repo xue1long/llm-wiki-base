@@ -5,38 +5,14 @@ created_at: 1786944193841
 updated_at: 1786944193841
 type: source
 relations:
-- target: 九线
-  type: references
-  weight: 1.0
-  context: 本文是该概念的核心来源
-- target: 主角智慧性格
-  type: references
-  weight: 1.0
-  context: 本文详细阐述了该概念
-- target: 冒牌大英雄
-  type: references
-  weight: 0.8
-  context: 作为例子说明主角性格影响全书基调
-- target: 斗破苍穹
-  type: references
-  weight: 0.8
-  context: 作为对比案例说明不同主角性格的差异
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/桥段与梗
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/借鉴素材网文中的九线_2b7fc4.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

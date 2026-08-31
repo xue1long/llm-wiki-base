@@ -5,43 +5,14 @@ created_at: 1787115877312
 updated_at: 1787115877312
 type: source
 relations:
-- target: 书名与简介的重要性
-  type: references
-  weight: 1.0
-  context: 文档核心论点之一，强调笔名、书名、简介对作品吸引力的重要性。
-- target: 入门教程操作篇如何运营你的作品-17ec4be3
-  type: references
-  weight: 0.9
-  context: 同为运营主题的来源文档，内容可能互补或深化。
-- target: 作品基础功底十项要求
-  type: references
-  weight: 0.8
-  context: 文档提及作品需通顺无错，与基础功底要求相关。
-- target: taxonomy/平台规则
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/作者运营
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/通用
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/策划
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/开篇
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论如何运营你的作品.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

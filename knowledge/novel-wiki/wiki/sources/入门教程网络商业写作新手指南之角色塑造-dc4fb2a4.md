@@ -5,46 +5,15 @@ created_at: 1787041717657
 updated_at: 1787041717657
 type: source
 relations:
-- target: 人物塑造
-  type: derives
-  weight: 0.99
-  context: 本概念页提炼自该教程对角色性格、角色脸谱和新人创作路线的论述。
-- target: 商业网文写作
-  type: derives
-  weight: 0.96
-  context: 来源围绕网络连载、读者付费和作者商业目标展开。
-- target: 动漫化创作
-  type: references
-  weight: 0.84
-  context: 文章将以角色塑造为核心、具有动漫阅读习惯读者基础的写法称为动漫化创作。
-- target: 风姿物语
-  type: references
-  weight: 0.78
-  context: 文章将《风姿物语》作为角色突出、情节服务于人物的代表作品。
-- target: 紫川
-  type: references
-  weight: 0.75
-  context: 文章将《紫川》作为人物引导情节的经典范例。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/人物塑造
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 - 实体/写作教程
 sources:
 - raw/sources/01_新手入门/入门教程网络商业写作新手指南之角色塑造.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

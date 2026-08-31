@@ -5,20 +5,14 @@ created_at: 1786898195877
 updated_at: 1786898195877
 type: source
 relations:
-- target: 黄金三章
-  type: references
-  weight: 1.0
-  context: 该概念直接来源于此来源
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/ugc-test.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

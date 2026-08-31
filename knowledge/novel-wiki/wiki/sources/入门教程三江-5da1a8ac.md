@@ -5,28 +5,14 @@ created_at: 1786944302886
 updated_at: 1786944302886
 type: source
 relations:
-- target: 三江
-  type: references
-  weight: 1.0
-  context: 源文档直接描述了三江推荐申请规则
-- target: 签约
-  type: references
-  weight: 0.9
-  context: 源文档强调了签约与三江申请的关系
-- target: a-签
-  type: references
-  weight: 0.8
-  context: 源文档提到了A签条件
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程三江.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

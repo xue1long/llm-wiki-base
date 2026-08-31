@@ -5,41 +5,14 @@ created_at: 1787075472823
 updated_at: 1787075472823
 type: source
 relations:
-- target: 题材选择
-  type: derives
-  weight: 1.0
-  context: 源文直接围绕新人如何选择适合自己的网文题材展开。
-- target: 飞书云文档
-  type: is_part_of
-  weight: 1.0
-  context: 该飞书云文档承载了本次摄取的原始资料。
-- target: 跟风写作戒律
-  type: supports
-  weight: 0.95
-  context: 源文明确将盲目跟风列为选题最忌讳的行为。
-- target: 作品包装
-  type: supports
-  weight: 0.9
-  context: 源文以仙侠、网游包装武侠为例说明题材包装策略。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/选题与立意
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/必备资料新人经验如何选择适合自己的题材_195dfd.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

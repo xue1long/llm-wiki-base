@@ -5,51 +5,14 @@ created_at: 1787074230330
 updated_at: 1787074230330
 type: source
 relations:
-- target: 打斗场景气氛渲染
-  type: derives
-  weight: 1.0
-  context: 概念内容直接整理自该来源。
-- target: 废材流
-  type: derives
-  weight: 1.0
-  context: 概念定义和步骤均整理自该来源。
-- target: 金手指
-  type: derives
-  weight: 1.0
-  context: 页面内容直接来源于该文的战斗案例。
-- target: 飞书云文档
-  type: is_part_of
-  weight: 0.95
-  context: 该来源文档由飞书云文档承载。
-- target: 北京圣东方国信科技有限公司
-  type: references
-  weight: 0.9
-  context: 该组织名称出现在来源页面元信息中。
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/片段与金句
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/玄幻
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/案例
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/高潮
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面2_d99fe8.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

@@ -5,41 +5,14 @@ created_at: 1786944593508
 updated_at: 1786944593508
 type: source
 relations:
-- target: 北京圣东方国信科技有限公司
-  type: referenced_by
-  weight: 1.0
-  context: 该文档版权归属于北京圣东方国信科技有限公司
-- target: 悬念式开篇
-  type: references
-  weight: 1.0
-  context: 概念定义来源于此文档
-- target: 进行式开篇
-  type: references
-  weight: 1.0
-  context: 概念定义来源于此文档
-- target: 悬念保持
-  type: references
-  weight: 1.0
-  context: 概念来源于此文档
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/开篇与黄金三章
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/开篇
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程关于悬念.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

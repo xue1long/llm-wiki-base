@@ -5,38 +5,14 @@ created_at: 1787118348475
 updated_at: 1787118348475
 type: source
 relations:
-- target: 人物塑造
-  type: derives
-  weight: 1.0
-  context: 本概念的定义与要点直接提取自该来源文档。
-- target: 小说的真实与虚构
-  type: derives
-  weight: 1.0
-  context: 本概念的核心论点直接来源于该文档。
-- target: 小说家权力
-  type: derives
-  weight: 1.0
-  context: 本概念直接来源于该文档的论述。
-- target: 小说真实与虚构
-  type: references
-  weight: 0.8
-  context: 文章讨论了小说人物来源于现实但又是虚构的本质。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/人物塑造
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论网络小说创作技巧.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

@@ -5,28 +5,15 @@ created_at: 1786945723488
 updated_at: 1786945723488
 type: entity
 relations:
-- target: 入门教程写作方法-2050a9cb
-  type: references
-  weight: 0.9
-  context: 本清单的收录来源
-- target: yy-小说-103-个经典桥段
-  type: analogous_to
-  weight: 0.6
-  context: 同类网文套路与桥段清单
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/桥段与梗
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
 - 实体/网络小说套路清单
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程写作方法.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->

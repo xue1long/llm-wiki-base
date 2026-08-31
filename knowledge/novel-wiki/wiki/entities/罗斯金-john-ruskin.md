@@ -5,24 +5,15 @@ created_at: 1786952030111
 updated_at: 1786952030111
 type: entity
 relations:
-- target: 司各脱
-  type: supports
-  weight: 0.7
-  context: 本文认为罗斯金的七盏明灯可以为司各脱的小说写作实践提供指引框架。
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/作品案例
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
 - 实体/人物
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程小说写作的指路明灯.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->

@@ -5,34 +5,14 @@ created_at: 1786899412615
 updated_at: 1786899412615
 type: source
 relations:
-- target: 墨止谚
-  type: derives
-  weight: 1.0
-  context: 墨止谚是该素材的分享者
-- target: 作家联盟群
-  type: derives
-  weight: 0.9
-  context: 作家联盟群在该素材中被提及
-- target: 方法论精彩描写身份-f88d80aa
-  type: derives
-  weight: 0.8
-  context: 文档内容与人物描写必读类素材高度相关，可能为其子集或补充。
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/片段与金句
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/参考
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/借鉴素材人物描写必读.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

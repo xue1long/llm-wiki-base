@@ -5,46 +5,17 @@ created_at: 1787041452162
 updated_at: 1787041452162
 type: source
 relations:
-- target: 抄袭--写作禁忌
-  type: derives
-  weight: 1.0
-  context: 概念内容直接提炼自来源对逆向创作、高仿及抄袭边界的讨论。
-- target: 抄袭--写作禁忌
-  type: referenced_by
-  weight: 0.98
-  context: 来源集中讨论模仿、改写与抄袭边界，直接涉及写作禁忌。
-- target: 盘龙
-  type: references
-  weight: 0.95
-  context: 《盘龙》在来源中作为创作周期和模仿讨论的具体案例。
-- target: 类型流行元素借鉴
-  type: derives
-  weight: 0.95
-  context: 来源讨论玄幻、都市和灵异等类型的共同套路及其改写方式。
-- target: 大纲的重要性
-  type: derives
-  weight: 0.94
-  context: 来源把大纲移植、章节推进和高潮低谷安排作为核心论述。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/修改与打磨
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+  - target: credibility/转载
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
-- 素材/转载
 sources:
 - raw/sources/01_新手入门/入门教程网文速成攻略转.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

@@ -5,44 +5,14 @@ created_at: 1787041248776
 updated_at: 1787041248776
 type: source
 relations:
-- target: 爽点
-  type: references
-  weight: 1.0
-  context: 全文围绕主角爽感、情节收获和读者爽感展开。
-- target: 装逼打脸套路
-  type: references
-  weight: 0.95
-  context: 文章以嘲讽、受压、反踩、打脸和收获构成的循环说明爽文结构。
-- target: 情节结构
-  type: references
-  weight: 0.9
-  context: 文章讨论情节如何依靠结构、目标、铺垫和连续收益推进。
-- target: 唐家三少
-  type: references
-  weight: 0.55
-  context: 原文记录唐家三少在课程交流中的出现及相关对话。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/爽点与情绪
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/爽文
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程爽文的真正核心.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

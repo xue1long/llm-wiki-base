@@ -5,31 +5,14 @@ created_at: 1786898145635
 updated_at: 1786898145635
 type: source
 relations:
-- target: 盘龙
-  type: references
-  weight: 1.0
-  context: 源文本为此作品的世界观设定
-- target: 林雷--巴鲁克
-  type: references
-  weight: 1.0
-  context: 源文本提及此角色
-- target: 四大元素法则
-  type: references
-  weight: 1.0
-  context: 源文本定义了此概念
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/作品案例
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/book-official.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

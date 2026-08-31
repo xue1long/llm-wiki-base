@@ -5,17 +5,14 @@ created_at: 1786898218784
 updated_at: 1786898218784
 type: source
 relations:
-- target: 百度贴吧网络作家吧
-  type: referenced_by
-  weight: 1.0
-  context: 该来源由百度贴吧网络作家吧用户投稿
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/ugc-test2.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

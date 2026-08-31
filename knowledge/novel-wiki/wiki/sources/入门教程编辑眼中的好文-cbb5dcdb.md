@@ -5,41 +5,14 @@ created_at: 1787041430880
 updated_at: 1787041430880
 type: source
 relations:
-- target: 飞书云文档
-  type: is_part_of
-  weight: 0.99
-  context: 该平台页面承载本次摄取的原始教程文档。
-- target: 提问的艺术
-  type: derives
-  weight: 0.98
-  context: 来源后半部分直接讨论提问方法与不当提问。
-- target: 偷懒找书法
-  type: derives
-  weight: 0.97
-  context: 来源第四部分提出通过章节小标题和前几章快速筛书的方法。
-- target: 好文评判六要素
-  type: derives
-  weight: 0.96
-  context: 来源正文集中总结评判网络文学作品质量的六项标准。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/修改与打磨
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程编辑眼中的好文.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

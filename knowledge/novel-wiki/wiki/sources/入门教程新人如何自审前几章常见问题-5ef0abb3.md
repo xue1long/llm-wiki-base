@@ -5,16 +5,14 @@ created_at: 1786952585220
 updated_at: 1786952585220
 type: source
 relations:
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程新人如何自审前几章常见问题.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

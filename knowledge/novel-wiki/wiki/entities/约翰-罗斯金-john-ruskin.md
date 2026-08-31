@@ -5,22 +5,16 @@ created_at: 1787116250964
 updated_at: 1787116250964
 type: entity
 relations:
-- target: 方法论小说写作的指路明灯-76464b85
-  type: analogous_to
-  weight: 0.8
-  context: 其《建筑学的七盏明灯》是本文“小说写作的七盏明灯”的理论原型和类比对象。
-- target: taxonomy/参考
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
 - 实体/人
 - 实体/作者
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论小说写作的指路明灯.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->

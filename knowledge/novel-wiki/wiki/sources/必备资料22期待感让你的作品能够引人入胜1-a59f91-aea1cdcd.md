@@ -5,44 +5,14 @@ created_at: 1787067896866
 updated_at: 1787067896866
 type: source
 relations:
-- target: 期待感
-  type: contains
-  weight: 1.0
-  context: 全文围绕如何建立和维持读者期待感展开。
-- target: 伏笔手法
-  type: contains
-  weight: 0.95
-  context: 文中重点解释伏笔与坑的定义及其吸引读者追看的作用。
-- target: 飞书云文档
-  type: references
-  weight: 0.9
-  context: 该培训记录发布并下载自飞书云文档。
-- target: 北京圣东方国信科技有限公司
-  type: references
-  weight: 0.8
-  context: 文档页面显示的发布组织为该公司。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/节奏与悬念
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/开篇
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/必备资料22期待感让你的作品能够引人入胜1_a59f91.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

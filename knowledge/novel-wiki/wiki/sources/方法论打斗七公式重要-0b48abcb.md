@@ -5,66 +5,14 @@ created_at: 1787118225775
 updated_at: 1787118225775
 type: source
 relations:
-- target: 1vs1-公平对决
-  type: references
-  weight: 1.0
-  context: 来源文档的核心概念是「1VS1 公平对决」打斗公式。
-- target: 1vs1-公平对决--打斗七公式之一
-  type: references
-  weight: 1.0
-  context: 该概念来源于此源文档的详细阐述。
-- target: 打斗七公式
-  type: referenced_by
-  weight: 1.0
-  context: 本文档是「打斗七公式」这一实体的主要信息来源。
-- target: 七分铺垫三分打斗法则
-  type: analogous_to
-  weight: 0.8
-  context: 公式一详细描述了铺垫（前期准备、气氛渲染）和打斗过程的比例与写法，与此法则精神一致。
-- target: 小高潮式打斗
-  type: analogous_to
-  weight: 0.7
-  context: 公式一描述的打斗场景，通常是一个章节或段落的小高潮。
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/桥段与梗
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/写作手法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/战斗
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/铺垫
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/玄幻
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/仙侠
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/武侠
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/热血
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/燃
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论打斗七公式重要.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

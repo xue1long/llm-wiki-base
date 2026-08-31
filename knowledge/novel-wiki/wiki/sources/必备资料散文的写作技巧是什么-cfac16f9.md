@@ -5,59 +5,14 @@ created_at: 1787075163967
 updated_at: 1787075163967
 type: source
 relations:
-- target: 散文
-  type: contains
-  weight: 1.0
-  context: source文档定义了散文的写作观念
-- target: 感情体验
-  type: contains
-  weight: 1.0
-  context: source文档阐述了感情体验作为散文内在结构
-- target: 细节
-  type: contains
-  weight: 1.0
-  context: source文档阐述了细节作为散文外在结构核心
-- target: 记叙散文模式
-  type: contains
-  weight: 1.0
-  context: source文档提供了记叙散文模式
-- target: 抒情散文模式
-  type: contains
-  weight: 1.0
-  context: source文档提供了抒情散文模式
-- target: 散文
-  type: referenced_by
-  weight: 1.0
-  context: 本文档是散文写作技巧的来源
-- target: 感情体验
-  type: referenced_by
-  weight: 1.0
-  context: 该概念源自本文档
-- target: 细节
-  type: referenced_by
-  weight: 1.0
-  context: 该概念源自本文档
-- target: 记叙散文模式
-  type: referenced_by
-  weight: 1.0
-  context: 该概念源自本文档
-- target: 抒情散文模式
-  type: referenced_by
-  weight: 1.0
-  context: 该概念源自本文档
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/文笔与语言
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/必备资料散文的写作技巧是什么.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

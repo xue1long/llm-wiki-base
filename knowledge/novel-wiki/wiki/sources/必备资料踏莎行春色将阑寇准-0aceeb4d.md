@@ -5,43 +5,14 @@ created_at: 1787077748918
 updated_at: 1787077748918
 type: source
 relations:
-- target: 寇准
-  type: references
-  weight: 1.0
-  context: 该文档以寇准的词为核心内容
-- target: 踏莎行春色将阑
-  type: references
-  weight: 1.0
-  context: 该文档包含并阐释了《踏莎行·春色将阑》一词
-- target: 踏莎行--春色将阑
-  type: references
-  weight: 1.0
-  context: 该来源文档收录并演绎了这首词
-- target: 青梅竹马
-  type: referenced_by
-  weight: 1.0
-  context: 该概念出现在源文本的叙事中
-- target: 密约
-  type: referenced_by
-  weight: 1.0
-  context: 该概念出现在源文本的原词和叙事中
-- target: 离情
-  type: referenced_by
-  weight: 1.0
-  context: 该概念出现在源文本的原词和叙事中
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/诗词素材
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/必备资料踏莎行春色将阑寇准.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

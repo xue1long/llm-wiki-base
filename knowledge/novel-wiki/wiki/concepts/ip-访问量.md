@@ -1,27 +1,35 @@
 ---
 id: ip-访问量
 title: IP访问量
+type: concept
+sources:
+- raw/sources/01_新手入门/入门教程各大小说网站人气对比方便选择参考.md
 created_at: 1786945553373
 updated_at: 1786945553373
-type: concept
 relations:
-- target: taxonomy/读者与市场
+- target: taxonomy-读者与市场
   type: taxonomy_of
   weight: 1.0
-- target: taxonomy/数据分析
+  context: ''
+- target: taxonomy-数据分析
   type: taxonomy_of
   weight: 1.0
+  context: ''
+- target: credibility-ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
+- target: taxonomy-参考
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
 - target: credibility/ugc
   type: has_credibility
   weight: 1.0
-- target: taxonomy/参考
-  type: taxonomy_of
-  weight: 1.0
-tags:
-- 素材/ugc
-sources:
-- raw/sources/01_新手入门/入门教程各大小说网站人气对比方便选择参考.md
+  context: ''
+tags: []
 ---
+
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: concept -->
 

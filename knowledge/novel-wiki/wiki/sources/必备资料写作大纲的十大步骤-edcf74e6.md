@@ -5,41 +5,14 @@ created_at: 1787073038754
 updated_at: 1787073038754
 type: source
 relations:
-- target: 地图勾画法
-  type: supports
-  weight: 0.96
-  context: 文章明确建议以地点或地图变化标记主线情节。
-- target: 升级序列多级化
-  type: supports
-  weight: 0.94
-  context: 文章强调升级体系的详细设定及地图变化与升级体系变化的对应关系。
-- target: 主角性格设定
-  type: supports
-  weight: 0.88
-  context: 文章将确定主角性格列为写作大纲步骤之一。
-- target: 唐家三少
-  type: references
-  weight: 0.8
-  context: 该作者在来源正文中被直接提及。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/大纲与结构
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/必备资料写作大纲的十大步骤.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

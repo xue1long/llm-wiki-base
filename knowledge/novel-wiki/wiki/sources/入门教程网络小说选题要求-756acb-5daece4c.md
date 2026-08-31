@@ -5,37 +5,14 @@ created_at: 1787064501081
 updated_at: 1787064501081
 type: source
 relations:
-- target: 题材选择
-  type: supports
-  weight: 0.98
-  context: 正文明确提出选材应优先考虑作者擅长的题材。
-- target: 基调--写作风格
-  type: supports
-  weight: 0.9
-  context: 正文论述写作风格会影响题材选择。
-- target: 血红
-  type: references
-  weight: 0.85
-  context: 正文以血红的痞气、血性狂放及幻想类题材作为个人风格影响选题的案例。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/选题与立意
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程网络小说选题要求_756acb.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

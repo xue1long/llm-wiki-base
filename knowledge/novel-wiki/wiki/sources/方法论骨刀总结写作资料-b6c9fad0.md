@@ -5,52 +5,14 @@ created_at: 1787118303554
 updated_at: 1787118303554
 type: source
 relations:
-- target: 北京圣东方国信科技有限公司
-  type: references
-  weight: 1.0
-  context: 来源文档的发布组织
-- target: 飞书云文档
-  type: references
-  weight: 1.0
-  context: 来源文档的发布平台
-- target: 一集一闯关
-  type: derives
-  weight: 1.0
-  context: 该概念在源文档中明确提出
-- target: 一集一升级
-  type: derives
-  weight: 1.0
-  context: 该概念在源文档中明确提出
-- target: 北京圣东方国信科技有限公司
-  type: referenced_by
-  weight: 1.0
-  context: 该公司是文档的发布组织
-- target: 飞书云文档
-  type: referenced_by
-  weight: 1.0
-  context: 该文档发布于飞书云文档平台
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/大纲与结构
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/网文
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/大纲设计
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论骨刀总结写作资料.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

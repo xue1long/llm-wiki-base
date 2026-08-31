@@ -5,50 +5,14 @@ created_at: 1787075433204
 updated_at: 1787075433204
 type: source
 relations:
-- target: 题材选择
-  type: derives
-  weight: 1.0
-  context: 概念内容直接整理自该来源。
-- target: 跟风--写作戒律
-  type: supports
-  weight: 0.95
-  context: 原文明确将跟风列为选题大忌。
-- target: 作品包装
-  type: references
-  weight: 0.86
-  context: 原文以仙侠或网游包装武侠作为降低创作难度的策略。
-- target: 起点中文网
-  type: references
-  weight: 0.82
-  context: 原文多次讨论起点对同人作品、VIP、出版和敏感题材的历史性处理。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/选题与立意
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/玄幻
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/科幻
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/悬疑
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/必备资料新人经验如何选择适合自己的题材.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

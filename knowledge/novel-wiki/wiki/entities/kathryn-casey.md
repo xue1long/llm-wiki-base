@@ -5,24 +5,15 @@ created_at: 1786945340643
 updated_at: 1786945340643
 type: entity
 relations:
-- target: 入门教程作家是怎么炼成的新手必看-de5255-8affc531
-  type: references
-  weight: 0.9
-  context: 该来源页正文为她的写作职业经验谈
-- target: taxonomy/心态与职业
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/职业规划
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 - 实体/人
 sources:
 - raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看_de5255.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->

@@ -5,37 +5,14 @@ created_at: 1787118223514
 updated_at: 1787118223514
 type: source
 relations:
-- target: 语言规范
-  type: references
-  weight: 1.0
-  context: 本源文档的核心主题是语言规范。
-- target: 误读
-  type: references
-  weight: 1.0
-  context: 文档详细论述了‘误读’这一语言不规范现象。
-- target: 生造词语
-  type: references
-  weight: 1.0
-  context: 文档详细论述了‘生造词语’这一语言不规范现象。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/文笔与语言
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/规范
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/通用
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论语言规范.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

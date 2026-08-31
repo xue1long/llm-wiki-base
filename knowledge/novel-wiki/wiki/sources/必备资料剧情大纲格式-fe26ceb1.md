@@ -5,53 +5,14 @@ created_at: 1787073148038
 updated_at: 1787073148038
 type: source
 relations:
-- target: 大纲
-  type: derives
-  weight: 0.98
-  context: 原文直接讲解剧情大纲的结构与写法。
-- target: 细纲
-  type: derives
-  weight: 0.98
-  context: 原文专门规定每集细纲的长度、内容和章节标注方式。
-- target: 飞书云文档
-  type: references
-  weight: 0.95
-  context: 原文来源平台为飞书云文档。
-- target: 北京圣东方国信科技有限公司
-  type: references
-  weight: 0.9
-  context: 文档页眉标注该组织名称。
-- target: 剧情节奏
-  type: supports
-  weight: 0.86
-  context: 原文强调通过分集、分章和技能成长控制故事走向与节奏。
-- target: 北京圣东方国信科技有限公司
-  type: referenced_by
-  weight: 0.9
-  context: 来源页面显示该组织名称。
-- target: 飞书云文档
-  type: is_part_of
-  weight: 0.95
-  context: 该来源文档发布并保存于飞书云文档。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/大纲与结构
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/模板
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/必备资料剧情大纲格式.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

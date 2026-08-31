@@ -5,54 +5,14 @@ created_at: 1787118338836
 updated_at: 1787118338836
 type: source
 relations:
-- target: 金庸
-  type: references
-  weight: 1.0
-  context: 文章核心对比对象之一
-- target: 古龙
-  type: references
-  weight: 1.0
-  context: 文章核心对比对象之一
-- target: 黄易
-  type: references
-  weight: 1.0
-  context: 文章核心对比对象之一
-- target: 气机牵引
-  type: derives
-  weight: 1.0
-  context: 概念在文中被详细定义和对比
-- target: 历史武侠
-  type: derives
-  weight: 1.0
-  context: 概念是文章第一部分的核心议题
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/人物塑造
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/武侠
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/人物构建
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/情节设计
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/设定
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论黄易与古龙金庸之比较.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

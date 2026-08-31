@@ -5,41 +5,14 @@ created_at: 1787084084411
 updated_at: 1787084084411
 type: source
 relations:
-- target: 夏天-17k-编辑
-  type: references
-  weight: 1.0
-  context: 本讲课记录的主讲人
-- target: 架构细节
-  type: references
-  weight: 0.9
-  context: 本源详细讲解的核心概念
-- target: 世界背景设定
-  type: references
-  weight: 0.8
-  context: 架构细节的子概念，本源详细展开
-- target: 烘托描写
-  type: references
-  weight: 0.7
-  context: 文字细节的一部分，本源简要讲解
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/世界观设定
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/玄幻
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/新人须知17编辑讲课记录.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

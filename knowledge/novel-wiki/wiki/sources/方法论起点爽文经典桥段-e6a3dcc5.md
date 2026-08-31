@@ -5,50 +5,14 @@ created_at: 1787118232204
 updated_at: 1787118232204
 type: source
 relations:
-- target: 爽文
-  type: referenced_by
-  weight: 1.0
-  context: 本文是爽文创作方法论的详细阐述来源
-- target: 主角轰杀反派--经典畅快桥段
-  type: referenced_by
-  weight: 1.0
-  context: 本文详细分析了此桥段的运用与误区
-- target: 优越感--爽文三要素之一
-  type: referenced_by
-  weight: 1.0
-  context: 本文定义了优越感是爽文的三要素之一
-- target: yy-小说-103-个经典桥段
-  type: referenced_by
-  weight: 0.8
-  context: 本文讨论了其中一种经典桥段
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/桥段与梗
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/网文
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/爽
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/高潮
-  type: taxonomy_of
-  weight: 1.0
-- target: audience/男频
-  type: belongs_to_audience
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论起点爽文经典桥段.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

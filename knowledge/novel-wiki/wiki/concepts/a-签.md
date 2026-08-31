@@ -1,9 +1,11 @@
 ---
 id: a-签
 title: A签
+type: concept
+sources:
+- raw/sources/01_新手入门/入门教程尾号五新人指南.md
 created_at: 1786952727995
 updated_at: 1786952727995
-type: concept
 relations:
 - target: 起点中文网
   type: is_part_of
@@ -13,14 +15,17 @@ relations:
   type: referenced_by
   weight: 0.8
   context: 指南解释A签
+- target: credibility-ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
 - target: credibility/ugc
   type: has_credibility
   weight: 1.0
-tags:
-- 素材/ugc
-sources:
-- raw/sources/01_新手入门/入门教程尾号五新人指南.md
+  context: ''
+tags: []
 ---
+
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: concept -->
 

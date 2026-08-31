@@ -1,34 +1,43 @@
 ---
 id: yy-小说十六创作法则
 title: YY小说十六创作法则
+type: concept
+sources:
+- raw/sources/02_进阶技巧/方法论YY小说模式.md
 created_at: 1787109321310
 updated_at: 1787109321310
-type: concept
 relations:
 - target: 方法论-yy-小说模式-942f4f92
   type: derived_from
   weight: 1.0
   context: 本概念完全提取自源文件的十六个要点。
-- target: taxonomy/写作技法
+- target: taxonomy-写作技法
   type: taxonomy_of
   weight: 1.0
-- target: taxonomy/情节与冲突
+  context: ''
+- target: taxonomy-情节与冲突
   type: taxonomy_of
   weight: 1.0
+  context: ''
+- target: credibility-ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
+- target: taxonomy-方法论
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
+- target: taxonomy-发展
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
 - target: credibility/ugc
   type: has_credibility
   weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/发展
-  type: taxonomy_of
-  weight: 1.0
-tags:
-- 素材/ugc
-sources:
-- raw/sources/02_进阶技巧/方法论YY小说模式.md
+  context: ''
+tags: []
 ---
+
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: concept -->
 

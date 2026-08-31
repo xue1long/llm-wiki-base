@@ -5,42 +5,14 @@ created_at: 1786944279258
 updated_at: 1786944279258
 type: source
 relations:
-- target: 华夏天空青衫-e-组
-  type: contains
-  weight: 1.0
-  context: 文档主体即青衫E组的招募公告
-- target: 华夏天空网站青衫-e-组
-  type: references
-  weight: 1.0
-  context: 该来源文档是该小组发布的招募公告
-- target: 华夏天空-2016-征文新福利
-  type: derives
-  weight: 1.0
-  context: 福利内容直接来自该公告
-- target: 全勤起算时机
-  type: derives
-  weight: 1.0
-  context: 全勤起算时点直接取自该公告
-- target: 网编招募标准
-  type: referenced_by
-  weight: 1.0
-  context: 网编招募标准引自该公告
-- target: taxonomy/平台规则
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/全勤与福利
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程你是新人吗.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

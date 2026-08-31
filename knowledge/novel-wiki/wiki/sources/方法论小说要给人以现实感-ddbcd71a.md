@@ -5,62 +5,14 @@ created_at: 1787116692583
 updated_at: 1787116692583
 type: source
 relations:
-- target: 五感描写法
-  type: references
-  weight: 1.0
-  context: 文章核心方法论即为调用五种感觉来增强真实感，与已有概念'五感描写法'高度相关。
-- target: 五种感觉描写法
-  type: references
-  weight: 1.0
-  context: 文章核心方法论即为调用五种感觉来增强真实感，与已有概念'五种感觉描写法'高度相关。
-- target: 拉威尔--斯潘塞
-  type: references
-  weight: 1.0
-  context: 该来源引用了拉威尔·斯潘塞的名言作为核心论据。
-- target: 节奏控制--句子结构法
-  type: derives
-  weight: 1.0
-  context: 该概念详细阐述了来源文本中关于句子结构控制节奏的段落。
-- target: 感官描写
-  type: references
-  weight: 0.9
-  context: 文章核心内容是教授如何运用感官描写来创造现实感。
-- target: 拉威尔--斯潘塞
-  type: references
-  weight: 0.8
-  context: 文章引用了拉威尔·斯潘塞的话作为开篇引语。
-- target: 五感描写法
-  type: derives
-  weight: 1.0
-  context: 本文核心概念源自该来源文本的详细阐述。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/文笔与语言
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/发展
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/高潮
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/日常
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论小说要给人以现实感.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

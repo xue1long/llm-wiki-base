@@ -5,51 +5,14 @@ created_at: 1787118761387
 updated_at: 1787118761387
 type: source
 relations:
-- target: 投稿邮件规范
-  type: contains
-  weight: 1.0
-  context: 源文档详细定义了投稿邮件的标准格式和禁忌。
-- target: 编辑--作者关系
-  type: contains
-  weight: 1.0
-  context: 源文档多处阐述了编辑与作者应建立的健康工作关系。
-- target: 编辑与作者的关系
-  type: derives
-  weight: 1.0
-  context: 本概念的核心观点主要源自源文档第八至第十二条，以及第二十四至第三十六条。
-- target: 稿件修改要求
-  type: derives
-  weight: 1.0
-  context: 本概念主要提炼自源文档第十二、十七、二十二条注意事项。
-- target: 投稿邮件规范
-  type: derives
-  weight: 1.0
-  context: 本概念的核心要点提炼自该源文档的第一、二、三、四条注意事项。
-- target: taxonomy/平台规则
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/签约
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/规范
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/开篇
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论经典重温功夫在文外杂志新手的三十六个注意事项.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

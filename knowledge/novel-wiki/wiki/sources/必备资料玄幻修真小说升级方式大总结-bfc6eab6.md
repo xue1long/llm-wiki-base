@@ -5,47 +5,14 @@ created_at: 1787075876109
 updated_at: 1787075876109
 type: source
 relations:
-- target: 玄幻快速升级特征
-  type: derives
-  weight: 1.0
-  context: 本概念直接整理自来源列出的十一种升级方式。
-- target: 奇遇
-  type: derives
-  weight: 1.0
-  context: 定义和例子直接来自来源第九项。
-- target: 斗破苍穹
-  type: references
-  weight: 1.0
-  context: 来源明确以该作品作为融合升级的例子。
-- target: 升级流小说
-  type: derives
-  weight: 1.0
-  context: 本页定义与特征均整理自来源的升级总述和十一项清单。
-- target: taxonomy/题材体系
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/玄幻
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/玄幻
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/仙侠
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/参考
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/必备资料玄幻修真小说升级方式大总结.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

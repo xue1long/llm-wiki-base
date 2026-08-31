@@ -5,50 +5,14 @@ created_at: 1786944583775
 updated_at: 1786944583775
 type: source
 relations:
-- target: 作品包装
-  type: contains
-  weight: 1.0
-  context: 全文核心主题
-- target: 废弃章节清理
-  type: derives
-  weight: 1.0
-  context: 内容来自第五部分
-- target: 章节字数控制
-  type: derives
-  weight: 1.0
-  context: 内容来自第七部分
-- target: 书评区管理
-  type: derives
-  weight: 1.0
-  context: 内容来自第八部分
-- target: 笔名选择
-  type: derives
-  weight: 1.0
-  context: 内容来自第二部分
-- target: 老书联动运营
-  type: derives
-  weight: 1.0
-  context: 内容来自第九部分
-- target: 起点编辑部
-  type: references
-  weight: 0.5
-  context: 来源作者署名
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/修改与打磨
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程三江杂谈.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

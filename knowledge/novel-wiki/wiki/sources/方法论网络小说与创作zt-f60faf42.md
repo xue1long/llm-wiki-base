@@ -5,33 +5,14 @@ created_at: 1787118310851
 updated_at: 1787118310851
 type: source
 relations:
-- target: 诚实的喜鹊
-  type: contains
-  weight: 1.0
-  context: 文章的核心倡导概念，旨在建立良好创作环境。
-- target: 网络小说--作者类型
-  type: contains
-  weight: 0.9
-  context: 文章将网络小说作者划分为三种类型进行详细论述。
-- target: taxonomy/读者与市场
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/读者心态
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/网文
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论网络小说与创作ZT.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

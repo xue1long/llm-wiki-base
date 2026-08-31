@@ -5,42 +5,15 @@ created_at: 1787041638796
 updated_at: 1787041638796
 type: source
 relations:
-- target: 更新速度的重要性
-  type: derives
-  weight: 0.98
-  context: 源文将更新视为作者生存的第二项核心策略。
-- target: 网络小说
-  type: derives
-  weight: 0.96
-  context: 源文围绕网络小说作者的创作与连载生存策略展开。
-- target: 坚持日更
-  type: supports
-  weight: 0.86
-  context: 源文强调依靠存稿维持不间断更新，与持续日更的创作习惯相关。
-- target: 小说字数要求
-  type: derives
-  weight: 0.82
-  context: 源文提出15万至20万字存稿及约20万字收束规模。
-- target: taxonomy/心态与职业
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/职业规划
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 - 实体/教程文档
 sources:
 - raw/sources/01_新手入门/入门教程网络小说写作宝典2.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

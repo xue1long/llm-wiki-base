@@ -5,36 +5,14 @@ created_at: 1787118209837
 updated_at: 1787118209837
 type: source
 relations:
-- target: 七分铺垫三分打斗法则
-  type: derives
-  weight: 0.9
-  context: 此概念直接源自该文档所阐述的打斗描写方法论。
-- target: 打斗七公式
-  type: references
-  weight: 0.8
-  context: 该文档的方法论是‘打斗七公式’这一类具体写作技巧的具体体现或来源之一。
-- target: taxonomy/对话与描写
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/模板
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/战斗
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/铺垫
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论打斗描写辅助设定.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

@@ -5,37 +5,14 @@ created_at: 1787108353424
 updated_at: 1787108353424
 type: source
 relations:
-- target: 快速吸引读者阅读
-  type: references
-  weight: 1.0
-  context: 核心论点直接阐述了此概念的内涵与操作方法
-- target: 读者沉迷
-  type: references
-  weight: 0.9
-  context: 将沉迷定义为读者付费和作品火爆的关键，是全文的核心驱动力
-- target: 代入感
-  type: references
-  weight: 0.8
-  context: 快速让读者代入作品是实现快速吸引的重要手段
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/开篇与黄金三章
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/开篇
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/新人须知5速度网络文学创作的唯一秘诀_47c3cb.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

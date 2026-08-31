@@ -5,47 +5,14 @@ created_at: 1787075401077
 updated_at: 1787075401077
 type: source
 relations:
-- target: 必备资料新书-2a5d5efc
-  type: references
-  weight: 1.0
-  context: 来源文件
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/作品案例
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/武侠
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/玄幻
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/案例
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/爽
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/热血
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/开篇
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/转折
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/战斗
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/必备资料新书.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

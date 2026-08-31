@@ -5,31 +5,15 @@ created_at: 1786945367682
 updated_at: 1786945367682
 type: entity
 relations:
-- target: 人物构建
-  type: supports
-  weight: 0.5
-  context: DM参与角色构建过程
-- target: 入门教程创造角色-27fffe79
-  type: referenced_by
-  weight: 0.3
-  context: 文档中提及DM
-- target: taxonomy/案例与素材
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/作品案例
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/参考
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
 - 实体/角色
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程创造角色.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->

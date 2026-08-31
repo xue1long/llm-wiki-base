@@ -5,20 +5,14 @@ created_at: 1786953429587
 updated_at: 1786953429587
 type: source
 relations:
-- target: 紫川
-  type: references
-  weight: 1.0
-  context: 本文以《紫川》为范文进行分析
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程技术篇剧情开展讲解.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

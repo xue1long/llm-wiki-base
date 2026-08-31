@@ -5,37 +5,14 @@ created_at: 1787118828062
 updated_at: 1787118828062
 type: source
 relations:
-- target: 对比
-  type: referenced_by
-  weight: 0.9
-  context: 该来源系统列举了对比作为核心方法论要素之一。
-- target: 悬念
-  type: referenced_by
-  weight: 0.9
-  context: 该来源详细定义了悬念的四种类型及其在写作中的核心地位。
-- target: 冲突
-  type: referenced_by
-  weight: 0.9
-  context: 该来源将冲突列为核心方法论要素之一。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/情节与冲突
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/写作技巧
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/02_进阶技巧/方法论要素.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

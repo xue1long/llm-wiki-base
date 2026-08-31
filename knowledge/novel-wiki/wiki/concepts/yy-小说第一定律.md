@@ -1,9 +1,11 @@
 ---
 id: yy-小说第一定律
 title: YY小说第一定律
+type: concept
+sources:
+- raw/sources/01_新手入门/借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6.md
 created_at: 1786967292747
 updated_at: 1786967292747
-type: concept
 relations:
 - target: 借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结-6-34f66af8
   type: derived_from
@@ -25,23 +27,29 @@ relations:
   type: analogous_to
   weight: 0.6
   context: 两者都指向YY爽文的“强”核心
-- target: taxonomy/写作技法
+- target: taxonomy-写作技法
   type: taxonomy_of
   weight: 1.0
-- target: taxonomy/爽点与情绪
+  context: ''
+- target: taxonomy-爽点与情绪
   type: taxonomy_of
   weight: 1.0
+  context: ''
+- target: credibility-ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
+- target: taxonomy-方法论
+  type: taxonomy_of
+  weight: 1.0
+  context: ''
 - target: credibility/ugc
   type: has_credibility
   weight: 1.0
-- target: taxonomy/方法论
-  type: taxonomy_of
-  weight: 1.0
-tags:
-- 素材/ugc
-sources:
-- raw/sources/01_新手入门/借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6.md
+  context: ''
+tags: []
 ---
+
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: concept -->
 

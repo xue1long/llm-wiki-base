@@ -5,37 +5,14 @@ created_at: 1787064926773
 updated_at: 1787064926773
 type: source
 relations:
-- target: 大纲
-  type: derives
-  weight: 0.98
-  context: 全文围绕小说写作前拟定提纲的重要性展开。
-- target: 小说大纲模版结构
-  type: derives
-  weight: 0.96
-  context: 文章直接给出“写作提纲草案”及其字段结构。
-- target: 飞书云文档
-  type: is_part_of
-  weight: 0.9
-  context: 该来源页面明确标注为飞书云文档。
-- target: taxonomy/写作技法
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/大纲与结构
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/模板
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程赠新作者.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

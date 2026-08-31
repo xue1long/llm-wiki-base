@@ -5,36 +5,14 @@ created_at: 1786944995733
 updated_at: 1786944995733
 type: source
 relations:
-- target: 入门教程--网络小说写作
-  type: is_part_of
-  weight: 1.0
-  context: 该篇是入门教程系列的一部分
-- target: 网文书名命名法则
-  type: references
-  weight: 1.0
-  context: 该篇详细讲解此概念
-- target: 书名与内容不符
-  type: references
-  weight: 1.0
-  context: 该篇提及此概念
-- target: 恶趣味书名
-  type: references
-  weight: 1.0
-  context: 该篇提及此概念
-- target: 情色化书名风险
-  type: references
-  weight: 1.0
-  context: 该篇提及此概念
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/入门教程1书名.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

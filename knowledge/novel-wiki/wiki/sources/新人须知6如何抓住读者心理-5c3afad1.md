@@ -5,56 +5,14 @@ created_at: 1787108402722
 updated_at: 1787108402722
 type: source
 relations:
-- target: 读者心态
-  type: references
-  weight: 1.0
-  context: 文章核心讨论如何抓住读者心理，与读者心态概念直接相关
-- target: 代入感
-  type: references
-  weight: 1.0
-  context: 文章将代入感列为抓住读者心理的第三要点，并详细说明如何培养
-- target: 爽点
-  type: references
-  weight: 0.9
-  context: 文中多次强调要让读者‘爽’，避免‘不爽’，是爽点概念的实践阐述
-- target: 更新速度的重要性
-  type: references
-  weight: 0.9
-  context: 文章第四点专门讨论更新速度对读者心理的影响
-- target: 读者习惯养成
-  type: references
-  weight: 0.8
-  context: 文章强调固定更新时间培养读者阅读习惯
-- target: 绿帽情节
-  type: references
-  weight: 0.7
-  context: 文章明确反对写绿帽虐主情节，认为会让读者不爽
-- target: 矛盾冲突
-  type: references
-  weight: 0.6
-  context: 文中提到制造矛盾让情节高潮起伏，是传统作家的‘矛盾’概念
-- target: taxonomy/读者与市场
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/读者心态
-  type: taxonomy_of
-  weight: 1.0
-- target: credibility/ugc
-  type: has_credibility
-  weight: 1.0
-- target: taxonomy/教程
-  type: taxonomy_of
-  weight: 1.0
-- target: taxonomy/开篇
-  type: taxonomy_of
-  weight: 1.0
-- target: audience/男频
-  type: belongs_to_audience
-  weight: 1.0
+  - target: credibility/ugc
+    type: has_credibility
+    weight: 1.0
+
 tags:
-- 素材/ugc
 sources:
 - raw/sources/01_新手入门/新人须知6如何抓住读者心理.md
+---
 ---
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->

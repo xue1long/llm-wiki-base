@@ -1,9 +1,11 @@
 ---
 id: snowflake-method
 title: Snowflake Method
+type: concept
+sources:
+- raw/sources/02_进阶技巧/方法论写作技巧之15条小技巧.md
 created_at: 1787109527833
 updated_at: 1787109527833
-type: concept
 relations:
 - target: 方法论写作技巧之-15-条小技巧-33e074fb
   type: derived_from
@@ -17,20 +19,25 @@ relations:
   type: analogous_to
   weight: 0.7
   context: 是‘先计划，再写’这一写作建议的具体方法范例
-- target: taxonomy/大纲与结构
+- target: taxonomy-大纲与结构
   type: taxonomy_of
   weight: 1.0
-- target: taxonomy/方法论
+  context: ''
+- target: taxonomy-方法论
   type: taxonomy_of
   weight: 1.0
+  context: ''
+- target: credibility-ugc
+  type: has_credibility
+  weight: 1.0
+  context: ''
 - target: credibility/ugc
   type: has_credibility
   weight: 1.0
-tags:
-- 素材/ugc
-sources:
-- raw/sources/02_进阶技巧/方法论写作技巧之15条小技巧.md
+  context: ''
+tags: []
 ---
+
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: concept -->
 
