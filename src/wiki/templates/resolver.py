@@ -57,6 +57,14 @@ def _iter_candidates(
     ]
 
 
+def _safe_is_file(path: Path) -> bool:
+    """Treat unreadable optional overrides as unavailable candidates."""
+    try:
+        return path.is_file()
+    except OSError:
+        return False
+
+
 def _candidate_mtime_signature(
     page_type: PageType, project_root: Path
 ) -> tuple[int, ...]:
@@ -67,7 +75,7 @@ def _candidate_mtime_signature(
     """
     sig: list[int] = []
     for path, _source in _iter_candidates(page_type, project_root):
-        if path.is_file():
+        if _safe_is_file(path):
             try:
                 sig.append(path.stat().st_mtime_ns)
             except OSError:
@@ -93,7 +101,7 @@ def _resolve_cached(
 
 def _resolve_uncached(page_type: PageType, project_root: Path) -> Template:
     for path, source in _iter_candidates(page_type, project_root):
-        if path.is_file():
+        if _safe_is_file(path):
             raw = path.read_text(encoding="utf-8")
             validate_type_header(raw, page_type)  # raises TemplateParseError on mismatch
             version = _extract_version(raw)
@@ -219,7 +227,7 @@ def _expand_includes(
                 f"circular include detected: {target} already expanded"
             )
 
-        if not target.is_file():
+        if not _safe_is_file(target):
             # Leave marker in place + warning; don't silently drop.
             out.append(m.group(0))
         else:
@@ -265,7 +273,7 @@ def list_resolved(project_root: Path) -> list[Template]:
             # Surface the invalid override as a Template so list can mark INVALID.
             # Walk candidates in priority order — first hit is the invalid file.
             for cand, source in _iter_candidates(pt, project_root):
-                if cand.is_file():
+                if _safe_is_file(cand):
                     raw = cand.read_text(encoding="utf-8")
                     out.append(Template(
                         type=pt,

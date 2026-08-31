@@ -28,6 +28,14 @@ DEFAULT_SEARCH_PATHS: list[Path] = [
 ]
 
 
+def _path_exists(path: Path) -> bool:
+    """Treat an unreadable optional path as unavailable to read-only probes."""
+    try:
+        return path.exists()
+    except OSError:
+        return False
+
+
 def is_kb_root(path: Path) -> bool:
     """Detect if a directory is a KB root (v1.0 or v2.0).
 
@@ -54,7 +62,7 @@ def discover_existing_kbs() -> list[Path]:
     seen: set[Path] = set()
 
     for base in DEFAULT_SEARCH_PATHS:
-        if not base.exists() or not base.is_dir():
+        if not _path_exists(base) or not base.is_dir():
             continue
         try:
             # base itself
@@ -114,7 +122,7 @@ def auto_register_on_first_run() -> list[ProjectContext]:
             _logger.warning(f"[discovery] failed to register {kb_path}: {e}")
 
     # Set last_project to most recently modified if registry was freshly created
-    if not _default_registry_path().exists() and contexts:
+    if not _path_exists(_default_registry_path()) and contexts:
         contexts.sort(key=lambda c: c.path.stat().st_mtime, reverse=True)
         GlobalRegistryStore.save_last_project(
             id=contexts[0].id,

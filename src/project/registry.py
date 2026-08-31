@@ -67,7 +67,12 @@ class GlobalRegistryStore:
     def load(cls) -> GlobalRegistry:
         """Load registry from disk. Returns empty on missing/corrupt."""
         path = cls._path()
-        if not path.exists():
+        try:
+            exists = path.exists()
+        except OSError as exc:
+            _logger.warning(f"[registry] cannot access {path}: {exc}; using empty")
+            return GlobalRegistry()
+        if not exists:
             return GlobalRegistry()
         try:
             data = json.loads(path.read_text(encoding="utf-8"))

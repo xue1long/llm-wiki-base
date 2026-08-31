@@ -6,7 +6,13 @@ from hashlib import sha256
 
 import pytest
 
-from src.pipeline.text_preprocessing import chunk_prompt_blocks, preprocess_source
+from src.pipeline.text_preprocessing import (
+    ContentKind,
+    ReadinessDecision,
+    assess_content,
+    chunk_prompt_blocks,
+    preprocess_source,
+)
 
 
 def test_preprocess_separates_input_and_canonical_hashes() -> None:
@@ -81,3 +87,60 @@ def test_chunk_prompt_blocks_preserves_order_and_rejects_oversized_block() -> No
     ]
     with pytest.raises(ValueError, match="oversized prompt block"):
         chunk_prompt_blocks(prepared.prompt_blocks, max_chars=1)
+
+
+def test_content_assessment_distinguishes_legitimate_short_text_from_metadata() -> None:
+    short = assess_content(
+        "猫会跑。",
+        source_id="raw/sources/short.md",
+        content_kind=ContentKind.PROSE,
+    )
+    metadata = assess_content(
+        "北京圣东方国信科技有限公司\n学龙\n东方玄幻_刑天\n05_题材专题",
+        source_id="raw/sources/东方玄幻刑天.md",
+        content_kind=ContentKind.PROSE,
+    )
+
+    assert short.decision is ReadinessDecision.READY_WITH_WARNING
+    assert short.profile_id == "prose"
+    assert "legitimate_short" in short.reason_codes
+    assert metadata.decision is ReadinessDecision.SKIP_NO_CONTENT
+    assert "metadata_only" in metadata.reason_codes
+    assert metadata.evidence_capacity.chars == 0
+
+    duplicated_title = assess_content(
+        "北京圣东方国信科技有限公司\n学龙\n东方玄幻_中国洪荒神话\n"
+        "东方玄幻_中国洪荒神话\u200b\n十日齐出的背后\u200b\n十日齐出的背后\u200b\n"
+        "真诚点赞，手留余香",
+        source_id="raw/sources/东方玄幻中国洪荒神话.md",
+        content_kind=ContentKind.PROSE,
+    )
+    assert duplicated_title.decision is ReadinessDecision.SKIP_NO_CONTENT
+    assert "metadata_only" in duplicated_title.reason_codes
+    assert duplicated_title.evidence_capacity.chars == 0
+
+    title_definition = assess_content(
+        "F=ma",
+        source_id="raw/sources/law.md",
+        content_kind=ContentKind.TITLE_DEFINITION,
+    )
+    assert title_definition.decision is ReadinessDecision.READY_WITH_WARNING
+    assert title_definition.profile_id == "title_definition"
+
+    fragment = assess_content(
+        "内容",
+        source_id="raw/sources/fragment.md",
+        content_kind=ContentKind.PROSE,
+    )
+    assert fragment.decision is ReadinessDecision.READY_WITH_WARNING
+    assert "legitimate_short" in fragment.reason_codes
+
+
+def test_preprocess_exposes_content_assessment_for_the_same_prompt_view() -> None:
+    result = preprocess_source(
+        "北京圣东方国信科技有限公司\n学龙\n东方玄幻_刑天\n05_题材专题",
+        source_id="raw/sources/东方玄幻刑天.md",
+    )
+
+    assert result.content_assessment.decision is ReadinessDecision.SKIP_NO_CONTENT
+    assert result.content_assessment.content_kind is ContentKind.PROSE

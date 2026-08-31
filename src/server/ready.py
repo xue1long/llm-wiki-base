@@ -22,6 +22,7 @@ Design rules (plan-audit hardening):
 from __future__ import annotations
 
 import logging
+import inspect
 import os
 import time
 from pathlib import Path
@@ -124,7 +125,9 @@ def check_provider() -> tuple[str, str]:
                 _provider_probe_cache["ok"] = bool(health.get("ok"))
                 _provider_probe_cache["detail"] = str(health.get("detail", ""))
                 try:
-                    provider.close()
+                    close_result = provider.close()
+                    if inspect.isawaitable(close_result):
+                        asyncio.run(close_result)
                 except Exception:
                     pass
             except Exception as e:

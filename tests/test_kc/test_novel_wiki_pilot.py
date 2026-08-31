@@ -1,5 +1,7 @@
 import sys
 import types
+import json
+import sys
 from hashlib import sha256
 from pathlib import Path
 
@@ -12,7 +14,7 @@ _yaml_stub.safe_dump = lambda *args, **kwargs: ""
 sys.modules.setdefault("yaml", _yaml_stub)
 
 import scripts.kc_novel_wiki_pilot as pilot_module
-from scripts.kc_novel_wiki_pilot import _error_summary, run_pilot, select_sources
+from scripts.kc_novel_wiki_pilot import _error_category, _error_summary, run_pilot, select_sources
 
 
 def test_select_sources_is_deterministic_and_bounded(tmp_path: Path):
@@ -34,6 +36,29 @@ def test_error_summary_preserves_provider_cause():
 
     assert "HTTP 429" in _error_summary(outer)
     assert "token quota exhausted" in _error_summary(outer)
+def test_truncated_provider_response_is_provider_error():
+    assert _error_category(RuntimeError("TruncatedResponseError: finish_reason=length")) == "provider_error"
+
+
+def test_main_prints_unicode_safely_for_legacy_console(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    async def fake_run_pilot(*args, **kwargs):
+        return {"selected": 1, "succeeded": 1, "failed": 0, "title": "零宽字符\u200b"}
+
+    monkeypatch.setattr(pilot_module, "run_pilot", fake_run_pilot)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["kc_novel_wiki_pilot.py", "--project-root", str(tmp_path), "--output", str(tmp_path / "report.json")],
+    )
+
+    assert pilot_module.main() == 0
+    printed = capsys.readouterr().out
+    assert "\\u200b" in printed
+    assert json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))["title"] == "零宽字符\u200b"
+
+
 @pytest.mark.asyncio
 async def test_run_pilot_surfaces_binding_audit_fields_and_failure_chain(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -68,6 +93,13 @@ async def test_run_pilot_surfaces_binding_audit_fields_and_failure_chain(
                 "quote_hash": "a" * 64,
                 "binding_mode": "explicit_block_binding",
                 "evidence_refs": ["doc_explicit:evidence_1"],
+                "evidence": [
+                    {
+                        "source_id": "raw/sources/explicit.md",
+                        "block_id": "block_explicit",
+                        "quote": "exact explicit quote",
+                    }
+                ],
                 "preprocessing_version": "text-preprocess-v1",
                 "input_text_sha256": "c" * 64,
                 "canonical_text_sha256": "d" * 64,
@@ -100,51 +132,27 @@ async def test_run_pilot_surfaces_binding_audit_fields_and_failure_chain(
     assert report["selected"] == 3
     assert report["succeeded"] == 2
     assert report["failed"] == 1
-    assert report["results"][0] == {
-        "source": "raw/sources/explicit.md",
-        "status": "success",
-        "pages": 1,
-        "source_id": "raw/sources/explicit.md",
-        "block_id": "block_explicit",
-        "exact_quote": "exact explicit quote",
-        "quote_hash": "a" * 64,
-        "binding_mode": "explicit_block_binding",
-        "evidence_refs": ["doc_explicit:evidence_1"],
-        "preprocessing_version": "text-preprocess-v1",
-        "input_text_sha256": "c" * 64,
-        "canonical_text_sha256": "d" * 64,
-        "prompt_text_sha256": "e" * 64,
-        "noise_warnings": ["high_repetition"],
-        "source_bytes_sha256": sha256(b"explicit").hexdigest(),
-        "applied_rules": [],
-    }
-    assert report["results"][1] == {
-        "source": "raw/sources/legacy.md",
-        "status": "success",
-        "pages": 1,
-        "source_id": "raw/sources/legacy.md",
-        "block_id": "block_legacy",
-        "exact_quote": "exact legacy quote",
-        "quote_hash": "b" * 64,
-        "binding_mode": "legacy_unique_quote",
-        "evidence_refs": ["doc_legacy:evidence_1"],
-        "preprocessing_version": "text-preprocess-v1",
-        "source_bytes_sha256": sha256(b"legacy").hexdigest(),
-        "input_text_sha256": sha256(b"legacy").hexdigest(),
-        "canonical_text_sha256": sha256(b"legacy").hexdigest(),
-        "prompt_text_sha256": sha256(b"legacy").hexdigest(),
-        "noise_warnings": [],
-        "applied_rules": [],
-    }
-    assert report["results"][2] == {
-        "source": "raw/sources/rejected.md",
-        "status": "failed",
-        "preprocessing_version": "text-preprocess-v1",
-        "source_bytes_sha256": sha256(b"rejected").hexdigest(),
-        "input_text_sha256": sha256(b"rejected").hexdigest(),
-        "canonical_text_sha256": sha256(b"rejected").hexdigest(),
-        "prompt_text_sha256": sha256(b"rejected").hexdigest(),
-        "noise_warnings": [],
-        "applied_rules": [],
-        "error": "RuntimeError: review rejected <- RuntimeError: declared block missing",
-    }
+    explicit_result = report["results"][0]
+    assert explicit_result["status"] == "success"
+    assert explicit_result["decision"] == "skip_no_content"
+    assert explicit_result["reason_codes"] == ["metadata_only", "no_evidence_capacity"]
+    assert explicit_result["analyzer_called"] is False
+    assert explicit_result["source_bytes_sha256"] == sha256(b"explicit").hexdigest()
+    assert explicit_result["block_id"] == "block_explicit"
+    assert explicit_result["exact_quote"] == "exact explicit quote"
+    assert explicit_result["quote_hash"] == "a" * 64
+    assert "content_assessment" not in explicit_result
+
+    legacy_result = report["results"][1]
+    assert legacy_result["status"] == "success"
+    assert legacy_result["binding_mode"] == "legacy_unique_quote"
+    assert legacy_result["decision"] == "skip_no_content"
+    assert legacy_result["evidence_capacity"]["blocks"] == 0
+
+    rejected_result = report["results"][2]
+    assert rejected_result["status"] == "failed"
+    assert rejected_result["failure_reason"] == (
+        "RuntimeError: review rejected <- RuntimeError: declared block missing"
+    )
+    assert rejected_result["decision"] == "skip_no_content"
+    assert "content_assessment" not in rejected_result

@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from ...llm.registry import ProviderRegistry, ProviderNotFoundError
 from ...llm.types import ModelInfo, ProviderConfig
+from ...project.paths import config_dir
 
 router = APIRouter(prefix="/api/v1", tags=["providers"])
 
@@ -41,10 +42,12 @@ class SetDefaultRequest(BaseModel):
 
 
 def _default_provider_name() -> str | None:
-    env_file = Path(os.path.expanduser("~/.config/ruflo-kb/env"))
-    if not env_file.exists():
+    env_file = config_dir() / "env"
+    try:
+        text = env_file.read_text(encoding="utf-8")
+    except OSError:
         return None
-    for line in env_file.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         if line.startswith("RUFLO_LLM_PROVIDER="):
             return line.split("=", 1)[1].strip()
     return None

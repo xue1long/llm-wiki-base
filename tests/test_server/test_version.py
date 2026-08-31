@@ -39,3 +39,31 @@ def test_ready_uses_same_version():
     assert r.status_code in (200, 503)
     body = r.json()
     assert body["ok"] in (True, False)
+
+
+def test_provider_probe_awaits_async_close(monkeypatch):
+    import src.server.ready as ready_module
+    from src.llm.registry import ProviderRegistry
+
+    closed = {"value": False}
+
+    class Provider:
+        async def health_check(self):
+            return {"ok": True, "detail": "test"}
+
+        async def close(self):
+            closed["value"] = True
+
+    monkeypatch.setattr(
+        ProviderRegistry,
+        "get_default",
+        staticmethod(lambda: type("Default", (), {"name": "test"})()),
+    )
+    monkeypatch.setattr(
+        "src.llm.provider_factory._create_from_config",
+        lambda _config: Provider(),
+    )
+    monkeypatch.setitem(ready_module._provider_probe_cache, "ts", 0)
+
+    assert ready_module.check_provider()[0] == "ok"
+    assert closed["value"] is True

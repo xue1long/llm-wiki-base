@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from src.project.registry import (
     GlobalRegistryStore,
     ProjectRegistryEntry,
@@ -12,6 +14,23 @@ def test_load_returns_empty_when_no_file(tmp_path, monkeypatch):
 
     reg = GlobalRegistryStore.load()
     assert reg.projects == {}
+
+
+def test_load_returns_empty_when_registry_path_is_inaccessible(monkeypatch):
+    from src.project import paths
+
+    target = Path("C:/inaccessible/registry.json")
+    monkeypatch.setattr(paths, "registry_path", lambda: target)
+    original_exists = Path.exists
+
+    def denied_exists(path):
+        if path == target:
+            raise PermissionError("denied")
+        return original_exists(path)
+
+    monkeypatch.setattr(Path, "exists", denied_exists)
+
+    assert GlobalRegistryStore.load().projects == {}
 
 
 def test_upsert_and_load_roundtrip(tmp_path, monkeypatch):

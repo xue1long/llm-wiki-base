@@ -1,0 +1,72 @@
+{
+  "schema_version": "content-readiness-v1",
+  "reason_codes": [
+    "duplicated_navigation",
+    "empty_input",
+    "empty_subblock",
+    "encoding_degraded",
+    "high_repetition",
+    "legitimate_short",
+    "metadata_only",
+    "missing_provenance",
+    "no_evidence_capacity",
+    "ocr_degraded",
+    "oversized_block",
+    "policy_violation",
+    "specialist_failed",
+    "unsupported_format"
+  ],
+  "decisions": [
+    "ready",
+    "ready_with_warning",
+    "route_specialist",
+    "skip_no_content",
+    "quarantine_degraded",
+    "unsupported"
+  ],
+  "content_kinds": [
+    "prose",
+    "title_definition",
+    "table",
+    "list",
+    "code",
+    "image_ocr",
+    "mixed",
+    "unknown"
+  ],
+  "audit_keys": [
+    "assessment_version",
+    "policy_version",
+    "source_id",
+    "format",
+    "extraction_method",
+    "content_kind",
+    "decision",
+    "reason_codes",
+    "analyzer_called",
+    "evidence_capacity",
+    "failure_reason",
+    "preprocessing_version",
+    "source_bytes_sha256",
+    "input_text_sha256",
+    "canonical_text_sha256",
+    "prompt_text_sha256",
+    "evidence"
+  ],
+  "fixtures": [
+    {"label": "empty", "source_id": "fixture/empty.md", "content_kind": "prose", "decision": "skip_no_content", "reason_codes": ["empty_input"]},
+    {"label": "metadata_only", "source_id": "fixture/metadata-only.md", "content_kind": "prose", "decision": "skip_no_content", "reason_codes": ["metadata_only"]},
+    {"label": "duplicated_navigation", "source_id": "fixture/duplicated-navigation.md", "content_kind": "prose", "decision": "skip_no_content", "reason_codes": ["duplicated_navigation"]},
+    {"label": "short_prose", "source_id": "fixture/short-prose.md", "content_kind": "prose", "decision": "ready_with_warning", "reason_codes": ["legitimate_short"]},
+    {"label": "short_definition", "source_id": "fixture/short-definition.md", "content_kind": "title_definition", "decision": "ready_with_warning", "reason_codes": ["legitimate_short"]},
+    {"label": "real_prose", "source_id": "fixture/real-prose.md", "content_kind": "prose", "decision": "ready", "reason_codes": []},
+    {"label": "repeated_real_prose", "source_id": "fixture/repeated-real-prose.md", "content_kind": "prose", "decision": "ready_with_warning", "reason_codes": ["high_repetition"]},
+    {"label": "garbled", "source_id": "fixture/garbled.md", "content_kind": "prose", "decision": "quarantine_degraded", "reason_codes": ["encoding_degraded"]},
+    {"label": "table", "source_id": "fixture/table.csv", "content_kind": "table", "decision": "ready", "reason_codes": []},
+    {"label": "list", "source_id": "fixture/list.md", "content_kind": "list", "decision": "ready", "reason_codes": []},
+    {"label": "code", "source_id": "fixture/code.md", "content_kind": "code", "decision": "ready", "reason_codes": []},
+    {"label": "ocr_degraded", "source_id": "fixture/ocr.png", "content_kind": "image_ocr", "decision": "quarantine_degraded", "reason_codes": ["ocr_degraded"]},
+    {"label": "mixed", "source_id": "fixture/mixed.md", "content_kind": "mixed", "decision": "ready_with_warning", "reason_codes": ["empty_subblock"]},
+    {"label": "unsupported", "source_id": "fixture/unsupported.bin", "content_kind": "unknown", "decision": "unsupported", "reason_codes": ["unsupported_format"]}
+  ]
+}

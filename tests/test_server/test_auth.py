@@ -108,6 +108,22 @@ def test_provider_list_redacts_api_keys(monkeypatch, tmp_path):
     assert "sk-RAW" not in body
 
 
+def test_provider_list_tolerates_unreadable_default_env(monkeypatch, tmp_path):
+    from src.llm.registry import ProviderRegistry
+    from src.llm.types import ProviderConfig
+
+    monkeypatch.setattr(
+        ProviderRegistry,
+        "load",
+        lambda: {"a": ProviderConfig(name="a", type="openai", api_key="")},
+    )
+    client = _make_app_with_token(tmp_path, monkeypatch, None)
+
+    r = client.get("/api/v1/providers")
+    assert r.status_code == 200
+    assert r.json()["providers"][0]["is_default"] is False
+
+
 # ---------------------------------------------------------------------------
 # 2. Bearer-token middleware (only when a token is configured)
 # ---------------------------------------------------------------------------

@@ -266,3 +266,23 @@ source 不得部分发布，必须保留失败原因和已完成 chunk 状态以
 - 不在本次整理中重构 Collector 或 Wiki Writer；
 - 不把 source page 的展示清洗误当作 evidence canonicalization；
 - 不为提高 pilot 成功率而降低 fail-closed 标准。
+
+## Frozen readiness vocabulary
+
+The cross-format readiness layer uses the following versioned vocabulary. The
+manifest in `tests/fixtures/content_readiness/golden.json` is the executable
+contract for these values.
+
+- `content_kind`: `prose`, `title_definition`, `table`, `list`, `code`,
+  `image_ocr`, `mixed`, or `unknown`.
+- `decision`: `ready`, `ready_with_warning`, `route_specialist`,
+  `skip_no_content`, `quarantine_degraded`, or `unsupported`.
+- `reason_codes`: `empty_input`, `metadata_only`, `duplicated_navigation`,
+  `no_evidence_capacity`, `legitimate_short`, `high_repetition`,
+  `encoding_degraded`, `ocr_degraded`, `missing_provenance`,
+  `unsupported_format`, `oversized_block`, `empty_subblock`,
+  `specialist_failed`, or `policy_violation`.
+
+`metadata_only` is a reason code, never a content kind. New audit records use
+the `decision` key; `readiness_decision` is not an alias. Unknown values are
+contract errors and must fail closed rather than being silently coerced.

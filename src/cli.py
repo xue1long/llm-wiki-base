@@ -49,6 +49,7 @@ from .cli_ext.llm_providers_cmd import (
 )
 from .cli_ext.health_cmd import cmd_health
 from .cli_ext.content_health_cmd import cmd_content_health
+from .cli_ext.readiness_cmd import cmd_readiness_compare, cmd_readiness_inventory
 from .cli_ext.quality_cmd import (
     cmd_quality_score, cmd_quality_config_show, cmd_quality_config_set,
 )
@@ -298,6 +299,18 @@ def main():
     p_content_health.add_argument("--json", action="store_true", help="JSON output")
     p_content_health.add_argument("--project", help="Project path (default: cwd)")
     p_content_health.set_defaults(func=cmd_content_health)
+
+    p_readiness = subparsers.add_parser("readiness", help="Readiness audit records")
+    p_readiness_sub = p_readiness.add_subparsers(dest="readiness_command", required=True)
+    p_rinventory = p_readiness_sub.add_parser("inventory", help="List audit records")
+    p_rinventory.add_argument("--json", action="store_true")
+    p_rinventory.add_argument("--project", default=None)
+    p_rinventory.set_defaults(func=cmd_readiness_inventory)
+    p_rcompare = p_readiness_sub.add_parser("compare", help="Compare two audit records")
+    p_rcompare.add_argument("--old", required=True)
+    p_rcompare.add_argument("--new", required=True)
+    p_rcompare.add_argument("--json", action="store_true")
+    p_rcompare.set_defaults(func=cmd_readiness_compare)
 
     # Quality
     p_quality = subparsers.add_parser("quality", help="Quality gate")

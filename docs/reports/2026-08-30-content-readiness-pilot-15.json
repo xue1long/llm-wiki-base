@@ -1,0 +1,720 @@
+{
+  "generated_at": "2026-08-30T16:59:18.863529+00:00",
+  "project_root": "D:\\5-Project\\2026814\\llm-wiki-base.bak.20260822\\knowledge\\novel-wiki-clean-staging",
+  "selected": 15,
+  "succeeded": 10,
+  "failed": 5,
+  "categories": {
+    "accepted": 3,
+    "skipped": 2,
+    "rejected": 6,
+    "needs_human_review": 0,
+    "provider_error": 4
+  },
+  "accepted": 3,
+  "skipped": 2,
+  "rejected": 6,
+  "needs_human_review": 0,
+  "provider_error": 4,
+  "results": [
+    {
+      "source": "raw/sources/01_新手入门/入门教程各大小说网站人气对比方便选择参考.md",
+      "status": "failed",
+      "category": "provider_error",
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/01_新手入门/入门教程各大小说网站人气对比方便选择参考.md",
+      "format": "md",
+      "extraction_method": "native_text",
+      "content_kind": "prose",
+      "decision": "ready",
+      "reason_codes": [],
+      "analyzer_called": false,
+      "evidence_capacity": {
+        "blocks": 1,
+        "chars": 2771,
+        "units": 41,
+        "min_span_chars": 35,
+        "max_span_chars": 103
+      },
+      "failure_reason": "TruncatedResponseError: LLM response truncated by max_tokens (finish_reason=length, 23804 chars received)",
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "54b102dd132111c8965c94243d6eef4f8aa45225f24f3b5f81e863fed0e0d218",
+      "input_text_sha256": "54b102dd132111c8965c94243d6eef4f8aa45225f24f3b5f81e863fed0e0d218",
+      "canonical_text_sha256": "d027bc06ebd46e01d6741ea4af0d49422611018ee00f9e341ce07ed44ccf363e",
+      "prompt_text_sha256": "d03a9f0e75b2f061b5d171136e254333fd97434c119562fce56568608d62401e",
+      "evidence": [],
+      "noise_warnings": [],
+      "applied_rules": [
+        {
+          "rule_id": "feishu_h1_artifact",
+          "removed_line_count": 1,
+          "removed_char_count": 28
+        },
+        {
+          "rule_id": "source_metadata",
+          "removed_line_count": 3,
+          "removed_char_count": 97
+        },
+        {
+          "rule_id": "platform_chrome",
+          "removed_line_count": 2,
+          "removed_char_count": 12
+        }
+      ],
+      "error": "TruncatedResponseError: LLM response truncated by max_tokens (finish_reason=length, 23804 chars received)"
+    },
+    {
+      "source": "raw/sources/01_新手入门/入门教程0网络写手新人经常犯的错误.md",
+      "status": "success",
+      "pages": 2,
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/01_新手入门/入门教程0网络写手新人经常犯的错误.md",
+      "format": "md",
+      "extraction_method": "native_text",
+      "content_kind": "prose",
+      "decision": "ready_with_warning",
+      "reason_codes": [
+        "high_repetition"
+      ],
+      "analyzer_called": true,
+      "evidence_capacity": {
+        "blocks": 1,
+        "chars": 770,
+        "units": 51,
+        "min_span_chars": 4,
+        "max_span_chars": 29
+      },
+      "failure_reason": null,
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "54ddeeaf97b21d1ba2c74565a39da707652855edf0795bd417b8939706ce55a2",
+      "input_text_sha256": "54ddeeaf97b21d1ba2c74565a39da707652855edf0795bd417b8939706ce55a2",
+      "canonical_text_sha256": "11384a9e6f7d0ef57fb4804f31d357079bcc17a58b226f44e5dd28529a620672",
+      "prompt_text_sha256": "17298e6aa2536618db2071baa39b669d05f0e796ede1087025ab27d7b26c6d18",
+      "evidence": [
+        {
+          "source_id": "raw/sources/01_新手入门/入门教程0网络写手新人经常犯的错误.md",
+          "block_id": "block_cde8a55a2252099552c98c4d",
+          "quote": "长短句问题\n你的章节中是否存在大量的长句？\n长句会让读者厌恶！\n造成阅读和理解障碍！\n如果无法理解，请参考几部火书，看看他们是否也有这个情况\n从现在开始，精简你的句子吧！",
+          "quote_hash": "dcfd4e5d2935d7320b24ae2e3680fa7536bcecd6525b19657b942562f58d8f32"
+        },
+        {
+          "source_id": "raw/sources/01_新手入门/入门教程0网络写手新人经常犯的错误.md",
+          "block_id": "block_cde8a55a2252099552c98c4d",
+          "quote": "随意开头\n你的小说开篇是否经过了深思熟虑？\n前三章是否有亮点？或者冲突？\n不要奢望读者会跳过开头直接看后面\n前面无法抓住读者的注意力，你将流失大部分读者\n小说开篇是极其重要的，是成功的关键之一!\n请重视开头!",
+          "quote_hash": "eef8a0cebf9f21bd95c65bbef5d1713059a9a4ba6b3c7f58de3dac22e9a81887"
+        },
+        {
+          "source_id": "raw/sources/01_新手入门/入门教程0网络写手新人经常犯的错误.md",
+          "block_id": "block_cde8a55a2252099552c98c4d",
+          "quote": "段落过长\n你的段落是否过长？\n有没有注意过自己一个章节有多少段？\n你是否恨不得直接一个章节一段？\n拆分你的段落吧，不要吝啬分段！\n看看那些排行榜前面的小说，看看他们是怎么分段的!\n尽量让读者的眼球转动顺序是从上到下，而不是从左到右来回跑！",
+          "quote_hash": "11f23db51f6ace75e9616e53a2e63be09f32451f452a3ce3913fa2e68239cec8"
+        },
+        {
+          "source_id": "raw/sources/01_新手入门/入门教程0网络写手新人经常犯的错误.md",
+          "block_id": "block_cde8a55a2252099552c98c4d",
+          "quote": "单调枯燥的对话描写\n是否一个章节里面满眼看上去全是双引号的干巴巴的对话？\n你不觉得这样有点听广播的感觉吗？\n是不是应该考虑加上一点其他东西，例如表情和动作？\n有些对话是不是可以省略？或者去掉引号，转为叙事？\n不要让读者猜测某句话是谁说的。\n对话描写方式：",
+          "quote_hash": "e62e61fa958f0f88cd3b4742025f74f6ee3dbeecd440117257f18318e09206af"
+        },
+        {
+          "source_id": "raw/sources/01_新手入门/入门教程0网络写手新人经常犯的错误.md",
+          "block_id": "block_cde8a55a2252099552c98c4d",
+          "quote": "多余的凑字符号\n章节里面有没有类似“无敌分割线”之类的无意义的符号？\n你确定读者会看不出来你在凑字数？\n你确定已经到了凑字数的时候？\n不要偷奸耍滑，读者不是傻瓜！",
+          "quote_hash": "5f24a201c4543f2fdeeba2be17c884677640b35eb47cc947d20d8de4a82e8856"
+        }
+      ],
+      "noise_warnings": [],
+      "applied_rules": [
+        {
+          "rule_id": "feishu_h1_artifact",
+          "removed_line_count": 1,
+          "removed_char_count": 25
+        },
+        {
+          "rule_id": "source_metadata",
+          "removed_line_count": 3,
+          "removed_char_count": 97
+        },
+        {
+          "rule_id": "platform_chrome",
+          "removed_line_count": 2,
+          "removed_char_count": 12
+        }
+      ],
+      "binding_mode": "explicit_block_binding",
+      "evidence_refs": [
+        "evidence_d1452ff431a5c8dbbd9eabab",
+        "evidence_1fe48767e4636ed0053f68df",
+        "evidence_12b3a3b9ef8018a8954cf2a9",
+        "evidence_d8c6c4ad0f9b297542675185",
+        "evidence_4fd16ee0fbb489f8b755337a"
+      ],
+      "block_id": "block_cde8a55a2252099552c98c4d",
+      "exact_quote": "长短句问题\n你的章节中是否存在大量的长句？\n长句会让读者厌恶！\n造成阅读和理解障碍！\n如果无法理解，请参考几部火书，看看他们是否也有这个情况\n从现在开始，精简你的句子吧！",
+      "quote_hash": "dcfd4e5d2935d7320b24ae2e3680fa7536bcecd6525b19657b942562f58d8f32",
+      "category": "accepted"
+    },
+    {
+      "source": "raw/sources/04_题材专题/穿越修真无情道的功法.md",
+      "status": "success",
+      "pages": 2,
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/04_题材专题/穿越修真无情道的功法.md",
+      "format": "md",
+      "extraction_method": "native_text",
+      "content_kind": "title_definition",
+      "decision": "ready_with_warning",
+      "reason_codes": [
+        "legitimate_short"
+      ],
+      "analyzer_called": true,
+      "evidence_capacity": {
+        "blocks": 1,
+        "chars": 208,
+        "units": 1,
+        "min_span_chars": 208,
+        "max_span_chars": 208
+      },
+      "failure_reason": null,
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "2f0a01cdf2a1d3554fb9d97ef17b5c3a850ad95058f0f5686eda96b487d95645",
+      "input_text_sha256": "2f0a01cdf2a1d3554fb9d97ef17b5c3a850ad95058f0f5686eda96b487d95645",
+      "canonical_text_sha256": "2f0a01cdf2a1d3554fb9d97ef17b5c3a850ad95058f0f5686eda96b487d95645",
+      "prompt_text_sha256": "2f0a01cdf2a1d3554fb9d97ef17b5c3a850ad95058f0f5686eda96b487d95645",
+      "evidence": [
+        {
+          "source_id": "raw/sources/04_题材专题/穿越修真无情道的功法.md",
+          "block_id": "block_a11e8e77cb69be7472cf588c",
+          "quote": "那古墓派玉女功养生修炼，有“十二少、十二多”的正反要诀：“少思、少念、少欲、少事、少语、少笑、少愁、少乐、少喜、少怒、少好、少恶。行此十二少，乃养生之都契也。",
+          "quote_hash": "4fca1c2a98aaf8a7bd384c3fa13136d804326bd53507cef1f6cafdc1eb245a93"
+        },
+        {
+          "source_id": "raw/sources/04_题材专题/穿越修真无情道的功法.md",
+          "block_id": "block_a11e8e77cb69be7472cf588c",
+          "quote": "多思则神怠，多念则精散，多欲则智损，多事则形疲，多语则气促，多笑则肝伤，多愁则心慑，多乐则意溢，多喜则忘错昏乱，多怒则百脉不定，多好则专迷不治，多恶则焦煎无宁。此十二多不除，丧生之本也”",
+          "quote_hash": "6e9bece58a1da09403acfe3b21de4bbb16dd1fb9f792fb8638606d9393d56924"
+        },
+        {
+          "source_id": "raw/sources/04_题材专题/穿越修真无情道的功法.md",
+          "block_id": "block_a11e8e77cb69be7472cf588c",
+          "quote": "小龙女自幼修为，无喜无乐，无思无虑，功力之纯，即是师祖林朝英亦有所不及。",
+          "quote_hash": "b94191124c76432b2f2637c7bd5177b20365549f3d9cc03875769a29cdfade5f"
+        }
+      ],
+      "noise_warnings": [],
+      "applied_rules": [],
+      "binding_mode": "explicit_block_binding",
+      "evidence_refs": [
+        "evidence_e5d222202836cf5c6a64620e",
+        "evidence_86737bf78826e5d0a5f9cb33",
+        "evidence_6bd29947029d2ab70ffe6d59",
+        "evidence_ba9668af15fb6f93f91bc2b7",
+        "evidence_ddcebdc841f1e5dd60871eb0",
+        "evidence_be195429abd75019f415c7cd"
+      ],
+      "block_id": "block_a11e8e77cb69be7472cf588c",
+      "exact_quote": "那古墓派玉女功养生修炼，有“十二少、十二多”的正反要诀：“少思、少念、少欲、少事、少语、少笑、少愁、少乐、少喜、少怒、少好、少恶。行此十二少，乃养生之都契也。",
+      "quote_hash": "4fca1c2a98aaf8a7bd384c3fa13136d804326bd53507cef1f6cafdc1eb245a93",
+      "category": "accepted"
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/进阶教程让你彻悟人生的555句金玉良言.md",
+      "status": "success",
+      "pages": 0,
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/02_进阶技巧/进阶教程让你彻悟人生的555句金玉良言.md",
+      "format": "md",
+      "extraction_method": "native_text",
+      "content_kind": "prose",
+      "decision": "skip_no_content",
+      "reason_codes": [
+        "metadata_only",
+        "no_evidence_capacity",
+        "duplicated_navigation"
+      ],
+      "analyzer_called": false,
+      "evidence_capacity": {
+        "blocks": 0,
+        "chars": 0,
+        "units": 0,
+        "min_span_chars": 0,
+        "max_span_chars": 0
+      },
+      "failure_reason": null,
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "d52ebd602fa9f3c07213ba2d763f5221ad6b021fb8622b7fde539cdc5df02ae1",
+      "input_text_sha256": "d52ebd602fa9f3c07213ba2d763f5221ad6b021fb8622b7fde539cdc5df02ae1",
+      "canonical_text_sha256": "2bfea2bbf3c04b6cdc52e8e67238e07fa8edf55d222860d5f9eff51fa9020b1f",
+      "prompt_text_sha256": "dcc13a934b0d99ac22ef5598b5bb8b1b8a89eda33cd30e5a1b08de8f3b50d592",
+      "evidence": [],
+      "noise_warnings": [],
+      "applied_rules": [
+        {
+          "rule_id": "feishu_h1_artifact",
+          "removed_line_count": 1,
+          "removed_char_count": 26
+        },
+        {
+          "rule_id": "source_metadata",
+          "removed_line_count": 3,
+          "removed_char_count": 97
+        },
+        {
+          "rule_id": "platform_chrome",
+          "removed_line_count": 2,
+          "removed_char_count": 12
+        }
+      ],
+      "category": "skipped"
+    },
+    {
+      "source": "raw/sources/01_新手入门/入门教程新人成神之路.md",
+      "status": "success",
+      "pages": 0,
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/01_新手入门/入门教程新人成神之路.md",
+      "format": "md",
+      "extraction_method": "native_text",
+      "content_kind": "mixed",
+      "decision": "unsupported",
+      "reason_codes": [
+        "high_repetition",
+        "unsupported_format"
+      ],
+      "analyzer_called": false,
+      "evidence_capacity": {
+        "blocks": 34,
+        "chars": 54792,
+        "units": 468,
+        "min_span_chars": 4,
+        "max_span_chars": 856
+      },
+      "failure_reason": "unsupported_format",
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "c676b832784eb4f7e9cc634e747d76f13289ef425804efd6891e1536b5c099c3",
+      "input_text_sha256": "c676b832784eb4f7e9cc634e747d76f13289ef425804efd6891e1536b5c099c3",
+      "canonical_text_sha256": "feb2076c5829c3de78baded87d7a13f47be6bffdd46fb03d089295b8eaaea9cb",
+      "prompt_text_sha256": "fe152ca319f5f5caa517fdbed5712ea73b94fdd44f44564e2bcf7e3b79691448",
+      "evidence": [],
+      "noise_warnings": [],
+      "applied_rules": [],
+      "category": "rejected"
+    },
+    {
+      "source": "raw/sources/04_题材专题/download_progress.json",
+      "status": "success",
+      "pages": 0,
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/04_题材专题/download_progress.json",
+      "format": "json",
+      "extraction_method": "unsupported",
+      "content_kind": "prose",
+      "decision": "unsupported",
+      "reason_codes": [
+        "unsupported_format"
+      ],
+      "analyzer_called": false,
+      "evidence_capacity": {
+        "blocks": 0,
+        "chars": 0,
+        "units": 0,
+        "min_span_chars": 0,
+        "max_span_chars": 0
+      },
+      "failure_reason": "unsupported_format",
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "8a27afdf35b275b53fbc0aaf90c4ebe74e39e304d78e5cb52f4cd75e846103d5",
+      "input_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "evidence": [],
+      "noise_warnings": [],
+      "applied_rules": [],
+      "category": "rejected"
+    },
+    {
+      "source": "raw/sources/01_新手入门/必备资料如何写好大纲.md",
+      "status": "success",
+      "pages": 0,
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/01_新手入门/必备资料如何写好大纲.md",
+      "format": "md",
+      "extraction_method": "native_text",
+      "content_kind": "table",
+      "decision": "unsupported",
+      "reason_codes": [
+        "unsupported_format"
+      ],
+      "analyzer_called": false,
+      "evidence_capacity": {
+        "blocks": 0,
+        "chars": 0,
+        "units": 0,
+        "min_span_chars": 0,
+        "max_span_chars": 0
+      },
+      "failure_reason": "unsupported_format",
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "f0342b7088bf1918b92032989f10a858d39679e87949fc0ac96fb82f7192addc",
+      "input_text_sha256": "f0342b7088bf1918b92032989f10a858d39679e87949fc0ac96fb82f7192addc",
+      "canonical_text_sha256": "9a0e6fafe016f96d85fcb05a3335e346adb3f22fd702f4ded5bac19eb70ddc85",
+      "prompt_text_sha256": "186da31685a1546d9a8c39847f49102cfaed4c5565ea885c3094deb4ede9be13",
+      "evidence": [],
+      "noise_warnings": [],
+      "applied_rules": [
+        {
+          "rule_id": "feishu_h1_artifact",
+          "removed_line_count": 1,
+          "removed_char_count": 17
+        },
+        {
+          "rule_id": "source_metadata",
+          "removed_line_count": 3,
+          "removed_char_count": 97
+        },
+        {
+          "rule_id": "platform_chrome",
+          "removed_line_count": 3,
+          "removed_char_count": 18
+        }
+      ],
+      "category": "rejected"
+    },
+    {
+      "source": "raw/sources/01_新手入门/入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏_458226.md",
+      "status": "failed",
+      "category": "rejected",
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/01_新手入门/入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏_458226.md",
+      "format": "md",
+      "extraction_method": "native_text",
+      "content_kind": "prose",
+      "decision": "ready",
+      "reason_codes": [],
+      "analyzer_called": false,
+      "evidence_capacity": {
+        "blocks": 1,
+        "chars": 1615,
+        "units": 13,
+        "min_span_chars": 5,
+        "max_span_chars": 411
+      },
+      "failure_reason": "ValueError: review:ValueError:evidence quote does not match declared block",
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "458226bba4f6b6965b85e897e042254a1a3c24baf5820621580bd5626e825dcf",
+      "input_text_sha256": "458226bba4f6b6965b85e897e042254a1a3c24baf5820621580bd5626e825dcf",
+      "canonical_text_sha256": "69d3b7e2ee29c4bd0c06a0dc57817033b98c819d9ba7bcedbfd04ef96cc3ed8f",
+      "prompt_text_sha256": "d648e1cfbdb0302116d24283234637f4fd6ddd4a5b54c8f83dca8e5b313efb40",
+      "evidence": [],
+      "noise_warnings": [],
+      "applied_rules": [
+        {
+          "rule_id": "feishu_h1_artifact",
+          "removed_line_count": 1,
+          "removed_char_count": 36
+        },
+        {
+          "rule_id": "source_metadata",
+          "removed_line_count": 3,
+          "removed_char_count": 97
+        },
+        {
+          "rule_id": "platform_chrome",
+          "removed_line_count": 2,
+          "removed_char_count": 12
+        }
+      ],
+      "error": "ValueError: review:ValueError:evidence quote does not match declared block"
+    },
+    {
+      "source": "raw/sources/03_大纲创作/大纲示例0网络小说大纲辅助设定.md",
+      "status": "failed",
+      "category": "provider_error",
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/03_大纲创作/大纲示例0网络小说大纲辅助设定.md",
+      "format": "md",
+      "extraction_method": "native_text",
+      "content_kind": "prose",
+      "decision": "ready_with_warning",
+      "reason_codes": [
+        "high_repetition"
+      ],
+      "analyzer_called": false,
+      "evidence_capacity": {
+        "blocks": 1,
+        "chars": 369,
+        "units": 52,
+        "min_span_chars": 1,
+        "max_span_chars": 27
+      },
+      "failure_reason": "TruncatedResponseError: LLM response truncated by max_tokens (finish_reason=length, 1260 chars received)",
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "bb9ce138d31e8fdfcf0479923c767ff858b59adaf663411586ae51fda64ca147",
+      "input_text_sha256": "bb9ce138d31e8fdfcf0479923c767ff858b59adaf663411586ae51fda64ca147",
+      "canonical_text_sha256": "bd49bc8ab29ff765818cfc2f7a249c07b2e4273807778d2865bec6924b51084a",
+      "prompt_text_sha256": "4186f3d5861c99a914e5f4fec752ad32169edf46369bffb9e93f9d57bcb0b46c",
+      "evidence": [],
+      "noise_warnings": [],
+      "applied_rules": [
+        {
+          "rule_id": "feishu_h1_artifact",
+          "removed_line_count": 1,
+          "removed_char_count": 22
+        },
+        {
+          "rule_id": "source_metadata",
+          "removed_line_count": 3,
+          "removed_char_count": 97
+        },
+        {
+          "rule_id": "platform_chrome",
+          "removed_line_count": 2,
+          "removed_char_count": 12
+        }
+      ],
+      "error": "TruncatedResponseError: LLM response truncated by max_tokens (finish_reason=length, 1260 chars received)"
+    },
+    {
+      "source": "raw/sources/03_大纲创作/大纲示例网络小说买断大纲以及上架大纲.md",
+      "status": "success",
+      "pages": 1,
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/03_大纲创作/大纲示例网络小说买断大纲以及上架大纲.md",
+      "format": "md",
+      "extraction_method": "native_text",
+      "content_kind": "title_definition",
+      "decision": "ready_with_warning",
+      "reason_codes": [
+        "legitimate_short"
+      ],
+      "analyzer_called": true,
+      "evidence_capacity": {
+        "blocks": 1,
+        "chars": 100,
+        "units": 1,
+        "min_span_chars": 100,
+        "max_span_chars": 100
+      },
+      "failure_reason": null,
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "cc9f8c6ef38ce65ae1f0868cee624034dbb2d7c86c2e61be848b885520b6c4dd",
+      "input_text_sha256": "cc9f8c6ef38ce65ae1f0868cee624034dbb2d7c86c2e61be848b885520b6c4dd",
+      "canonical_text_sha256": "cc9f8c6ef38ce65ae1f0868cee624034dbb2d7c86c2e61be848b885520b6c4dd",
+      "prompt_text_sha256": "cc9f8c6ef38ce65ae1f0868cee624034dbb2d7c86c2e61be848b885520b6c4dd",
+      "evidence": [
+        {
+          "source_id": "raw/sources/03_大纲创作/大纲示例网络小说买断大纲以及上架大纲.md",
+          "block_id": "block_ff78a0596eed4e17711ee24c",
+          "quote": "专业团队打造质量大纲，详情访问淘宝店铺http://item.taobao.com/item.htm?spm=686.1000925.1000774.109.TOj6Il&id=39018393221",
+          "quote_hash": "cc9f8c6ef38ce65ae1f0868cee624034dbb2d7c86c2e61be848b885520b6c4dd"
+        }
+      ],
+      "noise_warnings": [],
+      "applied_rules": [],
+      "binding_mode": "explicit_block_binding",
+      "evidence_refs": [
+        "evidence_110bf490ad5b47df9e0df8dc",
+        "evidence_6c963f9cdf384ed33caafe5c",
+        "evidence_b841e6889d0bea56a887dcca",
+        "evidence_3baca71c398878b88e2c7092"
+      ],
+      "block_id": "block_ff78a0596eed4e17711ee24c",
+      "exact_quote": "专业团队打造质量大纲，详情访问淘宝店铺http://item.taobao.com/item.htm?spm=686.1000925.1000774.109.TOj6Il&id=39018393221",
+      "quote_hash": "cc9f8c6ef38ce65ae1f0868cee624034dbb2d7c86c2e61be848b885520b6c4dd",
+      "category": "accepted"
+    },
+    {
+      "source": "raw/sources/04_题材专题/东方玄幻刑天.md",
+      "status": "success",
+      "pages": 0,
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/04_题材专题/东方玄幻刑天.md",
+      "format": "md",
+      "extraction_method": "native_text",
+      "content_kind": "prose",
+      "decision": "skip_no_content",
+      "reason_codes": [
+        "metadata_only",
+        "no_evidence_capacity",
+        "duplicated_navigation"
+      ],
+      "analyzer_called": false,
+      "evidence_capacity": {
+        "blocks": 0,
+        "chars": 0,
+        "units": 0,
+        "min_span_chars": 0,
+        "max_span_chars": 0
+      },
+      "failure_reason": null,
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "0adbfb933fb23c323b7fb47b82bac1fafa55d297bbff781dfcfce52c21299bf5",
+      "input_text_sha256": "0adbfb933fb23c323b7fb47b82bac1fafa55d297bbff781dfcfce52c21299bf5",
+      "canonical_text_sha256": "4ddb76c0669e48a044193fd334ccb59351e3bdaa073c6fbd8b8ba8da759607e5",
+      "prompt_text_sha256": "99ac2c310576d8e9b0429fdc6387921be36e1d90d1160cb045d83a797ef65312",
+      "evidence": [],
+      "noise_warnings": [],
+      "applied_rules": [
+        {
+          "rule_id": "platform_chrome",
+          "removed_line_count": 12,
+          "removed_char_count": 57
+        },
+        {
+          "rule_id": "source_metadata",
+          "removed_line_count": 1,
+          "removed_char_count": 15
+        }
+      ],
+      "category": "skipped"
+    },
+    {
+      "source": "raw/sources/03_大纲创作/download_progress.json",
+      "status": "success",
+      "pages": 0,
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/03_大纲创作/download_progress.json",
+      "format": "json",
+      "extraction_method": "unsupported",
+      "content_kind": "prose",
+      "decision": "unsupported",
+      "reason_codes": [
+        "unsupported_format"
+      ],
+      "analyzer_called": false,
+      "evidence_capacity": {
+        "blocks": 0,
+        "chars": 0,
+        "units": 0,
+        "min_span_chars": 0,
+        "max_span_chars": 0
+      },
+      "failure_reason": "unsupported_format",
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "e66fc993e7629a38602c3f7545a7a1f0ea8bea7f5a4364098406481a60fb1bc2",
+      "input_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "evidence": [],
+      "noise_warnings": [],
+      "applied_rules": [],
+      "category": "rejected"
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/进阶教程免费小说写作全攻略.md",
+      "status": "success",
+      "pages": 0,
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/02_进阶技巧/进阶教程免费小说写作全攻略.md",
+      "format": "md",
+      "extraction_method": "native_text",
+      "content_kind": "table",
+      "decision": "unsupported",
+      "reason_codes": [
+        "unsupported_format"
+      ],
+      "analyzer_called": false,
+      "evidence_capacity": {
+        "blocks": 0,
+        "chars": 0,
+        "units": 0,
+        "min_span_chars": 0,
+        "max_span_chars": 0
+      },
+      "failure_reason": "unsupported_format",
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "cc2f076d98599a71227248ae3ff304d28e8d0f267d59a645aa8b15e8dad8f461",
+      "input_text_sha256": "cc2f076d98599a71227248ae3ff304d28e8d0f267d59a645aa8b15e8dad8f461",
+      "canonical_text_sha256": "b3034ffb3b692a89a39a4ef448061f33dc641201555fbd611284a0b035cc866f",
+      "prompt_text_sha256": "d54cce1f39db1ea2845af92a35b32eb16e6b183b68559b65832f481b0b950ba9",
+      "evidence": [],
+      "noise_warnings": [
+        "high_repetition"
+      ],
+      "applied_rules": [],
+      "category": "rejected"
+    },
+    {
+      "source": "raw/sources/04_题材专题/东方玄幻上古十大凶兽.md",
+      "status": "failed",
+      "category": "provider_error",
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/04_题材专题/东方玄幻上古十大凶兽.md",
+      "format": "md",
+      "extraction_method": "native_text",
+      "content_kind": "prose",
+      "decision": "ready",
+      "reason_codes": [],
+      "analyzer_called": false,
+      "evidence_capacity": {
+        "blocks": 1,
+        "chars": 2324,
+        "units": 48,
+        "min_span_chars": 3,
+        "max_span_chars": 353
+      },
+      "failure_reason": "TruncatedResponseError: LLM response truncated by max_tokens (finish_reason=length, 20800 chars received)",
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "67a6bb704658826eb35d85bb032e44670bf764b00a867766a28d3ca1c5babbfd",
+      "input_text_sha256": "67a6bb704658826eb35d85bb032e44670bf764b00a867766a28d3ca1c5babbfd",
+      "canonical_text_sha256": "a8354d86fe0699509ccbf84312d705e262b29e4f7e098f9deb03f76ba226f1d1",
+      "prompt_text_sha256": "a8354d86fe0699509ccbf84312d705e262b29e4f7e098f9deb03f76ba226f1d1",
+      "evidence": [],
+      "noise_warnings": [],
+      "applied_rules": [],
+      "error": "TruncatedResponseError: LLM response truncated by max_tokens (finish_reason=length, 20800 chars received)"
+    },
+    {
+      "source": "raw/sources/06_视频教程/灯湖笔会名誉会长著名作家吕啸天传授成功秘诀第一部分高清.md",
+      "status": "failed",
+      "category": "provider_error",
+      "assessment_version": "content-readiness-v1",
+      "policy_version": "content-policy-v1",
+      "source_id": "raw/sources/06_视频教程/灯湖笔会名誉会长著名作家吕啸天传授成功秘诀第一部分高清.md",
+      "format": "md",
+      "extraction_method": "native_text",
+      "content_kind": "prose",
+      "decision": "ready_with_warning",
+      "reason_codes": [
+        "high_repetition"
+      ],
+      "analyzer_called": false,
+      "evidence_capacity": {
+        "blocks": 1,
+        "chars": 8490,
+        "units": 10,
+        "min_span_chars": 3,
+        "max_span_chars": 8365
+      },
+      "failure_reason": "TruncatedResponseError: LLM response truncated by max_tokens (finish_reason=length, 15746 chars received)",
+      "preprocessing_version": "text-preprocess-v1",
+      "source_bytes_sha256": "4e996860723e2db9b5dc7374ed8622170dc83b2a6fc756c8b7389e2c23c73401",
+      "input_text_sha256": "4e996860723e2db9b5dc7374ed8622170dc83b2a6fc756c8b7389e2c23c73401",
+      "canonical_text_sha256": "4745c50c2e7bb045b9032f5edfdc2fd6906324ffe94c029f726e089504c5bbfd",
+      "prompt_text_sha256": "c8bae377f1d437890296443ed99f602d4daf2cb90b14d8b180a052781edc2df0",
+      "evidence": [],
+      "noise_warnings": [],
+      "applied_rules": [
+        {
+          "rule_id": "platform_chrome",
+          "removed_line_count": 1,
+          "removed_char_count": 18
+        }
+      ],
+      "error": "TruncatedResponseError: LLM response truncated by max_tokens (finish_reason=length, 15746 chars received)"
+    }
+  ]
+}

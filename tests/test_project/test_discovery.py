@@ -5,6 +5,7 @@ from src.project.discovery import (
     is_kb_root,
     discover_existing_kbs,
     auto_register_on_first_run,
+    _path_exists,
 )
 
 
@@ -30,6 +31,13 @@ def test_is_kb_root_not_a_kb(tmp_path: Path):
     plain = tmp_path / "plain"
     plain.mkdir()
     assert is_kb_root(plain) is False
+
+
+def test_path_exists_treats_permission_denied_as_unavailable(monkeypatch):
+    path = Path("C:/inaccessible/registry.json")
+    monkeypatch.setattr(Path, "exists", lambda self: (_ for _ in ()).throw(PermissionError("denied")))
+
+    assert _path_exists(path) is False
 
 
 def test_discover_existing_kbs_finds_in_default_paths(tmp_path, monkeypatch):

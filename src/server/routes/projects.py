@@ -2,7 +2,7 @@
 import re
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 
 from ...services import projects as projects_service
 
@@ -13,7 +13,8 @@ class CreateProjectRequest(BaseModel):
     name: str
     template: str | None = None
 
-    @validator("name")
+    @field_validator("name")
+    @classmethod
     def name_must_be_safe(cls, v: str) -> str:
         if not re.match(r"^[A-Za-z0-9_-]{1,64}$", v):
             raise ValueError("Name must be 1-64 chars, alphanumeric/dash/underscore only")

@@ -657,5 +657,55 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - Analyzer JSON 现在可直接接收带 `source_id + block_id + ordinal` 的 prompt blocks；candidate Reviewer 接收可见 block ID 集合，隐藏 block、错误 block、quote 不匹配均 fail-closed。
 - canonical 规范化升级为 `kc-text-v2`（LF/NFC/首 BOM），保留显式 `normalize_text_legacy()` 的 `kc-text-v1` 读取入口；新 KC bundle manifest 记录 normalization/parser version。
 - 长文档 candidate 路径按完整 prompt block 打包，不再字符截断；单 block 超限直接拒绝，chunk candidate 合并时只重排本地 evidence index，不 relocation。pilot 成功/失败结果均保留预处理审计字段与异常链。
-- 验证：text preprocessing + pipeline/KC 相关回归 `87 passed`；完整 `tests/test_kc` `550 passed`；`compileall` 通过；原始 `knowledge/novel-wiki` `git diff --quiet` clean。`graphify update .` 仍为环境阻塞：`uv trampoline failed to canonicalize script path`。
-- 待办：新代码下独立 clean staging 小 pilot/50 样本复跑、server/full-suite 验证；不使用或改写原始 `knowledge/novel-wiki`，不新增 provider，不 push。
+- 验证：text preprocessing + pipeline/KC 相关回归 `87 passed`；完整 `tests/test_kc` `551 passed`；`compileall` 通过；原始 `knowledge/novel-wiki` `git diff --quiet` clean。`graphify update .` 仍为环境阻塞：`uv trampoline failed to canonicalize script path`。
+- staging 验收：用户指定 clean staging 的 15 样本报告为 `13 succeeded / 2 failed`；2 个失败均保留为 `evidence quote does not match declared block`。对 13 个成功记录的 24 条证据重放通过：`replay_failures=0`。报告：`C:\Users\HP\.codex\visualizations\2026\08\30\01a05146-5b34-7691-9861-8c3b2e4ac954\pilot-glm52-15-text-preprocess-v1.json`。
+- staging 运行中发现 pilot 控制台 GBK 输出会在报告已落盘后异常退出；已用 `ensure_ascii=True` 修复并补回归测试，提交 `6e3bd622`。完整 pilot 审计字段透传提交 `49fb3161`。
+- Server `131 passed / 2 host-permission failures`；全仓历史口径 `3475 passed / 97 failed / 15 errors` 仍受用户级 config/registry/template 权限和环境敏感测试影响。本批不修改 provider、用户级配置或原始 `knowledge/novel-wiki`，不 push。
+
+### A11 Content usability / evidence readiness（2026-08-30）
+
+- 长期门禁已落地：`ContentAssessment` 使用版本化 profile/policy，按 evidence capacity、元数据占比、重复导航残留、编码退化和合法短内容做确定性分类；不再用全局字符数阈值。
+- Analyzer 前 gate 对 `skip_no_content` / `quarantine_degraded` / `unsupported` 不调用 LLM，并写入可审计 rejected source 记录；合法短正文进入 `ready_with_warning`，仍由后续 evidence Reviewer fail-closed。
+- pilot 报告新增 `content_assessment`（版本、decision、reason_codes、evidence_capacity 等）；模板/registry/provider 的不可读用户配置按只读降级处理，不阻断主流程；taxonomy HTML comment 不再误报非法语法。
+- 本次新增回归先 RED 后 GREEN：重复标题导航残留必须 skip；2 字中文短片段必须 warning 放行；不可读 user template 必须回退 bundled；async provider close 必须 await。
+- staging 只读复核：`东方玄幻刑天.md` 与 `东方玄幻中国洪荒神话.md` 均为 `skip_no_content`，`evidence_capacity.chars=0`，不会进入 Analyzer；未写入 staging 或原始 `knowledge/novel-wiki`。
+- 验证：`tests/test_pipeline` **561 passed**；`tests/test_kc` **551 passed**；`tests/test_server` **135 passed**；pilot tests **5 passed**；template resolver **15 passed**；short/readiness targeted **2 passed**；provider-close targeted **1 passed**。
+- graphify：使用已验证的直接解释器执行 `graphify update .`，输出 `41461 nodes / 53297 edges / 6203 communities`；仅有工具版本/JSON 零节点/大图可视化提示，不作为生产依赖。
+- 当前未提交改动仅包含本次 readiness/pilot/template/server 回归和文档；预存 `docs/guides/wiki-spec.md`、`src/pipeline/wiki_rules_prompt.py` 及临时目录未纳入。
+
+### A11 Plan audit remediation（2026-08-30）
+
+- 按落地执行者、风险管控者、逆向挑战者、最终验收人四个独立角色完成方案审计。
+- 方案已重写为可执行 implementation plan：增加统一 `ExtractionArtifact` / `ContentAssessment` / `ReadinessResult` / `ReplayResult` 合同，固定 decision/reason-code 枚举，定义指标公式和 `format × extraction_method × content_kind` profile 矩阵。
+- 新增 specialist/unknown/mixed/legacy 入口封闭规则、quarantine/inventory/audit 持久化合同、敏感信息排除、资源上限、policy rollback、全量 inventory 和 stratified 15 样本 release gate。
+- 明确旧 rejected source page 仅为兼容行为；长期验收要求 `skip_no_content` 只落 inventory/quarantine，不生成知识 source page。
+- 计划文件已完成自审：无 TBD/TODO 占位；字段命名、接口返回类型、reason code 与验收条件已对齐。当前仅修改计划和进度文档，未修改代码、provider 或任何知识库数据。
+
+### A11 Content readiness plan execution（2026-08-30）
+
+- Task 0 完成：冻结 `content-readiness-v1` 的 content kind、decision、reason code 和 audit keys；新增 `tests/fixtures/content_readiness/golden.json` 与契约说明。
+- TDD 证据：契约测试先因 golden manifest 缺失 RED，补齐 manifest/spec 后 `tests/test_pipeline/test_content_readiness_contract.py` 通过。
+- Task 1 完成：新增严格的 `ReadinessPolicy`/`ContentProfile` registry；`content-policy-v1` 使用显式 `(format, extraction_method, content_kind)` key，未知组合不回退。
+- TDD 证据：policy 测试先因公共类型/API 缺失 RED，完成 registry 后 `tests/test_pipeline/test_content_readiness_policy.py` **9 passed**。
+- Task 2 完成：新增不可变 `ExtractionArtifact`/`SourceRange`，为 native text、HTML、PDF、DOCX、XLSX、OCR 形状建立确定性单元范围；Collector payload 携带 artifact。
+- TDD 证据：首次运行先因 pytest 用户级 Temp 权限阻塞，切换 worktree `.tmp` 后暴露并修正测试合同；最终 extraction + 既有 pipeline 回归 **26 passed**。
+- Task 3 完成：新增 `assess_artifact`/`assess_blocks`，以 artifact 的格式、提取方法、结构 kind、evidence capacity、元数据/重复/替换比例和 provenance 做确定性聚合；`preprocess_source` 改为复用 artifact assessment。
+- TDD 证据：新增 golden readiness 测试先因 API 缺失 RED，修正 range 聚合/兼容层后 readiness + text preprocessing + pipeline **28 passed**。
+- Task 4 完成：共享 readiness gate 接入 `generate_ingest`、candidate/legacy 共用入口和独立 `AnalyzerStage`；blocking decision 只返回 audit metadata，不创建 source page，不调用 provider；Collector payload 携带 artifact，service/HTTP 使用同一 run_ingest 路径。
+- TDD 证据：gate 集成测试先在旧 rejected-page 行为上 RED，切换为 audit-only 后 gate/pipeline/server 入口回归 **39 passed**；另修复事件类型注解引入的 queue/pipeline 循环依赖。
+- Task 5 完成：新增 `replay_evidence` 与固定 `serialize_audit`，审计记录只使用 `decision`，保留 source/block/quote/hash 与失败原因；新增独立 `scripts/kc_readiness_replay.py` 入口。显式 block 失败不会迁移到其他 block，quote hash 按 canonical quote 确定性重算。
+- TDD 证据：replay 负例（source/block/quote/hash）与成功例先落测试后实现；pilot/replay 回归 **9 passed**。未完成项转入 Task 6：specialist route、mixed 聚合与 one-attempt 终态。
+- Task 6 完成：新增 provider-free `ocr`/`table` specialist routes；按 `(source_id, route)` 只允许一次尝试，输出必须保留有效 provenance/range，失败统一转 `specialist_failed` quarantine 终态；OCR 可恢复缺失转专用路由，成功后重新 readiness assessment。
+- TDD 证据：specialist success、无输出/无范围失败、二次尝试拒绝，以及 readiness route/重新评估先 RED 后 GREEN；gate/specialist/content/extraction/KC 回归 **29 passed**。
+- Task 7 完成：新增 metadata-only readiness audit store，按 policy version 分目录、原子写入、冲突不覆盖、坏记录 fail-closed、legacy-sanitizer-v0 只读；CLI 提供只读 `readiness inventory` / `readiness compare`，ingest commit 透传并持久化 audit。
+- TDD 证据：原子写、敏感/正文排除、权限失败、损坏记录、版本并存、比较和 CLI 回归先 RED 后 GREEN；readiness/audit/CLI/ingest/retry 回归 **61 passed**。补充修正 Windows 深路径：文件名使用 32 位稳定 hash，记录字段仍保留完整 hash。
+- Task 8 完成：新增 provider-free 全量 inventory 与固定 seed `20260830` 的分层选择；staging inventory 覆盖 `1343/1343` 个 source_id，分类为 `ready=1204`、`ready_with_warning=122`、`skip_no_content=5`、`unsupported=12`。新增 15 样本 pilot 分类统计与独立 replay 报告。
+- Task 8 TDD/运行证据：inventory/pilot 回归 **9 passed**；GLM5.2 只读 15 pilot 为 `selected=15`、`accepted=3`、`skipped=2`、`rejected=6`、`provider_error=4`，4 个 provider error 均为截断响应；accepted evidence `3/3` replay、`replay_failures=0`、`false_accepts=0`。修复并重跑了 pilot artifact 解码与多行 paragraph provenance 误报。
+
+### A11 Final acceptance（2026-08-31）
+
+- 修复最终全量验证暴露的两个兼容性问题：URL collector 在测试/兼容响应缺失 bytes 时使用确定性的 UTF-8 回退；KC bundle 写入在 Windows 长路径下使用 `\\?\\` 扩展路径，保留完整 bundle hash。提交 `d9c67b64`。
+- 回归：collector URL + KC mainline **13 passed**；pipeline/KC/server 全量矩阵 **1299 passed, 43 warnings**；`compileall` 通过。
+- graphify 使用官方 `graphify update . --no-cluster` 完成结构更新：`20631 nodes / 42738 edges`。完整聚类模式因保留的大量测试临时目录长时间无进度，未强行清理目录；无聚类结构验证已通过。
+- 保护检查：`git diff --quiet -- knowledge/novel-wiki` 通过。最终验收报告：`docs/reports/2026-08-30-content-readiness-acceptance.md`。
+- 剩余外部事项：15 样本中 4 个 GLM5.2 `TruncatedResponseError`，已明确分类并保留失败链；需 provider 输出预算/服务稳定后单独复跑，不通过放宽证据门禁处理。

@@ -21,6 +21,7 @@ import ipaddress
 import logging
 import os
 import socket
+from hashlib import sha256
 from urllib.parse import urlparse
 import httpx
 from pathlib import Path
@@ -29,6 +30,7 @@ from ..events.event_bus import event_bus
 from ..events.events import EventName, CollectorDonePayload
 from ..utils.extract.pdf import extract_pdf_text
 from ..utils.extract.office import extract_office_text
+from .extraction_types import artifact_from_text, collect_artifact
 from ..types import SourceType
 from ..permissions import AgentType, enforce_permission, Permission, PermissionDenied
 
@@ -273,6 +275,7 @@ async def collect(
     ``sources:`` stay project-relative.
     """
     content = ""
+    artifact = None
 
     if source_type == SourceType.URL:
         enforce_permission(AgentType.COLLECTOR, source, Permission.READ)
@@ -293,9 +296,19 @@ async def collect(
             raise PermissionDenied(f"Too many redirects (>{MAX_REDIRECT_HOPS}) from {source}")
         # R2: unified source cap — a URL body larger than the configured
         # limit is rejected before it can be parsed/embedded.
-        _enforce_source_size(len(response.content), source)
         content = response.text
+        raw_content = response.content
+        if not isinstance(raw_content, (bytes, bytearray)):
+            raw_content = content.encode("utf-8")
+        _enforce_source_size(len(raw_content), source)
         raw_path = source
+        artifact = artifact_from_text(
+            content,
+            source_id=raw_path,
+            format="html",
+            extraction_method="html_text",
+            source_bytes_sha256=sha256(raw_content).hexdigest(),
+        )
     else:
         from urllib.parse import unquote
         source_decoded = unquote(source)
@@ -356,12 +369,14 @@ async def collect(
             raise ValueError(f"Unsupported file type: {file_path}")
 
         raw_path = source_decoded
+        artifact = collect_artifact(file_path, source_id=raw_path)
 
     payload = CollectorDonePayload(
         task_id=task_id,
         raw_path=raw_path,
         content=content,
         source=source,
+        artifact=artifact,
     )
 
     event_bus.emit(EventName.COLLECTOR_DONE, payload)

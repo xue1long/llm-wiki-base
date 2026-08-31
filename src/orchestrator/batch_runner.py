@@ -281,6 +281,7 @@ async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id,
     missing_slugs = (meta or {}).get("missing_slugs")
     await commit_ingest(paths, Path(raw_rel), pages, extras, task_id=task_id,
                         missing_slugs=missing_slugs,
+                        readiness_audit=(meta or {}).get("readiness_audit"),
                         expected_page_hashes=expected_page_hashes)
     set_raw_status(paths, batch_key, raw_rel, "done", branch=branch)
     return branch

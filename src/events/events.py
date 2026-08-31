@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 # ruflo-kb/src/events/events.py
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from ..types import TaskStatus, SourceType
+
+if TYPE_CHECKING:
+    from ..pipeline.extraction_types import ExtractionArtifact
 
 class EventName:
     TASK_CREATED = "task:created"
@@ -52,6 +57,7 @@ class CollectorDonePayload:
     # tests; the pipeline does NOT modify the source artefact (the
     # file stays at its original location after ingest).
     source: str | None = None
+    artifact: ExtractionArtifact | None = None
 
 @dataclass
 class ProcessorDonePayload:

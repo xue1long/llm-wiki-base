@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from src.pipeline.ingest import _merge_candidate_chunks, run_ingest
+from src.pipeline.ingest import _merge_candidate_chunks, generate_ingest, run_ingest
 from src.kc.compiler.normalize import normalize_text
 from src.kc.mainline import CandidatePromoter, PromotionResult
 from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
@@ -92,6 +92,37 @@ async def test_run_ingest_enters_kc_before_formal_commit(
     assert pages[0].evidence_refs == ["doc-test:block-test"]
     assert pages[0]._ko_extra["kc_document_id"] == "doc-test"
     assert pages[0]._ko_extra["kc_projection_version"] == "kc-wiki-v1"
+
+
+@pytest.mark.asyncio
+async def test_generate_ingest_skips_analyzer_for_metadata_only_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "东方玄幻刑天.md"
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    source_text = "北京圣东方国信科技有限公司\n学龙\n东方玄幻_刑天\n05_题材专题"
+    raw.write_text(source_text, encoding="utf-8")
+
+    async def fail_if_called(**kwargs):
+        raise AssertionError("metadata-only input must not call Analyzer")
+
+    monkeypatch.setattr("src.pipeline.analyzer.analyze", fail_if_called)
+
+    pages, extras, meta = await generate_ingest(
+        paths=paths,
+        source_path=raw,
+        source_text=source_text,
+        provider=object(),
+        task_id="metadata-only-test",
+    )
+
+    assert pages == []
+    assert extras == []
+    assert meta["rejected"] is True
+    assert meta["content_assessment"]["decision"] == "skip_no_content"
+    assert "metadata_only" in meta["content_assessment"]["reason_codes"]
 
 
 def test_merge_candidate_chunks_reindexes_evidence_without_relocation() -> None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
@@ -28,6 +29,15 @@ def _json_value(value: Any) -> Any:
     if isinstance(value, (list, tuple)):
         return [_json_value(item) for item in value]
     return value
+
+
+def _write_text(path: Path, content: str) -> None:
+    target = path
+    if os.name == "nt":
+        absolute = os.path.abspath(path)
+        if len(absolute) >= 260:
+            target = Path("\\\\?\\" + absolute)
+    target.write_text(content, encoding="utf-8")
 
 
 @dataclass(frozen=True)
@@ -126,8 +136,9 @@ class CandidatePromoter:
         objects_dir.mkdir(parents=True, exist_ok=True)
         evidence_dir.mkdir(parents=True, exist_ok=True)
         for obj in review.objects:
-            (objects_dir / f"{obj.id}.json").write_text(
-                json.dumps(_json_value(obj), ensure_ascii=False, indent=2), encoding="utf-8"
+            _write_text(
+                objects_dir / f"{obj.id}.json",
+                json.dumps(_json_value(obj), ensure_ascii=False, indent=2),
             )
         for item in candidate.evidence:
             quote = item.get("quote", "")
@@ -144,13 +155,16 @@ class CandidatePromoter:
                     and index < len(review.objects)
                 ),
             )
-            (evidence_dir / f"{evidence.evidence_id}.json").write_text(
-                json.dumps(_json_value(evidence), ensure_ascii=False, indent=2), encoding="utf-8"
+            evidence_path = evidence_dir / f"{evidence.evidence_id}.json"
+            _write_text(
+                evidence_path,
+                json.dumps(_json_value(evidence), ensure_ascii=False, indent=2),
             )
         candidate.status = CandidateStatus.PROMOTED
         candidate_path = bundle_dir / bundle_key / "candidate.json"
-        candidate_path.write_text(
-            json.dumps(_json_value(candidate), ensure_ascii=False, indent=2), encoding="utf-8"
+        _write_text(
+            candidate_path,
+            json.dumps(_json_value(candidate), ensure_ascii=False, indent=2),
         )
         manifest = {
             "bundle_key": bundle_key,
@@ -166,7 +180,7 @@ class CandidatePromoter:
             "status": "staged",
         }
         manifest_path = bundle_dir / bundle_key / "manifest.json"
-        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        _write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2))
         return PromotionResult(bundle_key, candidate.id, tuple(obj.id for obj in review.objects), manifest_path)
 
 

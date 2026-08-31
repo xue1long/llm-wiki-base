@@ -17,7 +17,6 @@ import pytest
 
 from src.pipeline.ingest import generate_ingest
 from src.wiki.core.paths import WikiPaths
-from src.wiki.core.types import PageType
 
 
 def _make_paths(tmp_path) -> WikiPaths:
@@ -35,7 +34,7 @@ def _low_quality_text() -> str:
 
 
 @pytest.mark.asyncio
-async def test_rejected_source_page_returns_grade_c(monkeypatch, tmp_path):
+async def test_rejected_source_is_audit_only(monkeypatch, tmp_path):
     """SKIP_LLM=1 + degraded source → grade=C page, no exception."""
     monkeypatch.setenv("RUFLO_SANITIZER_SKIP_LLM", "1")
     paths = _make_paths(tmp_path)
@@ -48,17 +47,14 @@ async def test_rejected_source_page_returns_grade_c(monkeypatch, tmp_path):
         task_id="t-reject",
     )
 
-    assert len(pages) == 1
-    page = pages[0]
-    assert page.grade == "C"
-    assert page.type == PageType.SOURCE
-    assert "已跳过处理" in page.body
+    assert pages == []
+    assert extra == []
     assert meta.get("rejected") is True
     assert not list((paths.root / "wiki").rglob("*.md"))
 
 
 @pytest.mark.asyncio
-async def test_rejected_source_page_commits_only_after_explicit_commit(monkeypatch, tmp_path):
+async def test_rejected_source_never_commits_a_page(monkeypatch, tmp_path):
     """Generation is side-effect free; explicit commit persists the page."""
     monkeypatch.setenv("RUFLO_SANITIZER_SKIP_LLM", "1")
     paths = _make_paths(tmp_path)
@@ -76,12 +72,9 @@ async def test_rejected_source_page_commits_only_after_explicit_commit(monkeypat
         paths, str(tmp_path / "bad2.txt"), pages, [], task_id="t-reject-2",
     )
 
-    # The page file must exist on disk.
-    page = pages[0]
-    assert page.id
+    assert pages == []
     written = list((paths.root / "wiki" / "sources").glob("*.md"))
-    assert len(written) == 1
-    assert page.id in written[0].name
+    assert written == []
 
 
 @pytest.mark.asyncio

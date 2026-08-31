@@ -8,6 +8,7 @@ from collections import Counter
 from hashlib import sha256
 
 from src.kc.compiler.normalize import normalize_text
+from src.pipeline.extraction_types import artifact_from_text
 
 from .._pipeline_common import (
     _CHROME_LINES,
@@ -15,6 +16,7 @@ from .._pipeline_common import (
     _META_LINE_RES,
 )
 from .types import NoiseReport, PreprocessResult, PromptBlockView, RuleApplication
+from .readiness import assess_artifact
 
 PREPROCESSING_VERSION = "text-preprocess-v1"
 _FRONTMATTER_RE = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
@@ -135,6 +137,8 @@ def preprocess_source(
     source_id: str = "",
     source_bytes_sha256: str | None = None,
     skip_llm_on_degraded: bool = False,
+    format: str = "md",
+    extraction_method: str = "native_text",
 ) -> PreprocessResult:
     """Build one canonical document and a deterministic prompt view."""
     if not isinstance(source_text, str):
@@ -168,6 +172,14 @@ def preprocess_source(
             )
 
     prompt_text = "\n\n".join(block.prompt_content for block in prompt_blocks)
+    artifact = artifact_from_text(
+        source_text,
+        source_id=source_id,
+        format=format,
+        extraction_method=extraction_method,
+        source_bytes_sha256=source_bytes_sha256,
+    )
+    content_assessment = assess_artifact(artifact)
     applied_rules = tuple(
         RuleApplication(rule_id, counts[0], counts[1])
         for rule_id, counts in applications.items()
@@ -197,4 +209,6 @@ def preprocess_source(
         prompt_text=prompt_text,
         prompt_blocks=tuple(prompt_blocks),
         report=report,
+        content_assessment=content_assessment,
+        artifact=artifact,
     )

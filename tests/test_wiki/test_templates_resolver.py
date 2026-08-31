@@ -320,6 +320,30 @@ def test_resolve_cache_does_not_break_missing_file_error(tmp_path):
         r.clear_cache()
 
 
+def test_resolve_falls_back_when_user_template_is_inaccessible(tmp_path, monkeypatch):
+    from src.wiki.templates import resolver as r
+
+    r.clear_cache()
+    inaccessible = Path("C:/inaccessible/wiki-templates/concept.md")
+    bundled = r.BUNDLED_DIR / "concept.md"
+    original_is_file = Path.is_file
+
+    def denied_is_file(path):
+        if path == inaccessible:
+            raise PermissionError("denied")
+        return original_is_file(path)
+
+    monkeypatch.setattr(Path, "is_file", denied_is_file)
+    monkeypatch.setattr(
+        r,
+        "_iter_candidates",
+        lambda page_type, project_root: [(inaccessible, "user"), (bundled, "bundled")],
+    )
+
+    assert resolve(PageType.CONCEPT, tmp_path).source == "bundled"
+    r.clear_cache()
+
+
 # ---------------------------------------------------------------------------
 # Phase 2.2 — project-level v3.0.0 templates hit for novel-wiki
 # ---------------------------------------------------------------------------

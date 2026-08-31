@@ -12,6 +12,7 @@ _TITLE = re.compile(r"^#\s+Taxonomy\s*$", re.IGNORECASE)
 _CATEGORY = re.compile(r"^##\s+(.+?)\s*$")
 _ITEM = re.compile(r"^-\s+(.+?)\s*$")
 _ALIASES = re.compile(r"^(.*?)（aliases:\s*(.*?)）\s*$", re.IGNORECASE)
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,7 @@ class TaxonomyRegistry:
     def from_text(cls, text: str) -> "TaxonomyRegistry":
         if not text.strip():
             return cls()
-        lines = text.splitlines()
+        lines = _HTML_COMMENT.sub("", text).splitlines()
         if not any(_TITLE.match(line.strip()) for line in lines):
             raise ValueError("taxonomy.md must start with '# Taxonomy'")
 

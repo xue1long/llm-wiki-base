@@ -35,6 +35,7 @@ import logging
 import os
 import re
 import unicodedata
+from dataclasses import asdict
 from pathlib import Path
 
 from ..wiki.core.paths import WikiPaths
@@ -49,6 +50,7 @@ from ..wiki.features.logger import log_event
 from ..wiki.features.tag_namespace import normalize_tags
 from ..wiki.storage.page_writer import write_page
 from .retry import PermanentFailure
+from .readiness_gate import apply_readiness_gate, resolve_specialist, route_after_readiness
 
 # Resolve analyze/generate via the pipeline package namespace so
 # monkey-patches on `src.pipeline.pipeline.analyze` /
@@ -75,6 +77,28 @@ from ._pipeline_common import (
 # platform names, company names, and other non-domain entities.
 # Set via env var ``RUFLO_MAX_STUBS_PER_INGEST`` (default 10).
 _MAX_STUBS_ENV = "RUFLO_MAX_STUBS_PER_INGEST"
+
+
+def _source_format(source_path) -> str:
+    suffix = Path(str(source_path)).suffix.lower().removeprefix(".")
+    if suffix in {"md", "txt", "pdf", "docx", "xlsx", "html", "htm"}:
+        return "html" if suffix == "htm" else suffix
+    if suffix in {"png", "jpg", "jpeg", "webp", "tiff", "bmp"}:
+        return "image"
+    return suffix or "unknown"
+
+
+def _source_extraction_method(source_path) -> str:
+    format = _source_format(source_path)
+    return {
+        "md": "native_text",
+        "txt": "native_text",
+        "html": "html_text",
+        "pdf": "pdf_text",
+        "docx": "docx_text",
+        "xlsx": "xlsx_cells",
+        "image": "ocr",
+    }.get(format, "unsupported")
 
 
 def _get_max_stubs_per_ingest() -> int:
@@ -427,6 +451,7 @@ async def _write_rejected_source_page(
     source_text: str,
     result,
     task_id: str,
+    assessment=None,
 ) -> list[WikiPage]:
     """Build a grade=C source page; persistence happens in commit_ingest()."""
     import time as _time
@@ -442,14 +467,16 @@ async def _write_rejected_source_page(
     _hash = hashlib.md5(str(source_path).encode("utf-8")).hexdigest()[:8]
     _slug = f"{_norm}-{_hash}"
 
+    reason_codes = list(getattr(assessment, "reason_codes", ()))
+    reason = "; ".join(reason_codes or getattr(result, "warnings", ())) or "unavailable"
     body = (
         f"## 来源\n\n"
         f"- 路径: `{source_path}`\n"
         f"- 摄取时间: {_time.strftime('%Y-%m-%d %H:%M:%S', _t)}\n"
         f"- 任务 ID: `{task_id}`\n\n"
-        f"> ⚠️ **已跳过处理**: 源文本质量过低，未进行 LLM 分析。\n"
+        f"> ⚠️ **已跳过处理**: 内容可用性门禁未通过，未进行 LLM 分析。\n"
         f"> 质量评分: {result.quality_score:.0%}\n"
-        f"> 原因: {'; '.join(result.warnings)}\n"
+        f"> 原因: {reason}\n"
     )
 
     page = WikiPage(
@@ -551,6 +578,7 @@ async def generate_ingest(
     _taxonomy_text = _read_taxonomy_text(paths)
 
     from .text_preprocessing import preprocess_source
+    from .readiness_replay import serialize_audit
     from .triage import triage
 
     try:
@@ -569,7 +597,30 @@ async def generate_ingest(
         source_id=_source_key,
         source_bytes_sha256=_source_bytes_sha256,
         skip_llm_on_degraded=os.environ.get("RUFLO_SANITIZER_SKIP_LLM", "0") == "1",
+        format=_source_format(source_path),
+        extraction_method=_source_extraction_method(source_path),
     )
+    _readiness = apply_readiness_gate(_result.artifact)
+    _readiness_audit = serialize_audit(
+        _readiness.assessment,
+        _result.report,
+        analyzer_called=False,
+        failure_reason=None,
+    )
+    _readiness_disposition = await route_after_readiness(
+        _readiness, provider=provider, paths=paths, task_id=task_id
+    )
+    if _readiness_disposition.value == "specialist":
+        _readiness = await resolve_specialist(_readiness)
+        _readiness_disposition = await route_after_readiness(
+            _readiness, provider=provider, paths=paths, task_id=task_id
+        )
+        _readiness_audit = serialize_audit(
+            _readiness.assessment,
+            _result.report,
+            analyzer_called=False,
+            failure_reason=_readiness.assessment.failure_reason,
+        )
     _triage = triage(
         str(source_path),
         _result.prompt_text,
@@ -599,24 +650,24 @@ async def generate_ingest(
 
     # Hard-reject: skip LLM entirely for degraded sources (opt-in via
     # RUFLO_SANITIZER_SKIP_LLM=1; off by default).
-    if _result.report.should_skip_llm:
+    from .text_preprocessing import ReadinessDecision
+    if _result.report.should_skip_llm or _readiness_disposition.value == "audit_only":
         _logger.warning("[run_ingest] skipping LLM for %s", source_path)
-        _rejected_pages = await _write_rejected_source_page(
-            paths, source_path, source_text, _result.report, task_id
-        )
         # R4: the rejection branch must return the same (pages, extra,
         # meta) triple as the main path — it previously returned a bare
         # list, which broke every caller's tuple unpacking.
-        return _rejected_pages, [], {
+        return [], [], {
             "analysis": None,
-            "source_slug": _rejected_pages[0].id if _rejected_pages else None,
-            "source_page_id": _rejected_pages[0].id if _rejected_pages else None,
+            "source_slug": None,
+            "source_page_id": None,
             "source_grade": "C",
             "triage": None,
             "downstream_count": 0,
             "extra_pages_count": 0,
             "rejected": True,
             "warnings": list(_result.report.warnings),
+            "content_assessment": asdict(_readiness.assessment),
+            "readiness_audit": _readiness_audit,
             "missing_slugs": [],
         }
 
@@ -736,22 +787,25 @@ async def generate_ingest(
             document=document,
         )
         from src.kc.compiler.evidence import canonical_quote
+        from .readiness_replay import serialize_audit
         _audit_evidence = []
         for item in candidate.evidence:
             quote = canonical_quote(str(item.get("quote", "")))
             _audit_evidence.append({
+                "source_id": _source_key,
                 "block_id": str(item.get("block_id", "")),
-                "exact_quote": quote,
+                "quote": quote,
                 "quote_hash": hashlib.sha256(quote.encode("utf-8")).hexdigest(),
             })
-        _pilot_audit = {
-            "source_id": _source_key,
+        _pilot_audit = serialize_audit(
+            _readiness.assessment,
+            _result.report,
+            analyzer_called=True,
+            failure_reason=None,
+        )
+        _readiness_audit = _pilot_audit
+        _pilot_audit.update({
             "binding_mode": "explicit_block_binding",
-            "preprocessing_version": _result.report.version,
-            "source_bytes_sha256": _result.report.source_bytes_sha256,
-            "input_text_sha256": _result.report.input_text_sha256,
-            "canonical_text_sha256": _result.report.canonical_text_sha256,
-            "prompt_text_sha256": _result.report.prompt_text_sha256,
             "noise_warnings": list(_result.report.warnings),
             "applied_rules": [
                 {
@@ -767,9 +821,13 @@ async def generate_ingest(
                 for projection in review.projections
                 for evidence_id in projection.get("evidence_ids", ())
             ],
-        }
+        })
         if _audit_evidence:
-            _pilot_audit.update(_audit_evidence[0])
+            _pilot_audit.update({
+                "block_id": _audit_evidence[0]["block_id"],
+                "exact_quote": _audit_evidence[0]["quote"],
+                "quote_hash": _audit_evidence[0]["quote_hash"],
+            })
         pages = await generate_from_candidate(
             candidate=candidate,
             paths=paths,
@@ -1264,6 +1322,8 @@ async def generate_ingest(
         "kc_bundle_key": getattr(_kc_promotion, "bundle_key", None),
         "kc_object_ids": list(getattr(_kc_promotion, "object_ids", ())),
         "kc_manifest_path": str(getattr(_kc_promotion, "manifest_path", "")) if _kc_promotion else None,
+        "pilot_audit": _pilot_audit,
+        "readiness_audit": _readiness_audit,
         # 1.3 O6：未解析引用（commit 路径写 KnowledgeGapStore）
         "missing_slugs": [
             {"slug": s, "referenced_by": [r]} for s, r in _missing_gaps
@@ -1490,6 +1550,7 @@ async def commit_ingest(
     event: str = "ingest",
     expected_page_hashes: dict[str, str] | None = None,
     kc_bundle_key: str | None = None,
+    readiness_audit: dict | None = None,
 ):
     """Phase 2 (NDG split): write pages + index update + log.
 
@@ -1509,6 +1570,9 @@ async def commit_ingest(
     """
     from .quality_gate import check_pages
     from .triage import TriageResult, write_triage_result
+    if readiness_audit is not None:
+        from .readiness_audit import write_readiness_record
+        write_readiness_record(paths.root, readiness_audit)
     _extra = extra_pages or []
     if isinstance(triage_result, dict):
         triage_result = TriageResult(**triage_result)
@@ -1674,6 +1738,7 @@ async def run_ingest(
         triage_result=_meta.get("triage"),
         missing_slugs=_meta.get("missing_slugs"),
         kc_bundle_key=_meta.get("kc_bundle_key"),
+        readiness_audit=_meta.get("readiness_audit"),
     )
     return pages
 
