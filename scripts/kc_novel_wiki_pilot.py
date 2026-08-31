@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from hashlib import sha256
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 
 from src.llm.provider_factory import create_llm_provider
-from src.pipeline import _get_provider, run_ingest
+from src.pipeline import _get_provider, commit_ingest, generate_ingest
+from src.pipeline.text_preprocessing import preprocess_source
+from src.utils.path import canonical_raw_key
 from src.wiki.core.paths import WikiPaths
 
 
@@ -39,17 +42,76 @@ async def run_pilot(project: Path, limit: int = 3, provider_name: str | None = N
 
     async def process(source: Path) -> dict:
         async with semaphore:
+            source_text = source.read_text(encoding="utf-8", errors="replace")
+            audit_fields: dict = {}
             try:
-                pages = await run_ingest(
+                prepared = preprocess_source(
+                    source_text,
+                    source_id=canonical_raw_key(str(source), project),
+                    source_bytes_sha256=sha256(source.read_bytes()).hexdigest(),
+                )
+                audit_fields = {
+                    "preprocessing_version": prepared.report.version,
+                    "source_bytes_sha256": prepared.report.source_bytes_sha256,
+                    "input_text_sha256": prepared.report.input_text_sha256,
+                    "canonical_text_sha256": prepared.report.canonical_text_sha256,
+                    "prompt_text_sha256": prepared.report.prompt_text_sha256,
+                    "noise_warnings": list(prepared.report.warnings),
+                    "applied_rules": [
+                        {
+                            "rule_id": rule.rule_id,
+                            "removed_line_count": rule.removed_line_count,
+                            "removed_char_count": rule.removed_char_count,
+                        }
+                        for rule in prepared.report.applied_rules
+                    ],
+                }
+                pages, extra_pages, meta = await generate_ingest(
                     paths=paths,
                     source_path=source,
-                    source_text=source.read_text(encoding="utf-8", errors="replace"),
+                    source_text=source_text,
                     provider=provider,
                     task_id=f"novel-wiki-pilot-{source.stem[:24]}",
                 )
-                return {"source": source.relative_to(project).as_posix(), "status": "success", "pages": len(pages)}
+                await commit_ingest(
+                    paths=paths,
+                    source_path=source,
+                    pages=pages,
+                    extra_pages=extra_pages,
+                    task_id=f"novel-wiki-pilot-{source.stem[:24]}",
+                    triage_result=meta.get("triage"),
+                    missing_slugs=meta.get("missing_slugs"),
+                    kc_bundle_key=meta.get("kc_bundle_key"),
+                )
+                result = {
+                    "source": source.relative_to(project).as_posix(),
+                    "status": "success",
+                    "pages": len(pages),
+                    **audit_fields,
+                }
+                audit = meta.get("pilot_audit")
+                if isinstance(audit, dict):
+                    for key in (
+                        "source_id", "block_id", "quote_hash", "binding_mode",
+                        "evidence_refs", "preprocessing_version",
+                        "source_bytes_sha256", "input_text_sha256",
+                        "canonical_text_sha256", "prompt_text_sha256",
+                        "noise_warnings", "applied_rules",
+                    ):
+                        if key in audit:
+                            result[key] = audit[key]
+                    if "exact_quote" in audit:
+                        result["exact_quote"] = audit["exact_quote"]
+                    elif "quote" in audit:
+                        result["exact_quote"] = audit["quote"]
+                return result
             except Exception as exc:  # keep the pilot report source-scoped
-                return {"source": source.relative_to(project).as_posix(), "status": "failed", "error": _error_summary(exc)}
+                return {
+                    "source": source.relative_to(project).as_posix(),
+                    "status": "failed",
+                    **audit_fields,
+                    "error": _error_summary(exc),
+                }
 
     results = await asyncio.gather(*(process(source) for source in sources))
     return {

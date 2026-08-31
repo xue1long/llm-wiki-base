@@ -65,10 +65,15 @@ class CandidateReviewer:
         document: CanonicalDocument,
         *,
         source_root: Path | None = None,
+        visible_block_ids: set[str] | None = None,
     ) -> ReviewResult:
         try:
             payload = kc_api.candidate_to_payload(
-                asdict(candidate), document, source_root=source_root
+                asdict(candidate),
+                document,
+                source_root=source_root,
+                allow_legacy_unique_quote=False,
+                visible_block_ids=visible_block_ids,
             )
             result = await kc_api.compile_source(
                 str(document.source),
@@ -152,6 +157,8 @@ class CandidatePromoter:
             "candidate_id": candidate.id,
             "document_id": document.document_id,
             "source_path": str(document.source),
+            "normalization_version": document.normalization_version,
+            "parser_version": document.parser_version,
             "projection_version": self.projection_version,
             "object_ids": [obj.id for obj in review.objects],
             "candidate_path": str(candidate_path.relative_to(bundle_dir)),

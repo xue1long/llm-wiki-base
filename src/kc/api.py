@@ -16,7 +16,14 @@ from src.kc.compiler.normalize import normalize_text
 from src.utils.path import canonical_raw_key
 
 
-def candidate_to_payload(candidate: dict[str, Any], document, *, source_root=None) -> dict[str, Any]:
+def candidate_to_payload(
+    candidate: dict[str, Any],
+    document,
+    *,
+    source_root=None,
+    allow_legacy_unique_quote: bool = False,
+    visible_block_ids: set[str] | None = None,
+) -> dict[str, Any]:
     """Adapt pipeline candidate evidence refs to the strict KC payload."""
     source = str(document.source)
     if source_root is not None:
@@ -37,15 +44,33 @@ def candidate_to_payload(candidate: dict[str, Any], document, *, source_root=Non
             raise ValueError("evidence source_path does not match document source")
         quote = item.get("quote")
         quote = canonical_quote(quote) if isinstance(quote, str) else quote
-        matches = [
-            block for block in document.blocks
-            if isinstance(quote, str) and quote and quote in block.content
-        ]
-        if len(matches) > 1:
-            raise ValueError("evidence quote must match a unique block")
-        block = matches[0] if matches else None
-        if block is None:
-            raise ValueError("evidence quote does not match a document block")
+        declared_block_id = item.get("block_id")
+        if "block_id" in item:
+            if not isinstance(declared_block_id, str) or not declared_block_id:
+                raise ValueError("evidence block_id is required")
+            block = next(
+                (candidate_block for candidate_block in document.blocks
+                 if candidate_block.block_id == declared_block_id),
+                None,
+            )
+            if block is None:
+                raise ValueError("evidence block_id does not exist")
+            if not isinstance(quote, str) or not quote or quote not in block.content:
+                raise ValueError("evidence quote does not match declared block")
+        elif allow_legacy_unique_quote:
+            matches = [
+                block for block in document.blocks
+                if isinstance(quote, str) and quote and quote in block.content
+            ]
+            if len(matches) > 1:
+                raise ValueError("evidence quote must match a unique block")
+            block = matches[0] if matches else None
+            if block is None:
+                raise ValueError("evidence quote does not match a document block")
+        else:
+            raise ValueError("evidence block_id is required")
+        if visible_block_ids is not None and block.block_id not in visible_block_ids:
+            raise ValueError("evidence block_id is not visible in prompt")
         evidence_by_ref.append({
             "block_id": block.block_id,
             "quote": quote,

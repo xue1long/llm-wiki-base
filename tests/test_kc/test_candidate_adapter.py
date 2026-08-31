@@ -10,14 +10,22 @@ from src.kc.api import candidate_to_payload, compile_source, compile_text
 from src.kc.compiler.evidence import EvidenceValidationError, validate_evidence
 from src.kc.compiler.verify import verify_claim
 from src.kc.contracts.status import PublicationState, can_publish
-from src.kc.compiler.normalize import normalize_text
+from src.kc.compiler.normalize import normalize_text, normalize_text_legacy
 
 
-def _candidate(source: str = "raw/sources/demo.md") -> dict:
+def _candidate(
+    source: str = "raw/sources/demo.md",
+    *,
+    quote: str = "KC 统一证据适配。",
+    block_id: str | None = None,
+) -> dict:
+    evidence = {"source_path": source, "quote": quote}
+    if block_id is not None:
+        evidence["block_id"] = block_id
     return {
         "source_id": source,
-        "claims": [{"statement": "KC 统一证据适配。", "evidence_refs": [0]}],
-        "evidence": [{"source_path": source, "quote": "KC 统一证据适配。"}],
+        "claims": [{"statement": quote, "evidence_refs": [0]}],
+        "evidence": [evidence],
         "confidence": 0.8,
     }
 
@@ -25,7 +33,7 @@ def _candidate(source: str = "raw/sources/demo.md") -> dict:
 def test_candidate_adapter_emits_strict_claim_and_block_evidence() -> None:
     document = normalize_text("KC 统一证据适配。", source="raw/sources/demo.md")
 
-    payload = candidate_to_payload(_candidate(), document)
+    payload = candidate_to_payload(_candidate(block_id=document.blocks[0].block_id), document)
 
     claim = payload["claims"][0]
     evidence = claim["evidence"][0]
@@ -48,7 +56,7 @@ def test_candidate_adapter_accepts_absolute_source_under_project_root(tmp_path) 
     source = tmp_path / "raw" / "sources" / "demo.md"
     source.parent.mkdir(parents=True)
     document = normalize_text("KC 统一证据适配。", source="raw/sources/demo.md")
-    candidate = _candidate(source=str(source))
+    candidate = _candidate(source=str(source), block_id=document.blocks[0].block_id)
 
     payload = candidate_to_payload(candidate, document, source_root=tmp_path)
 
@@ -57,7 +65,7 @@ def test_candidate_adapter_accepts_absolute_source_under_project_root(tmp_path) 
 
 def test_candidate_adapter_rejects_bad_evidence_ref() -> None:
     document = normalize_text("KC 统一证据适配。", source="raw/sources/demo.md")
-    candidate = _candidate()
+    candidate = _candidate(block_id=document.blocks[0].block_id)
     candidate["claims"][0]["evidence_refs"] = [1]
 
     with pytest.raises(ValueError, match="evidence_refs"):
@@ -65,8 +73,8 @@ def test_candidate_adapter_rejects_bad_evidence_ref() -> None:
 
 
 def test_compile_text_builds_projection_from_valid_candidate() -> None:
-    candidate = _candidate()
     document = normalize_text("KC 统一证据适配。", source="raw/sources/demo.md")
+    candidate = _candidate(block_id=document.blocks[0].block_id)
     payload = candidate_to_payload(candidate, document)
 
     result = compile_text("raw/sources/demo.md", "KC 统一证据适配。", payload)
@@ -83,7 +91,7 @@ async def test_compile_source_accepts_pre_normalized_binary_document() -> None:
     """Converted PDF/DOCX/XLSX text must not be parsed as binary again."""
     source = "raw/sources/demo.pdf"
     document = normalize_text("已转换的 PDF 文本。", source=source)
-    candidate = _candidate(source)
+    candidate = _candidate(source, block_id=document.blocks[0].block_id)
     candidate["claims"][0]["statement"] = "已转换的 PDF 文本。"
     candidate["evidence"][0]["quote"] = "已转换的 PDF 文本。"
     payload = candidate_to_payload(candidate, document)
@@ -103,11 +111,39 @@ def test_candidate_adapter_rejects_quote_matching_multiple_blocks() -> None:
         "重复引用内容。\n\n重复引用内容。",
         source="raw/sources/demo.md",
     )
-    candidate = _candidate()
-    candidate["evidence"][0]["quote"] = "重复引用内容。"
+    candidate = _candidate(quote="重复引用内容。")
 
-    with pytest.raises(ValueError, match="unique"):
+    with pytest.raises(ValueError, match="block_id is required"):
         candidate_to_payload(candidate, document)
+
+
+def test_candidate_adapter_rejects_evidence_from_hidden_prompt_block() -> None:
+    document = normalize_text(
+        "可见正文。\n\n被 prompt 去噪隐藏的结构行。",
+        source="raw/sources/demo.md",
+    )
+    candidate = _candidate(
+        quote="被 prompt 去噪隐藏的结构行。",
+        block_id=document.blocks[1].block_id,
+    )
+
+    with pytest.raises(ValueError, match="not visible"):
+        candidate_to_payload(
+            candidate,
+            document,
+            visible_block_ids={document.blocks[0].block_id},
+        )
+
+
+def test_legacy_normalizer_keeps_explicit_v1_identity_for_old_evidence() -> None:
+    source = "\ufeffCafé  \r\n正文"
+
+    current = normalize_text(source, source="raw/sources/demo.md")
+    legacy = normalize_text_legacy(source, source="raw/sources/demo.md")
+
+    assert current.normalization_version == "kc-text-v2"
+    assert legacy.normalization_version == "kc-text-v1"
+    assert current.document_id != legacy.document_id
 
 
 def test_validated_evidence_uses_structural_status() -> None:

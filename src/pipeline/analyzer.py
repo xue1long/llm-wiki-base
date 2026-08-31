@@ -2,6 +2,7 @@
 import json
 import logging
 import uuid
+from typing import Any
 
 from ..knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
 from ..knowledge.core.object import KnowledgeType
@@ -9,6 +10,7 @@ from ..lib.budgeted import BudgetedLLM
 from ..wiki.features.tag_namespace import build_tag_prompt_section
 from ..wiki.core.types import PageType
 from ..wiki.schema_registry import SchemaRegistry
+from src.kc.compiler.normalize import normalize_text
 from ._pipeline_common import parse_llm_json
 from .schemas import AnalysisResult, ConceptMention, EntityMention, PageSpec
 
@@ -137,7 +139,7 @@ Extract structured knowledge claims as a JSON object matching this schema:
     {{"statement": "<claim text>", "confidence": 0.0-1.0, "evidence_refs": [0, 1]}}  // 0-based: valid range 0 to len(evidence)-1, never use len(evidence)
   ],
   "evidence": [
-    {{"source_path": "<path>", "page": null, "quote": "<supporting text excerpt>"}}
+    {{"source_path": "<path>", "block_id": "<document block id>", "page": null, "quote": "<verbatim supporting text excerpt>"}}
   ]
 }}
 
@@ -151,9 +153,14 @@ Rules:
   - confidence: how certain this claim is (0.0-1.0) based on source quality
   - evidence_refs: **0-based** integer indices (0 = first, N-1 = last). Never output N or higher.
 - evidence: supporting excerpts from the source. Each entry:
-  - source_path: path to source
+  - source_path: copy source_id exactly
+  - block_id: copy exactly one block_id from the identity-bearing block registry below
   - page: page number or null
-  - quote: exact text excerpt supporting one or more claims
+  - quote: verbatim contiguous text from that exact block; never paraphrase, add ellipses, or repair text
+
+The block registry is authoritative. Every evidence entry must bind to one
+declared block_id; do not invent IDs or select a different block because its
+text looks similar.
 """
 
 
@@ -304,6 +311,7 @@ async def analyze(
     schema_content: str = "",
     purpose_content: str = "",
     taxonomy_content: str = "",
+    prompt_blocks: tuple[Any, ...] | None = None,
 ) -> AnalysisResult | KnowledgeCandidate:
     """Step 1: LLM call -> AnalysisResult or KnowledgeCandidate.
 
@@ -337,6 +345,7 @@ async def analyze(
             schema_content=schema_content,
             purpose_content=purpose_content,
             taxonomy_content=taxonomy_content,
+            prompt_blocks=prompt_blocks,
         )
 
     prompt = ANALYZER_PROMPT.format(
@@ -501,9 +510,11 @@ _ANALYZER_JSON_RESPONSE_FORMAT = {
                 "type": "object",
                 "properties": {
                     "source_path": {"type": "string"},
+                    "block_id": {"type": "string"},
                     "page": {"type": ["integer", "null"]},
                     "quote": {"type": "string"},
                 },
+                "required": ["source_path", "block_id", "quote"],
             },
         },
     },
@@ -523,6 +534,7 @@ async def _analyze_json(
     schema_content: str = "",
     purpose_content: str = "",
     taxonomy_content: str = "",
+    prompt_blocks: tuple[Any, ...] | None = None,
 ) -> KnowledgeCandidate:
     """JSON mode: LLM call -> KnowledgeCandidate with 3-tier validation.
 
@@ -539,11 +551,24 @@ async def _analyze_json(
             f"Cross-chunk entity references will be merged later — you do NOT "
             f"need to reference other chunks.\n\n"
         )
+    if prompt_blocks is None:
+        document = normalize_text(source_text, source=source_path)
+        source_blocks = "\n\n".join(
+            f"[source_id={source_path} block_id={block.block_id}]\n{block.content}"
+            for block in document.blocks
+        )
+    else:
+        source_blocks = "\n\n".join(
+            f"[source_id={block.source_id} block_id={block.block_id} "
+            f"ordinal={block.ordinal}]\n{block.prompt_content}"
+            for block in prompt_blocks
+        )
+    source_blocks = source_blocks or "(no document blocks)"
     prompt = ANALYZER_JSON_PROMPT.format(
         source_path=source_path,
         folder_context=folder_context or "(none)",
         existing_wiki_index=existing_wiki_index or "(empty)",
-        source_text=source_text,
+        source_text=source_blocks,
         chunk_context=_chunk_ctx,
         knowledge_types="|".join(t.value for t in KnowledgeType),
     ).replace("__PROJECT_SCHEMA__", schema_content or "(未配置)").replace(

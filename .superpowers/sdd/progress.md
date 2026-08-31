@@ -622,3 +622,40 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ `scripts/kc_book_a8_accept.py --fixture tests/fixtures/book_rebuild_fixture.json`：8/8 checks passed；mapper 32/32；Unsupported Fact 0。
 - ✅ Book 相关测试：214 passed；完整 `tests/test_kc`：526 passed / 2 个既有 `knowledge/novel-wiki/` 数据漂移失败（历史期望 15/66，当前实际 51）。
 - ✅ next_phase_ready：A8 完成，下一阶段为 A9。
+### A9 Evidence Binding 修复（2026-08-30）
+
+- 根因：Analyzer JSON prompt/schema 未提供 `block_id`，`candidate_to_payload()` 以 quote 扫描所有 document blocks，导致重复 quote 多匹配、模型改写 quote 无匹配；Analyzer 还收到绝对 source path，source_id 合同不够稳定。
+- 修复：Analyzer 注入 canonical source blocks（`source_id` + `block_id` + 原文），要求 evidence 输出 `source_path`/`block_id`/verbatim quote；ingest 在 Analyzer 前传入 canonical raw key；adapter 对显式 block_id 定点校验，旧输出仅保留唯一精确匹配兼容路径；candidate source_id 增加合同校验；Evidence validator 不再对已绑定证据全库反查；quote hash 由 canonical quote 重算。
+- 回归：目标测试 `29 passed`；KC 可收集回归 + Analyzer/ingest `550 passed`；隔离确定性 evidence pilot `7/7`（2 validated、5 rejected、fail-closed=true）。
+- 环境限制：`tests/test_kc/test_novel_wiki_pilot.py` 与 `test_novel_wiki_preflight.py` 因已安装 `src/scripts` 包遮蔽仓库 `scripts/` namespace，在 `--import-mode=importlib` 下收集失败；未修改该环境或原始 `knowledge/novel-wiki`。`graphify` 因本机 uv trampoline/cache 错误无法运行，已记录并继续源码证据链验证。
+
+### A10 Remaining Blocker Closure Plan（2026-08-30）
+
+- 计划文件：`docs/superpowers/plans/2026-08-30-novel-wiki-delivery-blockers.md`。
+- 执行顺序：staging 安全门禁 → scripts importlib 遮蔽 → candidate 显式 block_id 合同 → preflight/pilot source_id 与审计字段 → server stale route import → graphify/uv 环境 → clean staging GLM5.2 50 样本 → 全仓最终验收。
+- 50 样本仍被 clean staging 缺失阻塞；不得复制或修改原始 `knowledge/novel-wiki`。
+- graphify 不属于 `scripts/kc_novel_wiki_pilot.py` 的运行时依赖；可作为独立 repository health gate 处理。
+- Task 0 已完成：`scripts/kc_novel_wiki_preflight.py` 增加 `protected_root` / `output` 路径门禁，missing project / protected overlap / output overlap 均 fail-closed；`tests/test_kc/test_novel_wiki_preflight.py` 4/4 通过（workspace-local scratch staging，未触碰 `knowledge/novel-wiki`）。
+- Task 0 follow-up（2026-08-30）: `BLOCKED_STAGING_MISSING` —— 当前工作区未提供独立、用户批准的 clean staging 绝对路径；仅发现受保护的 `knowledge/novel-wiki`，按任务约束不将其作为 staging 或输出写入目标。Protected-root 只读证据：`knowledge/novel-wiki/schema.md` SHA256 `B4D35E7AE2E5DD6B5392CDC20C7DCDD5CACA6E75F5E7DBE435E3E190B0B95A30`；`knowledge/novel-wiki/purpose.md` SHA256 `56658FE316423EDC5FB8F6C365F20EE68210C5AAE432A8EF53F02BBE77883580`。
+- Task 1 已完成：`7c6dc3a0`，`scripts/__init__.py` 固定 importlib 模块身份；preflight/pilot 目标测试 `10 passed`。
+- Task 2 已完成：`348a8564`，candidate 默认严格要求 source_id/block_id/quote；legacy unique quote 仅显式 opt-in；KC `546 passed`。
+- Task 3 已完成：`5623f786`，preflight source_id 对齐 `raw/sources/...`，pilot 保留 deterministic audit fields 与完整失败链；目标测试 `12 passed`，KC `548 passed`。
+- Task 4 已完成：`a2c2e2f4`，移除不存在的 `routes.collect` stale import/router；app focused `2 passed`，server suite `131 passed / 2 host-permission failures`；真实 `/health` smoke 在 CLI 启动阶段被 registry 权限拒绝阻塞。
+- Task 5（2026-08-30）：`graphify` 与 `graphify . --no-viz` 均 `exit 1: uv trampoline failed to canonicalize script path`；`uv --version` 为 `0.11.24`，`uv tool list` 因用户级 cache 初始化报 `os error 183`。未修改全局工具/cache；该环境问题不阻断 pilot 脚本运行，但 graphify 验证仍未完成。
+- Task 6（2026-08-30）：用户提供独立 staging `D:\5-Project\2026814\llm-wiki-base.bak.20260822\knowledge\novel-wiki-clean-staging`；preflight `1343` sources / `1307` unique / `36` duplicates，hard failures `[]`，与原始目录 distinct。GLM5.2 provider `glm-5.2` pilot `selected=50, succeeded=42, failed=8`；失败保留为 4 truncated、3 quote mismatch、1 block_id missing。独立 replay `42/42` 通过，`replay_failures=0`、`false_accepts=0`；未读取、复制或修改原始 `knowledge/novel-wiki`。
+- Task 7（2026-08-30）：最终验证完成但交付仍受环境阻塞。KC `548 passed`；Analyzer/ingest 回归 `17 passed, 1 warning`；server `131 passed, 2 host-permission failures`；全仓 `3475 passed, 97 failed, 15 errors, 58 warnings`。失败集中在用户级 config/registry/template 路径权限及既有环境敏感测试；真实 `/health` 仍在 CLI registry 权限阶段无法启动。`git diff --check` 仅命中既有未纳入本任务的文档空白。全仓测试产生的原始知识库批状态与 batch 报告临时改动已恢复；`knowledge/novel-wiki` 未保留本轮变更。新增测试夹具提交为 `50b635d5`；未 push。Pilot 证据 replay 已 `42/42` 通过、false accepts `0`。
+
+### A10 Text preprocessing design amendment（2026-08-30）
+
+- 根据第一性原理、批判性思维和终局审查，修订 `docs/superpowers/specs/2026-08-30-text-preprocessing-design.md`：拆分 input/source-bytes、canonical 和 prompt hash；明确 canonical 只做版本化表示规范化；Analyzer 改用带 `source_id + block_id` 的 `PromptBlockView[]` registry；删除规则按 rule application 审计，重复行默认只告警。
+- 补充 canonical/prompt 一对一映射、隐藏 block 禁止引用、超大 block 派生 ID、chunk 全量失败即禁止部分发布，以及 `legacy-sanitizer-v0` 只读兼容合同。
+- 当前仅完成方案整改和 `git diff --check`；实现前等待用户确认本修订版，未修改生产代码、provider、MiniMax 配置或原始 `knowledge/novel-wiki`。
+
+### A10 Text preprocessing v1 implementation（2026-08-30）
+
+- RED/GREEN：新增 `src/pipeline/text_preprocessing/`，提供一次 canonical document 构建、prompt block registry、全量质量指标、input/canonical/prompt hash 与规则审计；新增测试先以 `ModuleNotFoundError` RED，再实现 GREEN。
+- Analyzer JSON 现在可直接接收带 `source_id + block_id + ordinal` 的 prompt blocks；candidate Reviewer 接收可见 block ID 集合，隐藏 block、错误 block、quote 不匹配均 fail-closed。
+- canonical 规范化升级为 `kc-text-v2`（LF/NFC/首 BOM），保留显式 `normalize_text_legacy()` 的 `kc-text-v1` 读取入口；新 KC bundle manifest 记录 normalization/parser version。
+- 长文档 candidate 路径按完整 prompt block 打包，不再字符截断；单 block 超限直接拒绝，chunk candidate 合并时只重排本地 evidence index，不 relocation。pilot 成功/失败结果均保留预处理审计字段与异常链。
+- 验证：text preprocessing + pipeline/KC 相关回归 `87 passed`；完整 `tests/test_kc` `550 passed`；`compileall` 通过；原始 `knowledge/novel-wiki` `git diff --quiet` clean。`graphify update .` 仍为环境阻塞：`uv trampoline failed to canonicalize script path`。
+- 待办：新代码下独立 clean staging 小 pilot/50 样本复跑、server/full-suite 验证；不使用或改写原始 `knowledge/novel-wiki`，不新增 provider，不 push。

@@ -6,6 +6,8 @@ from src.pipeline.analyzer import (
     ANALYZER_JSON_PROMPT,
     analyze,
 )
+from src.kc.compiler.normalize import normalize_text
+from src.pipeline.text_preprocessing import preprocess_source
 
 
 def test_parser_keeps_only_declared_custom_type():
@@ -303,6 +305,75 @@ def test_json_prompt_contains_schema_directives():
     assert "statement" in prompt
     assert "confidence" in prompt
     assert "evidence_refs" in prompt
+
+
+@pytest.mark.asyncio
+async def test_json_analyzer_injects_identity_bearing_document_blocks():
+    source = "raw/sources/test.md"
+    document = normalize_text("第一段。\n\n第二段。", source=source)
+    provider = ScriptedLLMProvider([{
+        "source_id": source,
+        "type": "concept",
+        "title": "Test Knowledge",
+        "claims": [{"statement": "第二段。", "confidence": 0.9, "evidence_refs": [0]}],
+        "evidence": [{
+            "source_path": source,
+            "block_id": document.blocks[1].block_id,
+            "page": None,
+            "quote": "第二段。",
+        }],
+    }])
+
+    await analyze(
+        source_text=document.content,
+        source_ext=".md",
+        existing_wiki_index="",
+        folder_context="",
+        provider=provider,
+        source_path=source,
+        output_format="json",
+    )
+
+    prompt = provider.calls[0]["messages"][0]["content"]
+    assert f"[source_id={source} block_id={document.blocks[1].block_id}]" in prompt
+    assert document.blocks[1].content in prompt
+    assert '"block_id"' in prompt
+
+
+@pytest.mark.asyncio
+async def test_json_analyzer_uses_preprocessed_prompt_blocks_without_recomputing_ids():
+    source = "raw/sources/preprocessed.md"
+    prepared = preprocess_source(
+        "第一段。\n登录/注册\n\n第二段。",
+        source_id=source,
+    )
+    provider = ScriptedLLMProvider([{
+        "source_id": source,
+        "type": "concept",
+        "title": "Test Knowledge",
+        "claims": [{"statement": "第二段。", "confidence": 0.9, "evidence_refs": [0]}],
+        "evidence": [{
+            "source_path": source,
+            "block_id": prepared.prompt_blocks[1].block_id,
+            "page": None,
+            "quote": "第二段。",
+        }],
+    }])
+
+    await analyze(
+        source_text=prepared.prompt_text,
+        source_ext=".md",
+        existing_wiki_index="",
+        folder_context="",
+        provider=provider,
+        source_path=source,
+        output_format="json",
+        prompt_blocks=prepared.prompt_blocks,
+    )
+
+    prompt = provider.calls[0]["messages"][0]["content"]
+    assert f"[source_id={source} block_id={prepared.prompt_blocks[1].block_id} ordinal=1]" in prompt
+    assert "登录/注册" not in prompt
 
 
 def test_json_prompt_knowledge_types_derived_from_knowledge_type():

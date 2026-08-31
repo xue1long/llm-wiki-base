@@ -7,7 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from src.pipeline.ingest import run_ingest
+from src.pipeline.ingest import _merge_candidate_chunks, run_ingest
+from src.kc.compiler.normalize import normalize_text
+from src.kc.mainline import CandidatePromoter, PromotionResult
 from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
 from src.knowledge.core.object import KnowledgeType
 from src.wiki.core.paths import WikiPaths
@@ -25,6 +27,10 @@ async def test_run_ingest_enters_kc_before_formal_commit(
     raw = paths.raw_sources / "kc-mainline.md"
     raw.parent.mkdir(parents=True, exist_ok=True)
     raw.write_text("KC 主线测试源文档。", encoding="utf-8")
+    block_id = normalize_text(
+        raw.read_text(encoding="utf-8"),
+        source="raw/sources/kc-mainline.md",
+    ).blocks[0].block_id
 
     called: list[dict] = []
 
@@ -43,7 +49,11 @@ async def test_run_ingest_enters_kc_before_formal_commit(
             title="KC 主线测试",
             claims=[{"statement": "KC 主线测试声明。", "evidence_refs": [0]}],
             confidence=0.8,
-            evidence=[{"source_path": str(raw), "quote": "KC 主线测试源文档。"}],
+            evidence=[{
+                "source_path": str(raw),
+                "block_id": block_id,
+                "quote": "KC 主线测试源文档。",
+            }],
             raw_llm_output={},
             status=CandidateStatus.PENDING,
         )
@@ -84,6 +94,34 @@ async def test_run_ingest_enters_kc_before_formal_commit(
     assert pages[0]._ko_extra["kc_projection_version"] == "kc-wiki-v1"
 
 
+def test_merge_candidate_chunks_reindexes_evidence_without_relocation() -> None:
+    first = KnowledgeCandidate(
+        id="first",
+        source_id="raw/sources/chunked.md",
+        type=KnowledgeType.CONCEPT,
+        title="Chunked",
+        claims=[{"statement": "第一条", "confidence": 0.9, "evidence_refs": [0]}],
+        confidence=0.9,
+        evidence=[{"source_path": "raw/sources/chunked.md", "block_id": "b1", "quote": "第一条"}],
+        raw_llm_output={},
+    )
+    second = KnowledgeCandidate(
+        id="second",
+        source_id="raw/sources/chunked.md",
+        type=KnowledgeType.CONCEPT,
+        title="Chunked",
+        claims=[{"statement": "第二条", "confidence": 0.8, "evidence_refs": [0]}],
+        confidence=0.8,
+        evidence=[{"source_path": "raw/sources/chunked.md", "block_id": "b2", "quote": "第二条"}],
+        raw_llm_output={},
+    )
+
+    merged = _merge_candidate_chunks([first, second])
+
+    assert [claim["evidence_refs"] for claim in merged.claims] == [[0], [1]]
+    assert [item["block_id"] for item in merged.evidence] == ["b1", "b2"]
+
+
 @pytest.mark.asyncio
 async def test_run_ingest_blocks_generation_when_candidate_evidence_is_invalid(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -94,6 +132,10 @@ async def test_run_ingest_blocks_generation_when_candidate_evidence_is_invalid(
     raw = paths.raw_sources / "kc-invalid-evidence.md"
     raw.parent.mkdir(parents=True, exist_ok=True)
     raw.write_text("真实来源内容。", encoding="utf-8")
+    block_id = normalize_text(
+        raw.read_text(encoding="utf-8"),
+        source="raw/sources/kc-invalid-evidence.md",
+    ).blocks[0].block_id
 
     async def fake_analyze(**kwargs):
         return KnowledgeCandidate(
@@ -103,7 +145,11 @@ async def test_run_ingest_blocks_generation_when_candidate_evidence_is_invalid(
             title="非法证据",
             claims=[{"statement": "不应生成页面。", "evidence_refs": [0]}],
             confidence=0.8,
-            evidence=[{"source_path": str(raw), "quote": "不存在的引用。"}],
+            evidence=[{
+                "source_path": str(raw),
+                "block_id": block_id,
+                "quote": "不存在的引用。",
+            }],
             raw_llm_output={},
             status=CandidateStatus.PENDING,
         )

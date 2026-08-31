@@ -425,7 +425,7 @@ async def _write_rejected_source_page(
     paths: WikiPaths,
     source_path,
     source_text: str,
-    result: "SanitizerResult",
+    result,
     task_id: str,
 ) -> list[WikiPage]:
     """Build a grade=C source page; persistence happens in commit_ingest()."""
@@ -550,29 +550,40 @@ async def generate_ingest(
     _purpose_text = _read_purpose_text(paths)
     _taxonomy_text = _read_taxonomy_text(paths)
 
-    from .sanitizer import sanitize
+    from .text_preprocessing import preprocess_source
     from .triage import triage
 
-    _result = sanitize(source_text)
+    try:
+        _source_key = canonical_raw_key(str(source_path), paths.root)
+    except ValueError:
+        _source_key = str(source_path)
     _source_file = Path(str(source_path))
     try:
         _file_size = _source_file.stat().st_size
+        _source_bytes_sha256 = hashlib.sha256(_source_file.read_bytes()).hexdigest()
     except OSError:
         _file_size = len(source_text.encode("utf-8"))
+        _source_bytes_sha256 = None
+    _result = preprocess_source(
+        source_text,
+        source_id=_source_key,
+        source_bytes_sha256=_source_bytes_sha256,
+        skip_llm_on_degraded=os.environ.get("RUFLO_SANITIZER_SKIP_LLM", "0") == "1",
+    )
     _triage = triage(
         str(source_path),
-        _result.text,
+        _result.prompt_text,
         file_size=_file_size,
-        sanitizer_score=_result.quality_score,
+        sanitizer_score=_result.report.quality_score,
     )
 
-    if _result.warnings:
+    if _result.report.warnings:
         _logger.warning(
             "[run_ingest] sanitizer: %s score=%.2f source=%s",
-            _result.warnings, _result.quality_score, source_path,
+            _result.report.warnings, _result.report.quality_score, source_path,
         )
 
-    _sanitized_source_text = _result.text
+    _sanitized_source_text = _result.prompt_text
 
     # Q26: compute processing_depth_hint from sanitized source text.
     # This is a HINT passed to generator functions, not a forced override —
@@ -588,10 +599,10 @@ async def generate_ingest(
 
     # Hard-reject: skip LLM entirely for degraded sources (opt-in via
     # RUFLO_SANITIZER_SKIP_LLM=1; off by default).
-    if _result.should_skip_llm and __import__("os").environ.get("RUFLO_SANITIZER_SKIP_LLM", "0") == "1":
+    if _result.report.should_skip_llm:
         _logger.warning("[run_ingest] skipping LLM for %s", source_path)
         _rejected_pages = await _write_rejected_source_page(
-            paths, source_path, source_text, _result, task_id
+            paths, source_path, source_text, _result.report, task_id
         )
         # R4: the rejection branch must return the same (pages, extra,
         # meta) triple as the main path — it previously returned a bare
@@ -605,7 +616,7 @@ async def generate_ingest(
             "downstream_count": 0,
             "extra_pages_count": 0,
             "rejected": True,
-            "warnings": _result.warnings,
+            "warnings": list(_result.report.warnings),
             "missing_slugs": [],
         }
 
@@ -663,22 +674,35 @@ async def generate_ingest(
     if _candidate_mode:
         from .analyzer import analyze
         from .generator import generate_from_candidate
-        from src.kc.compiler.normalize import normalize_text
         from src.kc.mainline import CandidatePromoter, CandidateReviewer
+        from .text_preprocessing import chunk_prompt_blocks
 
-        candidate = await analyze(
-            source_text=_sanitized_source_text,
-            source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
-            existing_wiki_index=_existing_wiki_index,
-            folder_context=folder_context,
-            provider=provider,
-            task_id=task_id,
-            source_path=str(source_path),
-            output_format="json",
-            schema_content=_schema_text,
-            purpose_content=_purpose_text,
-            taxonomy_content=_taxonomy_text,
-        )
+        _prompt_chunks = chunk_prompt_blocks(
+            _result.prompt_blocks,
+            max_chars=_get_max_source_chars(),
+        ) or ((),)
+        _chunk_candidates = []
+        for _chunk_index, _prompt_chunk in enumerate(_prompt_chunks):
+            _chunk_text = "\n\n".join(
+                block.prompt_content for block in _prompt_chunk
+            )
+            _chunk_candidates.append(await analyze(
+                source_text=_chunk_text,
+                source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
+                existing_wiki_index=_existing_wiki_index,
+                folder_context=folder_context,
+                provider=provider,
+                task_id=task_id,
+                source_path=_source_key,
+                output_format="json",
+                chunk_index=_chunk_index if len(_prompt_chunks) > 1 else None,
+                chunk_total=len(_prompt_chunks) if len(_prompt_chunks) > 1 else None,
+                schema_content=_schema_text,
+                purpose_content=_purpose_text,
+                taxonomy_content=_taxonomy_text,
+                prompt_blocks=_prompt_chunk,
+            ))
+        candidate = _merge_candidate_chunks(_chunk_candidates)
         if not hasattr(candidate, "claims") or not candidate.claims or not candidate.evidence:
             raise ValueError("candidate requires non-empty claims and evidence")
         _source_key = canonical_raw_key(str(source_path), paths.root)
@@ -690,9 +714,12 @@ async def generate_ingest(
             raise ValueError("candidate requires source_id")
         if canonical_raw_key(str(_candidate_source_id), paths.root) != _source_key:
             raise ValueError("candidate source_id does not match source")
-        document = normalize_text(_sanitized_source_text, source=_source_key)
+        document = _result.canonical_document
         review = await CandidateReviewer().review(
-            candidate, document, source_root=paths.root
+            candidate,
+            document,
+            source_root=paths.root,
+            visible_block_ids={block.block_id for block in _result.prompt_blocks},
         )
         if review.status != "validated" or not review.projections:
             raise ValueError(
@@ -708,6 +735,41 @@ async def generate_ingest(
             project_root=paths.root,
             document=document,
         )
+        from src.kc.compiler.evidence import canonical_quote
+        _audit_evidence = []
+        for item in candidate.evidence:
+            quote = canonical_quote(str(item.get("quote", "")))
+            _audit_evidence.append({
+                "block_id": str(item.get("block_id", "")),
+                "exact_quote": quote,
+                "quote_hash": hashlib.sha256(quote.encode("utf-8")).hexdigest(),
+            })
+        _pilot_audit = {
+            "source_id": _source_key,
+            "binding_mode": "explicit_block_binding",
+            "preprocessing_version": _result.report.version,
+            "source_bytes_sha256": _result.report.source_bytes_sha256,
+            "input_text_sha256": _result.report.input_text_sha256,
+            "canonical_text_sha256": _result.report.canonical_text_sha256,
+            "prompt_text_sha256": _result.report.prompt_text_sha256,
+            "noise_warnings": list(_result.report.warnings),
+            "applied_rules": [
+                {
+                    "rule_id": rule.rule_id,
+                    "removed_line_count": rule.removed_line_count,
+                    "removed_char_count": rule.removed_char_count,
+                }
+                for rule in _result.report.applied_rules
+            ],
+            "evidence": _audit_evidence,
+            "evidence_refs": [
+                evidence_id
+                for projection in review.projections
+                for evidence_id in projection.get("evidence_ids", ())
+            ],
+        }
+        if _audit_evidence:
+            _pilot_audit.update(_audit_evidence[0])
         pages = await generate_from_candidate(
             candidate=candidate,
             paths=paths,
@@ -1197,8 +1259,8 @@ async def generate_ingest(
         },
         "downstream_count": _downstream_count,
         "extra_pages_count": len(extra_pages),
-        "rejected": bool(_result.warnings),
-        "warnings": _result.warnings,
+        "rejected": bool(_result.report.warnings),
+        "warnings": list(_result.report.warnings),
         "kc_bundle_key": getattr(_kc_promotion, "bundle_key", None),
         "kc_object_ids": list(getattr(_kc_promotion, "object_ids", ())),
         "kc_manifest_path": str(getattr(_kc_promotion, "manifest_path", "")) if _kc_promotion else None,
@@ -1267,6 +1329,41 @@ def _rank_stub_candidates(
 # 65-97% of content. Split → analyze per chunk (the analyzer supports
 # chunk_index/chunk_total) → merge → generate from the merged analysis.
 # ---------------------------------------------------------------------------
+
+def _merge_candidate_chunks(candidates: list) -> object:
+    """Merge chunk candidates while preserving each local evidence index."""
+    if not candidates:
+        raise ValueError("candidate chunk merge requires at least one result")
+    if len(candidates) == 1:
+        return candidates[0]
+
+    from copy import deepcopy
+
+    source_id = candidates[0].source_id
+    merged = deepcopy(candidates[0])
+    merged.claims = []
+    merged.evidence = []
+    merged.confidence = min(candidate.confidence for candidate in candidates)
+    merged.chunk_index = None
+    merged.chunk_total = len(candidates)
+    merged.raw_llm_output = {"chunks": [candidate.raw_llm_output for candidate in candidates]}
+
+    for candidate in candidates:
+        if candidate.source_id != source_id:
+            raise ValueError("candidate chunk source_id mismatch")
+        if getattr(candidate.status, "value", candidate.status) == "rejected":
+            raise ValueError(candidate.failure_reason or "candidate chunk was rejected")
+        evidence_offset = len(merged.evidence)
+        merged.evidence.extend(deepcopy(candidate.evidence))
+        for claim in candidate.claims:
+            refs = claim.get("evidence_refs")
+            if not isinstance(refs, list) or any(not isinstance(ref, int) for ref in refs):
+                raise ValueError("candidate chunk evidence_refs are invalid")
+            merged.claims.append({
+                **deepcopy(claim),
+                "evidence_refs": [ref + evidence_offset for ref in refs],
+            })
+    return merged
 
 def _split_source_chunks(text: str, chunk_size: int) -> list[str]:
     """Split *text* into whole-paragraph chunks of at most *chunk_size* chars.

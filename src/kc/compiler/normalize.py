@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass
 
 from src.kc.domain.ids import block_id, document_id
 
-NORMALIZATION_VERSION = "kc-text-v1"
+NORMALIZATION_VERSION = "kc-text-v2"
+LEGACY_NORMALIZATION_VERSION = "kc-text-v1"
 PARSER_VERSION = "legacy-text-v1"
 
 
@@ -31,6 +33,13 @@ class CanonicalDocument:
 
 def _canonical_text(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = text.removeprefix("\ufeff")
+    text = unicodedata.normalize("NFC", text)
+    return "\n".join(line.rstrip() for line in text.split("\n")).strip()
+
+
+def _legacy_canonical_text(text: str) -> str:
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     return "\n".join(line.rstrip() for line in text.split("\n")).strip()
 
 
@@ -42,12 +51,11 @@ def _title(text: str, source: str) -> str:
     return source.rsplit("/", 1)[-1].rsplit("\\", 1)[-1].rsplit(".", 1)[0]
 
 
-def normalize_text(text: str, *, source: str = "") -> CanonicalDocument:
-    content = _canonical_text(text)
-    doc_id = document_id(content, NORMALIZATION_VERSION, PARSER_VERSION)
+def _build_document(content: str, *, source: str, normalization_version: str) -> CanonicalDocument:
+    doc_id = document_id(content, normalization_version, PARSER_VERSION)
     blocks = tuple(
         DocumentBlock(
-            block_id=block_id(doc_id, ordinal, value, NORMALIZATION_VERSION),
+            block_id=block_id(doc_id, ordinal, value, normalization_version),
             ordinal=ordinal,
             content=value,
         )
@@ -59,9 +67,26 @@ def normalize_text(text: str, *, source: str = "") -> CanonicalDocument:
         content=content,
         source=source,
         parser_version=PARSER_VERSION,
-        normalization_version=NORMALIZATION_VERSION,
+        normalization_version=normalization_version,
         blocks=blocks,
         sources=(source,) if source else (),
+    )
+
+
+def normalize_text(text: str, *, source: str = "") -> CanonicalDocument:
+    return _build_document(
+        _canonical_text(text),
+        source=source,
+        normalization_version=NORMALIZATION_VERSION,
+    )
+
+
+def normalize_text_legacy(text: str, *, source: str = "") -> CanonicalDocument:
+    """Read old evidence using the v1 canonicalization contract."""
+    return _build_document(
+        _legacy_canonical_text(text),
+        source=source,
+        normalization_version=LEGACY_NORMALIZATION_VERSION,
     )
 
 
