@@ -133,6 +133,20 @@ def _stage_paths(stage_dir: Path, chapter_id: str) -> tuple[Path, Path]:
     return stage_dir / f"{chapter_id}.md", stage_dir / f"{chapter_id}.json"
 
 
+def _discard_empty_dir(path: Path) -> None:
+    """Remove ``path`` only while it is an empty directory.
+
+    ``rmdir`` — not ``rmtree`` — is deliberate. Several rebuilds can share one
+    ``.rebuild-staging`` root, so a sibling build holding a temp dir inside it
+    must keep it alive; ``rmdir`` fails with ``ENOTEMPTY`` in that case. This
+    is best-effort housekeeping, so every ``OSError`` is swallowed.
+    """
+    try:
+        path.rmdir()
+    except OSError:
+        pass
+
+
 def _commit_stage(stage_dir: Path, output_dir: Path, chapter_ids: tuple[str, ...]) -> None:
     backups: dict[Path, Path | None] = {}
     try:
@@ -281,6 +295,7 @@ def rebuild_book(
             )
     finally:
         shutil.rmtree(stage_dir, ignore_errors=True)
+        _discard_empty_dir(staging_root)
 
     return BookRebuildReport(
         status="committed",

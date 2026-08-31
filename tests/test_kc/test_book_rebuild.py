@@ -505,3 +505,86 @@ def test_repeated_rebuilds_produce_equal_rendered_hashes() -> None:
     assert first.status == "planned"
     assert second.status == "planned"
     assert first.rendered_hashes == second.rendered_hashes
+
+
+def test_committed_rebuild_removes_the_staging_directory(tmp_path: Path) -> None:
+    """A committed rebuild must not leave an empty ``.rebuild-staging/`` behind.
+
+    ``rebuild_book`` stages every file under ``<output_dir>/.rebuild-staging``
+    and moves them into place with ``os.replace``. The per-run temp dir is
+    removed in a ``finally``, but the ``.rebuild-staging`` container itself was
+    never cleaned up — so every successful build littered the output directory
+    with an empty hidden folder.
+    """
+    book, chapters, core_view = _fixture(publication_version=7)
+    output_dir = tmp_path / "book"
+
+    report = rebuild_book(
+        book,
+        chapters,
+        core_view,
+        IntegrityGate(),
+        output_dir=output_dir,
+        apply=True,
+    )
+
+    assert report.status == "committed"
+    assert not (output_dir / ".rebuild-staging").exists(), (
+        "staging container must be cleaned up after a committed rebuild"
+    )
+
+
+def test_failed_rebuild_also_removes_the_staging_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A failed rebuild cleans up too — a half-finished build must not leave debris."""
+    book, chapters, core_view = _fixture(publication_version=7)
+    output_dir = tmp_path / "book"
+    output_dir.mkdir(parents=True)
+
+    real_write_text = rebuild_mod._write_text
+
+    def _fail_stage_write(path: Path, content: str) -> None:
+        if ".rebuild-staging" in str(path.parent):
+            raise OSError("disk full during staging")
+        real_write_text(path, content)
+
+    monkeypatch.setattr(rebuild_mod, "_write_text", _fail_stage_write)
+
+    report = rebuild_book(
+        book,
+        chapters,
+        core_view,
+        IntegrityGate(),
+        output_dir=output_dir,
+        apply=True,
+    )
+
+    assert report.status == "failed"
+    assert not (output_dir / ".rebuild-staging").exists()
+
+
+def test_staging_directory_is_left_alone_when_another_build_is_in_flight(tmp_path: Path) -> None:
+    """Cleanup must not delete a staging root another concurrent build still uses.
+
+    ``rmdir`` only succeeds on an empty directory, so a sibling build holding a
+    temp dir inside ``.rebuild-staging`` keeps it alive. This test pins that
+    behaviour so the cleanup can never be "optimised" into ``rmtree``.
+    """
+    book, chapters, core_view = _fixture(publication_version=7)
+    output_dir = tmp_path / "book"
+    staging_root = output_dir / ".rebuild-staging"
+    in_flight = staging_root / "other-build-abc"
+    in_flight.mkdir(parents=True)
+    (in_flight / "ch-x.md").write_text("in flight", encoding="utf-8")
+
+    report = rebuild_book(
+        book,
+        chapters,
+        core_view,
+        IntegrityGate(),
+        output_dir=output_dir,
+        apply=True,
+    )
+
+    assert report.status == "committed"
+    assert staging_root.exists(), "a concurrent build's staging dir must survive"
+    assert (in_flight / "ch-x.md").read_text(encoding="utf-8") == "in flight"
