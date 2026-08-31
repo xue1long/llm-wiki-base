@@ -1,7 +1,7 @@
 """Book view subsystem (A8 — 简化 Book 视图, spec §12.5).
 
 Surface — four dataclasses + id generation policy + KU → Chapter mapper
-+ Evidence Binder + KnowledgeCoreView:
++ Evidence Binder + KnowledgeCoreView + snapshot materializer:
 
     Book                       — top-level container (id, title, template_id,
                                  outline_version, publication_version,
@@ -23,6 +23,9 @@ Surface — four dataclasses + id generation policy + KU → Chapter mapper
     bind_evidence              — resolve block.evidence_refs (B-T3a)
     KnowledgeCoreView          — read-only view of the Knowledge Core (B-T3a)
     SimpleKnowledgeCoreView    — in-memory default KnowledgeCoreView (B-T3a)
+    BookSnapshot               — materialized Book view over a project's KC
+                                 persistence (book-build wiring, Task 1)
+    materialize_book_snapshot  — project_root → BookSnapshot (pure read)
 
 No compiler, no outline engine, no Markdown renderer — those land in B-T3b
 and B-T4.
@@ -84,10 +87,17 @@ from .outline import (
     create_outline_proposal,
 )
 from .rebuild import BookRebuildReport, rebuild_book
+from .materialize import (
+    BookSnapshot,
+    BookSnapshotStats,
+    materialize_book_snapshot,
+)
 
 __all__ = [
     "Book",
     "BookChapterRegistry",
+    "BookSnapshot",
+    "BookSnapshotStats",
     "Chapter",
     "ChapterRender",
     "CompileError",
@@ -120,6 +130,7 @@ __all__ = [
     "can_transition_job",
     "can_transition_publication",
     "map_unit_type_to_block_type",
+    "materialize_book_snapshot",
     "BookTemplate",
     "BookRebuildReport",
     "BookView",
