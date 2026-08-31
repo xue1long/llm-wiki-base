@@ -270,6 +270,9 @@ def test_build_failure_is_409(client, monkeypatch) -> None:
     assert payload["status"] == "failed"
     assert payload["reason_codes"] == ["integrity_block:gate"]
     assert payload["failed_chapter_ids"] == ["ch_broken"]
+    # App.api surfaces `data.detail` as the error message, so a 409 without
+    # one would degrade to a bare "409 Conflict" in the UI.
+    assert "integrity_block:gate" in payload["detail"]
 
 
 def test_build_rejects_non_object_body(client) -> None:

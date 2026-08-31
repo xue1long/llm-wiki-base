@@ -212,5 +212,12 @@ async def book_build(request: Request):
     if report.status == "failed":
         # 409 with the payload at the top level (not wrapped in "detail")
         # so callers can read status/reason_codes without unwrapping.
+        # A human-readable ``detail`` rides along because the web UI surfaces
+        # ``data.detail`` as the error message — without it a failure would
+        # degrade to a bare "409 Conflict".
+        payload["detail"] = (
+            f"Book build failed for {len(report.failed_chapter_ids)} chapter(s): "
+            + (", ".join(report.reason_codes) or "unknown reason")
+        )
         return JSONResponse(status_code=409, content=payload)
     return payload
