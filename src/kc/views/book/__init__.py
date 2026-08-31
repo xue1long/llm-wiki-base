@@ -50,6 +50,14 @@ from .mapper import (
     derive_stable_key,
     map_ku_to_chapter,
 )
+from .mapping_cache import MappingCache
+from .update_scheduler import BookUpdateScheduler
+from .state import (
+    BookJobState,
+    BookPublicationState,
+    can_transition_job,
+    can_transition_publication,
+)
 from .binder import (
     EvidenceRef,
     EvidenceRefStrength,
@@ -105,6 +113,12 @@ __all__ = [
     "generate_knowledge_block_id",
     "generate_outline_proposal_id",
     "map_ku_to_chapter",
+    "MappingCache",
+    "BookUpdateScheduler",
+    "BookJobState",
+    "BookPublicationState",
+    "can_transition_job",
+    "can_transition_publication",
     "map_unit_type_to_block_type",
     "BookTemplate",
     "BookRebuildReport",
