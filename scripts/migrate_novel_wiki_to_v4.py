@@ -69,6 +69,9 @@ TAG_TO_RELATION = [
     ("读者群/",   "belongs_to_audience",  "audience/"),
     ("平台/",     "hosted_on_platform",   "platform/"),
     ("可信度/",   "has_credibility",      "credibility/"),
+    # Per V3 template §2.2: 素材/ugc is DELETED, expressed via
+    # credibility/ugc (has_credibility). We map 素材/* → credibility/*.
+    ("素材/",     "has_credibility",      "credibility/"),
 ]
 DROPPED_CATEGORIES = {"", "''", "null", "~", None}
 
