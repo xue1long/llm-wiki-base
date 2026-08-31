@@ -1,21 +1,14 @@
-"""Task 6 tests: WikiPage valid_from/valid_to round-trip (P1).
+"""Task 6 tests: WikiPage valid_from/valid_to (P1).
 
 Plan 2026-08-29-kc-integrity-idempotency-layered.md §Task 6 — Wiki 增加
 可选 valid_from/valid_to；旧 frontmatter 无字段时兼容；区间半开
 [valid_from, valid_to)；unknown / scheduled / historical / current /
 invalid 状态可观察.
 
-Coverage:
-1. Old page without temporal fields → from_dict defaults both to None
-   ("unknown"); to_frontmatter_dict omits the keys (no null clutter).
-2. Page with both bounds → to_frontmatter_dict emits both; from_dict
-   reads both back.
-3. Page with only valid_from → to_frontmatter_dict emits only that key.
-4. Round-trip is idempotent: write → read → write → identical bytes.
-5. Half-open interval semantics: valid_from=100, valid_to=200 →
-   query_time=100 is current, 199 is current, 200 is historical.
-6. Unknown (both None) is preserved across round-trip.
-7. Invalid (valid_from > valid_to) is preserved but not silently fixed.
+V4 (ADR-002, 2026-08-31) update:
+- valid_from/valid_to are NO LONGER serialized to disk (V4 8-key whitelist)
+- They remain on the in-memory WikiPage for code that needs them
+- from_dict() restores them from legacy frontmatter for backward compat
 """
 from __future__ import annotations
 
@@ -43,7 +36,7 @@ def _page(pid: str = "p1", *, valid_from=None, valid_to=None) -> WikiPage:
 
 def test_old_page_round_trips_as_unknown() -> None:
     """Legacy frontmatter (no valid_from/valid_to) → both None; re-emit
-    does not introduce null fields."""
+    does not introduce the fields."""
     legacy_fm = {
         "id": "legacy",
         "title": "Legacy",
@@ -55,48 +48,49 @@ def test_old_page_round_trips_as_unknown() -> None:
     assert page.valid_from is None
     assert page.valid_to is None
 
+    # V4: valid_from/valid_to are in-memory only — never serialized.
     emitted = page.to_frontmatter_dict()
     assert "valid_from" not in emitted
     assert "valid_to" not in emitted
 
 
 # ---------------------------------------------------------------------------
-# 2. Both bounds → emit + read both
+# 2. Both bounds → kept in memory (not serialized)
 # ---------------------------------------------------------------------------
 
 
-def test_page_with_both_bounds_round_trips() -> None:
+def test_page_with_both_bounds_in_memory() -> None:
     page = _page(valid_from=100, valid_to=200)
+
+    # In-memory state is preserved.
+    assert page.valid_from == 100
+    assert page.valid_to == 200
+
+    # V4: NOT in frontmatter.
     emitted = page.to_frontmatter_dict()
-
-    assert emitted["valid_from"] == 100
-    assert emitted["valid_to"] == 200
-
-    restored = WikiPage.from_dict(emitted, body="")
-    assert restored.valid_from == 100
-    assert restored.valid_to == 200
-
-
-# ---------------------------------------------------------------------------
-# 3. Only valid_from → emit only that key
-# ---------------------------------------------------------------------------
-
-
-def test_page_with_only_valid_from_emits_partial() -> None:
-    """valid_from set + valid_to=None → emit valid_from, omit valid_to."""
-    page = _page(valid_from=100)
-    emitted = page.to_frontmatter_dict()
-
-    assert emitted["valid_from"] == 100
+    assert "valid_from" not in emitted
     assert "valid_to" not in emitted
 
 
 # ---------------------------------------------------------------------------
-# 4. Round-trip is byte-stable
+# 3. Only valid_from → kept in memory
+# ---------------------------------------------------------------------------
+
+
+def test_page_with_only_valid_from_in_memory() -> None:
+    page = _page(valid_from=100)
+    assert page.valid_from == 100
+    assert page.valid_to is None
+
+
+# ---------------------------------------------------------------------------
+# 4. Round-trip is byte-stable for the V4 whitelist
 # ---------------------------------------------------------------------------
 
 
 def test_round_trip_is_byte_stable() -> None:
+    """Legacy page with temporal fields is read back; serializing
+    produces only the V4 8-key whitelist."""
     fm = {
         "id": "p",
         "title": "P",
@@ -106,12 +100,16 @@ def test_round_trip_is_byte_stable() -> None:
     }
     p1 = WikiPage.from_dict(fm, body="")
     fm2 = p1.to_frontmatter_dict()
+    # V4: emitted is the 8-key whitelist (no temporal fields).
+    assert "valid_from" not in fm2
+    assert "valid_to" not in fm2
     p2 = WikiPage.from_dict(fm2, body="")
+    # V4: re-serialization is idempotent.
     assert p2.to_frontmatter_dict() == fm2
 
 
 # ---------------------------------------------------------------------------
-# 5. Half-open interval [valid_from, valid_to)
+# 5. Half-open interval [valid_from, valid_to) — pure logic, unchanged
 # ---------------------------------------------------------------------------
 
 
@@ -147,27 +145,22 @@ def test_derive_status_half_open(
 
 
 # ---------------------------------------------------------------------------
-# 6. Unknown (both None) preserved across round-trip
+# 6. Unknown (both None) preserved across round-trip (memory only)
 # ---------------------------------------------------------------------------
 
 
-def test_unknown_state_preserved_across_round_trip() -> None:
+def test_unknown_state_preserved_in_memory() -> None:
     page = _page(valid_from=None, valid_to=None)
-    fm = page.to_frontmatter_dict()
-    assert "valid_from" not in fm and "valid_to" not in fm
-    restored = WikiPage.from_dict(fm, body="")
-    assert restored.valid_from is None
-    assert restored.valid_to is None
+    assert page.valid_from is None
+    assert page.valid_to is None
 
 
 # ---------------------------------------------------------------------------
-# 7. Invalid (valid_from > valid_to) is preserved (not silently fixed)
+# 7. Invalid (valid_from > valid_to) is preserved in memory
 # ---------------------------------------------------------------------------
 
 
-def test_invalid_interval_preserved() -> None:
+def test_invalid_interval_preserved_in_memory() -> None:
     page = _page(valid_from=300, valid_to=100)
-    fm = page.to_frontmatter_dict()
-    restored = WikiPage.from_dict(fm, body="")
-    assert restored.valid_from == 300
-    assert restored.valid_to == 100
+    assert page.valid_from == 300
+    assert page.valid_to == 100

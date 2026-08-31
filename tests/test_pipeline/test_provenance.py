@@ -1,4 +1,4 @@
-﻿"""Tests for Task 2.3 鈥?page-level provenance for PDFs."""
+"""Tests for Task 2.3 鈥?page-level provenance for PDFs."""
 import pytest
 
 
@@ -176,17 +176,25 @@ class TestGenerateFromCandidateProvenance:
 # 2.3c 鈥?WikiPage.to_frontmatter_dict includes _ko_extra
 # ---------------------------------------------------------------------------
 
-class TestFrontmatterIncludesKoExtra:
-    def test_to_frontmatter_dict_includes_ko_extra(self):
-        """to_frontmatter_dict writes _ko_extra when present."""
+class TestFrontmatterV4OmitsKoExtra:
+    """V4 (ADR-002, 2026-08-31): _ko_extra is NOT in the 8-key whitelist.
+
+    Legacy pages still carry _ko_extra.provenance in their frontmatter and
+    from_dict() restores it to the in-memory WikiPage, but new writes
+    drop _ko_extra entirely. The provenance payload remains on the
+    in-memory WikiPage for code that needs it.
+    """
+    def test_to_frontmatter_dict_omits_ko_extra_v4(self):
+        """V4: to_frontmatter_dict never emits _ko_extra."""
         from src.wiki.core.types import PageType, WikiPage
         page = WikiPage(
             id="test-id", title="Test Page", type=PageType.CONCEPT,
         )
         page._ko_extra = {"provenance": {"source_path": "test.pdf", "page": 3, "quote": "text"}}
         d = page.to_frontmatter_dict()
-        assert "_ko_extra" in d
-        assert d["_ko_extra"]["provenance"]["page"] == 3
+        assert "_ko_extra" not in d
+        # In-memory attribute preserved.
+        assert page._ko_extra["provenance"]["page"] == 3
 
     def test_to_frontmatter_dict_no_ko_extra_omitted(self):
         """to_frontmatter_dict omits _ko_extra when not set."""

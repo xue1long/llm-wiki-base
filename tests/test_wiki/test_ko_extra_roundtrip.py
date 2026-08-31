@@ -1,44 +1,35 @@
 """Tests for WikiPage._ko_extra round-trip through from_dict/to_frontmatter_dict.
 
-Plan Task 2: S1 加固 — from_dict 读回 _ko_extra。
-
-Note (C-0 Commit 1): ``source_status`` is no longer the canonical home of
-the capture-completeness signal — it has been migrated to
-``WikiPage.workflow_state``. ``_ko_extra`` still round-trips for any other
-legacy keys, but ``source_status`` is lifted to the top-level field on
-``from_dict`` and removed from the ``_ko_extra`` dict (see
-``test_ko_extra_source_status_migration.py``).
+V4 (ADR-002, 2026-08-31): _ko_extra is NOT written to disk by
+``to_frontmatter_dict``. Legacy pages that have it in their frontmatter
+still get it loaded into the in-memory WikiPage via ``from_dict`` for
+backward compatibility with code that needs the KO mirror, but new writes
+never include it.
 """
 import yaml
 from src.wiki.core.types import WikiPage, PageType
 
 
-def test_ko_extra_roundtrip():
-    """_ko_extra (without source_status) survives to_frontmatter_dict → YAML → from_dict."""
+def test_ko_extra_not_written_to_disk_v4():
+    """V4 contract: to_frontmatter_dict() never emits _ko_extra.
+
+    The V4 schema is an 8-key strict whitelist. _ko_extra (which carried
+    KO mirror fields like capture_context/provenance/evidence) is dropped
+    on write. Anything that needed _ko_extra must move to a V4 key.
+    """
     page = WikiPage(
         id="test-roundtrip", title="Test", type=PageType.SOURCE,
         body="hello",
     )
     page._ko_extra = {"capture_context": "shower thought"}
 
-    # Serialize
     fm = page.to_frontmatter_dict()
-    assert "_ko_extra" in fm
-    assert fm["_ko_extra"]["capture_context"] == "shower thought"
-    # source_status must NOT be present after C-0 Commit 1
-    assert "source_status" not in fm["_ko_extra"]
-
-    # Simulate YAML round-trip (as read_page does)
-    fm_text = yaml.dump(fm, allow_unicode=True, sort_keys=False, default_flow_style=False)
-    fm_back = yaml.safe_load(fm_text) or {}
-
-    # Deserialize
-    page2 = WikiPage.from_dict(fm_back, body="hello")
-    assert hasattr(page2, "_ko_extra"), "from_dict should restore _ko_extra"
-    assert page2._ko_extra == {"capture_context": "shower thought"}
+    assert "_ko_extra" not in fm, (
+        "V4: to_frontmatter_dict() must not emit _ko_extra"
+    )
 
 
-def test_ko_extra_none_default():
+def test_ko_extra_default_absent():
     """Normal WikiPage without _ko_extra round-trips cleanly."""
     page = WikiPage(
         id="test-none", title="Test", type=PageType.CONCEPT, body="",
@@ -53,48 +44,49 @@ def test_ko_extra_none_default():
     assert getattr(page2, "_ko_extra", None) is None
 
 
-def test_ko_extra_backward_compat():
-    """Old pages without _ko_extra in frontmatter don't break from_dict."""
+def test_ko_extra_legacy_read_back():
+    """Legacy pages WITH _ko_extra in frontmatter are read back into memory.
+
+    V4 read-side tolerance: pages written before the V4 cut-over still
+    carry _ko_extra in disk; we restore it on the in-memory WikiPage so
+    any code that still reads it (lint, audit, KO mirror) works. The
+    contract is read-only on the read side.
+    """
     old_fm = {
         "id": "old-page",
         "title": "Old Page",
         "type": "source",
         "sources": [],
-        "created_at": 0,
-        "updated_at": 0,
+        "created_at": 1700000000000,
+        "updated_at": 1700000000000,
         "relations": [],
-        "grade": "B",
-        "processing_depth": "concept",
-        "is_immutable": False,
-        "heat": 50,
-        "last_used_at": 0,
-        "zombie_since": None,
         "tags": [],
-        "category": "",
-        "taxonomy_sub": "",
-        "related_entities": [],
-        "custom_type": "",
+        "_ko_extra": {"capture_context": "shower thought"},
     }
-    # No _ko_extra key — should not raise
-    page = WikiPage.from_dict(old_fm, body="old content")
-    assert page.id == "old-page"
-    assert page.title == "Old Page"
-    assert getattr(page, "_ko_extra", None) is None
+    page = WikiPage.from_dict(old_fm, body="hello")
+    assert hasattr(page, "_ko_extra")
+    assert page._ko_extra == {"capture_context": "shower thought"}
+
+    # V4: writing this page drops _ko_extra (no longer in frontmatter).
+    fm = page.to_frontmatter_dict()
+    assert "_ko_extra" not in fm
 
 
-def test_ko_extra_multiple_fields():
-    """_ko_extra with multiple non-source_status fields round-trips correctly."""
+def test_ko_extra_multiple_fields_dropped_on_write():
+    """All legacy _ko_extra fields are dropped on V4 write.
+
+    V4 only writes the 8-key whitelist. Even if multiple _ko_extra subkeys
+    are set on the in-memory page, none of them reach disk.
+    """
     page = WikiPage(
         id="test-multi", title="Multi", type=PageType.CONCEPT,
+        body="",
     )
-    page._ko_extra = {"capture_context": "shower thought", "extra_tag": "tag-1"}
-
+    page._ko_extra = {
+        "knowledge_object_id": "ko_123",
+        "document_id": "doc_456",
+        "evidence": [{"document_id": "doc_456", "block_id": "block_1"}],
+        "projection_version": "kc-wiki-v1",
+    }
     fm = page.to_frontmatter_dict()
-    fm_text = yaml.dump(fm, allow_unicode=True)
-    fm_back = yaml.safe_load(fm_text) or {}
-
-    page2 = WikiPage.from_dict(fm_back)
-    assert page2._ko_extra["capture_context"] == "shower thought"
-    assert page2._ko_extra["extra_tag"] == "tag-1"
-    # source_status must NOT have been re-introduced
-    assert "source_status" not in page2._ko_extra
+    assert "_ko_extra" not in fm

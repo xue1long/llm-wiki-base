@@ -71,6 +71,9 @@ def test_export_writes_audit_log(tmp_path):
 
 
 def test_operation_page_roundtrips_through_export_and_import(tmp_path):
+    """V4: export/import round-trips the 8-key whitelist. The in-memory
+    processing_depth attribute is dropped on write but the body content
+    (which carries the actual operation steps) is preserved."""
     src = tmp_path / "src"
     dst = tmp_path / "dst"
     archive = tmp_path / "operation.zip"
@@ -85,8 +88,11 @@ def test_operation_page_roundtrips_through_export_and_import(tmp_path):
     import_wiki(archive, dst)
 
     restored = dst / "wiki" / "concepts" / "operation-card.md"
-    assert "processing_depth: operation" in restored.read_text(encoding="utf-8")
-    assert "操作步骤" in restored.read_text(encoding="utf-8")
+    # V4: processing_depth is NOT in the 8-key whitelist.
+    text = restored.read_text(encoding="utf-8")
+    assert "processing_depth: operation" not in text
+    # Body content survives the round-trip.
+    assert "操作步骤" in text
 
 
 def test_repeated_export_appends_one_audit_record_each_time(tmp_path):

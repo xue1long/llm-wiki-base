@@ -92,11 +92,15 @@ def test_ko_extra_evidence_without_block_id_yields_doc_id_only():
 
 
 # ---------------------------------------------------------------------------
-# Test 3: explicit evidence_refs does NOT serialize _ko_extra.evidence
+# Test 3: V4 strict whitelist — evidence_refs is NOT in frontmatter
 # ---------------------------------------------------------------------------
-def test_to_frontmatter_dict_writes_evidence_refs_top_level_only():
-    """When ``evidence_refs`` is set, it appears at top level. The serialized
-    ``_ko_extra`` (if present) must NOT reintroduce ``evidence``."""
+def test_evidence_refs_not_in_frontmatter_v4():
+    """V4 (ADR-002): to_frontmatter_dict() does NOT emit evidence_refs.
+
+    evidence_refs is still kept on the in-memory WikiPage for code that
+    needs it, but the 8-key V4 whitelist never writes it to disk. New
+    callers should use the in-memory attribute directly.
+    """
     page = WikiPage(
         id="card_evidence_refs",
         title="Evidence Refs",
@@ -104,12 +108,11 @@ def test_to_frontmatter_dict_writes_evidence_refs_top_level_only():
         evidence_refs=["d1:b1", "d2"],
     )
     fm = page.to_frontmatter_dict()
-    assert fm["evidence_refs"] == ["d1:b1", "d2"]
-    ko_extra = fm.get("_ko_extra")
-    if isinstance(ko_extra, dict):
-        assert "evidence" not in ko_extra, (
-            "After migration, _ko_extra.evidence should not be reintroduced"
-        )
+    assert "evidence_refs" not in fm, (
+        "V4: evidence_refs is in-memory only, never written to disk"
+    )
+    # And: _ko_extra is also never written (V4 drops the KO mirror).
+    assert "_ko_extra" not in fm
 
 
 # ---------------------------------------------------------------------------
@@ -216,7 +219,8 @@ def test_empty_evidence_list_yields_empty_evidence_refs():
 # Bonus: default WikiPage.evidence_refs is []
 # ---------------------------------------------------------------------------
 def test_default_evidence_refs_is_empty_list():
-    """``WikiPage.evidence_refs`` defaults to ``[]`` (not None)."""
+    """``WikiPage.evidence_refs`` defaults to ``[]`` (not None) and is
+    never serialized (V4 in-memory attribute only)."""
     page = WikiPage(id="w", title="W", type=PageType.CONCEPT)
     assert page.evidence_refs == []
     # And: empty list is not serialized to frontmatter.

@@ -61,6 +61,13 @@ def _patch_resolve(monkeypatch, tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_restore_zombies_updates_and_persists(monkeypatch, tmp_path):
+    """V4 (ADR-002): heat/is_immutable/zombie_since are NOT serialized.
+
+    restore_zombies() still runs (returns the right count) and updates
+    the in-memory page, but on disk the V4 8-key whitelist excludes
+    these fields. After re-read, heat/is_immutable/zombie_since are the
+    defaults (50 / False / None).
+    """
     paths = _paths(tmp_path)
     p = _zombie_page("z1")
     _write(paths, p)
@@ -74,9 +81,10 @@ def test_restore_zombies_updates_and_persists(monkeypatch, tmp_path):
     from src.wiki.storage.page_writer import page_path_for
     f = page_path_for(paths, _infer_type(paths, "z1"), "z1")
     restored = read_page(f)
-    assert restored.heat == 100
-    assert restored.is_immutable is True
-    assert restored.zombie_since is None
+    # V4: heat/is_immutable/zombie_since are in-memory only.
+    assert restored.heat == 50  # default (was 100 in V2)
+    assert restored.is_immutable is False  # default (was True in V2)
+    assert restored.zombie_since is None  # default (cleared correctly)
 
 
 def test_restore_missing_page_noop(monkeypatch, tmp_path):
