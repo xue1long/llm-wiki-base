@@ -13,13 +13,17 @@ from src.knowledge.core.object import KnowledgeType
 
 def test_bundle_stays_non_current_until_vector_ready(tmp_path: Path) -> None:
     source = "raw/sources/demo.md"
+    document = normalize_text("Source quote", source=source)
     candidate = KnowledgeCandidate(
         id="candidate-pub", source_id=source, type=KnowledgeType.CONCEPT,
         title="Demo", claims=[{"statement": "Source quote", "evidence_refs": [0]}],
-        confidence=.9, evidence=[{"source_path": source, "quote": "Source quote"}],
+        confidence=.9, evidence=[{
+            "source_path": source,
+            "quote": "Source quote",
+            "block_id": document.blocks[0].block_id,
+        }],
         raw_llm_output={},
     )
-    document = normalize_text("Source quote", source=source)
     review = asyncio.run(CandidateReviewer().review(candidate, document))
     promotion = CandidatePromoter().promote(candidate, review, project_root=tmp_path, document=document)
     result = finalize_bundle(tmp_path, bundle_key=promotion.bundle_key, page_ids=("page-1",))
@@ -31,13 +35,17 @@ def test_bundle_stays_non_current_until_vector_ready(tmp_path: Path) -> None:
 
 def test_vector_ready_publishes_once_and_is_idempotent(tmp_path: Path) -> None:
     source = "raw/sources/demo.md"
+    document = normalize_text("Source quote", source=source)
     candidate = KnowledgeCandidate(
         id="candidate-pub-2", source_id=source, type=KnowledgeType.CONCEPT,
         title="Demo", claims=[{"statement": "Source quote", "evidence_refs": [0]}],
-        confidence=.9, evidence=[{"source_path": source, "quote": "Source quote"}],
+        confidence=.9, evidence=[{
+            "source_path": source,
+            "quote": "Source quote",
+            "block_id": document.blocks[0].block_id,
+        }],
         raw_llm_output={},
     )
-    document = normalize_text("Source quote", source=source)
     review = asyncio.run(CandidateReviewer().review(candidate, document))
     promotion = CandidatePromoter().promote(candidate, review, project_root=tmp_path, document=document)
     first = finalize_bundle(tmp_path, bundle_key=promotion.bundle_key, page_ids=("page-1",), vector_ready=True)

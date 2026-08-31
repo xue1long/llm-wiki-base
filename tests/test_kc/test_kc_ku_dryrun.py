@@ -143,8 +143,8 @@ def test_dryrun_identifies_narrative_pages(tmp_path: Path) -> None:
 # Test 3: dry-run 报告含 PageType 分布 + backfill 成本估算 (与 H-5 脚本输出对齐)
 # ---------------------------------------------------------------------------
 @pytest.mark.skipif(
-    not NOVEL_WIKI.exists(),
-    reason="knowledge/novel-wiki/ not present (skip real-data sanity check)",
+    not (NOVEL_WIKI / "wiki").is_dir(),
+    reason="protected novel-wiki fixture is not materialized in this worktree",
 )
 def test_dryrun_writes_markdown_report_with_pagetype_and_cost() -> None:
     """真实 novel-wiki 项目跑脚本, 报告必含 PageType 分布 + 成本估算字段

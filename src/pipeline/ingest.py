@@ -715,6 +715,7 @@ async def generate_ingest(
     pages: list[WikiPage] = []
     _kc_review: dict | None = None
     _kc_promotion = None
+    _pilot_audit: dict | None = None
     from .generator import get_max_source_chars as _get_max_source_chars
     # 1.3 H6：单调用内闭环 resolver —— 缺失 slug 反馈进 generator，不整链重跑。
     from .reconcile import make_missing_slugs_resolver

@@ -31,6 +31,11 @@ from src.wiki.storage.ensure import ensure_knowledge_base
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 NOVEL_WIKI = REPO_ROOT / "knowledge" / "novel-wiki"
 
+pytestmark = pytest.mark.skipif(
+    not (NOVEL_WIKI / "schema.md").is_file(),
+    reason="protected novel-wiki fixture is not materialized in this worktree",
+)
+
 ASSET_NAMES = ("schema.md", "purpose.md", "taxonomy.md", "taxonomy_tags.md")
 
 
