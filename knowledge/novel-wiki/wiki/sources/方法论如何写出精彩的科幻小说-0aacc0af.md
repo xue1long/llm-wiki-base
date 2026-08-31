@@ -1,11 +1,9 @@
 ---
 id: 方法论如何写出精彩的科幻小说-0aacc0af
 title: 方法论如何写出精彩的科幻小说
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论如何写出精彩的科幻小说.md
 created_at: 1787112583951
 updated_at: 1787112583951
+type: source
 relations:
 - target: 科幻小说长篇创作方法
   type: references
@@ -39,26 +37,26 @@ relations:
   type: derives
   weight: 1.0
   context: 本概念页的核心观点和框架来源于该源文件。
-grade: A
-processing_depth: operation
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/人物塑造
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/科幻
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
 tags:
-- 题材/科幻
-- 功能/教程
 - 素材/ugc
-- 可信度/ugc
-category: 写作技法
-taxonomy_sub: 人物塑造
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论如何写出精彩的科幻小说-0aacc0af
+sources:
+- raw/sources/02_进阶技巧/方法论如何写出精彩的科幻小说.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

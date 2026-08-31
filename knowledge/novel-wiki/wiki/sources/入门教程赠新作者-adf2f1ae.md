@@ -1,11 +1,9 @@
 ---
 id: 入门教程赠新作者-adf2f1ae
 title: 入门教程赠新作者
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程赠新作者.md
 created_at: 1787064926773
 updated_at: 1787064926773
+type: source
 relations:
 - target: 大纲
   type: derives
@@ -19,26 +17,26 @@ relations:
   type: is_part_of
   weight: 0.9
   context: 该来源页面明确标注为飞书云文档。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/大纲与结构
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/模板
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/模板
-category: 写作技法
-taxonomy_sub: 大纲与结构
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程赠新作者-adf2f1ae
+sources:
+- raw/sources/01_新手入门/入门教程赠新作者.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

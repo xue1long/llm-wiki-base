@@ -1,11 +1,9 @@
 ---
 id: 必备资料散文的写作技巧是什么-cfac16f9
 title: 必备资料散文的写作技巧是什么
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料散文的写作技巧是什么.md
 created_at: 1787075163967
 updated_at: 1787075163967
+type: source
 relations:
 - target: 散文
   type: contains
@@ -47,24 +45,20 @@ relations:
   type: referenced_by
   weight: 1.0
   context: 该概念源自本文档
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/文笔与语言
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-category: 写作技法
-taxonomy_sub: 文笔与语言
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料散文的写作技巧是什么-cfac16f9
+sources:
+- raw/sources/01_新手入门/必备资料散文的写作技巧是什么.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

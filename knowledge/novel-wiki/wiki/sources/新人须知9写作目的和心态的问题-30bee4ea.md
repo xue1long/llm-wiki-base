@@ -1,11 +1,9 @@
 ---
 id: 新人须知9写作目的和心态的问题-30bee4ea
 title: 新人须知9写作目的和心态的问题
-type: source
-sources:
-- raw/sources/01_新手入门/新人须知9写作目的和心态的问题.md
 created_at: 1787109039728
 updated_at: 1787109039728
+type: source
 relations:
 - target: 新人须知-9-写作目的和心态的问题-30bee4ea
   type: contains
@@ -19,25 +17,23 @@ relations:
   type: references
   weight: 0.9
   context: 原文详细列举了作者可能遇到的创作瓶颈、修改误区等困难。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/心态与职业
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/写作心态
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-category: 心态与职业
-taxonomy_sub: 写作心态
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/新人须知9写作目的和心态的问题-30bee4ea
+sources:
+- raw/sources/01_新手入门/新人须知9写作目的和心态的问题.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

@@ -1,34 +1,22 @@
 ---
 id: vip-章节
 title: VIP章节
-type: concept
-sources:
-- raw/sources/01_新手入门/入门教程尾号五新人指南.md
 created_at: 1786952727995
 updated_at: 1786952727995
+type: concept
 relations:
 - target: 上架政策
   type: is_part_of
   weight: 0.9
   context: VIP章节是上架政策的核心
-grade: B
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-category: ''
-taxonomy_sub: ''
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: concepts/vip-章节
+sources:
+- raw/sources/01_新手入门/入门教程尾号五新人指南.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: concept -->
 

@@ -1,11 +1,9 @@
 ---
 id: 入门教程网络小说写作宝典2-1da49aed
 title: 入门教程网络小说写作宝典2
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程网络小说写作宝典2.md
 created_at: 1787041638796
 updated_at: 1787041638796
+type: source
 relations:
 - target: 更新速度的重要性
   type: derives
@@ -23,27 +21,27 @@ relations:
   type: derives
   weight: 0.82
   context: 源文提出15万至20万字存稿及约20万字收束规模。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/心态与职业
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/职业规划
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/方法论
 - 实体/教程文档
-category: 心态与职业
-taxonomy_sub: 职业规划
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程网络小说写作宝典2-1da49aed
+sources:
+- raw/sources/01_新手入门/入门教程网络小说写作宝典2.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

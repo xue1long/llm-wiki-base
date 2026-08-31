@@ -1,32 +1,26 @@
 ---
 id: minghui
 title: minghui
-type: entity
-sources:
-- raw/sources/02_进阶技巧/方法论明辉巨谈装B路子.md
 created_at: 1787118344617
 updated_at: 1787118344617
-relations: []
-grade: C
-processing_depth: memory
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+type: entity
+relations:
+- target: taxonomy/案例与素材
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/片段与金句
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
 tags:
 - 实体/人
 - 实体/写手
 - 素材/ugc
-- 可信度/ugc
-category: 案例与素材
-taxonomy_sub: 片段与金句
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: entities/minghui
+sources:
+- raw/sources/02_进阶技巧/方法论明辉巨谈装B路子.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->
 

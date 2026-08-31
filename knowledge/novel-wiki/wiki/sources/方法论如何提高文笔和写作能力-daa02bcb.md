@@ -1,11 +1,9 @@
 ---
 id: 方法论如何提高文笔和写作能力-daa02bcb
 title: 方法论如何提高文笔和写作能力
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论如何提高文笔和写作能力.md
 created_at: 1787115857075
 updated_at: 1787115857075
+type: source
 relations:
 - target: 写作素材积累
   type: derives
@@ -19,26 +17,20 @@ relations:
   type: derives
   weight: 1.0
   context: 核心观点提取自此来源文档
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/通用
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/方法论
-- 题材/通用
-category: ''
-taxonomy_sub: ''
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论如何提高文笔和写作能力-daa02bcb
+sources:
+- raw/sources/02_进阶技巧/方法论如何提高文笔和写作能力.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

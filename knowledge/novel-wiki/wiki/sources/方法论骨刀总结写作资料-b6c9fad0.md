@@ -1,11 +1,9 @@
 ---
 id: 方法论骨刀总结写作资料-b6c9fad0
 title: '[方法论]骨刀总结写作资料'
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论骨刀总结写作资料.md
 created_at: 1787118303554
 updated_at: 1787118303554
+type: source
 relations:
 - target: 北京圣东方国信科技有限公司
   type: references
@@ -31,27 +29,29 @@ relations:
   type: referenced_by
   weight: 1.0
   context: 该文档发布于飞书云文档平台
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/大纲与结构
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/网文
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/大纲设计
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/方法论
-- 题材/网文
-- 场景阶段/大纲设计
-category: 写作技法
-taxonomy_sub: 大纲与结构
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论骨刀总结写作资料-b6c9fad0
+sources:
+- raw/sources/02_进阶技巧/方法论骨刀总结写作资料.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

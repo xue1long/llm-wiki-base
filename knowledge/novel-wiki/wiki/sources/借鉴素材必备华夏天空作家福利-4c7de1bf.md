@@ -1,11 +1,9 @@
 ---
 id: 借鉴素材必备华夏天空作家福利-4c7de1bf
 title: 借鉴素材必备华夏天空作家福利
-type: source
-sources:
-- raw/sources/01_新手入门/借鉴素材必备华夏天空作家福利.md
 created_at: 1786967726773
 updated_at: 1786967726773
+type: source
 relations:
 - target: 华夏天空作家福利
   type: references
@@ -31,25 +29,23 @@ relations:
   type: referenced_by
   weight: 0.9
   context: 本页内容主要依据该来源文档
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/平台规则
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/全勤与福利
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/参考
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/参考
-category: 平台规则
-taxonomy_sub: 全勤与福利
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/借鉴素材必备华夏天空作家福利-4c7de1bf
+sources:
+- raw/sources/01_新手入门/借鉴素材必备华夏天空作家福利.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

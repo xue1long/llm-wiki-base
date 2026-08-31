@@ -1,30 +1,24 @@
 ---
 id: 必备资料第1章大纲-f9f72ffc
 title: 必备资料第1章大纲
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料第1章大纲.md
 created_at: 1787075994633
 updated_at: 1787075994633
-relations: []
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+type: source
+relations:
+- target: taxonomy/案例与素材
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/作品案例
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-category: 案例与素材
-taxonomy_sub: 作品案例
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料第1章大纲-f9f72ffc
+sources:
+- raw/sources/01_新手入门/必备资料第1章大纲.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

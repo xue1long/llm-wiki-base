@@ -1,11 +1,9 @@
 ---
 id: 新人须知新人完美投稿计划-a0c0eaba
 title: 新人须知新人完美投稿计划
-type: source
-sources:
-- raw/sources/01_新手入门/新人须知新人完美投稿计划.md
 created_at: 1787109078832
 updated_at: 1787109078832
+type: source
 relations:
 - target: 投稿邮件规范
   type: derives
@@ -15,25 +13,23 @@ relations:
   type: derives
   weight: 0.8
   context: 来源中关于文件名和故事梗概作用的论述，是本概念在“投稿”场景下的具体应用。
-grade: A
-processing_depth: operation
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/平台规则
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/签约
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-category: 平台规则
-taxonomy_sub: 签约
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/新人须知新人完美投稿计划-a0c0eaba
+sources:
+- raw/sources/01_新手入门/新人须知新人完美投稿计划.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

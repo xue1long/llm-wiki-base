@@ -1,11 +1,9 @@
 ---
 id: 方法论打斗七公式重要-0b48abcb
 title: '[方法论]打斗七公式（重要）'
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论打斗七公式重要.md
 created_at: 1787118225775
 updated_at: 1787118225775
+type: source
 relations:
 - target: 1vs1-公平对决
   type: references
@@ -27,33 +25,47 @@ relations:
   type: analogous_to
   weight: 0.7
   context: 公式一描述的打斗场景，通常是一个章节或段落的小高潮。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/案例与素材
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/桥段与梗
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/写作手法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/战斗
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/铺垫
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/玄幻
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/仙侠
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/武侠
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/热血
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/燃
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/方法论
-- 功能/写作手法
-- 场景阶段/战斗
-- 场景阶段/铺垫
-- 题材/玄幻
-- 题材/仙侠
-- 题材/武侠
-- 情绪/热血
-- 情绪/燃
-category: 案例与素材
-taxonomy_sub: 桥段与梗
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论打斗七公式重要-0b48abcb
+sources:
+- raw/sources/02_进阶技巧/方法论打斗七公式重要.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

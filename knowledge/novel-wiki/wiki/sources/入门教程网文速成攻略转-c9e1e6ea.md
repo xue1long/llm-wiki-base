@@ -1,11 +1,9 @@
 ---
 id: 入门教程网文速成攻略转-c9e1e6ea
 title: '[入门教程]网文速成攻略【转】'
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程网文速成攻略转.md
 created_at: 1787041452162
 updated_at: 1787041452162
+type: source
 relations:
 - target: 抄袭--写作禁忌
   type: derives
@@ -27,27 +25,27 @@ relations:
   type: derives
   weight: 0.94
   context: 来源把大纲移植、章节推进和高潮低谷安排作为核心论述。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/修改与打磨
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
 - 素材/转载
-- 功能/教程
-- 功能/方法论
-category: 写作技法
-taxonomy_sub: 修改与打磨
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程网文速成攻略转-c9e1e6ea
+sources:
+- raw/sources/01_新手入门/入门教程网文速成攻略转.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

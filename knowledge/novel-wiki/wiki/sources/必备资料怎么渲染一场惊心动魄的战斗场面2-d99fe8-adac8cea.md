@@ -1,11 +1,9 @@
 ---
 id: 必备资料怎么渲染一场惊心动魄的战斗场面2-d99fe8-adac8cea
 title: 必备资料怎么渲染一场惊心动魄的战斗场面(2)
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面2_d99fe8.md
 created_at: 1787074230330
 updated_at: 1787074230330
+type: source
 relations:
 - target: 打斗场景气氛渲染
   type: derives
@@ -27,28 +25,32 @@ relations:
   type: references
   weight: 0.9
   context: 该组织名称出现在来源页面元信息中。
-grade: A
-processing_depth: memory
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/案例与素材
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/片段与金句
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/玄幻
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/案例
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/高潮
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 题材/玄幻
-- 功能/教程
-- 功能/案例
-- 场景阶段/高潮
-category: 案例与素材
-taxonomy_sub: 片段与金句
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料怎么渲染一场惊心动魄的战斗场面2-d99fe8-adac8cea
+sources:
+- raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面2_d99fe8.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

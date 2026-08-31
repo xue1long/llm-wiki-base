@@ -1,11 +1,9 @@
 ---
 id: 方法论经典重温功夫在文外杂志新手的三十六个注意事项-eaaf1dfa
 title: 经典重温：功夫在文外 —— 杂志新手的三十六个注意事项
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论经典重温功夫在文外杂志新手的三十六个注意事项.md
 created_at: 1787118761387
 updated_at: 1787118761387
+type: source
 relations:
 - target: 投稿邮件规范
   type: contains
@@ -27,28 +25,32 @@ relations:
   type: derives
   weight: 1.0
   context: 本概念的核心要点提炼自该源文档的第一、二、三、四条注意事项。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/平台规则
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/签约
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/规范
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/开篇
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/规范
-- 功能/方法论
-- 场景阶段/开篇
-category: 平台规则
-taxonomy_sub: 签约
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论经典重温功夫在文外杂志新手的三十六个注意事项-eaaf1dfa
+sources:
+- raw/sources/02_进阶技巧/方法论经典重温功夫在文外杂志新手的三十六个注意事项.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

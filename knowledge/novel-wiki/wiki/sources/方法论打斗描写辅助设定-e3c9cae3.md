@@ -1,11 +1,9 @@
 ---
 id: 方法论打斗描写辅助设定-e3c9cae3
 title: '[方法论]打斗描写辅助设定'
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论打斗描写辅助设定.md
 created_at: 1787118209837
 updated_at: 1787118209837
+type: source
 relations:
 - target: 七分铺垫三分打斗法则
   type: derives
@@ -15,28 +13,29 @@ relations:
   type: references
   weight: 0.8
   context: 该文档的方法论是‘打斗七公式’这一类具体写作技巧的具体体现或来源之一。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/对话与描写
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/模板
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/战斗
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/铺垫
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/方法论
-- 功能/模板
-- 场景阶段/战斗
-- 场景阶段/铺垫
-category: ''
-taxonomy_sub: 对话与描写
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论打斗描写辅助设定-e3c9cae3
+sources:
+- raw/sources/02_进阶技巧/方法论打斗描写辅助设定.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

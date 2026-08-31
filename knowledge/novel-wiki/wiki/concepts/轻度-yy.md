@@ -1,11 +1,9 @@
 ---
 id: 轻度-yy
 title: 轻度YY
-type: concept
-sources:
-- raw/sources/02_进阶技巧/方法论论如何写言情小说.md
 created_at: 1787118866735
 updated_at: 1787118866735
+type: concept
 relations:
 - target: 言情类--网络小说题材
   type: supports
@@ -15,29 +13,35 @@ relations:
   type: is_part_of
   weight: 0.6
   context: 轻度YY是YY小说创作谱系中的一种变体或入门形式。
-grade: B
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/爽点与情绪
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/写作手法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/技巧
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/都市
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/全篇
+  type: taxonomy_of
+  weight: 1.0
+- target: audience/全年龄
+  type: belongs_to_audience
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
 tags:
-- 功能/写作手法
-- 功能/技巧
-- 题材/都市
-- 场景阶段/全篇
-- 读者群/全年龄
 - 素材/ugc
-- 可信度/ugc
-category: 写作技法
-taxonomy_sub: 爽点与情绪
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: concepts/轻度-yy
+sources:
+- raw/sources/02_进阶技巧/方法论论如何写言情小说.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: concept -->
 

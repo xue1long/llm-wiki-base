@@ -1,31 +1,27 @@
 ---
 id: 用户活跃度-ip-pv-比
 title: 用户活跃度（IP:PV比）
-type: concept
-sources:
-- raw/sources/01_新手入门/入门教程各大小说网站人气对比方便选择参考.md
 created_at: 1786945553373
 updated_at: 1786945553373
-relations: []
-grade: B
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+type: concept
+relations:
+- target: taxonomy/读者与市场
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/数据分析
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/参考
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/参考
-category: 读者与市场
-taxonomy_sub: 数据分析
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: concepts/用户活跃度-ip-pv-比
+sources:
+- raw/sources/01_新手入门/入门教程各大小说网站人气对比方便选择参考.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: concept -->
 

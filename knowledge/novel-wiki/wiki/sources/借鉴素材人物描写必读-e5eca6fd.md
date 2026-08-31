@@ -1,11 +1,9 @@
 ---
 id: 借鉴素材人物描写必读-e5eca6fd
 title: 借鉴素材人物描写必读
-type: source
-sources:
-- raw/sources/01_新手入门/借鉴素材人物描写必读.md
 created_at: 1786899412615
 updated_at: 1786899412615
+type: source
 relations:
 - target: 墨止谚
   type: derives
@@ -19,25 +17,23 @@ relations:
   type: derives
   weight: 0.8
   context: 文档内容与人物描写必读类素材高度相关，可能为其子集或补充。
-grade: A
-processing_depth: memory
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/案例与素材
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/片段与金句
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/参考
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/参考
-category: 案例与素材
-taxonomy_sub: 片段与金句
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/借鉴素材人物描写必读-e5eca6fd
+sources:
+- raw/sources/01_新手入门/借鉴素材人物描写必读.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

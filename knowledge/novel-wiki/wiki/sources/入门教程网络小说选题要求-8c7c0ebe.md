@@ -1,11 +1,9 @@
 ---
 id: 入门教程网络小说选题要求-8c7c0ebe
 title: 入门教程网络小说选题要求
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程网络小说选题要求.md
 created_at: 1787063527964
 updated_at: 1787063527964
+type: source
 relations:
 - target: 题材选择
   type: derived_from
@@ -31,27 +29,27 @@ relations:
   type: supports
   weight: 0.85
   context: 正文强调作者必须对所写题材有兴趣。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/选题与立意
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/方法论
 - 实体/论坛帖子
-category: 写作技法
-taxonomy_sub: 选题与立意
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程网络小说选题要求-8c7c0ebe
+sources:
+- raw/sources/01_新手入门/入门教程网络小说选题要求.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

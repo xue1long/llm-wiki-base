@@ -1,11 +1,9 @@
 ---
 id: 司各脱-walter-scott
 title: 司各脱（Walter Scott）
-type: entity
-sources:
-- raw/sources/01_新手入门/入门教程小说写作的指路明灯.md
 created_at: 1786952030111
 updated_at: 1786952030111
+type: entity
 relations:
 - target: 现实之灯
   type: supported_by
@@ -39,25 +37,21 @@ relations:
   type: referenced_by
   weight: 0.8
   context: 本文以罗斯金建筑学七盏明灯类比小说写作七盏明灯，司各脱被作为小说写作的典范。
-grade: B
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/案例与素材
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/作品案例
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
 tags:
 - 实体/人物
-- 可信度/ugc
 - 素材/ugc
-category: 案例与素材
-taxonomy_sub: 作品案例
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: entities/司各脱-walter-scott
+sources:
+- raw/sources/01_新手入门/入门教程小说写作的指路明灯.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->
 

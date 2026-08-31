@@ -1,11 +1,9 @@
 ---
 id: book-official-4544a940
 title: 《盘龙》世界观设定
-type: source
-sources:
-- raw/sources/book-official.md
 created_at: 1786898145635
 updated_at: 1786898145635
+type: source
 relations:
 - target: 盘龙
   type: references
@@ -19,24 +17,20 @@ relations:
   type: references
   weight: 1.0
   context: 源文本定义了此概念
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/案例与素材
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/作品案例
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-category: 案例与素材
-taxonomy_sub: 作品案例
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/book-official-4544a940
+sources:
+- raw/sources/book-official.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

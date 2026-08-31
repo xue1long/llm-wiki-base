@@ -1,11 +1,9 @@
 ---
 id: 入门教程编辑眼中的好文-cbb5dcdb
 title: 入门教程编辑眼中的好文
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程编辑眼中的好文.md
 created_at: 1787041430880
 updated_at: 1787041430880
+type: source
 relations:
 - target: 飞书云文档
   type: is_part_of
@@ -23,26 +21,26 @@ relations:
   type: derives
   weight: 0.96
   context: 来源正文集中总结评判网络文学作品质量的六项标准。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/修改与打磨
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/方法论
-category: 写作技法
-taxonomy_sub: 修改与打磨
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程编辑眼中的好文-cbb5dcdb
+sources:
+- raw/sources/01_新手入门/入门教程编辑眼中的好文.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

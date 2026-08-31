@@ -1,11 +1,9 @@
 ---
 id: 必备资料写作大纲的十个步骤-0faefe-b2a1fd52
 title: 必备资料写作大纲的十个步骤
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料写作大纲的十个步骤_0faefe.md
 created_at: 1787073056407
 updated_at: 1787073056407
+type: source
 relations:
 - target: 大纲写法
   type: references
@@ -39,26 +37,26 @@ relations:
   type: references
   weight: 0.8
   context: 第2步强调升级体系应尽可能详细。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/大纲与结构
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/方法论
-category: 写作技法
-taxonomy_sub: 大纲与结构
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料写作大纲的十个步骤-0faefe-b2a1fd52
+sources:
+- raw/sources/01_新手入门/必备资料写作大纲的十个步骤_0faefe.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

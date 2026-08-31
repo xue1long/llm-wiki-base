@@ -1,11 +1,9 @@
 ---
 id: 入门教程爽文的真正核心-d80fa3ca
 title: 入门教程爽文的真正核心
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程爽文的真正核心.md
 created_at: 1787041248776
 updated_at: 1787041248776
+type: source
 relations:
 - target: 爽点
   type: references
@@ -23,27 +21,29 @@ relations:
   type: references
   weight: 0.55
   context: 原文记录唐家三少在课程交流中的出现及相关对话。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/爽点与情绪
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/爽文
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/方法论
-- 情绪/爽文
-category: 写作技法
-taxonomy_sub: 爽点与情绪
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程爽文的真正核心-d80fa3ca
+sources:
+- raw/sources/01_新手入门/入门教程爽文的真正核心.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

@@ -1,11 +1,9 @@
 ---
 id: 新人须知5速度网络文学创作的唯一秘诀-47c3cb-acbce874
 title: 新人须知5速度，网络文学创作的唯一秘诀
-type: source
-sources:
-- raw/sources/01_新手入门/新人须知5速度网络文学创作的唯一秘诀_47c3cb.md
 created_at: 1787108353424
 updated_at: 1787108353424
+type: source
 relations:
 - target: 快速吸引读者阅读
   type: references
@@ -19,26 +17,26 @@ relations:
   type: references
   weight: 0.8
   context: 快速让读者代入作品是实现快速吸引的重要手段
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/开篇与黄金三章
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/开篇
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 场景阶段/开篇
-category: 写作技法
-taxonomy_sub: 开篇与黄金三章
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/新人须知5速度网络文学创作的唯一秘诀-47c3cb-acbce874
+sources:
+- raw/sources/01_新手入门/新人须知5速度网络文学创作的唯一秘诀_47c3cb.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

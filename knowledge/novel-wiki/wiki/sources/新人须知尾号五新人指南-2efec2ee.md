@@ -1,30 +1,18 @@
 ---
 id: 新人须知尾号五新人指南-2efec2ee
 title: 新人须知尾号五新人指南
-type: source
-sources:
-- raw/sources/01_新手入门/新人须知尾号五新人指南.md
 created_at: 1787109101110
 updated_at: 1787109101110
-relations: []
-grade: C
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+type: source
+relations:
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-category: ''
-taxonomy_sub: ''
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/新人须知尾号五新人指南-2efec2ee
+sources:
+- raw/sources/01_新手入门/新人须知尾号五新人指南.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

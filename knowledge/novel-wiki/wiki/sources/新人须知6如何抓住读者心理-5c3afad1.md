@@ -1,11 +1,9 @@
 ---
 id: 新人须知6如何抓住读者心理-5c3afad1
 title: 新人须知6如何抓住读者心理
-type: source
-sources:
-- raw/sources/01_新手入门/新人须知6如何抓住读者心理.md
 created_at: 1787108402722
 updated_at: 1787108402722
+type: source
 relations:
 - target: 读者心态
   type: references
@@ -35,27 +33,29 @@ relations:
   type: references
   weight: 0.6
   context: 文中提到制造矛盾让情节高潮起伏，是传统作家的‘矛盾’概念
-grade: A
-processing_depth: memory
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/读者与市场
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/读者心态
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/开篇
+  type: taxonomy_of
+  weight: 1.0
+- target: audience/男频
+  type: belongs_to_audience
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 场景阶段/开篇
-- 读者群/男频
-category: 读者与市场
-taxonomy_sub: 读者心态
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/新人须知6如何抓住读者心理-5c3afad1
+sources:
+- raw/sources/01_新手入门/新人须知6如何抓住读者心理.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

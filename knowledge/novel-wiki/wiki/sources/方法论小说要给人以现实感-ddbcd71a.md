@@ -1,11 +1,9 @@
 ---
 id: 方法论小说要给人以现实感-ddbcd71a
 title: 小说要给人以现实感
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论小说要给人以现实感.md
 created_at: 1787116692583
 updated_at: 1787116692583
+type: source
 relations:
 - target: 五感描写法
   type: references
@@ -35,29 +33,35 @@ relations:
   type: derives
   weight: 1.0
   context: 本文核心概念源自该来源文本的详细阐述。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/文笔与语言
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/发展
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/高潮
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/日常
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/方法论
-- 场景阶段/发展
-- 场景阶段/高潮
-- 场景阶段/日常
-category: 写作技法
-taxonomy_sub: 文笔与语言
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论小说要给人以现实感-ddbcd71a
+sources:
+- raw/sources/02_进阶技巧/方法论小说要给人以现实感.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

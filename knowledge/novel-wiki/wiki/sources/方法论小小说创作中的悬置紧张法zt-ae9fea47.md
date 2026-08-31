@@ -1,11 +1,9 @@
 ---
 id: 方法论小小说创作中的悬置紧张法zt-ae9fea47
 title: 小小说创作中的悬置紧张法
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论小小说创作中的悬置紧张法ZT.md
 created_at: 1787116086836
 updated_at: 1787116086836
+type: source
 relations:
 - target: 悬置紧张法--悬念技法
   type: references
@@ -19,31 +17,41 @@ relations:
   type: references
   weight: 0.8
   context: 来源页完整引用了《河豚子》的文本并进行了技法分析。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/节奏与悬念
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/案例
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/高潮
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/结局
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/写作
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/写作技巧
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/悬疑
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/方法论
-- 功能/案例
-- 场景阶段/高潮
-- 场景阶段/结局
-- 题材/写作
-- 题材/写作技巧
-- 情绪/悬疑
-category: 写作技法
-taxonomy_sub: 节奏与悬念
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论小小说创作中的悬置紧张法zt-ae9fea47
+sources:
+- raw/sources/02_进阶技巧/方法论小小说创作中的悬置紧张法ZT.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

@@ -1,11 +1,9 @@
 ---
 id: 必备资料新人经验如何选择适合自己的题材-195dfd-eefb023c
 title: '[必备资料]【新人经验】如何选择适合自己的题材'
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料新人经验如何选择适合自己的题材_195dfd.md
 created_at: 1787075472823
 updated_at: 1787075472823
+type: source
 relations:
 - target: 题材选择
   type: derives
@@ -23,26 +21,26 @@ relations:
   type: supports
   weight: 0.9
   context: 源文以仙侠、网游包装武侠为例说明题材包装策略。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/选题与立意
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/方法论
-category: 写作技法
-taxonomy_sub: 选题与立意
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料新人经验如何选择适合自己的题材-195dfd-eefb023c
+sources:
+- raw/sources/01_新手入门/必备资料新人经验如何选择适合自己的题材_195dfd.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

@@ -1,11 +1,9 @@
 ---
 id: 入门教程网络小说选题要求-756acb-5daece4c
 title: 入门教程网络小说选题要求
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程网络小说选题要求_756acb.md
 created_at: 1787064501081
 updated_at: 1787064501081
+type: source
 relations:
 - target: 题材选择
   type: supports
@@ -19,26 +17,26 @@ relations:
   type: references
   weight: 0.85
   context: 正文以血红的痞气、血性狂放及幻想类题材作为个人风格影响选题的案例。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/选题与立意
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/方法论
-category: 写作技法
-taxonomy_sub: 选题与立意
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程网络小说选题要求-756acb-5daece4c
+sources:
+- raw/sources/01_新手入门/入门教程网络小说选题要求_756acb.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

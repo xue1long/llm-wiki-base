@@ -1,34 +1,22 @@
 ---
 id: ugc-test2-4abca22d
 title: 贴吧精华帖：网文写作心得
-type: source
-sources:
-- raw/sources/ugc-test2.md
 created_at: 1786898218784
 updated_at: 1786898218784
+type: source
 relations:
 - target: 百度贴吧网络作家吧
   type: referenced_by
   weight: 1.0
   context: 该来源由百度贴吧网络作家吧用户投稿
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-category: ''
-taxonomy_sub: ''
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/ugc-test2-4abca22d
+sources:
+- raw/sources/ugc-test2.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

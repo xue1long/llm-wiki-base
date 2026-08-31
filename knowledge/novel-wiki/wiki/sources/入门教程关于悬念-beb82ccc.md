@@ -1,11 +1,9 @@
 ---
 id: 入门教程关于悬念-beb82ccc
 title: 入门教程关于悬念
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程关于悬念.md
 created_at: 1786944593508
 updated_at: 1786944593508
+type: source
 relations:
 - target: 北京圣东方国信科技有限公司
   type: referenced_by
@@ -23,26 +21,26 @@ relations:
   type: references
   weight: 1.0
   context: 概念来源于此文档
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/开篇与黄金三章
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/开篇
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 场景阶段/开篇
-category: 写作技法
-taxonomy_sub: 开篇与黄金三章
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程关于悬念-beb82ccc
+sources:
+- raw/sources/01_新手入门/入门教程关于悬念.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

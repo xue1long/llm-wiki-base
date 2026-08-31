@@ -1,11 +1,9 @@
 ---
 id: 方法论要素-d5aaacbe
 title: '[方法论]要素'
-type: source
-sources:
-- raw/sources/02_进阶技巧/方法论要素.md
 created_at: 1787118828062
 updated_at: 1787118828062
+type: source
 relations:
 - target: 对比
   type: referenced_by
@@ -19,26 +17,26 @@ relations:
   type: referenced_by
   weight: 0.9
   context: 该来源将冲突列为核心方法论要素之一。
-grade: A
-processing_depth: memory
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/情节与冲突
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/写作技巧
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/方法论
-- 功能/写作技巧
-category: 写作技法
-taxonomy_sub: 情节与冲突
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/方法论要素-d5aaacbe
+sources:
+- raw/sources/02_进阶技巧/方法论要素.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

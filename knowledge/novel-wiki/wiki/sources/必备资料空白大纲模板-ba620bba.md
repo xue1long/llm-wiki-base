@@ -1,11 +1,9 @@
 ---
 id: 必备资料空白大纲模板-ba620bba
 title: 必备资料空白大纲模板
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料空白大纲模板.md
 created_at: 1787075952646
 updated_at: 1787075952646
+type: source
 relations:
 - target: 大纲
   type: contains
@@ -27,26 +25,26 @@ relations:
   type: references
   weight: 0.85
   context: 源文档页面抬头直接标注该组织名称。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/大纲与结构
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/模板
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/参考
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/模板
-- 功能/参考
-category: 写作技法
-taxonomy_sub: 大纲与结构
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料空白大纲模板-ba620bba
+sources:
+- raw/sources/01_新手入门/必备资料空白大纲模板.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

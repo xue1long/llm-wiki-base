@@ -1,37 +1,27 @@
 ---
 id: 华特-司各脱-walter-scott
 title: 华特·司各脱 (Walter Scott)
-type: entity
-sources:
-- raw/sources/02_进阶技巧/方法论小说写作的指路明灯.md
 created_at: 1787116250964
 updated_at: 1787116250964
+type: entity
 relations:
 - target: 方法论小说写作的指路明灯-76464b85
   type: referenced_by
   weight: 1.0
   context: 司各脱是本文的核心榜样与例证，其创作被用来阐释七盏明灯的每一条原则。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/参考
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
 tags:
 - 实体/人
 - 实体/作者
-- 功能/参考
 - 素材/ugc
-- 可信度/ugc
-category: ''
-taxonomy_sub: ''
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: entities/华特-司各脱-walter-scott
+sources:
+- raw/sources/02_进阶技巧/方法论小说写作的指路明灯.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->
 

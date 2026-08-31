@@ -1,11 +1,9 @@
 ---
 id: 必备资料如何构架写作悬念-9ffcc6b4
 title: 必备资料如何构架写作悬念
-type: source
-sources:
-- raw/sources/01_新手入门/必备资料如何构架写作悬念.md
 created_at: 1787073842123
 updated_at: 1787073842123
+type: source
 relations:
 - target: 商业网文写作
   type: derives
@@ -19,26 +17,26 @@ relations:
   type: references
   weight: 0.8
   context: 源文件头部将其列为飞书文档发布组织。
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/节奏与悬念
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/方法论
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 功能/方法论
-category: 写作技法
-taxonomy_sub: 节奏与悬念
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/必备资料如何构架写作悬念-9ffcc6b4
+sources:
+- raw/sources/01_新手入门/必备资料如何构架写作悬念.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

@@ -1,11 +1,9 @@
 ---
 id: 入门教程2简介-8dd2bba6
 title: '[入门教程]2、简介'
-type: source
-sources:
-- raw/sources/01_新手入门/入门教程2简介.md
 created_at: 1786945100237
 updated_at: 1786945100237
+type: source
 relations:
 - target: 网络小说简介
   type: contains
@@ -23,26 +21,26 @@ relations:
   type: contains
   weight: 0.6
   context: 教程列出该作作为后穿越历史小说简介范本
-grade: A
-processing_depth: concept
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/写作技法
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/开篇与黄金三章
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
+- target: taxonomy/教程
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/开篇
+  type: taxonomy_of
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
-- 功能/教程
-- 场景阶段/开篇
-category: 写作技法
-taxonomy_sub: 开篇与黄金三章
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/入门教程2简介-8dd2bba6
+sources:
+- raw/sources/01_新手入门/入门教程2简介.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

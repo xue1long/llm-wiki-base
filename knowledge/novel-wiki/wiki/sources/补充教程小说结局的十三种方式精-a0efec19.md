@@ -1,11 +1,9 @@
 ---
 id: 补充教程小说结局的十三种方式精-a0efec19
 title: 补充教程小说结局的十三种方式精
-type: source
-sources:
-- raw/sources/补充教程小说结局的十三种方式精.md
 created_at: 1786899593909
 updated_at: 1786899593909
+type: source
 relations:
 - target: 马原
   type: references
@@ -63,22 +61,10 @@ relations:
   type: derives
   weight: 1.0
   context: 该概念是来源文章总结的第十三种结局方式
-grade: A
-processing_depth: source
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
 tags: []
-category: ''
-taxonomy_sub: ''
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: sources/补充教程小说结局的十三种方式精-a0efec19
+sources:
+- raw/sources/补充教程小说结局的十三种方式精.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

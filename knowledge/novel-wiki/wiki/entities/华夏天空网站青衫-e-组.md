@@ -1,35 +1,29 @@
 ---
 id: 华夏天空网站青衫-e-组
 title: 华夏天空网站青衫E组
-type: entity
-sources:
-- raw/sources/01_新手入门/入门教程你是新人吗.md
 created_at: 1786944279258
 updated_at: 1786944279258
+type: entity
 relations:
 - target: 入门教程你是新人吗-3afaeb05
   type: referenced_by
   weight: 1.0
   context: 该来源文档是该小组发布的招募公告
-grade: B
-processing_depth: memory
-is_immutable: false
-heat: 50
-last_used_at: 0
-zombie_since: null
+- target: taxonomy/读者与市场
+  type: taxonomy_of
+  weight: 1.0
+- target: taxonomy/作者运营
+  type: taxonomy_of
+  weight: 1.0
+- target: credibility/ugc
+  type: has_credibility
+  weight: 1.0
 tags:
 - 素材/ugc
-- 可信度/ugc
 - 实体/编辑组
-category: 读者与市场
-taxonomy_sub: 作者运营
-related_entities: []
-custom_type: ''
-workflow_state: draft
-verified_at: 0
-slug: entities/华夏天空网站青衫-e-组
+sources:
+- raw/sources/01_新手入门/入门教程你是新人吗.md
 ---
-
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: entity -->
 
