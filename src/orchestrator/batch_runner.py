@@ -86,6 +86,7 @@ from src.orchestrator.batch_runner_internal.state import (
     _update_fail_streak,
 )
 from src.orchestrator.batch_runner_internal.phases import (
+    _phase_commit,
     _phase_gate,
     _phase_generate,
     _phase_recheck_and_finalize,
@@ -341,132 +342,11 @@ async def run_batch(args) -> int:
             _update_fail_streak(paths, batch_key, raw, "failed")
         return 2
 
-    # ── Phase 3：commit（每 raw 分支）──────────────────────────────
-    # Task 0.3：整个数据提交阶段持项目级跨进程锁（page/index/log/alias/
-    # vector），与 batch-state 锁分离 —— 并发执行器对同一项目无法交错写
-    # 数据。owner-token fencing 未实现；并发提交现由同一把锁串行化。
-    if _runner is not None:
-        _runner._on_phase_start("commit", Batch(batch_no=args.batch, files=pending))
-    ok = err = perm = 0
-    committed_page_ids: list[str] = []
-    committed_raws: list[str] = []
-    partial_raws: list[str] = []
-    conflict_raws: list[str] = []
-    from src.services.batch_state import project_commit_lock
-    with project_commit_lock(paths):
-        for raw in pending:
-            if raw not in generated:
-                continue
-            pages, extras, meta = generated[raw]
-            # Task 0.3 修正：TOCTOU 基线只保护**批外存量页**。本批多个 raw
-            # 可能产出同一概念页（如 题材选择），先提交的 raw 会改写该页，
-            # 后提交 raw 的 generate 基线因此过期 —— 批内自写不算冲突，
-            # 从 expected hashes 中剔除本批产出的 page ids。
-            _expected = dict((meta or {}).get("expected_page_hashes") or {})
-            if _expected and batch_page_ids:
-                _expected = {
-                    k: v for k, v in _expected.items() if k not in batch_page_ids
-                }
-            try:
-                branch = await _commit_raw(paths, raw, pages, extras, batch_key,
-                                           task_id=f"b{args.batch}", meta=meta,
-                                           expected_page_hashes=_expected)
-                ok += 1
-                # 记录本批实际写入页（**pages** 的 id，不含 extras）——验收脚本
-                # 与整批复核依赖精确批内集合。extras 是存量 reverse-touch 页，
-                # 其历史非法 relation/旧英文 tag 属 M8/M9 消解范围，不入批内
-                # 判定（Phase 4 试跑实测修复 E）。
-                committed_page_ids.extend(p.id for p in pages)
-                committed_raws.append(raw)
-                _update_fail_streak(paths, batch_key, raw, "done")
-                _crash_at("commit")   # 提交后注入点（测试）
-            except AtomicCommitError as exc:
-                # Task 0.2：单 raw 提交部分失败（page/index/log 已写出一部分）。
-                # 记 partial_commit + 失败路径清单，停止后续 raw —— 部分状态可
-                # 发现、可重试（page/index 幂等；log 去重）。绝不伪装成普通
-                # failed 后直接重试（旧页/向量可能已处于中间态）。
-                err += 1
-                partial_raws.append(raw)
-                print(f"  COMMIT PARTIAL {raw}: {exc} — raw marked "
-                      f"partial_commit (resume retries idempotently)", flush=True)
-                set_raw_status(paths, batch_key, raw, "partial_commit",
-                               failed_paths=[str(p) for p in exc.failed_paths])
-                break
-            except WriteConflictError as exc:
-                # Task 0.3：generate 后目标页被人工/并发修改 → 拒绝覆盖。
-                # 停止后续提交：人工冲突需人工处理，批级状态写 write_conflict。
-                err += 1
-                conflict_raws.append(raw)
-                set_raw_status(paths, batch_key, raw, "failed",
-                               last_error=f"WRITE-CONFLICT: {exc}")
-                print(f"  COMMIT WRITE-CONFLICT {raw}: {exc} — batch stopped "
-                      f"(manual edit detected)", flush=True)
-                break
-            except Exception as exc:
-                from src.pipeline.retry import PermanentFailure
-                if isinstance(exc, PermanentFailure):
-                    perm += 1
-                else:
-                    err += 1
-                print(f"  COMMIT FAIL {raw}: {exc}", flush=True)
-    for raw in failed_raws:
-        err += 1
-    for raw in perm_failed_raws:
-        perm += 1
-    # 批级持久化：completed_files + page_ids（H① 锁纪律：经 update_batch_state）。
-    if committed_raws or committed_page_ids:
-        from src.services.batch_state import update_batch_state
-
-        def _record_committed(state: dict) -> dict:
-            entry = state.setdefault(batch_key, {})
-            entry["completed_files"] = sorted(
-                set(entry.get("completed_files", [])) | set(committed_raws))
-            entry["page_ids"] = sorted(
-                set(entry.get("page_ids", [])) | set(committed_page_ids))
-            return state
-
-        update_batch_state(paths, _record_committed)
-
-    # ── 每批向量 upsert（guidance #9："每批后向量 upsert"）──────────
-    # 直跑路径只删向量（_commit_raw），重建后必须 upsert 新 chunk，否则
-    # 搜索静默丢内容（I3 review (a)）。真实模式需要 embedding provider；
-    # 未配置/失败 → 记 warn 不拦批（与 server 的 best-effort 一致）。
-    if conflict_raws:
-        # Task 0.3：人工编辑/并发写冲突 → 独立状态，人工处理后重跑。
-        _set_batch_status(paths, batch_key, "write_conflict",
-                          committed=True, ok=ok, err=err,
-                          conflict_raws=conflict_raws)
-        print("BATCH WRITE-CONFLICT — manual edit detected on target page(s); "
-              "resolve and re-run", flush=True)
-        return 5
-    if partial_raws:
-        # Task 0.2：存在 partial_commit raw —— 不继续向量 upsert / 复核，
-        # 直接以独立状态收尾，续跑 --resume 重试（page/index 幂等）。
-        _set_batch_status(paths, batch_key, "partial_commit",
-                          committed=True, ok=ok, err=err,
-                          partial_raws=partial_raws)
-        print("BATCH PARTIAL COMMIT — raw(s) marked partial_commit; "
-              "run --resume to retry (page/index writes are idempotent, "
-              "log deduped)", flush=True)
-        return 4
-    if not _is_fake_mode() and generated:
-        try:
-            upserted = await _upsert_batch_vectors(paths, all_pages)
-            print(f"  [vector] upserted {upserted} chunk(s)", flush=True)
-            # R7: vectors committed — clear the pending ledger for this
-            # batch's pages so they are no longer marked for re-indexing.
-            try:
-                from ..vector.pending import clear_pending
-                cleared = clear_pending(paths, [p.id for p in all_pages])
-                if cleared:
-                    print(f"  [vector] cleared {cleared} pending entr(ies)", flush=True)
-            except Exception as _pe:
-                print(f"  [vector] WARN pending clear failed: {_pe}", flush=True)
-        except Exception as exc:
-            print(f"  [vector] WARN upsert failed (search degrade): {exc}",
-                  flush=True)
-            # Pending entries remain → startup / CLI reconcile will retry.
-
+    ok, err, perm, terminal_code = await _phase_commit(
+        paths, generated, pending, batch_key, args, batch_page_ids, all_pages,
+        failed_raws, perm_failed_raws, _runner)
+    if terminal_code is not None:
+        return terminal_code
     return await _phase_recheck_and_finalize(
         paths, batch_key, pending, batch_page_ids, cumulative, args,
         ok, err, perm, _runner)

@@ -170,3 +170,105 @@ async def _phase_recheck_and_finalize(paths, batch_key, pending,
             "cumulative_usd", cumulative + cost), st)[1])
     print(f"BATCH DONE ok={ok} err={err} permanent_failed={perm}", flush=True)
     return 0
+
+
+async def _phase_commit(paths, generated, pending, batch_key, args,
+                        batch_page_ids, all_pages, failed_raws,
+                        perm_failed_raws, runner=None):
+    from src.lib.write_hooks import AtomicCommitError
+    from src.wiki.storage.page_writer import WriteConflictError
+    from src.services.batch_state import project_commit_lock, update_batch_state
+    from .raw_lifecycle import _commit_raw, _upsert_batch_vectors
+    from .state import _set_batch_status, _update_fail_streak
+
+    batch = Batch(batch_no=args.batch, files=pending)
+    if runner is not None:
+        runner._on_phase_start("commit", batch)
+    ok = err = perm = 0
+    committed_page_ids = []
+    committed_raws = []
+    partial_raws = []
+    conflict_raws = []
+    with project_commit_lock(paths):
+        for raw in pending:
+            if raw not in generated:
+                continue
+            pages, extras, meta = generated[raw]
+            expected = dict((meta or {}).get("expected_page_hashes") or {})
+            if expected and batch_page_ids:
+                expected = {k: v for k, v in expected.items()
+                            if k not in batch_page_ids}
+            try:
+                await _commit_raw(paths, raw, pages, extras, batch_key,
+                                  task_id=f"b{args.batch}", meta=meta,
+                                  expected_page_hashes=expected)
+                ok += 1
+                committed_page_ids.extend(p.id for p in pages)
+                committed_raws.append(raw)
+                _update_fail_streak(paths, batch_key, raw, "done")
+                _crash_at("commit")
+            except AtomicCommitError as exc:
+                err += 1
+                partial_raws.append(raw)
+                print(f"  COMMIT PARTIAL {raw}: {exc} — raw marked "
+                      "partial_commit (resume retries idempotently)", flush=True)
+                set_raw_status(paths, batch_key, raw, "partial_commit",
+                               failed_paths=[str(p) for p in exc.failed_paths])
+                break
+            except WriteConflictError as exc:
+                err += 1
+                conflict_raws.append(raw)
+                set_raw_status(paths, batch_key, raw, "failed",
+                               last_error=f"WRITE-CONFLICT: {exc}")
+                print(f"  COMMIT WRITE-CONFLICT {raw}: {exc} — batch stopped "
+                      "(manual edit detected)", flush=True)
+                break
+            except Exception as exc:
+                from src.pipeline.retry import PermanentFailure
+                if isinstance(exc, PermanentFailure):
+                    perm += 1
+                else:
+                    err += 1
+                print(f"  COMMIT FAIL {raw}: {exc}", flush=True)
+    for raw in failed_raws:
+        err += 1
+    for raw in perm_failed_raws:
+        perm += 1
+    if committed_raws or committed_page_ids:
+        def _record_committed(state: dict) -> dict:
+            entry = state.setdefault(batch_key, {})
+            entry["completed_files"] = sorted(
+                set(entry.get("completed_files", [])) | set(committed_raws))
+            entry["page_ids"] = sorted(
+                set(entry.get("page_ids", [])) | set(committed_page_ids))
+            return state
+        update_batch_state(paths, _record_committed)
+    if conflict_raws:
+        _set_batch_status(paths, batch_key, "write_conflict",
+                          committed=True, ok=ok, err=err,
+                          conflict_raws=conflict_raws)
+        print("BATCH WRITE-CONFLICT — manual edit detected on target page(s); "
+              "resolve and re-run", flush=True)
+        return ok, err, perm, 5
+    if partial_raws:
+        _set_batch_status(paths, batch_key, "partial_commit",
+                          committed=True, ok=ok, err=err,
+                          partial_raws=partial_raws)
+        print("BATCH PARTIAL COMMIT — raw(s) marked partial_commit; "
+              "run --resume to retry (page/index writes are idempotent, "
+              "log deduped)", flush=True)
+        return ok, err, perm, 4
+    if not _is_fake_mode() and generated:
+        try:
+            upserted = await _upsert_batch_vectors(paths, all_pages)
+            print(f"  [vector] upserted {upserted} chunk(s)", flush=True)
+            try:
+                from ..vector.pending import clear_pending
+                cleared = clear_pending(paths, [p.id for p in all_pages])
+                if cleared:
+                    print(f"  [vector] cleared {cleared} pending entr(ies)", flush=True)
+            except Exception as exc:
+                print(f"  [vector] WARN pending clear failed: {exc}", flush=True)
+        except Exception as exc:
+            print(f"  [vector] WARN upsert failed (search degrade): {exc}", flush=True)
+    return ok, err, perm, None

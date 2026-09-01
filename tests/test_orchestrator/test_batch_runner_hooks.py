@@ -50,3 +50,4 @@ def test_batch_runner_facade_reexports_phase_helpers():
     assert batch_runner._phase_generate is phases._phase_generate
     assert batch_runner._phase_gate is phases._phase_gate
     assert batch_runner._phase_recheck_and_finalize is phases._phase_recheck_and_finalize
+    assert batch_runner._phase_commit is phases._phase_commit
