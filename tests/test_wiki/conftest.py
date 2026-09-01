@@ -71,7 +71,7 @@ sys.modules.setdefault("platformdirs", _pd_stub)
 @pytest.fixture(autouse=True)
 def _isolate_user_templates(tmp_path, monkeypatch):
     """Keep real user overrides from changing repository test contracts."""
-    empty_user = tmp_path / "empty-user-templates"
+    empty_user = tmp_path / ".codex-empty-user-templates"
     empty_user.mkdir()
     monkeypatch.setattr("src.wiki.templates.types.USER_TEMPLATE_DIR", empty_user)
     monkeypatch.setattr("src.wiki.templates.resolver.USER_TEMPLATE_DIR", empty_user)
