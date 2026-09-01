@@ -296,45 +296,6 @@ def _check_overwrite_protection(
     return blockers
 
 
-def _auto_tag_ugc(pages: list, raw_headers: dict[str, str]) -> int:
-    """R3-1 / F2: tag UGC-carrier-derived pages with 素材/ugc + 可信度/ugc.
-
-    Runs AFTER reconcile (never before) — reconcile merges relations/sources
-    but NOT tags, so tagging the *final* page set is what keeps merged pages
-    correctly tagged.  Extras are pre-existing pages and are NOT back-tagged
-    (``pages`` here is ``ReconcileResult.pages``, not ``.extras``).  Stubs
-    are exempt.
-
-    Deterministic, zero LLM cost.  Mutates ``pages`` in place; returns the
-    number of pages tagged.
-    """
-    from src.wiki.features.lint import _is_ugc_carrier
-
-    carrier_raws = {
-        raw for raw, header in (raw_headers or {}).items()
-        if _is_ugc_carrier(header)
-    }
-    if not carrier_raws:
-        return 0
-
-    tagged = 0
-    for p in pages:
-        if getattr(p, "processing_depth", "") == "stub":
-            continue
-        if not (set(p.sources or []) & carrier_raws):
-            continue
-        tags = list(p.tags or [])
-        changed = False
-        for tag in ("素材/ugc", "可信度/ugc"):
-            if tag not in tags:
-                tags.append(tag)
-                changed = True
-        if changed:
-            p.tags = tags
-            tagged += 1
-    return tagged
-
-
 async def _generate_batch(
     paths,
     provider,
@@ -851,7 +812,9 @@ async def main() -> int:
     # reconcile merges relations/sources but not tags; tagging the final page
     # set keeps merged pages correctly tagged.  Extras are pre-existing pages
     # and are intentionally not back-tagged.
-    _auto_tagged = _auto_tag_ugc(result.pages, gen["raw_headers"])
+    from src.orchestrator.auto_tag import auto_tag_ugc
+
+    _auto_tagged = auto_tag_ugc(result.pages, gen["raw_headers"])
     if _auto_tagged:
         _log(f"auto-tag: {_auto_tagged} UGC-carrier-derived page(s) "
              f"tagged 素材/ugc + 可信度/ugc")

@@ -5,6 +5,12 @@
 > 续接：`.memory/handoff-novel-wiki-phase1-2026-08-15.md`（Phase 0-2）、`.memory/handoff-novel-wiki-phase3-2026-08-16.md`（Phase 3 续接）
 >
 > **新计划（2026-08-26）：** 模块规范性与统一化改造 — `docs/superpowers/plans/2026-08-26-module-standardization-unification.md`
+
+### Plan A Phase 0：UGC auto-tag helper（2026-09-01）
+
+- ✅ 从 `batch_runner.py` 与 `scripts/phase4_batch.py` 抽取共享 `auto_tag_ugc`；保留 batch facade 的 `_auto_tag_ugc` 别名与原调用点。
+- ✅ 新增 `tests/test_orchestrator/test_auto_tag.py`；编排器定向回归 `10 passed`，batch executor auto-tag 定向回归 `1 passed`，三文件编译通过。
+- ⚠️ `graphify update .` 仍被本机 `uv trampoline failed to canonicalize script path` 阻塞；未修改图谱产物。
 >
 > **P0-A 注册 ruflo CLI → ✅ `be5417ec`**
 > **P0-B 中央配置模块 → ✅ `bca225a6`**

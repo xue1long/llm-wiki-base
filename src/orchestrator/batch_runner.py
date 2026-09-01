@@ -59,6 +59,7 @@ from src.lib.write_hooks import AtomicCommitError
 from src.wiki.storage.page_writer import WriteConflictError
 from src.wiki.core.paths import WikiPaths
 from src.wiki.features.batch_gate import run_precommit_gate
+from src.orchestrator.auto_tag import auto_tag_ugc
 
 DEFAULT_MANIFEST = ".index/reingest_plan.json"
 DEFAULT_CONCURRENCY = 3
@@ -327,41 +328,7 @@ def _update_fail_streak(paths, batch_key, raw_rel, status) -> None:
     set_raw_status(paths, batch_key, raw_rel, status, **extra)
 
 
-def _auto_tag_ugc(pages: list, raw_headers: dict[str, str]) -> int:
-    """R3-1 / F2：给 UGC carrier raw 派生页补 ``素材/ugc`` + ``可信度/ugc``。
-
-    与 phase4_batch 的 auto-tag 步骤同语义（Phase 4 试跑实测缺陷 C）：
-    pre-commit 门禁的 P4b（NDG）把"UGC 派生页缺 tag"列为 blocker——
-    此步骤在门禁前确定性补齐（零 LLM 成本），否则 UGC 语料整批被拦。
-
-    ``pages`` 是本批新产出（不含 extras——extras 是存量 reverse-touch 页，
-    不参与批内 tag 判定，修复 B）。stub 豁免。
-    """
-    from src.wiki.features.lint import _is_ugc_carrier
-
-    carrier_raws = {
-        raw for raw, header in (raw_headers or {}).items()
-        if _is_ugc_carrier(header)
-    }
-    if not carrier_raws:
-        return 0
-
-    tagged = 0
-    for p in pages:
-        if getattr(p, "processing_depth", "") == "stub":
-            continue
-        if not (set(p.sources or []) & carrier_raws):
-            continue
-        tags = list(p.tags or [])
-        changed = False
-        for tag in ("素材/ugc", "可信度/ugc"):
-            if tag not in tags:
-                tags.append(tag)
-                changed = True
-        if changed:
-            p.tags = tags
-            tagged += 1
-    return tagged
+_auto_tag_ugc = auto_tag_ugc
 
 
 async def _upsert_batch_vectors(paths, pages) -> int:
