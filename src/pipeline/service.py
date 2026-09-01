@@ -83,6 +83,31 @@ class PipelineService:
                                               folder_context: str | None = None) -> None:
         """Actual pipeline work — called while the semaphore is held."""
 
+        # Stale-RUNNING recovery (audit PR-1): if the persisted task is
+        # already RUNNING on disk, this is a re-dispatch after a previous
+        # pipeline crash (or a server restart before the snapshot's
+        # 10-minute stale-reset kicked in). update_status(RUNNING) would
+        # raise InvalidTransition because the state matrix only allows
+        # PENDING→RUNNING. Recover by routing through release_in_flight,
+        # which now correctly counts crashes and dead-letters once retry
+        # budget is exhausted (see release_in_flight audit PR-1 changes).
+        try:
+            existing_task = self.queue_service.backend.find(task_id)
+        except Exception:
+            existing_task = None
+        if existing_task is not None and existing_task.status == TaskStatus.RUNNING:
+            _logger.warning(
+                "[pipeline] %s is RUNNING on disk at dispatch — recovering from prior crash",
+                task_id,
+            )
+            try:
+                self.queue_service.release_in_flight(task_id)
+            except Exception:
+                _logger.exception("release_in_flight on stale-RUNNING failed for %s", task_id)
+            # release_in_flight already dispatches a fresh advance() if the
+            # task was retried (PENDING); nothing left to do here.
+            return
+
         # Mirror the original pipeline.py behavior: mark RUNNING before
         # touching any IO. PENDING -> APPROVED is an illegal transition
         # under the state machine; PENDING -> RUNNING -> APPROVED is legal.
