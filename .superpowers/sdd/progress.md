@@ -21,6 +21,7 @@
 
 - ✅ 将 git 快照、immutable source 判定、raw generate/commit、批量向量 upsert 迁入 `src/orchestrator/batch_runner_internal/raw_lifecycle.py`；`batch_runner.py` 保留旧名称重导出，未改变状态、crash hook 或脚本调用契约。
 - ✅ facade/raw lifecycle identity 回归及 orchestrator 相关回归 `14 passed`；三文件 `py_compile` 与 `git diff --check` 通过。
+- ✅ 按验收补齐 `_ensure_rebuild_clean`、`_clear_stale_vectors`、`_commit_ingest` 三个显式阶段 helper；pending-deletion → cascade → stale-vector cleanup → crash hook → ingest 顺序保持不变。
 - ⚠️ batch executor 组合测试触发既有 kill-9 子进程钩子，宿主只返回不完整点号输出，未将其计为通过；未观察到 Phase 1b 代码错误。
 >
 > **P0-A 注册 ruflo CLI → ✅ `be5417ec`**

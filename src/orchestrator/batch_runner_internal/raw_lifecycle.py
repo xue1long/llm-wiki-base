@@ -57,38 +57,53 @@ async def _generate_raw(paths, provider, raw_rel, batch_no) -> tuple[list, list,
     )
 
 
-async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id,
-                      meta: dict | None = None,
-                      expected_page_hashes: dict | None = None) -> str:
-    """Phase 3：按分支提交单个 raw。返回分支名（reingest / first_ingest）。"""
-    from src.services.ingest import probe_source_page
+def _ensure_rebuild_clean(paths, source_id, raw_rel, batch_key) -> str:
+    """Mark deletion before cascading; concurrent deletion degrades safely."""
     from src.wiki.features.cascade_delete import cascade_delete
+
+    set_raw_status(paths, batch_key, raw_rel, "pending_deletion",
+                   source_id=source_id)
+    try:
+        cascade_delete(paths, source_id)
+    except FileNotFoundError:
+        return "first_ingest"
+    return "reingest"
+
+
+def _clear_stale_vectors(paths, raw_rel) -> None:
+    """Delete old vectors idempotently after page cascade or first ingest."""
     from src.vector.store import delete_by_source, init_vector_store_for_paths
+
+    init_vector_store_for_paths(paths)
+    delete_by_source(paths, raw_rel)
+
+
+async def _commit_ingest(paths, raw_rel, pages, extras, task_id,
+                         meta: dict | None = None,
+                         expected_page_hashes: dict | None = None) -> None:
     from src.pipeline.ingest import commit_ingest
 
-    source_id = probe_source_page(paths, raw_rel)
-    branch = "reingest" if source_id is not None else "first_ingest"
-    if source_id is not None:
-        set_raw_status(paths, batch_key, raw_rel, "pending_deletion",
-                       source_id=source_id)
-        try:
-            cascade_result = cascade_delete(paths, source_id)
-        except FileNotFoundError:
-            branch = "first_ingest"
-            cascade_result = {}
-        else:
-            cascade_result.get("deleted_pages", [])
-        init_vector_store_for_paths(paths)
-        delete_by_source(paths, raw_rel)
-        _crash_at("cascade")
-    else:
-        init_vector_store_for_paths(paths)
-        delete_by_source(paths, raw_rel)
     missing_slugs = (meta or {}).get("missing_slugs")
     await commit_ingest(paths, Path(raw_rel), pages, extras, task_id=task_id,
                         missing_slugs=missing_slugs,
                         readiness_audit=(meta or {}).get("readiness_audit"),
                         expected_page_hashes=expected_page_hashes)
+
+
+async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id,
+                      meta: dict | None = None,
+                      expected_page_hashes: dict | None = None) -> str:
+    """Phase 3 coordinator: probe → clean → commit → mark done."""
+    from src.services.ingest import probe_source_page
+
+    source_id = probe_source_page(paths, raw_rel)
+    branch = "first_ingest"
+    if source_id is not None:
+        branch = _ensure_rebuild_clean(paths, source_id, raw_rel, batch_key)
+    _clear_stale_vectors(paths, raw_rel)
+    _crash_at("cascade")
+    await _commit_ingest(paths, raw_rel, pages, extras, task_id,
+                          meta=meta, expected_page_hashes=expected_page_hashes)
     set_raw_status(paths, batch_key, raw_rel, "done", branch=branch)
     return branch
 

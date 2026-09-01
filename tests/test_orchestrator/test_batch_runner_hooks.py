@@ -30,5 +30,8 @@ def test_batch_runner_facade_reexports_raw_lifecycle():
         "_generate_raw",
         "_commit_raw",
         "_upsert_batch_vectors",
+        "_ensure_rebuild_clean",
+        "_clear_stale_vectors",
+        "_commit_ingest",
     ):
         assert getattr(batch_runner, name) is getattr(raw_lifecycle, name)

@@ -68,7 +68,10 @@ from src.orchestrator.batch_runner_internal.hooks import (
     _snapshot_page_hashes,
 )
 from src.orchestrator.batch_runner_internal.raw_lifecycle import (
+    _clear_stale_vectors,
     _commit_raw,
+    _commit_ingest,
+    _ensure_rebuild_clean,
     _generate_raw,
     _git_snapshot,
     _is_immutable_source,
