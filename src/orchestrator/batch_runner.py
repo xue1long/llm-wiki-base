@@ -77,11 +77,20 @@ from src.orchestrator.batch_runner_internal.raw_lifecycle import (
     _is_immutable_source,
     _upsert_batch_vectors,
 )
+from src.orchestrator.batch_runner_internal.gate import (
+    Batch,
+    GateReport,
+    _rerun_gate_batch,
+)
+from src.orchestrator.batch_runner_internal.state import (
+    MAX_FAIL_STREAK,
+    _set_batch_status,
+    _update_fail_streak,
+)
 from src.orchestrator.auto_tag import auto_tag_ugc
 
 DEFAULT_MANIFEST = ".index/reingest_plan.json"
 DEFAULT_CONCURRENCY = 3
-MAX_FAIL_STREAK = 3          # B1：连续 3 批失败 → blocklist
 CRASH_STAGES = ("generate", "gate", "cascade", "commit")
 
 _logger = logging.getLogger("batch_runner")
@@ -93,112 +102,12 @@ _auto_tag_ugc = auto_tag_ugc
 # Per-batch helpers
 # ---------------------------------------------------------------------------
 
-def _set_batch_status(paths, batch_key, status: str, **extra) -> None:
-    """批级状态写入（H① 锁纪律：所有 batch_build_state 写走统一锁路径）。
-
-    与 set_raw_status 一样经 update_batch_state（文件锁 + os.replace 原子写），
-    杜绝并发 executor 的读-改-写丢失更新（review M3）。
-    """
-    from src.services.batch_state import update_batch_state
-
-    def _mutate(state: dict) -> dict:
-        entry = state.setdefault(batch_key, {})
-        if not isinstance(entry, dict):
-            entry = {}
-            state[batch_key] = entry
-        entry["status"] = status
-        entry["ts"] = time.strftime("%Y-%m-%dT%H:%M:%S")
-        for k, v in extra.items():
-            entry[k] = v
-        return state
-
-    update_batch_state(paths, _mutate)
-
-
-def _update_fail_streak(paths, batch_key, raw_rel, status) -> None:
-    """B1：failed 连续计数；>=3 → blocklist + 告警。"""
-    state = load_batch_state(paths)
-    entry = state.get(batch_key, {}).get("raw_states", {}).get(raw_rel, {})
-    streak = int(entry.get("fail_streak", 0))
-    if status == "failed":
-        streak += 1
-        extra = {"fail_streak": streak}
-        if streak >= MAX_FAIL_STREAK:
-            extra["blocklisted"] = True
-            print(f"ALERT: {raw_rel} failed {streak} consecutive batches — "
-                  f"BLOCKLISTED, manual review required", flush=True)
-    else:
-        streak = 0
-        extra = {"fail_streak": 0}
-    set_raw_status(paths, batch_key, raw_rel, status, **extra)
-
-
-async def _rerun_gate_batch(paths, batch_key, files,
-                            batch_page_ids=None) -> bool:
-    """整批门禁复核（C4：崩溃后续跑对整批——含已 done 文件——重跑门禁）。
-
-    从磁盘读取本批实际写入的页面（``batch_page_ids`` 过滤），跑完整的
-    NDG + fields/tags/lint/对账 门禁。失败 → 批状态 gate_failed（调用方
-    决定是否回滚）。这是门禁作用域收缩的兜底：pre-commit 门禁只管本轮的
-    内存页，复核把作用域钉回整批。
-
-    ``batch_page_ids``（Phase 4 试跑实测修复 E）：本批新写页 id。为空时
-    退化为旧行为（按 source 关联全扫）——但真实批次必须传入，否则
-    reverse-touch 写回的存量 extras（历史非法 relation/旧 tag 属 M8/M9
-    消解范围）会被误拦（batch 0 实测：东方玄幻 存量 contrasts → 整批
-    gate_recheck_failed）。
-    """
-    from src.wiki.storage.page_writer import read_page
-
-    if not batch_page_ids:
-        return True
-    id_set = set(batch_page_ids)
-    pages = []
-    for sub in (paths.wiki_sources, paths.wiki_entities,
-                paths.wiki_concepts, paths.wiki_synthesis):
-        if not sub.exists():
-            continue
-        for f in sub.glob("*.md"):
-            try:
-                pg = read_page(f)
-            except Exception:
-                continue
-            if pg.id in id_set:
-                pages.append(pg)
-    if not pages:
-        return True
-    passed, issues = run_precommit_gate(pages, [], {}, paths,
-                                        allow_overwrite=True)
-    if not passed:
-        for iss in issues[:10]:
-            print(f"  [GATE] {iss}", flush=True)
-        print(f"  [GATE] {len(issues)} issue(s) — FAIL", flush=True)
-    else:
-        print(f"  [GATE] {len(pages)} page(s) — PASS", flush=True)
-    return passed
-
-
 # ---------------------------------------------------------------------------
 # Batch orchestration entry
 # ---------------------------------------------------------------------------
 
 # ── BatchRunner 抽象基类（P1-A 3c）───────────────────────────────────
 # 生命周期钩子 _on_phase_start / _on_phase_end 预留崩溃注入测试支持。
-
-@dataclass
-class Batch:
-    """单批元数据（对应 manifest 中一个 batch 条目）。"""
-    batch_no: int
-    theme: str = ""
-    files: list[str] = field(default_factory=list)
-
-
-@dataclass
-class GateReport:
-    """门禁报告。"""
-    passed: bool = True
-    issues: list[str] = field(default_factory=list)
-
 
 @dataclass
 class BatchResult:

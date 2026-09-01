@@ -23,6 +23,11 @@
 - ✅ facade/raw lifecycle identity 回归及 orchestrator 相关回归 `14 passed`；三文件 `py_compile` 与 `git diff --check` 通过。
 - ✅ 按验收补齐 `_ensure_rebuild_clean`、`_clear_stale_vectors`、`_commit_ingest` 三个显式阶段 helper；pending-deletion → cascade → stale-vector cleanup → crash hook → ingest 顺序保持不变。
 - ⚠️ batch executor 组合测试触发既有 kill-9 子进程钩子，宿主只返回不完整点号输出，未将其计为通过；未观察到 Phase 1b 代码错误。
+
+### Plan A Phase 2：gate + state helpers（2026-09-01）
+
+- ✅ 将 `_rerun_gate_batch` 与 `Batch`/`GateReport` 迁入 `batch_runner_internal/gate.py`；将 `_set_batch_status`、`_update_fail_streak` 与 `MAX_FAIL_STREAK` 迁入 `state.py`。
+- ✅ facade 保留全部旧名称；gate/state identity 与 state-machine 相关回归 `15 passed`。
 >
 > **P0-A 注册 ruflo CLI → ✅ `be5417ec`**
 > **P0-B 中央配置模块 → ✅ `bca225a6`**

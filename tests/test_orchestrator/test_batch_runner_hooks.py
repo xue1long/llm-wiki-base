@@ -1,5 +1,6 @@
 from src.orchestrator import batch_runner
 from src.orchestrator.batch_runner_internal import hooks
+from src.orchestrator.batch_runner_internal import gate, state
 from src.orchestrator.batch_runner_internal import raw_lifecycle
 
 
@@ -35,3 +36,10 @@ def test_batch_runner_facade_reexports_raw_lifecycle():
         "_commit_ingest",
     ):
         assert getattr(batch_runner, name) is getattr(raw_lifecycle, name)
+
+
+def test_batch_runner_facade_reexports_gate_and_state_helpers():
+    for name in ("_rerun_gate_batch", "Batch", "GateReport"):
+        assert getattr(batch_runner, name) is getattr(gate, name)
+    for name in ("_set_batch_status", "_update_fail_streak", "MAX_FAIL_STREAK"):
+        assert getattr(batch_runner, name) is getattr(state, name)
