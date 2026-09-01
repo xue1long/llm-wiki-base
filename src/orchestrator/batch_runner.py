@@ -85,7 +85,7 @@ from src.orchestrator.batch_runner_internal.state import (
     _set_batch_status,
     _update_fail_streak,
 )
-from src.orchestrator.batch_runner_internal.phases import _phase_generate
+from src.orchestrator.batch_runner_internal.phases import _phase_gate, _phase_generate
 from src.orchestrator.auto_tag import auto_tag_ugc
 
 DEFAULT_MANIFEST = ".index/reingest_plan.json"
@@ -324,49 +324,8 @@ async def run_batch(args) -> int:
                           permanent_failed=len(perm_failed_raws))
         return 1
 
-    # ── Phase 2：pre-commit 门禁（内存页，失败 = 零写入）────────────
-    if _runner is not None:
-        _runner._on_phase_start("gate", Batch(batch_no=args.batch, files=pending))
-    all_pages = [p for pages, _, _ in generated.values() for p in pages]
-    all_extras = [e for _, extras, _ in generated.values() for e in extras]
-    # 修复 A：门禁在 commit 前运行，磁盘 gap 不含本批新增 —— 收集本批
-    # generate 已采集的 missing_slugs 并入门禁豁免集，避免误拦整批。
-    pending_gap_slugs = {
-        m["slug"]
-        for _, _, meta in generated.values()
-        for m in (meta or {}).get("missing_slugs") or []
-    }
-    # 修复 C（P4b）：UGC carrier 派生页确定性补 tag（门禁前，零 LLM 成本）。
-    if not _is_fake_mode():
-        _auto_tagged = _auto_tag_ugc(all_pages, raw_headers)
-        if _auto_tagged:
-            print(f"  [auto-tag] {_auto_tagged} UGC-carrier-derived "
-                  f"page(s) tagged 素材/ugc + 可信度/ugc", flush=True)
-    # 本批实际写入的**新页** id（pages，不含 extras）——整批复核只查这批。
-    # extras 是存量 reverse-touch 页（历史非法 relation/旧英文 tag 属
-    # M8/M9 消解范围），pre-commit 已豁免，整批复核必须同口径（修复 E）。
-    batch_page_ids = sorted({p.id for p in all_pages})
-    # Task 5：整批 source 候选 → Gate 对账的 ResolutionContext
-    # （未解析目标多候选 → TARGET-AMBIGUOUS 可诊断）。
-    from src.utils.path import canonical_raw_key
-    from src.wiki.features.target_resolver import ResolutionContext
-    _src_candidates = []
-    for raw in pending:
-        if raw not in generated:
-            continue
-        _slug = (generated[raw][2] or {}).get("source_slug")
-        if _slug:
-            _src_candidates.append(
-                (canonical_raw_key(raw, paths.root), _slug, Path(raw).stem))
-    _gate_res_ctx = (
-        ResolutionContext(source_candidates=tuple(_src_candidates))
-        if _src_candidates else None
-    )
-    gate_ok, gate_issues = run_precommit_gate(
-        all_pages, all_extras, raw_headers, paths,
-        allow_overwrite=args.allow_overwrite,
-        pending_gap_slugs=pending_gap_slugs,
-        resolution_context=_gate_res_ctx)
+    gate_ok, gate_issues, all_pages, batch_page_ids = await _phase_gate(
+        paths, generated, raw_headers, pending, args, _runner)
     if not gate_ok:
         print(f"BATCH BLOCKED: pre-commit gate failed — zero wiki writes "
               f"({len(gate_issues)} issue(s))", flush=True)

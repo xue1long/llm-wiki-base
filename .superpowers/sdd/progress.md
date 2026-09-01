@@ -33,6 +33,11 @@
 
 - ✅ 将并发 generate、immutable 跳过、fake 生成、失败/永久失败分类、fail-streak 更新及生命周期钩子迁入 `batch_runner_internal/phases.py`。
 - ✅ facade/phase 回归 `16 passed`，`py_compile` 与 `git diff --check` 通过；crash/env/state 契约未变。
+
+### Plan A Phase 3b：gate phase coroutine（2026-09-01）
+
+- ✅ 将批内页面/extra 汇总、missing-slug 豁免、UGC 自动标记、ResolutionContext 构建和 pre-commit gate 迁入 `_phase_gate`；gate 生命周期钩子仍由同一阶段控制。
+- ✅ facade/phase 回归 `16 passed`，编译通过；门禁失败仍在任何 commit 前返回，保持零写入约束。
 >
 > **P0-A 注册 ruflo CLI → ✅ `be5417ec`**
 > **P0-B 中央配置模块 → ✅ `bca225a6`**

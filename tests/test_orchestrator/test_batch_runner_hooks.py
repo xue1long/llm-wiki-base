@@ -48,3 +48,4 @@ def test_batch_runner_facade_reexports_gate_and_state_helpers():
 
 def test_batch_runner_facade_reexports_phase_helpers():
     assert batch_runner._phase_generate is phases._phase_generate
+    assert batch_runner._phase_gate is phases._phase_gate
