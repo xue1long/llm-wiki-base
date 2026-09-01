@@ -217,7 +217,7 @@ class TestRecordDecision:
         decision_data = fm["decision_record"]
         assert decision_data["alternatives"] == []
 
-    def test_wiki_page_type_is_decision(self, tmp_path):
+    def test_legacy_decision_page_uses_concept_base_type(self, tmp_path):
         paths = _make_paths(tmp_path)
         recorder = DecisionRecorder(paths)
         did = recorder.record_decision(
@@ -225,7 +225,9 @@ class TestRecordDecision:
         )
         path = paths.wiki_decisions / f"{did}.md"
         fm = _parse_frontmatter(path)
-        assert fm["type"] == "decision"
+        # V4 exposes only four PageType values; decisions keep their
+        # dedicated legacy directory and use concept as the base type.
+        assert fm["type"] == "concept"
 
     def test_title_is_question(self, tmp_path):
         paths = _make_paths(tmp_path)

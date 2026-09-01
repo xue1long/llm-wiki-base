@@ -102,6 +102,9 @@ def _write_decision_page(
     wp.decision_record = decision_record.to_dict()
 
     fm = wp.to_frontmatter_dict()
+    # Decision pages are a legacy compatibility surface outside the V4
+    # eight-key wiki page contract; retain their structured payload here.
+    fm["decision_record"] = decision_record.to_dict()
 
     path = paths.wiki_decisions / f"{wp.id}.md"
     path.parent.mkdir(parents=True, exist_ok=True)
