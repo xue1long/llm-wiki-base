@@ -28,6 +28,11 @@
 
 - ✅ 将 `_rerun_gate_batch` 与 `Batch`/`GateReport` 迁入 `batch_runner_internal/gate.py`；将 `_set_batch_status`、`_update_fail_streak` 与 `MAX_FAIL_STREAK` 迁入 `state.py`。
 - ✅ facade 保留全部旧名称；gate/state identity 与 state-machine 相关回归 `15 passed`。
+
+### Plan A Phase 3a：generate phase coroutine（2026-09-01）
+
+- ✅ 将并发 generate、immutable 跳过、fake 生成、失败/永久失败分类、fail-streak 更新及生命周期钩子迁入 `batch_runner_internal/phases.py`。
+- ✅ facade/phase 回归 `16 passed`，`py_compile` 与 `git diff --check` 通过；crash/env/state 契约未变。
 >
 > **P0-A 注册 ruflo CLI → ✅ `be5417ec`**
 > **P0-B 中央配置模块 → ✅ `bca225a6`**

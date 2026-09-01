@@ -40,10 +40,8 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import logging
-import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -87,6 +85,7 @@ from src.orchestrator.batch_runner_internal.state import (
     _set_batch_status,
     _update_fail_streak,
 )
+from src.orchestrator.batch_runner_internal.phases import _phase_generate
 from src.orchestrator.auto_tag import auto_tag_ugc
 
 DEFAULT_MANIFEST = ".index/reingest_plan.json"
@@ -302,78 +301,10 @@ async def run_batch(args) -> int:
     _set_batch_status(paths, batch_key, "pending_gate")
 
     # ── Phase 1：generate（dry，全部 pending 并行，零磁盘写）────────
-    generated: dict[str, tuple[list, list, dict]] = {}
-    raw_headers: dict[str, str] = {}
-    failed_raws: list[str] = []
-    perm_failed_raws: list[str] = []
-    skipped_immutable: list[str] = []
-
-    # 生命周期钩子：generate 阶段开始
     _runner = getattr(args, '_batch_runner', None)
-    if _runner is not None:
-        _runner._on_phase_start("generate", Batch(batch_no=args.batch, files=pending))
-
-    async def _gen_one(raw_rel: str) -> None:
-        set_raw_status(paths, batch_key, raw_rel, "in_progress")
-        _crash_at("generate")   # 生成前注入点（测试）
-        try:
-            if _is_immutable_source(paths, raw_rel):
-                set_raw_status(paths, batch_key, raw_rel, "done",
-                               skipped="immutable", branch="skip")
-                skipped_immutable.append(raw_rel)
-                return
-            if os.environ.get("RUFLO_EXECUTOR_FAKE_GENERATE") == "1":
-                pages = _fake_generate(raw_rel)
-                meta = {
-                    "fake": True,
-                    "expected_page_hashes": _snapshot_page_hashes(paths, pages),
-                }
-                generated[raw_rel] = (pages, [], meta)
-            else:
-                pages, extras, meta = await _generate_raw(
-                    paths, provider, raw_rel, args.batch)
-                # Task 0.3 TOCTOU：generate 结束时为"将要覆盖的存量页"记录
-                # content-hash 基线；commit 前若磁盘内容已变化（人工编辑/
-                # 并发写）则 WRITE-CONFLICT，不静默覆盖。批内产出的 page id
-                # 在 commit 阶段被剔除（批内自写不算冲突）。
-                meta = dict(meta or {})
-                meta["expected_page_hashes"] = _snapshot_page_hashes(paths, pages)
-                generated[raw_rel] = (pages, extras, meta)
-            header = ""
-            try:
-                header = (paths.root / raw_rel).read_text(
-                    encoding="utf-8", errors="replace")[:4000]
-            except OSError:
-                pass
-            raw_headers[raw_rel] = header
-        except Exception as exc:
-            from src.pipeline.retry import PermanentFailure
-            if isinstance(exc, PermanentFailure):
-                perm_failed_raws.append(raw_rel)
-                set_raw_status(paths, batch_key, raw_rel, "permanent_failed",
-                               last_error=str(exc))
-            else:
-                failed_raws.append(raw_rel)
-                set_raw_status(paths, batch_key, raw_rel, "failed",
-                               last_error=str(exc))
-
-    sem = asyncio.Semaphore(args.concurrency)
-    async def _gen_locked(raw_rel: str) -> None:
-        async with sem:
-            await _gen_one(raw_rel)
-
-    await asyncio.gather(*(_gen_locked(r) for r in pending))
-
-    # 生命周期钩子：generate 阶段结束
-    if _runner is not None:
-        _runner._on_phase_end("generate", Batch(batch_no=args.batch, files=pending), None)
-
-    # B1：failed 连续计数必须先于任何 return 路径（含 abort）落盘，
-    # 否则"整批零页"时 blocklist 永不触发（review 实测）。
-    for raw in failed_raws:
-        _update_fail_streak(paths, batch_key, raw, "failed")
-    for raw in perm_failed_raws:
-        _update_fail_streak(paths, batch_key, raw, "permanent_failed")
+    generated, raw_headers, failed_raws, perm_failed_raws, skipped_immutable = \
+        await _phase_generate(paths, provider, pending, args.batch, batch_key,
+                              args.concurrency, _runner)
 
     # is_immutable 整批跳过 ≠ 失败（guidance #13）：不算 abort。
     if not generated and skipped_immutable and not failed_raws and not perm_failed_raws:
