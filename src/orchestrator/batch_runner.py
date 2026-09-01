@@ -59,6 +59,15 @@ from src.lib.write_hooks import AtomicCommitError
 from src.wiki.storage.page_writer import WriteConflictError
 from src.wiki.core.paths import WikiPaths
 from src.wiki.features.batch_gate import run_precommit_gate
+from src.orchestrator.batch_runner_internal.hooks import (
+    _crash_at,
+    _estimate_batch_cost,
+    _fake_generate,
+    _is_fake_mode,
+    _resolve_paths,
+    _resolve_provider,
+    _snapshot_page_hashes,
+)
 from src.orchestrator.auto_tag import auto_tag_ugc
 
 DEFAULT_MANIFEST = ".index/reingest_plan.json"
@@ -68,120 +77,7 @@ CRASH_STAGES = ("generate", "gate", "cascade", "commit")
 
 _logger = logging.getLogger("batch_runner")
 
-
-# ---------------------------------------------------------------------------
-# Test hooks
-# ---------------------------------------------------------------------------
-
-def _crash_at(stage: str) -> None:
-    """kill -9 注入：env BATCH_EXECUTOR_CRASH_AT 匹配时 os._exit(137)。"""
-    target = os.environ.get("BATCH_EXECUTOR_CRASH_AT", "")
-    if target == stage:
-        _logger.warning("[crash-inject] os._exit(137) at stage %s", stage)
-        os._exit(137)
-
-
-def _snapshot_page_hashes(paths, pages) -> dict[str, str]:
-    """Task 0.3：generate 结束时为存量目标页记录 sha256 基线（TOCTOU CAS）。"""
-    import hashlib
-    from src.wiki.schema_registry import SchemaRegistry
-    from src.wiki.storage.page_writer import page_path_for
-
-    registry = SchemaRegistry.from_project(paths.root)
-    out: dict[str, str] = {}
-    for p in pages:
-        try:
-            path = page_path_for(
-                paths, p.type, p.id,
-            )
-            if path.exists():
-                out[p.id] = hashlib.sha256(path.read_bytes()).hexdigest()
-        except OSError:
-            continue
-    return out
-
-
-def _fake_generate(raw_rel: str) -> list:
-    """离线确定性生成（RUFLO_EXECUTOR_FAKE_GENERATE=1）——测试专用。
-
-    产出 gate-clean 页面：source 页 + concept 页，均带 v2.0.0 模板版本注释
-    与全部必填槽标题（bundled 2.0.0 槽集），lint MISSING-SECTION 不误报。
-    ``RUFLO_FAKE_PLACEHOLDER=1`` 时 body 带占位符子串（lint ERROR → 门禁失败）；
-    ``RUFLO_FAKE_FAIL=1`` 时抛 RuntimeError（failed 状态机路径）。
-    """
-    from src.wiki.core.types import PageType, WikiPage
-
-    if os.environ.get("RUFLO_FAKE_FAIL") == "1":
-        raise RuntimeError("fake generate failure (RUFLO_FAKE_FAIL=1)")
-
-    stem = Path(raw_rel).stem
-    ph = " 待补充 " if os.environ.get("RUFLO_FAKE_PLACEHOLDER") == "1" else "内容"
-    now = int(time.time() * 1000)
-    source_body = (
-        "<!-- wiki-template-version: 2.0.0 -->\n<!-- wiki-template-type: source -->\n\n"
-        "## 来源元数据\n\n- 路径: `{raw}`\n\n## 摘要\n\n摘要{ph}\n\n"
-        "## 关键观点\n\n- 观点\n\n## 抽取的概念\n\n- 概念"
-    ).format(raw=raw_rel, ph=ph)
-    concept_body = (
-        "<!-- wiki-template-version: 2.0.0 -->\n<!-- wiki-template-type: concept -->\n\n"
-        "## 定义\n\n定义{ph}\n\n## 主要特点\n\n- 特点\n\n## 例子\n\n- 例\n\n"
-        "## 相关概念\n\n[[concept-{stem}]]\n\n## 参考来源\n\n[[src-{stem}]]"
-    ).format(stem=stem, ph=ph)
-    return [
-        WikiPage(
-            id=f"src-{stem}", title=f"源{stem}", type=PageType.SOURCE,
-            sources=[raw_rel], body=source_body, grade="A",
-            processing_depth="source",
-            created_at=now, updated_at=now,
-        ),
-        WikiPage(
-            id=f"concept-{stem}", title=f"概念{stem}", type=PageType.CONCEPT,
-            sources=[raw_rel], body=concept_body, grade="B",
-            processing_depth="concept",
-            created_at=now, updated_at=now,
-        ),
-    ]
-
-
-def _is_fake_mode() -> bool:
-    return os.environ.get("RUFLO_EXECUTOR_FAKE_GENERATE") == "1"
-
-
-def _estimate_batch_cost(ok: int, err: int) -> float:
-    """估算本批费用（USD）。I2 review：真实模式不能恒 0.0。
-
-    - fake 模式：RUFLO_FAKE_COST（默认 0.2 USD/批，测试可控）；
-    - 真实模式：按 LLM 调用次数估算（每 raw ≈1 次 generate + 每页合成，
-      粗算 ok+err 次 × COST_PER_CALL），COST_PER_CALL 取 OpenAI
-      text-embedding/chat 的保守上限。精确计价应接 token 计量（待接入，
-      本估算保证 ``--budget-usd`` 在生产有意义而非 no-op）。
-    """
-    if _is_fake_mode():
-        return float(os.environ.get("RUFLO_FAKE_COST", "0.2"))
-    # 0.2 B2 定稿预算口径：每 LLM 调用 ~$0.0005 上限（glm-5.2 级别）
-    COST_PER_CALL = float(os.environ.get("RUFLO_COST_PER_CALL", "0.0005"))
-    return round((ok + err) * COST_PER_CALL, 4)
-
-
-# ---------------------------------------------------------------------------
-# Path / provider resolution
-# ---------------------------------------------------------------------------
-
-def _resolve_paths(args) -> WikiPaths:
-    if getattr(args, "root", None):
-        return WikiPaths(Path(args.root))
-    from src.pipeline import _resolve_wiki_paths
-    return _resolve_wiki_paths(args.project)
-
-
-def _resolve_provider(args):
-    """按 --project 解析 LLM provider（C1：真实模式不能传 None）。
-
-    --root 测试模式无项目注册 → 返回默认 provider（_get_provider(None)）。
-    """
-    from src.pipeline import _get_provider
-    project_id = getattr(args, "project", None)
-    return _get_provider(project_id)
+_auto_tag_ugc = auto_tag_ugc
 
 
 # ---------------------------------------------------------------------------

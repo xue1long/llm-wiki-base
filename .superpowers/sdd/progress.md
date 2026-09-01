@@ -11,6 +11,11 @@
 - ✅ 从 `batch_runner.py` 与 `scripts/phase4_batch.py` 抽取共享 `auto_tag_ugc`；保留 batch facade 的 `_auto_tag_ugc` 别名与原调用点。
 - ✅ 新增 `tests/test_orchestrator/test_auto_tag.py`；编排器定向回归 `10 passed`，batch executor auto-tag 定向回归 `1 passed`，三文件编译通过。
 - ⚠️ `graphify update .` 仍被本机 `uv trampoline failed to canonicalize script path` 阻塞；未修改图谱产物。
+
+### Plan A Phase 1a：batch runner hooks（2026-09-01）
+
+- ✅ 将 crash/fake/cost/path/provider hooks 迁入 `src/orchestrator/batch_runner_internal/hooks.py`；`batch_runner.py` 保留原路径别名，脚本调用链不变。
+- ✅ facade/hooks 兼容回归 `13 passed`；batch/CLI 相关回归 `13 passed`；编译和 `git diff --check` 通过。
 >
 > **P0-A 注册 ruflo CLI → ✅ `be5417ec`**
 > **P0-B 中央配置模块 → ✅ `bca225a6`**

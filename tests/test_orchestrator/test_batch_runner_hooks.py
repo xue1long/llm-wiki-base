@@ -1,0 +1,22 @@
+from src.orchestrator import batch_runner
+from src.orchestrator.batch_runner_internal import hooks
+
+
+def test_batch_runner_facade_reexports_hooks():
+    for name in (
+        "_crash_at",
+        "_snapshot_page_hashes",
+        "_fake_generate",
+        "_is_fake_mode",
+        "_estimate_batch_cost",
+        "_resolve_paths",
+        "_resolve_provider",
+    ):
+        assert getattr(batch_runner, name) is getattr(hooks, name)
+
+
+def test_fake_mode_and_cost_remain_compatible(monkeypatch):
+    monkeypatch.setenv("RUFLO_EXECUTOR_FAKE_GENERATE", "1")
+    monkeypatch.setenv("RUFLO_FAKE_COST", "0.7")
+    assert batch_runner._is_fake_mode() is True
+    assert batch_runner._estimate_batch_cost(2, 1) == 0.7
