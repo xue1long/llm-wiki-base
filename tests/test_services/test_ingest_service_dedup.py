@@ -50,6 +50,9 @@ def _setup_project(tmp_path: Path, monkeypatch) -> tuple[str, WikiPaths]:
     Returns ``(project_id, paths)``. Monkeypatches
     ``GlobalRegistryStore.by_id`` / ``.by_name`` to return a
     tmp_path-anchored entry without touching the real on-disk registry.
+    Also chdir's into the project root so ``os.path.abspath`` of any
+    relative path supplied to the ingest service lands inside the
+    project tree (no cross-drive ValueError on Windows).
 
     The monkeypatch argument is required — pytest cleans it up at test
     teardown so the patches don't leak across the suite (a previous
@@ -94,6 +97,11 @@ def _setup_project(tmp_path: Path, monkeypatch) -> tuple[str, WikiPaths]:
 
     monkeypatch.setattr(GlobalRegistryStore, "by_id", classmethod(fake_by_id))
     monkeypatch.setattr(GlobalRegistryStore, "by_name", classmethod(fake_by_name))
+    # Anchor CWD inside the project root so relative paths supplied
+    # to the ingest service (e.g. "raw/sources/foo.md") resolve under
+    # the project tree on Windows hosts where the pytest tmpdir
+    # happens to live on a different drive.
+    monkeypatch.chdir(project_root)
 
     return project_id, WikiPaths(project_root)
 

@@ -45,6 +45,19 @@ class IngestPathError(ValueError):
     """
 
 
+def _has_path_traversal(raw_posix: str) -> bool:
+    """True when ``raw_posix`` contains a ``..`` path segment.
+
+    Used to fail-closed on path-traversal attempts at the ingest
+    boundary. A path like ``"../../etc/passwd"`` or ``"foo/../../bar"``
+    must be rejected even if the resolved form would otherwise fall
+    inside the project tree, because the user is explicitly asking
+    to escape the boundary — the legacy code's "raw/sources fallback"
+    silently allowed such inputs to leak (line ~85 in pre-PR-2).
+    """
+    return any(seg == ".." for seg in raw_posix.split("/"))
+
+
 def _normalize_absolute_path(
     project_root: Path, raw: str,
 ) -> str:
@@ -56,6 +69,12 @@ def _normalize_absolute_path(
 
     Raises IngestPathError if the path is absolute but lives outside
     project_root — those would silently bypass the Collector boundary.
+    Also raises IngestPathError when a relative path contains a ``..``
+    segment (path-traversal attempt); pre-PR-2 the legacy code fell
+    through to a ``raw/sources/`` fallback that combined the user
+    input with a project-local prefix via ``os.path.join``,
+    effectively allowing ``"../../etc/passwd"`` to resolve to a
+    path inside the project tree if such a file existed.
     """
     raw_posix = raw.replace("\\", "/")
 
@@ -67,33 +86,73 @@ def _normalize_absolute_path(
         # which can corrupt CJK characters on Windows via low-level APIs.
         raw_abs = os.path.abspath(raw_posix)
         root_abs = os.path.abspath(str(project_root).replace("\\", "/"))
+
+        # PR-2 path-traversal guard: a relative path containing a ``..``
+        # segment is always a traversal attempt. Refuse the input
+        # outright — never reach the legacy raw/sources fallback that
+        # used ``os.path.join(sources_root, raw_posix)`` (which would
+        # silently absorb the user-supplied ``..`` and emit an
+        # accidental ingest path on a sibling directory).
+        if _has_path_traversal(raw_posix):
+            # The relpath test is best-effort: a ``..`` segment is
+            # always intentional traversal; we don't need to call
+            # relpath to confirm — and avoiding relpath means the
+            # traversal error message wins over a misleading
+            # cross-drive error. ``os.path.commonpath`` likewise raises
+            # ValueError on cross-drive, so guard that path too.
+            try:
+                common = os.path.commonpath([raw_abs, root_abs])
+            except ValueError:
+                raise IngestPathError(
+                    f"relative path {raw!r} traverses via '..' "
+                    f"and cannot be resolved across drives"
+                )
+            if common != root_abs:
+                raise IngestPathError(
+                    f"relative path {raw!r} escapes project root "
+                    f"{str(project_root)!r}; refuse path-traversal attempts"
+                )
+            return raw_posix.replace("\\", "/")
+
         try:
             rel = os.path.relpath(raw_abs, root_abs)
         except ValueError:
             # Different drives on Windows — relpath cannot compute.
-            # Still try the raw/sources fallback (below) before giving up.
-            rel = raw_posix
-            # Ensure we enter the fallback below.
-            if not rel.startswith(".."):
-                rel = ".." + rel
+            # No traversal attempted (verified above), so the path is
+            # simply not anchored: surface a clean error rather than
+            # guessing via the raw/sources fallback.
+            raise IngestPathError(
+                f"relative path {raw!r} is on a different drive "
+                f"from project root {str(project_root)!r}"
+            )
         if rel.startswith(".."):
-            # The path resolved outside the project root. The user may have
-            # omitted the "raw/sources/" prefix — ingest paths always resolve
-            # relative to that directory per the Collector permission boundary
-            # defined in src/permissions.py. Try to find the file under the
-            # project's raw/sources/ directory as a fallback.
+            # No traversal was attempted (verified above) but the
+            # path resolves outside the project tree — the user may
+            # have supplied a path that the legacy code's raw/sources
+            # fallback would have searched. Preserve that ergonomic:
+            # try to find the file under project's raw/sources/.
             sources_root = os.path.join(root_abs, "raw", "sources")
             candidate = os.path.abspath(os.path.join(sources_root, raw_posix))
             if os.path.exists(candidate):
                 candidate_rel = os.path.relpath(candidate, root_abs)
                 if not candidate_rel.startswith(".."):
-                    # The candidate is within the project tree — prefix is correct.
                     return candidate_rel.replace("\\", "/")
+            # No fallback hit — keep the original input as a
+            # project-relative path (mirrors the legacy return path)
+            # so the downstream collector can surface its own read error.
             return raw_posix
         return rel.replace("\\", "/")
 
     # Absolute path — must live under project_root.
     # Ditto: avoid Path.resolve() in favour of os.path.abspath/relpath.
+    # PR-2 (path-traversal guard): ``os.path.abspath`` does NOT reject
+    # ``..`` segments — it silently normalises them. A user-supplied
+    # absolute path like ``/project_root/foo/../../sibling_file``
+    # would resolve to ``/sibling_file``; the relpath check below
+    # would catch it but the operator log would say only "outside
+    # project root" without mentioning the traversal attempt. Prefer
+    # an explicit "refuse path-traversal" error so the audit trail
+    # tells the operator they were attempting an escape.
     raw_abs = os.path.abspath(raw_posix)
     root_abs = os.path.abspath(str(project_root).replace("\\", "/"))
     try:
@@ -104,6 +163,11 @@ def _normalize_absolute_path(
             " pass a project-relative path or a path under the project root"
         )
     if rel.startswith(".."):
+        if _has_path_traversal(raw_posix):
+            raise IngestPathError(
+                f"absolute path {raw!r} refuses path-traversal segments; "
+                "pass a project-relative path or a path under the project root"
+            )
         raise IngestPathError(
             f"absolute path {raw!r} is outside project root {str(project_root)!r};"
             " pass a project-relative path or a path under the project root"

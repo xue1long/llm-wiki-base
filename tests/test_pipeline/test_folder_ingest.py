@@ -156,7 +156,7 @@ class TestFolderContextPropagation:
 # ---------------------------------------------------------------------------
 
 class TestBatchTracking:
-    def test_folder_enqueue_creates_batch_id(self, tmp_path):
+    def test_folder_enqueue_creates_batch_id(self, tmp_path, monkeypatch):
         """enqueue_source with folder creates a batch_id and writes batch state."""
         import src.services.ingest as _mod
 
@@ -165,6 +165,12 @@ class TestBatchTracking:
         docs_dir = project_dir / "data" / "docs"
         docs_dir.mkdir(parents=True)
         (docs_dir / "test.md").write_text("# Test", encoding="utf-8")
+
+        # Anchor CWD inside the project tree so os.path.abspath of
+        # "data/docs" lands under project_root (Windows hosts put
+        # pytest's tmp_path on a different drive than CWD, which
+        # triggers a cross-drive ValueError in os.path.relpath).
+        monkeypatch.chdir(project_dir)
 
         # Stub resolve_project
         from src.project.context import ProjectContext
@@ -201,7 +207,7 @@ class TestBatchTracking:
         # batch_id passed to enqueue_batch
         assert captured_batch["kw"].get("batch_id") == result["batchId"]
 
-    def test_batch_state_file_written(self, tmp_path):
+    def test_batch_state_file_written(self, tmp_path, monkeypatch):
         """Folder enqueue writes batch_build_state.json."""
         import src.services.ingest as _mod
 
@@ -210,6 +216,9 @@ class TestBatchTracking:
         docs_dir = project_dir / "data" / "docs"
         docs_dir.mkdir(parents=True)
         (docs_dir / "a.md").write_text("# A", encoding="utf-8")
+
+        # Anchor CWD into the project tree (Windows cross-drive guard).
+        monkeypatch.chdir(project_dir)
 
         from src.project.context import ProjectContext
         from src.wiki.core.paths import WikiPaths
