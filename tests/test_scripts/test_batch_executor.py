@@ -81,9 +81,13 @@ def _run_executor(root: Path, batch_no: int = 0, *,
            "--manifest", str(root / ".index" / "reingest_plan.json")]
     if extra_args:
         cmd.extend(extra_args)
-    # The desktop exec host truncates pytest when a direct grandchild exits
-    # with 137. Keep the real return code, but make pytest's direct child exit
-    # normally so the host can finish the test and report its assertions.
+    # The desktop exec host truncates pytest when a direct child exits with
+    # 137. Add the exit-code relay only for crash-injection runs; ordinary
+    # executor tests should keep the original one-child process topology.
+    if not (extra_env and extra_env.get("BATCH_EXECUTOR_CRASH_AT")):
+        return subprocess.run(cmd, capture_output=True, text=True,
+                              encoding="utf-8", env=env, timeout=timeout,
+                              cwd=str(REPO_ROOT))
     wrapper = (
         "import subprocess,sys; "
         "p=subprocess.run(sys.argv[1:], capture_output=True, text=True, "

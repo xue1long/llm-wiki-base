@@ -779,3 +779,9 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - 额外验收：ingest/KC 发布回归 `30 passed`；未改变 fail-closed 证据绑定；缺失/错误 `block_id` 仍拒绝，quote hash 仍按 canonical quote 重算。
 - 当前状态：集成分支已提交，待完成编译、受影响 CLI/project/wiki 测试、diff/range-diff/路径审计后，使用 old-SHA guard 快进 `main`；不 push，保留集成 worktree 作为回滚证据。
 - 完成：编译通过；受影响模板回归 `13 passed, 12 skipped`；隔离临时项目 `/health` 返回 HTTP 200；`git diff --check`、冲突检查、protected-path 审计通过；`main` 已用 old-SHA guard 快进至 `025e19b6`。graphify 仍受本机 uv trampoline 错误阻塞，未改全局工具环境。
+
+### A13 Batch crash-test host verification（2026-09-01）
+
+- 修复测试辅助函数的进程拓扑：普通 batch executor 场景不再额外套 exit-code wrapper，wrapper 仅用于 `BATCH_EXECUTOR_CRASH_AT` 注入场景；生产默认 `os._exit(137)` 行为保持不变。
+- 验收：`tests/test_scripts/test_batch_executor.py` 全文件 `25 passed in 231.32s`；`tests/test_orchestrator/` `29 passed in 1.85s`；相关文件 `py_compile` 与 `git diff --check` 通过。
+- 根因结论：之前的“第三个场景截断”是宿主对子进程异常退出/进程树的处理限制；普通场景 wrapper 造成额外复杂度，crash 场景用软退出加外层回传保证 pytest 可收集断言，未改变真实运行时默认语义。
