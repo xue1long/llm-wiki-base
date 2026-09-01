@@ -15,6 +15,11 @@ Taxonomy (architecture-remediation R8, plan-audit hardening):
   out of sync, half-committed batch). Never retried; operator action.
 - ``ProgrammingError`` — a code bug, not an operational fault. Never
   retried; surface loudly.
+- ``pipeline.retry.PermanentFailure`` — surface-level "this will never
+  succeed" error raised by the LLM client layer (e.g. HTTP 422 content
+  moderation, irrecoverable response-shape failure). Never retried; the
+  pipeline maps it to the same no-retry marker as the four explicit
+  taxonomy classes above.
 
 Unknown exceptions default to retryable (fail-open, back-compat).
 
@@ -48,7 +53,14 @@ class ProgrammingError(RuntimeError):
 
 def classify_error(exc: BaseException) -> str:
     """Classify an exception into ``retryable``/``invalid_input``/
-    ``data_consistency``/``programming``. Unknown → retryable."""
+    ``data_consistency``/``programming``/``no_retry``. Unknown → retryable.
+
+    ``no_retry`` covers ``pipeline.retry.PermanentFailure`` — a non-retryable
+    surface error raised by the LLM layer (HTTP 422 content moderation,
+    invalid response shape that retries cannot fix). The class is imported
+    lazily inside the function to avoid a circular import (pipeline.retry
+    imports from this module).
+    """
     if isinstance(exc, RetryableDependencyError):
         return "retryable"
     if isinstance(exc, InvalidInputError):
@@ -57,6 +69,15 @@ def classify_error(exc: BaseException) -> str:
         return "data_consistency"
     if isinstance(exc, ProgrammingError):
         return "programming"
+    try:
+        from ..pipeline.retry import PermanentFailure
+        if isinstance(exc, PermanentFailure):
+            return "no_retry"
+    except Exception:
+        # pipeline.retry not importable in some test contexts (e.g. when
+        # only the errors module is loaded in isolation). Fall through to
+        # the retryable default.
+        pass
     return "retryable"
 
 
