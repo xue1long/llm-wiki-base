@@ -89,6 +89,7 @@ from src.orchestrator.batch_runner_internal.phases import (
     _phase_commit,
     _phase_gate,
     _phase_generate,
+    _prepare_batch,
     _phase_recheck_and_finalize,
 )
 from src.orchestrator.auto_tag import auto_tag_ugc
@@ -236,74 +237,10 @@ class DefaultBatchRunner(BatchRunner):
 
 
 async def run_batch(args) -> int:
-    paths = _resolve_paths(args)
-
-    # C1：真实模式必须解析 provider（None → 整批 AttributeError）。
-    # fake 模式不需要（_gen_one 走 _fake_generate），但仍解析以便契约一致。
-    provider = None if _is_fake_mode() else _resolve_provider(args)
-
-    manifest = Path(args.manifest)
-    if not manifest.is_absolute():
-        manifest = paths.root / manifest
-    if not manifest.exists():
-        print(f"manifest missing: {manifest}", flush=True)
-        return 1
-    data = json.loads(manifest.read_text(encoding="utf-8"))
-    batches = data["batches"]
-    if args.batch >= len(batches):
-        print(f"batch {args.batch} out of range (0..{len(batches)-1})", flush=True)
-        return 1
-    batch = batches[args.batch]
-    files = batch["files"]
-    batch_key = f"batch_{args.batch}"
-    print(f"batch {args.batch} [{batch.get('theme', '?')}]: {len(files)} file(s)",
-          flush=True)
-
-    # git 快照（guidance #13；--no-git-snapshot 跳过，测试用）
-    snapshot = None if args.no_git_snapshot else _git_snapshot(paths)
-    if snapshot:
-        from src.services.batch_state import update_batch_state
-        update_batch_state(paths, lambda st: (
-            st.setdefault(batch_key, {}).__setitem__("git_snapshot", snapshot),
-            st)[1])
-
-    # 预算顶层检查：上次已超限 → 暂停
-    state = load_batch_state(paths)
-    cumulative = float(state.get("budget", {}).get("cumulative_usd", 0.0))
-    if args.budget_usd is not None and cumulative > args.budget_usd:
-        print(f"BUDGET PAUSED: cumulative ${cumulative:.2f} > "
-              f"${args.budget_usd:.2f} — not starting batch", flush=True)
-        _set_batch_status(paths, batch_key, "paused_budget")
-        return 3
-
-    # ── 状态机：决定每 raw 动作 ─────────────────────────────────────
-    # M1 review：--resume 语义 —— failed 只在续跑时重投；全新跑（无 --resume）
-    # 跳过 failed（上一轮失败需要人工/脚本决策后再重投，避免无限自动重试）。
-    # done / permanent_failed / blocklisted 恒跳过；pending_deletion 恒重建。
-    pending: list[str] = []
-    for raw in files:
-        st = raw_status(state, batch_key, raw)
-        entry = state.get(batch_key, {}).get("raw_states", {}).get(raw, {})
-        if st == "done":
-            print(f"SKIP done: {raw}", flush=True)
-            continue
-        if st == "permanent_failed" or entry.get("blocklisted"):
-            print(f"SKIP blocked: {raw}", flush=True)
-            continue
-        if st == "failed" and not args.resume:
-            print(f"SKIP failed (use --resume to resubmit): {raw}", flush=True)
-            continue
-        if st == "pending_deletion":
-            print(f"RESUME pending_deletion: {raw} — re-running rebuild",
-                  flush=True)
-        pending.append(raw)
-
-    if not pending:
-        print("nothing to do — all files done/blocked", flush=True)
-        return 0
-
-    # 门禁先置 pending_gate（C4：批级状态，崩溃后续跑可识别）
-    _set_batch_status(paths, batch_key, "pending_gate")
+    prepared, early_exit = _prepare_batch(args)
+    if prepared is None:
+        return early_exit
+    paths, provider, batch_key, files, pending, cumulative = prepared
 
     # ── Phase 1：generate（dry，全部 pending 并行，零磁盘写）────────
     _runner = getattr(args, '_batch_runner', None)

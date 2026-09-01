@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from pathlib import Path
 
@@ -11,6 +12,66 @@ from .raw_lifecycle import _generate_raw, _is_immutable_source
 from .state import _update_fail_streak
 from src.services.batch_state import set_raw_status
 from src.wiki.features.batch_gate import run_precommit_gate
+
+
+def _prepare_batch(args):
+    from .hooks import _resolve_paths, _resolve_provider
+    from .hooks import _is_fake_mode
+    from .raw_lifecycle import _git_snapshot as _raw_git_snapshot
+    from .state import _set_batch_status
+    from src.services.batch_state import load_batch_state, raw_status, update_batch_state
+
+    paths = _resolve_paths(args)
+    provider = None if _is_fake_mode() else _resolve_provider(args)
+    manifest = Path(args.manifest)
+    if not manifest.is_absolute():
+        manifest = paths.root / manifest
+    if not manifest.exists():
+        print(f"manifest missing: {manifest}", flush=True)
+        return None, 1
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    batches = data["batches"]
+    if args.batch >= len(batches):
+        print(f"batch {args.batch} out of range (0..{len(batches)-1})", flush=True)
+        return None, 1
+    batch = batches[args.batch]
+    files = batch["files"]
+    batch_key = f"batch_{args.batch}"
+    print(f"batch {args.batch} [{batch.get('theme', '?')}]: {len(files)} file(s)",
+          flush=True)
+    snapshot = None if args.no_git_snapshot else _raw_git_snapshot(paths)
+    if snapshot:
+        update_batch_state(paths, lambda st: (
+            st.setdefault(batch_key, {}).__setitem__("git_snapshot", snapshot),
+            st)[1])
+    state = load_batch_state(paths)
+    cumulative = float(state.get("budget", {}).get("cumulative_usd", 0.0))
+    if args.budget_usd is not None and cumulative > args.budget_usd:
+        print(f"BUDGET PAUSED: cumulative ${cumulative:.2f} > "
+              f"${args.budget_usd:.2f} — not starting batch", flush=True)
+        _set_batch_status(paths, batch_key, "paused_budget")
+        return None, 3
+    pending = []
+    for raw in files:
+        status = raw_status(state, batch_key, raw)
+        entry = state.get(batch_key, {}).get("raw_states", {}).get(raw, {})
+        if status == "done":
+            print(f"SKIP done: {raw}", flush=True)
+            continue
+        if status == "permanent_failed" or entry.get("blocklisted"):
+            print(f"SKIP blocked: {raw}", flush=True)
+            continue
+        if status == "failed" and not args.resume:
+            print(f"SKIP failed (use --resume to resubmit): {raw}", flush=True)
+            continue
+        if status == "pending_deletion":
+            print(f"RESUME pending_deletion: {raw} — re-running rebuild", flush=True)
+        pending.append(raw)
+    if not pending:
+        print("nothing to do — all files done/blocked", flush=True)
+        return None, 0
+    _set_batch_status(paths, batch_key, "pending_gate")
+    return (paths, provider, batch_key, files, pending, cumulative), None
 
 
 async def _phase_generate(paths, provider, pending, batch_no, batch_key,

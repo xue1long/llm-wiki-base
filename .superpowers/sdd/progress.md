@@ -48,6 +48,11 @@
 
 - ✅ 将项目 commit lock、逐 raw 提交、TOCTOU 过滤、partial/write-conflict 状态、completed page 持久化、向量 upsert 与 pending 清理迁入 `_phase_commit`。
 - ✅ `batch_runner.py` 降至 352 行，旧 commit 逻辑仅保留一个调用点；orchestrator 阶段回归通过，脚本组合测试仍受既有 kill-9 子进程输出限制，未计为通过。
+
+### Plan A Phase 3e：precondition + state filter（2026-09-01）
+
+- ✅ 将路径/provider/manifest、git snapshot、预算前置检查和 pending/resume/blocklist 状态筛选迁入 `_prepare_batch`；移除重复 `pending_gate` 写入。
+- ✅ A3 阶段回归 `16 passed`，编译与格式检查通过；`batch_runner.py` 约 291 行，`run_batch` 仅保留阶段编排。
 >
 > **P0-A 注册 ruflo CLI → ✅ `be5417ec`**
 > **P0-B 中央配置模块 → ✅ `bca225a6`**
