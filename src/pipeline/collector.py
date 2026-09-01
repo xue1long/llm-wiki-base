@@ -214,18 +214,163 @@ def _decode_text_file(raw_bytes: bytes, source_path: str) -> str:
     return best[0].replace("\r\n", "\n").replace("\r", "\n")
 
 
+def _check_ip_public(address: ipaddress.IPv4Address | ipaddress.IPv6Address,
+                    url: str) -> None:
+    """Reject private / loopback / link-local / multicast / unspecified IPs.
+
+    Used by ``_PinnedDnsTransport`` after we've resolved the hostname.
+    Defense-in-depth: even if the hostname looks benign, an attacker can
+    point DNS at an internal IP — we want the check to apply to the
+    IP we'll actually connect to, not the textual hostname.
+    """
+    if (
+        address.is_private
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_multicast
+        or address.is_unspecified
+        or address.is_reserved
+    ):
+        raise PermissionDenied(
+            f"URL {url} resolves to disallowed address {address} "
+            f"(private / loopback / link-local / multicast / reserved)"
+        )
+
+
 def _check_url_allowlisted(url: str) -> None:
-    """Reject URLs whose hostname resolves to a non-public address."""
-    host = urlparse(url).hostname or ""
+    """Reject URLs whose hostname resolves to a non-public address.
+
+    Pre-PR-3 helper retained so direct callers (e.g. unit tests) keep a
+    public entrypoint; the redirect loop now uses
+    ``_PinnedDnsTransport`` which performs the same check on the IP
+    it will actually use for the socket, eliminating the
+    DNS-resolve-then-reconnect TOCTOU window.
+    """
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.hostname:
+        raise PermissionDenied(f"URL {url!r} is missing a scheme or hostname")
+    if parsed.scheme not in ("http", "https"):
+        raise PermissionDenied(
+            f"URL {url!r} uses disallowed scheme {parsed.scheme!r}"
+        )
+    host = parsed.hostname
     try:
         address = ipaddress.ip_address(socket.gethostbyname(host))
     except socket.gaierror as exc:
         raise PermissionDenied(f"DNS resolution failed for {host}") from exc
 
-    if address.is_private or address.is_loopback or address.is_link_local:
-        raise PermissionDenied(
-            f"URL {url} resolves to private/loopback/link-local {address}"
+    _check_ip_public(address, url)
+
+
+class _PinnedDnsTransport(httpx.BaseTransport):
+    """DNS-pinning httpx transport — single IP per resolved hostname.
+
+    Defense against the classic SSRF race: the prior code resolved the
+    hostname twice (once in ``_check_url_allowlisted`` then again inside
+    httpx), giving an attacker controlling DNS the window to return a
+    public IP on the first resolve and a private IP on the second.
+
+    The transport resolves the hostname exactly once, validates the IP
+    is public, then issues the request against that single IP via the
+    URL's netloc. The original hostname is preserved in the ``Host:``
+    header for virtual-host routing.
+
+    Caching: pin the IP for the lifetime of this transport so the
+    redirect loop within a single fetch resolves the same hostname
+    to the same IP throughout. The cache is per-transport instance —
+    the collector creates a fresh transport per request, so the cache
+    also guards against same-redirect-loop DNS rebinding attempts.
+
+    Note: this protection is best-effort. The transport operates below
+    httpx's hostname verification layer; HTTPS vhost validation still
+    happens in httpx. For absolute guarantees, pair this with a
+    deployed egress proxy that enforces IP policy on every request.
+    """
+
+    def __init__(self) -> None:
+        self._pin_cache: dict[str, str] = {}
+
+    def _resolve_and_pin(self, url: str) -> str:
+        """Resolve + IP-validate the URL's hostname and rewrite the URL
+        to address-anchored form. Returns the rewritten URL.
+
+        Raises ``PermissionDenied`` if the host fails IP allowlist.
+        """
+        parsed = urlparse(url)
+        if not parsed.scheme or not parsed.hostname:
+            raise PermissionDenied(f"URL {url!r} is missing a scheme or hostname")
+        if parsed.scheme not in ("http", "https"):
+            raise PermissionDenied(
+                f"URL {url!r} uses disallowed scheme {parsed.scheme!r}"
+            )
+        host = parsed.hostname
+        # If the URL is already IP-anchored (an earlier redirect
+        # constructed it), skip the resolve step.
+        try:
+            cached_ip = self._pin_cache[host]
+        except KeyError:
+            try:
+                cached_ip = socket.gethostbyname(host)
+            except socket.gaierror as exc:
+                raise PermissionDenied(
+                    f"DNS resolution failed for {host}"
+                ) from exc
+            try:
+                address = ipaddress.ip_address(cached_ip)
+            except ValueError as exc:
+                raise PermissionDenied(
+                    f"DNS result for {host} is not a parseable IP: {cached_ip}"
+                ) from exc
+            _check_ip_public(address, url)
+            self._pin_cache[host] = cached_ip
+
+        # Rewrite the URL with the IP in the netloc while preserving the
+        # path / query / fragment from the original URL.
+        netloc = cached_ip
+        if parsed.port:
+            netloc = f"{cached_ip}:{parsed.port}"
+        return parsed._replace(netloc=netloc).geturl()
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        try:
+            pinned_url = self._resolve_and_pin(str(request.url))
+        except PermissionDenied:
+            raise
+        if pinned_url == str(request.url):
+            return httpx.HTTPTransport().handle_request(request)
+        # Reconstruct request with the IP-pinned URL but original
+        # ``Host:`` header so the vhost resolves correctly on the
+        # remote server.
+        original_host = request.headers.get("host") or urlparse(
+            str(request.url)
+        ).hostname
+        pinned_request = httpx.Request(
+            method=request.method,
+            url=pinned_url,
+            headers={**request.headers, "host": original_host},
+            content=request.content,
+            extensions=request.extensions,
         )
+        return httpx.HTTPTransport().handle_request(pinned_request)
+
+    def close(self) -> None:
+        self._pin_cache.clear()
+
+
+def _safe_redirect_join(base_url: str, location: str) -> str:
+    """Resolve a possibly-relative ``Location`` header against ``base_url``.
+
+    Returns the absolute URL that the client should follow next.
+    Falls back to ``location`` unchanged for absolute URLs (we still
+    have to validate them); pre-PR-3 the collector did
+    ``current_url = location`` which silently dropped the base for
+    relative redirects, breaking every common 302 case.
+    """
+    from urllib.parse import urljoin
+
+    if not location:
+        return base_url
+    return urljoin(base_url, location)
 
 
 def _resolve_project_file(source: str, project_id: str | None) -> Path | None:
@@ -279,21 +424,59 @@ async def collect(
 
     if source_type == SourceType.URL:
         enforce_permission(AgentType.COLLECTOR, source, Permission.READ)
+        # PR-3: redirect chain now flows through a DNS-pinned transport so
+        # the same hostname resolves to the same IP for every hop, with
+        # relative ``Location:`` headers correctly joined against the
+        # current URL (the prior ``current_url = location`` form silently
+        # dropped the base for relative redirects). The transport's
+        # ``_check_ip_public`` covers every redirect target, eliminating
+        # the SSRF TOCTOU window on the redirect chain.
+        #
+        # The entry URL is checked once via the cheaper path-first
+        # ``_check_url_allowlisted`` so a private/loopback entry URL
+        # short-circuits before any HTTP transport cost. The
+        # transport-level check still applies for redirects — an
+        # attacker cannot bypass the gate by chaining public → private
+        # redirect targets.
         _check_url_allowlisted(source)
-        current_url = source
-        for _ in range(MAX_REDIRECT_HOPS):
-            response = httpx.get(current_url, timeout=30, follow_redirects=False)
-            if response.is_redirect:
-                location = response.headers.get("Location") or response.headers.get("location") or ""
-                if not location:
-                    response.raise_for_status()
-                _check_url_allowlisted(location)
-                current_url = location
-                continue
-            response.raise_for_status()
-            break
-        else:
-            raise PermissionDenied(f"Too many redirects (>{MAX_REDIRECT_HOPS}) from {source}")
+        transport = _PinnedDnsTransport()
+        try:
+            current_url = source
+            response = None
+            for _ in range(MAX_REDIRECT_HOPS):
+                # Pin the URL on every iteration so each hop validates its
+                # own hostname (an attacker redirecting to a different
+                # host is caught at the transport's _resolve_and_pin).
+                response = httpx.get(
+                    current_url,
+                    timeout=30,
+                    follow_redirects=False,
+                    transport=transport,
+                )
+                if response.is_redirect:
+                    _loc = (
+                        response.headers.get("Location")
+                        or response.headers.get("location")
+                        or ""
+                    )
+                    location = str(_loc) if _loc is not None else ""
+                    if not location:
+                        # Empty ``Location:`` is a protocol error;
+                        # surface it rather than looping forever.
+                        response.raise_for_status()
+                    # urljoin absolute-wins, then resolves relative
+                    # against the current URL's base; covers common 302
+                    # patterns (/v2, //host/x, ../foo).
+                    current_url = _safe_redirect_join(current_url, location)
+                    continue
+                response.raise_for_status()
+                break
+            else:
+                raise PermissionDenied(
+                    f"Too many redirects (>{MAX_REDIRECT_HOPS}) from {source}"
+                )
+        finally:
+            transport.close()
         # R2: unified source cap — a URL body larger than the configured
         # limit is rejected before it can be parsed/embedded.
         content = response.text
