@@ -121,3 +121,52 @@ async def _phase_gate(paths, generated, raw_headers, pending, args, runner=None)
     if runner is not None:
         runner._on_phase_end("gate", batch, (gate_ok, gate_issues))
     return gate_ok, gate_issues, all_pages, batch_page_ids
+
+
+async def _phase_recheck_and_finalize(paths, batch_key, pending,
+                                      batch_page_ids, cumulative, args,
+                                      ok, err, perm, runner=None):
+    batch = Batch(batch_no=args.batch, files=pending)
+    if runner is not None:
+        runner._on_phase_start("recheck", batch)
+    from .gate import _rerun_gate_batch
+    from .hooks import _estimate_batch_cost
+    from .state import _set_batch_status
+    from src.services.batch_state import load_batch_state, update_batch_state
+
+    state_now = load_batch_state(paths)
+    persisted_ids = state_now.get(batch_key, {}).get("page_ids", []) or []
+    recheck_ids = sorted(set(persisted_ids) | set(batch_page_ids))
+    whole_ok = await _rerun_gate_batch(paths, batch_key, pending,
+                                       batch_page_ids=recheck_ids)
+    _crash_at("gate")
+    state = load_batch_state(paths)
+    cost = _estimate_batch_cost(ok, err)
+    budget_state = state.setdefault("budget", {})
+    budget_state["cumulative_usd"] = cumulative + cost
+    budget_state["last_batch_usd"] = cost
+    if not whole_ok:
+        _set_batch_status(paths, batch_key, "gate_recheck_failed",
+                          committed=True, ok=ok, err=err)
+        update_batch_state(paths, lambda st: (
+            st.setdefault("budget", {}).__setitem__(
+                "cumulative_usd", cumulative + cost), st)[1])
+        print("BATCH GATE RE-CHECK FAILED (whole-batch scope, pages already "
+              "committed) — use scripts/rollback_batch.py to revert", flush=True)
+        return 3
+    if args.budget_usd is not None and budget_state["cumulative_usd"] > args.budget_usd:
+        _set_batch_status(paths, batch_key, "paused_budget",
+                          ok=ok, err=err, permanent_failed=perm)
+        update_batch_state(paths, lambda st: (
+            st.setdefault("budget", {}).__setitem__(
+                "cumulative_usd", cumulative + cost), st)[1])
+        print(f"BUDGET PAUSED: cumulative ${budget_state['cumulative_usd']:.2f} "
+              f"> ${args.budget_usd:.2f}", flush=True)
+        return 3
+    _set_batch_status(paths, batch_key, "committed",
+                      ok=ok, err=err, permanent_failed=perm)
+    update_batch_state(paths, lambda st: (
+        st.setdefault("budget", {}).__setitem__(
+            "cumulative_usd", cumulative + cost), st)[1])
+    print(f"BATCH DONE ok={ok} err={err} permanent_failed={perm}", flush=True)
+    return 0

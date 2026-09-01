@@ -38,6 +38,11 @@
 
 - ✅ 将批内页面/extra 汇总、missing-slug 豁免、UGC 自动标记、ResolutionContext 构建和 pre-commit gate 迁入 `_phase_gate`；gate 生命周期钩子仍由同一阶段控制。
 - ✅ facade/phase 回归 `16 passed`，编译通过；门禁失败仍在任何 commit 前返回，保持零写入约束。
+
+### Plan A Phase 3c：recheck + finalize coroutine（2026-09-01）
+
+- ✅ 将整批复核、gate crash hook、预算累计、预算暂停和批状态收尾迁入 `_phase_recheck_and_finalize`。
+- ✅ facade/phase 回归 `16 passed`，编译与格式检查通过；`batch_runner.py` 降至 472 行，剩余主要复杂度集中在 commit phase。
 >
 > **P0-A 注册 ruflo CLI → ✅ `be5417ec`**
 > **P0-B 中央配置模块 → ✅ `bca225a6`**

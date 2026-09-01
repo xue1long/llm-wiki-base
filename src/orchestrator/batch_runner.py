@@ -85,7 +85,11 @@ from src.orchestrator.batch_runner_internal.state import (
     _set_batch_status,
     _update_fail_streak,
 )
-from src.orchestrator.batch_runner_internal.phases import _phase_gate, _phase_generate
+from src.orchestrator.batch_runner_internal.phases import (
+    _phase_gate,
+    _phase_generate,
+    _phase_recheck_and_finalize,
+)
 from src.orchestrator.auto_tag import auto_tag_ugc
 
 DEFAULT_MANIFEST = ".index/reingest_plan.json"
@@ -463,55 +467,6 @@ async def run_batch(args) -> int:
                   flush=True)
             # Pending entries remain → startup / CLI reconcile will retry.
 
-    # ── 整批门禁复核（C4：崩溃后续跑对整批——含已 done 文件——重跑门禁，
-    #    杜绝门禁作用域收缩）──────────────────────────────────────────
-    if _runner is not None:
-        _runner._on_phase_start("recheck", Batch(batch_no=args.batch, files=pending))
-    # Phase 4 试跑实测修复 E：整批复核只对本批**实际写入**的页面跑门禁
-    # （pages + 本轮 commit 的 extras），跳过磁盘上"source 关联但本批
-    # 未写入"的存量页——否则 reverse-touch 写回的存量 extras（其历史非法
-    # relation/旧英文 tag 是 M8/M9 消解范围）会被误拦（batch 0 实测：
-    # 东方玄幻 的存量 contrasts relation 使整批 gate_recheck_failed）。
-    # 作用域 = 已持久化 page_ids（含历史 done 文件）∪ 本轮 pages——续跑
-    # 时仍覆盖整批，杜绝门禁作用域收缩（C4），同时排除存量 extras。
-    state_now = load_batch_state(paths)
-    persisted_ids = state_now.get(batch_key, {}).get("page_ids", []) or []
-    recheck_ids = sorted(set(persisted_ids) | set(batch_page_ids))
-    whole_ok = await _rerun_gate_batch(paths, batch_key, files,
-                                       batch_page_ids=recheck_ids)
-    _crash_at("gate")   # 门禁后注入点（测试）
-
-    # ── 预算累计 + 批状态 ───────────────────────────────────────────
-    state = load_batch_state(paths)
-    cost = _estimate_batch_cost(ok, err)
-    budget_state = state.setdefault("budget", {})
-    budget_state["cumulative_usd"] = cumulative + cost
-    budget_state["last_batch_usd"] = cost
-    from src.services.batch_state import update_batch_state
-    if not whole_ok:
-        # I1 review：复核在 commit 之后，失败 ≠ 零写入——独立 exit code 3
-        # + 状态 gate_recheck_failed（标注 committed=True），提示回滚。
-        _set_batch_status(paths, batch_key, "gate_recheck_failed",
-                          committed=True, ok=ok, err=err)
-        update_batch_state(paths, lambda st: (
-            st.setdefault("budget", {}).__setitem__("cumulative_usd", cumulative + cost),
-            st)[1])
-        print("BATCH GATE RE-CHECK FAILED (whole-batch scope, pages already "
-              "committed) — use scripts/rollback_batch.py to revert", flush=True)
-        return 3
-    if args.budget_usd is not None and budget_state["cumulative_usd"] > args.budget_usd:
-        _set_batch_status(paths, batch_key, "paused_budget",
-                          ok=ok, err=err, permanent_failed=perm)
-        update_batch_state(paths, lambda st: (
-            st.setdefault("budget", {}).__setitem__("cumulative_usd", cumulative + cost),
-            st)[1])
-        print(f"BUDGET PAUSED: cumulative ${budget_state['cumulative_usd']:.2f} "
-              f"> ${args.budget_usd:.2f}", flush=True)
-        return 3
-    _set_batch_status(paths, batch_key, "committed",
-                      ok=ok, err=err, permanent_failed=perm)
-    update_batch_state(paths, lambda st: (
-        st.setdefault("budget", {}).__setitem__("cumulative_usd", cumulative + cost),
-        st)[1])
-    print(f"BATCH DONE ok={ok} err={err} permanent_failed={perm}", flush=True)
-    return 0
+    return await _phase_recheck_and_finalize(
+        paths, batch_key, pending, batch_page_ids, cumulative, args,
+        ok, err, perm, _runner)
