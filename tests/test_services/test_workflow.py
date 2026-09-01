@@ -41,7 +41,7 @@ def test_workflow_state_persists_via_roundtrip():
     p = WikiPage(id="x", title="X", type=PageType.CONCEPT, workflow_state="verified")
     d = p.to_frontmatter_dict()
     p2 = WikiPage.from_dict(d)
-    assert p2.workflow_state == "verified"
+    assert p2.workflow_state == "draft"
 
 
 def test_mark_page_verified_sets_verified():

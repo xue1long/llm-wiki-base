@@ -118,8 +118,8 @@ def test_evidence_storage_read_missing_returns_none(tmp_path: Path) -> None:
 # ── test 5: WikiPage evidence_refs round-trip ───────────────────────────
 
 
-def test_wiki_page_evidence_refs_round_trip_with_empty_default(tmp_path: Path) -> None:
-    """``evidence_refs`` survives round-trip and defaults to ``[]`` for old pages."""
+def test_wiki_page_evidence_refs_default_is_empty_under_v4(tmp_path: Path) -> None:
+    """V4 keeps evidence_refs out of frontmatter and defaults it on read."""
     # Fresh page: evidence_refs set explicitly.
     page_with_refs = WikiPage(
         id="card_round_trip",
@@ -128,11 +128,11 @@ def test_wiki_page_evidence_refs_round_trip_with_empty_default(tmp_path: Path) -
         evidence_refs=["d1:b1", "d2"],
     )
     fm = page_with_refs.to_frontmatter_dict()
-    assert fm["evidence_refs"] == ["d1:b1", "d2"]
+    assert "evidence_refs" not in fm
 
     # Round-trip via from_dict preserves the list.
     page_back = WikiPage.from_dict(fm, body="")
-    assert page_back.evidence_refs == ["d1:b1", "d2"]
+    assert page_back.evidence_refs == []
 
     # Old page (no evidence_refs key, no _ko_extra.evidence) defaults to [].
     legacy_fm = {

@@ -23,8 +23,8 @@ def test_build_content_health_summarizes_pages_and_triage(tmp_path):
     report = build_content_health(paths)
 
     assert report["page_count"] == 2
-    assert report["grades"] == {"A": 1, "B": 1}
-    assert report["processing_depths"] == {"operation": 1, "concept": 1}
+    assert report["grades"] == {"B": 2}
+    assert report["processing_depths"] == {"concept": 2}
     assert report["dangling_link_count"] == 1
     assert report["orphan_count"] == 1
     assert report["triage_non_process_count"] == 1

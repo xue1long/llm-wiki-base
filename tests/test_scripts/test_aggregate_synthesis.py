@@ -6,6 +6,7 @@ import sys as _sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in _sys.path:
@@ -36,6 +37,16 @@ def _write_concept(wiki_dir: Path, page_id: str, category: str,
         ),
     )
     write_page(paths, page)
+    target = paths.wiki_concepts / f"{page_id}.md"
+    text = target.read_text(encoding="utf-8")
+    end = text.find("\n---", 4)
+    fm = yaml.safe_load(text[4:end]) or {}
+    fm["category"] = category
+    target.write_text(
+        "---\n" + yaml.safe_dump(fm, allow_unicode=True, sort_keys=False)
+        + "---" + text[end + 4:],
+        encoding="utf-8",
+    )
 
 
 # ---------------------------------------------------------------------------

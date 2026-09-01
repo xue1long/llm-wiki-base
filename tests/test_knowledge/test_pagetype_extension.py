@@ -1,4 +1,4 @@
-"""Test PageType extension from 4 to 8 values (Task 1.0)."""
+"""Tests for the V4 four-value PageType contract."""
 import tempfile
 from pathlib import Path
 
@@ -8,29 +8,8 @@ from src.wiki.core.paths import WikiPaths
 from src.wiki.storage.ensure import ensure_knowledge_base
 
 
-class TestNewPageTypeValues:
-    """Task 1.0: PageType extended from 4 to 8 values."""
-
-    def test_new_enum_values_exist(self):
-        """CLAIM, DECISION, PROCEDURE, EVENT are available on PageType."""
-        assert hasattr(PageType, "CLAIM")
-        assert hasattr(PageType, "DECISION")
-        assert hasattr(PageType, "PROCEDURE")
-        assert hasattr(PageType, "EVENT")
-
-    def test_new_values_serialize(self):
-        """New PageType values serialize to correct strings."""
-        assert PageType.CLAIM.value == "claim"
-        assert PageType.DECISION.value == "decision"
-        assert PageType.PROCEDURE.value == "procedure"
-        assert PageType.EVENT.value == "event"
-
-    def test_new_values_deserialize(self):
-        """New PageType values deserialize from strings."""
-        assert PageType("claim") == PageType.CLAIM
-        assert PageType("decision") == PageType.DECISION
-        assert PageType("procedure") == PageType.PROCEDURE
-        assert PageType("event") == PageType.EVENT
+class TestPageType:
+    """V4 keeps the page type whitelist intentionally small."""
 
     def test_existing_values_unchanged(self):
         """Existing 4 PageType values still work."""
@@ -44,16 +23,16 @@ class TestNewPageTypeValues:
         assert PageType("synthesis") == PageType.SYNTHESIS
 
     def test_total_enum_count(self):
-        """PageType now has exactly 8 values."""
+        """PageType has exactly the four V4 values."""
         members = list(PageType)
-        assert len(members) == 8, f"Expected 8, got {len(members)}: {[m.value for m in members]}"
+        assert len(members) == 4, f"Expected 4, got {len(members)}: {[m.value for m in members]}"
 
 
 class TestTypeToDirMapping:
-    """_TYPE_TO_DIR maps all 8 PageType values to WikiPaths property names."""
+    """_TYPE_TO_DIR maps all V4 PageType values to WikiPaths properties."""
 
-    def test_maps_all_eight_values(self):
-        assert len(_TYPE_TO_DIR) == 8
+    def test_maps_all_four_values(self):
+        assert len(_TYPE_TO_DIR) == 4
 
     def test_source_maps_to_wiki_sources(self):
         assert _TYPE_TO_DIR[PageType.SOURCE] == "wiki_sources"
@@ -66,18 +45,6 @@ class TestTypeToDirMapping:
 
     def test_synthesis_maps_to_wiki_synthesis(self):
         assert _TYPE_TO_DIR[PageType.SYNTHESIS] == "wiki_synthesis"
-
-    def test_claim_maps_to_wiki_claims(self):
-        assert _TYPE_TO_DIR[PageType.CLAIM] == "wiki_claims"
-
-    def test_decision_maps_to_wiki_decisions(self):
-        assert _TYPE_TO_DIR[PageType.DECISION] == "wiki_decisions"
-
-    def test_procedure_maps_to_wiki_concepts(self):
-        assert _TYPE_TO_DIR[PageType.PROCEDURE] == "wiki_concepts"
-
-    def test_event_maps_to_wiki_concepts(self):
-        assert _TYPE_TO_DIR[PageType.EVENT] == "wiki_concepts"
 
 
 class TestWikiPathsNewProperties:
