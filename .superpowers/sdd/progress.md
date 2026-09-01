@@ -53,6 +53,12 @@
 
 - ✅ 将路径/provider/manifest、git snapshot、预算前置检查和 pending/resume/blocklist 状态筛选迁入 `_prepare_batch`；移除重复 `pending_gate` 写入。
 - ✅ A3 阶段回归 `16 passed`，编译与格式检查通过；`batch_runner.py` 约 291 行，`run_batch` 仅保留阶段编排。
+
+### Plan A 验收（2026-09-01）
+
+- ✅ `tests/test_orchestrator/` 全套 `29 passed`；legacy `scripts.batch_executor` import identity 检查通过。
+- ✅ `batch_runner.py` 共 `289` 行；`run_batch` 仅保留 prepare → generate → gate → commit → recheck/finalize 编排；未发现重复 phase 定义。
+- ⚠️ `tests/test_scripts/test_batch_executor.py` 含主动 kill-9 子进程场景，宿主执行时只返回截断点号，故未宣称该套全绿；需在稳定的独立 shell/CI 中复跑 crash-inject 四场景。
 >
 > **P0-A 注册 ruflo CLI → ✅ `be5417ec`**
 > **P0-B 中央配置模块 → ✅ `bca225a6`**
