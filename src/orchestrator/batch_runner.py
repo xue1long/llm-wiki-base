@@ -92,8 +92,7 @@ def _snapshot_page_hashes(paths, pages) -> dict[str, str]:
     for p in pages:
         try:
             path = page_path_for(
-                paths, p.type, p.id, registry,
-                getattr(p, "custom_type", "") or "",
+                paths, p.type, p.id,
             )
             if path.exists():
                 out[p.id] = hashlib.sha256(path.read_bytes()).hexdigest()

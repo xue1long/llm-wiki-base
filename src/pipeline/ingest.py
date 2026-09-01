@@ -840,7 +840,8 @@ async def generate_ingest(
             processing_depth_hint=_processing_depth_hint,
         )
         analysis = None
-    elif len(_sanitized_source_text) > _get_max_source_chars():        try:
+    elif len(_sanitized_source_text) > _get_max_source_chars():
+        try:
             analysis = await _analyze_chunked(
                 source_text=_sanitized_source_text,
                 source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".pdf",
@@ -1547,7 +1548,8 @@ async def commit_ingest(
     expected_page_hashes: dict[str, str] | None = None,
     kc_bundle_key: str | None = None,
     readiness_audit: dict | None = None,
-):    """Phase 2 (NDG split): write pages + index update + log.
+):
+    """Phase 2 (NDG split): write pages + index update + log.
 
     The I/O half that was previously at the tail of ``run_ingest``.
     ``extra_pages`` are pre-existing pages that gained inverse edges
