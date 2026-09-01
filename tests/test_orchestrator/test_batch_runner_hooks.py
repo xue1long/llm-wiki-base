@@ -1,5 +1,6 @@
 from src.orchestrator import batch_runner
 from src.orchestrator.batch_runner_internal import hooks
+from src.orchestrator.batch_runner_internal import raw_lifecycle
 
 
 def test_batch_runner_facade_reexports_hooks():
@@ -20,3 +21,14 @@ def test_fake_mode_and_cost_remain_compatible(monkeypatch):
     monkeypatch.setenv("RUFLO_FAKE_COST", "0.7")
     assert batch_runner._is_fake_mode() is True
     assert batch_runner._estimate_batch_cost(2, 1) == 0.7
+
+
+def test_batch_runner_facade_reexports_raw_lifecycle():
+    for name in (
+        "_git_snapshot",
+        "_is_immutable_source",
+        "_generate_raw",
+        "_commit_raw",
+        "_upsert_batch_vectors",
+    ):
+        assert getattr(batch_runner, name) is getattr(raw_lifecycle, name)

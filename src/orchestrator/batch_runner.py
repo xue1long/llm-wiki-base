@@ -44,7 +44,6 @@ import asyncio
 import json
 import logging
 import os
-import subprocess
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -68,6 +67,13 @@ from src.orchestrator.batch_runner_internal.hooks import (
     _resolve_provider,
     _snapshot_page_hashes,
 )
+from src.orchestrator.batch_runner_internal.raw_lifecycle import (
+    _commit_raw,
+    _generate_raw,
+    _git_snapshot,
+    _is_immutable_source,
+    _upsert_batch_vectors,
+)
 from src.orchestrator.auto_tag import auto_tag_ugc
 
 DEFAULT_MANIFEST = ".index/reingest_plan.json"
@@ -83,105 +89,6 @@ _auto_tag_ugc = auto_tag_ugc
 # ---------------------------------------------------------------------------
 # Per-batch helpers
 # ---------------------------------------------------------------------------
-
-def _git_snapshot(paths: WikiPaths) -> str | None:
-    """记录当前 git HEAD（每批前快照，guidance #13）。非 git 仓库返回 None。"""
-    try:
-        r = subprocess.run(
-            ["git", "-C", str(paths.root), "rev-parse", "HEAD"],
-            capture_output=True, text=True, timeout=15,
-        )
-        if r.returncode == 0:
-            return r.stdout.strip()
-    except Exception:
-        pass
-    return None
-
-
-def _is_immutable_source(paths: WikiPaths, raw_rel: str) -> bool:
-    """is_immutable 存量 source 页 → True（摄入前跳过，guidance #13）。"""
-    from src.services.ingest import probe_source_page
-    from src.wiki.storage.page_writer import read_page, page_path_for
-    from src.wiki.core.types import PageType
-
-    source_id = probe_source_page(paths, raw_rel)
-    if source_id is None:
-        return False
-    try:
-        page = read_page(page_path_for(paths, PageType.SOURCE, source_id))
-        return bool(getattr(page, "is_immutable", False))
-    except Exception:
-        return False
-
-
-async def _generate_raw(paths, provider, raw_rel, batch_no) -> tuple[list, list, dict]:
-    """Phase 1：生成单 raw 页面（dry，零磁盘写）。返回 (pages, extras, meta)。"""
-    from src.pipeline.ingest import generate_ingest
-    from src.utils.path import normalize_source_path
-
-    src = paths.root / raw_rel
-    text = src.read_text(encoding="utf-8", errors="replace")
-    task_id = f"b{batch_no}-{Path(raw_rel).stem[:30]}"
-    return await generate_ingest(
-        paths=paths, source_path=Path(raw_rel), source_text=text,
-        provider=provider, task_id=task_id,
-    )
-
-
-async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id,
-                      meta: dict | None = None,
-                      expected_page_hashes: dict | None = None) -> str:
-    """Phase 3：按分支提交单个 raw。返回分支名（reingest / first_ingest）。
-
-    C2：有 source 页 → reingest（记 pending_deletion → cascade_delete +
-    删向量 → commit 新页）；无 → 首摄 commit。cascade 抛 FileNotFoundError
-    （源页被删）→ 降级首摄而非 failed。
-
-    向量删除（I3 review）：降级首摄 / pending_deletion 续跑（probe=None）
-    分支也必须幂等删除旧向量——崩溃发生在 cascade 与删向量之间时，旧 chunk
-    不清理会让搜索命中陈旧内容。delete_by_source 幂等（无残留删 0 行）。
-
-    ``meta``（Phase 4 试跑实测修复 A）：generate 阶段返回的 dict，其中
-    ``missing_slugs`` 是本批采集的未解析引用——必须透传给 ``commit_ingest``
-    落盘 KnowledgeGapStore（此前丢弃 → gap 账本在 batch 路径从未写入，
-    且门禁在 commit 前读不到本批 gap → BROKEN-LINK 误拦整批）。
-
-    ``expected_page_hashes``（Task 0.3）：调用方已剔除本批产出 id 的
-    TOCTOU 基线（批内自写不算冲突）。
-    """
-    from src.services.ingest import probe_source_page
-    from src.wiki.features.cascade_delete import cascade_delete
-    from src.vector.store import delete_by_source, init_vector_store_for_paths
-    from src.pipeline.ingest import commit_ingest
-
-    source_id = probe_source_page(paths, raw_rel)
-    branch = "reingest" if source_id is not None else "first_ingest"
-    if source_id is not None:
-        # 重建调度成功 → 先记 pending_deletion，再删（禁裸窗口）
-        set_raw_status(paths, batch_key, raw_rel, "pending_deletion",
-                       source_id=source_id)
-        try:
-            cascade_result = cascade_delete(paths, source_id)
-        except FileNotFoundError:
-            branch = "first_ingest"   # 源页已被并发删除 → 首摄分支
-            cascade_result = {}
-        else:
-            cascade_result.get("deleted_pages", [])
-        init_vector_store_for_paths(paths)
-        delete_by_source(paths, raw_rel)
-        _crash_at("cascade")
-    else:
-        # 首摄/续跑分支：仍幂等清旧向量（I3 review）
-        init_vector_store_for_paths(paths)
-        delete_by_source(paths, raw_rel)
-    missing_slugs = (meta or {}).get("missing_slugs")
-    await commit_ingest(paths, Path(raw_rel), pages, extras, task_id=task_id,
-                        missing_slugs=missing_slugs,
-                        readiness_audit=(meta or {}).get("readiness_audit"),
-                        expected_page_hashes=expected_page_hashes)
-    set_raw_status(paths, batch_key, raw_rel, "done", branch=branch)
-    return branch
-
 
 def _set_batch_status(paths, batch_key, status: str, **extra) -> None:
     """批级状态写入（H① 锁纪律：所有 batch_build_state 写走统一锁路径）。
@@ -221,59 +128,6 @@ def _update_fail_streak(paths, batch_key, raw_rel, status) -> None:
         streak = 0
         extra = {"fail_streak": 0}
     set_raw_status(paths, batch_key, raw_rel, status, **extra)
-
-
-_auto_tag_ugc = auto_tag_ugc
-
-
-async def _upsert_batch_vectors(paths, pages) -> int:
-    """为批内已提交页面切块 + embedding + upsert（guidance #9）。
-
-    复用 ``src.utils.text.chunk_markdown`` + ``src.llm.embedding_runtime``
-    provider + ``src.vector.upsert.vector_upsert_chunks``（与 indexer /
-    librarian 同一套向量写入路径）。无 embedding provider 时抛错，由调用方
-    降级（search degrade，不拦批）。
-    """
-    from src.utils.text import chunk_markdown
-    from src.llm.embedding_runtime import get_embedding_provider
-    from src.vector.store import init_vector_store_for_paths
-    from src.vector.upsert import vector_upsert_chunks
-    from src.types import VectorChunk
-    from src.utils.path import normalize_source_path
-    from datetime import timezone, datetime
-
-    init_vector_store_for_paths(paths)
-    provider = get_embedding_provider()
-    total = 0
-    for p in pages:
-        content = (p.body or "").strip()
-        if not content:
-            continue
-        chunks = chunk_markdown(content)
-        if not chunks:
-            continue
-        embedding_results = await provider.embed(chunks)
-        if embedding_results and hasattr(embedding_results[0], "embedding"):
-            embeddings = [e.embedding for e in embedding_results]
-        else:
-            embeddings = list(embedding_results)
-        if not embeddings or len(embeddings) != len(chunks):
-            continue
-        now = int(datetime.now(timezone.utc).timestamp() * 1000)
-        lance_chunks = [
-            VectorChunk(
-                id=f"{p.id}-chunk-{i}",
-                task_id=p.id,
-                content=chunk,
-                embedding=embeddings[i],
-                path=normalize_source_path(p.id, paths.root),
-                updated_at=now,
-            )
-            for i, chunk in enumerate(chunks)
-        ]
-        vector_upsert_chunks(lance_chunks)
-        total += len(lance_chunks)
-    return total
 
 
 async def _rerun_gate_batch(paths, batch_key, files,
