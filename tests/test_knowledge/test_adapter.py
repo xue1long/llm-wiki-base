@@ -78,10 +78,6 @@ class TestWikiPageToKnowledgeObjectBasic:
         (PageType.SOURCE, "document"),
         (PageType.ENTITY, "entity"),
         (PageType.CONCEPT, "concept"),
-        (PageType.CLAIM, "claim"),
-        (PageType.DECISION, "decision"),
-        (PageType.PROCEDURE, "procedure"),
-        (PageType.EVENT, "event"),
         (PageType.SYNTHESIS, "synthesis"),
     ])
     def test_maps_each_page_type(self, pt, kt_str):
@@ -135,10 +131,6 @@ class TestKnowledgeObjectToWikiPageBasic:
         (KnowledgeType.DOCUMENT, "source"),
         (KnowledgeType.ENTITY, "entity"),
         (KnowledgeType.CONCEPT, "concept"),
-        (KnowledgeType.CLAIM, "claim"),
-        (KnowledgeType.DECISION, "decision"),
-        (KnowledgeType.PROCEDURE, "procedure"),
-        (KnowledgeType.EVENT, "event"),
         (KnowledgeType.SYNTHESIS, "synthesis"),
     ])
     def test_maps_each_knowledge_type(self, kt, pt_str):
@@ -169,7 +161,7 @@ class TestKnowledgeObjectToWikiPageBasic:
 
     def test_all_provenance_source_paths_survive_adapter_round_trip(self):
         ko = KnowledgeObject(
-            id="multi-source", type=KnowledgeType.CLAIM, title="C", content="c",
+            id="multi-source", type=KnowledgeType.CONCEPT, title="C", content="c",
             lifecycle=LifecycleState.CREATED, confidence=0.5,
             provenance=Provenance(
                 source_path="/a.md", source_paths=("/a.md", "/b.md"),
@@ -278,7 +270,7 @@ class TestRoundTrip:
         """
         extra_in = _make_ko_extra_full()
         wp1 = WikiPage(
-            id="extra-rt", title="E", type=PageType.EVENT,
+            id="extra-rt", title="E", type=PageType.CONCEPT,
             sources=extra_in["sources"],
             processing_depth=extra_in["processing_depth"],
             is_immutable=extra_in["is_immutable"],
@@ -389,7 +381,7 @@ class TestKoExtraStorageRetrieval:
     def test_ko_to_wp_stores_ko_extra_on_instance(self):
         """knowledge_object_to_wiki_page attaches _ko_extra to the result."""
         ko = KnowledgeObject(
-            id="store", type=KnowledgeType.CLAIM, title="S", content="c",
+            id="store", type=KnowledgeType.CONCEPT, title="S", content="c",
             lifecycle=LifecycleState.REVIEWING, confidence=0.55,
             provenance=Provenance(
                 source_path="/review/notes.pdf", page=3,
@@ -441,7 +433,7 @@ class TestContentBodyMapping:
         assert wp.body == "# Title\n\nParagraph with [[link]]."
 
     def test_empty_content_round_trip(self):
-        wp = WikiPage(id="empty", title="Empty", type=PageType.CLAIM)
+        wp = WikiPage(id="empty", title="Empty", type=PageType.CONCEPT)
         ko = wiki_page_to_knowledge_object(wp)
         assert ko.content == ""
         wp2 = knowledge_object_to_wiki_page(ko)
@@ -497,7 +489,7 @@ class TestMissingKoExtra:
 
 
 # ---------------------------------------------------------------------------
-# 7. All 8 PageType values round-trip correctly
+# 7. All current PageType values round-trip correctly
 # ---------------------------------------------------------------------------
 
 class TestAllPageTypeRoundTrip:
@@ -507,10 +499,6 @@ class TestAllPageTypeRoundTrip:
         (PageType.SOURCE, KnowledgeType.DOCUMENT),
         (PageType.ENTITY, KnowledgeType.ENTITY),
         (PageType.CONCEPT, KnowledgeType.CONCEPT),
-        (PageType.CLAIM, KnowledgeType.CLAIM),
-        (PageType.DECISION, KnowledgeType.DECISION),
-        (PageType.PROCEDURE, KnowledgeType.PROCEDURE),
-        (PageType.EVENT, KnowledgeType.EVENT),
         (PageType.SYNTHESIS, KnowledgeType.SYNTHESIS),
     ])
     def test_wp_to_ko_type_mapping(self, pt, expected_kt):
@@ -522,10 +510,6 @@ class TestAllPageTypeRoundTrip:
         (KnowledgeType.DOCUMENT, PageType.SOURCE),
         (KnowledgeType.ENTITY, PageType.ENTITY),
         (KnowledgeType.CONCEPT, PageType.CONCEPT),
-        (KnowledgeType.CLAIM, PageType.CLAIM),
-        (KnowledgeType.DECISION, PageType.DECISION),
-        (KnowledgeType.PROCEDURE, PageType.PROCEDURE),
-        (KnowledgeType.EVENT, PageType.EVENT),
         (KnowledgeType.SYNTHESIS, PageType.SYNTHESIS),
     ])
     def test_ko_to_wp_type_mapping(self, kt, expected_pt):
@@ -544,7 +528,12 @@ class TestAllPageTypeRoundTrip:
         wp2 = knowledge_object_to_wiki_page(ko)
         assert wp2.type == pt, f"Round-trip failed for {pt}: got {wp2.type}"
 
-    @pytest.mark.parametrize("kt", list(KnowledgeType))
+    @pytest.mark.parametrize("kt", [
+        KnowledgeType.DOCUMENT,
+        KnowledgeType.ENTITY,
+        KnowledgeType.CONCEPT,
+        KnowledgeType.SYNTHESIS,
+    ])
     def test_ko_wp_ko_round_trip_each_type(self, kt):
         ko = KnowledgeObject(
             id=f"full-{kt.value}", type=kt, title="T", content="c",

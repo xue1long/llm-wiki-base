@@ -10,6 +10,8 @@ Mirrors tests/test_pipeline/conftest.py.
 import sys
 import types
 
+import pytest
+
 
 # --- pypdf ---
 class _StubPdfReader:
@@ -64,3 +66,17 @@ _pd_stub = types.ModuleType("platformdirs")
 _pd_stub.user_cache_dir = lambda *a, **kw: ""
 _pd_stub.user_config_dir = lambda *a, **kw: ""
 sys.modules.setdefault("platformdirs", _pd_stub)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_user_templates(tmp_path, monkeypatch):
+    """Keep real user overrides from changing repository test contracts."""
+    empty_user = tmp_path / "empty-user-templates"
+    empty_user.mkdir()
+    monkeypatch.setattr("src.wiki.templates.types.USER_TEMPLATE_DIR", empty_user)
+    monkeypatch.setattr("src.wiki.templates.resolver.USER_TEMPLATE_DIR", empty_user)
+    from src.wiki.templates.resolver import clear_cache
+
+    clear_cache()
+    yield
+    clear_cache()
