@@ -248,9 +248,34 @@ def enqueue_source(
         if source.startswith("http"):
             source_str = source
             source_type = SourceType.URL
+            # Idempotency against an existing wiki source page (PR-2
+            # Task D): the folder ingest branch already consults
+            # ``_get_ingested_paths`` before enqueuing. The single-file
+            # branch used to skip this check entirely — a re-submitted
+            # URL hit the queue, the queue's on-disk dedup saw only a
+            # stale APPROVED task (or nothing for fully completed runs),
+            # removed that record, and let a fresh task through.
+            #
+            # URLs are recorded verbatim on the wiki page's
+            # ``sources:`` list (collector keeps the URL as raw_path for
+            # URLs), so we match against the raw YAML frontmatter list
+            # rather than the normalised raw path.
+            if _find_source_page_by_url(paths.wiki_sources, source_str):
+                return {
+                    "status": "ignored",
+                    "taskId": None,
+                    "reason": "AlreadyIngested",
+                }
         else:
             source_str = _normalize_absolute_path(paths.root, source)
             source_type = SourceType.FILE
+            # Same dedup mirror for the file branch.
+            if _find_source_page_by_raw_path(paths.wiki_sources, source_str):
+                return {
+                    "status": "ignored",
+                    "taskId": None,
+                    "reason": "AlreadyIngested",
+                }
         task_hash = generate_task_hash(source_type, source_str, folder_context or "", project_id=resolved_id)
         task_id = enqueue_task(source_str, source_type, task_hash, project_id=resolved_id,
                                folder_context=folder_context)
@@ -377,6 +402,35 @@ def _find_source_page_by_raw_path(wiki_sources_dir: Path, raw_path: str) -> str 
             sources = _page_sources_from_text(text)
             if target in sources:
                 return _page_id_from_text(text)
+        except Exception:
+            continue
+    return None
+
+
+def _find_source_page_by_url(wiki_sources_dir: Path, url: str) -> str | None:
+    """Find the source page ID whose frontmatter ``sources`` contains ``url``.
+
+    URL counterpart of ``_find_source_page_by_raw_path``. The collector
+    stores the URL verbatim on URL-sourced wiki pages, so we match the raw
+    YAML list value directly (no project-root normalisation). Returns
+    ``None`` when no match is found.
+    """
+    if not url or not url.startswith("http"):
+        return None
+    if not wiki_sources_dir.is_dir():
+        return None
+    for md_file in wiki_sources_dir.glob("*.md"):
+        try:
+            text = md_file.read_text(encoding="utf-8")
+            if url not in text:
+                continue
+            fm = _extract_frontmatter(text)
+            sources = fm.get("sources", [])
+            if not isinstance(sources, list):
+                continue
+            for item in sources:
+                if isinstance(item, str) and item == url:
+                    return _page_id_from_text(text)
         except Exception:
             continue
     return None
