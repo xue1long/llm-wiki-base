@@ -27,6 +27,7 @@ from pathlib import Path
 
 from ..circuit_breaker import CircuitState, get_circuit_breaker
 from ..events.event_bus import event_bus
+from ..lib.errors import NO_RETRY_MARKER
 from ..types import KnowledgeTask, SourceType, TaskStatus
 from ..utils.idempotency import remove_hash
 from .in_flight import InMemoryInFlightTracker
@@ -349,31 +350,62 @@ class QueueService:
         releases the in-flight marker + calls advance() internally), the marker
         is already clear — skipping the redundant advance() here prevents a
         double-dispatch of the same task.
+
+        Crash-retry counter (audit PR-1 fix): every time this path resets a
+        RUNNING task back to PENDING, ``task.retry_count`` is incremented so
+        a repeatedly-crashing pipeline is bounded by ``MAX_RETRIES`` instead
+        of looping forever. When the counter would exceed ``MAX_RETRIES``,
+        the task is dead-lettered inline (no-retry marker) instead of being
+        left RUNNING for the caller to clean up — the caller is the pipeline
+        service's ``finally`` block, which historically never marked the
+        task, so a perpetually-crashing task would otherwise be stranded.
         """
+        transitioned_to: TaskStatus | None = None
         with self._service_lock:
             was_in_flight = self.tracker.is_in_flight(task_id)
             self.tracker.release(task_id)
             task = self.backend.find(task_id)
             if task is not None and task.status == TaskStatus.RUNNING:
                 # Pipeline exited abnormally (crashed / timed out) without
-                # calling update_status — put it back to PENDING for retry.
-                # Only retry if attempts remain; otherwise leave RUNNING
-                # so the caller can mark DEAD_LETTER.
-                if task.retry_count < MAX_RETRIES:
+                # calling update_status. Count this as a failed attempt and
+                # either reset to PENDING for retry or dead-letter outright.
+                task.retry_count += 1
+                task.updated_at = int(datetime.now().timestamp())
+                if task.retry_count >= MAX_RETRIES:
+                    task.status = TaskStatus.DEAD_LETTER
+                    task.error = (
+                        f"{NO_RETRY_MARKER}Pipeline crashed with retry "
+                        f"exhaustion after {MAX_RETRIES} attempts"
+                    )
+                    self.backend.save(task)
+                    # Allow the same source to be re-enqueued after DL —
+                    # same contract as the FAILED→DEAD_LETTER transition
+                    # in update_status.
+                    remove_hash(task.task_hash)
+                    transitioned_to = TaskStatus.DEAD_LETTER
+                    logger.warning(
+                        "[Queue] Task %s released in-flight with retry "
+                        "exhaustion (%d/%d) — dead-lettered",
+                        task_id, task.retry_count, MAX_RETRIES,
+                    )
+                else:
                     task.status = TaskStatus.PENDING
-                    task.updated_at = int(datetime.now().timestamp())
                     self.backend.save(task)
                     logger.info(
                         "[Queue] Task %s released in-flight but still RUNNING — "
                         "reset to PENDING for retry (%d/%d attempts)",
                         task_id, task.retry_count, MAX_RETRIES,
                     )
-                else:
-                    logger.warning(
-                        "[Queue] Task %s released in-flight with max retries "
-                        "exhausted, leaving RUNNING for caller to mark DEAD_LETTER",
-                        task_id,
-                    )
+        # Emit AFTER lock release — same contract as update_status.
+        if transitioned_to is not None:
+            self.emitter.emit(
+                EventName.TASK_DEAD_LETTER,
+                TaskDeadLetterPayload(
+                    task_id=task_id,
+                    retry_count=task.retry_count,
+                    error=task.error or "",
+                ),
+            )
         if was_in_flight:
             self.advance()
 
