@@ -3,6 +3,8 @@ import argparse
 import time
 from pathlib import Path
 
+import yaml
+
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths
@@ -37,10 +39,28 @@ def _bootstrap(tmp_path):
     return ProjectContext.from_path(tmp_path), WikiPaths(tmp_path)
 
 
+def _write_legacy_heat_page(paths, page: WikiPage) -> None:
+    """Seed a legacy page because V4 writes heat state in-memory only."""
+    frontmatter = page.to_frontmatter_dict()
+    frontmatter.update({
+        "heat": page.heat,
+        "last_used_at": page.last_used_at,
+        "zombie_since": page.zombie_since,
+    })
+    target = paths.wiki_entities / f"{page.id}.md"
+    target.write_text(
+        "---\n"
+        + yaml.safe_dump(frontmatter, allow_unicode=True, sort_keys=False)
+        + "---\n\n"
+        + page.body,
+        encoding="utf-8",
+    )
+
+
 def test_heat_show(tmp_path, monkeypatch, capsys):
     """heat show prints page heat + last_used_at + zombie_since."""
     ctx, paths = _bootstrap(tmp_path)
-    write_page(paths, WikiPage(id="hot", title="Hot", type=PageType.ENTITY, body="", heat=80, last_used_at=12345))
+    _write_legacy_heat_page(paths, WikiPage(id="hot", title="Hot", type=PageType.ENTITY, body="", heat=80, last_used_at=12345))
 
     import src.cli_ext.heat_cmd as hc
     monkeypatch.setattr(hc, "_resolve_ctx", lambda proj: (ctx, paths))
@@ -55,7 +75,7 @@ def test_decay(tmp_path, monkeypatch, capsys):
     """heat decay applies decay events to old pages."""
     ctx, paths = _bootstrap(tmp_path)
     old_ts = int(time.time() * 1000) - 31 * 86400 * 1000
-    write_page(paths, WikiPage(id="old", title="Old", type=PageType.ENTITY, body="", heat=80, last_used_at=old_ts))
+    _write_legacy_heat_page(paths, WikiPage(id="old", title="Old", type=PageType.ENTITY, body="", heat=80, last_used_at=old_ts))
 
     import src.cli_ext.heat_cmd as hc
     monkeypatch.setattr(hc, "_resolve_ctx", lambda proj: (ctx, paths))
@@ -68,8 +88,8 @@ def test_decay(tmp_path, monkeypatch, capsys):
 def test_zombies_list(tmp_path, monkeypatch, capsys):
     """heat zombies lists pages with zombie_since set."""
     ctx, paths = _bootstrap(tmp_path)
-    write_page(paths, WikiPage(id="z", title="Zombie", type=PageType.ENTITY, body="", zombie_since=12345))
-    write_page(paths, WikiPage(id="alive", title="Alive", type=PageType.ENTITY, body="", zombie_since=None))
+    _write_legacy_heat_page(paths, WikiPage(id="z", title="Zombie", type=PageType.ENTITY, body="", zombie_since=12345))
+    _write_legacy_heat_page(paths, WikiPage(id="alive", title="Alive", type=PageType.ENTITY, body="", zombie_since=None))
 
     import src.cli_ext.heat_cmd as hc
     monkeypatch.setattr(hc, "_resolve_ctx", lambda proj: (ctx, paths))

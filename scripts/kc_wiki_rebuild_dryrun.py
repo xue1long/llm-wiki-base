@@ -75,7 +75,7 @@ def _mock_wiki_page_from_md(page_id: str, content: str, md_file: Path) -> Any:
     page = WikiPage(
         id=page_id,
         title=page_id,
-        type=PageType.CLAIM,
+        type=PageType.CONCEPT,
     )
     # 简化 frontmatter 解析
     workflow_state = "draft"

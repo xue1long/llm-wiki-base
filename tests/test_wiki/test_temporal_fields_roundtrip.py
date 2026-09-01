@@ -8,14 +8,14 @@ invalid 状态可观察.
 Coverage:
 1. Old page without temporal fields → from_dict defaults both to None
    ("unknown"); to_frontmatter_dict omits the keys (no null clutter).
-2. Page with both bounds → to_frontmatter_dict emits both; from_dict
-   reads both back.
-3. Page with only valid_from → to_frontmatter_dict emits only that key.
+2. Page with both bounds → V4 keeps both in memory but omits them from
+   to_frontmatter_dict.
+3. Page with only valid_from → V4 omits the temporal keys.
 4. Round-trip is idempotent: write → read → write → identical bytes.
 5. Half-open interval semantics: valid_from=100, valid_to=200 →
    query_time=100 is current, 199 is current, 200 is historical.
 6. Unknown (both None) is preserved across round-trip.
-7. Invalid (valid_from > valid_to) is preserved but not silently fixed.
+7. Invalid (valid_from > valid_to) is not emitted by the V4 serializer.
 """
 from __future__ import annotations
 
@@ -61,33 +61,33 @@ def test_old_page_round_trips_as_unknown() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 2. Both bounds → emit + read both
+# 2. Both bounds remain in memory but are omitted by V4
 # ---------------------------------------------------------------------------
 
 
-def test_page_with_both_bounds_round_trips() -> None:
+def test_page_with_both_bounds_are_v4_in_memory_only() -> None:
     page = _page(valid_from=100, valid_to=200)
     emitted = page.to_frontmatter_dict()
 
-    assert emitted["valid_from"] == 100
-    assert emitted["valid_to"] == 200
+    assert "valid_from" not in emitted
+    assert "valid_to" not in emitted
 
     restored = WikiPage.from_dict(emitted, body="")
-    assert restored.valid_from == 100
-    assert restored.valid_to == 200
+    assert restored.valid_from is None
+    assert restored.valid_to is None
 
 
 # ---------------------------------------------------------------------------
-# 3. Only valid_from → emit only that key
+# 3. Only valid_from is also V4 in-memory only
 # ---------------------------------------------------------------------------
 
 
-def test_page_with_only_valid_from_emits_partial() -> None:
-    """valid_from set + valid_to=None → emit valid_from, omit valid_to."""
+def test_page_with_only_valid_from_is_v4_in_memory_only() -> None:
+    """valid_from set + valid_to=None → omit both V4 frontmatter keys."""
     page = _page(valid_from=100)
     emitted = page.to_frontmatter_dict()
 
-    assert emitted["valid_from"] == 100
+    assert "valid_from" not in emitted
     assert "valid_to" not in emitted
 
 
@@ -161,13 +161,13 @@ def test_unknown_state_preserved_across_round_trip() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 7. Invalid (valid_from > valid_to) is preserved (not silently fixed)
+# 7. Invalid bounds are also omitted by the V4 serializer
 # ---------------------------------------------------------------------------
 
 
-def test_invalid_interval_preserved() -> None:
+def test_invalid_interval_is_v4_in_memory_only() -> None:
     page = _page(valid_from=300, valid_to=100)
     fm = page.to_frontmatter_dict()
     restored = WikiPage.from_dict(fm, body="")
-    assert restored.valid_from == 300
-    assert restored.valid_to == 100
+    assert restored.valid_from is None
+    assert restored.valid_to is None

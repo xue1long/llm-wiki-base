@@ -97,12 +97,14 @@ def test_evaluate_agent_task_dataset_outputs_success_rate(tmp_path):
     report = evaluate_agent_task_dataset(yaml_path)
 
     assert report["task_count"] == 2
-    assert report["passed_count"] == 1  # AT-TEST-001 PASS, AT-TEST-002 FAIL
-    assert report["success_rate"] == 0.5
-    # AT-TEST-001 命中 citations_valid=2/2; AT-TEST-002 命中 1/1 → total 3/3 = 1.0
-    assert report["citation_accuracy"] > 0
-    assert report["total_citations_valid"] == 3
-    assert report["total_citations_expected"] == 3
+    # Mock results are traceability-only; product metrics require runtime
+    # verification and therefore remain unevaluable for this fixture.
+    assert report["passed_count"] == 0
+    assert report["success_rate"] == 0.0
+    assert report["citation_accuracy"] == 0.0
+    assert report["total_citations_valid"] == 0
+    assert report["total_citations_expected"] == 0
+    assert report["not_evaluable"] is True
 
 
 def test_evaluate_agent_task_includes_failure_reasons():
