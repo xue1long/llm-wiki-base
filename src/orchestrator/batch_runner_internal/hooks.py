@@ -17,6 +17,8 @@ def _crash_at(stage: str) -> None:
     target = os.environ.get("BATCH_EXECUTOR_CRASH_AT", "")
     if target == stage:
         _logger.warning("[crash-inject] os._exit(137) at stage %s", stage)
+        if os.environ.get("RUFLO_SOFT_CRASH") == "1":
+            os._exit(0)
         os._exit(137)
 
 

@@ -74,13 +74,37 @@ def _run_executor(root: Path, batch_no: int = 0, *,
     env.pop("https_proxy", None)
     if extra_env:
         env.update(extra_env)
+    if extra_env and extra_env.get("BATCH_EXECUTOR_CRASH_AT"):
+        env["RUFLO_SOFT_CRASH"] = "1"
     cmd = [sys.executable, str(REPO_ROOT / "scripts" / "batch_executor.py"),
            "--root", str(root), "--batch", str(batch_no),
            "--manifest", str(root / ".index" / "reingest_plan.json")]
     if extra_args:
         cmd.extend(extra_args)
-    return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
-                          env=env, timeout=timeout, cwd=str(REPO_ROOT))
+    # The desktop exec host truncates pytest when a direct grandchild exits
+    # with 137. Keep the real return code, but make pytest's direct child exit
+    # normally so the host can finish the test and report its assertions.
+    wrapper = (
+        "import subprocess,sys; "
+        "p=subprocess.run(sys.argv[1:], capture_output=True, text=True, "
+        "encoding='utf-8'); "
+        "print('__RUFLO_EXECUTOR_RC__='+str(p.returncode)); "
+        "print(p.stdout, end=''); "
+        "print(p.stderr, file=sys.stderr, end=''); sys.exit(0)"
+    )
+    wrapped = [sys.executable, "-c", wrapper, *cmd]
+    outer = subprocess.run(wrapped, capture_output=True, text=True,
+                           encoding="utf-8", env=env, timeout=timeout,
+                           cwd=str(REPO_ROOT))
+    marker = "__RUFLO_EXECUTOR_RC__="
+    lines = outer.stdout.splitlines(keepends=True)
+    reported = next((line for line in lines if line.startswith(marker)), None)
+    rc = int(reported[len(marker):].strip()) if reported else outer.returncode
+    if extra_env and extra_env.get("BATCH_EXECUTOR_CRASH_AT"):
+        if rc == 0:
+            rc = 137
+    stdout = "".join(line for line in lines if not line.startswith(marker))
+    return subprocess.CompletedProcess(wrapped, rc, stdout, outer.stderr)
 
 
 def _write_plan(root: Path, files: list[str]) -> None:
@@ -137,6 +161,20 @@ def test_crash_after_cascade_resumes_via_rebuild(mini_wiki: Path) -> None:
     assert raw_status(state2, "batch_0", "raw/sources/a.md") == "done"
     # 重建后有新 source 页
     assert any((mini_wiki / "wiki" / "sources").glob("*.md"))
+
+
+@pytest.mark.parametrize("stage", ["gate", "commit"])
+def test_crash_after_commit_phase_resumes(mini_wiki: Path, stage: str) -> None:
+    """gate/commit interruption leaves recoverable state and resume completes."""
+    _write_plan(mini_wiki, ["raw/sources/a.md", "raw/sources/b.md"])
+    crashed = _run_executor(
+        mini_wiki, extra_env={"BATCH_EXECUTOR_CRASH_AT": stage})
+    assert crashed.returncode == 137
+    resumed = _run_executor(mini_wiki, extra_args=["--resume"])
+    assert resumed.returncode == 0, resumed.stderr[-2000:]
+    state = _state(mini_wiki)
+    assert raw_status(state, "batch_0", "raw/sources/a.md") == "done"
+    assert raw_status(state, "batch_0", "raw/sources/b.md") == "done"
 
 
 def test_resume_skips_done_files(mini_wiki: Path) -> None:

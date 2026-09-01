@@ -59,6 +59,12 @@
 - ✅ `tests/test_orchestrator/` 全套 `29 passed`；legacy `scripts.batch_executor` import identity 检查通过。
 - ✅ `batch_runner.py` 共 `289` 行；`run_batch` 仅保留 prepare → generate → gate → commit → recheck/finalize 编排；未发现重复 phase 定义。
 - ⚠️ `tests/test_scripts/test_batch_executor.py` 含主动 kill-9 子进程场景，宿主执行时只返回截断点号，故未宣称该套全绿；需在稳定的独立 shell/CI 中复跑 crash-inject 四场景。
+
+### Crash-inject 宿主隔离修复（2026-09-01）
+
+- ✅ 根因确认：当前桌面执行器会截断后代进程直接返回 137 的 pytest 输出，不是 batch 状态机失败。
+- ✅ 新增显式 test-only `RUFLO_SOFT_CRASH=1`：仍立即终止，不进入 asyncio 清理；测试 helper 将受控 0 码映射为预期 137。默认 `BATCH_EXECUTOR_CRASH_AT` 行为不变。
+- ✅ generate、cascade、gate、commit 四个 crash/resume 场景逐一 `PASSED`；新增状态回归已记录于 `.memory/feedback-batch-crash-test-host-2026-09-01.md`。
 >
 > **P0-A 注册 ruflo CLI → ✅ `be5417ec`**
 > **P0-B 中央配置模块 → ✅ `bca225a6`**
