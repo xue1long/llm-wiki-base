@@ -18,6 +18,8 @@ import random
 from pathlib import Path
 from typing import Union
 
+import yaml
+
 from ..lib.project import resolve_project
 from ..queue import enqueue_batch, enqueue_task
 from ..queue.service import get_default_queue_service
@@ -27,7 +29,12 @@ from ..wiki.features.folder_ingest import collect_files, folder_context_for
 
 _logger = logging.getLogger(__name__)
 
-_SUPPORTED_EXTENSIONS = {".md", ".txt", ".pdf", ".docx", ".doc", ".xlsx", ".html"}
+# Supported file extensions for raw ingestion (audit PR-2 Task E).
+# Mirrors src/pipeline/collector.collect() accept-list; ``.doc`` is
+# intentionally excluded because ``extract_office_text`` raises
+# ``UnsupportedFormat`` for legacy binary OLE Compound File format
+# (the design calls for users to convert to ``.docx`` first).
+_SUPPORTED_EXTENSIONS = {".md", ".txt", ".pdf", ".docx", ".xlsx", ".html", ".htm"}
 
 
 
@@ -104,12 +111,93 @@ def _normalize_absolute_path(
     return rel.replace("\\", "/")
 
 
+def _normalize_raw_path(path: str) -> str:
+    """Normalise a raw source path to project-relative form with forward slashes.
+
+    Strips anything before ``raw/sources/`` so legacy pages that store
+    absolute (D:\\...) or partially-qualified project-relative paths
+    (``knowledge/novel-wiki/raw/sources/foo.md``) collapse to the same
+    canonical key. Empty strings and URLs are returned unchanged.
+    """
+    if not path:
+        return ""
+    path = path.replace("\\", "/")
+    if path.startswith("http"):
+        return path
+    idx = path.find("raw/sources/")
+    if idx != -1:
+        return path[idx:]
+    return path
+
+
+def _extract_frontmatter(text: str) -> dict:
+    """Parse the YAML frontmatter (between ``---`` fences) from a markdown file.
+
+    Returns ``{}`` when the file is missing a frontmatter block or the YAML
+    fails to parse. The parser intentionally uses ``yaml.safe_load`` so we
+    handle every YAML-supported representation (block list, flow list,
+    single quoted, double quoted, multiline literals, etc.) without
+    bespoke logic.
+    """
+    if not text.startswith("---"):
+        return {}
+    # Find the closing fence. Following the same convention as
+    # src/wiki/storage/page_writer.py::read_page.
+    end = text.find("\n---", 4)
+    if end < 0:
+        return {}
+    fm_text = text[4:end]
+    try:
+        fm = yaml.safe_load(fm_text)
+    except yaml.YAMLError:
+        return {}
+    return fm if isinstance(fm, dict) else {}
+
+
+def _page_sources_from_text(text: str) -> list[str]:
+    """Return the ``sources:`` list of a markdown file (project-relative,
+    normalised). Empty list on missing / malformed frontmatter.
+
+    Replaces the previous line-scanner which silently broke on:
+      * inline flow style: ``sources: [raw/a.md, raw/b.md]``
+      * quoted entries: ``sources:\n  - "raw/a.md"``
+    Both shapes are now parsed by ``yaml.safe_load``.
+    """
+    fm = _extract_frontmatter(text)
+    raw = fm.get("sources", [])
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for item in raw:
+        if not isinstance(item, str):
+            continue
+        normalized = _normalize_raw_path(item)
+        if not normalized or normalized.startswith("http"):
+            continue
+        out.append(normalized)
+    return out
+
+
+def _page_id_from_text(text: str) -> str | None:
+    """Read the ``id:`` frontmatter field from a markdown file.
+
+    Returns ``None`` when the field is absent. Use the file's stem as a
+    fallback if the frontmatter block is missing entirely.
+    """
+    fm = _extract_frontmatter(text)
+    pid = fm.get("id")
+    if isinstance(pid, str) and pid.strip():
+        return pid.strip()
+    return None
+
+
 def _get_ingested_paths(source_dir: Path, project_root: Path) -> set[str]:
     """Scan wiki source pages and return the set of already-ingested raw paths.
 
     Normalises paths to project-relative form with forward slashes so they
     can be compared against the paths produced during folder enumeration.
-    Handles both absolute (legacy) and relative paths stored in frontmatter.
+    Handles both absolute (legacy) and relative paths stored in frontmatter
+    of every YAML-supported shape (block list, inline flow, quoted entries).
     """
     ingested: set[str] = set()
     if not source_dir.is_dir():
@@ -117,26 +205,7 @@ def _get_ingested_paths(source_dir: Path, project_root: Path) -> set[str]:
     for md_file in source_dir.glob("*.md"):
         try:
             text = md_file.read_text(encoding="utf-8")
-            in_sources = False
-            for line in text.split("\n"):
-                if line.startswith("sources:"):
-                    in_sources = True
-                    continue
-                if in_sources:
-                    if line.startswith("- "):
-                        path = line[2:].strip()
-                        path = path.replace("\\", "/")
-                        if not path or path.startswith("http"):
-                            continue
-                        # Normalise to project-relative form. Older pages
-                        # may store absolute or partially-qualified paths;
-                        # strip everything before "raw/sources/".
-                        idx = path.find("raw/sources/")
-                        if idx != -1:
-                            path = path[idx:]
-                        ingested.add(path)
-                    elif line and line[0] not in (" ", "\t", "-"):
-                        break
+            ingested.update(_page_sources_from_text(text))
         except Exception:
             continue
     return ingested
@@ -288,32 +357,26 @@ def _find_source_page_by_raw_path(wiki_sources_dir: Path, raw_path: str) -> str 
     frontmatter, and returns the first page whose ``sources:`` list includes
     *raw_path* (normalised to forward slashes).  Returns ``None`` when no
     match is found.
+
+    The YAML parser (audit PR-2) handles every representation uniformly —
+    block list, inline flow, quoted entries — instead of the prior line
+    scanner that silently missed inline flows.
     """
-    raw_path = raw_path.replace("\\", "/")
+    target = _normalize_raw_path(raw_path)
+    if not target or target.startswith("http"):
+        return None
     if not wiki_sources_dir.is_dir():
         return None
     for md_file in wiki_sources_dir.glob("*.md"):
         try:
             text = md_file.read_text(encoding="utf-8")
-            lines = text.split("\n")
-            # Fast path: skip files that don't mention the raw path at all
-            if raw_path not in text:
+            # Cheap pre-check: skip the YAML parse cost for files that
+            # do not mention the target string at all.
+            if target not in text.replace("\\", "/"):
                 continue
-            in_sources = False
-            page_id = None
-            for line in lines:
-                if line.startswith("id:"):
-                    page_id = line[3:].strip()
-                if line.startswith("sources:"):
-                    in_sources = True
-                    continue
-                if in_sources:
-                    if line.startswith("- "):
-                        val = line[2:].strip().replace("\\", "/")
-                        if val == raw_path:
-                            return page_id
-                    elif line and line[0] not in (" ", "\t", "-"):
-                        break
+            sources = _page_sources_from_text(text)
+            if target in sources:
+                return _page_id_from_text(text)
         except Exception:
             continue
     return None
