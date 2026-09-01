@@ -785,3 +785,9 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - 修复测试辅助函数的进程拓扑：普通 batch executor 场景不再额外套 exit-code wrapper，wrapper 仅用于 `BATCH_EXECUTOR_CRASH_AT` 注入场景；生产默认 `os._exit(137)` 行为保持不变。
 - 验收：`tests/test_scripts/test_batch_executor.py` 全文件 `25 passed in 231.32s`；`tests/test_orchestrator/` `29 passed in 1.85s`；相关文件 `py_compile` 与 `git diff --check` 通过。
 - 根因结论：之前的“第三个场景截断”是宿主对子进程异常退出/进程树的处理限制；普通场景 wrapper 造成额外复杂度，crash 场景用软退出加外层回传保证 pytest 可收集断言，未改变真实运行时默认语义。
+
+### A14 Full-suite merge gate（2026-09-01）
+
+- 修复 V4 收敛后的兼容断点：legacy decision record 保留、KnowledgeType 到四类 PageType 映射、rebuild dry-run 类型引用，以及测试 fixture/旧断言合同。
+- 完整验收：`pytest --import-mode=importlib -q` → `3698 passed, 44 warnings, exit 0`；提交范围 `git diff --check main...HEAD` 与相关 Python 编译检查通过。
+- 工作区仍有测试生成的未跟踪/修改文件，未纳入提交；分支相对远端尚有 5 个本地提交未推送。
