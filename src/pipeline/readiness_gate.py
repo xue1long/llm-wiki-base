@@ -14,6 +14,15 @@ from src.pipeline.text_preprocessing.types import (
 from .specialists import run_specialist
 
 
+_KNOWLEDGE_TYPE_TO_PAGE_TYPE = {
+    "document": "source",
+    "claim": "concept",
+    "decision": "concept",
+    "procedure": "concept",
+    "event": "concept",
+}
+
+
 def apply_readiness_gate(artifact: ExtractionArtifact) -> ReadinessResult:
     assessment = assess_artifact(artifact)
     route = "ocr" if assessment.decision is ReadinessDecision.ROUTE_SPECIALIST and artifact.extraction_method == "ocr" else None
@@ -55,6 +64,7 @@ def validate_candidate_contract(contract, candidate) -> list[str]:
     """Reject a candidate type that cannot be rendered by the pinned contract."""
     type_name = getattr(candidate, "custom_type", "") or getattr(candidate, "type", "")
     type_name = getattr(type_name, "value", type_name)
+    type_name = _KNOWLEDGE_TYPE_TO_PAGE_TYPE.get(type_name, type_name)
     if type_name not in contract.allowed_types:
         raise ValueError(f"Knowledge type {type_name!r} is not allowed by template")
     if type_name not in contract.routes:

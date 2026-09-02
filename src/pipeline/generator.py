@@ -17,6 +17,7 @@ This module is the single source of truth for wiki template enforcement.
 See docs/superpowers/plans/2026-07-26-wiki-schema-v23.md.
 """
 import logging
+from dataclasses import asdict
 import re
 from pathlib import Path
 from typing import Optional
@@ -1056,7 +1057,7 @@ async def generate_from_candidate(
         page_types="|".join(_custom_type_enum(schema_registry)),
     )
     if template_context is not None:
-        base_prompt += "\n\n" + build_generator_prompt(candidate.to_dict(), template_context)
+        base_prompt += "\n\n" + build_generator_prompt(asdict(candidate), template_context)
 
     response_dict = await _call_with_slot_retry(
         provider=provider,
@@ -1285,7 +1286,7 @@ async def generate_from_knowledge_object(
         page_types="|".join(_custom_type_enum(schema_registry)),
     )
     if template_context is not None:
-        base_prompt += "\n\n" + build_generator_prompt(candidate.to_dict(), template_context)
+        base_prompt += "\n\n" + build_generator_prompt(asdict(ko), template_context)
 
     response_dict = await _call_with_slot_retry(
         provider=provider,
