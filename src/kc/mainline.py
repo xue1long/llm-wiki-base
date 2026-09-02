@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from src.kc import api as kc_api
+from src.kc.adapters.candidate_v2 import adapt_candidate
+from src.kc.contracts.candidate_v2 import AdaptationResult, CandidateV2, RejectedClaim
 from src.kc.contracts.evidence import evidence_for_quote
 from src.kc.compiler.normalize import CanonicalDocument
 from src.kc.publish import ObjectVersion, PublicationGate
@@ -46,6 +48,10 @@ class ReviewResult:
     document_id: str
     status: str
     reason_codes: tuple[str, ...]
+    rejected_claims: tuple[RejectedClaim, ...] = ()
+    valid_claim_count: int = 0
+    generator_candidate: KnowledgeCandidate | None = None
+    contract_version: str = "v1"
     objects: tuple[KnowledgeObject, ...] = ()
     projections: tuple[dict[str, Any], ...] = ()
 
@@ -71,12 +77,64 @@ class CandidateReviewer:
 
     async def review(
         self,
-        candidate: KnowledgeCandidate,
+        candidate: KnowledgeCandidate | CandidateV2 | dict[str, Any],
         document: CanonicalDocument,
         *,
+        registry=None,
         source_root: Path | None = None,
         visible_block_ids: set[str] | None = None,
     ) -> ReviewResult:
+        if registry is not None and (
+            isinstance(candidate, CandidateV2)
+            or (
+                isinstance(candidate, dict)
+                and any(
+                    isinstance(item, dict) and "evidence_block_ids" in item
+                    for item in candidate.get("claims", [])
+                )
+            )
+        ):
+            adaptation = adapt_candidate(candidate, document, registry, source_root)
+            if adaptation.valid_claim_count == 0:
+                return ReviewResult(
+                    candidate_id=adaptation.generator_candidate.id,
+                    document_id=document.document_id,
+                    status="review_required",
+                    reason_codes=tuple(sorted({item.reason_code for item in adaptation.rejected_claims})),
+                    rejected_claims=adaptation.rejected_claims,
+                    valid_claim_count=0,
+                    generator_candidate=adaptation.generator_candidate,
+                    contract_version="v2",
+                )
+            try:
+                result = await kc_api.compile_source(
+                    str(document.source),
+                    document=document,
+                    candidate_json=json.dumps(adaptation.payload, ensure_ascii=False),
+                )
+            except (ValueError, KeyError, TypeError) as exc:
+                return ReviewResult(
+                    candidate_id=adaptation.generator_candidate.id,
+                    document_id=document.document_id,
+                    status="review_required",
+                    reason_codes=(f"review:{type(exc).__name__}",),
+                    rejected_claims=adaptation.rejected_claims,
+                    valid_claim_count=0,
+                    generator_candidate=adaptation.generator_candidate,
+                    contract_version="v2",
+                )
+            return ReviewResult(
+                candidate_id=adaptation.generator_candidate.id,
+                document_id=str(result.get("document_id", document.document_id)),
+                status="validated",
+                reason_codes=tuple(sorted({item.reason_code for item in adaptation.rejected_claims})),
+                rejected_claims=adaptation.rejected_claims,
+                valid_claim_count=adaptation.valid_claim_count,
+                generator_candidate=adaptation.generator_candidate,
+                contract_version="v2",
+                objects=tuple(result.get("objects", ())),
+                projections=tuple(result["projections"]),
+            )
         try:
             payload = kc_api.candidate_to_payload(
                 asdict(candidate),
@@ -98,6 +156,7 @@ class CandidateReviewer:
                 document_id=document.document_id,
                 status="rejected",
                 reason_codes=("review:structural_evidence_failed",),
+                generator_candidate=candidate if isinstance(candidate, KnowledgeCandidate) else None,
             )
 
         candidate.status = CandidateStatus.VALIDATED
@@ -107,6 +166,8 @@ class CandidateReviewer:
             document_id=document_id,
             status="validated",
             reason_codes=(),
+            valid_claim_count=len(candidate.claims),
+            generator_candidate=candidate,
             objects=tuple(result.get("objects", ())),
             projections=tuple(result["projections"]),
         )
@@ -178,6 +239,7 @@ class CandidatePromoter:
             "candidate_path": str(candidate_path.relative_to(bundle_dir)),
             "stores": {"knowledge_object": "ready", "wiki": "pending", "index": "pending", "vector": "pending"},
             "status": "staged",
+            "contract_version": review.contract_version,
         }
         manifest_path = bundle_dir / bundle_key / "manifest.json"
         _write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2))

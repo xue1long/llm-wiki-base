@@ -15,6 +15,40 @@ from pathlib import Path
 _logger = logging.getLogger(__name__)
 
 
+def compare_evidence_contracts(parsed_candidate, document, registry, task_id: str) -> dict:
+    """Compare adapters using one already-parsed Analyzer result."""
+    from dataclasses import asdict, is_dataclass
+
+    from src.kc import api as kc_api
+    from src.kc.adapters.candidate_v2 import adapt_candidate
+
+    raw = asdict(parsed_candidate) if is_dataclass(parsed_candidate) else parsed_candidate
+    legacy = None
+    legacy_error = None
+    try:
+        legacy = kc_api.candidate_to_payload(raw, document, visible_block_ids=set(registry.visible_block_ids()))
+    except (ValueError, KeyError, TypeError) as exc:
+        legacy_error = type(exc).__name__
+    v2 = adapt_candidate(parsed_candidate, document, registry)
+    return {
+        "task_id": task_id,
+        "contract_version": "v2",
+        "llm_calls": 0,
+        "legacy": {
+            "claim_count": len(legacy.get("claims", [])) if legacy else 0,
+            "error": legacy_error,
+        },
+        "v2": {
+            "claim_count": v2.valid_claim_count,
+            "rejected_claim_count": len(v2.rejected_claims),
+        },
+        "differences": {
+            "claim_count_delta": v2.valid_claim_count - (len(legacy.get("claims", [])) if legacy else 0),
+            "legacy_error": legacy_error,
+        },
+    }
+
+
 async def run_shadow_ingest(
     paths,
     source_path,

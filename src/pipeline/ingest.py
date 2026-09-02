@@ -562,6 +562,7 @@ async def generate_ingest(
     task_id: str = "test",
     schema_registry: SchemaRegistry | None = None,
     ingest_snapshot=None,
+    candidate_override=None,
 ) -> tuple[list[WikiPage], list[WikiPage], dict]:
     """Phase 1 (NDG split): LLM processing only — ZERO disk writes.
 
@@ -754,41 +755,50 @@ async def generate_ingest(
         paths, produced_prefix={_source_slug_for_map},
     )
     _candidate_mode = os.environ.get("RUFLO_PIPELINE_MODE", "candidate") == "candidate"
+    _evidence_contract = os.environ.get("RUFLO_EVIDENCE_CONTRACT", "v1")
     if _candidate_mode:
         from .analyzer import analyze
         from .generator import generate_from_candidate
         from src.kc.mainline import CandidatePromoter, CandidateReviewer
+        from src.kc.contracts.candidate_v2 import CandidateV2
+        from .evidence_registry import EvidenceBlockRegistry
         from .text_preprocessing import chunk_prompt_blocks
 
         _prompt_chunks = chunk_prompt_blocks(
             _result.prompt_blocks,
             max_chars=_get_max_source_chars(),
         ) or ((),)
-        _chunk_candidates = []
-        for _chunk_index, _prompt_chunk in enumerate(_prompt_chunks):
-            _chunk_text = "\n\n".join(
-                block.prompt_content for block in _prompt_chunk
-            )
-            _chunk_candidates.append(await analyze(
-                source_text=_chunk_text,
-                source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
-                existing_wiki_index=_existing_wiki_index,
-                folder_context=folder_context,
-                provider=provider,
-                task_id=task_id,
-                source_path=_source_key,
-                output_format="json",
-                chunk_index=_chunk_index if len(_prompt_chunks) > 1 else None,
-                chunk_total=len(_prompt_chunks) if len(_prompt_chunks) > 1 else None,
-                schema_content=_schema_text,
-                purpose_content=_purpose_text,
-                taxonomy_content=_taxonomy_text,
-                prompt_blocks=_prompt_chunk,
-                template_context=_template_context,
-            ))
-        candidate = _merge_candidate_chunks(_chunk_candidates)
-        if not hasattr(candidate, "claims") or not candidate.claims or not candidate.evidence:
-            raise ValueError("candidate requires non-empty claims and evidence")
+        if candidate_override is not None:
+            candidate = candidate_override
+        else:
+            _chunk_candidates = []
+            for _chunk_index, _prompt_chunk in enumerate(_prompt_chunks):
+                _chunk_text = "\n\n".join(
+                    block.prompt_content for block in _prompt_chunk
+                )
+                _chunk_candidates.append(await analyze(
+                    source_text=_chunk_text,
+                    source_ext=source_path.suffix if hasattr(source_path, "suffix") else ".md",
+                    existing_wiki_index=_existing_wiki_index,
+                    folder_context=folder_context,
+                    provider=provider,
+                    task_id=task_id,
+                    source_path=_source_key,
+                    output_format="json",
+                    chunk_index=_chunk_index if len(_prompt_chunks) > 1 else None,
+                    chunk_total=len(_prompt_chunks) if len(_prompt_chunks) > 1 else None,
+                    schema_content=_schema_text,
+                    purpose_content=_purpose_text,
+                    taxonomy_content=_taxonomy_text,
+                    prompt_blocks=_prompt_chunk,
+                    template_context=_template_context,
+                    evidence_contract=_evidence_contract,
+                ))
+            candidate = _merge_candidate_chunks(_chunk_candidates)
+        if not hasattr(candidate, "claims") or not candidate.claims:
+            raise ValueError("candidate requires non-empty claims")
+        if _evidence_contract == "v1" and not candidate.evidence:
+            raise ValueError("candidate requires non-empty evidence")
         _source_key = canonical_raw_key(str(source_path), paths.root)
         _candidate_status = getattr(candidate, "status", None)
         if getattr(_candidate_status, "value", _candidate_status) == "rejected":
@@ -799,28 +809,47 @@ async def generate_ingest(
         if canonical_raw_key(str(_candidate_source_id), paths.root) != _source_key:
             raise ValueError("candidate source_id does not match source")
         document = _result.canonical_document
+        _registry = (
+            EvidenceBlockRegistry.from_preprocess(_result)
+            if _evidence_contract == "v2" else None
+        )
         review = await CandidateReviewer().review(
             candidate,
             document,
+            registry=_registry,
             source_root=paths.root,
             visible_block_ids={block.block_id for block in _result.prompt_blocks},
         )
         if review.status != "validated" or not review.projections:
             raise ValueError(
-                candidate.failure_reason or "KC structural review rejected candidate"
+                getattr(candidate, "failure_reason", None)
+                or "KC structural review rejected candidate"
+            )
+        _generator_candidate = review.generator_candidate or candidate
+        if os.environ.get("RUFLO_SHADOW_MODE", "").lower() == "true":
+            from .shadow import compare_evidence_contracts
+            _shadow_dir = paths.index / "shadow" / task_id
+            _shadow_dir.mkdir(parents=True, exist_ok=True)
+            (_shadow_dir / "evidence-contract.json").write_text(
+                json.dumps(
+                    compare_evidence_contracts(candidate, document, _registry or EvidenceBlockRegistry.from_preprocess(_result), task_id),
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
             )
         if _template_context is not None:
             from ..templates.contract import TemplateContract
             from .readiness_gate import validate_candidate_contract
             validate_candidate_contract(
-                TemplateContract.from_dict(_template_context), candidate
+                TemplateContract.from_dict(_template_context), _generator_candidate
             )
         _kc_review = {
             "document_id": review.document_id,
             "projections": list(review.projections),
         }
         _kc_promotion = CandidatePromoter().promote(
-            candidate,
+            _generator_candidate,
             review,
             project_root=paths.root,
             document=document,
@@ -828,7 +857,7 @@ async def generate_ingest(
         from src.kc.compiler.evidence import canonical_quote
         from .readiness_replay import serialize_audit
         _audit_evidence = []
-        for item in candidate.evidence:
+        for item in _generator_candidate.evidence:
             quote = canonical_quote(str(item.get("quote", "")))
             _audit_evidence.append({
                 "source_id": _source_key,
@@ -868,7 +897,7 @@ async def generate_ingest(
                 "quote_hash": _audit_evidence[0]["quote_hash"],
             })
         pages = await generate_from_candidate(
-            candidate=candidate,
+            candidate=_generator_candidate,
             paths=paths,
             existing_wiki_index=_existing_wiki_index,
             provider=provider,
@@ -1437,6 +1466,17 @@ def _merge_candidate_chunks(candidates: list) -> object:
         raise ValueError("candidate chunk merge requires at least one result")
     if len(candidates) == 1:
         return candidates[0]
+
+    if all(candidate.__class__.__name__ == "CandidateV2" for candidate in candidates):
+        from dataclasses import replace
+
+        source_id = candidates[0].source_id
+        if any(candidate.source_id != source_id for candidate in candidates):
+            raise ValueError("candidate chunk source_id mismatch")
+        return replace(
+            candidates[0],
+            claims=tuple(claim for candidate in candidates for claim in candidate.claims),
+        )
 
     from copy import deepcopy
 

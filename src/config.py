@@ -72,6 +72,7 @@ class Settings(BaseSettings):
     # ── Pipeline hot-switch (read-only) — write path stays in shadow.py ──
     pipeline_mode: str = Field(default="", validation_alias="RUFLO_PIPELINE_MODE")
     shadow_mode: str = Field(default="", validation_alias="RUFLO_SHADOW_MODE")
+    evidence_contract: str = Field(default="v1", validation_alias="RUFLO_EVIDENCE_CONTRACT")
 
     # ── Storage backend (experimental — 第二批，暂不迁移调用点) ──
     storage_backend: str = Field(default="filesystem", validation_alias="STORAGE_BACKEND")

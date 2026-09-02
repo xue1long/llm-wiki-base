@@ -305,6 +305,15 @@ def test_json_prompt_contains_schema_directives():
     assert "statement" in prompt
     assert "confidence" in prompt
     assert "evidence_refs" in prompt
+    assert "Never cite an omitted block" in prompt
+
+
+def test_v2_json_prompt_makes_block_ids_system_owned():
+    from src.pipeline.analyzer import ANALYZER_JSON_PROMPT_V2
+
+    assert "evidence_block_ids" in ANALYZER_JSON_PROMPT_V2
+    assert "quote is generated" in ANALYZER_JSON_PROMPT_V2
+    assert "evidence_refs" not in ANALYZER_JSON_PROMPT_V2
 
 
 @pytest.mark.asyncio
