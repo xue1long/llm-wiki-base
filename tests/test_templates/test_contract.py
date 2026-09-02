@@ -63,3 +63,13 @@ def test_load_snapshot_rejects_tampering(tmp_path: Path):
 
     with pytest.raises(ValueError, match="hash mismatch"):
         load_template_snapshot(tmp_path, snapshot.contract_hash)
+
+
+def test_template_hash_ignores_unrelated_project_data(tmp_path: Path):
+    _project(tmp_path)
+    first, _ = compile_project_template(tmp_path, template_id="test", template_version="1")
+    (tmp_path / "wiki").mkdir()
+    (tmp_path / "wiki" / "page.md").write_text("data", encoding="utf-8")
+    second, _ = compile_project_template(tmp_path, template_id="test", template_version="1")
+
+    assert second.template_hash == first.template_hash

@@ -16,7 +16,9 @@ _PROMPT_FILES = {"analyzer.prompt.md", "generator.prompt.md"}
 
 def _content_hash(root: Path) -> str:
     digest = hashlib.sha256()
-    for path in sorted(p for p in root.rglob("*") if p.is_file() and p.name != "template.json"):
+    allowed = {root / "schema.md", root / "purpose.md", root / "analyzer.prompt.md", root / "generator.prompt.md"}
+    allowed.update((root / ".wiki-templates").glob("*.md"))
+    for path in sorted(p for p in allowed if p.is_file()):
         digest.update(path.relative_to(root).as_posix().encode("utf-8"))
         digest.update(b"\0")
         digest.update(path.read_bytes())
