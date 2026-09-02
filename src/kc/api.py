@@ -56,7 +56,20 @@ def candidate_to_payload(
             if block is None:
                 raise ValueError("evidence block_id does not exist")
             if not isinstance(quote, str) or not quote or not quote_matches_content(quote, block.content):
-                raise ValueError("evidence quote does not match declared block")
+                visible_blocks = [
+                    candidate_block for candidate_block in document.blocks
+                    if visible_block_ids is None
+                    or candidate_block.block_id in visible_block_ids
+                ]
+                quote_matches = [
+                    candidate_block for candidate_block in visible_blocks
+                    if isinstance(quote, str)
+                    and quote
+                    and quote_matches_content(quote, candidate_block.content)
+                ]
+                if len(quote_matches) != 1:
+                    raise ValueError("evidence quote does not match declared block")
+                block = quote_matches[0]
         elif allow_legacy_unique_quote:
             matches = [
                 block for block in document.blocks
@@ -118,7 +131,11 @@ async def compile_source(
     objects = []
     for claim in candidate["claims"]:
         evidence = tuple(
-            validate_evidence(document, {**item, "supports": (claim["id"],)})
+            validate_evidence(
+                document,
+                {**item, "supports": (claim["id"],)},
+                require_unique_match=item.get("binding_mode") != "system",
+            )
             for item in claim["evidence"]
         )
         obj = compile_claim(claim, document, evidence)

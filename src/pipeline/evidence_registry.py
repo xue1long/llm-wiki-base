@@ -7,6 +7,7 @@ from hashlib import sha256
 
 from src.kc.contracts.candidate_v2 import BoundClaim, RejectedClaim
 from src.kc.contracts.evidence_binding import EvidenceBinding
+from src.kc.compiler.evidence import canonical_quote
 from src.pipeline.text_preprocessing.types import PreprocessResult
 
 MAX_EVIDENCE_QUOTE_CHARS = 4000
@@ -84,7 +85,7 @@ class EvidenceBlockRegistry:
         existing = self._bindings.get(block.block_id)
         if existing is not None:
             return existing
-        quote = block.canonical_content[:MAX_EVIDENCE_QUOTE_CHARS]
+        quote = canonical_quote(block.canonical_content)[:MAX_EVIDENCE_QUOTE_CHARS]
         quote_hash = sha256(quote.encode("utf-8")).hexdigest()
         binding = EvidenceBinding(
             evidence_id=f"evidence_{sha256((block.block_id + quote_hash).encode('utf-8')).hexdigest()[:24]}",

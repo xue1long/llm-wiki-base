@@ -89,6 +89,7 @@ def adapt_candidate(
                 "quote": item.quote,
                 "quote_hash": item.quote_hash,
                 "confidence": claim.confidence,
+                "binding_mode": "system",
             }
             for item in bound.evidence
         ]

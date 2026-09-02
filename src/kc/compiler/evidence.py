@@ -37,7 +37,12 @@ def quote_matches_content(quote: str, content: str) -> bool:
     return normalize(quote) in normalize(content)
 
 
-def validate_evidence(document: CanonicalDocument, value: dict[str, Any]) -> Evidence:
+def validate_evidence(
+    document: CanonicalDocument,
+    value: dict[str, Any],
+    *,
+    require_unique_match: bool = True,
+) -> Evidence:
     block_id = value.get("block_id")
     quote = value.get("quote")
     if not isinstance(quote, str) or not quote:
@@ -45,7 +50,7 @@ def validate_evidence(document: CanonicalDocument, value: dict[str, Any]) -> Evi
     quote = canonical_quote(quote)
     block = next((item for item in document.blocks if item.block_id == block_id), None)
     matches = [item for item in document.blocks if quote_matches_content(quote, item.content)]
-    if len(matches) > 1:
+    if require_unique_match and len(matches) > 1:
         raise EvidenceValidationError("evidence quote must match a unique block")
     if block is None or not matches or matches[0].block_id != block.block_id:
         raise EvidenceValidationError("evidence does not match a document block")
