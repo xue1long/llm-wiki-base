@@ -559,6 +559,7 @@ async def generate_ingest(
     folder_context: str = "",
     task_id: str = "test",
     schema_registry: SchemaRegistry | None = None,
+    ingest_snapshot=None,
 ) -> tuple[list[WikiPage], list[WikiPage], dict]:
     """Phase 1 (NDG split): LLM processing only — ZERO disk writes.
 
@@ -574,6 +575,13 @@ async def generate_ingest(
     _schema_text = _read_schema_text(paths)
     _purpose_text = _read_purpose_text(paths)
     _taxonomy_text = _read_taxonomy_text(paths)
+    _template_context = None
+    if ingest_snapshot is not None:
+        from ..templates.contract import load_template_snapshot
+        _contract_hash = ingest_snapshot.template_snapshot.get("contract_hash", "")
+        if not _contract_hash:
+            raise ValueError("template_unavailable: missing contract hash")
+        _template_context = load_template_snapshot(paths.root, _contract_hash).to_dict()
 
     from .text_preprocessing import preprocess_source
     from .readiness_replay import serialize_audit
@@ -838,6 +846,7 @@ async def generate_ingest(
             taxonomy_content=_taxonomy_text,
             missing_slugs_resolver=_missing_resolver,
             processing_depth_hint=_processing_depth_hint,
+            template_context=_template_context,
         )
         analysis = None
     elif len(_sanitized_source_text) > _get_max_source_chars():
@@ -865,6 +874,7 @@ async def generate_ingest(
                 taxonomy_content=_taxonomy_text,
                 missing_slugs_resolver=_missing_resolver,
                 processing_depth_hint=_processing_depth_hint,
+                template_context=_template_context,
             )
             _logger.info(
                 "[run_ingest] chunked path produced %d pages for %s",
@@ -898,6 +908,7 @@ async def generate_ingest(
                 taxonomy_content=_taxonomy_text,
                 missing_slugs_resolver=_missing_resolver,
                 processing_depth_hint=_processing_depth_hint,
+                template_context=_template_context,
             )
             _logger.info(
                 "[run_ingest] unified path produced %d pages for %s",
@@ -938,6 +949,7 @@ async def generate_ingest(
                 taxonomy_content=_taxonomy_text,
                 missing_slugs_resolver=_missing_resolver,
                 processing_depth_hint=_processing_depth_hint,
+                template_context=_template_context,
             )
 
     # Step 2.5 (P1 fix): optional LLM-as-judge quality gate.
