@@ -1328,6 +1328,29 @@ async def test_call_with_slot_retry_no_escalation_on_repeated_empty_truncation()
     assert result["pages"][0]["id"] == "s"
 
 
+async def test_call_with_slot_retry_escalates_empty_minimax_m3_truncation():
+    """MiniMax-M3 may hide reasoning tokens and return empty length responses."""
+    from src.llm.base import LLMResponse
+    from src.pipeline.generator import _call_with_slot_retry
+
+    empty = LLMResponse(content="", model="MiniMax-M3", truncated=True)
+    valid = LLMResponse(
+        content='{"pages": [{"id": "s", "type": "source", "title": "t"}]}',
+        model="MiniMax-M3",
+    )
+    provider = _make_tracking_provider([empty, valid])
+    result = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt="extract",
+        response_format={},
+        required_slots_by_type={},
+        max_tokens=8192,
+    )
+
+    assert provider.calls[1]["max_tokens"] == 16384
+    assert result["pages"][0]["id"] == "s"
+
+
 # ---------------------------------------------------------------------------
 # 1.3 H6 — missing_slugs_resolver：单调用内闭环（引用-产出对账反馈）
 # ---------------------------------------------------------------------------

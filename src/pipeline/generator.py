@@ -1853,7 +1853,10 @@ async def _call_with_slot_retry(
             # an empty response (sfkey finish_reason=length, 0 chars) can't
             # normally be fixed by a bigger cap. Each content truncation bumps
             # the cap one level (8192 → 16384 → 32768).
-            if exc.content_length > 0:
+            model_name = str(
+                getattr(response, "model", getattr(provider, "model", ""))
+            ).lower()
+            if exc.content_length > 0 or "minimax-m3" in model_name:
                 _max_tokens_escalation += 1
             _truncation_retry_used = True
             _json_mode = False  # drop response_format on retry
