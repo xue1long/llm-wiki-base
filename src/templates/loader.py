@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,10 +23,21 @@ class Template:
     icon: str = ""
     extra_dirs: list[str] | None = None
     builtin: bool = False
+    version: str = "compat"
 
     @property
     def id(self) -> str:
         return self.name
+
+    @property
+    def content_hash(self) -> str:
+        digest = hashlib.sha256()
+        for rel in sorted(self.files):
+            digest.update(rel.encode("utf-8"))
+            digest.update(b"\0")
+            digest.update(self.files[rel].encode("utf-8"))
+            digest.update(b"\0")
+        return digest.hexdigest()
 
 
 def _validate_id(name: str) -> str:
@@ -72,6 +84,7 @@ def _read(root: Path, name: str, builtin: bool) -> Template:
         icon=str(metadata.get("icon", "")),
         extra_dirs=extra,
         builtin=builtin,
+        version=str(metadata.get("version", "compat")),
     )
 
 
