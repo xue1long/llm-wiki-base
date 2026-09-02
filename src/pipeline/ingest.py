@@ -1560,6 +1560,7 @@ async def commit_ingest(
     expected_page_hashes: dict[str, str] | None = None,
     kc_bundle_key: str | None = None,
     readiness_audit: dict | None = None,
+    ingest_snapshot=None,
 ):
     """Phase 2 (NDG split): write pages + index update + log.
 
@@ -1586,6 +1587,13 @@ async def commit_ingest(
     if isinstance(triage_result, dict):
         triage_result = TriageResult(**triage_result)
     _gate = check_pages(pages + _extra)
+    if ingest_snapshot is not None:
+        from .readiness_gate import validate_page_contract
+        from ..templates.contract import load_template_snapshot
+        _hash = ingest_snapshot.template_snapshot.get("contract_hash", "")
+        _contract = load_template_snapshot(paths.root, _hash)
+        for _page in pages + _extra:
+            validate_page_contract(_contract, _page)
     for _pid, _reason in _gate.degraded.items():
         _logger.warning("[run_ingest] quality gate: %s degraded — %s", _pid, _reason)
     _keep_ids = {p.id for p in _gate.pages}
@@ -1734,6 +1742,7 @@ async def run_ingest(
         provider=provider,
         folder_context=folder_context,
         task_id=task_id,
+        ingest_snapshot=ingest_snapshot,
     )
     await commit_ingest(
         paths=paths,
@@ -1744,7 +1753,9 @@ async def run_ingest(
         triage_result=_meta.get("triage"),
         missing_slugs=_meta.get("missing_slugs"),
         kc_bundle_key=_meta.get("kc_bundle_key"),
-        readiness_audit=_meta.get("readiness_audit"),    )
+        readiness_audit=_meta.get("readiness_audit"),
+        ingest_snapshot=ingest_snapshot,
+    )
     return pages
 
 

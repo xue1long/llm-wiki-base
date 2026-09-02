@@ -11,6 +11,7 @@ from src.pipeline.text_preprocessing.types import (
     ReadinessDecision,
     ReadinessResult,
 )
+from .specialists import run_specialist
 
 
 def apply_readiness_gate(artifact: ExtractionArtifact) -> ReadinessResult:
@@ -23,7 +24,6 @@ async def resolve_specialist(result: ReadinessResult) -> ReadinessResult:
     """Run the named specialist once, then reassess its returned artifact."""
     if result.route is None:
         return result
-    from .specialists import run_specialist
 
     try:
         artifact = await run_specialist(result.route, result.artifact)
@@ -37,6 +37,18 @@ async def resolve_specialist(result: ReadinessResult) -> ReadinessResult:
         )
         return ReadinessResult(artifact=result.artifact, assessment=assessment, route=None)
     return apply_readiness_gate(artifact)
+
+
+def validate_page_contract(contract, page) -> list[str]:
+    """Validate final page identity against the immutable template contract."""
+    page_type = page.custom_type or page.type.value
+    if page_type not in contract.allowed_types:
+        raise ValueError(f"Wiki type {page_type!r} is not allowed by template")
+    if page_type not in contract.routes:
+        raise ValueError(f"Wiki type {page_type!r} has no template route")
+    if not page.body.strip():
+        raise ValueError(f"Wiki page {page.id!r} has an empty body")
+    return []
 
 
 async def route_after_readiness(
