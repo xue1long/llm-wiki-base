@@ -123,6 +123,7 @@ class CandidateReviewer:
                     generator_candidate=adaptation.generator_candidate,
                     contract_version="v2",
                 )
+            adaptation.generator_candidate.status = CandidateStatus.VALIDATED
             return ReviewResult(
                 candidate_id=adaptation.generator_candidate.id,
                 document_id=str(result.get("document_id", document.document_id)),
