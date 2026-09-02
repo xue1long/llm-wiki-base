@@ -28,7 +28,7 @@ from pathlib import Path
 from ..circuit_breaker import CircuitState, get_circuit_breaker
 from ..events.event_bus import event_bus
 from ..lib.errors import NO_RETRY_MARKER
-from ..types import KnowledgeTask, SourceType, TaskStatus
+from ..types import IngestSnapshot, KnowledgeTask, SourceType, TaskStatus
 from ..utils.idempotency import remove_hash
 from .in_flight import InMemoryInFlightTracker
 from .persistence import JsonFileBackend
@@ -87,6 +87,7 @@ class QueueService:
         project_id: str | None = None,
         folder_context: str | None = None,
         batch_id: str | None = None,
+        ingest_snapshot: IngestSnapshot | None = None,
     ) -> str:
         task_id: str = ""   # assigned inside lock; always overwritten before use
 
@@ -121,6 +122,7 @@ class QueueService:
                 project_id=project_id,
                 folder_context=folder_context,
                 batch_id=batch_id,
+                ingest_snapshot=ingest_snapshot,
             )
             self.backend.enqueue(task)
             task_id = task.id
@@ -176,7 +178,8 @@ class QueueService:
                     retry_count=0,
                     project_id=project_id,
                     folder_context=folder_context,
-                    batch_id=batch_id,
+                batch_id=batch_id,
+                ingest_snapshot=item.get("ingest_snapshot"),
                 )
                 tasks_to_add.append(task)
                 task_ids.append(task.id)
@@ -315,6 +318,8 @@ class QueueService:
                 payload["project_id"] = effective_project_id
             if task.folder_context is not None:
                 payload["folder_context"] = task.folder_context
+            if task.ingest_snapshot is not None:
+                payload["ingest_snapshot"] = task.ingest_snapshot.to_dict()
 
         # Outside the lock — emit
         self.emitter.emit("collector:start", payload)

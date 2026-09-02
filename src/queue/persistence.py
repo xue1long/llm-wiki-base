@@ -10,7 +10,6 @@ Persists tasks to a single JSON file. CRITICAL invariants (from spec):
 from __future__ import annotations
 import json
 import logging
-from dataclasses import asdict
 from pathlib import Path
 
 from ..utils.path import safe_resolve
@@ -107,7 +106,7 @@ class JsonFileBackend:
 
     def enqueue(self, task: KnowledgeTask) -> None:
         with self._lock:
-            self._tasks[task.id] = asdict(task)
+            self._tasks[task.id] = task.to_dict()
             self._save_unlocked()
 
     def enqueue_batch(self, tasks: list[KnowledgeTask]) -> None:
@@ -116,12 +115,12 @@ class JsonFileBackend:
             return
         with self._lock:
             for task in tasks:
-                self._tasks[task.id] = asdict(task)
+                self._tasks[task.id] = task.to_dict()
             self._save_unlocked()
 
     def save(self, task: KnowledgeTask) -> None:
         with self._lock:
-            self._tasks[task.id] = asdict(task)
+            self._tasks[task.id] = task.to_dict()
             self._save_unlocked()
 
     def find(self, task_id: str) -> KnowledgeTask | None:
@@ -130,7 +129,7 @@ class JsonFileBackend:
             if row is None:
                 return None
             try:
-                return KnowledgeTask(**row)
+                return KnowledgeTask.from_dict(row)
             except (TypeError, ValueError) as e:
                 logger.warning(f"[JsonFileBackend] task row malformed ({e}); skipping")
                 return None
@@ -142,7 +141,7 @@ class JsonFileBackend:
                 if row.get("task_hash") != task_hash:
                     continue
                 try:
-                    result.append(KnowledgeTask(**row))
+                    result.append(KnowledgeTask.from_dict(row))
                 except (TypeError, ValueError) as e:
                     logger.warning(f"[JsonFileBackend] task row malformed ({e}); skipping")
             return result
@@ -198,7 +197,7 @@ class JsonFileBackend:
                             )
                             continue
                 try:
-                    result.append(KnowledgeTask(**row))
+                    result.append(KnowledgeTask.from_dict(row))
                 except (TypeError, ValueError) as e:
                     logger.warning(f"[JsonFileBackend] task row malformed ({e}); skipping")
             return result

@@ -15,7 +15,7 @@ import logging
 from typing import Sequence
 
 from ..queue.service import get_default_queue_service
-from ..types import SourceType, TaskStatus
+from ..types import IngestSnapshot, SourceType, TaskStatus
 from ..events.event_bus import event_bus
 from ..events.events import EventName
 # NOTE: `src.pipeline.pipeline` (the compat shim) is NOT imported at module
@@ -74,13 +74,18 @@ class PipelineService:
         source_type = payload.get("source_type", SourceType.FILE)
         project_id = payload.get("project_id")
         folder_context = payload.get("folder_context")
+        ingest_snapshot = payload.get("ingest_snapshot")
+        if isinstance(ingest_snapshot, dict):
+            ingest_snapshot = IngestSnapshot.from_dict(ingest_snapshot)
 
         async with self._semaphore:
             await self._run_for_collector_start_inner(task_id, source, source_type, project_id,
-                                                       folder_context=folder_context)
+                                                       folder_context=folder_context,
+                                                       ingest_snapshot=ingest_snapshot)
 
     async def _run_for_collector_start_inner(self, task_id, source, source_type, project_id,
-                                              folder_context: str | None = None) -> None:
+                                              folder_context: str | None = None,
+                                              ingest_snapshot: IngestSnapshot | None = None) -> None:
         """Actual pipeline work — called while the semaphore is held."""
 
         # Stale-RUNNING recovery (audit PR-1): if the persisted task is
@@ -165,6 +170,7 @@ class PipelineService:
                 provider=provider,
                 folder_context=folder_context or "",
                 task_id=task_id,
+                ingest_snapshot=ingest_snapshot,
             )
             event_bus.emit(EventName.STAGE_STARTED, {
                 "task_id": task_id, "stage": "writer",

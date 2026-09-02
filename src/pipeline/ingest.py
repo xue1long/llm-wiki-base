@@ -1709,6 +1709,7 @@ async def run_ingest(
     provider,
     folder_context: str = "",
     task_id: str = "test",
+    ingest_snapshot=None,
 ) -> list[WikiPage]:
     """Run full pipeline (generate + commit). Behaviour-preserving wrapper.
 

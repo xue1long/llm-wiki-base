@@ -17,6 +17,7 @@ class IdempotencyCache:
         content_prefix: str = "",
         project_id: str = "",
         round_key: str = "",
+        contract_hash: str = "",
     ) -> str:
         """
         生成幂等键
@@ -29,7 +30,7 @@ class IdempotencyCache:
         缺省为空字符串 → 与旧算法完全一致（队列/文件夹路径调用方不受影响）。
         """
         prefix = source_type.value
-        data = f"{prefix}:{identifier}:{content_prefix[:1024]}:{project_id}:{round_key}"
+        data = f"{prefix}:{identifier}:{content_prefix[:1024]}:{project_id}:{round_key}:{contract_hash}"
         return hashlib.md5(data.encode()).hexdigest()
 
     def check_and_mark(self, task_hash: str) -> bool:
@@ -71,11 +72,12 @@ def generate_task_hash(
     content_prefix: str = "",
     project_id: str = "",
     round_key: str = "",
+    contract_hash: str = "",
 ) -> str:
     """便捷函数"""
     cache = get_idempotency_cache()
     return cache.generate_hash(source_type, source, content_prefix, project_id,
-                               round_key=round_key)
+                               round_key=round_key, contract_hash=contract_hash)
 
 def check_duplicate(task_hash: str) -> bool:
     """检查是否重复提交"""

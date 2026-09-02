@@ -28,11 +28,12 @@ def _service():
 
 
 def enqueue_task(source, source_type, task_hash, project_id=None,
-                 folder_context=None, batch_id=None):
+                 folder_context=None, batch_id=None, ingest_snapshot=None):
     return _service().enqueue(source, source_type, task_hash,
                               project_id=project_id,
                               folder_context=folder_context,
-                              batch_id=batch_id)
+                              batch_id=batch_id,
+                              ingest_snapshot=ingest_snapshot)
 
 
 def enqueue_batch(items, project_id=None, folder_context=None, batch_id=None):

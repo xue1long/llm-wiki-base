@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import os
 import random
+import hashlib
 from pathlib import Path
 from typing import Union
 
@@ -23,7 +24,7 @@ import yaml
 from ..lib.project import resolve_project
 from ..queue import enqueue_batch, enqueue_task
 from ..queue.service import get_default_queue_service
-from ..types import SourceType
+from ..types import IngestSnapshot, SourceType
 from ..utils.idempotency import generate_task_hash
 from ..wiki.features.folder_ingest import collect_files, folder_context_for
 
@@ -35,6 +36,27 @@ _logger = logging.getLogger(__name__)
 # ``UnsupportedFormat`` for legacy binary OLE Compound File format
 # (the design calls for users to convert to ``.docx`` first).
 _SUPPORTED_EXTENSIONS = {".md", ".txt", ".pdf", ".docx", ".xlsx", ".html", ".htm"}
+
+
+def create_ingest_snapshot(project_id: str, source: str, *, round_key: str = "") -> IngestSnapshot:
+    """Resolve the project template once and return immutable task context."""
+    from ..project.identity import resolve_project_template
+
+    ctx, _ = resolve_project(project_id, by_id_only=True)
+    snapshot, _contract = resolve_project_template(ctx.path)
+    return IngestSnapshot(
+        instance_id=ctx.id,
+        source_identity=source,
+        source_version=hashlib.sha256(source.encode("utf-8")).hexdigest(),
+        template_snapshot={
+            "template_id": snapshot.template_id,
+            "template_version": snapshot.template_version,
+            "template_hash": snapshot.template_hash,
+            "contract_hash": snapshot.contract_hash,
+            "snapshot_path": snapshot.snapshot_path,
+        },
+        pipeline_contract_version="1",
+    )
 
 
 
@@ -340,9 +362,11 @@ def enqueue_source(
                     "taskId": None,
                     "reason": "AlreadyIngested",
                 }
-        task_hash = generate_task_hash(source_type, source_str, folder_context or "", project_id=resolved_id)
+        ingest_snapshot = create_ingest_snapshot(resolved_id, source_str)
+        contract_hash = ingest_snapshot.template_snapshot["contract_hash"]
+        task_hash = generate_task_hash(source_type, source_str, folder_context or "", project_id=resolved_id, contract_hash=contract_hash)
         task_id = enqueue_task(source_str, source_type, task_hash, project_id=resolved_id,
-                               folder_context=folder_context)
+                               folder_context=folder_context, ingest_snapshot=ingest_snapshot)
         if not task_id:
             return {"status": "ignored", "taskId": None, "reason": "Duplicate"}
         return {"status": "queued", "taskId": task_id, "reason": None}
@@ -382,9 +406,13 @@ def enqueue_source(
             count_limited += 1
             continue
         fctx = folder_context or folder_context_for(folder_abs, f)
-        task_hash = generate_task_hash(SourceType.FILE, rel, fctx, project_id=resolved_id)
+        ingest_snapshot = create_ingest_snapshot(resolved_id, rel)
+        task_hash = generate_task_hash(
+            SourceType.FILE, rel, fctx, project_id=resolved_id,
+            contract_hash=ingest_snapshot.template_snapshot["contract_hash"],
+        )
         items.append({"source": rel, "source_type": SourceType.FILE, "task_hash": task_hash,
-                       "folder_context": fctx})
+                       "folder_context": fctx, "ingest_snapshot": ingest_snapshot})
 
     task_ids = enqueue_batch(items, project_id=resolved_id,
                              folder_context=folder_context, batch_id=_batch_id)
