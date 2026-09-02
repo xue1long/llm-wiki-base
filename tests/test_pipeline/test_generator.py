@@ -1440,7 +1440,7 @@ async def test_call_with_slot_retry_missing_slugs_exhausted_returns_last():
         max_tokens=8192,
         missing_slugs_resolver=resolver,
     )
-    assert len(provider.calls) == 4  # 初始 + 3 次反馈重试 (MAX_GEN_ATTEMPTS=4)
+    assert len(provider.calls) == 2  # 初始 + 1 次引用反馈；仍缺失则交给 gap ledger
     assert result["pages"][0]["relations"][0]["target"] == "幽灵概念"
 
 

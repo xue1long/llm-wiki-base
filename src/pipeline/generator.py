@@ -1729,10 +1729,10 @@ async def _call_with_slot_retry(
     unresolved slug list (references to pages that do not exist in 产出 ∪ 磁盘 ∪
     SlugAliasRegistry ∪ 索引), the missing slugs are fed back into the prompt
     and the call retries — a single-call closed loop that fixes references
-    WITHOUT re-running the whole pipeline.  References that still fail after
-    the retry budget are recorded in the returned ``pages`` and surfaced by
-    the caller (gap ledger) — the resolver is consulted on every attempt so
-    the final state is visible.
+    WITHOUT re-running the whole pipeline.  Only one corrective retry is
+    allowed for unresolved references; remaining gaps are returned and
+    surfaced by the caller (gap ledger), so a model producing new ghost slugs
+    cannot consume the whole content-retry budget.
 
     Returns the parsed response dict (with ``pages`` key).
     """
@@ -1746,6 +1746,7 @@ async def _call_with_slot_retry(
     # nothing was generated, so a bigger cap can't help.
     _max_tokens_escalation = 0
     _last_missing_slugs: list[str] = []
+    _missing_slug_retry_used = False
 
     # If startup check already marked this provider incompatible, skip the
     # response_format probe entirely on the first attempt.
@@ -1943,6 +1944,11 @@ async def _call_with_slot_retry(
                 if attempt == MAX_GEN_ATTEMPTS - 1:
                     # 重试预算耗尽：仍返回本次产出，missing 由调用方记入 gap 账本。
                     return response_dict
+                if _missing_slug_retry_used:
+                    # 引用修复是最佳努力；继续重试只会让模型换一个新的
+                    # 幽灵 slug，并阻塞整条摄取链路。最终对账会落 gap ledger。
+                    return response_dict
+                _missing_slug_retry_used = True
                 continue
 
         return response_dict
