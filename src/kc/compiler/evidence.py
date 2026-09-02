@@ -25,9 +25,15 @@ def quote_matches_content(quote: str, content: str) -> bool:
     """Match only formatting-normalized quote text, never paraphrases."""
     if quote in content:
         return True
-    normalize = lambda value: " ".join(
-        unicodedata.normalize("NFKC", value).split()
-    )
+    def normalize(value: str) -> str:
+        value = unicodedata.normalize("NFKC", value)
+        value = "".join(
+            char for char in value
+            if char not in "\u200b\u200c\u200d\ufeff"
+            and unicodedata.category(char) != "Cf"
+        )
+        return " ".join(value.split())
+
     return normalize(quote) in normalize(content)
 
 

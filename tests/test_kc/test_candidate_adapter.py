@@ -56,6 +56,18 @@ def test_candidate_adapter_accepts_formatting_normalized_quote() -> None:
     assert payload["claims"][0]["evidence"][0]["block_id"] == document.blocks[0].block_id
 
 
+def test_candidate_adapter_accepts_quote_without_invisible_source_marks() -> None:
+    document = normalize_text("前期的\u200b铺垫。", source="raw/sources/demo.md")
+    candidate = _candidate(
+        quote="前期的铺垫。",
+        block_id=document.blocks[0].block_id,
+    )
+
+    payload = candidate_to_payload(candidate, document)
+
+    assert payload["claims"][0]["evidence"][0]["block_id"] == document.blocks[0].block_id
+
+
 def test_candidate_adapter_rejects_source_path_mismatch() -> None:
     document = normalize_text("KC 统一证据适配。", source="raw/sources/demo.md")
     candidate = _candidate(source="raw/sources/other.md")
