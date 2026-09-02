@@ -635,6 +635,29 @@ async def generate_ingest(
         file_size=_file_size,
         sanitizer_score=_result.report.quality_score,
     )
+    from .source_screening import screen_source
+    _screening = await screen_source(
+        str(source_path),
+        _result.prompt_text,
+        prefilter_result=_triage,
+        provider=provider,
+    )
+    _triage.metadata["source_screening"] = asdict(_screening)
+    if _screening.decision == "skip":
+        return [], [], {
+            "analysis": None,
+            "source_slug": None,
+            "source_page_id": None,
+            "source_grade": "C",
+            "triage": asdict(_triage),
+            "downstream_count": 0,
+            "extra_pages_count": 0,
+            "rejected": True,
+            "warnings": list(_result.report.warnings),
+            "content_assessment": asdict(_readiness.assessment),
+            "readiness_audit": _readiness_audit,
+            "missing_slugs": [],
+        }
 
     if _result.report.warnings:
         _logger.warning(
