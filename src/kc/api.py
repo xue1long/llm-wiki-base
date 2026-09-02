@@ -10,7 +10,7 @@ from typing import Any
 from src.kc.adapters.legacy_collector import LegacyCollector
 from src.kc.adapters.wiki_projection import project_wiki
 from src.kc.compiler.compile import compile_claim
-from src.kc.compiler.evidence import canonical_quote, validate_evidence
+from src.kc.compiler.evidence import canonical_quote, quote_matches_content, validate_evidence
 from src.kc.compiler.extract import parse_candidate_json
 from src.kc.compiler.normalize import normalize_text
 from src.utils.path import canonical_raw_key
@@ -55,12 +55,12 @@ def candidate_to_payload(
             )
             if block is None:
                 raise ValueError("evidence block_id does not exist")
-            if not isinstance(quote, str) or not quote or quote not in block.content:
+            if not isinstance(quote, str) or not quote or not quote_matches_content(quote, block.content):
                 raise ValueError("evidence quote does not match declared block")
         elif allow_legacy_unique_quote:
             matches = [
                 block for block in document.blocks
-                if isinstance(quote, str) and quote and quote in block.content
+                if isinstance(quote, str) and quote and quote_matches_content(quote, block.content)
             ]
             if len(matches) > 1:
                 raise ValueError("evidence quote must match a unique block")

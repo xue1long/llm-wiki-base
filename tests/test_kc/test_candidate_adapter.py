@@ -44,6 +44,18 @@ def test_candidate_adapter_emits_strict_claim_and_block_evidence() -> None:
     assert evidence["quote_hash"]
 
 
+def test_candidate_adapter_accepts_formatting_normalized_quote() -> None:
+    document = normalize_text("黄金三章 要抓住读者。", source="raw/sources/demo.md")
+    candidate = _candidate(
+        quote="黄金三章　要抓住读者。",
+        block_id=document.blocks[0].block_id,
+    )
+
+    payload = candidate_to_payload(candidate, document)
+
+    assert payload["claims"][0]["evidence"][0]["block_id"] == document.blocks[0].block_id
+
+
 def test_candidate_adapter_rejects_source_path_mismatch() -> None:
     document = normalize_text("KC 统一证据适配。", source="raw/sources/demo.md")
     candidate = _candidate(source="raw/sources/other.md")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 from typing import Any
+import unicodedata
 
 from src.kc.compiler.normalize import CanonicalDocument
 from src.kc.contracts.evidence import Evidence
@@ -20,6 +21,16 @@ def canonical_quote(value: str) -> str:
     return "\n".join(line.rstrip() for line in value.replace("\r\n", "\n").replace("\r", "\n").split("\n")).strip()
 
 
+def quote_matches_content(quote: str, content: str) -> bool:
+    """Match only formatting-normalized quote text, never paraphrases."""
+    if quote in content:
+        return True
+    normalize = lambda value: " ".join(
+        unicodedata.normalize("NFKC", value).split()
+    )
+    return normalize(quote) in normalize(content)
+
+
 def validate_evidence(document: CanonicalDocument, value: dict[str, Any]) -> Evidence:
     block_id = value.get("block_id")
     quote = value.get("quote")
@@ -27,7 +38,7 @@ def validate_evidence(document: CanonicalDocument, value: dict[str, Any]) -> Evi
         raise EvidenceValidationError("evidence quote is empty")
     quote = canonical_quote(quote)
     block = next((item for item in document.blocks if item.block_id == block_id), None)
-    matches = [item for item in document.blocks if quote in item.content]
+    matches = [item for item in document.blocks if quote_matches_content(quote, item.content)]
     if len(matches) > 1:
         raise EvidenceValidationError("evidence quote must match a unique block")
     if block is None or not matches or matches[0].block_id != block.block_id:
