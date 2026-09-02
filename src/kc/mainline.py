@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
@@ -354,4 +355,25 @@ async def recover_staged_bundles(project_root: Path) -> list[PublicationResult]:
     return results
 
 
-__all__ = ["CandidatePromoter", "CandidateReviewer", "PublicationResult", "PromotionResult", "ReviewResult", "finalize_bundle", "index_and_publish_bundle", "recover_staged_bundles"]
+def quarantine_incomplete_v2_bundles(project_root: Path) -> list[Path]:
+    """Move unpublished v2 bundles aside before a task-boundary rollback."""
+    bundle_root = Path(project_root) / ".index" / "kc" / "bundles"
+    quarantine_root = Path(project_root) / ".index" / "quarantine"
+    moved: list[Path] = []
+    if not bundle_root.is_dir():
+        return moved
+    for manifest_path in sorted(bundle_root.glob("*/manifest.json")):
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("contract_version") != "v2" or manifest.get("status") == "published":
+            continue
+        bundle_dir = manifest_path.parent
+        target = quarantine_root / bundle_dir.name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            shutil.rmtree(target)
+        os.replace(bundle_dir, target)
+        moved.append(target)
+    return moved
+
+
+__all__ = ["CandidatePromoter", "CandidateReviewer", "PublicationResult", "PromotionResult", "ReviewResult", "finalize_bundle", "index_and_publish_bundle", "recover_staged_bundles", "quarantine_incomplete_v2_bundles"]
