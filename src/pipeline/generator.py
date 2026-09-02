@@ -579,6 +579,7 @@ async def unified_generate(
     taxonomy_content: str = "",
     missing_slugs_resolver=None,
     processing_depth_hint: Optional[str] = None,
+    template_context: Optional[dict] = None,
 ) -> list[WikiPage]:
     """Single-pass: analyze source text + render wiki pages in one LLM call.
 

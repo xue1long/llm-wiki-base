@@ -514,6 +514,7 @@ async def _analyze_chunked(
     schema_content: str,
     purpose_content: str,
     taxonomy_content: str,
+    template_context: dict | None = None,
     chunk_size: int | None = None,
 ) -> "AnalysisResult":
     """Analyze a large source in chunks and merge the per-chunk results.
@@ -544,6 +545,7 @@ async def _analyze_chunked(
             schema_content=schema_content,
             purpose_content=purpose_content,
             taxonomy_content=taxonomy_content,
+            template_context=template_context,
             chunk_index=i,
             chunk_total=len(chunks),
         )
@@ -759,6 +761,7 @@ async def generate_ingest(
                 purpose_content=_purpose_text,
                 taxonomy_content=_taxonomy_text,
                 prompt_blocks=_prompt_chunk,
+                template_context=_template_context,
             ))
         candidate = _merge_candidate_chunks(_chunk_candidates)
         if not hasattr(candidate, "claims") or not candidate.claims or not candidate.evidence:
@@ -782,6 +785,12 @@ async def generate_ingest(
         if review.status != "validated" or not review.projections:
             raise ValueError(
                 candidate.failure_reason or "KC structural review rejected candidate"
+            )
+        if _template_context is not None:
+            from ..templates.contract import TemplateContract
+            from .readiness_gate import validate_candidate_contract
+            validate_candidate_contract(
+                TemplateContract.from_dict(_template_context), candidate
             )
         _kc_review = {
             "document_id": review.document_id,
@@ -862,6 +871,7 @@ async def generate_ingest(
                 schema_content=_schema_text,
                 purpose_content=_purpose_text,
                 taxonomy_content=_taxonomy_text,
+                template_context=_template_context,
             )
             pages = await _generate(
                 paths=paths,
@@ -874,7 +884,6 @@ async def generate_ingest(
                 taxonomy_content=_taxonomy_text,
                 missing_slugs_resolver=_missing_resolver,
                 processing_depth_hint=_processing_depth_hint,
-                template_context=_template_context,
             )
             _logger.info(
                 "[run_ingest] chunked path produced %d pages for %s",

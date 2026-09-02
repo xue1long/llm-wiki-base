@@ -51,6 +51,17 @@ def validate_page_contract(contract, page) -> list[str]:
     return []
 
 
+def validate_candidate_contract(contract, candidate) -> list[str]:
+    """Reject a candidate type that cannot be rendered by the pinned contract."""
+    type_name = getattr(candidate, "custom_type", "") or getattr(candidate, "type", "")
+    type_name = getattr(type_name, "value", type_name)
+    if type_name not in contract.allowed_types:
+        raise ValueError(f"Knowledge type {type_name!r} is not allowed by template")
+    if type_name not in contract.routes:
+        raise ValueError(f"Knowledge type {type_name!r} has no template route")
+    return []
+
+
 async def route_after_readiness(
     result: ReadinessResult,
     *,
