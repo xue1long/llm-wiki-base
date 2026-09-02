@@ -317,6 +317,44 @@ def test_v2_json_prompt_makes_block_ids_system_owned():
 
 
 @pytest.mark.asyncio
+async def test_v2_analyzer_retries_empty_claims_before_constructing_candidate():
+    """MiniMax-style empty extraction must be retried, not crash CandidateV2."""
+    from src.kc.contracts.candidate_v2 import CandidateV2
+
+    source = "raw/sources/empty-then-valid.md"
+    document = normalize_text("第一段包含可提取的写作规则。", source=source)
+    block_id = document.blocks[0].block_id
+    provider = ScriptedLLMProvider([
+        {"source_id": source, "type": "concept", "title": "", "claims": []},
+        {
+            "source_id": source,
+            "type": "concept",
+            "title": "写作规则",
+            "claims": [{
+                "statement": "文本包含可提取的写作规则。",
+                "confidence": 0.9,
+                "evidence_block_ids": [block_id],
+            }],
+        },
+    ])
+
+    result = await analyze(
+        source_text=document.content,
+        source_ext=".md",
+        existing_wiki_index="",
+        folder_context="",
+        provider=provider,
+        source_path=source,
+        output_format="json",
+        evidence_contract="v2",
+    )
+
+    assert isinstance(result, CandidateV2)
+    assert len(result.claims) == 1
+    assert len(provider.calls) == 2
+
+
+@pytest.mark.asyncio
 async def test_json_analyzer_injects_identity_bearing_document_blocks():
     source = "raw/sources/test.md"
     document = normalize_text("第一段。\n\n第二段。", source=source)

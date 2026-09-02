@@ -1745,6 +1745,7 @@ async def _call_with_slot_retry(
     # An EMPTY truncation (sfkey quirk: length with 0 chars) does NOT bump:
     # nothing was generated, so a bigger cap can't help.
     _max_tokens_escalation = 0
+    _truncation_retry_used = False
     _last_missing_slugs: list[str] = []
     _missing_slug_retry_used = False
 
@@ -1854,6 +1855,7 @@ async def _call_with_slot_retry(
             # the cap one level (8192 → 16384 → 32768).
             if exc.content_length > 0:
                 _max_tokens_escalation += 1
+            _truncation_retry_used = True
             _json_mode = False  # drop response_format on retry
             if exc.content_length == 0:
                 extra = (
@@ -1944,7 +1946,7 @@ async def _call_with_slot_retry(
                 if attempt == MAX_GEN_ATTEMPTS - 1:
                     # 重试预算耗尽：仍返回本次产出，missing 由调用方记入 gap 账本。
                     return response_dict
-                if _missing_slug_retry_used:
+                if _missing_slug_retry_used or _truncation_retry_used:
                     # 引用修复是最佳努力；继续重试只会让模型换一个新的
                     # 幽灵 slug，并阻塞整条摄取链路。最终对账会落 gap ledger。
                     return response_dict

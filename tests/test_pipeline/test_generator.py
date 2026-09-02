@@ -1415,6 +1415,42 @@ async def test_call_with_slot_retry_feeds_missing_slugs_back():
     assert result["pages"][0]["relations"][0]["target"] == "现实概念"
 
 
+async def test_call_with_slot_retry_does_not_chain_reference_retry_after_truncation():
+    """A content retry must not be followed by another LLM call just for links."""
+    from src.llm.base import LLMResponse
+    from src.pipeline.generator import _call_with_slot_retry
+
+    class Provider:
+        calls = []
+
+        async def complete(self, messages, **kwargs):
+            self.calls.append(messages[0]["content"])
+            if len(self.calls) == 1:
+                return LLMResponse(
+                    content="partial", model="minimax-m3", truncated=True,
+                    content_length=100,
+                )
+            if len(self.calls) == 2:
+                return LLMResponse(
+                    content='{"pages":[{"id":"a","type":"concept",'
+                            '"title":"A","relations":[{"target":"幽灵概念"}]}]}',
+                    model="minimax-m3",
+                )
+            raise AssertionError("reference repair must not chain after truncation")
+
+    provider = Provider()
+    result = await _call_with_slot_retry(
+        provider=provider,
+        base_prompt="extract",
+        response_format={},
+        required_slots_by_type={},
+        missing_slugs_resolver=lambda pages: ["幽灵概念"],
+    )
+
+    assert len(provider.calls) == 2
+    assert result["pages"][0]["relations"][0]["target"] == "幽灵概念"
+
+
 async def test_call_with_slot_retry_missing_slugs_exhausted_returns_last():
     """重试预算耗尽后仍返回本次产出（缺失由调用方记 gap，不抛错）。"""
     from src.llm.base import LLMResponse
