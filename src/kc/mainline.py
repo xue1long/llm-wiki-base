@@ -118,7 +118,9 @@ class CandidateReviewer:
                     candidate_id=adaptation.generator_candidate.id,
                     document_id=document.document_id,
                     status="review_required",
-                    reason_codes=(f"review:{type(exc).__name__}",),
+                    reason_codes=(
+                        f"review:{type(exc).__name__}:{str(exc)[:160]}",
+                    ),
                     rejected_claims=adaptation.rejected_claims,
                     valid_claim_count=0,
                     generator_candidate=adaptation.generator_candidate,
