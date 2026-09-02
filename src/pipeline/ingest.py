@@ -823,7 +823,12 @@ async def generate_ingest(
         if review.status != "validated" or not review.projections:
             raise ValueError(
                 getattr(candidate, "failure_reason", None)
-                or "KC structural review rejected candidate"
+                or (
+                    "KC structural review rejected candidate: "
+                    f"status={review.status}, valid_claims={review.valid_claim_count}, "
+                    f"rejected_claims={len(review.rejected_claims)}, "
+                    f"reasons={','.join(review.reason_codes) or 'none'}"
+                )
             )
         _generator_candidate = review.generator_candidate or candidate
         if os.environ.get("RUFLO_SHADOW_MODE", "").lower() == "true":
