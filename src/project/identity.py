@@ -29,6 +29,10 @@ class ProjectIdentity:
     schema_version: str = "v2.0"
     llm_provider: str | None = None
     llm_model: str | None = None
+    template_id: str | None = None
+    template_version: str | None = None
+    template_hash: str | None = None
+    contract_hash: str | None = None
 
     PROJECT_JSON_PATH = ".llm-wiki/project.json"
 
@@ -36,7 +40,10 @@ class ProjectIdentity:
         d = asdict(self)
         # Strip None-valued optional fields so old project.json files
         # don't grow noise.
-        for key in ("llm_provider", "llm_model"):
+        for key in (
+            "llm_provider", "llm_model", "template_id", "template_version",
+            "template_hash", "contract_hash",
+        ):
             if d.get(key) is None:
                 del d[key]
         return d
@@ -50,6 +57,10 @@ class ProjectIdentity:
             schema_version=data.get("schema_version", "v2.0"),
             llm_provider=data.get("llm_provider"),
             llm_model=data.get("llm_model"),
+            template_id=data.get("template_id"),
+            template_version=data.get("template_version"),
+            template_hash=data.get("template_hash"),
+            contract_hash=data.get("contract_hash"),
         )
 
 
@@ -96,3 +107,37 @@ def _now_ms() -> int:
     """Unix epoch in milliseconds."""
     import time
     return int(time.time() * 1000)
+
+
+def resolve_project_template(project_root: Path):
+    """Compile and persist the project's binding, preserving legacy projects."""
+    from ..templates.compiler import compile_project_template
+    from ..templates.contract import persist_template_snapshot
+    from ..lib.write_hooks import safe_write
+
+    project_root = Path(project_root)
+    project_json = project_root / ProjectIdentity.PROJECT_JSON_PATH
+    project_id = ensure_project_id(project_root)
+    data = json.loads(project_json.read_text(encoding="utf-8"))
+    identity = ProjectIdentity.from_dict(data)
+    template_id = identity.template_id or "general@compat"
+    template_version = identity.template_version or "compat"
+    snapshot, contract = compile_project_template(
+        project_root, template_id=template_id, template_version=template_version,
+        expected_hash=identity.template_hash,
+    )
+    snapshot = persist_template_snapshot(project_root, contract)
+    if (
+        identity.template_id != snapshot.template_id
+        or identity.template_version != snapshot.template_version
+        or identity.template_hash != snapshot.template_hash
+        or identity.contract_hash != snapshot.contract_hash
+    ):
+        data.update({
+            "template_id": snapshot.template_id,
+            "template_version": snapshot.template_version,
+            "template_hash": snapshot.template_hash,
+            "contract_hash": snapshot.contract_hash,
+        })
+        safe_write(project_json, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    return snapshot, contract
