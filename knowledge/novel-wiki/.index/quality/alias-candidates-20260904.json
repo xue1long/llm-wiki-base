@@ -1,0 +1,116 @@
+{
+  "generated_at": "2026-09-03T16:42:15.318457+00:00",
+  "wiki_root": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki",
+  "total_unique_broken_targets": 1751,
+  "total_existing_ids": 1740,
+  "high_confidence": 0,
+  "medium_confidence": 15,
+  "low_confidence": 0,
+  "candidates": [
+    {
+      "alias": "Snowflake-Method",
+      "canonical": "snowflake-method",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "�û���Ծ��IPPV��",
+      "canonical": "用户活跃度-ip-pv-比",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "�ر����ϴ��߹�ʽ��Ҫ-1-1c498efc",
+      "canonical": "必备资料打斗七公式重要1-1c498efc",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "�ر����ϵڰ��¹�������С˵����ļ���-1-2516a3-0f933c79",
+      "canonical": "必备资料第八章关于完善小说人物的技巧1-2516a3-0f933c79",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "�ر����ϵڶ��ν�������-1-6d1459b8",
+      "canonical": "必备资料第二课讲课资料1-6d1459b8",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "�ر����ϵ�һ��С˵��������ɫ-1-5915fb82",
+      "canonical": "必备资料第一章小说如何塑造角色1-5915fb82",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "�ر�������Ʒ��˱�׼-1-98c9c8fd",
+      "canonical": "必备资料作品审核标准1-98c9c8fd",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "�ر�������ι���д������-1-95ce6270",
+      "canonical": "必备资料如何构架写作悬念1-95ce6270",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "�ر��������˾������ѡ���ʺ��Լ������-1-149e9736",
+      "canonical": "必备资料新人经验如何选择适合自己的题材1-149e9736",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "�ر���������дС˵�ɻ��ʮ��-1-7bceabea",
+      "canonical": "必备资料新手写小说忌讳的十点1-7bceabea",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "�ر���������������ģ��-1-f191057c",
+      "canonical": "必备资料人物叙述类模版1-f191057c",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "���Ž̳�����С˵д������-2-1da49aed",
+      "canonical": "入门教程网络小说写作宝典2-1da49aed",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "����ز�С˵д���ز�֮С˵д������ѡ��ʹ����չ���ܽ�-6-34f66af8",
+      "canonical": "借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6-34f66af8",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "�������2016�����¸���",
+      "canonical": "华夏天空-2016-征文新福利",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    },
+    {
+      "alias": "����������С˵�봴��-zt-f60faf42",
+      "canonical": "方法论网络小说与创作zt-f60faf42",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM",
+      "reason": "normalized target appears as substring of exactly one canonical"
+    }
+  ]
+}
