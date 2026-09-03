@@ -48,6 +48,7 @@ from .cli_ext.llm_providers_cmd import (
     cmd_llm_providers_rotate_key,
 )
 from .cli_ext.health_cmd import cmd_health
+from .cli_ext.wiki_quality_cmd import add_parser as add_wiki_quality_parser
 from .cli_ext.book_cmd import cmd_book_build, cmd_book_show
 from .cli_ext.content_health_cmd import cmd_content_health
 from .cli_ext.readiness_cmd import cmd_readiness_compare, cmd_readiness_inventory
@@ -295,6 +296,9 @@ def build_parser() -> "argparse.ArgumentParser":
     p_health.add_argument("--json", action="store_true", help="JSON output")
     p_health.add_argument("--project", help="Project path (default: cwd)")
     p_health.set_defaults(func=cmd_health)
+
+    # Wiki-quality (V4 strict-whitelist gate; aggregates H1/H2/H4/H5 + content scans)
+    add_wiki_quality_parser(subparsers)
 
     p_content_health = subparsers.add_parser(
         "content-health", help="Show read-only aggregate wiki content health"
