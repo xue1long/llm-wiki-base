@@ -38,6 +38,11 @@ class RetryBudget:
         self.cost_units += cost_units
         return True
 
+    def consume_or_raise(self, *, cost_units: float = 1.0) -> None:
+        """Charge one shared task call, failing closed when exhausted."""
+        if not self.consume(cost_units=cost_units):
+            raise RetryExhausted("task retry budget exhausted")
+
 
 def classify_failure(error: BaseException) -> RetryClass:
     name = type(error).__name__.lower()
