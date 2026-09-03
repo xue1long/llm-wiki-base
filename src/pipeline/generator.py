@@ -50,6 +50,7 @@ from ._pipeline_common import parse_llm_json
 from .retry import RetryExhausted
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
+from .render_contract import RenderBundle, render_pages
 
 # Dynamic tag namespace rules — built from TAG_VALUES and MANDATORY_PAIRS.
 # Used in all generator prompts so the LLM knows which tag values are valid.
@@ -1173,6 +1174,19 @@ async def generate_from_candidate(
         pages.append(page)
 
     return pages
+
+
+async def generate_render_bundle(
+    candidate: KnowledgeCandidate,
+    *,
+    task_id: str,
+    source_id: str,
+    template_version: str,
+    **kwargs,
+) -> RenderBundle:
+    """Render through the legacy-compatible path and return an in-memory bundle."""
+    pages = await generate_from_candidate(candidate, **kwargs)
+    return render_pages(pages, task_id=task_id, source_id=source_id, template_version=template_version)
 
 
 async def generate_from_knowledge_object(

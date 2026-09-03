@@ -68,4 +68,18 @@ def render_candidate(candidate, context: dict) -> RenderBundle:
     return RenderBundle(task_id, source_id, template_version, tuple(drafts))
 
 
-__all__ = ["RenderBundle", "RenderDraft", "render_candidate"]
+def render_pages(pages, *, task_id: str, source_id: str, template_version: str) -> RenderBundle:
+    """Adapt legacy in-memory page results without making them persistent."""
+    return render_candidate({
+        "source_id": source_id,
+        "pages": [{
+            "page_key": getattr(page, "id", None) or f"page-{ordinal}",
+            "title": getattr(page, "title", ""),
+            "type": getattr(getattr(page, "type", ""), "value", getattr(page, "type", "")),
+            "body": getattr(page, "body", ""),
+            "tags": tuple(getattr(page, "tags", ()) or ()),
+        } for ordinal, page in enumerate(pages)],
+    }, {"task_id": task_id, "template_version": template_version})
+
+
+__all__ = ["RenderBundle", "RenderDraft", "render_candidate", "render_pages"]

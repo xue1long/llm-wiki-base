@@ -1,6 +1,6 @@
 import pytest
 
-from src.pipeline.render_contract import RenderBundle, RenderDraft, render_candidate
+from src.pipeline.render_contract import RenderBundle, RenderDraft, render_candidate, render_pages
 
 
 def test_render_draft_cannot_be_written_as_wikipage():
@@ -18,4 +18,16 @@ def test_bundle_is_stable_and_immutable():
 
 def test_page_key_is_not_array_identity():
     bundle = render_candidate({"source_id": "s", "pages": [{"page_key": "stable", "title": "标题", "type": "concept", "body": "正文"}]}, {"task_id": "t", "template_version": "tpl"})
+    assert bundle.pages[0].page_key == "stable"
+
+
+def test_legacy_pages_can_enter_bundle_without_disk_write():
+    class Page:
+        id = "stable"
+        title = "标题"
+        type = "concept"
+        body = "正文"
+        tags = []
+
+    bundle = render_pages([Page()], task_id="t", source_id="s", template_version="tpl")
     assert bundle.pages[0].page_key == "stable"
