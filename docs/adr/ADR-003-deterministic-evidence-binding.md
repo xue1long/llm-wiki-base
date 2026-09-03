@@ -33,3 +33,9 @@ Writer 或 Wiki 页面格式。
 
 不重写模板解析器，不新增远程模板中心，不改变 Vector/Writer 架构，
 不删除 legacy candidate 字段。
+
+## 实施验收补充（2026-09-03）
+
+本地 Shadow 比较通过 `compare_contracts` 复用已解析 candidate，调用次数为
+零；未发布 staging bundle 的回滚只移动到 quarantine，不触碰已发布 Wiki。
+v1 默认值保持不变，真实 Provider 矩阵仍需在具备凭据的隔离环境中单独验收。

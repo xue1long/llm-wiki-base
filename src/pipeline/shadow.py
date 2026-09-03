@@ -10,9 +10,80 @@ import json
 import logging
 import os
 import time as _time
+import hashlib
+import shutil
+from dataclasses import dataclass
 from pathlib import Path
 
 _logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ShadowReport:
+    source_count: int
+    claim_count: int
+    valid_claim_count: int
+    evidence_count: int
+    page_count: int
+    differences: tuple[str, ...]
+    llm_calls: int
+    writer_calls: int
+    elapsed_ms: int
+    contract_version: str
+    source_hash: str
+    blocked: bool = False
+
+
+def compare_contracts(parsed_candidate, document, registry, task_context) -> ShadowReport:
+    """Compare an already parsed candidate without invoking pipeline stages."""
+    started = _time.monotonic()
+    claims = parsed_candidate.get("claims", []) if isinstance(parsed_candidate, dict) else getattr(parsed_candidate, "claims", [])
+    valid = 0
+    evidence = 0
+    differences = []
+    visible = set(registry.visible_block_ids())
+    for claim in claims:
+        ids = claim.get("evidence_block_ids", claim.get("evidence_refs", [])) if isinstance(claim, dict) else []
+        if ids and all(block_id in visible for block_id in ids):
+            valid += 1
+            evidence += len(ids)
+        else:
+            differences.append("invalid_evidence")
+    source_text = document if isinstance(document, str) else str(document)
+    source_hash = hashlib.sha256(source_text.encode("utf-8")).hexdigest()
+    return ShadowReport(
+        source_count=1, claim_count=len(claims), valid_claim_count=valid,
+        evidence_count=evidence, page_count=len(parsed_candidate.get("pages", [])) if isinstance(parsed_candidate, dict) else 0,
+        differences=tuple(sorted(set(differences))), llm_calls=0, writer_calls=0,
+        elapsed_ms=int((_time.monotonic() - started) * 1000),
+        contract_version=getattr(task_context, "contract_version", "v1"), source_hash=source_hash,
+        blocked=bool(claims) and valid == 0,
+    )
+
+
+@dataclass(frozen=True)
+class RollbackResult:
+    status: str
+    task_id: str
+    path: Path | None = None
+
+
+def rollback_task(task_id: str, project_root: Path) -> RollbackResult:
+    """Quarantine an unfinished staged task; never modify published Wiki."""
+    if not task_id or Path(task_id).name != task_id:
+        raise ValueError("unsafe task id")
+    root = Path(project_root)
+    staging = root / ".index" / "staging" / task_id
+    if not staging.exists():
+        return RollbackResult("not_found", task_id)
+    if (staging / "publish.marker").exists():
+        return RollbackResult("published", task_id, staging)
+    target = root / ".index" / "quarantine" / task_id
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists():
+        shutil.rmtree(target)
+    shutil.move(str(staging), str(target))
+    return RollbackResult("quarantined", task_id, target)
 
 
 def compare_evidence_contracts(parsed_candidate, document, registry, task_id: str) -> dict:
