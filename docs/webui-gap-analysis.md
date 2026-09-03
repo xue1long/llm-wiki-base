@@ -274,7 +274,7 @@
 
 **目标：** 新增模板管理页面，可视化查看/编辑模板
 
-**后端现状：** CLI 有 `wiki-templates {list,show,edit,reset,status,diff,upgrade}`，共 448 行。已有 `templates_cmd.py` 和 `wiki_templates_cmd.py`，功能完整但无 API。
+**后端现状：** CLI 有 `wiki-templates {list,show,edit,reset,status,diff,upgrade}`，并已有模板 API（见 `src/server/routes/templates.py`）。WebUI 仍缺少完整的模板管理视图。
 
 **新增 API 端点：**
 

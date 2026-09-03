@@ -3,6 +3,9 @@
 > 适用范围：受控单机、单进程、单 worker、本机文件系统部署。
 > 所有命令从仓库根目录运行；`<project>` 是项目 id（`ruflo project list` 查看）。
 
+仓库中的 `start-full.bat` / `start-full.sh` 固定服务 `knowledge/novel-wiki`，监听
+`127.0.0.1:19828`，并显式传入 `--project-root`；其他项目请使用下文的显式命令。
+
 ---
 
 ## 1. 部署形态（硬约束）
@@ -111,8 +114,8 @@ git checkout <previous-tag>
 # Wiki 是事实源；向量可整体重建（R7 pending 账本会标记缺失页）
 python -m src.cli vector status --project <project>     # 查看 pending
 python -m src.cli vector reconcile --project <project>  # 重试 pending（需 embedding provider）
-# 全量重建（可选，旧路径）：
-#   ruflo migrate vector-paths --project <project> 或 rebuild-index（见 util 组）
+# 全量重建（可选）：
+#   python scripts/rebuild_index.py <project-root>
 ```
 
 ## 7. 常见故障与处置

@@ -180,7 +180,7 @@ python -m src.cli serve-status
 
 # 健康检查 / MCP / 深度研究
 python -m src.cli health --project <id>
-python -m src.cli mcp                # stdio MCP server(8 个 tools)
+python -m src.cli mcp                # stdio MCP server(13 个 tools：8 legacy + 5 memory)
 python -m src.cli research run ...   # 深度研究管线
 
 # 其他

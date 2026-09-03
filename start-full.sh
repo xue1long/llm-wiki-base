@@ -7,6 +7,7 @@
 # ============================================================
 set -e
 cd "$(dirname "$0")"
+PROJECT_ROOT="$PWD/knowledge/novel-wiki"
 
 # Activate a local venv if one exists
 if [ -f ".venv/bin/activate" ]; then
@@ -16,10 +17,10 @@ elif [ -f "venv/bin/activate" ]; then
 fi
 
 echo "[1/2] Archiving wiki notes into the vector store (already-archived, unchanged notes are skipped)..."
-python scripts/batch_build.py --root . --only archive || echo "[WARN] archive stage reported failures; the server will still start, but some content may be missing from the vector store."
+python scripts/batch_build.py --root "$PROJECT_ROOT" --only archive || echo "[WARN] archive stage reported failures; the server will still start, but some content may be missing from the vector store."
 
 echo "[2/2] Starting HTTP API server (foreground; press Ctrl+C to stop)..."
-exec python -m src.cli serve --host 127.0.0.1 --port 8765
+exec python -m src.cli serve --host 127.0.0.1 --port 19828 --project-root "$PROJECT_ROOT"
 
 # Notes:
 #  * The archive step is offline and idempotent: scripts/batch_build.py

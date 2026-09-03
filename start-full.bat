@@ -8,6 +8,8 @@ REM  Press Ctrl+C to stop the server.
 REM ============================================================
 cd /d "%~dp0"
 
+set "PROJECT_ROOT=%CD%\knowledge\novel-wiki"
+
 REM Activate a local venv if one exists
 if exist ".venv\Scripts\activate.bat" (
     call .venv\Scripts\activate.bat
@@ -17,13 +19,13 @@ if exist ".venv\Scripts\activate.bat" (
 
 echo [1/2] Archiving wiki notes into the vector store (already-archived, unchanged notes are skipped)...
 echo        (Using local sentence-transformers embedding — no network required)
-python scripts/batch_build.py --root knowledge/novel-wiki --only archive
+python scripts/batch_build.py --root "%PROJECT_ROOT%" --only archive
 if errorlevel 1 (
     echo [WARN] archive stage reported failures; the server will still start, but some content may be missing from the vector store.
 )
 
-echo [2/2] Starting HTTP API server on http://127.0.0.1:8766 (press Ctrl+C to stop)...
-python -m src.cli serve --host 127.0.0.1 --port 8766
+echo [2/2] Starting HTTP API server on http://127.0.0.1:19828 (press Ctrl+C to stop)...
+python -m src.cli serve --host 127.0.0.1 --port 19828 --project-root "%PROJECT_ROOT%"
 if errorlevel 1 (
     echo.
     echo [ERROR] Server exited with code %errorlevel%.
