@@ -8,6 +8,48 @@ breaker threshold.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from enum import Enum
+import time
+
+
+class RetryClass(str, Enum):
+    FORMAT = "format"
+    STRUCTURE = "structure"
+    PROVIDER = "provider"
+    NONE = "none"
+
+
+@dataclass
+class RetryBudget:
+    max_llm_calls: int = 3
+    deadline_seconds: float = 300.0
+    max_cost_units: float = float("inf")
+    llm_calls: int = 0
+    cost_units: float = 0.0
+    started_at: float = field(default_factory=time.monotonic)
+
+    def consume(self, *, cost_units: float = 1.0) -> bool:
+        if (self.llm_calls >= self.max_llm_calls
+                or self.cost_units + cost_units > self.max_cost_units
+                or time.monotonic() - self.started_at >= self.deadline_seconds):
+            return False
+        self.llm_calls += 1
+        self.cost_units += cost_units
+        return True
+
+
+def classify_failure(error: BaseException) -> RetryClass:
+    name = type(error).__name__.lower()
+    text = f"{name} {error}".lower()
+    if "json" in text or "format" in text:
+        return RetryClass.FORMAT
+    if "slot" in name or "structure" in name or "truncat" in name:
+        return RetryClass.STRUCTURE
+    if "timeout" in name or "connect" in name or "provider" in name:
+        return RetryClass.PROVIDER
+    return RetryClass.NONE
+
 import asyncio
 import logging
 from typing import Awaitable, Callable, Optional, TypeVar
