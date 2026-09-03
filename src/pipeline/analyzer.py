@@ -425,6 +425,7 @@ async def analyze(
     MAX_ATTEMPTS = 2
     _json_mode = True
     last_error: str | None = None
+    extra = ""
 
     # If startup check already marked this provider incompatible, skip the
     # response_format probe entirely on the first attempt.
@@ -432,16 +433,16 @@ async def analyze(
         _json_mode = False
 
     for attempt in range(MAX_ATTEMPTS):
-        extra = ""
         if attempt > 0:
             _json_mode = False
-            extra = (
-                "\n\n## RETRY — JSON PARSE FAILED\n"
-                "Your previous response was NOT valid JSON. Re-read the "
-                "\"CRITICAL — JSON Format\" rules at the top. "
-                "Failure reason: " + (last_error or "unknown") + "\n"
-                "Reply with the raw JSON object now:\n"
-            )
+            if not extra:
+                extra = (
+                    "\n\n## RETRY — JSON PARSE FAILED\n"
+                    "Your previous response was NOT valid JSON. Re-read the "
+                    "\"CRITICAL — JSON Format\" rules at the top. "
+                    "Failure reason: " + (last_error or "unknown") + "\n"
+                    "Reply with the raw JSON object now:\n"
+                )
 
         async with BudgetedLLM(model="gpt-4o-mini", op="analyzer", provider=provider) as bl:
             try:
@@ -659,6 +660,7 @@ async def _analyze_json(
     _json_mode = True
     last_error: str | None = None
     response: dict | None = None
+    extra = ""
 
     # If startup check already marked this provider incompatible, skip the
     # response_format probe entirely on the first attempt.
@@ -666,16 +668,16 @@ async def _analyze_json(
         _json_mode = False
 
     for attempt in range(MAX_ATTEMPTS):
-        extra = ""
         if attempt > 0:
             _json_mode = False
-            extra = (
-                "\n\n## RETRY — JSON PARSE FAILED\n"
-                "Your previous response was NOT valid JSON. Re-read the "
-                "\"CRITICAL — JSON Format\" rules at the top. "
-                "Failure reason: " + (last_error or "unknown") + "\n"
-                "Reply with the raw JSON object now:\n"
-            )
+            if not extra:
+                extra = (
+                    "\n\n## RETRY — JSON PARSE FAILED\n"
+                    "Your previous response was NOT valid JSON. Re-read the "
+                    "\"CRITICAL — JSON Format\" rules at the top. "
+                    "Failure reason: " + (last_error or "unknown") + "\n"
+                    "Reply with the raw JSON object now:\n"
+                )
 
         async with BudgetedLLM(model="gpt-4o-mini", op="analyzer-json", provider=provider) as bl:
             try:
@@ -724,6 +726,19 @@ async def _analyze_json(
             if attempt == MAX_ATTEMPTS - 1:
                 parser = AnalyzerOutputParser()
                 return parser.parse({}, source_path=source_path, chunk_index=chunk_index, chunk_total=chunk_total)
+            continue
+
+        if not response.get("claims"):
+            last_error = "claims must contain at least one claim"
+            _al.warning(
+                "[analyzer-json] empty claims on attempt %d/%d",
+                attempt + 1,
+                MAX_ATTEMPTS,
+            )
+            if attempt == MAX_ATTEMPTS - 1:
+                raise ValueError(
+                    f"Analyzer returned no claims after {MAX_ATTEMPTS} attempts"
+                )
             continue
 
         if evidence_contract == "v2" and not any(

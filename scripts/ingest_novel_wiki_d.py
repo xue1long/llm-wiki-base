@@ -96,14 +96,25 @@ def get_provider_robust():
     The global registry default is Anthropic which 403s in this environment,
     so we explicitly prefer MiniMax (configured via MINIMAX_API_KEY in .env).
     """
-    # Strategy 1: prefer MiniMax from .env (this is the intended provider)
+    # Strategy 1: use the canonical registry entry so the test exercises the
+    # same model/configuration as the server (currently MiniMax-M3).
+    try:
+        from src.llm.provider_factory import create_llm_provider
+        from src.llm.registry import ProviderRegistry
+        if ProviderRegistry.get("minimax") is not None:
+            print("[provider] using registered MiniMax configuration", flush=True)
+            return create_llm_provider("minimax")
+    except Exception as e:
+        print(f"[provider] registered MiniMax unavailable: {e}", flush=True)
+
+    # Strategy 2: direct env fallback for standalone environments.
     api_key = os.environ.get("MINIMAX_API_KEY", "")
     if api_key:
         print("[provider] using MiniMax from .env (preferred)", flush=True)
         return _make_minimax_provider_directly()
     print("[provider] MINIMAX_API_KEY not set, falling back to registry default",
           flush=True)
-    # Strategy 2: fall back to registry-configured default provider
+    # Strategy 3: fall back to registry-configured default provider
     try:
         return _get_provider()
     except Exception as e:

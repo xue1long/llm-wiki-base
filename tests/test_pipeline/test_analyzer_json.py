@@ -355,6 +355,47 @@ async def test_v2_analyzer_retries_empty_claims_before_constructing_candidate():
 
 
 @pytest.mark.asyncio
+async def test_v1_analyzer_retries_empty_claims_before_constructing_candidate():
+    from src.knowledge.core.candidate import KnowledgeCandidate
+
+    source = "raw/sources/empty-then-valid-v1.md"
+    document = normalize_text("第一段包含可提取的写作规则。", source=source)
+    block_id = document.blocks[0].block_id
+    provider = ScriptedLLMProvider([
+        {"source_id": source, "type": "concept", "title": "", "claims": [], "evidence": []},
+        {
+            "source_id": source,
+            "type": "concept",
+            "title": "写作规则",
+            "claims": [{
+                "statement": "文本包含可提取的写作规则。",
+                "confidence": 0.9,
+                "evidence_refs": [0],
+            }],
+            "evidence": [{
+                "source_path": source,
+                "block_id": block_id,
+                "quote": "第一段包含可提取的写作规则。",
+            }],
+        },
+    ])
+
+    result = await analyze(
+        source_text=document.content,
+        source_ext=".md",
+        existing_wiki_index="",
+        folder_context="",
+        provider=provider,
+        source_path=source,
+        output_format="json",
+    )
+
+    assert isinstance(result, KnowledgeCandidate)
+    assert len(result.claims) == 1
+    assert len(provider.calls) == 2
+
+
+@pytest.mark.asyncio
 async def test_json_analyzer_injects_identity_bearing_document_blocks():
     source = "raw/sources/test.md"
     document = normalize_text("第一段。\n\n第二段。", source=source)
@@ -385,6 +426,42 @@ async def test_json_analyzer_injects_identity_bearing_document_blocks():
     assert f"[source_id={source} block_id={document.blocks[1].block_id}]" in prompt
     assert document.blocks[1].content in prompt
     assert '"block_id"' in prompt
+
+
+@pytest.mark.asyncio
+async def test_json_analyzer_preserves_response_format_retry_instruction():
+    from src.llm.base import LLMResponse
+
+    class ResponseFormatRejectingProvider:
+        def __init__(self):
+            self.calls = []
+
+        async def complete(self, messages=None, *, response_format=None, **kwargs):
+            self.calls.append({"messages": messages, "response_format": response_format})
+            if response_format is not None:
+                raise RuntimeError("HTTP 400 response_format rejected")
+                return LLMResponse(
+                    content='{"source_id":"raw/sources/test.md","type":"concept",'
+                '"title":"Test","claims":[{"statement":"Test claim",'
+                '"evidence_refs":[]}],"evidence":[]}',
+                    model="mock",
+                )
+
+    provider = ResponseFormatRejectingProvider()
+    await analyze(
+        source_text="Test source.",
+        source_ext=".md",
+        existing_wiki_index="",
+        folder_context="",
+        provider=provider,
+        source_path="raw/sources/test.md",
+        output_format="json",
+    )
+
+    assert len(provider.calls) == 2
+    assert "provider rejected the structured output format" in (
+        provider.calls[1]["messages"][0]["content"].lower()
+    )
 
 
 @pytest.mark.asyncio

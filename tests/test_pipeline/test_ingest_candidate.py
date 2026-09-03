@@ -4,6 +4,17 @@ from src.kc.contracts.candidate_v2 import CandidateV2, ClaimV2
 from src.kc.mainline import CandidateReviewer
 from src.pipeline.evidence_registry import EvidenceBlockRegistry
 from src.pipeline.text_preprocessing.api import preprocess_source
+from src.pipeline.ingest import _resolve_evidence_contract
+
+
+def test_all_providers_default_to_v2_evidence_contract(monkeypatch):
+    monkeypatch.delenv("RUFLO_EVIDENCE_CONTRACT", raising=False)
+    assert _resolve_evidence_contract() == "v2"
+
+
+def test_explicit_evidence_contract_override_is_preserved(monkeypatch):
+    monkeypatch.setenv("RUFLO_EVIDENCE_CONTRACT", "v1")
+    assert _resolve_evidence_contract() == "v1"
 
 
 def test_reviewer_isolates_invalid_v2_claims():

@@ -553,6 +553,11 @@ async def _analyze_chunked(
     return _merge_analysis_results(results)
 
 
+def _resolve_evidence_contract() -> str:
+    """Use one evidence contract for every LLM provider."""
+    return os.environ.get("RUFLO_EVIDENCE_CONTRACT", "v2")
+
+
 async def generate_ingest(
     paths: WikiPaths,
     source_path,
@@ -758,7 +763,7 @@ async def generate_ingest(
     _missing_resolver = make_missing_slugs_resolver(
         paths, produced_prefix={_source_slug_for_map},
     )
-    _evidence_contract = os.environ.get("RUFLO_EVIDENCE_CONTRACT", "v1")
+    _evidence_contract = _resolve_evidence_contract()
     if _candidate_mode:
         from .analyzer import analyze
         from .generator import generate_from_candidate
