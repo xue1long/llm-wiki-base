@@ -176,6 +176,10 @@ class StageManifest:
                 "input_hash": str(input_hash), "output_hash": str(output_hash), "metadata": dict(metadata),
                 "status": "complete", "saved_at": time.time(),
             }
+            if stage == "committed":
+                data["status"] = "committed"
+            elif stage == "failed":
+                data["status"] = "failed"
             fd, tmp_name = tempfile.mkstemp(prefix=".manifest-", suffix=".tmp", dir=str(path.parent))
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as handle:
@@ -191,6 +195,7 @@ class RecoveryDecision:
     quarantined: bool = False
     quarantine_path: Path | None = None
     reason: str = ""
+    completed: bool = False
 
 
 def recover_task(
@@ -213,6 +218,8 @@ def recover_task(
             if not isinstance(actual, dict) or any(actual.get(k) != expected.get(k) for k in stable_keys):
                 raise ValueError("task_context_mismatch")
         reusable = tuple(name for name, item in stages.items() if _valid_stage(item))
+        if manifest.get("status") == "committed":
+            return RecoveryDecision(reusable_stages=reusable, completed=True)
         if len(reusable) != len(stages) or manifest.get("status") != "staged":
             raise ValueError("incomplete_or_invalid_manifest")
         return RecoveryDecision(reusable_stages=reusable)

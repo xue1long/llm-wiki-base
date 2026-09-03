@@ -1871,6 +1871,9 @@ async def run_ingest(
     if recovery.quarantined:
         release_task_claim(key, root)
         raise RuntimeError(f"task bundle quarantined: {recovery.reason}")
+    if recovery.completed:
+        release_task_claim(key, root)
+        return []
     if not lock.acquire(key, context.run_id, stale_after_seconds=300):
         release_task_claim(key, root)
         raise RuntimeError(f"task lock unavailable: {key}")
@@ -1939,17 +1942,21 @@ async def run_batch_ingest(
     )
     sem = asyncio.Semaphore(concurrency)
 
+    def _batch_task_id(idx: int, sp: Path) -> str:
+        return f"batch-{idx}-{hashlib.sha256(str(sp).encode('utf-8')).hexdigest()[:12]}"
+
     async def _ingest_one(idx: int, sp: Path) -> tuple[int, list[WikiPage]]:
         async with sem:
             _logger.info("[batch_ingest] [%d/%d] %s", idx + 1, len(source_paths), sp.name)
             source_text = sp.read_text(encoding="utf-8")
+            task_id = _batch_task_id(idx, sp)
             pages = await run_ingest(
                 paths=paths,
                 source_path=sp,
                 source_text=source_text,
                 provider=provider,
                 folder_context=folder_context,
-                task_id=f"batch-{idx}-{hashlib.sha256(str(sp).encode('utf-8')).hexdigest()[:12]}",
+                task_id=task_id,
             )
             _logger.info("[batch_ingest] [%d/%d] done — %d pages", idx + 1, len(source_paths), len(pages))
             return idx, pages
@@ -1963,6 +1970,23 @@ async def run_batch_ingest(
         result = results[i]
         if isinstance(result, Exception):
             _logger.error("[batch_ingest] [%d/%d] FAILED: %s", i + 1, len(source_paths), result)
+            from types import SimpleNamespace
+            from .quarantine import quarantine_task
+            sp = source_paths[i]
+            try:
+                quarantine_task(
+                    SimpleNamespace(
+                        project_root=paths.root,
+                        task_id=_batch_task_id(i, sp),
+                        run_id="batch",
+                        source_hash=hashlib.sha256(sp.read_bytes()).hexdigest(),
+                    ),
+                    reason_code="batch_item_failed",
+                    errors=[type(result).__name__ + ": " + str(result)],
+                    artifacts={"source_path": str(sp)},
+                )
+            except Exception:
+                _logger.warning("[batch_ingest] failed to quarantine item %s", sp, exc_info=True)
             ordered.append([])
         else:
             idx, pages = result

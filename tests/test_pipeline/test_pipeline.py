@@ -507,5 +507,7 @@ async def test_run_batch_ingest_exception_isolation(tmp_path):
     assert len(results[0]) >= 1
     # File 1: failed → empty list (all attempts including fallback fail)
     assert results[1] == [], f"expected empty for failed file, got {results[1]}"
+    quarantine = list((p.index / "quarantine").glob("batch-1-*/manifest.json"))
+    assert quarantine, "failed batch item must leave a task quarantine record"
     # File 2: success (isolated from file 1's failure)
     assert len(results[2]) >= 1

@@ -80,6 +80,15 @@ def test_recovery_mismatched_context_quarantines(tmp_path):
     assert decision.quarantine_path.name != "unsafe"
 
 
+def test_committed_manifest_is_reported_as_completed(tmp_path):
+    manifest = StageManifest(tmp_path)
+    ctx = TaskContext.create("done", tmp_path / "source.md", "正文", template_version="tpl", contract_version="v1")
+    metadata = {"task_context": ctx.to_dict()}
+    manifest.save("done", "committed", ctx.source_hash, ctx.source_hash, metadata)
+    decision = recover_task("done", tmp_path, expected_context=ctx)
+    assert decision.completed is True
+
+
 def test_manifest_updates_are_serialized(tmp_path):
     manifest = StageManifest(tmp_path)
     with ThreadPoolExecutor(max_workers=2) as pool:
