@@ -13,7 +13,6 @@ tags:
 sources:
 - raw/sources/01_新手入门/新人须知6如何抓住读者心理.md
 ---
----
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

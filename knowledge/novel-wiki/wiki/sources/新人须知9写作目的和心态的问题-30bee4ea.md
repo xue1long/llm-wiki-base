@@ -13,7 +13,6 @@ tags:
 sources:
 - raw/sources/01_新手入门/新人须知9写作目的和心态的问题.md
 ---
----
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 

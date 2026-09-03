@@ -13,7 +13,6 @@ tags:
 sources:
 - raw/sources/02_进阶技巧/方法论经典重温功夫在文外杂志新手的三十六个注意事项.md
 ---
----
 <!-- wiki-template-version: 3.0.0 -->
 <!-- wiki-template-type: source -->
 
