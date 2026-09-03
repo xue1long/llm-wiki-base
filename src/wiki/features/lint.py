@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 from ..storage.page_writer import read_page
 from ..core.types import VALID_PROCESSING_DEPTHS, VALID_WORKFLOW_STATES
 from ..core.paths import WikiPaths
-from ..core.types import PageType
+from ..core.types import PageType, _coerce_ts_ms
 from ..templates import list_resolved, required_slot_names
 
 
@@ -404,7 +404,7 @@ def lint_wiki(
                         page_id=page.id,
                     )
                 )
-            if _ws == "verified" and page.verified_at <= 0:
+            if _ws == "verified" and _coerce_ts_ms(page.verified_at) <= 0:
                 issues.append(
                     LintIssue(
                         code="LINT-INVALID-VERIFIED-AT",

@@ -12,7 +12,7 @@ from .object import (
     Provenance,
     VersionRef,
 )
-from src.wiki.core.types import WikiPage, PageType
+from src.wiki.core.types import WikiPage, PageType, _coerce_ts_ms
 
 
 # ---------------------------------------------------------------------------
@@ -184,7 +184,7 @@ def knowledge_object_to_wiki_page(obj: KnowledgeObject) -> WikiPage:
             new_extra["sources"].append(source_path)
     new_extra["processing_depth"] = ko_extra.get("processing_depth", "concept")
     new_extra["is_immutable"] = bool(ko_extra.get("is_immutable", False))
-    new_extra["last_used_at"] = int(ko_extra.get("last_used_at", 0))
+    new_extra["last_used_at"] = _coerce_ts_ms(ko_extra.get("last_used_at"))
     new_extra["zombie_since"] = ko_extra.get("zombie_since")
     new_extra["tags"] = list(ko_extra.get("tags", []))
     new_extra["category"] = ko_extra.get("category", "")

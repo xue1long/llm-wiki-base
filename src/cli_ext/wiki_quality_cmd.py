@@ -64,9 +64,18 @@ def _run_structural_checks(project_path: Path) -> dict:
     }
 
 
-def _count_iso_string_timestamps(wiki_root: Path) -> int:
-    """Scan wiki for any `created_at:` / `updated_at:` lines with quoted string values."""
-    iso_re = re.compile(r"^(created_at|updated_at):\s*['\"][^'\"]+['\"]", re.MULTILINE)
+def _count_legacy_int_timestamps(wiki_root: Path) -> int:
+    """Scan wiki for V4-style Unix ms integer timestamps.
+
+    V5 schema (5.0.0): ``created_at`` / ``updated_at`` MUST be YAML-native
+    ISO 8601 (``2026-08-10T12:34:56``) or its quoted-string form.
+    Legacy V4 ms-int form (``created_at: 1786291200000``) is a violation.
+
+    Mixed corpus is acceptable on read (handled by ``_coerce_ts_ms``), but
+    new pages must emit ISO. Pages still on ms-int are flagged here so
+    operators know they need re-emission.
+    """
+    int_re = re.compile(r"^(created_at|updated_at):\s*\d{10,}\s*$", re.MULTILINE)
     n = 0
     for md in wiki_root.rglob("*.md"):
         rel = md.relative_to(wiki_root)
@@ -83,7 +92,7 @@ def _count_iso_string_timestamps(wiki_root: Path) -> int:
         end = text.find("\n---", 4)
         if end < 0:
             continue
-        n += len(iso_re.findall(text[4:end]))
+        n += len(int_re.findall(text[4:end]))
     return n
 
 
@@ -190,7 +199,7 @@ def build_report(project_path: Path) -> dict:
         "content_quality": {
             "utf8_bom_files": _count_bom_files(wiki_root),
             "duplicate_frontmatter_pages": _count_duplicate_frontmatter(wiki_root),
-            "iso_string_timestamps": _count_iso_string_timestamps(wiki_root),
+            "legacy_int_timestamps": _count_legacy_int_timestamps(wiki_root),
             "duplicate_titles": {
                 "groups": _count_duplicate_titles(wiki_root)[0],
                 "pages": _count_duplicate_titles(wiki_root)[1],
@@ -218,7 +227,7 @@ def _print_table(report: dict) -> None:
     rows = [
         ("UTF-8 BOM files", cq["utf8_bom_files"], "0 expected"),
         ("Duplicate frontmatter pages", cq["duplicate_frontmatter_pages"], "0 expected"),
-        ("ISO string timestamps", cq["iso_string_timestamps"], "0 expected"),
+        ("Legacy int timestamps (V4)", cq["legacy_int_timestamps"], "0 expected (V5 = ISO)"),
         ("Duplicate-title groups", cq["duplicate_titles"]["groups"], "0 expected"),
     ]
     for name, val, expect in rows:
@@ -227,7 +236,7 @@ def _print_table(report: dict) -> None:
     print()
     print(f"Total errors:   {sc['total_errors']}")
     print(f"Total warnings: {sc['total_warnings']}")
-    print(f"Status:         {'HEALTHY' if sc['passed'] and cq['utf8_bom_files'] == 0 and cq['duplicate_frontmatter_pages'] == 0 and cq['iso_string_timestamps'] == 0 else 'NEEDS_REVIEW'}")
+    print(f"Status:         {'HEALTHY' if sc['passed'] and cq['utf8_bom_files'] == 0 and cq['duplicate_frontmatter_pages'] == 0 and cq['legacy_int_timestamps'] == 0 else 'NEEDS_REVIEW'}")
 
 
 def cmd_wiki_quality(args: argparse.Namespace) -> int:
@@ -254,7 +263,7 @@ def cmd_wiki_quality(args: argparse.Namespace) -> int:
             not report["structural_checks"]["passed"]
             or report["content_quality"]["utf8_bom_files"] > 0
             or report["content_quality"]["duplicate_frontmatter_pages"] > 0
-            or report["content_quality"]["iso_string_timestamps"] > 0
+            or report["content_quality"]["legacy_int_timestamps"] > 0
         )
         return 1 if unhealthy else 0
     return 0
