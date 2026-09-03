@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 import hashlib
 
-from src.pipeline.publish_manifest import CommitError, commit_bundle
+from src.pipeline.publish_manifest import CommitError, commit_bundle, reconcile_vector
 from src.wiki.core.paths import WikiPaths
 from src.wiki.core.types import PageType, WikiPage
 
@@ -44,3 +44,16 @@ def test_commit_quarantines_manual_version_conflict(tmp_path):
     result = commit_bundle(bundle, context)
     assert result.status == "quarantined"
     assert target.read_text(encoding="utf-8") == "manual edit"
+
+
+def test_reconcile_vector_reports_pending_and_recovered(tmp_path):
+    paths = WikiPaths(tmp_path)
+    page = _page("vector-page")
+    from src.wiki.storage.page_writer import write_page
+    write_page(paths, page)
+    from src.vector.pending import mark_pending, list_pending
+    mark_pending(paths, [page])
+    result = reconcile_vector("vector-page", paths, lambda *_args: True)
+    assert result.status == "recovered"
+    assert result.recovered == 1
+    assert list_pending(paths) == {}

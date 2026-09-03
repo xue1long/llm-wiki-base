@@ -45,6 +45,7 @@ async def test_commit_creates_intent_before_first_wiki_write(tmp_path, monkeypat
 
     assert states == ["intent"]
     assert pending_mod.list_pending(paths)[page.id]["publication_state"] == "pending"
+    assert (paths.index / "staging" / "intent-order" / "publish.marker").exists()
 
 
 @pytest.mark.asyncio

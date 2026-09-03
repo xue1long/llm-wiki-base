@@ -21,6 +21,35 @@ class CommitResult:
     marker: Path | None = None
 
 
+@dataclass(frozen=True)
+class VectorSyncResult:
+    status: str
+    task_id: str
+    attempted: int = 0
+    recovered: int = 0
+    failed: int = 0
+
+
+def reconcile_vector(task_id: str, paths=None, embed_and_upsert=None) -> VectorSyncResult:
+    """Retry this task's pending vector rows without rewriting Wiki pages."""
+    if paths is None:
+        from ..wiki.core.paths import WikiPaths
+        paths = WikiPaths(Path.cwd())
+    from ..vector.pending import list_pending, reconcile_pending
+    pending = list_pending(paths)
+    if task_id not in pending:
+        return VectorSyncResult("ready", task_id)
+    if embed_and_upsert is None:
+        return VectorSyncResult("vector_pending", task_id, attempted=1, failed=1)
+    result = reconcile_pending(paths, embed_and_upsert)
+    recovered = 1 if task_id not in list_pending(paths) else 0
+    return VectorSyncResult(
+        "recovered" if recovered else "vector_pending", task_id,
+        attempted=result.get("attempted", 0), recovered=recovered,
+        failed=0 if recovered else result.get("failed", 1),
+    )
+
+
 def mark_published(paths, task_id: str, bundle_hash: str = "") -> Path:
     """Write the visibility marker only after the existing commit succeeds."""
     target = Path(paths.index) / "staging" / task_id
@@ -84,4 +113,4 @@ def _page_path(paths, page) -> Path:
     return page_path_for(paths, page.type, page.id)
 
 
-__all__ = ["CommitError", "CommitResult", "commit_bundle", "is_manual_conflict", "mark_published"]
+__all__ = ["CommitError", "CommitResult", "VectorSyncResult", "commit_bundle", "is_manual_conflict", "mark_published", "reconcile_vector"]

@@ -1784,6 +1784,10 @@ async def commit_ingest(
             task_id=task_id,
             detail=f"generated {len(pages)} pages from {Path(str(source_path)).name}",
         )
+    from .publish_manifest import mark_published
+    mark_published(paths, task_id, hashlib.sha256(
+        "|".join(page.id for page in _publication_pages).encode("utf-8")
+    ).hexdigest())
     # L3: Wiki committed successfully — make the intent explicitly pending.
     # If promotion fails, the intent remains durable and is recoverable on the
     # next reconcile/startup pass.
@@ -1897,8 +1901,6 @@ async def run_ingest(
             missing_slugs=_meta.get("missing_slugs"), kc_bundle_key=_meta.get("kc_bundle_key"),
             readiness_audit=_meta.get("readiness_audit"), ingest_snapshot=ingest_snapshot,
         )
-        from .publish_manifest import mark_published
-        mark_published(paths, task_id, context.source_hash)
         if not (_meta.get("rejected") and not pages):
             transition(TaskState.VALIDATED, TaskState.COMMITTED)
         manifest.save(task_id, "committed", context.source_hash, context.source_hash, metadata)
