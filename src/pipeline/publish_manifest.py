@@ -53,6 +53,12 @@ def commit_bundle(bundle, context) -> CommitResult:
     for page in bundle.pages:
         path = _page_path(paths, page)
         targets.append((path, path.read_bytes() if path.exists() else None))
+    expected_versions = getattr(context, "expected_versions", {}) or {}
+    for page, (path, _) in zip(bundle.pages, targets):
+        expected = expected_versions.get(getattr(page, "id", ""), expected_versions.get(str(path)))
+        if expected is not None and is_manual_conflict(path, expected):
+            quarantine_task(context, reason_code="manual_version_conflict", errors=[str(path)], artifacts={"bundle_hash": bundle.bundle_hash})
+            return CommitResult("quarantined", task_id)
     writer = getattr(context, "writer", write_page)
     try:
         for page in bundle.pages:
