@@ -61,8 +61,8 @@ rules:
 | `title` | str | 人类可读标题 |
 | `type` | enum | `source` \| `entity` \| `concept` \| `synthesis`（4 选 1）|
 | `sources` | list[str] | 原始来源路径（与 `raw/sources/...` 对应）|
-| `created_at` | int (ms) | 物理创建时间 |
-| `updated_at` | int (ms) | 物理更新时间 |
+| `created_at` | datetime (ISO 8601) | 物理创建时间（V5；旧页 ms int 通过 `_coerce_ts_ms` 兼容）|
+| `updated_at` | datetime (ISO 8601) | 物理更新时间（V5；旧页 ms int 通过 `_coerce_ts_ms` 兼容）|
 
 ### 1.2 可选字段（2 项）
 
@@ -129,8 +129,8 @@ id: <与文件名一致，13-64 字符>
 type: <source|entity|concept|synthesis>
 title: <非空，≤80 字符>
 sources: []                      # raw/sources/... 相对项目根；多源合并时多行
-created_at: <Unix ms>
-updated_at: <Unix ms>
+created_at: <ISO 8601 datetime>   # V5: e.g. 2026-09-04T12:34:56
+updated_at: <ISO 8601 datetime>   # V5: 旧页仍可能为 Unix ms int，由 from_dict 自动归一
 relations: []                    # 21 类型 + x-* 扩展
 tags: []                         # 业务轻量标签（无 type 约束）
 ---
@@ -288,4 +288,4 @@ $ python scripts/validate_novel_wiki_frontmatter.py
 ---
 
 **生效日期**：2026-08-31
-**Schema 版本**：`NOVEL_WIKI_FIELD_SCHEMA_VERSION = "4.0.0"`
+**Schema 版本**：`NOVEL_WIKI_FIELD_SCHEMA_VERSION = "5.0.0"` (V5：时间戳字段从 Unix ms int 改为 YAML 原生 ISO 8601 datetime)

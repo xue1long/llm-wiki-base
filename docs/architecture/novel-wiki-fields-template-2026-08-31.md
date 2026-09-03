@@ -39,8 +39,8 @@
 | 4 | `relations` | list | ✅ | 知识图谱边 | = v2.2（保留21 类型）|
 | 5 | `tags` | list | ✅ | 业务轻量标签 | = v2.2 |
 | 6 | `sources` | list | ✅ | 原始来源路径 | = v2.2 |
-| 7 | `created_at` | int (ms) | ✅ | 物理创建时间 | = v2.2 |
-| 8 | `updated_at` | int (ms) | ✅ | 物理更新时间 | = v2.2 |
+| 7 | `created_at` | datetime (ISO 8601) | ✅ | 物理创建时间 | = V5（v4 仍为 ms int）|
+| 8 | `updated_at` | datetime (ISO 8601) | ✅ | 物理更新时间 | = V5（v4 仍为 ms int）|
 
 ### 0.2 删除的字段（11 键 · 不计成本全删）
 
@@ -89,8 +89,8 @@ title: <非空，≤80 字符>
 relations: []
 tags: []
 sources: []
-created_at: <Unix ms>
-updated_at: <Unix ms>
+created_at: <ISO 8601 datetime>   # V5
+updated_at: <ISO 8601 datetime>   # V5
 ---
 
 <Markdown body，含 [[wikilinks]]>
@@ -105,7 +105,7 @@ updated_at: <Unix ms>
 - **`relations`**：知识图谱边数组，详见 §2
 - **`tags`**：业务轻量标签数组（无 type 约束）
 - **`sources`**：原始来源路径数组（`raw/sources/...` 相对项目根）
-- **`created_at`** / **`updated_at`**：Unix 毫秒
+- **`created_at`** / **`updated_at`**：V5 ISO 8601 datetime（YAML `!!timestamp` 原生标量）
 
 ### 1.2 关键约束
 
@@ -261,8 +261,8 @@ relations:
     weight: 1.0
 tags: []
 sources: []
-created_at: <Unix ms>
-updated_at: <Unix ms>
+created_at: <ISO 8601 datetime>   # V5
+updated_at: <ISO 8601 datetime>   # V5
 ---
 
 ## 简介
@@ -390,5 +390,5 @@ ALLOWED_TYPES = {"source", "entity", "concept", "synthesis"}
 
 ---
 
-**字段生效**：`NOVEL_WIKI_FIELD_SCHEMA_VERSION = "4.0.0"`
+**字段生效**：`NOVEL_WIKI_FIELD_SCHEMA_VERSION = "5.0.0"` (V5：时间戳改为 ISO 8601 datetime)
 **通用 WikiPage 模型字段冻结**：见 `docs/guides/wiki-spec.md`（与本模板解耦）

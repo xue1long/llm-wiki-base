@@ -36,8 +36,8 @@ Date: 2026-08-31 (revised)
 | 4 | `relations` | list | ✅ | 知识图谱边（21 类型 + x-*）|
 | 5 | `tags` | list | ✅ | 业务轻量标签 |
 | 6 | `sources` | list | ✅ | 原始来源路径 |
-| 7 | `created_at` | int (ms) | ✅ | 物理创建时间 |
-| 8 | `updated_at` | int (ms) | ✅ | 物理更新时间 |
+| 7 | `created_at` | datetime (ISO 8601) | ✅ | 物理创建时间（V5；旧页 ms int 兼容）|
+| 8 | `updated_at` | datetime (ISO 8601) | ✅ | 物理更新时间（V5；旧页 ms int 兼容）|
 
 **字段集外（11 项全部删除）**：
 
