@@ -159,6 +159,25 @@ def test_candidate_adapter_rejects_evidence_from_hidden_prompt_block() -> None:
         )
 
 
+def test_candidate_adapter_rebinds_unique_quote_to_visible_block() -> None:
+    document = normalize_text(
+        "标题\n\n正文中的唯一证据。",
+        source="raw/sources/demo.md",
+    )
+    candidate = _candidate(
+        quote="正文中的唯一证据。",
+        block_id=document.blocks[0].block_id,
+    )
+
+    payload = candidate_to_payload(
+        candidate,
+        document,
+        visible_block_ids={document.blocks[1].block_id},
+    )
+
+    assert payload["claims"][0]["evidence"][0]["block_id"] == document.blocks[1].block_id
+
+
 def test_legacy_normalizer_keeps_explicit_v1_identity_for_old_evidence() -> None:
     source = "\ufeffCafé  \r\n正文"
 
