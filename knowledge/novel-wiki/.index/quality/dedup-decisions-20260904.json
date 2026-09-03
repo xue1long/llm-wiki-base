@@ -1,0 +1,1236 @@
+{
+  "generated_at": "2026-09-03T16:43:47.557285+00:00",
+  "wiki_root": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki",
+  "source_report": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\.index\\quality\\duplicate-titles-20260904.json",
+  "summary": {
+    "total_groups": 30,
+    "total_pages": 61,
+    "by_action": {
+      "supersede": 21,
+      "alias": 7,
+      "disambiguate": 2
+    }
+  },
+  "decisions": [
+    {
+      "title": "必备资料11月28号创酷中文网女频现言讲课记录",
+      "count": 3,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "必备资料11月28号创酷中文网女频现言讲课记录-b676e48c",
+        "path": "sources/必备资料11月28号创酷中文网女频现言讲课记录-b676e48c.md",
+        "type": "sources",
+        "size": 3503
+      },
+      "superseded": [
+        {
+          "id": "必备资料11月28号创酷中文网女频现言讲课记录-8c363e-ca3768b3",
+          "path": "sources/必备资料11月28号创酷中文网女频现言讲课记录-8c363e-ca3768b3.md",
+          "type": "sources",
+          "size": 3109
+        },
+        {
+          "id": "必备资料11月28号创酷中文网女频现言讲课记录-8c363e-00cfc60b",
+          "path": "sources/必备资料11月28号创酷中文网女频现言讲课记录-8c363e-00cfc60b.md",
+          "type": "sources",
+          "size": 1617
+        }
+      ],
+      "pages": [
+        {
+          "id": "必备资料11月28号创酷中文网女频现言讲课记录-b676e48c",
+          "path": "sources/必备资料11月28号创酷中文网女频现言讲课记录-b676e48c.md",
+          "size_bytes": 3507,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料11月28号创酷中文网女频现言讲课记录-b676e48c.md",
+          "page_type": "sources",
+          "body_size": 3503,
+          "first_paragraph": "## 来源元数据\n\n来源：创酷中文网女频讲课记录；平台：创酷中文网；发布组织：创酷中文网；授课时间：2015年11月28日18:00—20:00；原始文件：必备资料11月28号创酷中文网女频现言讲课记录.md；URL：文中包含红薯《名门挚爱：帝少的千亿宠儿》链接 http://www.hongshu.com/book/59956/ 及案例链接 http://www.xuanhuanlou.com/"
+        },
+        {
+          "id": "必备资料11月28号创酷中文网女频现言讲课记录-8c363e-ca3768b3",
+          "path": "sources/必备资料11月28号创酷中文网女频现言讲课记录-8c363e-ca3768b3.md",
+          "size_bytes": 3113,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料11月28号创酷中文网女频现言讲课记录-8c363e-ca3768b3.md",
+          "page_type": "sources",
+          "body_size": 3109,
+          "first_paragraph": "## 来源元数据\n\n来源：飞书云文档；平台：创酷中文网女频类讲课记录；URL：https://www.feishu.cn/docx/WsvtdamRyooO2YxQ0NQc9PVMnwf；下载时间：2026-04-14 13:49:40；发布组织：北京圣东方国信科技有限公司；任务ID：raw\\sources\\01_新手入门\\必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md。\n\n#"
+        },
+        {
+          "id": "必备资料11月28号创酷中文网女频现言讲课记录-8c363e-00cfc60b",
+          "path": "sources/必备资料11月28号创酷中文网女频现言讲课记录-8c363e-00cfc60b.md",
+          "size_bytes": 1621,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料11月28号创酷中文网女频现言讲课记录-8c363e-00cfc60b.md",
+          "page_type": "sources",
+          "body_size": 1617,
+          "first_paragraph": "## 来源元数据\n\n来源: 飞书云文档 (https://www.feishu.cn/docx/WsvtdamRyooO2YxQ0NQc9PVMnwf); 下载时间: 2026-04-14 13:49:40; 发布组织: 北京圣东方国信科技有限公司; 任务ID: 见原始文件头部\n\n## 转录质量\n\n人工撰写; 可读性: 高\n\n## 摘要\n\n该文档记录了创酷中文网于2015年11月28日举办的女频现"
+        }
+      ]
+    },
+    {
+      "title": "作家十二戒",
+      "count": 2,
+      "rule": "same-id-different-type",
+      "recommended_action": "alias",
+      "rationale": "Same id but different page-type folders; canonical lives in concepts (richer type), entity pages become aliases.",
+      "canonical": {
+        "id": "作家十二戒",
+        "path": "concepts/作家十二戒.md",
+        "type": "concepts",
+        "size": 3498
+      },
+      "aliases_to_register": [
+        {
+          "id": "作家十二戒",
+          "path": "entities/作家十二戒.md",
+          "type": "entities",
+          "size": 1560
+        }
+      ],
+      "pages": [
+        {
+          "id": "作家十二戒",
+          "path": "concepts/作家十二戒.md",
+          "size_bytes": 3498,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\concepts\\作家十二戒.md",
+          "page_type": "concepts",
+          "body_size": 3498,
+          "first_paragraph": "## 定义\n\n归纳了小说创作中常见的十二个忌讳，是新手作者应规避的错误行为指南，涵盖题材选择、人称运用、文笔习惯、设定处理、角色塑造等多个方面。\n\n## 主要特点\n\n- 避坑指南：明确列出应避免的负面行为。\n- 面面俱到：从宏观（跟风、类型杂糅）到微观（昵称、列表式设定）均有涉及。\n- 实战导向：源于网络小说创作的实践总结，具有很强的操作指导性。\n\n## 适用场景\n\n主要面向网络小说新手作者，作为"
+        },
+        {
+          "id": "作家十二戒",
+          "path": "entities/作家十二戒.md",
+          "size_bytes": 1564,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\entities\\作家十二戒.md",
+          "page_type": "entities",
+          "body_size": 1560,
+          "first_paragraph": "## 基本信息\n\n网络小说作者写作避坑清单，集中讨论十二类常见写作问题。\n\n## 简介\n\n“作家十二戒”是针对网文作者的经验性规范集合，核心内容包括避免跟风、抄袭、流水账、设定堆砌、主角能力失控和人物关系失真等。本文来源以“作者写作十二大忌”的形式具体展开了这些戒律，可作为新手自审和修改时的检查框架。\n\n## 写作价值\n\n可将十二项内容转化为写作自检表：检查题材是否真正适合自己，叙事是否只有事件罗"
+        }
+      ]
+    },
+    {
+      "title": "写手境界",
+      "count": 2,
+      "rule": "manual-review",
+      "recommended_action": "disambiguate",
+      "rationale": "Patterns don't match an automated rule; defer to human reviewer to rename or merge.",
+      "canonical": null,
+      "pages": [
+        {
+          "id": "写手境界",
+          "path": "concepts/写手境界.md",
+          "size_bytes": 1865,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\concepts\\写手境界.md",
+          "page_type": "concepts",
+          "body_size": 1865,
+          "first_paragraph": "## 定义\n\n指网络小说作者在创作能力、思维层次和行业影响力上达到的不同水平层级。\n\n## 主要特点\n\n- 是一个描述作者综合实力的阶梯式概念。\n- 不同来源（如教程、论坛）对境界的具体划分和命名可能不同。\n- 境界的提升通常需要持续的写作实践、学习和思考。\n\n## 适用场景\n\n用于作者自我评估、行业内部交流，或作为教程中指导作者成长的框架。\n\n## 反模式与常见错误\n\n避免唯境界论，不应因自己处"
+        },
+        {
+          "id": "入门教程写手境界-fb364b85",
+          "path": "sources/入门教程写手境界-fb364b85.md",
+          "size_bytes": 1704,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\入门教程写手境界-fb364b85.md",
+          "page_type": "sources",
+          "body_size": 1700,
+          "first_paragraph": "## 来源元数据\n\n来源: 飞书云文档, URL: https://www.feishu.cn/docx/FEhxdbvpcoRklox3R1FctDSMntc, 下载时间: 2026-04-14 13:24:37, 发布组织: 北京圣东方国信科技有限公司\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n本文以武侠比喻描述网络写手从新手到成熟的七个境界，每个境界代表不同的写作心态和追求，从"
+        }
+      ]
+    },
+    {
+      "title": "学生一族阅读心态",
+      "count": 2,
+      "rule": "same-id-different-type",
+      "recommended_action": "alias",
+      "rationale": "Same id but different page-type folders; canonical lives in concepts (richer type), entity pages become aliases.",
+      "canonical": {
+        "id": "学生一族阅读心态",
+        "path": "concepts/学生一族阅读心态.md",
+        "type": "concepts",
+        "size": 2303
+      },
+      "aliases_to_register": [
+        {
+          "id": "学生一族阅读心态",
+          "path": "entities/学生一族阅读心态.md",
+          "type": "entities",
+          "size": 1151
+        }
+      ],
+      "pages": [
+        {
+          "id": "学生一族阅读心态",
+          "path": "concepts/学生一族阅读心态.md",
+          "size_bytes": 2303,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\concepts\\学生一族阅读心态.md",
+          "page_type": "concepts",
+          "body_size": 2303,
+          "first_paragraph": "## 定义\n\n指学生读者因学业繁重，在课余时间追新追奇追有趣，寻求轻松、新奇作品来放松，重视故事情节张力和内容精彩度的阅读偏好。\n\n## 主要特点\n\n- 阅读目的为放松学习紧张。\n- 对作品新颖度有较强的优胜劣汰意识。\n- 是‘一千字定阅读目标’的人，快速判断作品是否吸引人。\n\n## 适用场景\n\n占网络读者总数的55%以上，是读者群体的主要组成部分。作者在开篇和情节设计上需注重其‘追新追奇’的特点"
+        },
+        {
+          "id": "学生一族阅读心态",
+          "path": "entities/学生一族阅读心态.md",
+          "size_bytes": 1155,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\entities\\学生一族阅读心态.md",
+          "page_type": "entities",
+          "body_size": 1151,
+          "first_paragraph": "## 基本信息\n\n网络读者细分群体; 特征: 年龄较轻，受学业压力影响。\n\n## 简介\n\n指以学生为主体的网络小说读者群体，他们是网络读者的主要构成部分（占比超过55%）。其核心阅读诉求是在课余时间通过阅读轻松、诙谐、新奇、梦幻的作品来放松学习压力。\n\n## 写作价值\n\n为作者提供了明确的目标读者画像：创作时需注重情节的张力、内容的精彩度与新颖度，需快速抓住读者（“一千字定阅读目标”）。\n\n## "
+        }
+      ]
+    },
+    {
+      "title": "普通话",
+      "count": 2,
+      "rule": "same-id-different-type",
+      "recommended_action": "alias",
+      "rationale": "Same id but different page-type folders; canonical lives in concepts (richer type), entity pages become aliases.",
+      "canonical": {
+        "id": "普通话",
+        "path": "concepts/普通话.md",
+        "type": "concepts",
+        "size": 1820
+      },
+      "aliases_to_register": [
+        {
+          "id": "普通话",
+          "path": "entities/普通话.md",
+          "type": "entities",
+          "size": 1059
+        }
+      ],
+      "pages": [
+        {
+          "id": "普通话",
+          "path": "concepts/普通话.md",
+          "size_bytes": 1820,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\concepts\\普通话.md",
+          "page_type": "concepts",
+          "body_size": 1820,
+          "first_paragraph": "## 定义\n\n普通话是现代汉民族共同语，以北京语音为标准音，以北方话为基础方言，以典范的现代白话文著作为语法规范。\n\n## 主要特点\n\n- 语音标准：以北京语音为标准音。\n- 词汇基础：以北方话为基础方言。\n- 语法规范：以典范的现代白话文著作为语法规范。\n\n## 适用场景\n\n普通话是汉语的正确规范标准，用于口语和书面语，是语言规范的核心依据。\n\n## 反模式与常见错误\n\n使用方言音、地方词汇或非"
+        },
+        {
+          "id": "普通话",
+          "path": "entities/普通话.md",
+          "size_bytes": 1063,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\entities\\普通话.md",
+          "page_type": "entities",
+          "body_size": 1059,
+          "first_paragraph": "## 基本信息\n\n现代汉民族共同语，中国的国家通用语言。\n\n## 简介\n\n普通话是以北京语音为标准音，以北方话为基础方言，以典范的现代白话文著作为语法规范的现代汉语标准语。它是现代汉语的语言规范，也是写作和正式交流中必须遵守的标准。\n\n## 写作价值\n\n在写作中，使用规范的普通话是确保作品可读性和广泛传播的基础。避免使用生僻的方言词汇或不符合普通话语法的表达，可以减少读者的理解障碍。\n\n## 相关"
+        }
+      ]
+    },
+    {
+      "title": "玄幻小说",
+      "count": 2,
+      "rule": "same-id-different-type",
+      "recommended_action": "alias",
+      "rationale": "Same id but different page-type folders; canonical lives in concepts (richer type), entity pages become aliases.",
+      "canonical": {
+        "id": "玄幻小说",
+        "path": "concepts/玄幻小说.md",
+        "type": "concepts",
+        "size": 3654
+      },
+      "aliases_to_register": [
+        {
+          "id": "玄幻小说",
+          "path": "entities/玄幻小说.md",
+          "type": "entities",
+          "size": 1561
+        }
+      ],
+      "pages": [
+        {
+          "id": "玄幻小说",
+          "path": "concepts/玄幻小说.md",
+          "size_bytes": 3654,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\concepts\\玄幻小说.md",
+          "page_type": "concepts",
+          "body_size": 3654,
+          "first_paragraph": "## 定义\n\n以超现实世界、特殊体质、修炼体系、异能或多元势力为重要构成的虚构小说类型。本源材料通过武道世界、宗派割据、修炼等级、痕印法则和隐世家族等设定呈现玄幻特征。\n\n## 主要特点\n\n- 以架空的武道世界为故事基础，存在宗派林立、群雄割据和各洲分治的宏观格局。\n- 通过气血境至天人境的修炼等级建立力量成长序列，并用不死神体、元辰星光体等特殊体质强化角色辨识度。\n- 以肖家、神族、地荒族和天朝"
+        },
+        {
+          "id": "玄幻小说",
+          "path": "entities/玄幻小说.md",
+          "size_bytes": 1565,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\entities\\玄幻小说.md",
+          "page_type": "entities",
+          "body_size": 1561,
+          "first_paragraph": "## 基本信息\n\n一种以超自然力量、修炼体系和升级战斗为核心要素的网络小说题材。\n\n## 简介\n\n来源将玄幻小说中的比武擂台视为制造大高潮的重要场景，尤其关注主角与反派在公开竞技环境中的实力展示、身份对比和情绪反转。文中没有进一步界定玄幻小说的历史、平台或具体作品范围，因此本页仅提取其在该来源中的题材功能。\n\n## 写作价值\n\n玄幻擂台场面可借助升级体系承载剧情高潮：先用身份、实力或舆论压制制造落"
+        }
+      ]
+    },
+    {
+      "title": "穿越重生",
+      "count": 2,
+      "rule": "same-id-different-type",
+      "recommended_action": "alias",
+      "rationale": "Same id but different page-type folders; canonical lives in concepts (richer type), entity pages become aliases.",
+      "canonical": {
+        "id": "穿越重生",
+        "path": "concepts/穿越重生.md",
+        "type": "concepts",
+        "size": 3541
+      },
+      "aliases_to_register": [
+        {
+          "id": "穿越重生",
+          "path": "entities/穿越重生.md",
+          "type": "entities",
+          "size": 1706
+        }
+      ],
+      "pages": [
+        {
+          "id": "穿越重生",
+          "path": "concepts/穿越重生.md",
+          "size_bytes": 3541,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\concepts\\穿越重生.md",
+          "page_type": "concepts",
+          "body_size": 3541,
+          "first_paragraph": "## 定义\n\n穿越重生是将人物从原有时空或生命状态转移到另一时空、另一身份或新生命状态的故事设定。本文涉及其“魂穿”与“夺舍”形式，作为网络历史小说常见的开端机制。\n\n## 主要特点\n\n- 魂穿：以灵魂穿越的方式进入历史背景或另一人物身份。\n- 夺舍：通过占据他人身体或身份进入故事，从而在既有历史环境中展开行动。\n- 开篇功能：迅速建立现代或异时空意识与历史环境之间的认知差异，为后续种田、争霸或改"
+        },
+        {
+          "id": "穿越重生",
+          "path": "entities/穿越重生.md",
+          "size_bytes": 1710,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\entities\\穿越重生.md",
+          "page_type": "entities",
+          "body_size": 1706,
+          "first_paragraph": "## 基本信息\n\n网络小说题材类型，指主角从一个时代/世界穿越到另一个。\n\n## 简介\n\n网络小说中最常用的切入主题手法之一。指主角因某种原因（通常非自愿）从现代或其他时代/世界，来到一个完全不同的古代、异界或仙侠世界。其核心魅力在于利用信息差和知识优势，创造情节冲突与爽点。\n\n## 写作价值\n\n1. **作为凤头**：开篇几千年字至关重要，需快速建立穿越事实并展示优势，吸引读者。2. **作为金"
+        }
+      ]
+    },
+    {
+      "title": "网络小说",
+      "count": 2,
+      "rule": "same-id-different-type",
+      "recommended_action": "alias",
+      "rationale": "Same id but different page-type folders; canonical lives in concepts (richer type), entity pages become aliases.",
+      "canonical": {
+        "id": "网络小说",
+        "path": "concepts/网络小说.md",
+        "type": "concepts",
+        "size": 3710
+      },
+      "aliases_to_register": [
+        {
+          "id": "网络小说",
+          "path": "entities/网络小说.md",
+          "type": "entities",
+          "size": 1474
+        }
+      ],
+      "pages": [
+        {
+          "id": "网络小说",
+          "path": "concepts/网络小说.md",
+          "size_bytes": 3710,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\concepts\\网络小说.md",
+          "page_type": "concepts",
+          "body_size": 3710,
+          "first_paragraph": "## 定义\n\n以互联网为主要创作和传播平台的小说形式，通常以文字讲述长篇故事。其核心特点包括以VIP订阅为主要盈利模式、强调作者与读者的即时互动、更新速度快、创作门槛相对较低。\n\n## 主要特点\n\n- 盈利模式驱动的长篇属性：为维持订阅收入，篇幅通常较长，写得越长收入可能越高。\n- 高度的互动性：通过读者投票、评论区等功能，作者能根据读者反馈调整故事走向，这是传统小说难以比拟的。\n- 快餐文学属性"
+        },
+        {
+          "id": "网络小说",
+          "path": "entities/网络小说.md",
+          "size_bytes": 1478,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\entities\\网络小说.md",
+          "page_type": "entities",
+          "body_size": 1474,
+          "first_paragraph": "## 基本信息\n\n一种以网络为主要发布载体的小说类型。\n\n## 简介\n\n网络小说是网络文学的代表形式，通常指长期连载、吸引读者实时互动、并可能通过订阅等方式让作者获得稿酬，进而拓展到其他媒体形式的原创长篇小说。其定义在不同视角下有多种解读。\n\n## 写作价值\n\n创作网络小说需理解其商业属性（以盈利为目的）、载体特性（网络/手机）、互动性（实时交流）以及成就标准（出版、改编或数据支持）。是网络写手职"
+        }
+      ]
+    },
+    {
+      "title": "都市上班族阅读心态",
+      "count": 2,
+      "rule": "same-id-different-type",
+      "recommended_action": "alias",
+      "rationale": "Same id but different page-type folders; canonical lives in concepts (richer type), entity pages become aliases.",
+      "canonical": {
+        "id": "都市上班族阅读心态",
+        "path": "concepts/都市上班族阅读心态.md",
+        "type": "concepts",
+        "size": 2653
+      },
+      "aliases_to_register": [
+        {
+          "id": "都市上班族阅读心态",
+          "path": "entities/都市上班族阅读心态.md",
+          "type": "entities",
+          "size": 1205
+        }
+      ],
+      "pages": [
+        {
+          "id": "都市上班族阅读心态",
+          "path": "concepts/都市上班族阅读心态.md",
+          "size_bytes": 2653,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\concepts\\都市上班族阅读心态.md",
+          "page_type": "concepts",
+          "body_size": 2653,
+          "first_paragraph": "## 定义\n\n指都市工薪阶层读者因接触社会较多、时间分配有限而形成的，倾向于通过阅读理性化、注重结局和总体风格的作品来放松和舒缓工作压力的阅读偏好。\n\n## 主要特点\n\n- 阅读目的以放松和舒缓压力为主。\n- 由于时间有限，更注重作品的结局和总体风格。\n- 是网络文学VIP付费用户的主要来源。\n\n## 适用场景\n\n指导作者在创作时，可将作品的内容比例重点放在内容新、奇，故事情节安排精彩，轻松有趣，"
+        },
+        {
+          "id": "都市上班族阅读心态",
+          "path": "entities/都市上班族阅读心态.md",
+          "size_bytes": 1209,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\entities\\都市上班族阅读心态.md",
+          "page_type": "entities",
+          "body_size": 1205,
+          "first_paragraph": "## 基本信息\n\n网络读者细分群体; 特征: 有社会阅历，时间有限，具备一定付费能力。\n\n## 简介\n\n指以都市职场人士为主体的网络小说读者群体，约占网络读者的35%。他们阅读网络小说的主要目的是舒缓工作压力，倾向于理性分析，注重作品的结局、总体风格和在有限时间内获得放松。\n\n## 写作价值\n\n明确指出了网络小说VIP章节的核心目标受众。创作时需考虑其理性、注重结果和时间宝贵的特点，内容应轻松有趣"
+        }
+      ]
+    },
+    {
+      "title": "侦探小说二十守则",
+      "count": 2,
+      "rule": "manual-review",
+      "recommended_action": "disambiguate",
+      "rationale": "Patterns don't match an automated rule; defer to human reviewer to rename or merge.",
+      "canonical": null,
+      "pages": [
+        {
+          "id": "方法论侦探小说二十守则-a0c6c278",
+          "path": "sources/方法论侦探小说二十守则-a0c6c278.md",
+          "size_bytes": 1899,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\方法论侦探小说二十守则-a0c6c278.md",
+          "page_type": "sources",
+          "body_size": 1895,
+          "first_paragraph": "## 来源元数据\n\n来源: raw/sources/02_进阶技巧/方法论侦探小说二十守则.md; 格式: Markdown; 译者: 陈曾纬; 下载时间: 见原始文件头部\n\n## 转录质量\n\n人工撰写; 可读性评级: 高\n\n## 摘要\n\n本文译介了推理小说创作的二十条核心守则，这些守则源自伟大推理作家的共同原则与诚实作家的内心信念。守则旨在确保推理小说作为一种智性游戏，作者必须公平地与读者对决，"
+        },
+        {
+          "id": "侦探小说二十守则",
+          "path": "entities/侦探小说二十守则.md",
+          "size_bytes": 1470,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\entities\\侦探小说二十守则.md",
+          "page_type": "entities",
+          "body_size": 1466,
+          "first_paragraph": "## 基本信息\n\n写作理论/规则集; 作者: S.S.范丹; 领域: 侦探小说创作\n\n## 简介\n\n《侦探小说二十准则》是英国作家S.S.范丹提出的探讨侦探小说创作的理论文章，为侦探小说的创作提供了框架和借鉴，也被视为一种智力游戏的规则。它系统地规定了侦探小说中线索、凶手、破案方法、叙事结构等方面的基本原则。\n\n## 写作价值\n\n定义了经典侦探小说的公平竞赛原则，例如作者需与读者地位等同（规则1）"
+        }
+      ]
+    },
+    {
+      "title": "贴吧精华帖：网文写作心得",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "ugc-test2-4abca22d",
+        "path": "sources/ugc-test2-4abca22d.md",
+        "type": "sources",
+        "size": 1094
+      },
+      "superseded": [
+        {
+          "id": "ugc-test-e1782566",
+          "path": "sources/ugc-test-e1782566.md",
+          "type": "sources",
+          "size": 1081
+        }
+      ],
+      "pages": [
+        {
+          "id": "ugc-test2-4abca22d",
+          "path": "sources/ugc-test2-4abca22d.md",
+          "size_bytes": 1098,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\ugc-test2-4abca22d.md",
+          "page_type": "sources",
+          "body_size": 1094,
+          "first_paragraph": "## 来源元数据\n\n来源：百度贴吧网络作家吧用户投稿；平台：百度贴吧；格式：Markdown；下载时间：见原始文件头部；任务ID：无\n\n## 转录质量\n\n人工撰写；可读性评级：高\n\n## 摘要\n\n本文总结了网文写作的两个核心要点：坚持日更和黄金三章的开篇冲突技巧，强调新人先写再改。\n\n## 关键观点\n\n- 写网文最重要的是坚持日更。\n- 新人不要追求完美，先写出来再改。\n- 黄金三章要抓住读者，开"
+        },
+        {
+          "id": "ugc-test-e1782566",
+          "path": "sources/ugc-test-e1782566.md",
+          "size_bytes": 1085,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\ugc-test-e1782566.md",
+          "page_type": "sources",
+          "body_size": 1081,
+          "first_paragraph": "## 来源元数据\n\n来源：百度贴吧网络作家吧用户投稿；格式：Markdown；下载时间：见原始文件头部；发布组织：百度贴吧用户\n\n## 转录质量\n\n人工撰写；可读性：高\n\n## 摘要\n\n该贴吧精华帖总结了网文写作的核心要点：坚持日更、先写再改、黄金三章抓读者、开篇500字内出冲突。\n\n## 关键观点\n\n- 坚持日更是网文写作最重要的原则\n- 新人不要追求完美，应该先写出来再修改\n- 黄金三章要抓住"
+        }
+      ]
+    },
+    {
+      "title": "借鉴素材小说主题分类的内容详细",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "借鉴素材小说主题分类的内容详细-89e8d6-46f584d6",
+        "path": "sources/借鉴素材小说主题分类的内容详细-89e8d6-46f584d6.md",
+        "type": "sources",
+        "size": 3210
+      },
+      "superseded": [
+        {
+          "id": "借鉴素材小说主题分类的内容详细-23069167",
+          "path": "sources/借鉴素材小说主题分类的内容详细-23069167.md",
+          "type": "sources",
+          "size": 1897
+        }
+      ],
+      "pages": [
+        {
+          "id": "借鉴素材小说主题分类的内容详细-89e8d6-46f584d6",
+          "path": "sources/借鉴素材小说主题分类的内容详细-89e8d6-46f584d6.md",
+          "size_bytes": 3214,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\借鉴素材小说主题分类的内容详细-89e8d6-46f584d6.md",
+          "page_type": "sources",
+          "body_size": 3210,
+          "first_paragraph": "## 来源元数据\n\n平台: 飞书云文档；URL: https://www.feishu.cn/docx/DyAVdE0a7oVcwfxMYoScyfFlnUh；原始资料来源: 小白作者 网文大学（QQ群 199288456）；发布组织: 北京圣东方国信科技有限公司；下载时间: 2026-04-14 12:59:17；任务ID: 借鉴素材小说主题分类的内容详细_89e8d6\n\n## 转录质量\n\n人工"
+        },
+        {
+          "id": "借鉴素材小说主题分类的内容详细-23069167",
+          "path": "sources/借鉴素材小说主题分类的内容详细-23069167.md",
+          "size_bytes": 1901,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\借鉴素材小说主题分类的内容详细-23069167.md",
+          "page_type": "sources",
+          "body_size": 1897,
+          "first_paragraph": "## 来源元数据\n\n来源: 小白作者网文大学QQ群199288456; 格式: Markdown; 下载时间: 见原始文件头部; 任务ID: 无\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n本文详细介绍了小说主题的十大类（玄幻、奇幻、仙侠、科幻、游戏、都市、历史、武侠、军事、惊悚）及四十四个小类，每个小类的定义、特点、读者期待和写作陷阱，并回答了主题与背景的关系等问题。来源为小白作者网"
+        }
+      ]
+    },
+    {
+      "title": "借鉴素材网文中的九线",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "借鉴素材网文中的九线-ec648061",
+        "path": "sources/借鉴素材网文中的九线-ec648061.md",
+        "type": "sources",
+        "size": 2549
+      },
+      "superseded": [
+        {
+          "id": "借鉴素材网文中的九线-2b7fc4-ccda91ed",
+          "path": "sources/借鉴素材网文中的九线-2b7fc4-ccda91ed.md",
+          "type": "sources",
+          "size": 1763
+        }
+      ],
+      "pages": [
+        {
+          "id": "借鉴素材网文中的九线-ec648061",
+          "path": "sources/借鉴素材网文中的九线-ec648061.md",
+          "size_bytes": 2553,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\借鉴素材网文中的九线-ec648061.md",
+          "page_type": "sources",
+          "body_size": 2549,
+          "first_paragraph": "## 来源元数据\n\n平台: 本地素材库 raw/sources/01_新手入门/借鉴素材网文中的九线.md；格式: Markdown；发布组织: 未署名网络写作经验帖（UGC）；下载时间: 见原始文件头部；任务ID: 本批次摄取\n\n## 转录质量\n\n人工撰写，直接以 Markdown 文本摄取，可读性评级：高；结构清晰，分条列出九线，非 OCR/ASR 转写。\n\n## 摘要\n\n本文把网络小说全部内"
+        },
+        {
+          "id": "借鉴素材网文中的九线-2b7fc4-ccda91ed",
+          "path": "sources/借鉴素材网文中的九线-2b7fc4-ccda91ed.md",
+          "size_bytes": 1767,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\借鉴素材网文中的九线-2b7fc4-ccda91ed.md",
+          "page_type": "sources",
+          "body_size": 1763,
+          "first_paragraph": "## 来源元数据\n\n来源: 飞书云文档 (https://www.feishu.cn/docx/C3fYdnh3OomFxGx97d9cS0vznpf); 下载时间: 2026-04-14 13:01:25; 发布组织: 北京圣东方国信科技有限公司\n\n## 转录质量\n\n人工撰写，可读性良好\n\n## 摘要\n\n该文档介绍了网络小说写作中的'九线'概念，即主角智慧性格、配角炮灰、技能、伙伴、装备、冒险、"
+        }
+      ]
+    },
+    {
+      "title": "入门教程侦探小说二十守则",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "入门教程侦探小说二十守则-ab5015-db46227e",
+        "path": "sources/入门教程侦探小说二十守则-ab5015-db46227e.md",
+        "type": "sources",
+        "size": 1728
+      },
+      "superseded": [
+        {
+          "id": "入门教程侦探小说二十守则-e978bc5b",
+          "path": "sources/入门教程侦探小说二十守则-e978bc5b.md",
+          "type": "sources",
+          "size": 1542
+        }
+      ],
+      "pages": [
+        {
+          "id": "入门教程侦探小说二十守则-ab5015-db46227e",
+          "path": "sources/入门教程侦探小说二十守则-ab5015-db46227e.md",
+          "size_bytes": 1732,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\入门教程侦探小说二十守则-ab5015-db46227e.md",
+          "page_type": "sources",
+          "body_size": 1728,
+          "first_paragraph": "## 来源元数据\n\n来源: 飞书云文档 (https://www.feishu.cn/docx/KLj3dSm1co0P8cxzZzzczqs8nfb); 下载时间: 2026-04-14 13:19:04; 发布组织: 北京圣东方国信科技有限公司\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n该文档翻译了范·达因的《侦探小说二十守则》，详细列出了推理小说创作中必须遵守的二十条规则，以及"
+        },
+        {
+          "id": "入门教程侦探小说二十守则-e978bc5b",
+          "path": "sources/入门教程侦探小说二十守则-e978bc5b.md",
+          "size_bytes": 1546,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\入门教程侦探小说二十守则-e978bc5b.md",
+          "page_type": "sources",
+          "body_size": 1542,
+          "first_paragraph": "## 来源元数据\n\n来源: 本地文件; 路径: raw/sources/01_新手入门/入门教程侦探小说二十守则.md; 译者: 陈曾纬; 格式: Markdown; 获取时间: 未记录; 发布组织: 未知\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n本文翻译了侦探小说二十守则，强调作者与读者公平斗智，禁止爱情成分、超自然手法、职业性罪犯等，要求逻辑推理破案，并列出已用烂的套路。\n\n#"
+        }
+      ]
+    },
+    {
+      "title": "入门教程关于小说写作",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "入门教程关于小说写作-c8469b26",
+        "path": "sources/入门教程关于小说写作-c8469b26.md",
+        "type": "sources",
+        "size": 2271
+      },
+      "superseded": [
+        {
+          "id": "入门教程关于小说写作-cde8fc-80e77a43",
+          "path": "sources/入门教程关于小说写作-cde8fc-80e77a43.md",
+          "type": "sources",
+          "size": 1689
+        }
+      ],
+      "pages": [
+        {
+          "id": "入门教程关于小说写作-c8469b26",
+          "path": "sources/入门教程关于小说写作-c8469b26.md",
+          "size_bytes": 2275,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\入门教程关于小说写作-c8469b26.md",
+          "page_type": "sources",
+          "body_size": 2271,
+          "first_paragraph": "## 来源元数据\n\n来源: 入门教程关于小说写作.md; 格式: Markdown; 下载时间: 见原始文件头部; 发布组织: 未知(UGC个人撰写)\n\n## 转录质量\n\n人工撰写，可读性高，结构清晰\n\n## 摘要\n\n一篇探讨小说写作、文学与哲学的个人随笔，引用陀斯妥耶夫斯基、三岛由纪夫、川端康成、村上春树等作家，深入讨论镜头感、尽头感、气味与形而上、为艺术而艺术等概念，以及新小说的可能性。作者结"
+        },
+        {
+          "id": "入门教程关于小说写作-cde8fc-80e77a43",
+          "path": "sources/入门教程关于小说写作-cde8fc-80e77a43.md",
+          "size_bytes": 1693,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\入门教程关于小说写作-cde8fc-80e77a43.md",
+          "page_type": "sources",
+          "body_size": 1689,
+          "first_paragraph": "## 来源元数据\n\n来源：飞书云文档，URL：https://www.feishu.cn/docx/UT8KdZTmjoa7qSxqlq9ch0eQnle，下载时间：2026-04-14 13:19:13，发布组织：北京圣东方国信科技有限公司\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n本文是小说写作入门教程的节选，讨论了陀思妥耶夫斯基、芥川龙之介等作家的写作风格，以及“镜头感”、“自"
+        }
+      ]
+    },
+    {
+      "title": "入门教程文章架构合理性分析",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "入门教程文章架构合理性分析-704311d5",
+        "path": "sources/入门教程文章架构合理性分析-704311d5.md",
+        "type": "sources",
+        "size": 2041
+      },
+      "superseded": [
+        {
+          "id": "入门教程文章架构合理性分析-25af8b-37a4e41b",
+          "path": "sources/入门教程文章架构合理性分析-25af8b-37a4e41b.md",
+          "type": "sources",
+          "size": 1628
+        }
+      ],
+      "pages": [
+        {
+          "id": "入门教程文章架构合理性分析-704311d5",
+          "path": "sources/入门教程文章架构合理性分析-704311d5.md",
+          "size_bytes": 2045,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\入门教程文章架构合理性分析-704311d5.md",
+          "page_type": "sources",
+          "body_size": 2041,
+          "first_paragraph": "## 来源元数据\n\n来源: 原始文件 raw\\sources\\01_新手入门\\入门教程文章架构合理性分析.md; 格式: Markdown; 下载时间: 见原始文件头部; 发布组织: 未知\n\n## 转录质量\n\n人工撰写; 可读性高\n\n## 摘要\n\n本文以《凡人修仙传》为例，分析修仙小说文章架构合理性，提出四个关键因素：层级设置扁平化、升级序列多级化、斗争手段多元化、成长道路曲折化，并认为这些因素决"
+        },
+        {
+          "id": "入门教程文章架构合理性分析-25af8b-37a4e41b",
+          "path": "sources/入门教程文章架构合理性分析-25af8b-37a4e41b.md",
+          "size_bytes": 1632,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\入门教程文章架构合理性分析-25af8b-37a4e41b.md",
+          "page_type": "sources",
+          "body_size": 1628,
+          "first_paragraph": "## 来源元数据\n\n来源: https://www.feishu.cn/docx/M40odMdlvodvh5x5UD2cNkjsnSd; 下载时间: 2026-04-14 13:38:01; 平台: 飞书云文档; 发布组织: 个人分享\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n本文以《凡人修仙传》为例，分析修仙小说文章架构的合理性，提出四个关键因素：层级设置扁平化、升级序列多级化、"
+        }
+      ]
+    },
+    {
+      "title": "入门教程网络小说选题要求",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "入门教程网络小说选题要求-8c7c0ebe",
+        "path": "sources/入门教程网络小说选题要求-8c7c0ebe.md",
+        "type": "sources",
+        "size": 3020
+      },
+      "superseded": [
+        {
+          "id": "入门教程网络小说选题要求-756acb-5daece4c",
+          "path": "sources/入门教程网络小说选题要求-756acb-5daece4c.md",
+          "type": "sources",
+          "size": 2434
+        }
+      ],
+      "pages": [
+        {
+          "id": "入门教程网络小说选题要求-8c7c0ebe",
+          "path": "sources/入门教程网络小说选题要求-8c7c0ebe.md",
+          "size_bytes": 3024,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\入门教程网络小说选题要求-8c7c0ebe.md",
+          "page_type": "sources",
+          "body_size": 3020,
+          "first_paragraph": "## 来源元数据\n\n来源平台：派派小说论坛“写作素材”板块；作者：雨桑之未落；帖子标题：写作培训一：选材；发布组织：派派小说论坛，文末注明“来自博库女频”；原始文件：入门教程网络小说选题要求.md；URL：原文未提供；下载时间：原始文件未标注；任务ID：原文未提供。\n\n## 转录质量\n\n人工整理的论坛网页转录，整体可读性良好；存在导航栏、用户信息、楼层内容与正文混杂，以及少量排版和标点问题。论坛回"
+        },
+        {
+          "id": "入门教程网络小说选题要求-756acb-5daece4c",
+          "path": "sources/入门教程网络小说选题要求-756acb-5daece4c.md",
+          "size_bytes": 2438,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\入门教程网络小说选题要求-756acb-5daece4c.md",
+          "page_type": "sources",
+          "body_size": 2434,
+          "first_paragraph": "## 来源元数据\n\n来源：飞书云文档及派派小说论坛帖子《写作培训一：选材》；发布组织：北京圣东方国信科技有限公司；原文链接：https://www.feishu.cn/docx/Q17AdFPgEoBErQxzCLKcYZX9neh；下载时间：2026-04-14 13:44:45；帖子作者：雨桑之未落；任务ID：入门教程网络小说选题要求_756acb.md。\n\n## 转录质量\n\n网页内容转录，含"
+        }
+      ]
+    },
+    {
+      "title": "必备资料15顺眼谈文章的画面感",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "必备资料15顺眼谈文章的画面感-93ce996d",
+        "path": "sources/必备资料15顺眼谈文章的画面感-93ce996d.md",
+        "type": "sources",
+        "size": 2868
+      },
+      "superseded": [
+        {
+          "id": "必备资料15顺眼谈文章的画面感-43c5df10",
+          "path": "sources/必备资料15顺眼谈文章的画面感-43c5df10.md",
+          "type": "sources",
+          "size": 1336
+        }
+      ],
+      "pages": [
+        {
+          "id": "必备资料15顺眼谈文章的画面感-93ce996d",
+          "path": "sources/必备资料15顺眼谈文章的画面感-93ce996d.md",
+          "size_bytes": 2872,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料15顺眼谈文章的画面感-93ce996d.md",
+          "page_type": "sources",
+          "body_size": 2868,
+          "first_paragraph": "## 来源元数据\n\n来源：飞书云文档；URL：https://www.feishu.cn/docx/GvJwdjZcXooGmkxV9eScaI2snEc；下载时间：2026-04-14 13:49:50；发布组织：北京圣东方国信科技有限公司；任务 ID：来源文本未提供。\n\n## 转录质量\n\nMarkdown文本转录，非OCR、非ASR；整体可读性良好。原文包含飞书页面界面文字、代码块提示和少量口"
+        },
+        {
+          "id": "必备资料15顺眼谈文章的画面感-43c5df10",
+          "path": "sources/必备资料15顺眼谈文章的画面感-43c5df10.md",
+          "size_bytes": 1340,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料15顺眼谈文章的画面感-43c5df10.md",
+          "page_type": "sources",
+          "body_size": 1336,
+          "first_paragraph": "## 来源元数据\n\n来源：飞书云文档 (https://www.feishu.cn/docx/GvJwdjZcXooGmkxV9eScaI2snEc)；下载时间：2026-04-14 13:49:50；发布组织：北京圣东方国信科技有限公司\n\n## 转录质量\n\n人工撰写，可读性良好\n\n## 摘要\n\n本文是一篇关于网络小说画面感重要性的培训记录，指出段落过长、句子过长、错字、单调对话等常见问题，强调第"
+        }
+      ]
+    },
+    {
+      "title": "必备资料20个签约条件新人必看2",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "必备资料20个签约条件新人必看2-19a349e5",
+        "path": "sources/必备资料20个签约条件新人必看2-19a349e5.md",
+        "type": "sources",
+        "size": 2968
+      },
+      "superseded": [
+        {
+          "id": "必备资料20个签约条件新人必看2-b7b4ef23",
+          "path": "sources/必备资料20个签约条件新人必看2-b7b4ef23.md",
+          "type": "sources",
+          "size": 1642
+        }
+      ],
+      "pages": [
+        {
+          "id": "必备资料20个签约条件新人必看2-19a349e5",
+          "path": "sources/必备资料20个签约条件新人必看2-19a349e5.md",
+          "size_bytes": 2972,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料20个签约条件新人必看2-19a349e5.md",
+          "page_type": "sources",
+          "body_size": 2968,
+          "first_paragraph": "## 来源元数据\n\n来源：飞书云文档；URL：https://www.feishu.cn/docx/RGeQdFgWNomc0VxhSFmc8jhFnrh；下载时间：2026-04-14 13:50:11；发布组织：北京圣东方国信科技有限公司；任务ID：必备资料20个签约条件新人必看2-19a349e5。\n\n## 转录质量\n\nMarkdown文字转录，整体可读性良好；原文存在编号标点、空格及少量错"
+        },
+        {
+          "id": "必备资料20个签约条件新人必看2-b7b4ef23",
+          "path": "sources/必备资料20个签约条件新人必看2-b7b4ef23.md",
+          "size_bytes": 1646,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料20个签约条件新人必看2-b7b4ef23.md",
+          "page_type": "sources",
+          "body_size": 1642,
+          "first_paragraph": "## 来源元数据\n\n来源：https://www.feishu.cn/docx/RGeQdFgWNomc0VxhSFmc8jhFnrh；下载时间：2026-04-14 13:50:11；发布组织：北京圣东方国信科技有限公司；格式：飞书云文档导出Markdown\n\n## 转录质量\n\n人工撰写；可读性良好\n\n## 摘要\n\n本文列举了20条网络小说签约条件，涵盖开篇、冲突、卖点、高潮、支线、大情节等结构"
+        }
+      ]
+    },
+    {
+      "title": "必备资料20仙侠类题材作品的创作要点及卖点",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "必备资料20仙侠类题材作品的创作要点及卖点-17833e47",
+        "path": "sources/必备资料20仙侠类题材作品的创作要点及卖点-17833e47.md",
+        "type": "sources",
+        "size": 3078
+      },
+      "superseded": [
+        {
+          "id": "必备资料20仙侠类题材作品的创作要点及卖点-d1f6f9dd",
+          "path": "sources/必备资料20仙侠类题材作品的创作要点及卖点-d1f6f9dd.md",
+          "type": "sources",
+          "size": 1593
+        }
+      ],
+      "pages": [
+        {
+          "id": "必备资料20仙侠类题材作品的创作要点及卖点-17833e47",
+          "path": "sources/必备资料20仙侠类题材作品的创作要点及卖点-17833e47.md",
+          "size_bytes": 3082,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料20仙侠类题材作品的创作要点及卖点-17833e47.md",
+          "page_type": "sources",
+          "body_size": 3078,
+          "first_paragraph": "## 来源元数据\n\n来源：飞书云文档；平台：飞书；URL：https://www.feishu.cn/docx/CpH1dE0lkoCTjHxZQv1c8TzInYf；下载时间：2026-04-14 13:50:01；发布组织：北京圣东方国信科技有限公司；任务ID：本次摄取任务。\n\n## 转录质量\n\n原始Markdown转录，文本可读性良好；正文存在流派编号重复（“2、星际寻宝流”连续出现两次）及"
+        },
+        {
+          "id": "必备资料20仙侠类题材作品的创作要点及卖点-d1f6f9dd",
+          "path": "sources/必备资料20仙侠类题材作品的创作要点及卖点-d1f6f9dd.md",
+          "size_bytes": 1597,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料20仙侠类题材作品的创作要点及卖点-d1f6f9dd.md",
+          "page_type": "sources",
+          "body_size": 1593,
+          "first_paragraph": "## 来源元数据\n\n来源: 飞书云文档, URL: https://www.feishu.cn/docx/CpH1dE0lkoCTjHxZQv1c8TzInYf, 下载时间: 2026-04-14 13:50:01, 发布组织: 北京圣东方国信科技有限公司\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n本文讨论了仙侠类题材作品的创作要点，包括仙侠与玄幻的区别、长期目标与短期目标的重要性、"
+        }
+      ]
+    },
+    {
+      "title": "必备资料22期待感让你的作品能够引人入胜1",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "必备资料22期待感让你的作品能够引人入胜1-81333cd3",
+        "path": "sources/必备资料22期待感让你的作品能够引人入胜1-81333cd3.md",
+        "type": "sources",
+        "size": 2849
+      },
+      "superseded": [
+        {
+          "id": "必备资料22期待感让你的作品能够引人入胜1-3deff6a3",
+          "path": "sources/必备资料22期待感让你的作品能够引人入胜1-3deff6a3.md",
+          "type": "sources",
+          "size": 1738
+        }
+      ],
+      "pages": [
+        {
+          "id": "必备资料22期待感让你的作品能够引人入胜1-81333cd3",
+          "path": "sources/必备资料22期待感让你的作品能够引人入胜1-81333cd3.md",
+          "size_bytes": 2853,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料22期待感让你的作品能够引人入胜1-81333cd3.md",
+          "page_type": "sources",
+          "body_size": 2849,
+          "first_paragraph": "## 来源元数据\n\n来源: raw\\sources\\01_新手入门\\必备资料22期待感让你的作品能够引人入胜1.md；平台: 未提供；URL: 未提供；下载时间: 见原始文件头部；发布组织: 未提供；任务 ID: 必备资料22期待感让你的作品能够引人入胜1-81333cd3。\n\n## 转录质量\n\n人工整理的培训讲稿转录，整体可读性良好；个别段落存在断行、标点和措辞不完整现象，但不影响主要观点理解。"
+        },
+        {
+          "id": "必备资料22期待感让你的作品能够引人入胜1-3deff6a3",
+          "path": "sources/必备资料22期待感让你的作品能够引人入胜1-3deff6a3.md",
+          "size_bytes": 1742,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料22期待感让你的作品能够引人入胜1-3deff6a3.md",
+          "page_type": "sources",
+          "body_size": 1738,
+          "first_paragraph": "## 来源元数据\n\n来源: 未知线上培训; 平台: 未知; 作者: 未知; URL: 无; 获取时间: 无; 任务ID: 无\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n本文是网文写作培训内容，核心讲解如何通过‘期待感’让作品引人入胜。作者提出四种引人入胜的手法：伏笔提醒、连环伏笔、误导诱导、预先给予好处，并强调不断强化读者期待感是吸引读者追读的关键。\n\n## 关键观点\n\n- 1. 引"
+        }
+      ]
+    },
+    {
+      "title": "必备资料36架空历史的创作要点",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "必备资料36架空历史的创作要点-e4d43b-975eb72a",
+        "path": "sources/必备资料36架空历史的创作要点-e4d43b-975eb72a.md",
+        "type": "sources",
+        "size": 2601
+      },
+      "superseded": [
+        {
+          "id": "必备资料36架空历史的创作要点-e160cf6c",
+          "path": "sources/必备资料36架空历史的创作要点-e160cf6c.md",
+          "type": "sources",
+          "size": 2385
+        }
+      ],
+      "pages": [
+        {
+          "id": "必备资料36架空历史的创作要点-e4d43b-975eb72a",
+          "path": "sources/必备资料36架空历史的创作要点-e4d43b-975eb72a.md",
+          "size_bytes": 2605,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料36架空历史的创作要点-e4d43b-975eb72a.md",
+          "page_type": "sources",
+          "body_size": 2601,
+          "first_paragraph": "## 来源元数据\n\n来源平台：飞书云文档；来源组织：北京圣东方国信科技有限公司；URL：https://www.feishu.cn/docx/CO4PdjMaOoROytx4pxmcO4nenUh；下载时间：2026-04-14 13:50:52；原始文件：raw\\\\sources\\\\01_新手入门\\\\必备资料36架空历史的创作要点_e4d43b.md；任务ID：必备资料36架空历史的创作要点-e"
+        },
+        {
+          "id": "必备资料36架空历史的创作要点-e160cf6c",
+          "path": "sources/必备资料36架空历史的创作要点-e160cf6c.md",
+          "size_bytes": 2389,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料36架空历史的创作要点-e160cf6c.md",
+          "page_type": "sources",
+          "body_size": 2385,
+          "first_paragraph": "## 来源元数据\n\n来源: raw\\sources\\01_新手入门\\必备资料36架空历史的创作要点.md；平台: 未提供；发布组织: 未提供；作者: 未提供；URL: 未提供；下载时间: 见原始文件头部；任务 ID: 必备资料36架空历史的创作要点-e160cf6c。\n\n## 转录质量\n\n人工整理的中文培训讲稿，文本整体可读性良好；未见OCR或ASR标记。\n\n## 摘要\n\n本文区分了历史小说与架空"
+        }
+      ]
+    },
+    {
+      "title": "必备资料写作大纲的十个步骤",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "必备资料写作大纲的十个步骤-0faefe-b2a1fd52",
+        "path": "sources/必备资料写作大纲的十个步骤-0faefe-b2a1fd52.md",
+        "type": "sources",
+        "size": 2720
+      },
+      "superseded": [
+        {
+          "id": "必备资料写作大纲的十个步骤-2a40fe04",
+          "path": "sources/必备资料写作大纲的十个步骤-2a40fe04.md",
+          "type": "sources",
+          "size": 2661
+        }
+      ],
+      "pages": [
+        {
+          "id": "必备资料写作大纲的十个步骤-0faefe-b2a1fd52",
+          "path": "sources/必备资料写作大纲的十个步骤-0faefe-b2a1fd52.md",
+          "size_bytes": 2724,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料写作大纲的十个步骤-0faefe-b2a1fd52.md",
+          "page_type": "sources",
+          "body_size": 2720,
+          "first_paragraph": "## 来源元数据\n\n来源：飞书云文档；URL：https://www.feishu.cn/docx/XPC9dD9XUo52yuxFpvnc1lLCnRd；发布组织：北京圣东方国信科技有限公司；下载时间：2026-04-14 14:02:59；文档最新修改时间：04月13日。\n\n## 转录质量\n\nMarkdown文本转录，非OCR或ASR；整体可读性良好。原文在“描述主线情节”部分于竞技小说案例处"
+        },
+        {
+          "id": "必备资料写作大纲的十个步骤-2a40fe04",
+          "path": "sources/必备资料写作大纲的十个步骤-2a40fe04.md",
+          "size_bytes": 2665,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料写作大纲的十个步骤-2a40fe04.md",
+          "page_type": "sources",
+          "body_size": 2661,
+          "first_paragraph": "## 来源元数据\n\n来源：文件《必备资料写作大纲的十个步骤.md》；平台/URL：未提供；格式：Markdown；发布组织：未提供；下载时间：见原始文件头部；任务ID：本次摄取任务未提供。\n\n## 转录质量\n\n人工撰写或整理的 Markdown 文本；正文结构完整，编号清晰，可读性高；未发现 OCR 或 ASR 转录痕迹。\n\n## 摘要\n\n本文为新手作者总结网络小说大纲的十步写法，重点面向玄幻、奇"
+        }
+      ]
+    },
+    {
+      "title": "必备资料环境描写",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "必备资料环境描写-7a4f89-1476f8f2",
+        "path": "sources/必备资料环境描写-7a4f89-1476f8f2.md",
+        "type": "sources",
+        "size": 1886
+      },
+      "superseded": [
+        {
+          "id": "必备资料环境描写-9d9f2bc4",
+          "path": "sources/必备资料环境描写-9d9f2bc4.md",
+          "type": "sources",
+          "size": 1353
+        }
+      ],
+      "pages": [
+        {
+          "id": "必备资料环境描写-7a4f89-1476f8f2",
+          "path": "sources/必备资料环境描写-7a4f89-1476f8f2.md",
+          "size_bytes": 1890,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料环境描写-7a4f89-1476f8f2.md",
+          "page_type": "sources",
+          "body_size": 1886,
+          "first_paragraph": "## 来源元数据\n\n来源：飞书云文档（https://www.feishu.cn/docx/Dnt9drT9PoGhhjxSSHocNPKcnHe）；下载时间：2026-04-14 14:14:06；发布组织：北京圣东方国信科技有限公司\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n本文收集了24个环境描写片段，涵盖春、夏、秋、冬、晨、夜、雨、雪等不同场景，综合运用拟人、比喻、感官描写等"
+        },
+        {
+          "id": "必备资料环境描写-9d9f2bc4",
+          "path": "sources/必备资料环境描写-9d9f2bc4.md",
+          "size_bytes": 1357,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料环境描写-9d9f2bc4.md",
+          "page_type": "sources",
+          "body_size": 1353,
+          "first_paragraph": "## 来源元数据\n\n来源: 文件 raw\\sources\\01_新手入门\\必备资料环境描写.md; 格式: Markdown; 下载时间: 见原始文件头部; 任务ID: 未提供\n\n## 转录质量\n\n人工撰写, 可读性高\n\n## 摘要\n\n本文档包含25段环境描写和19段原始森林描写，涵盖春雨、雪景、秋夜、田野、校园、群山等多种场景，为写作提供丰富的环境描写素材。\n\n## 关键观点\n\n- 春雨描写运用"
+        }
+      ]
+    },
+    {
+      "title": "必备资料第1章大纲",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "必备资料第1章大纲-50ea4b-5234d4f6",
+        "path": "sources/必备资料第1章大纲-50ea4b-5234d4f6.md",
+        "type": "sources",
+        "size": 2737
+      },
+      "superseded": [
+        {
+          "id": "必备资料第1章大纲-f9f72ffc",
+          "path": "sources/必备资料第1章大纲-f9f72ffc.md",
+          "type": "sources",
+          "size": 1355
+        }
+      ],
+      "pages": [
+        {
+          "id": "必备资料第1章大纲-50ea4b-5234d4f6",
+          "path": "sources/必备资料第1章大纲-50ea4b-5234d4f6.md",
+          "size_bytes": 2741,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料第1章大纲-50ea4b-5234d4f6.md",
+          "page_type": "sources",
+          "body_size": 2737,
+          "first_paragraph": "## 来源元数据\n\n来源：飞书云文档；URL：https://www.feishu.cn/docx/TkrsdOFuKoiC5sxoxdqcY661nPf；文件：raw\\\\sources\\\\01_新手入门\\\\必备资料第1章大纲_50ea4b.md；下载时间：2026-04-14 14:14:23；发布组织：北京圣东方国信科技有限公司；任务ID：必备资料第1章大纲-50ea4b-5234d4f6\n\n"
+        },
+        {
+          "id": "必备资料第1章大纲-f9f72ffc",
+          "path": "sources/必备资料第1章大纲-f9f72ffc.md",
+          "size_bytes": 1359,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料第1章大纲-f9f72ffc.md",
+          "page_type": "sources",
+          "body_size": 1355,
+          "first_paragraph": "## 来源元数据\n\n来源: 文件路径 raw\\sources\\01_新手入门\\必备资料第1章大纲.md; 格式: Markdown; 下载时间: 见原始文件头部; 发布组织: 未知（可能为网络写作教程）\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n这份大纲详细介绍了小说《痕印》的世界观设定，包括五印体系、四大隐世家族、修炼等级、主线剧情、分卷大纲等，是一部典型的东方玄幻小说创作蓝图。\n"
+        }
+      ]
+    },
+    {
+      "title": "卅无颜6月27日网文写手写作技巧指导精理稿",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿-0e96ce72",
+        "path": "sources/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿-0e96ce72.md",
+        "type": "sources",
+        "size": 1771
+      },
+      "superseded": [
+        {
+          "id": "必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿-f9c0da-0c9d60a0",
+          "path": "sources/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿-f9c0da-0c9d60a0.md",
+          "type": "sources",
+          "size": 1759
+        }
+      ],
+      "pages": [
+        {
+          "id": "必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿-0e96ce72",
+          "path": "sources/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿-0e96ce72.md",
+          "size_bytes": 1775,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿-0e96ce72.md",
+          "page_type": "sources",
+          "body_size": 1771,
+          "first_paragraph": "## 来源元数据\n\n来源：QQ群整理；作者：卅无颜；格式：Markdown；日期：6月27日；任务ID：见原始文件头部\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n本文由编辑卅无颜分享网文写作技巧，重点讲解如何避免啰嗦（自述、啰嗦），写好开篇（背景环境、矛盾、主角设定），增强代入感，并介绍网站选择、无线概念、签约上架流程等。\n\n## 关键观点\n\n- 啰嗦与自述的定义及例子：引用《剑气冲"
+        },
+        {
+          "id": "必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿-f9c0da-0c9d60a0",
+          "path": "sources/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿-f9c0da-0c9d60a0.md",
+          "size_bytes": 1763,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿-f9c0da-0c9d60a0.md",
+          "page_type": "sources",
+          "body_size": 1759,
+          "first_paragraph": "## 来源元数据\n\n来源：飞书云文档（https://www.feishu.cn/docx/Ck2Hdo3aWoRdMOxskWac9uWNn3e）；下载时间：2026-04-14 13:49:20；发布组织：北京圣东方国信科技有限公司；任务ID：无\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n本文是网文写手卅无颜就网文写作技巧的分享，重点指出自述和啰嗦是常见写作毛病，通过具体例子说明"
+        }
+      ]
+    },
+    {
+      "title": "新人须知13网络文学创作的几个误区",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "新人须知13网络文学创作的几个误区-fce19a9f",
+        "path": "sources/新人须知13网络文学创作的几个误区-fce19a9f.md",
+        "type": "sources",
+        "size": 1703
+      },
+      "superseded": [
+        {
+          "id": "新人须知13网络文学创作的几个误区-c397d6-5cd58578",
+          "path": "sources/新人须知13网络文学创作的几个误区-c397d6-5cd58578.md",
+          "type": "sources",
+          "size": 1559
+        }
+      ],
+      "pages": [
+        {
+          "id": "新人须知13网络文学创作的几个误区-fce19a9f",
+          "path": "sources/新人须知13网络文学创作的几个误区-fce19a9f.md",
+          "size_bytes": 1707,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\新人须知13网络文学创作的几个误区-fce19a9f.md",
+          "page_type": "sources",
+          "body_size": 1703,
+          "first_paragraph": "## 来源元数据\n\n来源: 原始文件 sources/01_新手入门/新人须知13网络文学创作的几个误区.md; 格式: Markdown; 下载时间: 见原始文件头部; 发布组织: 飞库（推测）\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n本文讨论了网络文学创作的六个常见误区：基础误区、细节描写的性价比、单纯追求情节速度而忽视质量、过度依赖读者评论、修改过度导致灵感流失、以及成绩不好"
+        },
+        {
+          "id": "新人须知13网络文学创作的几个误区-c397d6-5cd58578",
+          "path": "sources/新人须知13网络文学创作的几个误区-c397d6-5cd58578.md",
+          "size_bytes": 1563,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\新人须知13网络文学创作的几个误区-c397d6-5cd58578.md",
+          "page_type": "sources",
+          "body_size": 1559,
+          "first_paragraph": "## 来源元数据\n\n来源: https://www.feishu.cn/docx/EcYVdk4rwoLBF5x1zWtcH5Fqnng\n下载时间: 2026-04-14 14:20:25\n发布组织: 北京圣东方国信科技有限公司（飞书云文档）\n任务ID: 新人须知13网络文学创作的几个误区_c397d6\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n本文讨论了网络文学创作中的两个误区：一"
+        }
+      ]
+    },
+    {
+      "title": "新人须知18创作会经常遇到的问题",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "新人须知18创作会经常遇到的问题-b40880e7",
+        "path": "sources/新人须知18创作会经常遇到的问题-b40880e7.md",
+        "type": "sources",
+        "size": 2615
+      },
+      "superseded": [
+        {
+          "id": "新人须知18创作会经常遇到的问题-056c32-a72c8971",
+          "path": "sources/新人须知18创作会经常遇到的问题-056c32-a72c8971.md",
+          "type": "sources",
+          "size": 1691
+        }
+      ],
+      "pages": [
+        {
+          "id": "新人须知18创作会经常遇到的问题-b40880e7",
+          "path": "sources/新人须知18创作会经常遇到的问题-b40880e7.md",
+          "size_bytes": 2619,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\新人须知18创作会经常遇到的问题-b40880e7.md",
+          "page_type": "sources",
+          "body_size": 2615,
+          "first_paragraph": "## 来源元数据\n\n来源类型：UGC教程文档 | 平台：网络写手交流社区 | 作者：匿名 | 获取时间：2026-08-01 | 任务ID：kb-20260801-b40880e7\n\n## 转录质量\n\n人工撰写，可读性评级：高（结构清晰，段落分明）\n\n## 摘要\n\n本文总结了新人作者在创作网文时常见的六个问题，涵盖了文字规范、情节设计、人物描写、开篇技巧、更新节奏和对话流写法，强调干净整洁的文字、"
+        },
+        {
+          "id": "新人须知18创作会经常遇到的问题-056c32-a72c8971",
+          "path": "sources/新人须知18创作会经常遇到的问题-056c32-a72c8971.md",
+          "size_bytes": 1695,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\新人须知18创作会经常遇到的问题-056c32-a72c8971.md",
+          "page_type": "sources",
+          "body_size": 1691,
+          "first_paragraph": "## 来源元数据\n\n来源：飞书云文档，链接：https://www.feishu.cn/docx/RGPJdRY3HoPKKQxqrhmcwVfjnBd，下载时间：2026-04-14 14:21:11，发布组织：北京圣东方国信科技有限公司\n\n## 转录质量\n\n人工撰写，可读性高\n\n## 摘要\n\n本文是面向网文新人的培训总结，强调两点：一是新人应按照出版要求规范文字（减少错字、长段长句），二是避免"
+        }
+      ]
+    },
+    {
+      "title": "新人须知36架空历史的创作要点",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "新人须知36架空历史的创作要点-155599a7",
+        "path": "sources/新人须知36架空历史的创作要点-155599a7.md",
+        "type": "sources",
+        "size": 2446
+      },
+      "superseded": [
+        {
+          "id": "新人须知36架空历史的创作要点-d0bb05-f4bdef79",
+          "path": "sources/新人须知36架空历史的创作要点-d0bb05-f4bdef79.md",
+          "type": "sources",
+          "size": 2108
+        }
+      ],
+      "pages": [
+        {
+          "id": "新人须知36架空历史的创作要点-155599a7",
+          "path": "sources/新人须知36架空历史的创作要点-155599a7.md",
+          "size_bytes": 2450,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\新人须知36架空历史的创作要点-155599a7.md",
+          "page_type": "sources",
+          "body_size": 2446,
+          "first_paragraph": "## 来源元数据\n\n来源: raw/sources/01_新手入门/新人须知36架空历史的创作要点.md; 格式: Markdown; 下载时间: 见原始文件头部; 任务ID: 155599a7\n\n## 转录质量\n\n人工撰写; 可读性评级: 高\n\n## 摘要\n\n本文是一篇网络文学写作培训讲稿，系统讲解了架空历史类小说的两大分支——历史类与架空类的定义、区别、创作要点及常见分类。内容涵盖了历史类小说"
+        },
+        {
+          "id": "新人须知36架空历史的创作要点-d0bb05-f4bdef79",
+          "path": "sources/新人须知36架空历史的创作要点-d0bb05-f4bdef79.md",
+          "size_bytes": 2112,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\新人须知36架空历史的创作要点-d0bb05-f4bdef79.md",
+          "page_type": "sources",
+          "body_size": 2108,
+          "first_paragraph": "## 来源元数据\n\n来源: https://www.feishu.cn/docx/QYYhdQxODoP5TlxjVXbcKwjsnjd (飞书云文档); 发布组织: 北京圣东方国信科技有限公司; 下载时间: 2026-04-14 14:26:19; 任务ID: d0bb05\n\n## 转录质量\n\n人工撰写/直接复制; 可读性评级: 优\n\n## 摘要\n\n本文档是网络小说写作培训材料，重点讲解了历史小"
+        }
+      ]
+    },
+    {
+      "title": "新人须知4如果让你优化你的前六万字作品你打算从几个方面入手",
+      "count": 2,
+      "rule": "card-id-suffix-collision",
+      "recommended_action": "supersede",
+      "rationale": "Repeated ingestion created card-id variants of same title; supersede smaller with the largest body.",
+      "canonical": {
+        "id": "新人须知4如果让你优化你的前六万字作品你打算从几个方面入手-09e8cb58",
+        "path": "sources/新人须知4如果让你优化你的前六万字作品你打算从几个方面入手-09e8cb58.md",
+        "type": "sources",
+        "size": 2608
+      },
+      "superseded": [
+        {
+          "id": "新人须知4如果让你优化你的前六万字作品你打算从几个方面入手-acc3e4-00ed8763",
+          "path": "sources/新人须知4如果让你优化你的前六万字作品你打算从几个方面入手-acc3e4-00ed8763.md",
+          "type": "sources",
+          "size": 2325
+        }
+      ],
+      "pages": [
+        {
+          "id": "新人须知4如果让你优化你的前六万字作品你打算从几个方面入手-09e8cb58",
+          "path": "sources/新人须知4如果让你优化你的前六万字作品你打算从几个方面入手-09e8cb58.md",
+          "size_bytes": 2612,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\新人须知4如果让你优化你的前六万字作品你打算从几个方面入手-09e8cb58.md",
+          "page_type": "sources",
+          "body_size": 2608,
+          "first_paragraph": "## 来源元数据\n\n来源: 新人须知4如果让你优化你的前六万字作品你打算从几个方面入手.md; 格式: Markdown; 下载时间: 见原始文件头部\n\n## 转录质量\n\n人工撰写; 可读性: 高\n\n## 摘要\n\n本文提供了优化网络小说开篇六万字的具体方法论。作者强调优化是整体性重构，而非局部修补，并提出了六步优化法：提取纲要、埋设伏笔、强化人物、精简形容词、处理基础错误、设置后续悬念。核心目标是"
+        },
+        {
+          "id": "新人须知4如果让你优化你的前六万字作品你打算从几个方面入手-acc3e4-00ed8763",
+          "path": "sources/新人须知4如果让你优化你的前六万字作品你打算从几个方面入手-acc3e4-00ed8763.md",
+          "size_bytes": 2329,
+          "absolute_path": "D:\\201\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki\\sources\\新人须知4如果让你优化你的前六万字作品你打算从几个方面入手-acc3e4-00ed8763.md",
+          "page_type": "sources",
+          "body_size": 2325,
+          "first_paragraph": "## 来源元数据\n\n来源: 飞书云文档; URL: https://www.feishu.cn/docx/DQk4dcMzGoniGVxAFWDcdSRUnc1; 下载时间: 2026-04-14 14:27:32; 发布组织: 北京圣东方国信科技有限公司; 任务ID: 01_新手入门\\新人须知4如果让你优化你的前六万字作品你打算从几个方面入手_acc3e4.md\n\n## 转录质量\n\n人工撰写; "
+        }
+      ]
+    }
+  ],
+  "operator_notes": "alias    — register aliases via src.wiki.features.slug_aliases.SlugAliasRegistry; no page content changes.\nsupersede— move smaller pages to wiki/_stubs/<id>.md and add a 'superseded_by: <canonical_id>' frontmatter field; preserves history.\ndisambiguate — rename one or both pages' titles to differentiate; manual review required to choose non-ambiguous titles.\nmerge    — manually combine body content; the chosen canonical absorbs the other."
+}
