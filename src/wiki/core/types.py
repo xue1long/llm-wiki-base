@@ -1,4 +1,5 @@
 """Wiki core types — page model, events, tasks, review items."""
+import datetime
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
@@ -24,6 +25,105 @@ def _format_legacy_evidence(item: dict) -> str:
     if doc_id:
         return str(doc_id)
     return str(item)
+
+
+def _coerce_ts_ms(value, default: int = 0) -> int:
+    """Coerce a YAML-loaded timestamp value to Unix ms.
+
+    V5 schema (5.0.0): on-disk representation is YAML-native ISO 8601
+    (``created_at: 2026-08-10T12:34:56``). PyYAML implicit resolver
+    parses this to ``datetime.datetime``. Older pages (pre-5.0.0) and
+    some legacy writers may still carry Unix ms integers. This helper
+    accepts all shapes and returns a normalized Unix ms ``int`` so
+    downstream consumers (heat, lint, vector store) can keep their
+    ms-based arithmetic without re-coercing.
+
+    Accepts:
+    - ``int`` — pass through (legacy ms int or already-coerced)
+    - ``float`` — truncate (legacy ms with .0)
+    - ``datetime.datetime`` — convert via ``.timestamp() * 1000``
+    - ``str`` — numeric (``"1786291200000"``) or ISO 8601
+      (``"2026-08-10"``, ``"2026-08-10T12:34:56"``, with optional Z / +offset)
+    - ``None`` / empty — return ``default``
+    Rejects: ``bool`` (int subclass trap), unparseable strings.
+    """
+    if value is None or value == "":
+        return default
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, datetime.datetime):
+        # Pre-tag naive datetimes as UTC so .timestamp() returns the
+        # correct epoch regardless of platform / local-time quirk.
+        # (On Windows, naive .timestamp() silently returns a different
+        # value than the equivalent UTC-tagged datetime.)
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=datetime.timezone.utc)
+        return int(value.timestamp() * 1000)
+    if isinstance(value, str):
+        s = value.strip().strip('"').strip("'")
+        if not s:
+            return default
+        if s.isdigit():
+            return int(s)
+        try:
+            dt = datetime.datetime.fromisoformat(s.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            return int(dt.timestamp() * 1000)
+        except ValueError:
+            return default
+    return default
+
+
+def _to_iso_dt(value):
+    """Render a timestamp value as an aware ``datetime`` for V5 frontmatter.
+
+    Used by ``WikiPage.to_frontmatter_dict()`` to enforce V5 schema:
+    on-disk timestamps are YAML-native ISO 8601 (``!!timestamp``), written
+    by PyYAML's default ``represent_datetime`` (which emits the value
+    unquoted) and parsed back to ``datetime`` by PyYAML's implicit
+    resolver on load.
+
+    Accepts:
+    - ``datetime`` — pass through (re-tag naive as UTC for round-trip)
+    - ``int`` / ``float`` — treated as Unix ms; convert via UTC datetime
+    - ``str`` — parse as ISO 8601
+    - ``None`` / empty / ``0`` — ``None`` (writer omits or fills blank)
+
+    Returns ``datetime`` or ``None``. The writer is responsible for
+    translating ``None`` into whatever on-disk sentinel V5 chose
+    (currently the empty string, which PyYAML emits as ``''`` and parses
+    back as ``None``, then ``_coerce_ts_ms(None, default=0)`` returns 0).
+    """
+    if value is None or value == "" or value == 0:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, datetime.datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=datetime.timezone.utc)
+        return value
+    if isinstance(value, (int, float)):
+        try:
+            return datetime.datetime.fromtimestamp(int(value) / 1000, tz=datetime.timezone.utc)
+        except (OverflowError, OSError, ValueError):
+            return None
+    if isinstance(value, str):
+        s = value.strip().strip('"').strip("'")
+        if not s:
+            return None
+        try:
+            dt = datetime.datetime.fromisoformat(s.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            return dt
+        except ValueError:
+            return None
+    return None
 
 
 class PageType(str, Enum):
@@ -92,16 +192,24 @@ class WikiPage:
     valid_to: int | None = None
 
     def to_frontmatter_dict(self) -> dict:
-        """Serialize the page to a V4 8-key strict-whitelist frontmatter dict.
+        """Serialize the page to a V5 strict-whitelist frontmatter dict.
 
-        V4 schema (per docs/architecture/novel-wiki-fields-template-2026-08-31.md):
+        V5 schema (per docs/architecture/novel-wiki-fields-template-2026-08-31.md,
+        bumped from V4 4.0.0 → V5 5.0.0 in commit g-docs-bump):
             id, title, type, relations, tags, sources, created_at, updated_at
+
+        V5 change: ``created_at`` / ``updated_at`` are emitted as ISO 8601
+        strings (rendered via ``_to_iso_str``). PyYAML's default
+        ``represent_datetime`` writes ISO timestamps unquoted, and the
+        implicit resolver parses them back to ``datetime`` on load.
+        Legacy ms int / quoted ISO pages are still readable via
+        ``_coerce_ts_ms`` in ``from_dict``.
 
         All other fields (grade/processing_depth/heat/workflow_state/
         decision_record/evidence_refs/valid_from/valid_to/_ko_extra/...) are
         kept on the in-memory dataclass for backward compatibility with code
         that constructs WikiPage objects directly, but are NOT written to
-        disk. The 8 V4 keys are the only contract between WikiPage and the
+        disk. The 8 V5 keys are the only contract between WikiPage and the
         on-disk frontmatter.
         """
         return {
@@ -109,8 +217,8 @@ class WikiPage:
             "title": self.title,
             "type": self.type.value,
             "sources": list(self.sources),
-            "created_at": self.created_at,
-            "updated_at": self.updated_at,
+            "created_at": _to_iso_dt(self.created_at),
+            "updated_at": _to_iso_dt(self.updated_at),
             "relations": [r.to_dict() for r in self.relations],
             "tags": list(self.tags),
         }
@@ -123,27 +231,33 @@ class WikiPage:
             title=d["title"],
             type=PageType(d["type"]),
             sources=list(d.get("sources", [])),
-            created_at=d.get("created_at", 0),
-            updated_at=d.get("updated_at", 0),
+            created_at=_coerce_ts_ms(d.get("created_at")),
+            updated_at=_coerce_ts_ms(d.get("updated_at")),
             body=body,
             relations=[Relation.from_dict(r) for r in d.get("relations", []) if isinstance(r, dict)],
             grade=d.get("grade", "B"),
             processing_depth=d.get("processing_depth", "concept"),
             is_immutable=d.get("is_immutable", False),
             heat=d.get("heat", 50),
-            last_used_at=d.get("last_used_at", 0),
-            zombie_since=d.get("zombie_since"),
+            last_used_at=_coerce_ts_ms(d.get("last_used_at")),
+            zombie_since=(
+                _coerce_ts_ms(d["zombie_since"]) if d.get("zombie_since") is not None else None
+            ),
             tags=list(d.get("tags", [])),
             category=d.get("category", ""),
             taxonomy_sub=d.get("taxonomy_sub", ""),
             related_entities=list(d.get("related_entities", [])),
             custom_type=str(d.get("custom_type", "")),
             workflow_state=str(d.get("workflow_state", "draft")),
-            verified_at=int(d.get("verified_at", 0)),
+            verified_at=_coerce_ts_ms(d.get("verified_at")),
             decision_record=d.get("decision_record"),
             evidence_refs=list(d.get("evidence_refs", []) or []),
-            valid_from=d.get("valid_from"),
-            valid_to=d.get("valid_to"),
+            valid_from=(
+                _coerce_ts_ms(d["valid_from"]) if d.get("valid_from") is not None else None
+            ),
+            valid_to=(
+                _coerce_ts_ms(d["valid_to"]) if d.get("valid_to") is not None else None
+            ),
         )
         # S1: restore _ko_extra for round-trip (capture source_status, etc.)
         ko_extra = d.get("_ko_extra")
