@@ -577,6 +577,19 @@ async def generate_ingest(
     The caller is responsible for calling ``commit_ingest`` to persist.
     """
     # Resolve schema registry once and pass to all downstream calls.
+    from ..config import settings
+    from .task_contract import TaskContext
+    _snapshot_data = getattr(ingest_snapshot, "template_snapshot", {}) or {}
+    _task_context = TaskContext.create(
+        task_id,
+        source_path,
+        source_text,
+        template_version=_snapshot_data.get("template_version", "v1"),
+        contract_version=getattr(
+            ingest_snapshot, "pipeline_contract_version",
+            settings().task_contract_version,
+        ),
+    )
     if schema_registry is None:
         schema_registry = SchemaRegistry.from_project(paths.root)
     # Read schema/purpose text for prompt injection
@@ -1411,6 +1424,7 @@ async def generate_ingest(
         "missing_slugs": [
             {"slug": s, "referenced_by": [r]} for s, r in _missing_gaps
         ],
+        "task_context": _task_context,
     }
 
 

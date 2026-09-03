@@ -5,6 +5,7 @@ from src.kc.mainline import CandidateReviewer
 from src.pipeline.evidence_registry import EvidenceBlockRegistry
 from src.pipeline.text_preprocessing.api import preprocess_source
 from src.pipeline.ingest import _resolve_evidence_contract
+from src.config import settings
 
 
 def test_all_providers_default_to_v2_evidence_contract(monkeypatch):
@@ -15,6 +16,11 @@ def test_all_providers_default_to_v2_evidence_contract(monkeypatch):
 def test_explicit_evidence_contract_override_is_preserved(monkeypatch):
     monkeypatch.setenv("RUFLO_EVIDENCE_CONTRACT", "v1")
     assert _resolve_evidence_contract() == "v1"
+
+
+def test_task_contract_version_defaults_to_v1(monkeypatch):
+    monkeypatch.delenv("RUFLO_TASK_CONTRACT_VERSION", raising=False)
+    assert settings().task_contract_version == "v1"
 
 
 def test_reviewer_isolates_invalid_v2_claims():
