@@ -1,6 +1,7 @@
 """Test hooks and runtime resolution helpers for batch execution."""
 from __future__ import annotations
 
+import datetime
 import logging
 import os
 import subprocess
@@ -49,7 +50,7 @@ def _fake_generate(raw_rel: str) -> list:
 
     stem = Path(raw_rel).stem
     ph = " 待补充 " if os.environ.get("RUFLO_FAKE_PLACEHOLDER") == "1" else "内容"
-    now = int(time.time() * 1000)
+    now = datetime.datetime.now(datetime.timezone.utc)
     source_body = (
         "<!-- wiki-template-version: 2.0.0 -->\n<!-- wiki-template-type: source -->\n\n"
         "## 来源元数据\n\n- 路径: `{raw}`\n\n## 摘要\n\n摘要{ph}\n\n"

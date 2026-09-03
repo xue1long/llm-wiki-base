@@ -12,6 +12,7 @@ exception the buffered writes are dropped and the wiki is unchanged. If
 the caller also wraps us, the inner AtomicContext is a no-op (only the
 outer call to AtomicContext actually flushes on exit).
 """
+import datetime
 import logging
 import time
 
@@ -97,7 +98,7 @@ def cascade_delete(paths: WikiPaths, source_id: str) -> dict:
                 deleted_pages.append(page.id)
             else:
                 page.sources = new_sources
-                page.updated_at = _now_ms()
+                page.updated_at = _now_dt()
                 write_page(paths, page)
                 updated_pages.append(page.id)
 
@@ -127,3 +128,8 @@ def cascade_delete(paths: WikiPaths, source_id: str) -> dict:
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
+
+
+def _now_dt() -> datetime.datetime:
+    """Return aware UTC datetime for V5 schema writers."""
+    return datetime.datetime.now(datetime.timezone.utc)

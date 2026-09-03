@@ -37,7 +37,7 @@ def mark_page_verified(
     from datetime import datetime, timezone
 
     page.workflow_state = "verified"
-    page.verified_at = int(datetime.now(timezone.utc).timestamp() * 1000)
+    page.verified_at = datetime.now(timezone.utc)
     if audit_log:
         _logger.info(
             "mark_page_verified: page=%s user=%s -> verified",

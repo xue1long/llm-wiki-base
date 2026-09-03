@@ -1,4 +1,5 @@
 """Heat decay tracker for wiki pages."""
+import datetime
 import json
 import time
 from dataclasses import dataclass
@@ -46,7 +47,7 @@ class HeatTracker:
         was_zombie = page.heat == 0 and page.zombie_since is not None
         new_heat = min(100, max(0, page.heat + delta))
         page.heat = new_heat
-        page.last_used_at = int(time.time() * 1000)
+        page.last_used_at = datetime.datetime.now(datetime.timezone.utc)
         page.zombie_since = None
         write_page(self.paths, page)
         self._log(page_id, delta, reason)
@@ -72,7 +73,7 @@ class HeatTracker:
                     page.heat = max(0, page.heat - HEAT_DECAY_AMOUNT)
                     events.append(HeatEvent(page.id, page.heat - old_heat, "decay", now))
                     if page.heat == 0 and page.zombie_since is None:
-                        page.zombie_since = now
+                        page.zombie_since = datetime.datetime.now(datetime.timezone.utc)
                         ZombieDetector.generate_staging_draft(self.paths, page)
                         if _decay_bridge is not None:
                             _decay_bridge.on_heat_decayed(page.id, 0, True)
@@ -105,7 +106,7 @@ def decay(page: "WikiPage", now: int | None = None) -> "WikiPage":
     if last_activity > 0 and last_activity < threshold and page.heat > 0:
         page.heat = max(0, page.heat - HEAT_DECAY_AMOUNT)
         if page.heat == 0 and page.zombie_since is None:
-            page.zombie_since = now
+            page.zombie_since = datetime.datetime.now(datetime.timezone.utc)
     return page
 
 

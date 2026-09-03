@@ -22,6 +22,7 @@ Safety nets:
 
 from __future__ import annotations
 
+import datetime
 import logging
 import re
 from enum import Enum
@@ -196,7 +197,7 @@ async def _regen_page(
         return None
 
     new_body = response.content if hasattr(response, "content") else str(response)
-    now_ms = int(time.time() * 1000)
+    now_dt = datetime.datetime.now(datetime.timezone.utc)
 
     return WikiPage(
         id=page.id,
@@ -209,7 +210,7 @@ async def _regen_page(
         relations=list(page.relations),
         tags=list(page.tags),
         created_at=page.created_at,
-        updated_at=now_ms,
+        updated_at=now_dt,
         category=page.category,
         taxonomy_sub=page.taxonomy_sub,
     )

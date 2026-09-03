@@ -4,6 +4,7 @@ Old tools (ruflo_kb_search, ruflo_kb_read_file, ruflo_kb_files, ruflo_kb_ingest,
 ruflo_kb_reviews, ruflo_kb_projects, ruflo_kb_set_project, ruflo_kb_status)
 remain available and are marked deprecated.
 """
+import datetime
 import json
 
 from mcp.types import Tool, TextContent
@@ -324,7 +325,7 @@ def _find_and_update_page(object_id: str, changes: dict):
             page.body = changes["content"]
         if "grade" in changes:
             page.grade = changes["grade"]
-        page.updated_at = int(__import__("time").time() * 1000)
+        page.updated_at = datetime.datetime.now(datetime.timezone.utc)
         write_page(_wiki_paths, page)
         return page
     except Exception:

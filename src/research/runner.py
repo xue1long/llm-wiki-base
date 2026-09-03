@@ -1,6 +1,7 @@
 """Deep Research runner — LLM-driven topic + parallel web search + synthesis."""
 import asyncio
 import json
+import datetime
 import time
 import os
 
@@ -128,8 +129,8 @@ async def run_deep_research(
         "title": f"Research: {topic}",
         "type": "synthesis",
         "sources": [s["url"] for s in sources[:5]],
-        "created_at": int(time.time() * 1000),
-        "updated_at": int(time.time() * 1000),
+        "created_at": datetime.datetime.now(datetime.timezone.utc),
+        "updated_at": datetime.datetime.now(datetime.timezone.utc),
         "grade": "B",
         "processing_depth": "concept",
         "is_immutable": False,

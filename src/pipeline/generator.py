@@ -582,6 +582,7 @@ async def unified_generate(
         stacklevel=2,
     )
     import time as _time
+    import datetime
     import re as _re
 
     _truncated = False
@@ -694,7 +695,7 @@ async def unified_generate(
             "filled with placeholder: %s", missing_summary,
         )
 
-    now = int(_time.time() * 1000)
+    now = datetime.datetime.now(datetime.timezone.utc)
     pages: list[WikiPage] = []
     _source_title_to_slug: dict[str, str] = {}
     if source_slug_map:
@@ -953,6 +954,7 @@ async def generate_from_candidate(
     candidate; only body content comes from the LLM.
     """
     import time as _time
+    import datetime
 
     # Format claims for the prompt
     _claims_lines: list[str] = []
@@ -1072,7 +1074,7 @@ async def generate_from_candidate(
             "filled with placeholder: %s", missing_summary,
         )
 
-    now = int(_time.time() * 1000)
+    now = datetime.datetime.now(datetime.timezone.utc)
     pages: list[WikiPage] = []
 
     # Build provenance payload from candidate evidence
@@ -1180,6 +1182,7 @@ async def generate_from_knowledge_object(
     applied after rendering.
     """
     import time as _time
+    import datetime
 
     # Format claims for the LLM prompt (same as generate_from_candidate)
     _claims_lines: list[str] = []
@@ -1297,7 +1300,7 @@ async def generate_from_knowledge_object(
             "filled with placeholder: %s", missing_summary,
         )
 
-    now = int(_time.time() * 1000)
+    now = datetime.datetime.now(datetime.timezone.utc)
     pages: list[WikiPage] = []
 
     # Build provenance payload from KO
@@ -1421,6 +1424,7 @@ async def generate(
     """
     import json
     import time
+    import datetime
 
     # 0. Resolve the 4 active templates for this project (bundled /
     #    user-global / project-local in priority order). Mapping needed
@@ -1577,7 +1581,7 @@ async def generate(
             if _stem:
                 _source_title_to_slug[_stem] = sl
 
-    now = int(time.time() * 1000)
+    now = datetime.datetime.now(datetime.timezone.utc)
     pages: list[WikiPage] = []
     for p in filled_pages:
         title = p.get("title", "")

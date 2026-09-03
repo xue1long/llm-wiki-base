@@ -29,6 +29,7 @@ getattr(_generator_module, "generate")). The compat shim that re-exports
 ``src.pipeline.pipeline`` is added in Task 10.
 """
 from __future__ import annotations
+import datetime
 import hashlib
 import json
 import logging
@@ -322,7 +323,7 @@ def finalize_generated_page(page: WikiPage, paths: WikiPaths, *,
     ``write_page()`` 只做结构校验与序列化，不在此改写人工页面。
     """
     if now is None:
-        now = int(__import__("time").time() * 1000)
+        now = datetime.datetime.now(datetime.timezone.utc)
     if page.grade not in ("A", "B", "C"):
         page.grade = "B"
     if page.processing_depth not in ("concept", "memory", "operation", "stub"):
@@ -363,7 +364,7 @@ def _normalize_generated_pages(
     except Exception:
         reg = None
 
-    now = int(__import__("time").time() * 1000)
+    now = datetime.datetime.now(datetime.timezone.utc)
     from src.wiki.features.gbrain_compat import (
         build_target_slugs, materialize_relations, rewrite_wikilinks,
     )
@@ -1160,8 +1161,8 @@ async def generate_ingest(
         grade=_source_grade,
         processing_depth="source",
         is_immutable=False,
-        created_at=int(__import__("time").time() * 1000),
-        updated_at=int(__import__("time").time() * 1000),
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        updated_at=datetime.datetime.now(datetime.timezone.utc),
     )
 
     # Fix A (2026-07-26): dedup before unconditional append.
