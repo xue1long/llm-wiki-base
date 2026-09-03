@@ -45,7 +45,10 @@ def compile_bundle(bundle, knowledge_object=None, evidence_registry=None, wiki_i
             block = evidence_registry.get(block_id) if evidence_registry else None
             if block is None or not getattr(block, "visible", False):
                 raise ValueError(f"invalid_evidence_block:{block_id}")
-            evidence.append(block)
+            binding = evidence_registry.bind_claim(page.body, [block_id])
+            if not hasattr(binding, "evidence"):
+                raise ValueError(f"invalid_evidence_block:{block_id}")
+            evidence.extend(binding.evidence)
         compiled.append(CompiledPage(
             id=_page_id(bundle, page), title=page.title, page_type=page.page_type,
             body=page.body, sources=(bundle.source_id,), tags=page.candidate_tags,

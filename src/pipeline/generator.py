@@ -959,6 +959,7 @@ async def generate_from_candidate(
     missing_slugs_resolver=None,
     processing_depth_hint: Optional[str] = None,
     template_context: dict | None = None,
+    budget: RetryBudget | None = None,
 ) -> list[WikiPage]:
     """Render wiki pages from a validated KnowledgeCandidate.
 
@@ -1067,6 +1068,7 @@ async def generate_from_candidate(
         required_slots_by_type=required_slots_by_type,
         timeout=600.0,
         missing_slugs_resolver=missing_slugs_resolver,
+        budget=budget,
     )
 
     raw_pages = response_dict.get("pages", [])

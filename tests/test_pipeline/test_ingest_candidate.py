@@ -8,9 +8,9 @@ from src.pipeline.ingest import _resolve_evidence_contract
 from src.config import settings
 
 
-def test_all_providers_default_to_v2_evidence_contract(monkeypatch):
+def test_all_providers_default_to_v1_evidence_contract(monkeypatch):
     monkeypatch.delenv("RUFLO_EVIDENCE_CONTRACT", raising=False)
-    assert _resolve_evidence_contract() == "v2"
+    assert _resolve_evidence_contract() == "v1"
 
 
 def test_explicit_evidence_contract_override_is_preserved(monkeypatch):

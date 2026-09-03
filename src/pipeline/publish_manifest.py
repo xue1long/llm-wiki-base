@@ -21,6 +21,15 @@ class CommitResult:
     marker: Path | None = None
 
 
+def mark_published(paths, task_id: str, bundle_hash: str = "") -> Path:
+    """Write the visibility marker only after the existing commit succeeds."""
+    target = Path(paths.index) / "staging" / task_id
+    target.mkdir(parents=True, exist_ok=True)
+    marker = target / "publish.marker"
+    marker.write_text(json.dumps({"task_id": task_id, "bundle_hash": bundle_hash}), encoding="utf-8")
+    return marker
+
+
 def is_manual_conflict(existing_page, expected_version) -> bool:
     if expected_version is None:
         return False
@@ -58,8 +67,7 @@ def commit_bundle(bundle, context) -> CommitResult:
                 path.write_bytes(previous)
         quarantine_task(context, reason_code="commit_failed", errors=[str(exc)], artifacts={"bundle_hash": bundle.bundle_hash})
         raise CommitError(str(exc)) from exc
-    marker = staging / "publish.marker"
-    marker.write_text("published\n", encoding="utf-8")
+    marker = mark_published(paths, task_id, bundle.bundle_hash)
     return CommitResult("published", task_id, marker)
 
 
@@ -70,4 +78,4 @@ def _page_path(paths, page) -> Path:
     return page_path_for(paths, page.type, page.id)
 
 
-__all__ = ["CommitError", "CommitResult", "commit_bundle", "is_manual_conflict"]
+__all__ = ["CommitError", "CommitResult", "commit_bundle", "is_manual_conflict", "mark_published"]

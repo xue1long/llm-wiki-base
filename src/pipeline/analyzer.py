@@ -13,6 +13,7 @@ from ..wiki.schema_registry import SchemaRegistry
 from src.kc.compiler.normalize import normalize_text
 from src.kc.contracts.candidate_v2 import CandidateV2, ClaimV2
 from ._pipeline_common import parse_llm_json
+from .retry import RetryBudget, RetryExhausted
 from .schemas import AnalysisResult, ConceptMention, EntityMention, PageSpec
 
 
@@ -356,6 +357,7 @@ async def analyze(
     prompt_blocks: tuple[Any, ...] | None = None,
     template_context: dict | None = None,
     evidence_contract: str = "v1",
+    budget: RetryBudget | None = None,
 ) -> AnalysisResult | KnowledgeCandidate | CandidateV2:
     """Step 1: LLM call -> AnalysisResult or KnowledgeCandidate.
 
@@ -391,6 +393,7 @@ async def analyze(
             taxonomy_content=taxonomy_content,
             prompt_blocks=prompt_blocks,
             evidence_contract=evidence_contract,
+            budget=budget,
         )
 
     prompt = ANALYZER_PROMPT.format(
@@ -446,6 +449,8 @@ async def analyze(
 
         async with BudgetedLLM(model="gpt-4o-mini", op="analyzer", provider=provider) as bl:
             try:
+                if budget is not None:
+                    budget.consume_or_raise()
                 llm_resp = await bl.call(
                     prompt=prompt + extra,
                     response_format=ANALYZER_RESPONSE_FORMAT if _json_mode else None,
@@ -606,6 +611,7 @@ async def _analyze_json(
     taxonomy_content: str = "",
     prompt_blocks: tuple[Any, ...] | None = None,
     evidence_contract: str = "v1",
+    budget: RetryBudget | None = None,
 ) -> KnowledgeCandidate | CandidateV2:
     """JSON mode: LLM call -> KnowledgeCandidate with 3-tier validation.
 
@@ -681,6 +687,8 @@ async def _analyze_json(
 
         async with BudgetedLLM(model="gpt-4o-mini", op="analyzer-json", provider=provider) as bl:
             try:
+                if budget is not None:
+                    budget.consume_or_raise()
                 llm_resp = await bl.call(
                     prompt=prompt + extra,
                     response_format=response_format if _json_mode else None,

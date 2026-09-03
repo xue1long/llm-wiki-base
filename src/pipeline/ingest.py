@@ -555,7 +555,12 @@ async def _analyze_chunked(
 
 def _resolve_evidence_contract() -> str:
     """Use one evidence contract for every LLM provider."""
-    return os.environ.get("RUFLO_EVIDENCE_CONTRACT", "v2")
+    return os.environ.get("RUFLO_EVIDENCE_CONTRACT", "v1")
+
+
+def _task_retry_budget():
+    from .retry import RetryBudget
+    return RetryBudget(max_llm_calls=int(os.environ.get("RUFLO_MAX_LLM_CALLS", "8")))
 
 
 async def generate_ingest(
@@ -779,6 +784,7 @@ async def generate_ingest(
         paths, produced_prefix={_source_slug_for_map},
     )
     _evidence_contract = _resolve_evidence_contract()
+    _retry_budget = _task_retry_budget()
     if _candidate_mode:
         from .analyzer import analyze
         from .generator import generate_from_candidate
@@ -816,6 +822,7 @@ async def generate_ingest(
                     prompt_blocks=_prompt_chunk,
                     template_context=_template_context,
                     evidence_contract=_evidence_contract,
+                    budget=_retry_budget,
                 ))
             candidate = _merge_candidate_chunks(_chunk_candidates)
         if not hasattr(candidate, "claims") or not candidate.claims:
@@ -934,6 +941,7 @@ async def generate_ingest(
             schema_registry=schema_registry,
             taxonomy_content=_taxonomy_text,
             missing_slugs_resolver=_missing_resolver,
+            budget=_retry_budget,
             processing_depth_hint=_processing_depth_hint,
             template_context=_template_context,
         )
@@ -1889,6 +1897,8 @@ async def run_ingest(
             missing_slugs=_meta.get("missing_slugs"), kc_bundle_key=_meta.get("kc_bundle_key"),
             readiness_audit=_meta.get("readiness_audit"), ingest_snapshot=ingest_snapshot,
         )
+        from .publish_manifest import mark_published
+        mark_published(paths, task_id, context.source_hash)
         if not (_meta.get("rejected") and not pages):
             transition(TaskState.VALIDATED, TaskState.COMMITTED)
         manifest.save(task_id, "committed", context.source_hash, context.source_hash, metadata)
@@ -1937,6 +1947,7 @@ async def run_batch_ingest(
                 source_text=source_text,
                 provider=provider,
                 folder_context=folder_context,
+                task_id=f"batch-{idx}-{hashlib.sha256(str(sp).encode('utf-8')).hexdigest()[:12]}",
             )
             _logger.info("[batch_ingest] [%d/%d] done — %d pages", idx + 1, len(source_paths), len(pages))
             return idx, pages
