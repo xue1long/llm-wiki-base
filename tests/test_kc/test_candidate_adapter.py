@@ -68,6 +68,20 @@ def test_candidate_adapter_accepts_quote_without_invisible_source_marks() -> Non
     assert payload["claims"][0]["evidence"][0]["block_id"] == document.blocks[0].block_id
 
 
+def test_candidate_adapter_rebinds_model_paraphrase_to_declared_block() -> None:
+    document = normalize_text("来源中的规范证据。", source="raw/sources/demo.md")
+    candidate = _candidate(
+        quote="模型改写后的证据。",
+        block_id=document.blocks[0].block_id,
+    )
+
+    payload = candidate_to_payload(candidate, document)
+
+    evidence = payload["claims"][0]["evidence"][0]
+    assert evidence["block_id"] == document.blocks[0].block_id
+    assert evidence["quote"] == "来源中的规范证据。"
+
+
 def test_candidate_adapter_rejects_source_path_mismatch() -> None:
     document = normalize_text("KC 统一证据适配。", source="raw/sources/demo.md")
     candidate = _candidate(source="raw/sources/other.md")
@@ -159,7 +173,7 @@ def test_candidate_adapter_rejects_evidence_from_hidden_prompt_block() -> None:
         )
 
 
-def test_candidate_adapter_rebinds_unique_quote_to_visible_block() -> None:
+def test_candidate_adapter_does_not_rebind_hidden_declared_block() -> None:
     document = normalize_text(
         "标题\n\n正文中的唯一证据。",
         source="raw/sources/demo.md",
@@ -169,13 +183,12 @@ def test_candidate_adapter_rebinds_unique_quote_to_visible_block() -> None:
         block_id=document.blocks[0].block_id,
     )
 
-    payload = candidate_to_payload(
-        candidate,
-        document,
-        visible_block_ids={document.blocks[1].block_id},
-    )
-
-    assert payload["claims"][0]["evidence"][0]["block_id"] == document.blocks[1].block_id
+    with pytest.raises(ValueError, match="not visible"):
+        candidate_to_payload(
+            candidate,
+            document,
+            visible_block_ids={document.blocks[1].block_id},
+        )
 
 
 def test_legacy_normalizer_keeps_explicit_v1_identity_for_old_evidence() -> None:

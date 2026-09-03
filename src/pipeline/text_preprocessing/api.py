@@ -25,16 +25,29 @@ _FRONTMATTER_RE = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
 def chunk_prompt_blocks(
     blocks: tuple[PromptBlockView, ...], *, max_chars: int
 ) -> tuple[tuple[PromptBlockView, ...], ...]:
-    """Pack whole prompt blocks without merging or truncating their content."""
+    """Pack prompt blocks, splitting oversized views without changing IDs."""
     if max_chars <= 0:
         raise ValueError("max_chars must be positive")
+    prompt_blocks: list[PromptBlockView] = []
+    for block in blocks:
+        if len(block.prompt_content) <= max_chars:
+            prompt_blocks.append(block)
+            continue
+        for start in range(0, len(block.prompt_content), max_chars):
+            prompt_blocks.append(
+                PromptBlockView(
+                    source_id=block.source_id,
+                    block_id=block.block_id,
+                    ordinal=block.ordinal,
+                    prompt_content=block.prompt_content[start:start + max_chars],
+                    removed_line_count=block.removed_line_count if start == 0 else 0,
+                )
+            )
     chunks: list[tuple[PromptBlockView, ...]] = []
     current: list[PromptBlockView] = []
     current_chars = 0
-    for block in blocks:
+    for block in prompt_blocks:
         block_chars = len(block.prompt_content)
-        if block_chars > max_chars:
-            raise ValueError("oversized prompt block")
         separator = 2 if current else 0
         if current and current_chars + separator + block_chars > max_chars:
             chunks.append(tuple(current))

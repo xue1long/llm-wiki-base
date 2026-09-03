@@ -163,11 +163,6 @@ async def test_run_ingest_blocks_generation_when_candidate_evidence_is_invalid(
     raw = paths.raw_sources / "kc-invalid-evidence.md"
     raw.parent.mkdir(parents=True, exist_ok=True)
     raw.write_text("真实来源内容。", encoding="utf-8")
-    block_id = normalize_text(
-        raw.read_text(encoding="utf-8"),
-        source="raw/sources/kc-invalid-evidence.md",
-    ).blocks[0].block_id
-
     async def fake_analyze(**kwargs):
         return KnowledgeCandidate(
             id="candidate-invalid-evidence",
@@ -178,7 +173,7 @@ async def test_run_ingest_blocks_generation_when_candidate_evidence_is_invalid(
             confidence=0.8,
             evidence=[{
                 "source_path": str(raw),
-                "block_id": block_id,
+                "block_id": "missing-block",
                 "quote": "不存在的引用。",
             }],
             raw_llm_output={},
@@ -199,7 +194,7 @@ async def test_run_ingest_blocks_generation_when_candidate_evidence_is_invalid(
         fake_generate_from_candidate,
     )
 
-    with pytest.raises(ValueError, match="quote does not match"):
+    with pytest.raises(ValueError, match="block_id does not exist"):
         await run_ingest(
             paths=paths,
             source_path=raw,

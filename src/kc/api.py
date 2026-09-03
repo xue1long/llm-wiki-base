@@ -55,21 +55,12 @@ def candidate_to_payload(
             )
             if block is None:
                 raise ValueError("evidence block_id does not exist")
-            if not isinstance(quote, str) or not quote or not quote_matches_content(quote, block.content):
-                visible_blocks = [
-                    candidate_block for candidate_block in document.blocks
-                    if visible_block_ids is None
-                    or candidate_block.block_id in visible_block_ids
-                ]
-                quote_matches = [
-                    candidate_block for candidate_block in visible_blocks
-                    if isinstance(quote, str)
-                    and quote
-                    and quote_matches_content(quote, candidate_block.content)
-                ]
-                if len(quote_matches) != 1:
-                    raise ValueError("evidence quote does not match declared block")
-                block = quote_matches[0]
+            if visible_block_ids is not None and block.block_id not in visible_block_ids:
+                raise ValueError("evidence block_id is not visible in prompt")
+            # The model selects the source block; it does not author durable
+            # evidence. Rebind the quote to the canonical block so paraphrase,
+            # truncation, and formatting drift cannot invalidate valid IDs.
+            quote = canonical_quote(block.content)
         elif allow_legacy_unique_quote:
             matches = [
                 block for block in document.blocks

@@ -72,7 +72,7 @@ def test_missing_source_id_fails_closed() -> None:
         preprocess_source("正文")
 
 
-def test_chunk_prompt_blocks_preserves_order_and_rejects_oversized_block() -> None:
+def test_chunk_prompt_blocks_splits_oversized_block_without_losing_identity() -> None:
     prepared = preprocess_source(
         "一段\n\n二段\n\n三段",
         source_id="raw/sources/chunked.md",
@@ -85,8 +85,14 @@ def test_chunk_prompt_blocks_preserves_order_and_rejects_oversized_block() -> No
         [prepared.prompt_blocks[1].block_id],
         [prepared.prompt_blocks[2].block_id],
     ]
-    with pytest.raises(ValueError, match="oversized prompt block"):
-        chunk_prompt_blocks(prepared.prompt_blocks, max_chars=1)
+    long_prepared = preprocess_source("一二三四五", source_id="raw/sources/long.md")
+    split = chunk_prompt_blocks(long_prepared.prompt_blocks, max_chars=2)
+
+    split_blocks = [block for chunk in split for block in chunk]
+    assert [block.prompt_content for block in split_blocks] == ["一二", "三四", "五"]
+    assert {block.block_id for block in split_blocks} == {
+        long_prepared.prompt_blocks[0].block_id
+    }
 
 
 def test_content_assessment_distinguishes_legitimate_short_text_from_metadata() -> None:
