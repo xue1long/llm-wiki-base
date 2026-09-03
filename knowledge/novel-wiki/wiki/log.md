@@ -1374,3 +1374,13 @@
 - **ingest**: `b21` — generated 15 pages from 方法论结局的十三种方式.md
 ## 2026-08-19T14:03:52.023996
 - **reverse-relation**: `b21` — generated 0 pages from (batch-reconcile)
+## 2026-09-03T13:19:23.342295
+- **ingest**: `manual-d-1-1788412457` — generated 2 pages from 必备资料15顺眼谈文章的画面感.md
+## 2026-09-03T13:35:30.922894
+- **ingest**: `manual-d-1-1788413293` — generated 2 pages from 必备资料22期待感让你的作品能够引人入胜1.md
+## 2026-09-03T13:38:31.861304
+- **ingest**: `manual-d-1-1788413743` — generated 2 pages from 补充教程小说结局的十三种方式精.md
+## 2026-09-03T14:07:29.005574
+- **ingest**: `manual-d-1-1788415403` — generated 2 pages from 必备资料20个签约条件新人必看2.md
+## 2026-09-03T14:11:46.271054
+- **ingest**: `manual-d-1-1788415661` — generated 2 pages from 必备资料20仙侠类题材作品的创作要点及卖点.md
