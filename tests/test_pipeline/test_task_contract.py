@@ -1,6 +1,8 @@
 import hashlib
 import json
 import time
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -51,7 +53,11 @@ def test_expired_lock_is_reclaimed(tmp_path):
     data = json.loads(path.read_text(encoding="utf-8"))
     data["created_at"] = time.time() - 120
     path.write_text(json.dumps(data), encoding="utf-8")
+    assert not lock.acquire("key", "owner-b", stale_after_seconds=60)
+    assert lock.reclaim("key", "recovery", stale_after_seconds=60)
     assert lock.acquire("key", "owner-b", stale_after_seconds=60)
+    lock.release("key", "owner-a")
+    assert lock._path("key").exists()
 
 
 def test_manifest_and_recovery(tmp_path):
@@ -62,7 +68,47 @@ def test_manifest_and_recovery(tmp_path):
     assert decision.quarantined is False
 
 
+def test_recovery_mismatched_context_quarantines(tmp_path):
+    manifest = StageManifest(tmp_path)
+    manifest.save("task/unsafe", "generated", "in", "out", {
+        "task_context": {"source_hash": "old", "template_version": "tpl", "contract_version": "v1"},
+    })
+    expected = TaskContext.create("task/unsafe", "a.md", "new", template_version="tpl", contract_version="v1")
+    decision = recover_task("task/unsafe", tmp_path, expected_context=expected)
+    assert decision.quarantined
+    assert not (tmp_path / "staging" / "task" / "unsafe").exists()
+    assert decision.quarantine_path.name != "unsafe"
+
+
+def test_manifest_updates_are_serialized(tmp_path):
+    manifest = StageManifest(tmp_path)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        list(pool.map(lambda stage: manifest.save("task", stage, "i", stage, {}), ("a", "b")))
+    data = json.loads((tmp_path / "staging" / "task" / "manifest.json").read_text(encoding="utf-8"))
+    assert set(data["stages"]) == {"a", "b"}
+
+
 def test_claim_task_is_idempotent_within_root(tmp_path, monkeypatch):
     monkeypatch.setenv("RUFLO_TASK_STATE_DIR", str(tmp_path))
     assert claim_task("same")
     assert not claim_task("same")
+
+
+def test_run_ingest_claims_locks_and_stages(monkeypatch, tmp_path):
+    import src.pipeline.ingest as ingest
+    from src.wiki.core.paths import WikiPaths
+
+    async def fake_generate(**kwargs):
+        return [], [], {"rejected": False}
+
+    async def fake_commit(**kwargs):
+        return None
+
+    monkeypatch.setattr(ingest, "generate_ingest", fake_generate)
+    monkeypatch.setattr(ingest, "commit_ingest", fake_commit)
+    asyncio.run(ingest.run_ingest(WikiPaths(tmp_path), tmp_path / "a.md", "正文", object(), task_id="task/unsafe"))
+    manifest = next((tmp_path / ".index" / "staging").glob("*/manifest.json"))
+    assert {"created", "analyzed", "reviewed", "generated", "validated", "committed"} <= set(
+        json.loads(manifest.read_text(encoding="utf-8"))["stages"]
+    )
+    assert not list((tmp_path / ".index" / "task_locks").glob("*"))

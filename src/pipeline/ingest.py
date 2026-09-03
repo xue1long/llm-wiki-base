@@ -680,6 +680,7 @@ async def generate_ingest(
             "content_assessment": asdict(_readiness.assessment),
             "readiness_audit": _readiness_audit,
             "missing_slugs": [],
+            "task_context": _task_context,
         }
 
     if _result.report.warnings:
@@ -723,6 +724,7 @@ async def generate_ingest(
             "content_assessment": asdict(_readiness.assessment),
             "readiness_audit": _readiness_audit,
             "missing_slugs": [],
+            "task_context": _task_context,
         }
 
     _ = source_text  # keep the parameter — body writes reference source_text directly
@@ -1834,28 +1836,72 @@ async def run_ingest(
 
     Returns list of generated WikiPage objects.
     """
-    pages, extra_pages, _meta = await generate_ingest(
-        paths=paths,
-        source_path=source_path,
-        source_text=source_text,
-        provider=provider,
-        folder_context=folder_context,
-        task_id=task_id,
-        ingest_snapshot=ingest_snapshot,
+    from ..config import settings
+    from .task_contract import (
+        StageManifest, TaskContext, TaskLock, TaskState, claim_task,
+        recover_task, release_task_claim, transition,
     )
-    await commit_ingest(
-        paths=paths,
-        source_path=source_path,
-        pages=pages,
-        extra_pages=extra_pages,
-        task_id=task_id,
-        triage_result=_meta.get("triage"),
-        missing_slugs=_meta.get("missing_slugs"),
-        kc_bundle_key=_meta.get("kc_bundle_key"),
-        readiness_audit=_meta.get("readiness_audit"),
-        ingest_snapshot=ingest_snapshot,
+    snapshot_data = getattr(ingest_snapshot, "template_snapshot", {}) or {}
+    context = TaskContext.create(
+        task_id, source_path, source_text,
+        template_version=snapshot_data.get("template_version", "v1"),
+        contract_version=getattr(
+            ingest_snapshot, "pipeline_contract_version",
+            settings().task_contract_version,
+        ),
     )
-    return pages
+    root = paths.index
+    key = context.idempotency_key
+    if not claim_task(key, root):
+        raise RuntimeError(f"task already claimed: {key}")
+    lock = TaskLock(root / "task_locks")
+    recovery = recover_task(task_id, root, expected_context=context)
+    if recovery.quarantined:
+        release_task_claim(key, root)
+        raise RuntimeError(f"task bundle quarantined: {recovery.reason}")
+    if not lock.acquire(key, context.run_id, stale_after_seconds=300):
+        release_task_claim(key, root)
+        raise RuntimeError(f"task lock unavailable: {key}")
+    manifest = StageManifest(root)
+    metadata = {"task_context": context.to_dict()}
+    try:
+        manifest.save(task_id, "created", "", context.source_hash, metadata)
+        transition(TaskState.CREATED, TaskState.SCREENED)
+        pages, extra_pages, _meta = await generate_ingest(
+            paths=paths, source_path=source_path, source_text=source_text,
+            provider=provider, folder_context=folder_context, task_id=task_id,
+            ingest_snapshot=ingest_snapshot,
+        )
+        if _meta.get("rejected") and not pages:
+            manifest.save(task_id, "screened", context.source_hash, context.source_hash, metadata)
+        else:
+            for current, target, stage in (
+                (TaskState.SCREENED, TaskState.ANALYZED, "analyzed"),
+                (TaskState.ANALYZED, TaskState.REVIEWED, "reviewed"),
+                (TaskState.REVIEWED, TaskState.GENERATED, "generated"),
+                (TaskState.GENERATED, TaskState.VALIDATED, "validated"),
+            ):
+                transition(current, target)
+                manifest.save(task_id, stage, context.source_hash, context.source_hash, metadata)
+        await commit_ingest(
+            paths=paths, source_path=source_path, pages=pages, extra_pages=extra_pages,
+            task_id=task_id, triage_result=_meta.get("triage"),
+            missing_slugs=_meta.get("missing_slugs"), kc_bundle_key=_meta.get("kc_bundle_key"),
+            readiness_audit=_meta.get("readiness_audit"), ingest_snapshot=ingest_snapshot,
+        )
+        if not (_meta.get("rejected") and not pages):
+            transition(TaskState.VALIDATED, TaskState.COMMITTED)
+        manifest.save(task_id, "committed", context.source_hash, context.source_hash, metadata)
+        return pages
+    except Exception:
+        try:
+            manifest.save(task_id, "failed", context.source_hash, context.source_hash, metadata)
+        except Exception:
+            pass
+        raise
+    finally:
+        lock.release(key, context.run_id)
+        release_task_claim(key, root)
 
 
 async def run_batch_ingest(

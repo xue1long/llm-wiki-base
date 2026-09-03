@@ -23,6 +23,14 @@ def test_task_contract_version_defaults_to_v1(monkeypatch):
     assert settings().task_contract_version == "v1"
 
 
+def test_queued_ingest_snapshot_uses_canonical_v1(monkeypatch):
+    from src.services.ingest import create_ingest_snapshot
+
+    monkeypatch.setattr("src.services.ingest.resolve_project", lambda *args, **kwargs: (type("C", (), {"id": "p", "path": "p"})(), None))
+    monkeypatch.setattr("src.project.identity.resolve_project_template", lambda *args, **kwargs: (type("T", (), {"template_id": "t", "template_version": "1", "template_hash": "h", "contract_hash": "c", "snapshot_path": "s"})(), None))
+    assert create_ingest_snapshot("p", "raw/a.md").pipeline_contract_version == "v1"
+
+
 def test_reviewer_isolates_invalid_v2_claims():
     prepared = preprocess_source(
         "正文证据。\n\n来源：https://example.test/source",

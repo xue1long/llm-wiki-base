@@ -55,7 +55,7 @@ def create_ingest_snapshot(project_id: str, source: str, *, round_key: str = "")
             "contract_hash": snapshot.contract_hash,
             "snapshot_path": snapshot.snapshot_path,
         },
-        pipeline_contract_version="1",
+        pipeline_contract_version="v1",
     )
 
 
