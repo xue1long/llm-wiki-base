@@ -636,12 +636,16 @@ async def generate_ingest(
         file_size=_file_size,
         sanitizer_score=_result.report.quality_score,
     )
+    _candidate_mode = os.environ.get("RUFLO_PIPELINE_MODE", "candidate") == "candidate"
     from .source_screening import screen_source
     _screening = await screen_source(
         str(source_path),
         _result.prompt_text,
         prefilter_result=_triage,
-        provider=provider,
+        # Legacy compatibility: do not consume the existing provider's first
+        # generation response with a new screening call. Candidate mode owns
+        # the new semantic screening call; legacy keeps review as fallback.
+        provider=provider if _candidate_mode else None,
     )
     _triage.metadata["source_screening"] = asdict(_screening)
     if _screening.decision == "skip":
@@ -754,7 +758,6 @@ async def generate_ingest(
     _missing_resolver = make_missing_slugs_resolver(
         paths, produced_prefix={_source_slug_for_map},
     )
-    _candidate_mode = os.environ.get("RUFLO_PIPELINE_MODE", "candidate") == "candidate"
     _evidence_contract = os.environ.get("RUFLO_EVIDENCE_CONTRACT", "v1")
     if _candidate_mode:
         from .analyzer import analyze

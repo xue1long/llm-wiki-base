@@ -140,9 +140,14 @@ def _normalize_absolute_path(
             rel = os.path.relpath(raw_abs, root_abs)
         except ValueError:
             # Different drives on Windows — relpath cannot compute.
-            # No traversal attempted (verified above), so the path is
-            # simply not anchored: surface a clean error rather than
-            # guessing via the raw/sources fallback.
+            # A relative input is project-relative only when the computed
+            # CWD path is genuinely on another drive. If both paths are on
+            # the same drive, keep the fail-closed error for an unresolved
+            # path instead of silently accepting an invalid resolution.
+            raw_drive = os.path.splitdrive(raw_abs)[0].casefold()
+            root_drive = os.path.splitdrive(root_abs)[0].casefold()
+            if raw_drive != root_drive:
+                return raw_posix.replace("\\", "/")
             raise IngestPathError(
                 f"relative path {raw!r} is on a different drive "
                 f"from project root {str(project_root)!r}"

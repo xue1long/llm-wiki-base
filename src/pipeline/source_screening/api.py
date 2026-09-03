@@ -4,6 +4,7 @@ from typing import Any
 
 from src.lib.budgeted import BudgetedLLM
 from src.pipeline._pipeline_common import parse_llm_json
+from src.pipeline.retry import PermanentFailure
 
 from .rules import classify_by_rules, is_obvious_boilerplate
 from .types import ScreeningResult
@@ -54,5 +55,9 @@ async def screen_source(source_path: str, source_text: str, *, prefilter_result,
         if relevant is False:
             return ScreeningResult("skip", content_type, confidence, reason, "llm")
         return ScreeningResult("review", content_type, confidence, reason, "llm")
+    except PermanentFailure:
+        # Permanent provider failures must stop the ingest chain; converting
+        # them to review would cause Analyzer/Generator to call the provider again.
+        raise
     except Exception as exc:
         return ScreeningResult("review", reason=f"screening unavailable: {type(exc).__name__}", method="fallback")
