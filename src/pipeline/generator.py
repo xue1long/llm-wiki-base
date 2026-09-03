@@ -47,7 +47,7 @@ from ..knowledge.core.candidate import KnowledgeCandidate
 from ..knowledge.core.object import KnowledgeObject
 from ..llm.types import TruncatedResponseError
 from ._pipeline_common import parse_llm_json
-from .retry import RetryExhausted
+from .retry import RetryBudget, RetryExhausted
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
 from .render_contract import RenderBundle, render_pages
@@ -1730,6 +1730,7 @@ async def _call_with_slot_retry(
     timeout: float = 180.0,
     max_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
     missing_slugs_resolver=None,
+    budget: RetryBudget | None = None,
 ) -> dict:
     """Call the LLM, retry once if any required slot is missing or the call times out.
 
@@ -1827,6 +1828,8 @@ async def _call_with_slot_retry(
                 )
 
         try:
+            if budget is not None and not budget.consume():
+                raise RetryExhausted("task retry budget exhausted")
             response = await provider.complete(
                 messages=[{"role": "user", "content": base_prompt + extra}],
                 response_format=response_format if _json_mode else None,
