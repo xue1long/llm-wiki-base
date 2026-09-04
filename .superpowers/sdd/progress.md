@@ -800,3 +800,5 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ⚠️ Commit not created: `.git/index.lock` creation is denied by the host permission profile; no push attempted.
 - ✅ Task 2: extracted the proven synchronous `safe_write` replace retry into `src/lib/retry.py`; preserved 5 attempts, linear delays, and unlink+rename fallback. Queue advancement, slot-filling, search/ polling loops, and async LLM retry were left unchanged.
 - ✅ Verification: retry/write-hook targeted `8 passed`; full suite `3724 passed, 45 warnings`.
+- ✅ Task 3: added isolated FastAPI lifespan coverage for `/health`, real `.llm-wiki/project.json` discovery, zero-network provider/embed stubs, shutdown close, and embedding singleton restoration; updated `AGENTS.md` and `CLAUDE.md` runtime guidance.
+- ✅ Verification: new lifespan tests `3 passed`; `tests/test_server/` `155 passed`; clean temporary-root smoke test `/health` returned HTTP 200.

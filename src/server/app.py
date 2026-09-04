@@ -64,6 +64,9 @@ def create_app() -> FastAPI:
     """Build FastAPI app with all routers mounted."""
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        from ..llm import embedding_runtime
+        previous_embedding_provider = embedding_runtime._impl
+
         # R12: inject correlation fields (request_id/task_id/project_id)
         # into every log record so the HTTP→Queue→Pipeline→Writer chain is
         # traceable end-to-end.
@@ -314,6 +317,10 @@ def create_app() -> FastAPI:
             await _PR.aclose_all()
         except Exception as e:
             _logger.warning(f"[shutdown] aclose_all failed: {e}")
+        if previous_embedding_provider is None:
+            embedding_runtime.__reset_for_testing()
+        else:
+            embedding_runtime.set_embedding_provider(previous_embedding_provider)
         _logger.info("[server] shutting down")
 
     from .. import __version__ as _app_version
