@@ -37,7 +37,9 @@ def mark_page_verified(
     from datetime import datetime, timezone
 
     page.workflow_state = "verified"
-    page.verified_at = datetime.now(timezone.utc)
+    # V5 stores WikiPage timestamps as int Unix ms internally (from_dict
+    # coerces datetime/ISO to ms); stamp ms here, not a raw datetime.
+    page.verified_at = int(datetime.now(timezone.utc).timestamp() * 1000)
     if audit_log:
         _logger.info(
             "mark_page_verified: page=%s user=%s -> verified",

@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import datetime
 import json
 import os
 import sys
@@ -108,12 +109,26 @@ def load_cache(root: Path, batch_no: int, cache_dir: str = DEFAULT_CACHE_DIR) ->
     return data
 
 
+def _json_default(obj):
+    """json.dumps fallback for V5 datetimes.
+
+    WikiPage.to_frontmatter_dict renders created_at/updated_at as ISO
+    datetime objects (V5). Serialize them to ISO strings here; on read,
+    WikiPage.from_dict coerces the ISO string back to Unix ms via
+    _coerce_ts_ms, so the cache round-trips cleanly.
+    """
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
 def save_cache(root: Path, batch_no: int, payload: dict,
                cache_dir: str = DEFAULT_CACHE_DIR) -> None:
     p = cache_path_for(root, batch_no, cache_dir)
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_name(p.name + ".tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2),
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2,
+                              default=_json_default),
                    encoding="utf-8")
     os.replace(str(tmp), str(p))
 
