@@ -814,7 +814,7 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ Refactored `scripts/setup_git_hooks.py` to accept explicit repository and hooks paths, defaulting only to the local repository `.git/hooks`; generated hook runs the two required checks and remains byte-idempotent.
 - ✅ Added `tests/test_lib/test_setup_git_hooks.py`: temporary target, idempotence, platform permission, `GIT_DIR` independence, and fail-closed document mismatch coverage.
 - ✅ Verification: hook tests `3 passed`; repository-local installer completed; `.git/hooks/pre-commit` is local-only and absent from Git status.
-- ⚠️ Repository-wide `ruff check src tests` remains blocked by 303 pre-existing findings; changed-file lint is the relevant Task 5 signal.
+- ✅ Task 5 changed-file checks and hook regression passed; repository-wide Ruff findings were deferred to Task 6 and fully closed there.
 
 ### 2026-09-04 Risk remediation — Task 6 preflight
 
@@ -824,3 +824,10 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ YAML parse and hook regression checks pass.
 - ✅ Task 6 complete: fixed the 303 repository-wide Ruff findings, preserving import-time migration registration and batch-runner facade exports with explicit compatibility comments. Final `ruff check src tests` passes.
 - ✅ Final CI-equivalent verification: `3733 passed, 45 warnings`; coverage `78.45%` with required threshold `77.4%`; quality workflow YAML parses successfully.
+
+### 2026-09-04 Risk remediation — final closeout
+
+- ✅ Revised plan Tasks 0–6 checklist completed and final acceptance record added.
+- ✅ Acceptance evidence: full isolated suite `3733 passed, 45 warnings`; coverage `78.45%` against `77.4%`; `ruff check src tests` passed; quality workflow YAML parsed; real temporary-root server `/health` smoke passed.
+- ✅ CI matrix is configured for Python `3.11`, `3.12`, and `3.13`; local verification was performed on Python 3.12, with cross-version execution delegated to the configured CI run. Python 3.14 remains explicitly out of scope.
+- ⚠️ `graphify update .` remains blocked by the host's uv trampoline canonicalization error; no global tool/cache changes were made.
