@@ -1,6 +1,6 @@
 ---
 id: 必备资料第1章大纲-f9f72ffc
-title: 必备资料第1章大纲
+title: 必备资料第1章大纲（已归档）
 created_at: 1787075994633
 updated_at: 1787075994633
 type: source
@@ -8,6 +8,8 @@ relations:
   - target: credibility/ugc
     type: has_credibility
     weight: 1.0
+  - type: superseded_by
+    target: 必备资料第1章大纲-50ea4b-5234d4f6
 
 tags:
 sources:

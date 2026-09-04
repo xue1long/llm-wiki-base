@@ -1,6 +1,6 @@
 ---
 id: 借鉴素材网文中的九线-2b7fc4-ccda91ed
-title: 借鉴素材网文中的九线
+title: 借鉴素材网文中的九线（已归档）
 created_at: 1786944193841
 updated_at: 1786944193841
 type: source
@@ -8,6 +8,8 @@ relations:
   - target: credibility/ugc
     type: has_credibility
     weight: 1.0
+  - type: superseded_by
+    target: 借鉴素材网文中的九线-ec648061
 
 tags:
 sources:

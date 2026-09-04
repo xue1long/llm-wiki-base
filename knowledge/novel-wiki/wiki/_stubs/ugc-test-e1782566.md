@@ -1,6 +1,6 @@
 ---
 id: ugc-test-e1782566
-title: 贴吧精华帖：网文写作心得
+title: 贴吧精华帖：网文写作心得（已归档）
 created_at: 1786898195877
 updated_at: 1786898195877
 type: source
@@ -8,6 +8,8 @@ relations:
   - target: credibility/ugc
     type: has_credibility
     weight: 1.0
+  - type: superseded_by
+    target: ugc-test2-4abca22d
 
 tags:
 sources:

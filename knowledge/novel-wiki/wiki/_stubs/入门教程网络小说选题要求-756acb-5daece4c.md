@@ -1,6 +1,6 @@
 ---
 id: 入门教程网络小说选题要求-756acb-5daece4c
-title: 入门教程网络小说选题要求
+title: 入门教程网络小说选题要求（已归档）
 created_at: 1787064501081
 updated_at: 1787064501081
 type: source
@@ -8,6 +8,8 @@ relations:
   - target: credibility/ugc
     type: has_credibility
     weight: 1.0
+  - type: superseded_by
+    target: 入门教程网络小说选题要求-8c7c0ebe
 
 tags:
 sources:
