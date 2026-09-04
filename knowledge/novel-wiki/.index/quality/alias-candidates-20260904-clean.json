@@ -1,0 +1,1081 @@
+{
+  "generated_at": "2026-09-04T04:55:26.307542+00:00",
+  "wiki_root": "D:\\5-Project\\20260903\\llm-wiki-base\\knowledge\\novel-wiki\\wiki",
+  "note": "Recomputed from live corpus; the H2 JSON reports are byte-corrupt and not used.",
+  "existing_ids": 1740,
+  "total_refs": {
+    "wikilink": 9095,
+    "relation": 22
+  },
+  "unique_broken_bare_targets": 179,
+  "candidate_total": 54,
+  "recommend_surface_variant": {
+    "count": 22,
+    "entries": [
+      {
+        "alias": "IP访问量",
+        "canonical": "ip-访问量",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "PV浏览量",
+        "canonical": "pv-浏览量",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "Snowflake-Method",
+        "canonical": "snowflake-method",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "VIP-章节",
+        "canonical": "vip-章节",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "YY-爽文",
+        "canonical": "yy-爽文",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "vip章节",
+        "canonical": "vip-章节",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "前3万字代入感法则",
+        "canonical": "前-3-万字代入感法则",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "华夏天空2016征文新福利",
+        "canonical": "华夏天空-2016-征文新福利",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "合同打印、寄送补贴",
+        "canonical": "合同打印-寄送补贴",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "埃德加·爱伦·坡",
+        "canonical": "埃德加-爱伦-坡",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "朱天王词律新编",
+        "canonical": "朱天王-词律新编",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "王道篇--作品质量",
+        "canonical": "王道篇-作品质量",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "用户活跃度IPPV比",
+        "canonical": "用户活跃度-ip-pv-比",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "真龙重生--时光之轮",
+        "canonical": "真龙重生-时光之轮",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "签约10章流程",
+        "canonical": "签约-10-章流程",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "线性升级模式--上学比喻",
+        "canonical": "线性升级模式-上学比喻",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "诡道篇--运营技巧",
+        "canonical": "诡道篇-运营技巧",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "起点2.0改良版",
+        "canonical": "起点-2-0-改良版",
+        "heuristic": "unique_substring",
+        "confidence": "MEDIUM"
+      },
+      {
+        "alias": "语言-、-动作-、-神态结合描写",
+        "canonical": "语言动作神态结合描写",
+        "source": "phase-A-h4-rename"
+      },
+      {
+        "alias": "语言描写-（-对话描写-）",
+        "canonical": "语言描写对话描写",
+        "source": "phase-A-h4-rename"
+      },
+      {
+        "alias": "我的妈妈-（-课文片段-）",
+        "canonical": "我的妈妈课文片段",
+        "source": "phase-A-h4-rename"
+      },
+      {
+        "alias": "走一步-，-再走一步",
+        "canonical": "走一步再走一步",
+        "source": "phase-A-h4-rename"
+      }
+    ]
+  },
+  "candidates_for_human_review": [
+    {
+      "alias": "主线情节设定",
+      "canonical": "主线情节设定五要素",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "人物性格",
+      "canonical": "人物性格刻画",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "人物性格冲突",
+      "canonical": "丰富矛盾的人物性格冲突",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "以小见大",
+      "canonical": "2写作选材之以小见大第2段-992f4b9b",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "写作技法",
+      "canonical": "写作技法-多源分歧",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "创作心态",
+      "canonical": "网络写手的创作心态-孤独-焦虑与动力寻求",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "创新意识",
+      "canonical": "方法论应该具有创新意识-2b7d5b64",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "力量体系",
+      "canonical": "力量体系设计-等级-技能-双主导分类",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "基础扎实",
+      "canonical": "基础扎实-写作基础",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "奖励与需要",
+      "canonical": "奖励与需要机制",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "女主处理",
+      "canonical": "女主处理-避免言情化的策略",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "安妮女王描写范例",
+      "canonical": "安妮女王描写范例-笑面人",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "宏大世界观设定",
+      "canonical": "宏大世界观设定方法论",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "小三克堂",
+      "canonical": "小三克堂",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "小说大纲",
+      "canonical": "小说大纲写作框架",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "小说开头自查",
+      "canonical": "入门教程0小说开头自查辅助工具-0a73dd5b",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "尤老二警官描写范例",
+      "canonical": "尤老二警官描写范例-上任",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "情节不够美女来凑",
+      "canonical": "情节不够-美女来凑-玄幻小说的一种批评范式",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "情节设计",
+      "canonical": "必备资料第九章关于小说情节设计1-b0adb42b",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "文笔基础",
+      "canonical": "方法论好的文笔基础决定一个作者能走多远-06aa3950",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "时光之轮",
+      "canonical": "时光之轮-大猎捕-故事梗概",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "武侠小说创作论",
+      "canonical": "方法论黄易武侠小说创作论-9a833e37",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "流氓写手现象",
+      "canonical": "流氓写手-现象-网络文学创作中的职业道德争议",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "潜龙勿用",
+      "canonical": "潜龙勿用-网文桥段第一步",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "爽点设置",
+      "canonical": "重生复仇爽文爽点设置",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "爽点设计",
+      "canonical": "爽点设计-具体方法与案例",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "玄幻小说大纲",
+      "canonical": "玄幻小说大纲表格",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "玄幻标签创作基金评定标准详解",
+      "canonical": "借鉴素材玄幻标签创作基金评定标准详解-1bc91a92",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "皇帝描写范例",
+      "canonical": "皇帝描写范例-格列佛游记",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "真龙重生",
+      "canonical": "真龙重生-时光之轮",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "菜刀姓李",
+      "canonical": "菜刀姓李-李晓敏",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "葛朗台富翁描写范例",
+      "canonical": "葛朗台富翁描写范例-欧也妮-葛朗台",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "蒙太奇叙事",
+      "canonical": "蒙太奇叙事-网文应用",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "装逼打脸",
+      "canonical": "装逼打脸套路",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    },
+    {
+      "alias": "起承转合",
+      "canonical": "承转启合-起承转合",
+      "heuristic": "unique_substring",
+      "confidence": "MEDIUM"
+    },
+    {
+      "alias": "队友设定",
+      "canonical": "队友设定-功能型配角设计",
+      "heuristic": "longest_prefix",
+      "confidence": "HIGH"
+    }
+  ],
+  "broken_bare_targets": [
+    {
+      "target": "IP访问量",
+      "occurrences": 2
+    },
+    {
+      "target": "PV浏览量",
+      "occurrences": 2
+    },
+    {
+      "target": "Snowflake-Method",
+      "occurrences": 1
+    },
+    {
+      "target": "VIP-章节",
+      "occurrences": 1
+    },
+    {
+      "target": "YY-爽文",
+      "occurrences": 2
+    },
+    {
+      "target": "vip-章节运营",
+      "occurrences": 1
+    },
+    {
+      "target": "vip章节",
+      "occurrences": 2
+    },
+    {
+      "target": "yy",
+      "occurrences": 1
+    },
+    {
+      "target": "三江推荐申请",
+      "occurrences": 2
+    },
+    {
+      "target": "世界设置",
+      "occurrences": 1
+    },
+    {
+      "target": "中短篇冲量",
+      "occurrences": 1
+    },
+    {
+      "target": "主线情节设定",
+      "occurrences": 2
+    },
+    {
+      "target": "主线清晰化",
+      "occurrences": 1
+    },
+    {
+      "target": "主角塑造原则",
+      "occurrences": 1
+    },
+    {
+      "target": "主角欲望",
+      "occurrences": 2
+    },
+    {
+      "target": "主角设定原则",
+      "occurrences": 1
+    },
+    {
+      "target": "书评管理",
+      "occurrences": 1
+    },
+    {
+      "target": "人物关系设计",
+      "occurrences": 1
+    },
+    {
+      "target": "人物出场数量控制",
+      "occurrences": 1
+    },
+    {
+      "target": "人物外貌描写",
+      "occurrences": 1
+    },
+    {
+      "target": "人物性格",
+      "occurrences": 1
+    },
+    {
+      "target": "人物性格冲突",
+      "occurrences": 2
+    },
+    {
+      "target": "人物性格设定",
+      "occurrences": 9
+    },
+    {
+      "target": "人物神态描写词汇集--百度知道",
+      "occurrences": 1
+    },
+    {
+      "target": "仙侠创作技巧",
+      "occurrences": 3
+    },
+    {
+      "target": "以小见大",
+      "occurrences": 2
+    },
+    {
+      "target": "作品仆街处理",
+      "occurrences": 1
+    },
+    {
+      "target": "修炼等级体系设定",
+      "occurrences": 1
+    },
+    {
+      "target": "先婚后爱",
+      "occurrences": 3
+    },
+    {
+      "target": "入门教程交流术语--人物描写片段",
+      "occurrences": 1
+    },
+    {
+      "target": "入门教程交流术语--人物描写词语",
+      "occurrences": 1
+    },
+    {
+      "target": "全知视角",
+      "occurrences": 2
+    },
+    {
+      "target": "六道轮回",
+      "occurrences": 1
+    },
+    {
+      "target": "写作凑字数",
+      "occurrences": 1
+    },
+    {
+      "target": "写作孤独感",
+      "occurrences": 1
+    },
+    {
+      "target": "写作技法",
+      "occurrences": 1
+    },
+    {
+      "target": "写作选材",
+      "occurrences": 2
+    },
+    {
+      "target": "刀劈",
+      "occurrences": 3
+    },
+    {
+      "target": "分集大纲",
+      "occurrences": 1
+    },
+    {
+      "target": "创作中的孤独与焦虑",
+      "occurrences": 2
+    },
+    {
+      "target": "创作心态",
+      "occurrences": 1
+    },
+    {
+      "target": "创新意识",
+      "occurrences": 1
+    },
+    {
+      "target": "刺客暗杀手段分类",
+      "occurrences": 6
+    },
+    {
+      "target": "前3万字代入感法则",
+      "occurrences": 2
+    },
+    {
+      "target": "剧情拍子",
+      "occurrences": 1
+    },
+    {
+      "target": "力量体系",
+      "occurrences": 1
+    },
+    {
+      "target": "力量体系设定",
+      "occurrences": 1
+    },
+    {
+      "target": "力量体系设计--至上之力",
+      "occurrences": 1
+    },
+    {
+      "target": "力量体系设计-至上之力",
+      "occurrences": 1
+    },
+    {
+      "target": "力量等级设定",
+      "occurrences": 2
+    },
+    {
+      "target": "势力设定",
+      "occurrences": 1
+    },
+    {
+      "target": "升级系统",
+      "occurrences": 1
+    },
+    {
+      "target": "半神-网文写作",
+      "occurrences": 1
+    },
+    {
+      "target": "华夏天空2016征文新福利",
+      "occurrences": 2
+    },
+    {
+      "target": "华夏天空青衫e组",
+      "occurrences": 2
+    },
+    {
+      "target": "双线发展",
+      "occurrences": 1
+    },
+    {
+      "target": "叙述视角",
+      "occurrences": 2
+    },
+    {
+      "target": "古风诗词意象",
+      "occurrences": 3
+    },
+    {
+      "target": "史诗奇幻世界观设定--以时光之轮为例",
+      "occurrences": 2
+    },
+    {
+      "target": "合同打印、寄送补贴",
+      "occurrences": 2
+    },
+    {
+      "target": "后金庸时代武侠创作",
+      "occurrences": 2
+    },
+    {
+      "target": "啰嗦",
+      "occurrences": 1
+    },
+    {
+      "target": "地理设定",
+      "occurrences": 1
+    },
+    {
+      "target": "埃德加·爱伦·坡",
+      "occurrences": 1
+    },
+    {
+      "target": "基础扎实",
+      "occurrences": 2
+    },
+    {
+      "target": "塔瓦恩",
+      "occurrences": 1
+    },
+    {
+      "target": "塔蒙·盖东",
+      "occurrences": 2
+    },
+    {
+      "target": "大神",
+      "occurrences": 1
+    },
+    {
+      "target": "大纲与结构",
+      "occurrences": 1
+    },
+    {
+      "target": "奖励与需要",
+      "occurrences": 2
+    },
+    {
+      "target": "女主处理",
+      "occurrences": 1
+    },
+    {
+      "target": "女频现言",
+      "occurrences": 3
+    },
+    {
+      "target": "存稿管理策略",
+      "occurrences": 2
+    },
+    {
+      "target": "安妮女王描写范例",
+      "occurrences": 1
+    },
+    {
+      "target": "宏大世界观设定",
+      "occurrences": 2
+    },
+    {
+      "target": "对对子技法",
+      "occurrences": 2
+    },
+    {
+      "target": "对比冲突",
+      "occurrences": 1
+    },
+    {
+      "target": "对话与描写",
+      "occurrences": 1
+    },
+    {
+      "target": "小三克堂",
+      "occurrences": 2
+    },
+    {
+      "target": "小说大纲",
+      "occurrences": 1
+    },
+    {
+      "target": "小说开头自查",
+      "occurrences": 1
+    },
+    {
+      "target": "小说架构",
+      "occurrences": 1
+    },
+    {
+      "target": "小说真实与虚构",
+      "occurrences": 1
+    },
+    {
+      "target": "小说风格",
+      "occurrences": 1
+    },
+    {
+      "target": "尤老二警官描写范例",
+      "occurrences": 1
+    },
+    {
+      "target": "巨精灵",
+      "occurrences": 1
+    },
+    {
+      "target": "干将-莫邪",
+      "occurrences": 2
+    },
+    {
+      "target": "开篇卖点",
+      "occurrences": 1
+    },
+    {
+      "target": "悬念-be7770e1",
+      "occurrences": 2
+    },
+    {
+      "target": "情感冲突",
+      "occurrences": 1
+    },
+    {
+      "target": "情感对仗",
+      "occurrences": 2
+    },
+    {
+      "target": "情绪渲染",
+      "occurrences": 1
+    },
+    {
+      "target": "情节不够美女来凑",
+      "occurrences": 4
+    },
+    {
+      "target": "情节多样化",
+      "occurrences": 1
+    },
+    {
+      "target": "情节安排",
+      "occurrences": 1
+    },
+    {
+      "target": "情节悬念",
+      "occurrences": 2
+    },
+    {
+      "target": "情节线",
+      "occurrences": 1
+    },
+    {
+      "target": "情节设计",
+      "occurrences": 2
+    },
+    {
+      "target": "情节驱动",
+      "occurrences": 2
+    },
+    {
+      "target": "意境对照",
+      "occurrences": 4
+    },
+    {
+      "target": "感情纠葛",
+      "occurrences": 1
+    },
+    {
+      "target": "扮猪吃老虎",
+      "occurrences": 1
+    },
+    {
+      "target": "扮猪吃老虎套路",
+      "occurrences": 2
+    },
+    {
+      "target": "扮猪吃虎",
+      "occurrences": 2
+    },
+    {
+      "target": "投稿分类",
+      "occurrences": 1
+    },
+    {
+      "target": "排版技巧",
+      "occurrences": 1
+    },
+    {
+      "target": "数字对仗",
+      "occurrences": 2
+    },
+    {
+      "target": "文以载道",
+      "occurrences": 2
+    },
+    {
+      "target": "文笔基础",
+      "occurrences": 1
+    },
+    {
+      "target": "新书榜规则",
+      "occurrences": 1
+    },
+    {
+      "target": "新人",
+      "occurrences": 1
+    },
+    {
+      "target": "新颖开篇",
+      "occurrences": 2
+    },
+    {
+      "target": "时光之轮",
+      "occurrences": 1
+    },
+    {
+      "target": "时地人事",
+      "occurrences": 1
+    },
+    {
+      "target": "暗黑之君",
+      "occurrences": 2
+    },
+    {
+      "target": "有限视角",
+      "occurrences": 2
+    },
+    {
+      "target": "朱天王词律新编",
+      "occurrences": 2
+    },
+    {
+      "target": "桥段三法",
+      "occurrences": 1
+    },
+    {
+      "target": "武侠小说创作论",
+      "occurrences": 5
+    },
+    {
+      "target": "死也比废人强前六章片段",
+      "occurrences": 10
+    },
+    {
+      "target": "法宝",
+      "occurrences": 2
+    },
+    {
+      "target": "流氓写手现象",
+      "occurrences": 4
+    },
+    {
+      "target": "潜龙勿用",
+      "occurrences": 1
+    },
+    {
+      "target": "爽点设置",
+      "occurrences": 3
+    },
+    {
+      "target": "爽点设计",
+      "occurrences": 2
+    },
+    {
+      "target": "玄幻小说大纲",
+      "occurrences": 1
+    },
+    {
+      "target": "玄幻标签创作基金评定标准详解",
+      "occurrences": 1
+    },
+    {
+      "target": "王道篇--作品质量",
+      "occurrences": 2
+    },
+    {
+      "target": "用户活跃度IPPV比",
+      "occurrences": 2
+    },
+    {
+      "target": "界模",
+      "occurrences": 1
+    },
+    {
+      "target": "皇帝描写范例",
+      "occurrences": 1
+    },
+    {
+      "target": "真龙重生",
+      "occurrences": 1
+    },
+    {
+      "target": "真龙重生--时光之轮",
+      "occurrences": 1
+    },
+    {
+      "target": "社会经验",
+      "occurrences": 1
+    },
+    {
+      "target": "种族与社会结构设计",
+      "occurrences": 1
+    },
+    {
+      "target": "穿越修真先天之物和法宝-54e06bce",
+      "occurrences": 1
+    },
+    {
+      "target": "第一人称写作",
+      "occurrences": 1
+    },
+    {
+      "target": "签约10章流程",
+      "occurrences": 2
+    },
+    {
+      "target": "签约公式",
+      "occurrences": 1
+    },
+    {
+      "target": "签约标准",
+      "occurrences": 1
+    },
+    {
+      "target": "签约福利",
+      "occurrences": 1
+    },
+    {
+      "target": "红楼梦",
+      "occurrences": 2
+    },
+    {
+      "target": "线性升级模式--上学比喻",
+      "occurrences": 1
+    },
+    {
+      "target": "网文书名包装技巧",
+      "occurrences": 1
+    },
+    {
+      "target": "网文作者心态",
+      "occurrences": 1
+    },
+    {
+      "target": "网文更新与冲榜策略",
+      "occurrences": 1
+    },
+    {
+      "target": "网文简介包装技巧",
+      "occurrences": 1
+    },
+    {
+      "target": "网络小说装备系统",
+      "occurrences": 1
+    },
+    {
+      "target": "网络文学浮躁",
+      "occurrences": 3
+    },
+    {
+      "target": "肖阐人",
+      "occurrences": 1
+    },
+    {
+      "target": "自述",
+      "occurrences": 1
+    },
+    {
+      "target": "至上之力",
+      "occurrences": 2
+    },
+    {
+      "target": "艾尔人",
+      "occurrences": 1
+    },
+    {
+      "target": "艾斯·瑟岱伊",
+      "occurrences": 1
+    },
+    {
+      "target": "菜刀姓李",
+      "occurrences": 1
+    },
+    {
+      "target": "葛朗台富翁描写范例",
+      "occurrences": 1
+    },
+    {
+      "target": "蒙太奇叙事",
+      "occurrences": 1
+    },
+    {
+      "target": "蓄势",
+      "occurrences": 1
+    },
+    {
+      "target": "装逼打脸",
+      "occurrences": 1
+    },
+    {
+      "target": "角色与剧情关系",
+      "occurrences": 1
+    },
+    {
+      "target": "角色脸谱化",
+      "occurrences": 1
+    },
+    {
+      "target": "角色设定",
+      "occurrences": 1
+    },
+    {
+      "target": "言情类-网络小说题材",
+      "occurrences": 1
+    },
+    {
+      "target": "设定",
+      "occurrences": 1
+    },
+    {
+      "target": "诗词创作八大误区",
+      "occurrences": 1
+    },
+    {
+      "target": "诗词四大要素",
+      "occurrences": 3
+    },
+    {
+      "target": "诡道篇--运营技巧",
+      "occurrences": 3
+    },
+    {
+      "target": "起承转合",
+      "occurrences": 1
+    },
+    {
+      "target": "起点2.0改良版",
+      "occurrences": 4
+    },
+    {
+      "target": "踏莎行春色将阑",
+      "occurrences": 1
+    },
+    {
+      "target": "速度-网络文学创作核心",
+      "occurrences": 2
+    },
+    {
+      "target": "道具设定",
+      "occurrences": 1
+    },
+    {
+      "target": "重生之龙",
+      "occurrences": 2
+    },
+    {
+      "target": "队友设定",
+      "occurrences": 2
+    },
+    {
+      "target": "随时上架-华夏天空",
+      "occurrences": 1
+    },
+    {
+      "target": "预言与宿命叙事",
+      "occurrences": 3
+    },
+    {
+      "target": "题材选择策略",
+      "occurrences": 1
+    },
+    {
+      "target": "飞刀",
+      "occurrences": 2
+    },
+    {
+      "target": "龙泉-太阿",
+      "occurrences": 2
+    }
+  ]
+}
