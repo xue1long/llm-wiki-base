@@ -70,7 +70,6 @@ python -m src.cli stubs {list|promote} --project <id>
 python -m src.cli dedup auto [--threshold high] --project <id>
 python -m src.cli lint [--cache-ttl N] [--no-cache] --project <id>
 python -m src.cli lint-cache-clear --project <id>
-python -m src.cli wiki-quality [--project PATH] [--json] [--strict]  # novel-wiki quality gate (H1/H2/H4/H5 + content scans; default project = knowledge/novel-wiki)
 python -m src.cli schema {list|diff|upgrade|downgrade|backup}
 python -m src.cli serve [--host H] [--port P] [--daemon]
 python -m src.cli mcp                          # stdio MCP server (13 tools: 8 legacy HTTP + 5 memory)
@@ -137,21 +136,24 @@ The wiki is the **primary data model**. Legacy `Notes/<task_id>.md` output is pr
 
 ### Wiki data model (`src/wiki/`)
 
-`WikiPage` is the core dataclass. **On-disk frontmatter is a strict 8-key whitelist** (`id`, `title`, `type`, `sources`, `created_at`, `updated_at`, `relations`, `tags`) — anything else below is an in-memory `WikiPage` field that is **not part of the frontmatter whitelist** (V4 whitelist; see **Wiki 规范** link below). Timestamps follow the **V5 schema (5.0.0)**: writers emit YAML-native ISO 8601 datetime (e.g. `2026-09-04T12:34:56`); legacy V4 pages still carry Unix ms `int`, normalized on read by `_coerce_ts_ms` in `WikiPage.from_dict`.
-
-Disk frontmatter (V5 8-key whitelist):
+`WikiPage` is the core dataclass. Frontmatter (YAML) carries:
 
 | Field | Type | Default | Purpose |
 |---|---|---|---|
-| `id` | str | required | Slug or `card_<13hex_millis>_<8hex_rand>_<slug>` (v2.2+); equals filename stem |
+| `id` | str | required | Slug or `card_<13hex_millis>_<8hex_rand>_<slug>` (v2.2+) |
 | `title` | str | required | Display title |
 | `type` | PageType | required | `source` \| `entity` \| `concept` \| `synthesis` |
 | `sources` | list[str] | [] | Raw source paths |
-| `created_at` / `updated_at` | datetime | — | V5: ISO 8601 datetime; producers set `datetime.datetime(UTC)`, `to_frontmatter_dict()` renders via `_to_iso_dt` |
+| `created_at` / `updated_at` | int | 0 | Unix ms |
+| `body` | str | "" | Markdown body (may contain `[[wikilinks]]`) |
 | `relations` | list[Relation] | [] | Typed relations (17 built-in + `x-*` user) |
-| `tags` | list[str] | [] | Business light tags |
-
-In-memory only (kept on the dataclass for code that constructs `WikiPage` objects directly; never written to disk): `grade` ("B"), `processing_depth` ("concept"), `is_immutable` (False), `heat` (50), `last_used_at` (0), `zombie_since` (None), `custom_type` (""). `body` (may contain `[[wikilinks]]`) is stored as the page's Markdown body after the frontmatter, not as a frontmatter key.
+| `grade` | str | "B" | v2.2: A \| B \| C |
+| `processing_depth` | str | "concept" | v2.2: concept \| memory |
+| `is_immutable` | bool | False | v2.2: zombie-resist flag |
+| `heat` | int | 50 | Heat decay tracker (0-100) |
+| `last_used_at` | int | 0 | Heat: last AI retrieval timestamp |
+| `zombie_since` | int\|None | None | Heat: 0-heat timestamp |
+| `custom_type` | str | "" | Schema-declared subtype; routes through `schema.md` while `type` remains its base `PageType` |
 
 **Wiki 规范（含命名/Frontmatter/Body 规则）：** [`docs/guides/wiki-spec.md`](docs/guides/wiki-spec.md)
 

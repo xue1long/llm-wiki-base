@@ -807,3 +807,11 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ Task 4 batch B–D: added root-level per-test `sys.modules` snapshot/restore for heavy dependency modules and `scripts*` imports, covering the remaining test packages without duplicating 14 conftest implementations.
 - ✅ Verification: B–D collection `3000 tests`; B–D full regression `3000 passed, 45 warnings`.
 - ✅ Task 4 final verification: full suite `3730 passed, 45 warnings` after the public module-boundary fixture and setup documentation update.
+
+### 2026-09-04 Risk remediation — Task 5
+
+- ✅ Synchronized `CLAUDE.md` body with the current `AGENTS.md` body; preserved each file's tool-specific first three lines.
+- ✅ Refactored `scripts/setup_git_hooks.py` to accept explicit repository and hooks paths, defaulting only to the local repository `.git/hooks`; generated hook runs the two required checks and remains byte-idempotent.
+- ✅ Added `tests/test_lib/test_setup_git_hooks.py`: temporary target, idempotence, platform permission, `GIT_DIR` independence, and fail-closed document mismatch coverage.
+- ✅ Verification: hook tests `3 passed`; repository-local installer completed; `.git/hooks/pre-commit` is local-only and absent from Git status.
+- ⚠️ Repository-wide `ruff check src tests` remains blocked by 303 pre-existing findings; changed-file lint is the relevant Task 5 signal.
