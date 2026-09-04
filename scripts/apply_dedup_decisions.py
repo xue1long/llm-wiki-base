@@ -202,6 +202,43 @@ def _remove_index_rows(index_text: str, page_id: str, type_dir: str | None = Non
     return "\n".join(keep)
 
 
+def _ensure_concept_row(index_text: str, page_id: str, concept_title: str) -> str:
+    """Return index text carrying exactly ONE concept catalog row for page_id.
+
+    The catalog is keyed by id, so when an entity twin registered the row
+    first, the same-id canonical concept never got its own. Archiving the twin
+    must therefore leave the id catalogued as the concept: transform the
+    entity row in place, keep an existing concept row, or append a fresh one
+    when neither is present.
+    """
+    lines = index_text.split("\n")
+    out: list[str] = []
+    has_concept = False
+    for ln in lines:
+        if f"**{page_id}**" not in ln:
+            out.append(ln)
+            continue
+        if "(concept)" in ln:
+            has_concept = True
+            out.append(ln)
+            continue
+        if "(entity)" in ln:
+            if has_concept:
+                continue  # id already catalogued as concept; drop the twin
+            ln = re.sub(r"\(entity\)", "(concept)", ln, count=1)
+            ln = re.sub(r"— .*$", "— " + concept_title, ln)
+            has_concept = True
+            out.append(ln)
+            continue
+        out.append(ln)
+    text = "\n".join(out)
+    if not has_concept:
+        if not text.endswith("\n"):
+            text += "\n"
+        text += f"- **{page_id}** (concept) — {concept_title}\n"
+    return text
+
+
 def _rewrite_index_title(index_text: str, page_id: str, new_title: str) -> str:
     """Update the trailing title of the index row for page_id."""
     out = []
@@ -212,20 +249,32 @@ def _rewrite_index_title(index_text: str, page_id: str, new_title: str) -> str:
     return "\n".join(out)
 
 
-def _scan_inbound(wiki_root: Path, page_id: str, prefix: str | None, exclude_paths: set) -> list[dict]:
+def _scan_inbound(wiki_root: Path, page_id: str, prefix: str | None, exclude_paths: set,
+                  boundary: bool = False) -> list[dict]:
     """Count occurrences of a page id as a reference target across the wiki.
 
     prefix: e.g. 'entities/' matches `[[entities/<id>]]`-style references
     only (to separate a bare id twin from its same-id canonical). When
     prefix is None, every occurrence of the exact id counts.
+
+    boundary: require the id be a COMPLETE segment, not a prefix of a longer
+    id. Otherwise `entities/玄幻小说` would false-match the distinct page
+    `entities/玄幻小说创作入门指南` (different id, shared CJK prefix). The
+    next character after the id must not extend an id (CJK block + [A-Za-z0-9-]).
     """
     hits = []
-    needle = f"{prefix}{page_id}" if prefix else page_id
+    if prefix:
+        if boundary:
+            rx = re.compile(re.escape(prefix) + re.escape(page_id) + r"(?![A-Za-z0-9-一-鿿])")
+        else:
+            needle = f"{prefix}{page_id}"
+    else:
+        needle = page_id
     for md, rel in _iter_md(wiki_root):
         if md in exclude_paths:
             continue
         text = _read(md)
-        n = text.count(needle)
+        n = len(rx.findall(text)) if boundary else text.count(needle)
         if n:
             hits.append({"file": str(rel), "occurrences": n})
     return hits
@@ -308,8 +357,10 @@ def _act_cross_type(wiki_root: Path, decision: dict, apply: bool) -> dict:
             rec["error"] = "twin id != canonical id; not archiving"
             result["twins"].append(rec)
             continue
-        # cross-type twin must have NO `entities/<id>` inbound
-        inbound = _scan_inbound(wiki_root, t["id"], "entities/", exclude_paths={tpath.resolve()})
+        # cross-type twin must have NO `entities/<id>` inbound (boundary-aware:
+        # the bare id here is often a CJK prefix of unrelated longer entity ids)
+        inbound = _scan_inbound(wiki_root, t["id"], "entities/", exclude_paths={tpath.resolve()},
+                                boundary=True)
         if inbound:
             rec["error"] = "unexpected inbound entities/<id> references; aborting this twin"
             rec["inbound"] = inbound
@@ -333,7 +384,12 @@ def _act_cross_type(wiki_root: Path, decision: dict, apply: bool) -> dict:
             if r.returncode != 0:
                 rec["error"] = f"git mv failed: {r.stderr.strip()}"
             ip = wiki_root / "index.md"
-            _write(ip, _remove_index_rows(_read(ip), t["id"], "entities"))
+            text = _read(ip)
+            # drop the twin row but keep the id catalogued as the canonical
+            # concept (the entity may hold the sole row for a same-id concept).
+            text = _remove_index_rows(text, t["id"], "entities")
+            text = _ensure_concept_row(text, t["id"], decision["title"])
+            _write(ip, text)
             rec["moved_to"] = str(dst.relative_to(REPO_ROOT))
         else:
             rec["moved_to"] = f"_stubs/{t['id']}.md"
