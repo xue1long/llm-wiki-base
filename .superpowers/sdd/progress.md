@@ -802,3 +802,5 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ Verification: retry/write-hook targeted `8 passed`; full suite `3724 passed, 45 warnings`.
 - ✅ Task 3: added isolated FastAPI lifespan coverage for `/health`, real `.llm-wiki/project.json` discovery, zero-network provider/embed stubs, shutdown close, and embedding singleton restoration; updated `AGENTS.md` and `CLAUDE.md` runtime guidance.
 - ✅ Verification: new lifespan tests `3 passed`; `tests/test_server/` `155 passed`; clean temporary-root smoke test `/health` returned HTTP 200.
+- ✅ Task 4 pilot + batch A: added explicit optional-dependency stub context isolation and teardown restoration; migrated `test_agent`, `test_collector`, `test_lib`, `test_project`, and `test_vector` conftests.
+- ✅ Verification: stub-isolation pilot + `test_lib` `59 passed`; fixed batch A `343 passed`. The first run exposed and closed a real `platformdirs` stub leak into `test_lib/test_project_resolve.py`.

@@ -13,6 +13,13 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _restore_real_vector_deps():
+    previous = {name: sys.modules.get(name) for name in ("pyarrow", "lancedb")}
+    previous_store = {}
+    try:
+        import src.vector.store as _store
+        previous_store = {"pa": _store.pa, "lancedb": _store.lancedb}
+    except ImportError:
+        _store = None
     # pyarrow
     _pa = sys.modules.get("pyarrow")
     if _pa is not None and getattr(_pa, "__file__", None) is None:
@@ -33,3 +40,11 @@ def _restore_real_vector_deps():
     except ImportError:
         pass
     yield
+    for name, module in previous.items():
+        if module is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = module
+    if _store is not None and previous_store:
+        _store.pa = previous_store["pa"]
+        _store.lancedb = previous_store["lancedb"]

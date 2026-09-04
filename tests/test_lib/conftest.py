@@ -5,10 +5,15 @@ even when those packages are not installed in the dev environment.
 Production imports still require these (pyproject.toml). Test-only workaround.
 Mirrors tests/test_cli_ext/conftest.py.
 """
+from contextlib import contextmanager
 import sys
 import types
 
+import pytest
 
+
+_MISSING = object()
+_STUB_NAMES = ("platformdirs", "lancedb", "pyarrow", "pypdf", "docx", "openpyxl", "mcp")
 # --- platformdirs ---
 _pd_stub = types.ModuleType("platformdirs")
 _pd_stub.user_cache_dir = lambda *a, **kw: ""
@@ -60,3 +65,52 @@ sys.modules.setdefault("openpyxl", _openpyxl_stub)
 # --- mcp (Model Context Protocol) ---
 _mcp_stub = types.ModuleType("mcp")
 sys.modules.setdefault("mcp", _mcp_stub)
+
+
+_STUBS = {
+    "platformdirs": _pd_stub,
+    "lancedb": _lancedb_stub,
+    "pyarrow": _pa_stub,
+    "pypdf": _pypdf_stub,
+    "docx": _docx_stub,
+    "openpyxl": _openpyxl_stub,
+    "mcp": _mcp_stub,
+}
+
+
+@pytest.fixture
+def isolated_optional_stubs():
+    """Return a context manager for testing an isolated stub boundary."""
+    @contextmanager
+    def activate():
+        previous = {name: sys.modules.get(name, _MISSING) for name in _STUB_NAMES}
+        sys.modules.update(_STUBS)
+        try:
+            yield _STUBS
+        finally:
+            for name, module in previous.items():
+                if module is _MISSING:
+                    sys.modules.pop(name, None)
+                else:
+                    sys.modules[name] = module
+
+    return activate
+
+
+@pytest.fixture(autouse=True)
+def _restore_real_platformdirs():
+    previous = sys.modules.get("platformdirs", _MISSING)
+    paths_module = sys.modules.get("src.project.paths")
+    previous_config = getattr(paths_module, "user_config_dir", None)
+    if previous is not _MISSING and getattr(previous, "__file__", None) is None:
+        del sys.modules["platformdirs"]
+    import platformdirs
+    if paths_module is not None:
+        paths_module.user_config_dir = platformdirs.user_config_dir
+    yield
+    if previous is _MISSING:
+        sys.modules.pop("platformdirs", None)
+    else:
+        sys.modules["platformdirs"] = previous
+    if paths_module is not None and previous_config is not None:
+        paths_module.user_config_dir = previous_config

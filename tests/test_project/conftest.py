@@ -15,6 +15,13 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _restore_real_platformdirs():
+    previous = sys.modules.get("platformdirs")
+    previous_config = None
+    try:
+        import src.project.paths as _paths
+        previous_config = _paths.user_config_dir
+    except ImportError:
+        _paths = None
     # 1) Make the real platformdirs importable in this process.
     _pd = sys.modules.get("platformdirs")
     if _pd is not None and getattr(_pd, "__file__", None) is None:
@@ -31,3 +38,9 @@ def _restore_real_platformdirs():
         # sys.modules so the normal import path will pick it up.
         pass
     yield
+    if previous is None:
+        sys.modules.pop("platformdirs", None)
+    else:
+        sys.modules["platformdirs"] = previous
+    if _paths is not None and previous_config is not None:
+        _paths.user_config_dir = previous_config
