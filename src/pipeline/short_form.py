@@ -111,7 +111,8 @@ def detect_short_form(
             content, char_threshold, step_threshold, template_thresholds, timeout
         )
 
-    # Unix: use signal.alarm
+    # Unix: use a real-valued interval so sub-second timeouts work in tests
+    # and callers; ``signal.alarm`` truncates values below one second to zero.
     import signal
 
     def _timeout_handler(signum, frame):
@@ -119,11 +120,10 @@ def detect_short_form(
 
     old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
     try:
-        signal.alarm(int(timeout))
+        signal.setitimer(signal.ITIMER_REAL, timeout)
         result = _detect_short_form_inner(
             content, char_threshold, step_threshold, template_thresholds
         )
-        signal.alarm(0)
         return result
     except TimeoutError:
         logger.warning(
@@ -138,7 +138,7 @@ def detect_short_form(
             timed_out=True,
         )
     finally:
-        signal.alarm(0)
+        signal.setitimer(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, old_handler)
 
 

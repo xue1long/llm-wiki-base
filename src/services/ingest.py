@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import os
 import random
+import re
 from pathlib import Path
 from typing import Union
 
@@ -52,7 +53,8 @@ def _normalize_absolute_path(
     """
     raw_posix = raw.replace("\\", "/")
 
-    if not os.path.isabs(raw_posix):
+    is_drive_path = bool(re.match(r"^[A-Za-z]:/", raw_posix))
+    if not os.path.isabs(raw_posix) and not is_drive_path:
         # Relative path — may include the project root's directory prefix
         # (e.g. "knowledge/novel-wiki/raw/sources/foo.md" when project root
         # is ".../knowledge/novel-wiki"). Use os.path functions (purely

@@ -128,9 +128,12 @@ def test_unix_alarm_is_cancelled_when_detection_raises(monkeypatch):
         return
 
     alarms = []
-    monkeypatch.setattr(signal, "alarm", lambda seconds: alarms.append(seconds) or 0)
+    monkeypatch.setattr(signal, "setitimer", lambda *args: alarms.append(args) or (0, 0))
     monkeypatch.setattr(sf, "_detect_short_form_inner", lambda *args: (_ for _ in ()).throw(ValueError("boom")))
 
     with pytest.raises(ValueError, match="boom"):
         detect_short_form("内容")
-    assert alarms == [DEFAULT_TIMEOUT_SECONDS, 0]
+    assert alarms == [
+        (signal.ITIMER_REAL, DEFAULT_TIMEOUT_SECONDS),
+        (signal.ITIMER_REAL, 0),
+    ]

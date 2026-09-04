@@ -9,6 +9,7 @@ string-manipulation equivalents that never touch the Win32 path resolution
 APIs.
 """
 import os
+import re
 from pathlib import Path
 
 
@@ -26,7 +27,7 @@ def safe_resolve(path: str | Path) -> Path:
     >>> safe_resolve(Path("foo/bar"))
     Path('/abs/path/to/foo/bar')
     """
-    return Path(os.path.normpath(os.path.abspath(str(path))))
+    return Path(os.path.normpath(os.path.abspath(str(path).replace("\\", "/"))))
 
 
 def safe_resolve_str(path: str | Path) -> str:
@@ -36,7 +37,7 @@ def safe_resolve_str(path: str | Path) -> str:
     dict keys, or serialisation — no ``Path`` garbage-collection edge
     cases.
     """
-    return os.path.normpath(os.path.abspath(str(path)))
+    return os.path.normpath(os.path.abspath(str(path).replace("\\", "/")))
 
 
 def safe_resolve_posix(path: str | Path) -> str:
@@ -71,8 +72,12 @@ def resolve_stored_path(stored: str | Path | None, root: str | Path) -> Path | N
     s = str(stored).strip()
     if not s:
         return None
+    s = s.replace("\\", "/")
     root_resolved = safe_resolve(root)
-    if Path(s).is_absolute():
+    is_drive_path = bool(re.match(r"^[A-Za-z]:/", s))
+    if is_drive_path and os.name != "nt":
+        return None
+    if Path(s).is_absolute() or is_drive_path:
         candidate = safe_resolve(s)
     else:
         candidate = safe_resolve(os.path.join(str(root_resolved), s))
@@ -181,8 +186,8 @@ def canonical_raw_key(source_path: str | Path, project_root: str | Path) -> str:
     """
     import unicodedata
 
-    source = Path(str(source_path))
-    root = Path(str(project_root))
+    source = Path(str(source_path).replace("\\", "/"))
+    root = Path(str(project_root).replace("\\", "/"))
     if not source.is_absolute():
         source = root / source
     norm = os.path.normpath(str(source))
