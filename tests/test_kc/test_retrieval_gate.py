@@ -32,7 +32,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 
-from src.kc.integrity.gates import GateVerdict, RetrievalGate
+from src.kc.integrity.gates import RetrievalGate
 from src.wiki.core.types import PageType, WikiPage
 
 

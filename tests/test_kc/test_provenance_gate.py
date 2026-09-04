@@ -15,8 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.kc.contracts.evidence import Evidence
-from src.kc.integrity.gates import GateVerdict, ProvenanceGate
+from src.kc.integrity.gates import ProvenanceGate
 from src.knowledge.core.object import KnowledgeObject, KnowledgeType, LifecycleState, Provenance
 
 

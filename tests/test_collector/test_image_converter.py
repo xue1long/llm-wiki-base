@@ -99,7 +99,8 @@ class TestImageConverter:
     @pytest.mark.asyncio
     async def test_convert_from_path(self):
         """从文件路径读取（需要文件存在）。"""
-        import tempfile, os
+        import tempfile
+        import os
 
         c = ImageConverter(llm_provider=None)
         # 创建临时文件

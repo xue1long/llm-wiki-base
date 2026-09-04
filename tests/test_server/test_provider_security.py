@@ -12,7 +12,6 @@ Coverage:
   test_auth.py; here we assert the CLI redact path too).
 """
 import json
-import sys
 
 import pytest
 

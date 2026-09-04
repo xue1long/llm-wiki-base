@@ -9,12 +9,10 @@ Coverage:
 - The serve command requires an explicit project root (no silent CWD
   guessing) and the app factory resolves the active project from it.
 """
-import json
 import os
 
 import pytest
 
-from src.server.app import create_app
 
 
 def _patch_auth(monkeypatch):
@@ -30,7 +28,6 @@ def _patch_auth(monkeypatch):
 
 def test_serve_refuses_multiple_workers(monkeypatch, tmp_path, capsys):
     """serve --workers 2 exits non-zero (single-process deployment only)."""
-    import sys
     from src.cli_ext import serve as serve_mod
 
     _patch_auth(monkeypatch)
@@ -84,7 +81,6 @@ def _serve_args(tmp_path, **overrides):
 
 def test_second_instance_refused(monkeypatch, tmp_path, capsys):
     """A live lock file for the project root refuses a second server."""
-    import sys
     from src.cli_ext import serve as serve_mod
 
     _patch_auth(monkeypatch)
@@ -137,7 +133,6 @@ def test_stale_lock_cleared(monkeypatch, tmp_path):
 
 def test_serve_requires_project_root(monkeypatch, tmp_path, capsys):
     """serve without --project-root exits non-zero (no CWD guessing)."""
-    import sys
     from src.cli_ext import serve as serve_mod
 
     _patch_auth(monkeypatch)

@@ -39,6 +39,8 @@
 """
 from __future__ import annotations
 
+# This facade intentionally re-exports internal helpers for legacy callers.
+# ruff: noqa: F401
 import argparse
 import json
 import logging
@@ -180,7 +182,7 @@ class BatchRunner(ABC):
 
     def _on_phase_end(self, phase: str, batch, result) -> None:
         """阶段结束回调。``result`` 为阶段返回值（如 GateReport / BatchResult）。"""
-        pass
+        return None
 
 
 class DefaultBatchRunner(BatchRunner):

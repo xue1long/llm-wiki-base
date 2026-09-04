@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from pathlib import Path
 from unittest.mock import patch
 
 from src.collector.converter.html_converter import HtmlConverter

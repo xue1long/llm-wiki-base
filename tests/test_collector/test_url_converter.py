@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 from src.collector.converter.url_converter import UrlConverter
 from src.collector.converter.base import ConvertResult

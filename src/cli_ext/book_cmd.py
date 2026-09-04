@@ -236,7 +236,7 @@ def cmd_book_build(args: argparse.Namespace) -> int:
     if report.reason_codes:
         print(f"  reason_codes: {', '.join(report.reason_codes)}")
     if not args.apply:
-        print(f"  dry-run: nothing was written")
+        print("  dry-run: nothing was written")
     return EXIT_OK
 
 

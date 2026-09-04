@@ -75,7 +75,7 @@ def render_chapter(render: ChapterRender, *, template: BookTemplate | None = Non
     blocks = _get(render, "blocks", ())
     ku_ids = tuple(_get(_get(item, "knowledge_block"), "knowledge_unit_ids", [""])[0] for item in blocks)
     evidence_refs = tuple((_get(ref, "evidence_id", ""), _get(ref, "strength", "")) for item in blocks for ref in _get(item, "evidence_refs", ()))
-    provisional = {section: (template.custom_renderers[section](render) if section in template.custom_renderers else _BOOK_SECTION_RENDERERS.get(section, lambda _: f"(unsupported section: {section})")(render)) for section in template.sections}
+    provisional = {section: (template.custom_renderers[section](render) if section in template.custom_renderers else _BOOK_SECTION_RENDERERS.get(section, lambda _, section=section: f"(unsupported section: {section})")(render)) for section in template.sections}
     publication_version = _get(render, "publication_version", 0)
     view_id = "book-view-" + hashlib.sha256(f"{_get(chapter, 'id', '')}:{publication_version}".encode()).hexdigest()[:16]
     rendered_hash = compute_book_rendered_hash(book_id=_get(chapter, "book_id", ""), chapter_id=_get(chapter, "id", ""), knowledge_unit_ids=ku_ids, sections=template.sections, sections_content=provisional, publication_version=publication_version, evidence_refs=evidence_refs)

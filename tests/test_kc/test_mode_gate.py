@@ -20,9 +20,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-import pytest
 
-from src.kc.integrity.gates import GateVerdict, ModeGate
+from src.kc.integrity.gates import ModeGate
 
 
 # ─── 测试夹具：Claim-like 对象 ──────────────────────────────────────────────

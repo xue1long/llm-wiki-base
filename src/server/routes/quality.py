@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from ...lib.project import resolve_project
 from ...project.context import ProjectNotFoundError
-from ...pipeline.ingest_report import IngestReport, REPORTS_DIR
+from ...pipeline.ingest_report import REPORTS_DIR
 from ...pipeline.quality_gate import _meaningful_length, _has_type_prefix
 from ...wiki.features.review import load_reviews
 

@@ -8,7 +8,6 @@ import yaml
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths
-from src.wiki.storage.page_writer import write_page
 from src.project.context import ProjectContext
 from src.project import paths as project_paths
 from src.project import registry as project_registry

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from src.collector.converter.office_converter import OfficeConverter

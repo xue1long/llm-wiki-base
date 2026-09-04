@@ -31,13 +31,13 @@ getattr(_generator_module, "generate")). The compat shim that re-exports
 from __future__ import annotations
 import datetime
 import hashlib
-import json
 import logging
 import os
 import re
 import unicodedata
 from dataclasses import asdict
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..wiki.core.paths import WikiPaths
 from ..wiki.core.id_generator import normalize_id_chars
@@ -45,6 +45,9 @@ from ..wiki.schema_registry import SchemaRegistry
 from ..utils.path import canonical_raw_key, normalize_source_path
 from ..wiki.core.types import PageType, WikiPage
 from ..lib.atomic_ctx import AtomicContext
+
+if TYPE_CHECKING:
+    from .schemas import AnalysisResult
 from ..lib.write_hooks import flush_pending_writes
 from ..wiki.features.indexer import append_to_index
 from ..wiki.features.logger import log_event
@@ -60,8 +63,6 @@ from .readiness_gate import apply_readiness_gate, resolve_specialist, route_afte
 # The package namespace ``src.pipeline`` always contains the compat
 # shim's staticmethod-wrapped functions; ``getattr`` looks them up
 # at call time, after the test patch has run.
-from . import analyzer as _analyzer_module
-from . import generator as _generator_module
 from ._pipeline_common import (
     clean_source_text,
     _read_purpose_text,
@@ -262,7 +263,7 @@ def _compute_reverse_relations(paths, pages):
     sync_page resets a page's own relations to the passed list and would
     clobber an inverse edge that a prior page's sync just wrote.
     """
-    from ..wiki.features.relations import Relation, SYMMETRIC_RELATIONS
+    from ..wiki.features.relations import SYMMETRIC_RELATIONS
     from ..wiki.storage.page_writer import read_page, page_path_for
 
     def _infer_type(slug):
@@ -357,7 +358,6 @@ def _normalize_generated_pages(
     relation targets, and rewrite body wikilinks via the unified Target
     Resolver (plan Task 2)."""
     import re as _re
-    import time
     try:
         from src.wiki import SlugAliasRegistry
         reg = SlugAliasRegistry(str(paths.root))
@@ -407,7 +407,7 @@ def _normalize_generated_pages(
         if resolution_context is not None:
             from src.wiki.features.target_resolver import resolve_wiki_target
             if page.body:
-                def _rewrite(m: object) -> str:
+                def _rewrite(m: object, page=page) -> str:
                     inner = m.group(1)
                     target = inner.split("|")[0].split("#")[0].strip()
                     res = resolve_wiki_target(target, context=resolution_context)
@@ -436,12 +436,12 @@ def _normalize_generated_pages(
 
 def _analyze(**kwargs):
     import sys
-    return getattr(sys.modules["src.pipeline.pipeline"], "analyze")(**kwargs)
+    return sys.modules["src.pipeline.pipeline"].analyze(**kwargs)
 
 
 def _generate(**kwargs):
     import sys
-    return getattr(sys.modules["src.pipeline.pipeline"], "generate")(**kwargs)
+    return sys.modules["src.pipeline.pipeline"].generate(**kwargs)
 
 
 async def _write_rejected_source_page(
@@ -649,7 +649,6 @@ async def generate_ingest(
 
     # Hard-reject: skip LLM entirely for degraded sources (opt-in via
     # RUFLO_SANITIZER_SKIP_LLM=1; off by default).
-    from .text_preprocessing import ReadinessDecision
     if _result.report.should_skip_llm or _readiness_disposition.value == "audit_only":
         _logger.warning("[run_ingest] skipping LLM for %s", source_path)
         # R4: the rejection branch must return the same (pages, extra,

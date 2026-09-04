@@ -22,9 +22,7 @@ Ref: docs/architecture/B-2_11_Gate_design.md §5 + spec §11/§14 A5-8 + v2.2 �
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 
-import pytest
 
 from src.kc.integrity.gates import GateVerdict
 from src.kc.integrity.orchestrator import (

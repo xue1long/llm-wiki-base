@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.kc.integrity.gates import ConflictGate, GateVerdict
+from src.kc.integrity.gates import ConflictGate
 
 
 # ─── 测试夹具 ─────────────────────────────────────────────────────────────

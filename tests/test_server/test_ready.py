@@ -11,7 +11,6 @@ as liveness and adds /ready which reports each component's state:
 Every component check is defensive (never raises); a failed component
 returns 503 with a per-component detail map. /ready stays anonymous.
 """
-import pytest
 from fastapi.testclient import TestClient
 
 from src.server.app import create_app

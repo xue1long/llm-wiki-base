@@ -815,3 +815,12 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ Added `tests/test_lib/test_setup_git_hooks.py`: temporary target, idempotence, platform permission, `GIT_DIR` independence, and fail-closed document mismatch coverage.
 - ✅ Verification: hook tests `3 passed`; repository-local installer completed; `.git/hooks/pre-commit` is local-only and absent from Git status.
 - ⚠️ Repository-wide `ruff check src tests` remains blocked by 303 pre-existing findings; changed-file lint is the relevant Task 5 signal.
+
+### 2026-09-04 Risk remediation — Task 6 preflight
+
+- ✅ Added `pytest-cov>=5.0.0` to dev dependencies; clean editable reinstall succeeded and loaded `pytest-cov 7.1.0`.
+- ✅ Full isolated coverage baseline: `3733 passed, 45 warnings`; `25443` statements / `19967` covered = `78.47738081201116%`; fixed CI threshold calculated as `77.4%`.
+- ✅ Updated quality workflow to run the same coverage-gated command on Python `3.11`, `3.12`, and `3.13`, with one artifact upload from `3.12`; no Codecov token dependency is introduced.
+- ✅ YAML parse and hook regression checks pass.
+- ✅ Task 6 complete: fixed the 303 repository-wide Ruff findings, preserving import-time migration registration and batch-runner facade exports with explicit compatibility comments. Final `ruff check src tests` passes.
+- ✅ Final CI-equivalent verification: `3733 passed, 45 warnings`; coverage `78.45%` with required threshold `77.4%`; quality workflow YAML parses successfully.

@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from unittest.mock import patch
 
 from src.kc.domain.knowledge_unit import KnowledgeUnit
-from src.kc.integrity.gates import GateVerdict, IdentityGate
+from src.kc.integrity.gates import IdentityGate
 
 
 # ─── 测试夹具：KnowledgeUnit 对象 ─────────────────────────────────────────────

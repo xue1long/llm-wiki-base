@@ -11,14 +11,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from src.kc.integrity.closure import check_default_closure
 from src.kc.integrity.gates import ProvenanceGate, GateVerdict
 from src.kc.integrity.orchestrator import GateResult, IntegrityReport
 from src.knowledge.core.adapter import (
     knowledge_object_to_wiki_page,
-    wiki_page_to_knowledge_object,
 )
 from src.knowledge.core.object import (
     KnowledgeObject,

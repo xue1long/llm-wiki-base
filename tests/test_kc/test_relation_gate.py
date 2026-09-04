@@ -30,7 +30,7 @@ from pathlib import Path
 import pytest
 
 from src.kc.contracts.relation_registry import RelationRegistry
-from src.kc.integrity.gates import GateVerdict, RelationGate
+from src.kc.integrity.gates import RelationGate
 
 
 # 仓库 .kc/relation_registry.yaml 路径 (commit 1 已创建)

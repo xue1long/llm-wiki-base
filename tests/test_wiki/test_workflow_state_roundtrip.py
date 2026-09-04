@@ -5,7 +5,6 @@ to disk by to_frontmatter_dict (V4 8-key whitelist). They remain on the
 in-memory WikiPage for code that needs them, and from_dict() restores them
 from legacy frontmatter for backward compatibility.
 """
-import pytest
 from src.wiki.core.types import WikiPage, PageType
 
 

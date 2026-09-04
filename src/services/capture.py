@@ -7,7 +7,6 @@ not in page.custom_type (to avoid SchemaRegistry validation).
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 from ..lib.project import resolve_project
 from ..templates.loader import load as load_bundled_template
@@ -17,7 +16,6 @@ from ..wiki.core.paths import WikiPaths
 from ..wiki.core.types import PageType, WikiPage
 from ..wiki.features.indexer import append_to_index, read_index
 from ..wiki.features.logger import log_event
-from ..wiki.features.tag_namespace import validate_tag_compliance
 from ..wiki.storage.page_writer import page_path_for, write_page
 
 _logger = logging.getLogger(__name__)

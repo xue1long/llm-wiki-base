@@ -9,7 +9,6 @@ import pytest
 
 from src.pipeline.ingest import _merge_candidate_chunks, generate_ingest, run_ingest
 from src.kc.compiler.normalize import normalize_text
-from src.kc.mainline import CandidatePromoter, PromotionResult
 from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
 from src.knowledge.core.object import KnowledgeType
 from src.wiki.core.paths import WikiPaths

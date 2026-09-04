@@ -10,7 +10,6 @@ Coverage:
 - services.heat.archive_zombies moves pages to _archive/.
 - The HTTP routes delegate to the service (behavior preserved).
 """
-import pytest
 from fastapi.testclient import TestClient
 
 from src.server.app import create_app

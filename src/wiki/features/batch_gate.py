@@ -12,7 +12,6 @@ Exports:
 from __future__ import annotations
 
 import re as _re
-from pathlib import Path
 
 from src.wiki.core.paths import WikiPaths
 from src.wiki.core.types import PageType

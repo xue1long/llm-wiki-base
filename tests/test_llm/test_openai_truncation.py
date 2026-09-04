@@ -9,7 +9,6 @@ was discarded by the provider.
 import asyncio
 
 import httpx
-import pytest
 
 from src.llm.openai_provider import OpenAIProvider
 from src.llm.types import ProviderConfig

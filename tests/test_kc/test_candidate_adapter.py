@@ -7,7 +7,7 @@ import json
 import pytest
 
 from src.kc.api import candidate_to_payload, compile_source, compile_text
-from src.kc.compiler.evidence import EvidenceValidationError, validate_evidence
+from src.kc.compiler.evidence import validate_evidence
 from src.kc.compiler.verify import verify_claim
 from src.kc.contracts.status import PublicationState, can_publish
 from src.kc.compiler.normalize import normalize_text, normalize_text_legacy

@@ -23,12 +23,10 @@ Roadmap v2.2 §B-1:
 """
 from __future__ import annotations
 
-import pytest
 
 from src.kc.contracts.evidence import Evidence
 from src.kc.semantic_support.checker import (
     SemanticSupportChecker,
-    SupportType,
     SupportVerdict,
 )
 

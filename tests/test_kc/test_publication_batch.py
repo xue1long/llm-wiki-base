@@ -5,7 +5,6 @@ import pytest
 
 from src.kc.publish.batch import (
     ObjectVersion,
-    PublicationBatch,
     PublicationGate,
 )
 

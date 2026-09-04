@@ -3,7 +3,6 @@
 Corresponds to CLI subcommands: wiki-templates {list,show,edit,reset,status,diff,upgrade}.
 Frontend-driven design: endpoints return what the UI needs to render.
 """
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 

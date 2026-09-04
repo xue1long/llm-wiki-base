@@ -117,12 +117,11 @@ def test_aggregate_synthesis_generates_page(wiki_dir: Path):
     import asyncio
     from scripts.aggregate_synthesis import (
         _group_by_category, _is_synthesis_candidate,
-        _generate_synthesis_pages, SynthesisResult,
+        _generate_synthesis_pages,
     )
     from src.wiki.core.paths import WikiPaths
     from src.wiki.storage.page_writer import read_page
     from src.llm.registry import ProviderRegistry
-    from src.llm.types import ProviderConfig
 
     paths = WikiPaths(wiki_dir)
     pages = []
@@ -189,8 +188,6 @@ def test_aggregate_synthesis_skips_no_candidate(wiki_dir: Path):
     # 先清空现有的多源 category
     paths = WikiPaths(wiki_dir)
     # 只保留单源页
-    from src.wiki.storage.page_writer import write_page
-    from src.wiki.core.types import WikiPage, PageType
 
     # 覆盖所有页为单源
     for f in (paths.wiki_concepts).glob("*.md"):

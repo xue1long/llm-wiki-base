@@ -1,7 +1,6 @@
 """Tests for B-2.5 identity_key consistency validation (v2.2 重大补位 #1, spec §5 表 13 行)."""
 from __future__ import annotations
 
-import pytest
 
 from src.kc.integrity.identity_key import (
     compute_identity_key,

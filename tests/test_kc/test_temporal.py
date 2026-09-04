@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
 
 # NB: src.kc.compiler.temporal is the module under test — it does not exist
 # yet at the time these tests are authored, so the import below is the red

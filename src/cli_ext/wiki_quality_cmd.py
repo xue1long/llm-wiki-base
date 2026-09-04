@@ -23,10 +23,8 @@ import argparse
 import datetime
 import json
 import re
-import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 PROJECT_ROOT = REPO_ROOT / "knowledge" / "novel-wiki"

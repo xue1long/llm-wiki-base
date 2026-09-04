@@ -39,7 +39,7 @@ def lifespan_env(tmp_path, monkeypatch):
             return [SimpleNamespace(embedding=[0.0]) for _ in texts]
 
     fake_embedding = FakeEmbedding()
-    old_embedding = getattr(embedding_runtime, "_impl")
+    old_embedding = embedding_runtime._impl
     old_loaded = set(ProviderRegistry._loaded_providers)
     old_default = ProviderRegistry.get_default
     old_load = ProviderRegistry.load

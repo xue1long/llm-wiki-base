@@ -1157,7 +1157,6 @@ def test_resolve_tags_uses_analyzer_fallback():
 
 def _make_tracking_provider(responses):
     """Fake provider recording (max_tokens, response) per call."""
-    from src.llm.base import LLMResponse
 
     class _Fake:
         def __init__(self):
@@ -1338,7 +1337,6 @@ async def test_call_with_slot_retry_escalates_when_reasoning_consumed_budget():
     模拟真实 sfkey 返回（reasoning_content 非空、content 空、length）。
     注：这里直接构造 provider 返回 TruncatedResponseError(content_length>0)
     等价于 provider 层已正确上报，验证升级链路。"""
-    from src.llm.types import TruncatedResponseError
     from src.pipeline.generator import _call_with_slot_retry
 
     class _ReasoningProvider:

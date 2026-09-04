@@ -5,7 +5,6 @@ Each branch forwards ``ProviderConfig.timeout_seconds`` and
 can tune their LLM calls.
 """
 import logging
-import os
 
 from .base import LLMProvider, EmbeddingProvider
 from .types import ProviderConfig

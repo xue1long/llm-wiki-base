@@ -1,12 +1,11 @@
-﻿import asyncio
-import pytest
+﻿import pytest
 from tests.support.test_helpers import ScriptedLLMProvider
 from src.pipeline.pipeline import run_ingest
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths
 from src.wiki.core.types import PageType
 from src.events.events import CollectorDonePayload
-from src.queue import __reset_for_testing, enqueue_task, get_queue, get_default_queue_service
+from src.queue import __reset_for_testing, enqueue_task, get_default_queue_service
 from src.types import SourceType, TaskStatus
 from src.utils.idempotency import get_idempotency_cache
 import src.pipeline.pipeline as pipeline_mod
@@ -49,7 +48,7 @@ async def test_run_ingest_full_pipeline(tmp_path):
         f"source page id should start with 'test-', got {source_page_id!r}"
     )
     assert not any(p.id.startswith("kb-") for p in pages), (
-        f"kb-* fallback must NOT be added when LLM already produced a source page"
+        "kb-* fallback must NOT be added when LLM already produced a source page"
     )
     assert (p.wiki_sources / f"{source_page_id}.md").exists()
     assert source_page_id in p.llm_wiki_index.read_text(encoding="utf-8")

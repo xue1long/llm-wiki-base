@@ -102,7 +102,6 @@ from .schemas import AnalysisResult, EntityMention
 
 def _register_event_handlers_if_needed() -> None:
     """Bind the collector:start handler to the global EventBus."""
-    from .service import _register_event_handlers
     _register_event_handlers()
 
 

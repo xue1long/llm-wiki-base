@@ -9,7 +9,6 @@ Coverage:
 - Non-loopback binds are refused at CLI level unless a token exists.
 """
 import json
-import secrets
 
 import pytest
 from fastapi.testclient import TestClient
@@ -64,7 +63,6 @@ def test_provider_get_redacts_api_key(monkeypatch, tmp_path):
 def test_provider_add_redacts_api_key(monkeypatch, tmp_path):
     """POST /api/v1/providers response never returns the raw api_key."""
     from src.llm.registry import ProviderRegistry
-    from src.llm.types import ProviderConfig
 
     captured = {}
 
@@ -295,7 +293,6 @@ def test_is_loopback_host():
 
 def test_serve_refuses_nonloopback_without_token(monkeypatch, tmp_path, capsys):
     """serve --host 0.0.0.0 without a token exits non-zero."""
-    import sys
     from src.project import paths as project_paths
     cfg = tmp_path / "cfg"
     cfg.mkdir(exist_ok=True)

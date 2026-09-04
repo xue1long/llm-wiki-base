@@ -45,6 +45,12 @@ The inherited-host-path run is not a code baseline: it produced 1950 passed,
 1762 permission errors, and 8 failed tests because pytest and project code could
 not access the host temp/config directories. The same affected tests passed in
 the isolated rerun; no unexplained project failure remains.
+
+Coverage baseline (2026-09-04, bundled Python 3.12.14, isolated workspace
+environment): `3733 passed, 45 warnings`; `25443` statements, `19967` covered,
+`78.47738081201116%` total coverage. Applying the fixed formula
+`floor(baseline * 10) / 10 - 1.0` yields the concrete required CI threshold
+`77.4%`.
 ```
 
 ## Decision

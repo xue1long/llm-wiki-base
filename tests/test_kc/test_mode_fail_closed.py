@@ -11,7 +11,6 @@ produce REJECTED, never PENDING.
 """
 from __future__ import annotations
 
-import pytest
 
 
 # ─────────────────────────────────────────────────────────────────────────────

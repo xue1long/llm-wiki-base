@@ -29,7 +29,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.kc.domain import KnowledgeUnit
-from src.kc.integrity.gates import GateVerdict, GranularityGate
+from src.kc.integrity.gates import GranularityGate
 
 
 # ─── 测试夹具 ─────────────────────────────────────────────────────────────

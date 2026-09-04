@@ -11,7 +11,6 @@ from src.kc.views.book import (
     KnowledgeBlock,
     KnowledgeBlockType,
     BookTemplate,
-    BookView,
     compute_book_rendered_hash,
     render_chapter,
     render_chapter_from_dict,

@@ -68,7 +68,7 @@ class PdfConverter(ConverterBase):
             if line.startswith("<!-- page:"):
                 # 提取页码
                 try:
-                    page_num = line.split(":")[1].strip().rstrip("--> ").strip()
+                    page_num = line.split(":", 1)[1].strip().removesuffix("-->").strip()
                 except (IndexError, ValueError):
                     page_num = "?"
                 result.append(f"\n---\n\n## 第 {page_num} 页\n")

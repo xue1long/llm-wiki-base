@@ -126,7 +126,6 @@ def test_concurrent_writers_no_lost_update(paths) -> None:
 
 def test_subprocess_lock_blocks_while_held(paths) -> None:
     """跨进程锁：主进程持锁时子进程写必须等待；释放后子进程写入成功。"""
-    import time
     from src.services.batch_state import batch_state_lock
 
     batch_state_path(paths).parent.mkdir(parents=True, exist_ok=True)

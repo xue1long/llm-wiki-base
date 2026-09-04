@@ -8,7 +8,6 @@ Coverage:
 - /ready reflects embedding capability: when neither remote nor local
   embedding is usable, the vector/provider entries note keyword-only.
 """
-import pytest
 
 
 # ---------------------------------------------------------------------------

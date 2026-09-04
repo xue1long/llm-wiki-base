@@ -200,7 +200,7 @@ def test_apply_true_rebuilds_all_chapters_and_writes_markdown_and_metadata(tmp_p
         metadata_path = output_dir / f"{chapter.id}.json"
         assert markdown_path.exists()
         assert metadata_path.exists()
-        assert f"publication_version: 7" in markdown_path.read_text(encoding="utf-8")
+        assert "publication_version: 7" in markdown_path.read_text(encoding="utf-8")
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         assert metadata["book_id"] == book.id
         assert metadata["chapter_id"] == chapter.id

@@ -1,5 +1,4 @@
 """Test: lint workflow_state + processing_depth validation."""
-import pytest
 from src.wiki.core.types import WikiPage, PageType
 from src.wiki.features.lint import (
     VALID_WORKFLOW_STATES,

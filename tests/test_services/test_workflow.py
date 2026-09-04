@@ -1,5 +1,4 @@
 """Test: workflow state machine."""
-import pytest
 from src.services.capture import mark_page_verified
 from src.wiki.core.types import WikiPage, PageType
 

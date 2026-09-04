@@ -56,7 +56,6 @@ NO markdown rendering, NO outline proposal, NO PublicationBatch creation.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
 from typing import Any
 
 import pytest

@@ -11,7 +11,6 @@ the page, index entry and log line are all produced (no disk writes from
 generate_ingest itself — commit happens in `commit_ingest`; here we
 verify the *returned page* plus that the atomic context path is usable).
 """
-import asyncio
 
 import pytest
 

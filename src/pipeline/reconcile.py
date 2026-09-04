@@ -16,7 +16,6 @@ import re
 from typing import Callable
 
 from ..wiki.core.paths import WikiPaths
-from ..wiki.core.types import PageType
 from ..wiki.features.slug_aliases import SlugAliasRegistry
 from ..wiki.features.slug_utils import normalize_reconcile_slug
 

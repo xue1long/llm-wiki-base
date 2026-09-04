@@ -14,14 +14,9 @@ Ref: docs/architecture/B-2_11_Gate_design.md §3.1 + spec §11.2
 """
 from __future__ import annotations
 
-import pytest
 
 from src.kc.contracts.evidence import Evidence
-from src.kc.governance.approval import Approval
-from src.kc.integrity.gates import Gate, GateVerdict, SchemaGate
-from src.kc.domain.knowledge_unit import KnowledgeUnit, ResolutionEvent
-from src.kc.contracts.structured_fact import StructuredFact
-from src.kc.conflicts.classifier import Conflict
+from src.kc.integrity.gates import GateVerdict, SchemaGate
 from src.knowledge.core.object import KnowledgeObject, KnowledgeType, LifecycleState, Provenance
 
 

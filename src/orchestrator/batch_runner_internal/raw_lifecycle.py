@@ -46,7 +46,6 @@ def _is_immutable_source(paths: WikiPaths, raw_rel: str) -> bool:
 async def _generate_raw(paths, provider, raw_rel, batch_no) -> tuple[list, list, dict]:
     """Phase 1：生成单 raw 页面（dry，零磁盘写）。返回 (pages, extras, meta)。"""
     from src.pipeline.ingest import generate_ingest
-    from src.utils.path import normalize_source_path
 
     src = paths.root / raw_rel
     text = src.read_text(encoding="utf-8", errors="replace")

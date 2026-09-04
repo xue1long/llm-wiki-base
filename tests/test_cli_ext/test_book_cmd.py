@@ -458,7 +458,6 @@ def test_book_build_failure_json_exit_1(tmp_path: Path, capsys, monkeypatch) -> 
 
 
 def test_build_parser_registers_subcommands() -> None:
-    import argparse
 
     from src.cli import build_parser
 
@@ -470,7 +469,6 @@ def test_build_parser_registers_subcommands() -> None:
 
 
 def test_show_parser_registers_subcommands() -> None:
-    import argparse
 
     from src.cli import build_parser
 

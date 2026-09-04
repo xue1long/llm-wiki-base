@@ -8,7 +8,6 @@ executor 顶层按 breaker OPEN 暂停整批等待恢复。
 from __future__ import annotations
 
 import asyncio
-import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -538,7 +537,6 @@ def test_ingest_one_422_marks_permanent_failed_no_breaker_record(
 def test_executor_pauses_when_breaker_open(monkeypatch, tmp_path, patch_generate):
     """breaker OPEN → 直跑路径暂停整批：generate_ingest 不被调用，
     恢复后才继续。"""
-    import scripts.phase4_batch as p4
 
     root, files = _make_batch_root(tmp_path)
     breaker = get_circuit_breaker("llm")
@@ -588,7 +586,6 @@ def test_executor_pauses_when_breaker_open(monkeypatch, tmp_path, patch_generate
 def test_retry_with_backoff_has_callers():
     """retry_with_backoff 不再是死代码：RetryLLMProvider.complete 引用它。"""
     from src.pipeline import retry as retry_mod
-    from src.pipeline.retry import RetryLLMProvider
 
     assert callable(retry_mod.retry_with_backoff)
     # RetryLLMProvider.complete 委托 retry_with_backoff

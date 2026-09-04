@@ -104,7 +104,6 @@ from src.kc.integrity.orchestrator import (
 )
 from src.kc.views.book.binder import (
     EvidenceRef,
-    EvidenceRefStrength,
     bind_evidence,
 )
 from src.kc.views.book.contract import (

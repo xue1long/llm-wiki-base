@@ -17,7 +17,7 @@ Ref: docs/architecture/B-2_11_Gate_design.md §5 + spec §11/§14 A5-8.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

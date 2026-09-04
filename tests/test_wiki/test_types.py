@@ -4,7 +4,6 @@ import datetime
 from src.wiki.core.types import (
     PageType,
     WikiPage,
-    ReviewItem,
     make_review_item,
     _coerce_ts_ms,
     _to_iso_dt,
@@ -113,8 +112,8 @@ def test_from_dict_coerces_iso_strings_in_timestamps():
         "sources": [],
         "relations": [],
         "tags": [],
-        f"created_at": f"'{ISO_DATE}'",
-        f"updated_at": f"'{ISO_DATE}'",
+        "created_at": f"'{ISO_DATE}'",
+        "updated_at": f"'{ISO_DATE}'",
         "verified_at": str(ISO_DATE_MS),
         "valid_from": f"'{ISO_DATE}'",
         "valid_to": ISO_DATE_MS,

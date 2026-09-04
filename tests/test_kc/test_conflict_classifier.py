@@ -19,13 +19,12 @@ Maps directly to the 10 gold cases in ``docs/evaluation/cases/conflict.yaml``
 """
 from __future__ import annotations
 
-import pytest
 
 
 # NB: src.kc.conflicts.classifier is the module under test — it does not exist
 # yet at the time these tests are authored, so the imports below are the red
 # signal that kicks off TDD step 2.
-from src.kc.conflicts.classifier import Conflict, ConflictClassifier, ConflictType
+from src.kc.conflicts.classifier import Conflict, ConflictClassifier
 
 
 # ---------------------------------------------------------------------------

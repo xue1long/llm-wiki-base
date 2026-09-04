@@ -12,7 +12,6 @@ Usage::
 """
 import logging
 import os
-from typing import Optional
 
 from .base import EmbeddingProvider, EmbeddingResponse
 

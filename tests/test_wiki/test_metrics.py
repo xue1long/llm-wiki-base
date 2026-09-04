@@ -21,7 +21,6 @@ from src.wiki.features.metrics import (
     metric_slot_compliance,
     metric_source_fulltext_pollution,
     metric_synthesis_count,
-    read_page_snapshots,
 )
 
 FM = """---

@@ -6,7 +6,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
-from src.pipeline.extraction_types import ExtractionArtifact, SourceRange, artifact_from_text
+from src.pipeline.extraction_types import ExtractionArtifact, artifact_from_text
 
 from .._pipeline_common import _CHROME_LINES, _FEISHU_H1_RE, _META_LINE_RES
 from .policy import load_policy, select_profile

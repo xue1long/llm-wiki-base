@@ -14,14 +14,13 @@ TDD coverage (4 tests):
 """
 from __future__ import annotations
 
-import pytest
 
 # These imports intentionally fail before implementation is added — TDD red phase.
 from src.kc.contracts import (
     StructuredFact,
     compute_structured_fact_identity_key,
 )
-from src.kc.contracts.evidence import Evidence, evidence_for_quote
+from src.kc.contracts.evidence import evidence_for_quote
 from src.kc.extraction.structured_extractor import (
     StructuredExtractor,
     extract_structured_facts,

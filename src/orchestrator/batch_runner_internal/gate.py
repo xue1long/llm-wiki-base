@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from src.wiki.core.paths import WikiPaths
 from src.wiki.features.batch_gate import run_precommit_gate
 
 

@@ -44,7 +44,6 @@ from src.kc.views.book import (
     Chapter,
     KnowledgeBlock,
     KnowledgeBlockType,
-    KnowledgeMode,
     OutlineProposal,
     OutlineProposalStatus,
     StatementRef,

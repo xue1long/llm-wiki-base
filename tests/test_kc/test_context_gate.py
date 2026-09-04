@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.kc.integrity.gates import ContextGate, GateVerdict
+from src.kc.integrity.gates import ContextGate
 
 
 # ─── 测试夹具 ─────────────────────────────────────────────────────────────

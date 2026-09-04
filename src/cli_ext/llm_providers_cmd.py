@@ -179,7 +179,7 @@ def cmd_llm_providers_test(args: argparse.Namespace) -> None:
             print(f"  ✓ response_format: {rf_detail}")
         else:
             print(f"  ⚠ response_format: {rf_detail}")
-            print(f"    → 详见 docs/guides/troubleshooting-ingest-empty-body.md")
+            print("    → 详见 docs/guides/troubleshooting-ingest-empty-body.md")
 
 
 def cmd_llm_providers_set_default(args: argparse.Namespace) -> None:

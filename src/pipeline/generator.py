@@ -17,7 +17,6 @@ This module is the single source of truth for wiki template enforcement.
 See docs/superpowers/plans/2026-07-26-wiki-schema-v23.md.
 """
 import logging
-import re
 from pathlib import Path
 from typing import Optional
 
@@ -27,10 +26,8 @@ from ..wiki.core.id_generator import normalize_id_chars
 from ..wiki.core.paths import WikiPaths
 from ..wiki.features.relations import parse_relations_from_response
 from ..wiki.features.tag_namespace import (
-    MANDATORY_PAIRS,
     TAG_PREFIXES,
     build_tag_prompt_section,
-    is_valid_value,
     normalize_tags,
 )
 from ..wiki.core.types import PageType, WikiPage
@@ -581,9 +578,7 @@ async def unified_generate(
         DeprecationWarning,
         stacklevel=2,
     )
-    import time as _time
     import datetime
-    import re as _re
 
     _truncated = False
     if len(source_text) > get_max_source_chars():
@@ -953,7 +948,6 @@ async def generate_from_candidate(
     Frontmatter fields (type, title, grade) are sourced from the
     candidate; only body content comes from the LLM.
     """
-    import time as _time
     import datetime
 
     # Format claims for the prompt
@@ -1181,7 +1175,6 @@ async def generate_from_knowledge_object(
     claims into body slots only.  GeneratorOutputValidator invariants are
     applied after rendering.
     """
-    import time as _time
     import datetime
 
     # Format claims for the LLM prompt (same as generate_from_candidate)
@@ -1423,7 +1416,6 @@ async def generate(
     don't need to be listed here.
     """
     import json
-    import time
     import datetime
 
     # 0. Resolve the 4 active templates for this project (bundled /
@@ -2244,7 +2236,7 @@ def _load_short_form_template(project_root: Path) -> str:
         if path.is_file():
             return path.read_text(encoding="utf-8")
     raise FileNotFoundError(
-        f"No short-form template found (searched project, user, bundled)"
+        "No short-form template found (searched project, user, bundled)"
     )
 
 

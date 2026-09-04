@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from src.kc.domain.knowledge_unit import KnowledgeUnit
 from src.kc.integrity.orchestrator import IntegrityGate

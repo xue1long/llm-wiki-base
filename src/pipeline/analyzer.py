@@ -8,7 +8,6 @@ from ..knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
 from ..knowledge.core.object import KnowledgeType
 from ..lib.budgeted import BudgetedLLM
 from ..wiki.features.tag_namespace import build_tag_prompt_section
-from ..wiki.core.types import PageType
 from ..wiki.schema_registry import SchemaRegistry
 from src.kc.compiler.normalize import normalize_text
 from ._pipeline_common import parse_llm_json

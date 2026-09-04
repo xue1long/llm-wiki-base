@@ -1,5 +1,5 @@
 """Tests for SchemaRegistry — custom page type parser."""
-from src.wiki.schema_registry import SchemaRegistry, _parse_schema_text
+from src.wiki.schema_registry import SchemaRegistry
 
 
 def test_parse_schema_with_custom_types():

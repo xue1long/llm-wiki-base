@@ -21,10 +21,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-import pytest
 
 from src.kc.contracts.evidence import Evidence
-from src.kc.integrity.gates import EvidenceGate, GateVerdict
+from src.kc.integrity.gates import EvidenceGate
 from src.kc.semantic_support.checker import SemanticSupportChecker
 
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from pathlib import Path
 
 from src.collector.converter.text_converter import TextConverter
 from src.collector.converter.base import ConvertResult

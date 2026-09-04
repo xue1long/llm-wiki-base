@@ -2,7 +2,6 @@
 import pytest
 from src.pipeline.short_form import (
     detect_short_form,
-    ShortFormDecision,
     DEFAULT_CHAR_THRESHOLD,
     DEFAULT_STEP_THRESHOLD,
 )

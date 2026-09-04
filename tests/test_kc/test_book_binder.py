@@ -31,7 +31,6 @@ from src.kc.views.book import (
     KnowledgeBlockType,
 )
 from src.kc.views.book.binder import (
-    EvidenceRef,
     bind_evidence,
 )
 from src.kc.views.book.core_view import SimpleKnowledgeCoreView

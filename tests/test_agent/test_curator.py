@@ -17,7 +17,7 @@ from src.agent.curator import (
 from src.wiki.core.paths import WikiPaths
 from src.wiki.core.types import PageType, WikiPage
 from src.wiki.storage.ensure import ensure_knowledge_base
-from src.wiki.storage.page_writer import page_path_for, read_page, write_page
+from src.wiki.storage.page_writer import page_path_for, write_page
 
 
 # ---------------------------------------------------------------------------

@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from src.collector.collector import Collector
 from src.collector.converter.base import ConvertResult

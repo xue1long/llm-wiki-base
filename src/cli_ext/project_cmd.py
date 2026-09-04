@@ -33,7 +33,6 @@ def cmd_project_init(args: argparse.Namespace) -> None:
 
     # Scaffold the directory tree + base files (idempotent; safe on re-init).
     from ..wiki.storage.ensure import ensure_knowledge_base
-    from ..lib.write_hooks import safe_write
 
     paths = ensure_knowledge_base(project_path)
     _write_scaffold_files(paths)

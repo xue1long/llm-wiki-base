@@ -18,7 +18,6 @@ import importlib.util
 import sys
 from pathlib import Path
 
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SCRIPTS_DIR = REPO_ROOT / "scripts"
@@ -49,7 +48,7 @@ def _make_chapter_with_frontmatter(
     lines = [
         f"id: {chapter_id}",
         f"title: {chapter_id}",
-        f"type: concept",
+        "type: concept",
         f"workflow_state: {workflow_state}",
     ]
     if verified_at is not None:

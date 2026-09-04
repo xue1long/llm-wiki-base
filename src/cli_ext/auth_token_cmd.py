@@ -13,7 +13,6 @@ written to logs or the CLI history beyond the single generation print.
 from __future__ import annotations
 
 import argparse
-import sys
 
 from ..server.auth import clear_token, generate_token, get_token, set_token
 

@@ -58,7 +58,7 @@ def archive_zombies(project_id: str, page_ids: list[str]) -> dict:
     """
     ctx, paths = resolve_project(project_id, by_id_only=True)
     from ..lib.atomic_ctx import AtomicContext
-    from ..lib.write_hooks import flush_pending_writes, safe_write, DELETE_SENTINEL
+    from ..lib.write_hooks import flush_pending_writes
     from ..wiki.storage.page_writer import page_path_for
 
     archive_dir = paths.wiki / "_archive"

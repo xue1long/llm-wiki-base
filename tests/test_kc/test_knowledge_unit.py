@@ -16,7 +16,6 @@ TDD coverage (5 tests):
 """
 from __future__ import annotations
 
-import pytest
 
 # These imports intentionally fail before implementation is added — TDD red phase.
 from src.kc.domain import (

@@ -26,9 +26,7 @@ from pathlib import Path
 import pytest
 
 from src.kc.contracts.relation_registry import (
-    RelationMode,
     RelationRegistry,
-    RelationType,
 )
 
 

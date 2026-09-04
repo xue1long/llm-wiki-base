@@ -23,7 +23,7 @@ Ref: docs/architecture/B-2_11_Gate_design.md §4 + spec §11.3/§11.4.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from .orchestrator import IntegrityReport

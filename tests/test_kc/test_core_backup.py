@@ -16,7 +16,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from src.knowledge.core.object import (
     KnowledgeObject,
@@ -24,11 +23,6 @@ from src.knowledge.core.object import (
     LifecycleState,
     Provenance,
 )
-from src.knowledge.core.version_manager import (
-    _serialize_object,
-    _deserialize_object,
-)
-from src.wiki.core.paths import WikiPaths
 from src.wiki.storage.ensure import ensure_knowledge_base
 
 

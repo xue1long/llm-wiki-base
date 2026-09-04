@@ -11,7 +11,8 @@ def _register_project(monkeypatch, tmp_path, project_id, project_root):
     """Register a project in the registry AND create its .llm-wiki/project.json."""
     from src.project import paths as project_paths
     from src.project.registry import GlobalRegistryStore, ProjectRegistryEntry
-    import time, json
+    import time
+    import json
 
     cfg = tmp_path / "cfg"
     cfg.mkdir()
@@ -136,7 +137,6 @@ def test_quality_fails_on_rejected_verdict(tmp_path, monkeypatch):
 
 def test_quality_collects_wiki_pages(tmp_path, monkeypatch):
     """Returns pages collected from wiki/* frontmatter referencing the source."""
-    import json
 
     proj_root = tmp_path / "proj3"
     _register_project(monkeypatch, tmp_path, "pages-proj", proj_root)

@@ -27,7 +27,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-import pytest
 
 from src.kc.contracts.evidence import Evidence
 from src.kc.integrity.gates import Gate, GateVerdict

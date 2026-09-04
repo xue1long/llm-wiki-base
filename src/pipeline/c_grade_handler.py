@@ -169,7 +169,6 @@ async def _regen_page(
     ``grade="B"``, or ``None`` if the LLM call fails.  The caller must
     compare grades and decide whether to keep the new page.
     """
-    import time
 
     source_context = source_text[:2000] if source_text else "(not available)"
     previous_body = (page.body or "(empty)")[:1500]

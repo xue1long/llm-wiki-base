@@ -16,7 +16,6 @@ Behavior under test:
   field is present) round-trip cleanly and never reintroduce
   ``_ko_extra.source_status`` on re-serialization.
 """
-import yaml
 from src.wiki.core.types import WikiPage, PageType
 
 

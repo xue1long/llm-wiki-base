@@ -18,10 +18,8 @@ Coverage:
 """
 from __future__ import annotations
 
-import pytest
 
 from src.kc.views.wiki_template_compiler import (
-    RebuildReport,
     rebuild_wiki_view,
 )
 

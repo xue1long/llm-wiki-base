@@ -27,10 +27,8 @@ ingest paths.
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-import pytest
 
 from src.vector import pending as pending_mod
 from src.wiki.core.paths import WikiPaths
