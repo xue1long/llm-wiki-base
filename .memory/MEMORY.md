@@ -9,3 +9,5 @@
 - [2026-08-31 A8 Block 身份确定性](feedback-a8-stable-block-identity-2026-08-31.md)
 - [2026-09-01 run_batch 拆分 + kc↔knowledge 边界重构实施交接](handoff-2026-09-01-batch-and-boundary.md) — read first when picking up the two approved plans
 - [2026-09-01 batch crash 测试宿主隔离](feedback-batch-crash-test-host-2026-09-01.md)
+- [2026-09-04 novel-wiki 质检修复完成 + 并行 risk-remediation 计划重叠](feedback-novel-wiki-quality-fix-2026-09-04.md) — 续跑 risk-remediation 计划前先读
+- [2026-09-04 risk remediation Task 0/1](feedback-risk-remediation-task1-2026-09-04.md)
