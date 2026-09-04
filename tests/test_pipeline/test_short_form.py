@@ -4,6 +4,7 @@ from src.pipeline.short_form import (
     detect_short_form,
     DEFAULT_CHAR_THRESHOLD,
     DEFAULT_STEP_THRESHOLD,
+    DEFAULT_TIMEOUT_SECONDS,
 )
 
 
@@ -115,3 +116,21 @@ def test_template_thresholds_type_validation():
     """非法类型抛 TypeError."""
     with pytest.raises(TypeError):
         detect_short_form("内容", template_thresholds="100")
+
+
+def test_unix_alarm_is_cancelled_when_detection_raises(monkeypatch):
+    """异常路径不能留下会终止后续测试的 SIGALRM."""
+    import signal
+    import sys
+    import src.pipeline.short_form as sf
+
+    if sys.platform == "win32":
+        return
+
+    alarms = []
+    monkeypatch.setattr(signal, "alarm", lambda seconds: alarms.append(seconds) or 0)
+    monkeypatch.setattr(sf, "_detect_short_form_inner", lambda *args: (_ for _ in ()).throw(ValueError("boom")))
+
+    with pytest.raises(ValueError, match="boom"):
+        detect_short_form("内容")
+    assert alarms == [DEFAULT_TIMEOUT_SECONDS, 0]

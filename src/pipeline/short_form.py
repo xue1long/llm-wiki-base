@@ -138,6 +138,7 @@ def detect_short_form(
             timed_out=True,
         )
     finally:
+        signal.alarm(0)
         signal.signal(signal.SIGALRM, old_handler)
 
 
