@@ -791,3 +791,12 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - 修复 V4 收敛后的兼容断点：legacy decision record 保留、KnowledgeType 到四类 PageType 映射、rebuild dry-run 类型引用，以及测试 fixture/旧断言合同。
 - 完整验收：`pytest --import-mode=importlib -q` → `3698 passed, 44 warnings, exit 0`；提交范围 `git diff --check main...HEAD` 与相关 Python 编译检查通过。
 - 工作区仍有测试生成的未跟踪/修改文件，未纳入提交；分支相对远端尚有 5 个本地提交未推送。
+
+### 2026-09-04 Risk remediation — Task 0/1
+
+- ✅ Task 0 inventory complete: bundled Python 3.12.14 dev environment installed; isolated full baseline `3716 passed, 45 warnings`; inventory evidence in `docs/superpowers/audits/2026-09-04-risk-remediation-inventory.md`.
+- ✅ Task 1: extracted UTC-first time primitives to `src/lib/time.py`; migrated five duplicate production `_now_ms` definitions and the cascade UTC datetime helper; added contract tests.
+- ✅ Verification: targeted `749 passed`; full suite `3721 passed, 45 warnings` (the +5 are the new time contract tests).
+- ⚠️ Commit not created: `.git/index.lock` creation is denied by the host permission profile; no push attempted.
+- ✅ Task 2: extracted the proven synchronous `safe_write` replace retry into `src/lib/retry.py`; preserved 5 attempts, linear delays, and unlink+rename fallback. Queue advancement, slot-filling, search/ polling loops, and async LLM retry were left unchanged.
+- ✅ Verification: retry/write-hook targeted `8 passed`; full suite `3724 passed, 45 warnings`.

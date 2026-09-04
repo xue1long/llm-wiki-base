@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ..utils.path import safe_resolve
+from ..lib.time import now_ms
 
 from .identity import ProjectIdentity, ensure_project_id
 from .paths import config_dir as _config_dir
@@ -69,7 +70,7 @@ class ProjectContext:
             id=uuid,
             path=str(project_path),
             name=resolved_name,
-            last_opened=_now_ms(),
+            last_opened=now_ms(),
             schema_version=identity.schema_version,
         )
         GlobalRegistryStore.upsert(entry)
@@ -163,7 +164,7 @@ class ProjectContext:
             json.loads(project_json.read_text(encoding="utf-8"))
         )
         # Update last_opened
-        entry.last_opened = _now_ms()
+        entry.last_opened = now_ms()
         GlobalRegistryStore.upsert(entry)
         return cls(
             identity=identity,
@@ -171,8 +172,3 @@ class ProjectContext:
             name=entry.name,
             schema_version=identity.schema_version,
         )
-
-
-def _now_ms() -> int:
-    import time
-    return int(time.time() * 1000)

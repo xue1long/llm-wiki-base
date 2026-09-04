@@ -8,9 +8,9 @@ TTL defaults follow the constants already defined in each feature module.
 """
 import logging
 import shutil
-import time
 from pathlib import Path
 
+from ..lib.time import now_ms
 from ..wiki.core.paths import WikiPaths
 
 _logger = logging.getLogger(__name__)
@@ -34,17 +34,13 @@ DEFAULT_KC_BACKUP_MAX_COUNT = 10
 
 # ── helpers ───────────────────────────────────────────────────────────────
 
-def _now_ms() -> int:
-    return int(time.time() * 1000)
-
-
 def _older_than_ms(path: Path, max_age_ms: int) -> bool:
     """True if *path*'s mtime is older than *max_age_ms* milliseconds."""
     try:
         stat = path.stat()
     except FileNotFoundError:
         return False
-    return (_now_ms() - int(stat.st_mtime * 1000)) > max_age_ms
+    return (now_ms() - int(stat.st_mtime * 1000)) > max_age_ms
 
 
 # ── per-cache cleaners ────────────────────────────────────────────────────

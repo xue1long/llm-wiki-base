@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Union
 
 from .atomic_ctx import is_suspended
+from .retry import RetryExhausted, retry_with_backoff
 
 
 _logger = logging.getLogger(__name__)
@@ -72,15 +73,19 @@ def _atomic_replace(tmp: Path, target: Path) -> None:
     (e.g. target file has a security descriptor that blocks
     ``MoveFileExW`` with ``MOVEFILE_REPLACE_EXISTING``).
     """
-    for attempt in range(5):
-        try:
-            os.replace(tmp, target)
-            return
-        except PermissionError:
-            if attempt < 4:
-                time.sleep(0.05 * (attempt + 1))
-                continue
-        break
+    try:
+        retry_with_backoff(
+            lambda: os.replace(tmp, target),
+            max_attempts=5,
+            base_delay_s=0.05,
+            max_delay_s=0.2,
+            backoff=1.0,
+            retry_on=(PermissionError,),
+            sleep=time.sleep,
+        )
+        return
+    except RetryExhausted:
+        pass
     # os.replace failed 5 times — fall back to unlink + rename
     try:
         os.unlink(target)

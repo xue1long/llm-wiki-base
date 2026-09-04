@@ -14,20 +14,16 @@ Lifecycle:
 from __future__ import annotations
 
 import threading
-import time
 from typing import Any
 
 from ..events.event_bus import event_bus
 from ..events.events import EventName
+from ..lib.time import now_ms
 
 # task_id → record
 _tasks: dict[str, dict] = {}
 _lock = threading.Lock()
 _initialized = False
-
-
-def _now_ms() -> int:
-    return int(time.time() * 1000)
 
 
 def init_tracker() -> None:
@@ -55,7 +51,7 @@ def init_tracker() -> None:
                     return
                 if rec["status"] == "queued":
                     rec["status"] = "running"
-                rec["stages"].append({"name": stage, "at": _now_ms()})
+                rec["stages"].append({"name": stage, "at": now_ms()})
 
     event_bus.on(EventName.TASK_CREATED, _on_created)
     event_bus.on(EventName.TASK_STATUS_CHANGED, _on_status)
@@ -78,7 +74,7 @@ def _on_created(p: Any) -> None:
             "source": getattr(p, "source", None),
             "status": "queued",
             "stages": [],
-            "started_at": _now_ms(),
+            "started_at": now_ms(),
             "finished_at": None,
             "error": None,
             "project_id": getattr(p, "project_id", None),
@@ -98,17 +94,17 @@ def _on_status(p: Any) -> None:
             # Normalize enum to its string value
             rec["status"] = to_status.value if hasattr(to_status, "value") else str(to_status)
             if rec["status"] == "running" and "running_marked_at" not in rec:
-                rec["running_marked_at"] = _now_ms()
+                rec["running_marked_at"] = now_ms()
         err = getattr(p, "error", None)
         if err:
             rec["error"] = err
         # Terminal statuses
         if rec["status"] in ("succeeded", "approved", "archived", "rejected"):
             rec["status"] = "succeeded"
-            rec["finished_at"] = _now_ms()
+            rec["finished_at"] = now_ms()
         elif rec["status"] in ("failed", "timeout", "dead_letter"):
             rec["status"] = "failed"
-            rec["finished_at"] = _now_ms()
+            rec["finished_at"] = now_ms()
 
 
 def _on_dead_letter(p: Any) -> None:
@@ -121,7 +117,7 @@ def _on_dead_letter(p: Any) -> None:
             return
         rec["status"] = "failed"
         rec["error"] = getattr(p, "error", None) or "dead letter"
-        rec["finished_at"] = _now_ms()
+        rec["finished_at"] = now_ms()
 
 
 def _touch_stage(p: Any, stage_name: str) -> None:
@@ -136,7 +132,7 @@ def _touch_stage(p: Any, stage_name: str) -> None:
         if rec["status"] == "queued":
             rec["status"] = "running"
         # Append stage event (allow duplicate stage names for repeated runs)
-        rec["stages"].append({"name": stage_name, "at": _now_ms()})
+        rec["stages"].append({"name": stage_name, "at": now_ms()})
 
 
 def get_task(task_id: str) -> dict | None:
@@ -157,7 +153,7 @@ def list_tasks(project_id: str | None = None) -> list[dict]:
 
 def prune_finished(max_age_ms: int = 24 * 3600 * 1000) -> int:
     """Drop records for tasks that finished > max_age_ms ago. Returns count pruned."""
-    cutoff = _now_ms() - max_age_ms
+    cutoff = now_ms() - max_age_ms
     pruned = 0
     with _lock:
         for tid in list(_tasks.keys()):

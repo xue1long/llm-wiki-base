@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from ..lib.time import now_ms
 
 _logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ def ensure_project_id(project_path: Path) -> str:
     ident = ProjectIdentity(
         id=str(uuid.uuid4()),
         name=project_path.name,
-        created_at=_now_ms(),
+        created_at=now_ms(),
     )
     project_json.parent.mkdir(parents=True, exist_ok=True)
     project_json.write_text(
@@ -91,8 +92,3 @@ def ensure_project_id(project_path: Path) -> str:
     )
     return ident.id
 
-
-def _now_ms() -> int:
-    """Unix epoch in milliseconds."""
-    import time
-    return int(time.time() * 1000)
