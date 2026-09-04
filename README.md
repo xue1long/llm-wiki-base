@@ -90,12 +90,14 @@ Wiki 是核心数据结构(取代旧的 `Notes/<task_id>.md` 布局)。
 | `title` | str | 显示标题 |
 | `type` | PageType | `source` \| `entity` \| `concept` \| `synthesis` |
 | `sources` | list[str] | 原始文件路径(`raw/sources/<file>`) |
+| `created_at` / `updated_at` | datetime | V5:ISO 8601 datetime(旧 V4 页 ms int 自动兼容) |
 | `relations` | list[Relation] | 17 种内置类型 + `x-*` 用户自定义 |
-| `grade` | A/B/C | 源质量 |
-| `processing_depth` | concept/memory | 处理深度 |
-| `heat` | 0–100 | 衰减追踪器 |
+| `tags` | list[str] | 业务轻量标签 |
+| `grade` | A/B/C | 源质量(仅内存) |
+| `processing_depth` | concept/memory | 处理深度(仅内存) |
+| `heat` | 0–100 | 衰减追踪器(仅内存) |
 
-完整规范见 [`docs/guides/wiki-spec.md`](docs/guides/wiki-spec.md)。
+磁盘 frontmatter 是 **V5 8 键严格白名单**(`id` / `title` / `type` / `sources` / `created_at` / `updated_at` / `relations` / `tags`);`grade` / `processing_depth` / `heat` 等仅保留在内存 `WikiPage`,不写盘。完整规范见 [`docs/guides/wiki-spec.md`](docs/guides/wiki-spec.md)。
 
 ### 摄取流水线
 
@@ -178,9 +180,10 @@ python -m src.cli serve --host 127.0.0.1
 python -m src.cli serve-stop
 python -m src.cli serve-status
 
-# 健康检查 / MCP / 深度研究
+# 健康检查 / 质量门禁 / MCP / 深度研究
 python -m src.cli health --project <id>
-python -m src.cli mcp                # stdio MCP server(8 个 tools)
+python -m src.cli wiki-quality [--project PATH] [--json] [--strict]   # novel-wiki 质量门禁(H1/H2/H4/H5 + 内容扫描;默认项目 = knowledge/novel-wiki)
+python -m src.cli mcp                # stdio MCP server(13 tools:8 legacy HTTP + 5 memory)
 python -m src.cli research run ...   # 深度研究管线
 
 # 其他
