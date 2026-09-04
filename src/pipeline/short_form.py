@@ -1,7 +1,8 @@
 """Short-form content detection — classify content as memory (short) or concept.
 
-Platform-compatible timeout: threading.ThreadPoolExecutor on Windows,
-signal.alarm on Unix (P13 + P26 stress-test hardening).
+Platform-compatible timeout: threading.ThreadPoolExecutor on Windows and
+non-main threads, signal timers on Unix's main thread (P13 + P26 stress-test
+hardening).
 """
 import re
 import sys
@@ -106,7 +107,12 @@ def detect_short_form(
     Falls back to 'concept' on timeout.
     Platform-compatible: threading pool on Windows, signal.alarm on Unix.
     """
-    if sys.platform == "win32":
+    # Python only permits installing signal handlers in the main thread. The
+    # async queue pipeline invokes this function from a worker thread, so use
+    # the same safe fallback there as on Windows.
+    import threading
+
+    if sys.platform == "win32" or threading.current_thread() is not threading.main_thread():
         return _detect_with_threading_timeout(
             content, char_threshold, step_threshold, template_thresholds, timeout
         )

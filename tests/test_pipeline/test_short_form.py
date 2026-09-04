@@ -112,6 +112,15 @@ def test_windows_threading_fallback():
         assert d.is_short is True
 
 
+def test_worker_thread_uses_threading_fallback():
+    """Unix worker threads must not attempt to install signal handlers."""
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        d = executor.submit(detect_short_form, "测试内容").result()
+    assert d.is_short is True
+
+
 def test_template_thresholds_type_validation():
     """非法类型抛 TypeError."""
     with pytest.raises(TypeError):
