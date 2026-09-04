@@ -219,6 +219,6 @@ fixture 对受影响模块做精确 snapshot/restore，覆盖 key 不存在、�
 - **结论：实施完成，达到进入 CI 验证和上线评审的标准。** Task 0–6 的实施项已完成并已勾选；未修改 Wiki v2 数据模型、LanceDB/pyarrow 版本或 3.14 支持承诺。
 - **代码提交证据：** `8e7a85b5`、`82ecc34d`、`450c039d`、`39f5477b`、`61b6eae6`、`30b44cc5`、`97efc7de`；每个逻辑任务均有独立提交，Task 4 按批次保留隔离提交。
 - **回归证据：** 隔离环境全量测试 `3733 passed, 45 warnings`；最终 coverage `78.45%`，CI 固定阈值 `77.4%`；`ruff check src tests` 通过；workflow YAML 静态解析通过；真实临时项目 lifespan `/health` smoke 通过。
-- **CI 证据：** workflow 已配置 Python `3.11`、`3.12`、`3.13` 同一 coverage-gated 测试命令，coverage artifact 只从 `3.12` 上传一次；3.14 未列入 required matrix。当前本机直接回归证据为 Python 3.12，3.11/3.13 需以 CI 实际运行结果完成跨版本确认。
+- **CI 证据：** GitHub Actions [Run #28](https://github.com/xue1long/llm-wiki-base/actions/runs/33868741744)（commit `55d71396`）的 Python `3.11`、`3.12`、`3.13` 三个 job 全部成功；同一 coverage-gated 测试命令通过，coverage artifact 由 `3.12` 上传一次；3.14 未列入 required matrix。期间修复 Unix 非主线程信号处理器错误，端到端回归已纳入实际矩阵验证。
 - **环境限制：** `graphify update .` 仍受本机 uv trampoline canonicalize 错误阻塞；未修改全局工具或缓存，该问题不影响本次代码和测试验收。
 - **交付边界：** `.git/hooks/pre-commit` 为本机 local-only 产物，不进入 Git 交付；现有无关脏文件保持不变。

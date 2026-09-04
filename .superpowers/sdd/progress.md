@@ -829,5 +829,5 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 
 - ✅ Revised plan Tasks 0–6 checklist completed and final acceptance record added.
 - ✅ Acceptance evidence: full isolated suite `3733 passed, 45 warnings`; coverage `78.45%` against `77.4%`; `ruff check src tests` passed; quality workflow YAML parsed; real temporary-root server `/health` smoke passed.
-- ✅ CI matrix is configured for Python `3.11`, `3.12`, and `3.13`; local verification was performed on Python 3.12, with cross-version execution delegated to the configured CI run. Python 3.14 remains explicitly out of scope.
+- ✅ CI Run #28 (`55d71396`) passed all three matrix jobs: Python `3.11`, `3.12`, and `3.13`; coverage-gated full suite and the end-to-end queue path passed remotely. Python 3.14 remains explicitly out of scope.
 - ⚠️ `graphify update .` remains blocked by the host's uv trampoline canonicalization error; no global tool/cache changes were made.
