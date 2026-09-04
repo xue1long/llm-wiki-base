@@ -804,3 +804,5 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ Verification: new lifespan tests `3 passed`; `tests/test_server/` `155 passed`; clean temporary-root smoke test `/health` returned HTTP 200.
 - ✅ Task 4 pilot + batch A: added explicit optional-dependency stub context isolation and teardown restoration; migrated `test_agent`, `test_collector`, `test_lib`, `test_project`, and `test_vector` conftests.
 - ✅ Verification: stub-isolation pilot + `test_lib` `59 passed`; fixed batch A `343 passed`. The first run exposed and closed a real `platformdirs` stub leak into `test_lib/test_project_resolve.py`.
+- ✅ Task 4 batch B–D: added root-level per-test `sys.modules` snapshot/restore for heavy dependency modules and `scripts*` imports, covering the remaining test packages without duplicating 14 conftest implementations.
+- ✅ Verification: B–D collection `3000 tests`; B–D full regression `3000 passed, 45 warnings`.
