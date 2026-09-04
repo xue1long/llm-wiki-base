@@ -84,8 +84,8 @@ Expected: `748 passed in ~25s`. Two flags matter:
 The following test-infrastructure issues were diagnosed on 2026-07-23 and
 fixed via new `conftest.py` files under `tests/`. They are documented here
 because the underlying pattern is fragile: any new `tests/test_X/conftest.py`
-that depends on `platformdirs`, `pyarrow`, `lancedb`, or `mcp` will need
-the same "restore real module" treatment as long as the sibling
+that depends on `platformdirs`, `pyarrow`, `lancedb`, or `mcp` must preserve
+the same isolated-module boundary as long as the sibling
 `tests/test_llm/`, `tests/test_server/`, `tests/test_wiki/` conftests
 stub them.
 
@@ -111,6 +111,14 @@ re-imports the real module. Where the timing is delicate (an
 alphabetically-later conftest re-stubs the module after this one
 restores it) the restore must run inside `pytest_configure` rather
 than at conftest-load time, e.g. `tests/test_searcher/conftest.py`.
+
+In addition, `tests/conftest.py::_restore_module_boundary` snapshots and
+restores the heavy module names and `scripts*` entries around every test.
+`tests/test_lib/test_stub_isolation.py` verifies missing-module restoration,
+existing-module restoration, exception teardown, and cached dependent-module
+survival. Package-specific fixtures still perform real-module re-imports when
+collection requires them; the root fixture prevents test-body mutations from
+crossing boundaries.
 
 ### 4.2 Already-imported modules hold the stub
 

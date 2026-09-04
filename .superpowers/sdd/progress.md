@@ -806,3 +806,4 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ Verification: stub-isolation pilot + `test_lib` `59 passed`; fixed batch A `343 passed`. The first run exposed and closed a real `platformdirs` stub leak into `test_lib/test_project_resolve.py`.
 - ✅ Task 4 batch B–D: added root-level per-test `sys.modules` snapshot/restore for heavy dependency modules and `scripts*` imports, covering the remaining test packages without duplicating 14 conftest implementations.
 - ✅ Verification: B–D collection `3000 tests`; B–D full regression `3000 passed, 45 warnings`.
+- ✅ Task 4 final verification: full suite `3730 passed, 45 warnings` after the public module-boundary fixture and setup documentation update.
