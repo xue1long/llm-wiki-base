@@ -98,9 +98,11 @@
 | **生成并写入磁盘** | Book 构建栏 | 执行 KC Book 写入 | `POST /api/v1/kc/book/build`（`apply=true`） |
 | **章节目录按钮** | 左侧目录 | 切换当前正式 Wiki-to-Book 章节 | `GET /api/v1/projects/{id}/book-wiki/content?path=...` |
 | **卷筛选 / 搜索** | 左侧目录上方 | 按类型和章节标题过滤目录 | — |
+| **Book 版本下拉** | 左侧目录上方 | 切换可用的完整性校验 Book release | `GET /api/v1/projects/{id}/book-wiki/versions` + `GET /api/v1/projects/{id}/book-wiki?version=...` |
 
 Book 阅读页读取 `CURRENT.json` 指向的完整性校验 release：
 `GET /api/v1/projects/{id}/book-wiki` 获取目录和章节信息，右侧面板展示 release、来源、关系和质量摘要。
+版本下拉先读取 `GET /api/v1/projects/{id}/book-wiki/versions`，切换后通过 `version` 查询参数读取指定 release；章节正文请求同样携带该版本号。
 
 ## 4. 聊天页（Chat）
 

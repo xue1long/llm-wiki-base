@@ -424,6 +424,7 @@ body {
 .book-volume { border:1px solid var(--border); border-radius:999px; padding:8px 14px; background:var(--bg-app); color:var(--text-secondary); cursor:pointer; }
 .book-volume.active, .book-volume:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-light); }
 .book-search { width:260px; padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-app); color:var(--text-primary); }
+.book-version-select { min-width:270px; max-width:360px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-app); color:var(--text-primary); }
 .book-layout { display:grid; grid-template-columns:minmax(230px, 290px) minmax(0, 1fr) minmax(220px, 270px); gap:18px; min-height:620px; align-items:start; }
 .book-toc, .book-reader { border:1px solid var(--border); border-radius:16px; background:var(--bg-app); }
 .book-toc { max-height:calc(100vh - 250px); overflow:auto; padding:14px; }
@@ -455,7 +456,7 @@ body {
 .book-info-sources li { overflow-wrap:anywhere; }
 .book-info-empty { color:var(--text-muted); font-size:12px; line-height:1.6; }
 @media (max-width: 1050px) { .book-layout { grid-template-columns:minmax(210px, 260px) minmax(0, 1fr); } .book-info { grid-column:1 / -1; position:static; min-height:auto; } .book-info-list { grid-template-columns:repeat(4, 1fr); } }
-@media (max-width: 800px) { .book-hero, .book-toolbar { display:block; } .book-stats { margin-top:18px; } .book-search { width:100%; margin-top:12px; } .book-layout { grid-template-columns:1fr; } .book-toc { max-height:320px; } .book-info { grid-column:auto; } .book-info-list { grid-template-columns:1fr 1fr; } }
+@media (max-width: 800px) { .book-hero, .book-toolbar { display:block; } .book-stats { margin-top:18px; } .book-search, .book-version-select { width:100%; max-width:none; margin-top:12px; } .book-layout { grid-template-columns:1fr; } .book-toc { max-height:320px; } .book-info { grid-column:auto; } .book-info-list { grid-template-columns:1fr 1fr; } }
 
 /* ---------- Book build panel (Knowledge Compiler) ---------- */
 .book-build { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin:18px 0 0; padding:14px 16px; border:1px solid var(--border); border-radius:var(--radius-xl); background:var(--bg-surface); }

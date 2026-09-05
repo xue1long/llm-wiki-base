@@ -49,6 +49,9 @@
         </div>
         <div class="book-toolbar">
           <div class="book-volumes" id="bookVolumes"></div>
+          <select id="bookVersionSelect" class="book-version-select" aria-label="选择 Book 版本" disabled>
+            <option>加载 Book 版本…</option>
+          </select>
           <input id="bookSearch" class="book-search" placeholder="搜索章节标题…" aria-label="搜索章节标题" />
         </div>
         <div class="book-layout">
@@ -65,6 +68,7 @@
     const info = root.querySelector("#bookInfo");
     const stats = root.querySelector("#bookStats");
     const volumeBar = root.querySelector("#bookVolumes");
+    const versionSelect = root.querySelector("#bookVersionSelect");
     const search = root.querySelector("#bookSearch");
     const buildStatusEl = root.querySelector("#bookBuildStatus");
     const buildResultEl = root.querySelector("#bookBuildResult");
@@ -83,6 +87,7 @@
       renderToc();
     });
     search.addEventListener("input", () => { query = search.value.trim().toLowerCase(); renderToc(); });
+    versionSelect.addEventListener("change", () => loadBook(versionSelect.value));
 
     statusBtn.addEventListener("click", () => { loadStatus(); });
     dryRunBtn.addEventListener("click", () => { runBuild(false); });
@@ -160,20 +165,44 @@
 
     // ---------- Read-only Wiki-to-Book reader ----------
 
-    App.api(`/api/v1/projects/${App.state.projectId}/book-wiki`)
-      .then(data => {
+    async function loadBook(version = "") {
+      const query = version ? `?version=${encodeURIComponent(version)}` : "";
+      try {
+        const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki${query}`);
         book = data;
         files = data.chapters || [];
         stats.textContent = `${files.length.toLocaleString()} 章 · ${(data.page_count || 0).toLocaleString()} 页`;
         renderBookInfo();
         renderToc();
-      })
-      .catch(error => {
+      } catch (error) {
         book = null;
         stats.textContent = "加载失败";
         toc.innerHTML = `<div class="banner-err">Book 加载失败：${App.escapeHtml(error.message)}</div>`;
         info.innerHTML = `<div class="book-info-empty">当前没有可预览的激活版本</div>`;
-      });
+      }
+    }
+
+    async function loadVersions() {
+      try {
+        const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki/versions`);
+        const versions = data.versions || [];
+        if (!versions.length) {
+          versionSelect.innerHTML = "<option>暂无可用 Book 版本</option>";
+          return;
+        }
+        versionSelect.innerHTML = versions.map(item => {
+          const label = `${String(item.version).slice(0, 12)} · ${Number(item.chapter_count || 0).toLocaleString()}章 · ${Number(item.page_count || 0).toLocaleString()}页${item.active ? " · 当前" : ""}`;
+          return `<option value="${App.escapeHtml(String(item.version))}">${App.escapeHtml(label)}</option>`;
+        }).join("");
+        versionSelect.disabled = false;
+        const active = versions.find(item => item.active) || versions[0];
+        versionSelect.value = active.version;
+        await loadBook(active.version);
+      } catch (error) {
+        versionSelect.innerHTML = "<option>版本列表不可用</option>";
+        await loadBook();
+      }
+    }
 
     function volumeFor(chapter) {
       const raw = typeof chapter === "string"
@@ -218,7 +247,9 @@
       toc.querySelectorAll(".book-chapter").forEach(el => el.classList.toggle("active", el === button));
       reader.innerHTML = `<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div>`;
       try {
-        const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki/content?path=${encodeURIComponent(button.dataset.path)}`);
+        const params = new URLSearchParams({path: button.dataset.path});
+        if (versionSelect.value && !versionSelect.disabled) params.set("version", versionSelect.value);
+        const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki/content?${params}`);
         const title = button.textContent;
         const chapter = files.find(item => item.path === button.dataset.path);
         reader.innerHTML = `<div class="book-reader-kicker">${App.escapeHtml(volumeFor(chapter || {}))} · WIKI-TO-BOOK</div>
@@ -259,5 +290,6 @@
     }
 
     loadStatus();
+    loadVersions();
   };
 })();
