@@ -103,6 +103,7 @@
 Book 阅读页读取 `CURRENT.json` 指向的完整性校验 release：
 `GET /api/v1/projects/{id}/book-wiki` 获取目录和章节信息，右侧面板展示 release、来源、关系和质量摘要。
 版本下拉先读取 `GET /api/v1/projects/{id}/book-wiki/versions`，切换后通过 `version` 查询参数读取指定 release；章节正文请求同样携带该版本号。
+目录中的卷名和章名来自 release 的 `outline.json`；旧 release 缺少大纲时回退显示文件名。
 
 ## 4. 聊天页（Chat）
 
