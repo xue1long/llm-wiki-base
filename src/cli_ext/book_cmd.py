@@ -85,9 +85,12 @@ def cmd_book_outline_from_theme(args: argparse.Namespace) -> int:
     try:
         from src.llm.provider_factory import create_llm_provider
         from src.llm.registry import ProviderRegistry
-        provider_name = getattr(args, "provider", None) or ProviderRegistry.get_default_name() or ""
-        if not provider_name:
-            provider_name = os.environ.get("RUFLO_LLM_PROVIDER", "")
+        provider_name = (
+            getattr(args, "provider", None)
+            or os.environ.get("RUFLO_LLM_PROVIDER", "").strip()
+            or ProviderRegistry.get_default_name()
+            or ""
+        )
         outline = asyncio.run(plan_theme_outline(
             theme=theme, purpose=purpose,
             provider=create_llm_provider(provider_name),
