@@ -81,10 +81,46 @@ class LineageStore:
                 lease_id INTEGER PRIMARY KEY CHECK (lease_id = 1),
                 run_id TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS pending_wiki_commits (
+                wiki_page_id TEXT PRIMARY KEY, source_ids TEXT NOT NULL,
+                path TEXT NOT NULL, content_hash TEXT NOT NULL
+            );
             """
         )
         db.commit()
+        cls._recover_pending(db, Path(project_root))
         return cls(db, Path(project_root))
+
+    @staticmethod
+    def _recover_pending(db: sqlite3.Connection, root: Path) -> None:
+        rows = db.execute("SELECT wiki_page_id, source_ids, path, content_hash FROM pending_wiki_commits").fetchall()
+        for page_id, source_ids, path, expected in rows:
+            target = root / path
+            if not target.is_file():
+                continue
+            if hashlib.sha256(target.read_bytes()).hexdigest() != expected:
+                continue
+            ids = tuple(x for x in source_ids.split("\n") if x)
+            db.execute("INSERT OR REPLACE INTO artifacts(artifact_kind, artifact_id, path, content_hash, status) VALUES ('wiki', ?, ?, ?, 'committed')", (page_id, path, expected))
+            db.execute("DELETE FROM artifact_sources WHERE artifact_id = ?", (page_id,))
+            db.executemany("INSERT INTO artifact_sources(artifact_id, source_id) VALUES (?, ?)", ((page_id, x) for x in ids))
+            db.execute("DELETE FROM pending_wiki_commits WHERE wiki_page_id = ?", (page_id,))
+        db.commit()
+
+    def prepare_wiki_commits(self, entries) -> None:
+        with self._db:
+            for page_id, source_ids, path, digest in entries:
+                old = self._db.execute("SELECT content_hash FROM pending_wiki_commits WHERE wiki_page_id = ?", (page_id,)).fetchone()
+                if old and old[0] != digest:
+                    raise ValueError(f"pending Wiki commit conflict: {page_id}")
+                self._db.execute("INSERT OR REPLACE INTO pending_wiki_commits VALUES (?, ?, ?, ?)", (page_id, "\n".join(source_ids), path, digest))
+
+    def pending_wiki_commits(self) -> tuple[str, ...]:
+        return tuple(row[0] for row in self._db.execute("SELECT wiki_page_id FROM pending_wiki_commits ORDER BY wiki_page_id"))
+
+    def clear_pending_wiki_commit(self, page_id: str) -> None:
+        with self._db:
+            self._db.execute("DELETE FROM pending_wiki_commits WHERE wiki_page_id = ?", (page_id,))
 
     def register_source(self, source_id: str, source_path: str,
                         source_hash: str, status: str) -> None:
@@ -98,6 +134,34 @@ class LineageStore:
             (source_id, source_path, source_hash, status),
         )
         self._db.commit()
+
+    def ensure_source(self, source_path: str | Path, *,
+                      source_text: str | None = None) -> str | None:
+        """Register the actual ingestion input without resetting unchanged state."""
+        from ..utils.path import canonical_raw_key
+
+        raw = str(source_path)
+        is_url = raw.startswith(("https://", "http://"))
+        key = raw if is_url else canonical_raw_key(raw, self._project_root)
+        existing = self.source_id_for_path(key)
+        path = self._project_root / key
+        if not is_url and path.is_file():
+            content = path.read_bytes()
+        elif source_text is not None:
+            content = source_text.encode("utf-8")
+        elif existing is not None:
+            return existing
+        elif is_url:
+            content = raw.encode("utf-8")
+        else:
+            return None
+        digest = hashlib.sha256(content).hexdigest()
+        source_id = existing or "src-" + hashlib.sha256(key.encode("utf-8")).hexdigest()[:32]
+        if existing is None:
+            self.register_source(source_id, key, digest, "discovered")
+        elif self.source(existing)["source_hash"] != digest:
+            self.register_source(existing, key, digest, "stale")
+        return source_id
 
     def source(self, source_id: str) -> dict:
         row = self._db.execute(
@@ -373,6 +437,7 @@ class LineageStore:
                WHERE a.artifact_id IS NULL OR s.source_id IS NULL"""
         ).fetchone()[0]
         pending = self._db.execute("SELECT COUNT(*) FROM outbox WHERE delivered = 0").fetchone()[0]
+        pending += self._db.execute("SELECT COUNT(*) FROM pending_wiki_commits").fetchone()[0]
         valid = set(_TRANSITIONS)
         invalid = self._db.execute(
             "SELECT COUNT(*) FROM sources WHERE status NOT IN (%s)" % ",".join("?" * len(valid)),

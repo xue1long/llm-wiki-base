@@ -135,9 +135,15 @@ def flush_pending_writes() -> int:
     partial commit look like success — callers must now observe the error
     and mark the task FAILED.
     """
+    return _flush_pending_writes()
+
+
+def _flush_pending_writes(before_flush=None) -> int:
     bucket = _pending_writes_by_thread.pop(threading.get_ident(), {})
     if not bucket:
         return 0
+    if before_flush is not None:
+        before_flush(bucket)
     count = len(bucket)
     failed: list[Path] = []
     # Test hook: RUFLO_FLUSH_FAIL_PATHS=<name>[;<name>...] forces matching

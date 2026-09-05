@@ -48,8 +48,9 @@ class AtomicContext:
     AtomicContext stack, so threads do not interfere with each other.
     """
 
-    def __init__(self, flush_callback: Optional[Callable[[], None]] = None):
+    def __init__(self, flush_callback: Optional[Callable[[], None]] = None, before_flush=None):
         self._flush_callback = flush_callback
+        self._before_flush = before_flush
         self._is_outer = False
 
     def __enter__(self) -> "AtomicContext":
@@ -86,7 +87,7 @@ class AtomicContext:
         # aggregated failed-path list, which propagates to the caller so
         # the task can be marked FAILED. The flush_callback failure is also
         # propagated (no more log-and-ignore).
-        write_hooks.flush_pending_writes()
+        write_hooks._flush_pending_writes(self._before_flush)
         self._flush_callback()
         return False
 
