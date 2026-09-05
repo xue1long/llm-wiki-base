@@ -360,8 +360,11 @@ def test_book_wiki_versions_lists_verified_releases_and_reads_selected(monkeypat
         chapter = f"# {title}\n"
         (release / "v001__c001.md").write_text(chapter, encoding="utf-8")
         digest = hashlib.sha256((release / "v001__c001.md").read_bytes()).hexdigest()
+        outline = [{"volumes": [{"volume_id": "v001", "title": "第一卷", "chapters": [{"chapter_id": "c001", "title": "第一章"}]}]}]
+        (release / "outline.json").write_text(json.dumps(outline), encoding="utf-8")
+        outline_digest = hashlib.sha256((release / "outline.json").read_bytes()).hexdigest()
         manifest = {"run_id": version, "chapter_count": 1, "page_count": 1,
-                    "files": {"v001__c001.md": digest}}
+                    "files": {"v001__c001.md": digest, "outline.json": outline_digest}}
         (release / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     active_manifest = (book_dir / ".releases" / "v2" / "manifest.json").read_bytes()
     (book_dir / "CURRENT.json").write_text(json.dumps({
@@ -375,6 +378,9 @@ def test_book_wiki_versions_lists_verified_releases_and_reads_selected(monkeypat
     versions = files_service.book_wiki_versions("u")["versions"]
     assert {item["version"] for item in versions} == {"v1", "v2"}
     assert next(item for item in versions if item["version"] == "v2")["active"] is True
+    selected_manifest = files_service.book_wiki_manifest("u", version="v1")
+    assert selected_manifest["volumes"][0]["title"] == "第一卷"
+    assert selected_manifest["chapters"][0]["title"] == "第一章"
     selected = files_service.read_book_wiki_content("u", "v001__c001.md", version="v1")
     assert selected["content"] == "# Old\n"
 

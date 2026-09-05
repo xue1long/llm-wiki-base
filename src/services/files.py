@@ -180,6 +180,36 @@ def _verified_book_release(book_dir: Path, version: str) -> tuple[Path, dict]:
     return release, manifest
 
 
+def _book_outline_metadata(release: Path) -> tuple[list[dict], dict[str, dict]]:
+    """Read optional volume/chapter labels from the compiled outline."""
+    try:
+        raw = json.loads((release / "outline.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return [], {}
+    outlines = raw if isinstance(raw, list) else [raw] if isinstance(raw, dict) else []
+    volumes, chapters = [], {}
+    for outline in outlines:
+        if not isinstance(outline, dict):
+            continue
+        for volume in outline.get("volumes") or []:
+            if not isinstance(volume, dict):
+                continue
+            volume_id = str(volume.get("volume_id") or "").strip()
+            volume_title = str(volume.get("title") or volume_id).strip()
+            if not volume_id:
+                continue
+            volumes.append({"id": volume_id, "title": volume_title})
+            for chapter in volume.get("chapters") or []:
+                if not isinstance(chapter, dict) or not chapter.get("chapter_id"):
+                    continue
+                chapters[str(chapter["chapter_id"])] = {
+                    "title": str(chapter.get("title") or chapter["chapter_id"]),
+                    "volume_id": volume_id,
+                    "volume_title": volume_title,
+                }
+    return volumes, chapters
+
+
 def _active_book_wiki(project_id: str, version: str | None = None) -> tuple[Path, dict]:
     """Return the verified active Book release and its manifest."""
     import json
@@ -231,6 +261,7 @@ def book_wiki_manifest(project_id: str, version: str | None = None) -> dict:
     release, manifest = _active_book_wiki(project_id, version=version)
     chapter_sources = manifest.get("chapter_sources") or {}
     files = manifest.get("files") or {}
+    outline_volumes, outline_chapters = _book_outline_metadata(release)
     chapters = []
     for name in sorted(files):
         if not name.endswith(".md") or name in {"index.md", "glossary.md"}:
@@ -239,11 +270,16 @@ def book_wiki_manifest(project_id: str, version: str | None = None) -> dict:
         if not path.is_file():
             continue
         chapter_id = path.stem
+        outline_id = chapter_id.split("__", 1)[-1]
+        chapter_meta = outline_chapters.get(outline_id, outline_chapters.get(chapter_id, {}))
         sources = chapter_sources.get(name, chapter_sources.get(chapter_id, []))
         chapters.append({
             "path": name,
             "chapter_id": chapter_id,
-            "title": chapter_id.replace("__", " / "),
+            "outline_id": outline_id,
+            "title": chapter_meta.get("title") or chapter_id.replace("__", " / "),
+            "volume_id": chapter_meta.get("volume_id"),
+            "volume_title": chapter_meta.get("volume_title"),
             "order": len(chapters) + 1,
             "size": path.stat().st_size,
             "sources": list(sources) if isinstance(sources, list) else [],
@@ -257,6 +293,10 @@ def book_wiki_manifest(project_id: str, version: str | None = None) -> dict:
         "unresolved": manifest.get("unresolved", 0),
         "unresolved_ratio": manifest.get("unresolved_ratio", 0),
         "reading_experience_mode": manifest.get("reading_experience_mode", "rule_only"),
+        "volumes": [
+            {**volume, "chapter_count": sum(1 for chapter in chapters if chapter["volume_id"] == volume["id"])}
+            for volume in outline_volumes
+        ],
         "chapters": chapters,
     }
 
