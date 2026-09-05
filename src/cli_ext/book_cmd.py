@@ -47,7 +47,7 @@ from typing import Any
 
 from ..kc.integrity.orchestrator import IntegrityGate
 from ..kc.views.book import rebuild_book
-from ..kc.views.book.materialize import materialize_book_snapshot
+from ..kc.views.book.materialize import materialize_book_manifest, materialize_book_plan, materialize_book_snapshot
 from ..lib.project import resolve_project
 from ..project.context import ProjectNotFoundError
 
@@ -190,6 +190,7 @@ def cmd_book_build(args: argparse.Namespace) -> int:
         IntegrityGate(),
         output_dir=output_dir,
         apply=bool(args.apply),
+        build_manifest=materialize_book_manifest(ctx.path) if getattr(args, "strict", False) else None,
     )
 
     payload = {
@@ -240,6 +241,23 @@ def cmd_book_build(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_book_plan(args: argparse.Namespace) -> int:
+    ctx = _resolve(args.project)
+    plan = materialize_book_plan(ctx.path)
+    payload = {
+        "added_source_ids": list(plan.added_source_ids),
+        "removed_source_ids": list(plan.removed_source_ids),
+        "added_wiki_page_ids": list(plan.added_wiki_page_ids),
+        "removed_wiki_page_ids": list(plan.removed_wiki_page_ids),
+    }
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        for key, values in payload.items():
+            print(f"{key}: {', '.join(values) if values else '-'}")
+    return EXIT_OK
+
+
 __all__ = [
     "DEFAULT_OUTPUT_DIRNAME",
     "EXIT_BUILD_FAILED",
@@ -247,5 +265,6 @@ __all__ = [
     "EXIT_OK",
     "EXIT_PROJECT_UNRESOLVED",
     "cmd_book_build",
+    "cmd_book_plan",
     "cmd_book_show",
 ]
