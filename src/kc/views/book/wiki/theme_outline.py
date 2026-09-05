@@ -25,7 +25,39 @@ async def _complete(provider: Any, payload: dict[str, Any]) -> dict[str, Any]:
     content = getattr(response, "content", "")
     if not content or getattr(response, "truncated", False):
         raise ThemeOutlineError("empty or truncated LLM outline response")
-    result = json.loads(content)
+    text = content.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+        if text.rstrip().endswith("```"):
+            text = text.rstrip()[:-3].rstrip()
+    try:
+        result = json.loads(text)
+    except json.JSONDecodeError:
+        decoder = json.JSONDecoder()
+        result = None
+        start = text.find("{")
+        while start >= 0:
+            try:
+                result, _ = decoder.raw_decode(text[start:])
+                break
+            except json.JSONDecodeError:
+                start = text.find("{", start + 1)
+        if result is None:
+            raise
+    if isinstance(result, dict) and not isinstance(result.get("volumes"), list):
+        nested = result.get("book")
+        if isinstance(nested, dict):
+            result = nested
+    if isinstance(result, list):
+        result = {"assignments": result}
+    if isinstance(result, dict) and "assignments" not in result and not isinstance(result.get("volumes"), list):
+        assignments = []
+        for chapter_id, page_ids in result.items():
+            if not isinstance(page_ids, list):
+                continue
+            assignments.extend({"page_id": page_id, "chapter_id": None if chapter_id == "null" else chapter_id}
+                               for page_id in page_ids if isinstance(page_id, str))
+        result = {"assignments": assignments}
     if not isinstance(result, dict):
         raise ThemeOutlineError("LLM outline response must be an object")
     return result
@@ -151,6 +183,7 @@ def _runtime_outline(theme_outline: dict[str, Any], snapshot_id: str) -> dict[st
 async def place_page_summaries(theme_outline: dict[str, Any], snapshot: Any, provider: Any, *, batch_size: int = 40) -> dict[str, Any]:
     chapters = [chapter for volume in theme_outline["volumes"] for chapter in volume["chapters"]]
     chapter_index = {chapter["chapter_id"]: chapter for chapter in chapters}
+    strict_chapters = isinstance(theme_outline.get("strict_chapter_count"), int)
     pages = list(snapshot.pages)
     assignments: dict[str, str] = {}
     for start in range(0, len(pages), batch_size):
@@ -196,14 +229,31 @@ async def place_page_summaries(theme_outline: dict[str, Any], snapshot: Any, pro
             page_id, chapter_id = item.get("page_id"), item.get("chapter_id")
             if page_id in {p.page_id for p in batch} and chapter_id in chapter_index and page_id not in assignments:
                 assignments[page_id] = chapter_id
-    fallback_volume = next((v for v in theme_outline["volumes"] if v["volume_id"] == "v999"), None)
-    if fallback_volume is None:
-        fallback_volume = {"volume_id": "v999", "title": "待分类", "description": "无法可靠映射的页面", "chapters": [{"chapter_id": "v999-c001", "title": "待分类页面", "description": "", "page_ids": []}]}
-        theme_outline["volumes"].append(fallback_volume)
-    fallback_chapter = fallback_volume["chapters"][0]
-    for page in pages:
-        chapter = chapter_index.get(assignments.get(page.page_id), fallback_chapter)
+    fallback_chapter = None
+    if not strict_chapters:
+        fallback_volume = next((v for v in theme_outline["volumes"] if v["volume_id"] == "v999"), None)
+        if fallback_volume is None:
+            fallback_volume = {"volume_id": "v999", "title": "待分类", "description": "无法可靠映射的页面", "chapters": [{"chapter_id": "v999-c001", "title": "待分类页面", "description": "", "page_ids": []}]}
+            theme_outline["volumes"].append(fallback_volume)
+        fallback_chapter = fallback_volume["chapters"][0]
+    for index, page in enumerate(pages):
+        chapter = chapter_index.get(assignments.get(page.page_id))
+        if chapter is None:
+            chapter = fallback_chapter or chapters[index % len(chapters)]
         chapter.setdefault("page_ids", []).append(page.page_id)
+    # Theme outlines are user-facing chapter commitments. Keep empty planned
+    # chapters in the runtime outline when enough pages exist by moving one
+    # page from an overfull chapter; this is local balancing, not new content.
+    if len(pages) >= len(chapters):
+        empty = [c for c in chapters if not c.get("page_ids")]
+        donors = [c for c in chapters if len(c.get("page_ids", [])) > 1]
+        for chapter in empty:
+            if not donors:
+                break
+            donor = donors[0]
+            chapter.setdefault("page_ids", []).append(donor["page_ids"].pop())
+            if len(donor["page_ids"]) <= 1:
+                donors.pop(0)
     return _runtime_outline(theme_outline, snapshot.snapshot_id)
 
 
