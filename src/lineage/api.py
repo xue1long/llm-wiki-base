@@ -373,7 +373,7 @@ class LineageStore:
                WHERE a.artifact_id IS NULL OR s.source_id IS NULL"""
         ).fetchone()[0]
         pending = self._db.execute("SELECT COUNT(*) FROM outbox WHERE delivered = 0").fetchone()[0]
-        valid = set(_TRANSITIONS) 
+        valid = set(_TRANSITIONS)
         invalid = self._db.execute(
             "SELECT COUNT(*) FROM sources WHERE status NOT IN (%s)" % ",".join("?" * len(valid)),
             tuple(valid),
