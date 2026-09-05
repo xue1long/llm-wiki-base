@@ -6,6 +6,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-06-novel-wiki-book-series-target.md`
 
+**审计状态：** 重大整改后复审；在页面资产基线、series/book 数据契约和参考库依赖规则完成前，不得进入全量实现。
+
 ## 全局约束
 
 - `rule_only` 保持默认；旧 release 必须继续可读。
