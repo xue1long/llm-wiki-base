@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import time
 
-from src.services.batch_state import load_batch_state, set_raw_status
+from src.services.batch_state import update_raw_fail_streak
 
 MAX_FAIL_STREAK = 3
 
@@ -26,16 +26,9 @@ def _set_batch_status(paths, batch_key, status: str, **extra) -> None:
 
 
 def _update_fail_streak(paths, batch_key, raw_rel, status) -> None:
-    state = load_batch_state(paths)
-    entry = state.get(batch_key, {}).get("raw_states", {}).get(raw_rel, {})
-    streak = int(entry.get("fail_streak", 0))
-    if status == "failed":
-        streak += 1
-        extra = {"fail_streak": streak}
-        if streak >= MAX_FAIL_STREAK:
-            extra["blocklisted"] = True
-            print(f"ALERT: {raw_rel} failed {streak} consecutive batches — "
-                  f"BLOCKLISTED, manual review required", flush=True)
-    else:
-        extra = {"fail_streak": 0}
-    set_raw_status(paths, batch_key, raw_rel, status, **extra)
+    streak, blocklisted = update_raw_fail_streak(
+        paths, batch_key, raw_rel, status, max_streak=MAX_FAIL_STREAK
+    )
+    if blocklisted:
+        print(f"ALERT: {raw_rel} failed {streak} consecutive batches — "
+              f"BLOCKLISTED, manual review required", flush=True)

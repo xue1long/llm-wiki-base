@@ -831,3 +831,23 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ Acceptance evidence: full isolated suite `3733 passed, 45 warnings`; coverage `78.45%` against `77.4%`; `ruff check src tests` passed; quality workflow YAML parsed; real temporary-root server `/health` smoke passed.
 - ✅ CI Run #28 (`55d71396`) passed all three matrix jobs: Python `3.11`, `3.12`, and `3.13`; coverage-gated full suite and the end-to-end queue path passed remotely. Python 3.14 remains explicitly out of scope.
 - ⚠️ `graphify update .` remains blocked by the host's uv trampoline canonicalization error; no global tool/cache changes were made.
+
+### 2026-09-04 Book Lineage safety remediation — Task 0/1
+
+- ✅ Task 0：核实 `scripts/batch_build.py`、`scripts/batch_commit.py`、`scripts/aggregate_synthesis.py` 均存在生产写入职责；`phase4_batch.py`、`ingest_novel_wiki_manual.py` 列为生产候选，`batch_generate.py` 列为缓存生成入口，`accept_batch.py` 列为兼容状态入口。
+- ✅ Task 0：当前隔离全量回归 `3735 passed, 45 warnings`；旧 inventory 的 `3716` 已由后续既有风险整改提交解释。
+- ✅ Task 1：新增最小项目本地 SQLite lineage store、状态转换、source/artifact 多对多关系、build member、幂等 outbox 和 integrity health；未接入生产 writer。
+- ✅ Task 1：lineage 定向测试 `9 passed`；全量回归 `3744 passed, 45 warnings`。未创建 commit，未 push。
+- ✅ Task 2：完成 raw discovery/哈希、显式 assessment、显式 tombstone、partial-scan I/O 保护、文件入队前登记及 `commit_ingest` 成功后的 `ingested` 状态透传；unsupported 文件在入队前阻塞。受影响回归 `43 passed, 11 warnings`。不扩展 queue schema，不引入自动删除。
+- ✅ Task 3：`commit_ingest` 成功后登记 Wiki artifact；`aggregate_synthesis.py` 保留 synthesis 的多源 source 关系；KC bundle 仅在 `published` 后登记。受影响回归 `55 passed, 11 warnings`；未改 PublicationGate 行为。
+- ✅ Task 4（定点实现）：Book 构建增加冻结 lineage manifest、source/Wiki page 双重闭包门；strict 构建使用 `book/.releases/<run_id>/`，最后原子切换 `book/manifest.json`，保留旧 release；兼容旧非 strict 入口不改变既有文件合同。
+- ✅ Task 4：Book lineage/重建/CLI 回归 `63 passed`；页面闭包不一致在写入前失败，章节替换失败可恢复旧文件。Task 5/6 尚未开始。
+- ✅ Task 5（进行中）：新增 `book plan`，基于 active manifest 计算 source/Wiki 增删；outbox 增加唯一事件重放并标记 delivered。定向回归 `26 passed`。
+- ✅ Task 5：补充 stale snapshot 拒绝、单构建 lease、outbox 幂等 replay；Task 5 定向回归 `41 passed`。显式删除仍沿用 Task 2 的 explicit tombstone 约束；Task 6 健康检查/迁移尚未开始。
+- ✅ Task 6（进行中）：新增 `lineage health/show --project <id> [--json]`；health 检查 SQLite integrity、孤儿关系、pending outbox、非法状态和缺失 artifact，并在异常时返回非零。Task 6 定向回归 `48 passed`。
+- ⏳ Task 6 未完成项：migration dry-run/backup/apply、hash divergence 和临时项目全链路验收，未宣称最终整改完成。
+- ✅ Task 6：新增 `scripts/kc_lineage_migrate.py`；默认 dry-run，`--apply` 先备份 `state.db`，partial scan fail-closed。迁移/健康/Book 定向回归 `29 passed`。
+- ⏳ Task 6 未完成项：hash divergence 深检与临时项目 full E2E，最终放行仍未宣称完成。
+- ✅ Task 6 收尾实现：health 增加 artifact hash divergence；migration 增加 legacy batch state 的 `legacy_unverified` 标记；迁移/健康/Book/写入入口定向回归 `119 passed, 11 warnings`，compileall 与 diff-check 通过。
+- ✅ 全量隔离回归复跑：`3770 passed, 45 warnings`；此前 `test_failed_three_strikes_blocklists` 阻塞已由原子 fail-streak read-modify-write 修复并验证。
+- ✅ 修复测试阻塞根因：`_update_fail_streak` 原先为无锁读后加锁写，改为 `update_raw_fail_streak` 单次锁内 read-modify-write；新增原子累计回归。batch executor 全文件 `25 passed`，原失败场景复现通过。

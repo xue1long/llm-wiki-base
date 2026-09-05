@@ -250,6 +250,32 @@ def set_raw_status(paths: WikiPaths, batch_key: str, raw_rel: str,
     update_batch_state(paths, _mutate)
 
 
+def update_raw_fail_streak(paths: WikiPaths, batch_key: str, raw_rel: str,
+                           status: str, *, max_streak: int = 3) -> tuple[int, bool]:
+    """Atomically update failure streak and return ``(streak, blocklisted)``."""
+    result = {"streak": 0, "blocklisted": False}
+
+    def _mutate(state: dict) -> dict:
+        raws = _ensure_raw_states(state, batch_key)
+        entry = raws.setdefault(raw_rel, {})
+        streak = int(entry.get("fail_streak", 0))
+        if status == "failed":
+            streak += 1
+        else:
+            streak = 0
+        blocklisted = streak >= max_streak
+        entry["fail_streak"] = streak
+        if blocklisted:
+            entry["blocklisted"] = True
+        entry["status"] = status
+        entry["ts"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        result.update(streak=streak, blocklisted=blocklisted)
+        return state
+
+    update_batch_state(paths, _mutate)
+    return result["streak"], result["blocklisted"]
+
+
 def raw_status(state: dict, batch_key: str, raw_rel: str) -> str:
     """Read one raw's status (default ``"pending"`` when absent)."""
     entry = state.get(batch_key)
