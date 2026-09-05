@@ -188,7 +188,7 @@ def book_wiki_manifest(project_id: str) -> dict:
         if not path.is_file():
             continue
         chapter_id = path.stem
-        sources = chapter_sources.get(chapter_id, [])
+        sources = chapter_sources.get(name, chapter_sources.get(chapter_id, []))
         chapters.append({
             "path": name,
             "chapter_id": chapter_id,
