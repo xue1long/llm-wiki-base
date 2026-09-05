@@ -48,7 +48,7 @@ from .cli_ext.llm_providers_cmd import (
 )
 from .cli_ext.health_cmd import cmd_health
 from .cli_ext.wiki_quality_cmd import add_parser as add_wiki_quality_parser
-from .cli_ext.book_cmd import cmd_book_build, cmd_book_plan, cmd_book_show
+from .cli_ext.book_cmd import cmd_book_build, cmd_book_build_from_wiki, cmd_book_outline_from_theme, cmd_book_plan, cmd_book_show
 from .cli_ext.lineage_cmd import cmd_lineage_health, cmd_lineage_show
 from .cli_ext.content_health_cmd import cmd_content_health
 from .cli_ext.readiness_cmd import cmd_readiness_compare, cmd_readiness_inventory
@@ -83,6 +83,16 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+def _load_local_env() -> None:
+    """Load the repository/project .env before provider discovery."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    repo_env = Path(__file__).resolve().parents[1] / ".env"
+    load_dotenv(repo_env, override=False)
+    load_dotenv(Path.cwd() / ".env", override=False)
 
 def _override_config_dir_from_env():
     """Allow RUFLO_CONFIG_DIR env var to override OS-standard config dir (for tests)."""
@@ -551,6 +561,35 @@ def build_parser() -> "argparse.ArgumentParser":
     p_book_build.add_argument("--json", action="store_true", help="Emit JSON instead of text")
     p_book_build.add_argument("--strict", action="store_true", help="Fail closed on lineage closure blockers")
     p_book_build.set_defaults(func=cmd_book_build)
+    p_book_wiki = p_book_sub.add_parser(
+        "build-from-wiki", help="Compile the Wiki into a versioned book (dry-run unless --apply)"
+    )
+    p_book_wiki.add_argument("--project", help="Project id or name")
+    p_book_wiki.add_argument("--output-dir", default="book-wiki",
+                             help="Output directory, relative to the project root")
+    p_book_wiki.add_argument("--use-llm", action="store_true", help="Opt in to LLM stages")
+    p_book_wiki.add_argument("--polish", action="store_true", help="Allow LLM content polishing")
+    p_book_wiki.add_argument("--encyclopedic", action="store_true", help="Enable encyclopedic cross-page mode (requires --use-llm)")
+    p_book_wiki.add_argument("--quality-gate", choices=("rule", "both", "off"), default="rule", help="Quality gate mode (default: rule)")
+    p_book_wiki.add_argument("--rubric", help="Versioned reader-task rubric YAML")
+    p_book_wiki.add_argument("--apply", action="store_true", help="Publish after all validation gates pass")
+    p_book_wiki.add_argument("--max-attempts", type=int, default=3)
+    p_book_wiki.add_argument("--max-input-tokens", type=int, default=None)
+    p_book_wiki.add_argument("--max-output-tokens", type=int, default=None)
+    p_book_wiki.add_argument("--theme-outline", help="Use a theme-only outline and map Wiki summaries into it")
+    p_book_wiki.add_argument("--json", action="store_true", help="Emit JSON instead of text")
+    p_book_wiki.set_defaults(func=cmd_book_build_from_wiki)
+    p_book_theme = p_book_sub.add_parser(
+        "outline-from-theme", help="Generate a volume/chapter outline without reading Wiki"
+    )
+    p_book_theme.add_argument("--project", help="Project id or name")
+    p_book_theme.add_argument("--theme", help="Book theme; defaults to purpose.md")
+    p_book_theme.add_argument("--purpose-file", help="Purpose file used as context")
+    p_book_theme.add_argument("--provider", help="LLM provider name")
+    p_book_theme.add_argument("--output", help="Theme outline JSON path")
+    p_book_theme.add_argument("--apply", action="store_true", help="Write the theme outline")
+    p_book_theme.add_argument("--json", action="store_true", help="Emit JSON instead of text")
+    p_book_theme.set_defaults(func=cmd_book_outline_from_theme)
     p_book_plan = p_book_sub.add_parser("plan", help="Show incremental Book changes")
     p_book_plan.add_argument("--project", help="Project id or name")
     p_book_plan.add_argument("--json", action="store_true", help="Emit JSON instead of text")
@@ -580,6 +619,7 @@ def build_parser() -> "argparse.ArgumentParser":
 
 
 def main():
+    _load_local_env()
     _override_config_dir_from_env()
     auto_register_on_first_run()  # idempotent
 

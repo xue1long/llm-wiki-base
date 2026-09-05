@@ -40,7 +40,9 @@ Idempotency (verified by tests, worth knowing before scripting against it):
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -50,15 +52,171 @@ from ..kc.views.book import rebuild_book
 from ..kc.views.book.materialize import materialize_book_manifest, materialize_book_plan, materialize_book_snapshot
 from ..lib.project import resolve_project
 from ..project.context import ProjectNotFoundError
+from ..kc.views.book.wiki import run_preflight, LockBusyError
+from ..kc.views.book.wiki.theme_outline import ThemeOutlineError, plan_theme_outline, save_theme_outline
 
 # ── Exit-code contract ─────────────────────────────────────────────────
 EXIT_OK: int = 0
 EXIT_BUILD_FAILED: int = 1
 EXIT_PROJECT_UNRESOLVED: int = 2
 EXIT_NOTHING_TO_BUILD: int = 3
+EXIT_SNAPSHOT_MISMATCH: int = 4
+EXIT_LOCK_BUSY: int = 5
+EXIT_BUDGET_EXHAUSTED: int = 6
+EXIT_UNRESOLVED_RELATIONS: int = 7
+EXIT_DISK_PRESSURE: int = 8
+EXIT_QUALITY_GATE: int = 9
+EXIT_RUBRIC_WARNING: int = 10
 
 #: D-3 — default output directory, relative to the project root.
 DEFAULT_OUTPUT_DIRNAME: str = "book"
+DEFAULT_WIKI_OUTPUT_DIRNAME: str = "book-wiki"
+
+
+def cmd_book_outline_from_theme(args: argparse.Namespace) -> int:
+    """Generate a Wiki-independent volume/chapter skeleton."""
+    ctx = _resolve(args.project)
+    purpose_path = Path(args.purpose_file or (ctx.path / "purpose.md"))
+    purpose = purpose_path.read_text(encoding="utf-8") if purpose_path.exists() else ""
+    theme = (args.theme or purpose).strip()
+    if not theme:
+        print("Error: --theme or a non-empty purpose.md is required", file=sys.stderr)
+        raise SystemExit(EXIT_BUILD_FAILED)
+    try:
+        from src.llm.provider_factory import create_llm_provider
+        from src.llm.registry import ProviderRegistry
+        provider_name = getattr(args, "provider", None) or ProviderRegistry.get_default_name() or ""
+        if not provider_name:
+            provider_name = os.environ.get("RUFLO_LLM_PROVIDER", "")
+        outline = asyncio.run(plan_theme_outline(
+            theme=theme, purpose=purpose,
+            provider=create_llm_provider(provider_name),
+        ))
+    except Exception as exc:
+        payload = {"status": "failed", "reason_codes": ["E_THEME_OUTLINE_FAILED"], "error": str(exc)}
+        print(json.dumps(payload, ensure_ascii=False, indent=2) if args.json else f"Error: {exc}", file=sys.stderr)
+        raise SystemExit(EXIT_BUILD_FAILED)
+    output = Path(args.output or (ctx.path / ".llm-wiki" / "book" / "theme-outline.json"))
+    if args.apply:
+        save_theme_outline(output, outline)
+    payload = {"status": "committed" if args.apply else "planned", "theme": theme,
+               "outline": outline, "output": str(output), "apply": bool(args.apply)}
+    print(json.dumps(payload, ensure_ascii=False, indent=2) if args.json else
+          f"Theme outline: {len(outline['volumes'])} volumes → {sum(len(v['chapters']) for v in outline['volumes'])} chapters\noutput={output}")
+    return EXIT_OK
+
+
+def _wiki_exit_code(errors: tuple[Any, ...]) -> int:
+    """Map preflight/compiler error codes to the stable CLI contract."""
+    for error in errors:
+        code = error if isinstance(error, str) else getattr(error, "code", "")
+        code = str(code)
+        normalized = code.upper()
+        if code in {
+            "E_PROJECT_UNRESOLVED", "E_PROJECT_NOT_FOUND",
+            "E_PROJECT_NOT_INITIALIZED", "E_PROJECT_SCHEMA_MISMATCH",
+            "E_PROJECT_JSON_CORRUPT", "project-not-found",
+        }:
+            return EXIT_PROJECT_UNRESOLVED
+        if code in {"no-pages", "E_NO_ELIGIBLE_PAGES"}:
+            return EXIT_NOTHING_TO_BUILD
+        if "LOCK" in normalized:
+            return EXIT_LOCK_BUSY
+        if "BUDGET" in normalized or "TOKEN" in normalized or "PROVIDER" in normalized:
+            return EXIT_BUDGET_EXHAUSTED
+        if "UNRESOLVED" in normalized or "RELATION" in normalized:
+            return EXIT_UNRESOLVED_RELATIONS
+        if "DISK" in normalized or "SPACE" in normalized:
+            return EXIT_DISK_PRESSURE
+        if "QUALITY" in normalized or "GATE" in normalized:
+            return EXIT_QUALITY_GATE
+        if "RUBRIC" in normalized:
+            return EXIT_RUBRIC_WARNING
+        if "SNAPSHOT" in normalized or "FINGERPRINT" in normalized:
+            return EXIT_SNAPSHOT_MISMATCH
+    return EXIT_BUILD_FAILED
+
+
+def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
+    """Run the V3 wiki compiler; dry-run is the default."""
+    ctx = _resolve(args.project)
+    output_dir = Path(args.output_dir)
+    if not output_dir.is_absolute():
+        output_dir = ctx.path / output_dir
+
+    preflight = run_preflight(
+        str(ctx.path), output_dir=output_dir,
+        use_llm=bool(args.use_llm), provider_name=getattr(args, "provider", None),
+        polish=bool(args.polish),
+    )
+    if getattr(args, "encyclopedic", False) and not args.use_llm:
+        payload = {"status": "blocked", "errors": [{"code": "E_ENCYCLOPEDIC_REQUIRES_LLM", "message": "--encyclopedic requires --use-llm"}], "output_dir": str(output_dir.resolve())}
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            print("Error [E_ENCYCLOPEDIC_REQUIRES_LLM]: --encyclopedic requires --use-llm", file=sys.stderr)
+        raise SystemExit(EXIT_BUDGET_EXHAUSTED)
+    if not preflight.ok:
+        payload = {"status": "blocked", "errors": [e.__dict__ for e in preflight.errors],
+                   "output_dir": str(output_dir.resolve())}
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            for error in preflight.errors:
+                print(f"Error [{error.code}]: {error.message}", file=sys.stderr)
+        raise SystemExit(_wiki_exit_code(preflight.errors))
+
+    try:
+        from ..kc.views.book.wiki.compiler import build_from_wiki
+    except ImportError as exc:
+        payload = {"status": "failed", "reason_codes": ["E_COMPILER_UNAVAILABLE"],
+                   "error": str(exc)}
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            print("Build failed: V3 wiki compiler is unavailable", file=sys.stderr)
+        raise SystemExit(EXIT_BUILD_FAILED)
+
+    try:
+        result = build_from_wiki(
+            ctx.path, output_dir=output_dir, use_llm=bool(args.use_llm),
+            polish=bool(args.polish), apply=bool(args.apply),
+            max_attempts=args.max_attempts, max_input_tokens=args.max_input_tokens,
+            max_output_tokens=args.max_output_tokens,
+            encyclopedic=bool(getattr(args, "encyclopedic", False)),
+            quality_gate=getattr(args, "quality_gate", "rule"), rubric=getattr(args, "rubric", None),
+            theme_outline=getattr(args, "theme_outline", None),
+        )
+    except LockBusyError:
+        raise SystemExit(EXIT_LOCK_BUSY)
+    except Exception as exc:
+        if args.json:
+            print(json.dumps({"status": "failed", "error": str(exc)}, ensure_ascii=False, indent=2))
+        else:
+            print(f"Build failed: {exc}", file=sys.stderr)
+        raise SystemExit(EXIT_BUILD_FAILED)
+
+    payload = result if isinstance(result, dict) else getattr(result, "__dict__", {"status": "ok"})
+    if not isinstance(payload, dict):
+        payload = {"status": "ok", "result": str(payload)}
+    if not args.apply:
+        payload.setdefault("dry_run", True)
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    else:
+        print(f"Wiki book: {payload.get('status', 'ok')}")
+        print(f"  output_dir={output_dir.resolve()}")
+        if not args.apply:
+            print("  dry-run: nothing was published")
+    if payload.get("status") in {"failed", "blocked"}:
+        codes = payload.get("errors", ()) or payload.get("reason_codes", ())
+        raise SystemExit(_wiki_exit_code(tuple(codes)))
+    if payload.get("warnings"):
+        if args.json:
+            raise SystemExit(EXIT_RUBRIC_WARNING)
+        print("  warnings: " + ", ".join(payload["warnings"]), file=sys.stderr)
+        raise SystemExit(EXIT_RUBRIC_WARNING)
+    return EXIT_OK
 
 
 # ─── Shared helpers ────────────────────────────────────────────────────
@@ -265,6 +423,8 @@ __all__ = [
     "EXIT_OK",
     "EXIT_PROJECT_UNRESOLVED",
     "cmd_book_build",
+    "cmd_book_build_from_wiki",
+    "cmd_book_outline_from_theme",
     "cmd_book_plan",
     "cmd_book_show",
 ]
