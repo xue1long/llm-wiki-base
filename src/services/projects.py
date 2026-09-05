@@ -6,8 +6,11 @@ and map ProjectNotFound to HTTPException(404).
 from __future__ import annotations
 
 from pathlib import Path
+import json
+import os
 
 from ..project.context import ProjectContext
+from ..project.identity import ProjectIdentity
 from ..utils.path import safe_resolve
 from ..project.registry import GlobalRegistryStore
 
@@ -59,6 +62,28 @@ def list_projects(base: str | None = None) -> dict:
         for pid in stale_ids:
             GlobalRegistryStore.remove(pid)
 
+    # The server accepts an explicit project root and can still serve it when
+    # the user config directory is read-only (common in sandboxes/containers).
+    # Keep this discovery read-only; normal registry entries remain preferred.
+    explicit_root = os.environ.get("RUFLO_PROJECT_ROOT")
+    if explicit_root:
+        root = Path(explicit_root).expanduser()
+        project_json = root / ProjectIdentity.PROJECT_JSON_PATH
+        try:
+            identity = ProjectIdentity.from_dict(
+                json.loads(project_json.read_text(encoding="utf-8"))
+            )
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+            identity = None
+        if identity and root.is_dir() and not any(p["id"] == identity.id for p in valid):
+            valid.insert(0, {
+                "id": identity.id,
+                "name": identity.name or root.name,
+                "path": _rel_path(str(root), base),
+                "last_opened": 0,
+                "schema_version": identity.schema_version,
+            })
+
     return {"projects": valid}
 
 
@@ -73,6 +98,24 @@ def get_project(project_id: str) -> dict:
         or GlobalRegistryStore.by_name(project_id)
     )
     if not entry:
+        explicit_root = os.environ.get("RUFLO_PROJECT_ROOT")
+        if explicit_root:
+            root = Path(explicit_root).expanduser()
+            project_json = root / ProjectIdentity.PROJECT_JSON_PATH
+            try:
+                identity = ProjectIdentity.from_dict(
+                    json.loads(project_json.read_text(encoding="utf-8"))
+                )
+            except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+                identity = None
+            if identity and project_id in {identity.id, identity.name}:
+                return {
+                    "id": identity.id,
+                    "name": identity.name or root.name,
+                    "path": str(root),
+                    "last_opened": 0,
+                    "schema_version": identity.schema_version,
+                }
         raise ProjectNotFound(f"Project not found: {project_id}")
     return entry.to_dict()
 

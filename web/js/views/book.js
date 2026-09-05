@@ -5,7 +5,7 @@
 // Two surfaces share this page:
 //   * Build panel  -> GET  /api/v1/kc/book/status
 //                     POST /api/v1/kc/book/build   (dry-run by default)
-//   * Reader pane  -> the existing read-only Wiki listing (unchanged)
+//   * Reader pane  -> the integrity-verified read-only Wiki-to-Book release
 //
 // The build is dry-run by default on purpose: a book build touches every
 // claim in the project. "预览构建" proves the plan first; only the explicit
@@ -22,6 +22,7 @@
 
   App.renderBook = function renderBook(root) {
     let files = [];
+    let book = null;
     let selectedVolume = "all";
     let query = "";
     let busy = false;
@@ -55,11 +56,13 @@
           <article class="book-reader" id="bookReader">
             <div class="book-reader-empty"><span>✦</span><h2>选择一页开始阅读</h2><p>左侧目录会按 Wiki 类型整理当前实例。</p></div>
           </article>
+          <aside class="book-info" id="bookInfo"><div class="skeleton skeleton-line"></div></aside>
         </div>
       </section>`;
 
     const toc = root.querySelector("#bookToc");
     const reader = root.querySelector("#bookReader");
+    const info = root.querySelector("#bookInfo");
     const stats = root.querySelector("#bookStats");
     const volumeBar = root.querySelector("#bookVolumes");
     const search = root.querySelector("#bookSearch");
@@ -155,37 +158,45 @@
       }
     }
 
-    // ---------- Read-only Wiki reader (fallback surface) ----------
+    // ---------- Read-only Wiki-to-Book reader ----------
 
-    App.api(`/api/v1/projects/${App.state.projectId}/files?root=wiki&recursive=true&max_files=10000`)
+    App.api(`/api/v1/projects/${App.state.projectId}/book-wiki`)
       .then(data => {
-        files = (data.files || []).filter(file => !file.isDir && file.path.endsWith(".md"));
-        stats.textContent = `${files.length.toLocaleString()} 页 Wiki`;
+        book = data;
+        files = data.chapters || [];
+        stats.textContent = `${files.length.toLocaleString()} 章 · ${(data.page_count || 0).toLocaleString()} 页`;
+        renderBookInfo();
         renderToc();
       })
       .catch(error => {
+        book = null;
         stats.textContent = "加载失败";
         toc.innerHTML = `<div class="banner-err">Book 加载失败：${App.escapeHtml(error.message)}</div>`;
+        info.innerHTML = `<div class="book-info-empty">当前没有可预览的激活版本</div>`;
       });
 
-    function volumeFor(path) {
-      const parts = App.normalizeWikiPath(path).split("/");
-      return ["sources", "concepts", "entities", "synthesis"].includes(parts[0]) ? parts[0] : "other";
+    function volumeFor(chapter) {
+      const raw = typeof chapter === "string"
+        ? chapter
+        : (chapter.chapter_id || chapter.path || "");
+      const prefix = String(raw).split(/[\\/]/).pop().split("-", 1)[0];
+      const volumes = { source: "sources", concept: "concepts", entity: "entities", synthesis: "synthesis" };
+      return volumes[prefix] || "chapters";
     }
 
     function renderToc() {
       const filtered = files.filter(file => {
-        const volume = volumeFor(file.path);
-        const title = (file.path.split(/[\\/]/).pop() || "").replace(/\.md$/, "");
+        const volume = volumeFor(file);
+        const title = file.title || file.chapter_id || file.path;
         return (selectedVolume === "all" || volume === selectedVolume) && (!query || title.toLowerCase().includes(query));
       });
       const grouped = new Map();
       for (const file of filtered) {
-        const volume = volumeFor(file.path);
+        const volume = volumeFor(file);
         if (!grouped.has(volume)) grouped.set(volume, []);
         grouped.get(volume).push(file);
       }
-      const labels = { sources: "Sources · 来源", concepts: "Concepts · 概念", entities: "Entities · 实体", synthesis: "Synthesis · 综合", other: "Other" };
+      const labels = { sources: "Sources · 来源", concepts: "Concepts · 概念", entities: "Entities · 实体", synthesis: "Synthesis · 综合", chapters: "章节" };
       if (!filtered.length) {
         toc.innerHTML = `<div class="book-empty">没有匹配的章节</div>`;
         return;
@@ -194,8 +205,8 @@
         <section class="book-volume-group">
           <div class="book-volume-heading">${labels[volume]} <span>${items.length}</span></div>
           ${items.slice(0, 300).map(file => {
-            const title = (file.path.split(/[\\/]/).pop() || "").replace(/\.md$/, "");
-            return `<button class="book-chapter" data-path="${App.escapeHtml(App.normalizeWikiPath(file.path))}">${App.escapeHtml(title)}</button>`;
+            const title = file.title || file.chapter_id || file.path;
+            return `<button class="book-chapter" data-path="${App.escapeHtml(file.path)}">${App.escapeHtml(title)}</button>`;
           }).join("")}
           ${items.length > 300 ? `<div class="book-more">还有 ${items.length - 300} 页，请继续搜索</div>` : ""}
         </section>`).join("");
@@ -207,15 +218,44 @@
       toc.querySelectorAll(".book-chapter").forEach(el => el.classList.toggle("active", el === button));
       reader.innerHTML = `<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div>`;
       try {
-        const data = await App.api(`/api/v1/projects/${App.state.projectId}/files/content?path=${encodeURIComponent(button.dataset.path)}`);
-        const parsed = App.parseFrontmatter(data.content || "");
+        const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki/content?path=${encodeURIComponent(button.dataset.path)}`);
         const title = button.textContent;
-        reader.innerHTML = `<div class="book-reader-kicker">${App.escapeHtml(volumeFor(button.dataset.path))}</div>
-          <h2>${App.escapeHtml(title)}</h2>${App.renderFrontmatter(parsed.fm)}<div class="reader-body">${App.renderMd(parsed.body)}</div>`;
-        App.updateBreadcrumb(`book/${button.dataset.path}`);
+        const chapter = files.find(item => item.path === button.dataset.path);
+        reader.innerHTML = `<div class="book-reader-kicker">${App.escapeHtml(volumeFor(chapter || {}))} · WIKI-TO-BOOK</div>
+          <h2>${App.escapeHtml(title)}</h2><div class="reader-body">${App.renderMd(data.content || "")}</div>`;
+        renderChapterInfo(chapter, data);
+        App.updateBreadcrumb(`book-wiki/${button.dataset.path}`);
       } catch (error) {
         reader.innerHTML = `<div class="banner-err">章节读取失败：${App.escapeHtml(error.message)}</div>`;
       }
+    }
+
+    function renderBookInfo() {
+      if (!book) return;
+      info.innerHTML = `<div class="book-info-eyebrow">ACTIVE RELEASE</div>
+        <div class="book-info-title">${App.escapeHtml(String(book.version || "unknown").slice(0, 12))}</div>
+        <div class="book-info-status"><span class="book-info-dot"></span> 已通过完整性校验</div>
+        <dl class="book-info-list">
+          <div><dt>章节</dt><dd>${Number(book.chapter_count || files.length).toLocaleString()}</dd></div>
+          <div><dt>Wiki 页面</dt><dd>${Number(book.page_count || 0).toLocaleString()}</dd></div>
+          <div><dt>关系边</dt><dd>${Number(book.total_relations || 0).toLocaleString()}</dd></div>
+          <div><dt>未解析</dt><dd>${Number(book.unresolved || 0).toLocaleString()} · ${(Number(book.unresolved_ratio || 0) * 100).toFixed(2)}%</dd></div>
+        </dl>
+        <div class="book-info-mode">${App.escapeHtml(book.reading_experience_mode || "rule_only")}</div>`;
+    }
+
+    function renderChapterInfo(chapter, data) {
+      if (!chapter) return renderBookInfo();
+      const sources = (chapter.sources || []).slice(0, 4);
+      info.innerHTML = `<div class="book-info-eyebrow">CHAPTER ${String(chapter.order).padStart(3, "0")}</div>
+        <div class="book-info-title">${App.escapeHtml(chapter.title || chapter.chapter_id)}</div>
+        <div class="book-info-status"><span class="book-info-dot"></span> 当前阅读</div>
+        <dl class="book-info-list">
+          <div><dt>章节大小</dt><dd>${Math.ceil((data.size || chapter.size || 0) / 1024)} KB</dd></div>
+          <div><dt>来源文件</dt><dd>${sources.length}${chapter.sources && chapter.sources.length > sources.length ? "+" : ""}</dd></div>
+        </dl>
+        <div class="book-info-section-title">来源</div>
+        <ul class="book-info-sources">${sources.length ? sources.map(source => `<li>${App.escapeHtml(source)}</li>`).join("") : "<li>暂无来源记录</li>"}</ul>`;
     }
 
     loadStatus();

@@ -852,3 +852,33 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ 全量隔离回归复跑：`3770 passed, 45 warnings`；此前 `test_failed_three_strikes_blocklists` 阻塞已由原子 fail-streak read-modify-write 修复并验证。
 - ✅ 修复测试阻塞根因：`_update_fail_streak` 原先为无锁读后加锁写，改为 `update_raw_fail_streak` 单次锁内 read-modify-write；新增原子累计回归。batch executor 全文件 `25 passed`，原失败场景复现通过。
 - ✅ 补齐 URL/历史迁移边界：URL 入队前登记稳定 source identity；迁移脚本确定性映射 legacy batch raw 状态，无法映射项标记 `legacy_unverified`。定向回归 `24 passed`。
+
+### Wiki-to-Book V3.2 + V4 Plan (2026-09-05) - Implementation and Acceptance
+
+- **V2 review**: docs/superpowers/plans/2026-09-05-wiki-to-book-review.md exists (4 roles, 9 blockers + 19 important).
+- **V3.2 safety remediation**: docs/superpowers/plans/2026-09-05-wiki-to-book-v3.md (~624 lines) rewritten per user's mandatory/optional/delete buckets; goal converged to "auditable Wiki assembler + reading-experience tri-base"; explicitly NOT claiming encyclopedia.
+- **V4 plan draft**: docs/superpowers/plans/2026-09-05-wiki-to-book-v4.md (~470 lines) v0.2, 22 Tasks in P0/P1/P2 tiers; passed plan-audit Round 1/2 self-audit (3 fatal + 6 major + 3 nit + 5 pressure paths all fixed).
+- **V3.2 <-> V4 cross-references**: bidirectional markdown links completed; exit code evolution (V3.2 exit 7 -> V4 exit 9) consistently declared in both docs.
+- **Memory index**: .memory/feedback-wiki-to-book-v4-plan-2026-09-05.md records event context and decisions; .memory/MEMORY.md index updated.
+- **Key decisions**:
+  - V3.2 = safety compiler; V4 = encyclopedia enhancement; V3.2 does NOT carry encyclopedia goal;
+  - Reading-experience trio (transitions/terms/intra-chapter sort) into V3.2 mandatory; reader task acceptance into V4;
+  - V4 scope = V3.2 + V4 integrated (user decision);
+  - quality gate = dual-mode (rule hard-limit + LLM soft-score).
+- **Implementation**: V3.2 P0 (Tasks 0–8), V4 P1 (Tasks 9–14), and V4 P2 core (Tasks 15, 17, 18, 21) implemented; T19/T20 have explicit evidence-bound optional interfaces.
+- **Verification**: focused V3/V4/CLI/pipeline sync regression `80 passed, 1 warning`; Python compile and `git diff --check` pass.
+- **Real project read-only gate**: 1255 pages scanned; after namespace/source/slug normalization, 70/3001 page relations remain unresolved (2.33%, below the 5% rule threshold); CLI path invocation returns `planned`, no pointer published. Encyclopedic without provider returns exit 6.
+- **Not committed**: changes remain uncommitted; no push and no real `--apply` execution.
+
+(End of file - total lines updated)
+
+### Wiki-to-Book V3/V4 边界修复（2026-09-05）
+
+- ✅ 外部绝对路径摄取：lineage 使用稳定绝对 key，仅允许显式 `source_text`，相对路径越界仍拒绝。
+- ✅ Windows lineage digest：`safe_write` 改为 UTF-8 bytes；旧 LF hash 可在恢复阶段兼容，重复摄取/批量失败隔离恢复。
+- ✅ Encyclopedic：接入 provider registry/注入 provider，索引独立落盘并纳入 manifest 哈希与 evidence/cross-link 校验；无 provider/无效响应 fail-closed。
+- ✅ 验证：异步摄取 27 passed；V3/V4/KC/lineage 定向回归 698 passed；新增 compiler/encyclopedic/lineage 检查通过；未执行真实 `--apply`。
+- ✅ 修复 Wiki-to-Book 实际阻塞根因：关系 slug 规范化与 alias 解析、5% unresolved 门禁、受限环境下显式项目路径解析；`knowledge/novel-wiki` CLI dry-run 返回 `planned`。新增路径解析回归，KC/项目回归 `691 passed`。
+- ✅ 根目录 `.env` 模板就绪：CLI 自动加载仓库/当前目录环境文件，常见远程 Provider 的 API key 映射已补齐；示例文件中的疑似明文 MiniMax key 已替换为占位符。
+- ✅ 已使用 `.env` 中的 MiniMax 配置执行 `knowledge/novel-wiki` 真实 `--apply`；CURRENT 指针、release 文件和 manifest 哈希校验通过。
+- ✅ Web Book demo：Book 页面改为左目录/中正文/右章节信息三栏；新增正式 release manifest 与章节读取 API，并用 `novel-wiki` 真实 release 验证 179 章读取成功。
