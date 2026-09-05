@@ -25,6 +25,29 @@ def migrate(project_root: Path, *, apply: bool = False) -> dict:
     legacy_state = root / ".index" / "batch_build_state.json"
     if legacy_state.exists():
         report["legacy_unverified"].append("batch_build_state_present")
+        try:
+            legacy = json.loads(legacy_state.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            legacy = {}
+        migrated = 0
+        for batch in legacy.values() if isinstance(legacy, dict) else ():
+            if not isinstance(batch, dict):
+                continue
+            for raw_path, entry in (batch.get("raw_states", {}) or {}).items():
+                source_id = store.source_id_for_path(str(raw_path).replace("\\", "/"))
+                if source_id is None:
+                    report["legacy_unverified"].append(f"unmapped:{raw_path}")
+                    continue
+                legacy_status = entry.get("status") if isinstance(entry, dict) else None
+                mapped_status = {"done": "ingested", "failed": "failed",
+                                 "permanent_failed": "blocked"}.get(legacy_status)
+                if mapped_status:
+                    store.record_raw_assessment(
+                        source_id, mapped_status,
+                        (f"legacy_batch_status:{legacy_status}",),
+                    )
+                    migrated += 1
+        report["legacy_migrated"] = migrated
     if not scan.complete:
         report["legacy_unverified"].append("raw_scan_incomplete")
     if apply and db.exists():

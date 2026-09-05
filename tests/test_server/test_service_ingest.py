@@ -35,6 +35,23 @@ def test_enqueue_url_source(monkeypatch, tmp_path):
     assert result["reason"] is None
 
 
+def test_enqueue_url_registers_lineage_source(monkeypatch, tmp_path):
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    _stub_resolve(monkeypatch, project_dir)
+    monkeypatch.setattr(
+        ingest_service, "enqueue_task",
+        lambda source, stype, thash, project_id=None, **kw: "task-url",
+    )
+
+    result = ingest_service.enqueue_source("u", "https://example.com/page")
+
+    assert result["sourceId"].startswith("src-")
+    from src.lineage import LineageStore
+    source = LineageStore.open(project_dir).source(result["sourceId"])
+    assert source["source_path"] == "https://example.com/page"
+
+
 def test_enqueue_file_source_detected(monkeypatch, tmp_path):
     """A non-URL string source is treated as SourceType.FILE."""
     project_dir = tmp_path / "kb"

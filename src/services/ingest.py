@@ -12,6 +12,7 @@ so the HTTP route behaviour matches the other 404-aware services.
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import random
@@ -182,6 +183,14 @@ def enqueue_source(
         if source.startswith("http"):
             source_str = source
             source_type = SourceType.URL
+            from ..lineage.api import LineageStore
+            lineage = LineageStore.open(paths.root)
+            if lineage.source_id_for_path(source_str) is None:
+                source_hash = hashlib.sha256(source_str.encode("utf-8")).hexdigest()
+                lineage.register_source(
+                    "src-" + source_hash[:32], source_str, source_hash, "discovered"
+                )
+            source_id = lineage.source_id_for_path(source_str)
         else:
             source_str = _normalize_absolute_path(paths.root, source)
             source_type = SourceType.FILE

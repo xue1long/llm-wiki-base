@@ -851,3 +851,4 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ Task 6 收尾实现：health 增加 artifact hash divergence；migration 增加 legacy batch state 的 `legacy_unverified` 标记；迁移/健康/Book/写入入口定向回归 `119 passed, 11 warnings`，compileall 与 diff-check 通过。
 - ✅ 全量隔离回归复跑：`3770 passed, 45 warnings`；此前 `test_failed_three_strikes_blocklists` 阻塞已由原子 fail-streak read-modify-write 修复并验证。
 - ✅ 修复测试阻塞根因：`_update_fail_streak` 原先为无锁读后加锁写，改为 `update_raw_fail_streak` 单次锁内 read-modify-write；新增原子累计回归。batch executor 全文件 `25 passed`，原失败场景复现通过。
+- ✅ 补齐 URL/历史迁移边界：URL 入队前登记稳定 source identity；迁移脚本确定性映射 legacy batch raw 状态，无法映射项标记 `legacy_unverified`。定向回归 `24 passed`。
