@@ -1,6 +1,6 @@
 # novel-wiki 叙事化写作方法论书籍目标设计
 
-**状态：** 目标设计，尚未进入实现。
+**状态：** 已被 `docs/superpowers/specs/2026-09-06-novel-wiki-book-series-target.md` superseded；保留作单书叙事规则的历史基线，尚未进入实现。
 
 ## 1. 目标与非目标
 
