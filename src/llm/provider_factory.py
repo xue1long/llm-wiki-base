@@ -5,6 +5,7 @@ Each branch forwards ``ProviderConfig.timeout_seconds`` and
 can tune their LLM calls.
 """
 import logging
+import os
 
 from .base import LLMProvider, EmbeddingProvider
 from .types import ProviderConfig
@@ -49,7 +50,7 @@ def _create_from_config(config: ProviderConfig, model_override: str | None = Non
         env_key = _env_var_for_provider(config.name)
         if env_key:
             from src.config import settings
-            settings_val = getattr(settings(), _field_for_env(env_key), "")
+            settings_val = getattr(settings(), _field_for_env(env_key), "") or os.environ.get(env_key, "")
             if settings_val:
                 from dataclasses import replace
                 config = replace(config, api_key=settings_val)
@@ -127,9 +128,24 @@ def create_embedding_provider(
 def _env_var_for_provider(name: str) -> str | None:
     return {
         "openai": "OPENAI_API_KEY",
-        "openai-compatible": None,
         "anthropic": "ANTHROPIC_API_KEY",
         "ollama": None,
+        "minimax": "MINIMAX_API_KEY",
+        "kimi": "KIMI_API_KEY",
+        "moonshot": "KIMI_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+        "glm": "GLM_API_KEY",
+        "zhipu": "GLM_API_KEY",
+        "qwen": "DASHSCOPE_API_KEY",
+        "dashscope": "DASHSCOPE_API_KEY",
+        "gemini": "GEMINI_API_KEY",
+        "google": "GOOGLE_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "mistral": "MISTRAL_API_KEY",
+        "together": "TOGETHER_API_KEY",
+        "cohere": "COHERE_API_KEY",
+        "perplexity": "PERPLEXITY_API_KEY",
     }.get(name)
 
 

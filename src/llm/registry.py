@@ -90,7 +90,11 @@ class ProviderRegistry:
     @staticmethod
     def load() -> dict[str, ProviderConfig]:
         path = _config_path()
-        if not path.exists():
+        try:
+            exists = path.exists()
+        except OSError:
+            return _default_providers()
+        if not exists:
             return _default_providers()
         try:
             text = path.read_text(encoding="utf-8")
@@ -248,6 +252,9 @@ class ProviderRegistry:
         try:
             return ProviderRegistry.get(name)
         except KeyError as e:
+            env_provider = _env_compatible_provider(name)
+            if env_provider:
+                return env_provider
             raise ProviderNotFoundError(name) from e
 
     @staticmethod
@@ -373,10 +380,41 @@ class ProviderRegistry:
             ProviderRegistry._loaded_providers.discard(provider)
 
 
+_ENV_COMPATIBLE_PROVIDERS = {
+    "minimax": ("MINIMAX_API_KEY", "https://api.minimaxi.com/v1", "MiniMax-M3"),
+    "kimi": ("KIMI_API_KEY", "https://api.moonshot.cn/v1", "moonshot-v1-8k"),
+    "moonshot": ("KIMI_API_KEY", "https://api.moonshot.cn/v1", "moonshot-v1-8k"),
+    "deepseek": ("DEEPSEEK_API_KEY", "https://api.deepseek.com/v1", "deepseek-chat"),
+    "glm": ("GLM_API_KEY", "https://open.bigmodel.cn/api/paas/v4", "glm-4-plus"),
+    "zhipu": ("GLM_API_KEY", "https://open.bigmodel.cn/api/paas/v4", "glm-4-plus"),
+    "qwen": ("DASHSCOPE_API_KEY", "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-plus"),
+    "dashscope": ("DASHSCOPE_API_KEY", "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-plus"),
+    "openrouter": ("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1", ""),
+    "groq": ("GROQ_API_KEY", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"),
+    "mistral": ("MISTRAL_API_KEY", "https://api.mistral.ai/v1", "mistral-small-latest"),
+    "together": ("TOGETHER_API_KEY", "https://api.together.xyz/v1", ""),
+    "perplexity": ("PERPLEXITY_API_KEY", "https://api.perplexity.ai", "sonar"),
+}
+
+
+def _env_compatible_provider(name: str) -> ProviderConfig | None:
+    spec = _ENV_COMPATIBLE_PROVIDERS.get(name)
+    if not spec or not os.environ.get(spec[0], "").strip():
+        return None
+    prefix = name.upper()
+    return ProviderConfig(
+        name=name,
+        type="openai-compatible",
+        base_url=os.environ.get(f"{prefix}_BASE_URL", spec[1]),
+        default_chat_model=os.environ.get(f"{prefix}_CHAT_MODEL", spec[2]),
+        sourced_from_env=True,
+    )
+
+
 def _default_providers() -> dict[str, ProviderConfig]:
     from src.config import settings
 
-    return {
+    providers = {
         "openai": ProviderConfig(
             name="openai",
             type="openai",
@@ -407,3 +445,8 @@ def _default_providers() -> dict[str, ProviderConfig]:
             # Ollama has no env-sourced key — persist normally.
         ),
     }
+    for name in _ENV_COMPATIBLE_PROVIDERS:
+        provider = _env_compatible_provider(name)
+        if provider:
+            providers[name] = provider
+    return providers
