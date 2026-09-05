@@ -19,6 +19,7 @@ from .partition import build_chapter_chunks, partition_pages
 from .scanner import WikiScanError, scan_wiki_snapshot
 from .outline_validate import SCHEMA_VERSION, validate_outline
 from .outline_llm import OutlinePlanningError, plan_outline
+from .theme_outline import ThemeOutlineError, load_theme_outline, place_page_summaries_sync
 
 MAX_UNRESOLVED_RELATION_RATIO = 0.05
 
@@ -242,7 +243,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                     polish: bool = False, apply: bool = False,
                     encyclopedic: bool = False, quality_gate: str = "rule", rubric: str | Path | None = None,
                     max_attempts: int = 3, max_input_tokens: int | None = None,
-                    max_output_tokens: int | None = None, provider: Any = None) -> dict[str, Any]:
+                    max_output_tokens: int | None = None, provider: Any = None,
+                    theme_outline: str | Path | None = None) -> dict[str, Any]:
     """Run the rule-only safety path used by the CLI.
 
     Encyclopedic mode adds a bounded, evidence-only index.  It never rewrites
@@ -273,23 +275,43 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
     if relation_summary["unresolved_ratio"] > MAX_UNRESOLVED_RELATION_RATIO:
         return {"status": "failed", "reason_codes": ["unresolved-relation-over-threshold"],
                 "relation_stats": _json(relation_summary)}
-    partitions = partition_pages(snapshot)
-    chunks = build_chapter_chunks(snapshot, partitions,
-                                   context_window=max_input_tokens or 8000,
-                                   output_reserve=max_output_tokens or 1000)
-    volumes: dict[str, list[dict[str, Any]]] = {}
-    for chapter_id, page_ids in sorted(chunks.items()):
-        volume_id = chapter_id.rsplit(":", 1)[0]
-        volumes.setdefault(volume_id, []).append({"chapter_id": chapter_id,
-            "title": chapter_id, "page_ids": list(page_ids), "overview_refs": [page_ids[0]]})
-    rule_outline = {"schema_version": SCHEMA_VERSION, "snapshot_id": snapshot.snapshot_id,
-                    "volumes": [{"volume_id": vid, "title": vid, "chapters": chapters,
-                                  "is_fallback": vid == "fallback"}
-                                 for vid, chapters in sorted(volumes.items())]}
-    outline = rule_outline
-    outline_generation_mode = "rule"
-    outline_fallback_reason: str | None = None
-    if use_llm:
+    if theme_outline is not None:
+        if not use_llm:
+            return {"status": "failed", "reason_codes": ["E_THEME_OUTLINE_REQUIRES_LLM"]}
+        if provider is None:
+            try:
+                from src.llm.provider_factory import create_llm_provider
+                provider = create_llm_provider(preflight.provider or "")
+            except Exception as exc:
+                return {"status": "failed", "reason_codes": ["E_OUTLINE_PROVIDER_UNAVAILABLE"],
+                        "error": f"LLM provider unavailable: {exc}"}
+        try:
+            theme = load_theme_outline(Path(theme_outline))
+            outline = place_page_summaries_sync(theme, snapshot, provider)
+        except (ThemeOutlineError, OSError, ValueError) as exc:
+            return {"status": "failed", "reason_codes": ["E_THEME_OUTLINE_INVALID"], "error": str(exc)}
+        outline_generation_mode = "theme_mapped"
+        outline_fallback_reason: str | None = None
+        chunks = {}
+    else:
+        partitions = partition_pages(snapshot)
+        chunks = build_chapter_chunks(snapshot, partitions,
+                                       context_window=max_input_tokens or 8000,
+                                       output_reserve=max_output_tokens or 1000)
+    if theme_outline is None:
+        volumes: dict[str, list[dict[str, Any]]] = {}
+        for chapter_id, page_ids in sorted(chunks.items()):
+            volume_id = chapter_id.rsplit(":", 1)[0]
+            volumes.setdefault(volume_id, []).append({"chapter_id": chapter_id,
+                "title": chapter_id, "page_ids": list(page_ids), "overview_refs": [page_ids[0]]})
+        rule_outline = {"schema_version": SCHEMA_VERSION, "snapshot_id": snapshot.snapshot_id,
+                        "volumes": [{"volume_id": vid, "title": vid, "chapters": chapters,
+                                      "is_fallback": vid == "fallback"}
+                                     for vid, chapters in sorted(volumes.items())]}
+        outline = rule_outline
+        outline_generation_mode = "rule"
+        outline_fallback_reason: str | None = None
+    if use_llm and theme_outline is None:
         if provider is None:
             try:
                 from src.llm.provider_factory import create_llm_provider
