@@ -167,6 +167,29 @@ async def place_page_summaries(theme_outline: dict[str, Any], snapshot: Any, pro
                 "if no chapter fits, use chapter_id null",
             ],
         })
+        for addition in response.get("additions", []) if isinstance(response.get("additions"), list) else []:
+            if not isinstance(addition, dict) or not str(addition.get("title", "")).strip():
+                continue
+            kind = addition.get("kind")
+            if kind == "volume":
+                volume_id = f"v{len(theme_outline['volumes']) + 1:03d}"
+                chapter_id = f"{volume_id}-c001"
+                volume = {"volume_id": volume_id, "title": str(addition["title"]).strip(),
+                          "description": str(addition.get("description", "")).strip(),
+                          "chapters": [{"chapter_id": chapter_id, "title": "待分配内容", "description": "", "page_ids": []}]}
+                theme_outline["volumes"].append(volume)
+                chapter_index[chapter_id] = volume["chapters"][0]
+                chapters.append(volume["chapters"][0])
+            elif kind == "chapter":
+                volume = next((v for v in theme_outline["volumes"] if v["volume_id"] == addition.get("parent_volume_id")), None)
+                if volume is None:
+                    continue
+                chapter_id = f"{volume['volume_id']}-c{len(volume['chapters']) + 1:03d}"
+                chapter = {"chapter_id": chapter_id, "title": str(addition["title"]).strip(),
+                           "description": str(addition.get("description", "")).strip(), "page_ids": []}
+                volume["chapters"].append(chapter)
+                chapter_index[chapter_id] = chapter
+                chapters.append(chapter)
         for item in response.get("assignments", []) if isinstance(response.get("assignments"), list) else []:
             if not isinstance(item, dict):
                 continue
