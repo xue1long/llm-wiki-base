@@ -1,4 +1,6 @@
-# novel-wiki 叙事化写作方法论书籍实施计划
+# novel-wiki 叙事化写作方法论书籍实施计划（历史基线）
+
+> **已被替代：** 当前目标采用 `docs/superpowers/plans/2026-09-06-novel-wiki-book-series-target.md` 的“三本主教程 + 参考库”结构；本文件仅保留单书叙事编译的历史任务拆分。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
