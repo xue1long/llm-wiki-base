@@ -15,10 +15,10 @@
 
   window.App = window.App || {};
 
-  const VOLUMES = [
+    const VOLUMES = [
     ["all", "全部"], ["sources", "Sources"], ["concepts", "Concepts"],
     ["entities", "Entities"], ["synthesis", "Synthesis"],
-  ];
+      ];
 
   App.renderBook = function renderBook(root) {
     let files = [];
@@ -76,9 +76,16 @@
     const dryRunBtn = root.querySelector("#bookDryRunBtn");
     const applyBtn = root.querySelector("#bookApplyBtn");
 
-    volumeBar.innerHTML = VOLUMES.map(([id, label]) =>
-      `<button class="book-volume${id === selectedVolume ? " active" : ""}" data-volume="${id}">${label}</button>`
-    ).join("");
+    function renderVolumeBar() {
+      const volumes = Array.isArray(book?.volumes) && book.volumes.length
+        ? [["all", "全部"], ...book.volumes.map(volume => [volume.id, volume.title])]
+        : VOLUMES;
+      if (!volumes.some(([id]) => id === selectedVolume)) selectedVolume = "all";
+      volumeBar.innerHTML = volumes.map(([id, label]) =>
+        `<button class="book-volume${id === selectedVolume ? " active" : ""}" data-volume="${App.escapeHtml(id)}">${App.escapeHtml(label)}</button>`
+      ).join("");
+    }
+    renderVolumeBar();
     volumeBar.addEventListener("click", event => {
       const button = event.target.closest("[data-volume]");
       if (!button) return;
@@ -171,6 +178,7 @@
         const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki${query}`);
         book = data;
         files = data.chapters || [];
+        renderVolumeBar();
         stats.textContent = `${files.length.toLocaleString()} 章 · ${(data.page_count || 0).toLocaleString()} 页`;
         renderBookInfo();
         renderToc();
@@ -208,9 +216,17 @@
       const raw = typeof chapter === "string"
         ? chapter
         : (chapter.chapter_id || chapter.path || "");
+      if (typeof chapter !== "string" && chapter.volume_id) return chapter.volume_id;
       const prefix = String(raw).split(/[\\/]/).pop().split("-", 1)[0];
       const volumes = { source: "sources", concept: "concepts", entity: "entities", synthesis: "synthesis" };
       return volumes[prefix] || "chapters";
+    }
+
+    function volumeLabel(chapter) {
+      if (chapter?.volume_title) return chapter.volume_title;
+      const id = volumeFor(chapter);
+      const match = (book?.volumes || []).find(volume => volume.id === id);
+      return match?.title || ({ sources: "Sources · 来源", concepts: "Concepts · 概念", entities: "Entities · 实体", synthesis: "Synthesis · 综合", chapters: "章节" }[id] || id);
     }
 
     function renderToc() {
@@ -225,14 +241,13 @@
         if (!grouped.has(volume)) grouped.set(volume, []);
         grouped.get(volume).push(file);
       }
-      const labels = { sources: "Sources · 来源", concepts: "Concepts · 概念", entities: "Entities · 实体", synthesis: "Synthesis · 综合", chapters: "章节" };
       if (!filtered.length) {
         toc.innerHTML = `<div class="book-empty">没有匹配的章节</div>`;
         return;
       }
       toc.innerHTML = Array.from(grouped, ([volume, items]) => `
         <section class="book-volume-group">
-          <div class="book-volume-heading">${labels[volume]} <span>${items.length}</span></div>
+          <div class="book-volume-heading">${App.escapeHtml(volumeLabel(items[0]))} <span>${items.length}</span></div>
           ${items.slice(0, 300).map(file => {
             const title = file.title || file.chapter_id || file.path;
             return `<button class="book-chapter" data-path="${App.escapeHtml(file.path)}">${App.escapeHtml(title)}</button>`;
@@ -252,7 +267,7 @@
         const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki/content?${params}`);
         const title = button.textContent;
         const chapter = files.find(item => item.path === button.dataset.path);
-        reader.innerHTML = `<div class="book-reader-kicker">${App.escapeHtml(volumeFor(chapter || {}))} · WIKI-TO-BOOK</div>
+        reader.innerHTML = `<div class="book-reader-kicker">${App.escapeHtml(volumeLabel(chapter || {}))} · WIKI-TO-BOOK</div>
           <h2>${App.escapeHtml(title)}</h2><div class="reader-body">${App.renderMd(data.content || "")}</div>`;
         renderChapterInfo(chapter, data);
         App.updateBreadcrumb(`book-wiki/${button.dataset.path}`);
