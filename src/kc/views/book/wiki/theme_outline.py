@@ -88,6 +88,18 @@ def validate_theme_outline(outline: object, *, theme: str | None = None, purpose
         _canonical_theme(outline, theme=str(outline.get("theme", "")), purpose="x")
     except ThemeOutlineError as exc:
         return (str(exc),)
+    volume_ids: set[str] = set()
+    chapter_ids: set[str] = set()
+    for volume in outline.get("volumes", []):
+        if not isinstance(volume.get("volume_id"), str) or not volume["volume_id"] or volume["volume_id"] in volume_ids:
+            return ("invalid-volume-id",)
+        volume_ids.add(volume["volume_id"])
+        for chapter in volume.get("chapters", []):
+            if not isinstance(chapter.get("chapter_id"), str) or not chapter["chapter_id"] or chapter["chapter_id"] in chapter_ids:
+                return ("invalid-chapter-id",)
+            if chapter.get("page_ids", []) not in ([], None):
+                return ("page-ids-not-empty",)
+            chapter_ids.add(chapter["chapter_id"])
     return ()
 
 
