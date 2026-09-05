@@ -35,6 +35,8 @@ from .contract import (
     OutlineProposalStatus,
     StatementRef,
     Book,
+    BookBuildManifest,
+    BookIncrementalPlan,
     Chapter,
 )
 from .id_policy import (
@@ -87,6 +89,8 @@ from .rebuild import BookRebuildReport, rebuild_book
 
 __all__ = [
     "Book",
+    "BookBuildManifest",
+    "BookIncrementalPlan",
     "BookChapterRegistry",
     "Chapter",
     "ChapterRender",

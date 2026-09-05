@@ -232,3 +232,23 @@ def test_aggregate_synthesis_full_smoke(wiki_dir: Path):
         assert result >= 0
 
     asyncio.run(_run())
+
+
+def test_aggregate_commit_records_lineage_for_all_sources(wiki_dir: Path):
+    from scripts.aggregate_synthesis import SynthesisResult, _commit_synthesis
+    from src.lineage.api import LineageStore
+    from src.wiki.core.paths import WikiPaths
+    from src.wiki.core.types import PageType, WikiPage
+
+    paths = WikiPaths(wiki_dir)
+    store = LineageStore.open(wiki_dir)
+    store.register_source("src-a", "raw/sources/a.md", "a", "ingested")
+    store.register_source("src-b", "raw/sources/b.md", "b", "ingested")
+    page = WikiPage(
+        id="syn-lineage", title="Synthesis", type=PageType.SYNTHESIS,
+        sources=["raw/sources/a.md", "raw/sources/b.md"], body="body",
+    )
+    assert _commit_synthesis(
+        paths, [SynthesisResult("cat", [], page)], project_root=wiki_dir
+    ) == 1
+    assert store.artifact_sources("syn-lineage") == ("src-a", "src-b")

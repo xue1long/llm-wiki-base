@@ -178,18 +178,35 @@ def enqueue_source(
     resolved_id = ctx.id
 
     if isinstance(source, str):
+        source_id = None
         if source.startswith("http"):
             source_str = source
             source_type = SourceType.URL
         else:
             source_str = _normalize_absolute_path(paths.root, source)
             source_type = SourceType.FILE
+            if (paths.root / source_str).is_file():
+                from ..lineage.api import LineageStore
+                lineage = LineageStore.open(paths.root)
+                lineage.discover_raw_sources()
+                source_id = lineage.source_id_for_path(source_str)
+                if source_id is not None and Path(source_str).suffix.lower() not in _SUPPORTED_EXTENSIONS:
+                    lineage.record_raw_assessment(
+                        source_id, "raw_unsupported", ("unsupported_format",)
+                    )
+                    return {"status": "blocked", "taskId": None,
+                            "reason": "unsupported_format", "sourceId": source_id}
+            else:
+                source_id = None
         task_hash = generate_task_hash(source_type, source_str, folder_context or "", project_id=resolved_id)
         task_id = enqueue_task(source_str, source_type, task_hash, project_id=resolved_id,
                                folder_context=folder_context)
         if not task_id:
             return {"status": "ignored", "taskId": None, "reason": "Duplicate"}
-        return {"status": "queued", "taskId": task_id, "reason": None}
+        result = {"status": "queued", "taskId": task_id, "reason": None}
+        if source_id is not None:
+            result["sourceId"] = source_id
+        return result
 
     # Folder shape {"folder": path}: enumerate supported files and
     # enqueue each one individually. Idempotency is per-file so

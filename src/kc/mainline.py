@@ -259,7 +259,30 @@ async def index_and_publish_bundle(
                 for index, ((page, chunk), embedding) in enumerate(zip(chunks, embeddings))
             ])
         clear_pending(WikiPaths(project_root), [page.id for page in pages])
-        return finalize_bundle(project_root, bundle_key=bundle_key, page_ids=tuple(page.id for page in pages), vector_ready=True)
+        result = finalize_bundle(
+            project_root, bundle_key=bundle_key,
+            page_ids=tuple(page.id for page in pages), vector_ready=True,
+        )
+        if result.status == "published":
+            from src.lineage.api import LineageStore
+            from src.utils.path import normalize_source_path
+            lineage = LineageStore.open(project_root)
+            source_ids = tuple(sorted({
+                sid
+                for page in pages
+                for raw in (getattr(page, "sources", None) or [])
+                if (sid := lineage.source_id_for_path(
+                    normalize_source_path(raw, project_root)
+                )) is not None
+            }))
+            manifest = Path(project_root) / ".index" / "kc" / "bundles" / bundle_key / "manifest.json"
+            lineage.record_kc_commit(
+                bundle_key, source_ids,
+                manifest.relative_to(project_root).as_posix(),
+                hashlib.sha256(manifest.read_bytes()).hexdigest(),
+                result.publication_version,
+            )
+        return result
     except Exception:
         return finalize_bundle(project_root, bundle_key=bundle_key, page_ids=tuple(page.id for page in pages), vector_ready=False)
 

@@ -1,4 +1,6 @@
 """Tests for src.services.ingest — source enqueue with idempotency."""
+import pytest
+
 from src.services import ingest as ingest_service
 
 
@@ -49,6 +51,37 @@ def test_enqueue_file_source_detected(monkeypatch, tmp_path):
     result = ingest_service.enqueue_source("u", "raw/sources/input.md")
     assert result["status"] == "queued"
     assert captured["stype"] == "file"
+
+
+def test_enqueue_existing_file_registers_lineage_before_queue(monkeypatch, tmp_path):
+    project_dir = tmp_path / "kb"
+    source = project_dir / "raw" / "sources" / "input.md"
+    source.parent.mkdir(parents=True)
+    source.write_text("content", encoding="utf-8")
+    _stub_resolve(monkeypatch, project_dir)
+    def fake_enqueue(*args, **kwargs):
+        from src.lineage.api import LineageStore
+        store = LineageStore.open(project_dir)
+        assert store._db.execute("SELECT COUNT(*) FROM sources").fetchone()[0] == 1
+        return "task-lineage"
+    monkeypatch.setattr(ingest_service, "enqueue_task", fake_enqueue)
+
+    result = ingest_service.enqueue_source("u", "raw/sources/input.md")
+    assert result["taskId"] == "task-lineage"
+    assert result["sourceId"].startswith("src-")
+
+
+def test_enqueue_existing_unsupported_file_is_blocked(monkeypatch, tmp_path):
+    project_dir = tmp_path / "kb"
+    source = project_dir / "raw" / "sources" / "input.bin"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"content")
+    _stub_resolve(monkeypatch, project_dir)
+    monkeypatch.setattr(ingest_service, "enqueue_task", lambda *args, **kwargs: pytest.fail("must not enqueue"))
+
+    result = ingest_service.enqueue_source("u", "raw/sources/input.bin")
+    assert result["status"] == "blocked"
+    assert result["reason"] == "unsupported_format"
 
 
 def test_enqueue_external_absolute_file_is_rejected(monkeypatch, tmp_path):

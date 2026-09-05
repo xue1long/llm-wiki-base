@@ -187,6 +187,8 @@ class Chapter:
     knowledge_block_ids: list[str] = field(default_factory=list)
     source_knowledge_unit_ids: list[str] = field(default_factory=list)
     publication_version: int = 0
+    source_ids: list[str] = field(default_factory=list)
+    wiki_page_ids: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -198,6 +200,8 @@ class Chapter:
             "knowledge_block_ids": list(self.knowledge_block_ids),
             "source_knowledge_unit_ids": list(self.source_knowledge_unit_ids),
             "publication_version": self.publication_version,
+            "source_ids": list(self.source_ids),
+            "wiki_page_ids": list(self.wiki_page_ids),
         }
 
     @classmethod
@@ -213,7 +217,39 @@ class Chapter:
                 payload.get("source_knowledge_unit_ids", [])
             ),
             publication_version=payload.get("publication_version", 0),
+            source_ids=list(payload.get("source_ids", [])),
+            wiki_page_ids=list(payload.get("wiki_page_ids", [])),
         )
+
+
+@dataclass(frozen=True)
+class BookBuildManifest:
+    """Frozen lineage closure used by one Book build."""
+
+    source_ids: tuple[str, ...] = ()
+    wiki_page_ids: tuple[str, ...] = ()
+    excluded: tuple[str, ...] = ()
+    blocking: tuple[str, ...] = ()
+    input_snapshot: str = ""
+    policy_version: str = "book-lineage-v1"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "source_ids": list(self.source_ids),
+            "wiki_page_ids": list(self.wiki_page_ids),
+            "excluded": list(self.excluded),
+            "blocking": list(self.blocking),
+            "input_snapshot": self.input_snapshot,
+            "policy_version": self.policy_version,
+        }
+
+
+@dataclass(frozen=True)
+class BookIncrementalPlan:
+    added_source_ids: tuple[str, ...] = ()
+    removed_source_ids: tuple[str, ...] = ()
+    added_wiki_page_ids: tuple[str, ...] = ()
+    removed_wiki_page_ids: tuple[str, ...] = ()
 
 
 # ─── KnowledgeBlock ────────────────────────────────────────────────────

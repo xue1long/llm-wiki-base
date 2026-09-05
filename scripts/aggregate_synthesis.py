@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -340,6 +341,22 @@ def _commit_synthesis(
             # 同步关系索引
             RelationSync.sync_page(
                 paths, r.synthesis_page.id, r.synthesis_page.relations or [],
+            )
+            from src.lineage.api import LineageStore
+            from src.utils.path import normalize_source_path
+            lineage = LineageStore.open(project_root)
+            source_ids = tuple(sorted({
+                sid
+                for raw in (r.synthesis_page.sources or [])
+                if (sid := lineage.source_id_for_path(
+                    normalize_source_path(raw, project_root)
+                )) is not None
+            }))
+            output = paths.wiki_synthesis / f"{r.synthesis_page.id}.md"
+            lineage.record_wiki_commit(
+                r.synthesis_page.id, source_ids,
+                output.relative_to(project_root).as_posix(),
+                hashlib.sha256(output.read_bytes()).hexdigest(),
             )
             committed += 1
             print(f"  [commit] synthesis: {r.synthesis_page.id}", flush=True)

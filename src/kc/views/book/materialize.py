@@ -71,8 +71,9 @@ from typing import Any
 
 from src.kc.contracts.evidence import Evidence
 from src.kc.domain.knowledge_unit import KnowledgeUnit
-from src.kc.views.book.contract import Book, Chapter
+from src.kc.views.book.contract import Book, BookBuildManifest, BookIncrementalPlan, Chapter
 from src.kc.views.book.core_view import SimpleKnowledgeCoreView
+from src.lineage import LineageStore
 
 # ─── Constants ─────────────────────────────────────────────────────────
 
@@ -362,6 +363,47 @@ def _build_chapter(
     )
 
 
+def materialize_book_manifest(project_root: Path | str) -> BookBuildManifest:
+    """Freeze the committed lineage closure for a Book build."""
+    db_path = Path(project_root) / ".index" / "lineage" / "state.db"
+    if not db_path.exists():
+        return BookBuildManifest(blocking=("lineage:missing",))
+    store = LineageStore.open(Path(project_root))
+    sources = store.sources()
+    source_ids = tuple(row["source_id"] for row in sources if row["status"] != "deleted")
+    artifacts = store.artifacts(artifact_kind="wiki", status="committed")
+    wiki_ids = tuple(row["artifact_id"] for row in artifacts)
+    blocking = tuple(
+        f"source:{row['source_id']}:{row['status']}"
+        for row in sources
+        if row["status"] in {"blocked", "failed", "stale"}
+    )
+    return BookBuildManifest(
+        source_ids=source_ids,
+        wiki_page_ids=wiki_ids,
+        blocking=blocking,
+        input_snapshot="\n".join(f"{row['source_id']}:{row['source_hash']}" for row in sources),
+    )
+
+
+def materialize_book_plan(project_root: Path | str) -> BookIncrementalPlan:
+    current = materialize_book_manifest(project_root)
+    active_path = Path(project_root) / "book" / "manifest.json"
+    try:
+        active = json.loads(active_path.read_text(encoding="utf-8"))
+        previous = active.get("lineage", {})
+    except (OSError, ValueError):
+        previous = {}
+    old_sources = set(previous.get("source_ids", ()))
+    old_wiki = set(previous.get("wiki_page_ids", ()))
+    return BookIncrementalPlan(
+        added_source_ids=tuple(sorted(set(current.source_ids) - old_sources)),
+        removed_source_ids=tuple(sorted(old_sources - set(current.source_ids))),
+        added_wiki_page_ids=tuple(sorted(set(current.wiki_page_ids) - old_wiki)),
+        removed_wiki_page_ids=tuple(sorted(old_wiki - set(current.wiki_page_ids))),
+    )
+
+
 # ─── Public entry point ────────────────────────────────────────────────
 
 
@@ -406,6 +448,17 @@ def materialize_book_snapshot(
 
     state = _collect(kc_root)
     publication_version = _read_publication_version(kc_root)
+    lineage_by_path: dict[str, tuple[str, tuple[str, ...]]] = {}
+    lineage_db = root / ".index" / "lineage" / "state.db"
+    if lineage_db.exists():
+        lineage = LineageStore.open(root)
+        for source in lineage.sources():
+            if source["status"] == "deleted":
+                continue
+            lineage_by_path[source["source_path"]] = (
+                source["source_id"],
+                lineage.artifacts_for_source(source["source_id"], artifact_kind="wiki"),
+            )
 
     # ── Group claims by source_path (D-1) ──────────────────────────────
     grouped: dict[str, list[dict[str, Any]]] = {}
@@ -431,6 +484,14 @@ def materialize_book_snapshot(
         ku = _build_knowledge_unit(source_path, grouped[source_path])
         chapter = _build_chapter(
             ku, book_id=book.id, order=order, publication_version=publication_version
+        )
+        source_id, wiki_page_ids = lineage_by_path.get(source_path, ("", ()))
+        chapter = Chapter(
+            **{
+                **chapter.__dict__,
+                "source_ids": [source_id] if source_id else [],
+                "wiki_page_ids": list(wiki_page_ids),
+            }
         )
         kus[ku.ku_id] = ku
         chapters.append(chapter)
@@ -524,4 +585,6 @@ __all__ = [
     "WARN_DERIVED_UNIT_TYPE",
     "WARN_KC_ROOT_MISSING",
     "materialize_book_snapshot",
+    "materialize_book_manifest",
+    "materialize_book_plan",
 ]

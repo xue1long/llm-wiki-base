@@ -5,14 +5,16 @@ import json
 import os
 import shutil
 import tempfile
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
 from src.kc.integrity.orchestrator import IntegrityGate
+from src.lineage import LineageStore
 
 from .compiler import ChapterRender, CompileError, CompiledBlock, compile_chapter
-from .contract import Book, Chapter, KnowledgeBlock
+from .contract import Book, BookBuildManifest, Chapter, KnowledgeBlock
 from .core_view import KnowledgeCoreView
 from .id_policy import generate_stable_knowledge_block_id
 from .markdown import render_chapter
@@ -169,6 +171,7 @@ def rebuild_book(
     target_chapter_ids: tuple[str, ...] | None = None,
     output_dir: Path | None = None,
     apply: bool = False,
+    build_manifest: BookBuildManifest | None = None,
 ) -> BookRebuildReport:
     publication_version = core_view.current_publication_version()
     selected, missing, selection_reason = _selected_chapters(book, chapters, target_chapter_ids)
@@ -193,6 +196,19 @@ def rebuild_book(
             rendered_hashes={},
             not_evaluable=True,
         )
+
+    if build_manifest is not None:
+        if build_manifest.blocking:
+            return BookRebuildReport("failed", book.id, publication_version, (), tuple(book.chapter_ids),
+                                     tuple(build_manifest.blocking), {},)
+        compiled_page_ids = tuple(sorted({page_id for chapter in selected for page_id in chapter.wiki_page_ids}))
+        if set(compiled_page_ids) != set(build_manifest.wiki_page_ids):
+            return BookRebuildReport("failed", book.id, publication_version, (), tuple(book.chapter_ids),
+                                     ("closure:wiki_page_ids",), {},)
+        compiled_source_ids = tuple(sorted({source_id for chapter in selected for source_id in chapter.source_ids}))
+        if set(compiled_source_ids) != set(build_manifest.source_ids):
+            return BookRebuildReport("failed", book.id, publication_version, (), tuple(book.chapter_ids),
+                                     ("closure:source_ids",), {},)
 
     rendered_views: dict[str, BookView] = {}
     rendered_hashes: dict[str, str] = {}
@@ -246,6 +262,20 @@ def rebuild_book(
             rendered_hashes=dict(rendered_hashes),
         )
 
+    lease_store: LineageStore | None = None
+    lease_run_id: str | None = None
+    if build_manifest is not None and build_manifest.source_ids:
+        lineage_db = output_dir.parent / ".index" / "lineage" / "state.db"
+        if lineage_db.exists():
+            lease_store = LineageStore.open(output_dir.parent)
+            if not lease_store.snapshot_matches(build_manifest.source_ids, build_manifest.input_snapshot):
+                return BookRebuildReport("failed", book.id, publication_version, (), tuple(book.chapter_ids),
+                                         ("snapshot:stale",), {},)
+            lease_run_id = uuid.uuid4().hex
+            if not lease_store.acquire_build_lease(lease_run_id):
+                return BookRebuildReport("failed", book.id, publication_version, (), tuple(book.chapter_ids),
+                                         ("build:lease_busy",), {},)
+
     output_dir.mkdir(parents=True, exist_ok=True)
     staging_root = output_dir / ".rebuild-staging"
     staging_root.mkdir(parents=True, exist_ok=True)
@@ -267,8 +297,54 @@ def rebuild_book(
                     reason_codes=(f"write_exception:{type(exc).__name__}",),
                     rendered_hashes=dict(rendered_hashes),
                 )
+        if build_manifest is None:
+            try:
+                _commit_stage(stage_dir, output_dir, tuple(rendered_views))
+            except Exception as exc:
+                return BookRebuildReport(
+                    status="failed",
+                    book_id=book.id,
+                    publication_version=publication_version,
+                    rebuilt_chapter_ids=tuple(rendered_views),
+                    failed_chapter_ids=tuple(rendered_views),
+                    reason_codes=(f"write_exception:{type(exc).__name__}",),
+                    rendered_hashes=dict(rendered_hashes),
+                )
+            return BookRebuildReport(
+                status="committed",
+                book_id=book.id,
+                publication_version=publication_version,
+                rebuilt_chapter_ids=tuple(rendered_views),
+                failed_chapter_ids=(),
+                reason_codes=(),
+                rendered_hashes=dict(rendered_hashes),
+            )
         try:
-            _commit_stage(stage_dir, output_dir, tuple(rendered_views))
+            run_id = uuid.uuid4().hex
+            release_dir = output_dir / ".releases" / run_id
+            release_dir.mkdir(parents=True, exist_ok=False)
+            _commit_stage(stage_dir, release_dir, tuple(rendered_views))
+            release_manifest = {
+                "run_id": run_id,
+                "book_id": book.id,
+                "publication_version": publication_version,
+                "chapter_ids": list(rendered_views),
+                "rendered_hashes": dict(rendered_hashes),
+                "lineage": build_manifest.to_dict() if build_manifest else {},
+            }
+            _write_text(release_dir / "manifest.json", json.dumps(release_manifest, ensure_ascii=False, indent=2) + "\n")
+            # Compatibility projection; active readers use the manifest/release.
+            compat_stage = Path(tempfile.mkdtemp(prefix="compat-", dir=str(staging_root)))
+            try:
+                for chapter_id in rendered_views:
+                    for suffix in (".md", ".json"):
+                        shutil.copy2(release_dir / f"{chapter_id}{suffix}", compat_stage / f"{chapter_id}{suffix}")
+                _commit_stage(compat_stage, output_dir, tuple(rendered_views))
+            finally:
+                shutil.rmtree(compat_stage, ignore_errors=True)
+            active_tmp = output_dir / f".manifest-{run_id}.tmp"
+            _write_text(active_tmp, json.dumps(release_manifest, ensure_ascii=False, indent=2) + "\n")
+            os.replace(active_tmp, output_dir / "manifest.json")
         except Exception as exc:
             return BookRebuildReport(
                 status="failed",
@@ -281,6 +357,8 @@ def rebuild_book(
             )
     finally:
         shutil.rmtree(stage_dir, ignore_errors=True)
+        if lease_store is not None and lease_run_id is not None:
+            lease_store.release_build_lease(lease_run_id)
 
     return BookRebuildReport(
         status="committed",

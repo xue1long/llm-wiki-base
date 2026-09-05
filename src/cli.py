@@ -48,7 +48,8 @@ from .cli_ext.llm_providers_cmd import (
 )
 from .cli_ext.health_cmd import cmd_health
 from .cli_ext.wiki_quality_cmd import add_parser as add_wiki_quality_parser
-from .cli_ext.book_cmd import cmd_book_build, cmd_book_show
+from .cli_ext.book_cmd import cmd_book_build, cmd_book_plan, cmd_book_show
+from .cli_ext.lineage_cmd import cmd_lineage_health, cmd_lineage_show
 from .cli_ext.content_health_cmd import cmd_content_health
 from .cli_ext.readiness_cmd import cmd_readiness_compare, cmd_readiness_inventory
 from .cli_ext.quality_cmd import (
@@ -548,7 +549,12 @@ def build_parser() -> "argparse.ArgumentParser":
         help="Write output to disk (default: dry-run, nothing is written)",
     )
     p_book_build.add_argument("--json", action="store_true", help="Emit JSON instead of text")
+    p_book_build.add_argument("--strict", action="store_true", help="Fail closed on lineage closure blockers")
     p_book_build.set_defaults(func=cmd_book_build)
+    p_book_plan = p_book_sub.add_parser("plan", help="Show incremental Book changes")
+    p_book_plan.add_argument("--project", help="Project id or name")
+    p_book_plan.add_argument("--json", action="store_true", help="Emit JSON instead of text")
+    p_book_plan.set_defaults(func=cmd_book_plan)
 
     p_book_show = p_book_sub.add_parser(
         "show", help="Show what a Book build would produce (read-only)"
@@ -556,6 +562,14 @@ def build_parser() -> "argparse.ArgumentParser":
     p_book_show.add_argument("--project", help="Project id or name")
     p_book_show.add_argument("--json", action="store_true", help="Emit JSON instead of text")
     p_book_show.set_defaults(func=cmd_book_show)
+
+    p_lineage = subparsers.add_parser("lineage", help="Inspect Book lineage state")
+    p_lineage_sub = p_lineage.add_subparsers(dest="lineage_command", required=True)
+    for name, func in (("health", cmd_lineage_health), ("show", cmd_lineage_show)):
+        p_lineage_action = p_lineage_sub.add_parser(name)
+        p_lineage_action.add_argument("--project")
+        p_lineage_action.add_argument("--json", action="store_true")
+        p_lineage_action.set_defaults(func=func)
 
     def _book_no_subcommand(_args):
         p_book.print_help()

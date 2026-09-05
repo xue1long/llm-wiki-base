@@ -1655,6 +1655,24 @@ async def commit_ingest(
             task_id=task_id,
             detail=f"generated {len(pages)} pages from {Path(str(source_path)).name}",
         )
+
+    from ..lineage.api import LineageStore
+    from ..utils.path import normalize_source_path
+    _lineage = LineageStore.open(paths.root)
+    for _page in _publication_pages:
+        _page_path = page_path_for(paths, _page.type, _page.id)
+        _source_ids = tuple(
+            sid for raw in (_page.sources or [])
+            if (sid := _lineage.source_id_for_path(
+                normalize_source_path(raw, paths.root)
+            )) is not None
+        )
+        _lineage.record_wiki_commit(
+            _page.id,
+            _source_ids,
+            _page_path.relative_to(paths.root).as_posix(),
+            hashlib.sha256(_page_path.read_bytes()).hexdigest(),
+        )
     # L3: Wiki committed successfully — make the intent explicitly pending.
     # If promotion fails, the intent remains durable and is recoverable on the
     # next reconcile/startup pass.
@@ -1671,6 +1689,12 @@ async def commit_ingest(
             bundle_key=kc_bundle_key,
             pages=_publication_pages,
         )
+
+    from ..lineage.api import LineageStore
+    from ..utils.path import normalize_source_path
+    LineageStore.open(paths.root).mark_raw_ingested(
+        normalize_source_path(str(source_path), paths.root)
+    )
 
     if triage_result is not None:
         write_triage_result(paths, triage_result)
