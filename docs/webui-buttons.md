@@ -87,7 +87,22 @@
 
 ---
 
-## 3. 聊天页（Chat）
+## 3. Book 阅读页
+
+**文件：** [web/js/views/book.js](../web/js/views/book.js)
+
+| 控件 | 位置 | 功能 | 后端 API |
+|------|------|------|----------|
+| **刷新状态** | Book 构建栏 | 刷新 KC Book 构建状态 | `GET /api/v1/kc/book/status?project_id=...` |
+| **预览构建** | Book 构建栏 | 执行 dry-run，不写入正式目录 | `POST /api/v1/kc/book/build`（`apply=false`） |
+| **生成并写入磁盘** | Book 构建栏 | 执行 KC Book 写入 | `POST /api/v1/kc/book/build`（`apply=true`） |
+| **章节目录按钮** | 左侧目录 | 切换当前正式 Wiki-to-Book 章节 | `GET /api/v1/projects/{id}/book-wiki/content?path=...` |
+| **卷筛选 / 搜索** | 左侧目录上方 | 按类型和章节标题过滤目录 | — |
+
+Book 阅读页读取 `CURRENT.json` 指向的完整性校验 release：
+`GET /api/v1/projects/{id}/book-wiki` 获取目录和章节信息，右侧面板展示 release、来源、关系和质量摘要。
+
+## 4. 聊天页（Chat）
 
 **文件：** [web/js/views/chat.js](../web/js/views/chat.js)
 
@@ -97,7 +112,7 @@
 
 ---
 
-## 4. 图谱页（Graph）
+## 5. 图谱页（Graph）
 
 **文件：** [web/js/views/graph.js](../web/js/views/graph.js)
 
@@ -109,7 +124,7 @@
 
 ---
 
-## 5. 设置页（Settings）
+## 6. 设置页（Settings）
 
 **文件：** [web/js/views/settings.js](../web/js/views/settings.js)
 
@@ -134,7 +149,7 @@
 
 ---
 
-## 6. 状态页（Status）
+## 7. 状态页（Status）
 
 **文件：** [web/js/views/status.js](../web/js/views/status.js)
 
@@ -186,7 +201,7 @@
 
 ---
 
-## 7. 热度页（Heat）
+## 8. 热度页（Heat）
 
 **文件：** [web/js/views/heat.js](../web/js/views/heat.js)
 
@@ -207,7 +222,7 @@
 
 ---
 
-## 8. 模板页（Templates）
+## 9. 模板页（Templates）
 
 **文件：** [web/js/views/templates.js](../web/js/views/templates.js)
 

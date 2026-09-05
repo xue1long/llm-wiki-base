@@ -11,3 +11,6 @@
 - [2026-09-01 batch crash 测试宿主隔离](feedback-batch-crash-test-host-2026-09-01.md)
 - [2026-09-04 novel-wiki 质检修复完成 + 并行 risk-remediation 计划重叠](feedback-novel-wiki-quality-fix-2026-09-04.md) — 续跑 risk-remediation 计划前先读
 - [2026-09-04 risk remediation Task 0/1](feedback-risk-remediation-task1-2026-09-04.md)
+- [2026-09-05 Wiki-to-Book V3.2 安全整改 + V4 计划起草](feedback-wiki-to-book-v4-plan-2026-09-05.md) — 启动 wiki-to-book V3.2 编码或 V4 计划评审前必读
+- [feedback-wiki-to-book-v4-implementation-2026-09-05.md](feedback-wiki-to-book-v4-implementation-2026-09-05.md) — V3/V4 implementation and acceptance evidence
+- [feedback-wiki-to-book-boundaries-2026-09-05.md](feedback-wiki-to-book-boundaries-2026-09-05.md) — external ingest paths, lineage digest consistency, encyclopedic provider wiring

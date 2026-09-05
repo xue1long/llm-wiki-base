@@ -35,6 +35,10 @@ class FileTooLargeError(Exception):
     """Requested file exceeds the MAX_FILE_BYTES size limit."""
 
 
+class BookWikiUnavailableError(Exception):
+    """The project has no integrity-verified active Wiki-to-Book release."""
+
+
 def _resolve_root(paths, root: str) -> Path:
     """Map an API `root` string to a concrete directory under the project.
 
@@ -149,6 +153,88 @@ def read_file_content(project_id: str, path: str) -> dict:
         "content": candidate.read_text(encoding="utf-8"),
         "truncated": False,
         "size": size,
+    }
+
+
+def _active_book_wiki(project_id: str) -> tuple[Path, dict]:
+    """Return the verified active Book release and its manifest."""
+    import json
+    from ..kc.views.book.wiki.compiler import resolve_active_version
+
+    ctx, _paths = resolve_project(project_id, by_id_only=True)
+    release = resolve_active_version(ctx.path / "book-wiki")
+    if release is None:
+        raise BookWikiUnavailableError("No active book-wiki release")
+    manifest_path = release / "manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise BookWikiUnavailableError("Active book-wiki manifest is unreadable") from exc
+    if not isinstance(manifest, dict):
+        raise BookWikiUnavailableError("Active book-wiki manifest is invalid")
+    return release, manifest
+
+
+def book_wiki_manifest(project_id: str) -> dict:
+    """Describe the active Wiki-to-Book release for the reader UI."""
+    release, manifest = _active_book_wiki(project_id)
+    chapter_sources = manifest.get("chapter_sources") or {}
+    files = manifest.get("files") or {}
+    chapters = []
+    for name in sorted(files):
+        if not name.endswith(".md") or name in {"index.md", "glossary.md"}:
+            continue
+        path = release / name
+        if not path.is_file():
+            continue
+        chapter_id = path.stem
+        sources = chapter_sources.get(chapter_id, [])
+        chapters.append({
+            "path": name,
+            "chapter_id": chapter_id,
+            "title": chapter_id.replace("__", " / "),
+            "order": len(chapters) + 1,
+            "size": path.stat().st_size,
+            "sources": list(sources) if isinstance(sources, list) else [],
+        })
+    return {
+        "version": manifest.get("run_id"),
+        "snapshot_id": manifest.get("snapshot_id"),
+        "page_count": manifest.get("page_count", 0),
+        "chapter_count": manifest.get("chapter_count", len(chapters)),
+        "total_relations": manifest.get("total_relations", 0),
+        "unresolved": manifest.get("unresolved", 0),
+        "unresolved_ratio": manifest.get("unresolved_ratio", 0),
+        "reading_experience_mode": manifest.get("reading_experience_mode", "rule_only"),
+        "chapters": chapters,
+    }
+
+
+def read_book_wiki_content(project_id: str, path: str) -> dict:
+    """Read one chapter from the verified active Book release."""
+    release, manifest = _active_book_wiki(project_id)
+    normalized = path.replace("\\", "/")
+    name = Path(normalized).name
+    if normalized != name:
+        raise PathTraversalError(f"Path escapes active book-wiki release: {path!r}")
+    files = manifest.get("files") or {}
+    if name not in files or not name.endswith(".md"):
+        raise FileNotFoundError(f"No such book-wiki chapter: {path!r}")
+    candidate = safe_resolve(release / name)
+    try:
+        candidate.relative_to(release.resolve())
+    except ValueError as exc:
+        raise PathTraversalError(f"Path escapes active book-wiki release: {path!r}") from exc
+    if not candidate.is_file():
+        raise FileNotFoundError(f"No such book-wiki chapter: {path!r}")
+    size = candidate.stat().st_size
+    if size > MAX_FILE_BYTES:
+        raise FileTooLargeError(f"File too large (>{MAX_FILE_BYTES} bytes): {path!r}")
+    return {
+        "path": name,
+        "content": candidate.read_text(encoding="utf-8"),
+        "size": size,
+        "version": manifest.get("run_id"),
     }
 
 

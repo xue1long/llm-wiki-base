@@ -41,6 +41,34 @@ async def file_content(project_id: str, path: str):
         raise HTTPException(413, str(e))
 
 
+@router.get("/projects/{project_id}/book-wiki")
+async def book_wiki(project_id: str):
+    """Return the integrity-verified active Wiki-to-Book release."""
+    try:
+        return files_service.book_wiki_manifest(project_id)
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except files_service.BookWikiUnavailableError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/projects/{project_id}/book-wiki/content")
+async def book_wiki_content(project_id: str, path: str):
+    """Read one chapter from the active Wiki-to-Book release."""
+    try:
+        return files_service.read_book_wiki_content(project_id, path)
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except files_service.BookWikiUnavailableError as e:
+        raise HTTPException(404, str(e))
+    except files_service.PathTraversalError as e:
+        raise HTTPException(403, str(e))
+    except files_service.FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except files_service.FileTooLargeError as e:
+        raise HTTPException(413, str(e))
+
+
 @router.get("/projects/{project_id}/raw-files")
 async def raw_files(project_id: str):
     """List raw source files (PDF, DOCX, XLSX, etc.) under raw/sources/."""
