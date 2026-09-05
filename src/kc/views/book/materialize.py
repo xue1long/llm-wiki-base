@@ -378,6 +378,9 @@ def materialize_book_manifest(project_root: Path | str) -> BookBuildManifest:
         for row in sources
         if row["status"] in {"blocked", "failed", "stale"}
     )
+    pending = store.pending_wiki_commits()
+    if pending:
+        blocking += ("lineage:pending_wiki_commits",)
     return BookBuildManifest(
         source_ids=source_ids,
         wiki_page_ids=wiki_ids,
