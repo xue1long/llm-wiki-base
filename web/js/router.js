@@ -221,7 +221,8 @@
         dot.classList.add(ok ? "ok" : "bad");
         document.getElementById("healthText").textContent = ok ? `v${h.version || "?"}` : "异常";
       } catch { /* leave grey */ }
-      App.showView("search");
+      // Preserve a view the user opened while the async boot checks ran.
+      App.showView(App.state.currentView || "search");
 
       // Sidebar toggle
       document.getElementById("sidebarToggleBtn").addEventListener("click", () => {
