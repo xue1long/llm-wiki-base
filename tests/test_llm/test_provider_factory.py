@@ -7,7 +7,7 @@ server previously used ``cfg.type`` directly and built an OpenAI-compatible
 embedding provider pointed at MiniMax, which raised ``IndexError`` reading
 ``data[0]`` and silently degraded semantic search to keyword-only.
 """
-from src.llm.provider_factory import resolve_embedding_provider_type
+from src.llm.provider_factory import _env_var_for_provider, resolve_embedding_provider_type
 
 
 def test_minimax_name_maps_to_minimax_even_when_type_is_openai():
@@ -28,3 +28,8 @@ def test_anthropic_name_uses_type():
 
 def test_ollama_name_uses_type():
     assert resolve_embedding_provider_type("ollama", "ollama") == "ollama"
+
+
+def test_common_compatible_provider_uses_matching_env_key():
+    assert _env_var_for_provider("deepseek") == "DEEPSEEK_API_KEY"
+    assert _env_var_for_provider("moonshot") == "KIMI_API_KEY"
