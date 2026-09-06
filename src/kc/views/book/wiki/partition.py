@@ -18,6 +18,34 @@ class ReaderProfile:
     min_reader_tasks: int = 6
     candidate_taxonomies: tuple[str, ...] = ("book-a", "book-b", "book-c")
     chapter_exit_evidence: tuple[str, ...] = ()
+    # v0.3 plan-audit S1: profile-driven relax flags. Default keeps the
+    # original strict behavior so existing tests stay green.
+    closure_strict_types: tuple[str, ...] = (
+        "concept|foundation|orientation",
+        "entity|method|explanation",
+        "synthesis|application|example",
+    )
+    allowed_learning_edge_types: tuple[str, ...] = ("supports", "required_by")
+    require_target_task_match: bool = True
+
+    def __post_init__(self) -> None:
+        # Reject malformed closures up front so the gate never silently
+        # evaluates an empty/garbled frozenset.
+        if not self.closure_strict_types:
+            raise ValueError("closure_strict_types must be a non-empty tuple")
+        for group in self.closure_strict_types:
+            parts = [p.strip() for p in group.split("|") if p.strip()]
+            if not parts:
+                raise ValueError(f"closure_strict_types group {group!r} is empty")
+            for name in parts:
+                if name not in _TASK_TYPES and name not in {
+                    "concept", "entity", "synthesis", "foundation",
+                    "orientation", "method", "explanation",
+                    "application", "example", "source",
+                }:
+                    raise ValueError(f"closure_strict_types unknown page_type: {name!r}")
+        if not self.allowed_learning_edge_types:
+            raise ValueError("allowed_learning_edge_types must be a non-empty tuple")
 
 
 @dataclass(frozen=True)
@@ -151,19 +179,27 @@ def evaluate_series_gate(
         coverage = _rate(sum(bool(page.sources) for page in candidate_pages), count)
         types = {page.page_type.lower() for page in candidate_pages}
         task_for = lambda page: (page.task_type or _TASK_TYPES.get(page.page_type, "reference")).lower()
-        closure_parts = (
-            bool(types & {"concept", "foundation", "orientation"}),
-            bool(types & {"entity", "method", "explanation"}),
-            bool(types & {"synthesis", "application", "example"}),
+        # v0.3 plan-audit S1: closure_parts is now driven by
+        # ``reader_profile.closure_strict_types`` (pipe-separated OR groups).
+        # Default keeps the original 3-slot semantics so existing strict tests
+        # remain green.
+        closure_required_sets = tuple(
+            frozenset(p.strip() for p in group.split("|") if p.strip())
+            for group in reader_profile.closure_strict_types
         )
+        closure_parts = tuple(bool(types & req) for req in closure_required_sets)
         candidate_ids = set(ids)
+        allowed_edge_types = set(reader_profile.allowed_learning_edge_types)
         valid_edges = tuple(
             (page.page_id, relation_type, target)
             for page in candidate_pages for relation_type, target in page.relation_targets
-            if relation_type in {"supports", "required_by"}
+            if relation_type in allowed_edge_types
             and page.page_id != target and target in candidate_ids
             and task_for(page) in _SOURCE_TASKS
-            and task_for(next((item for item in candidate_pages if item.page_id == target), page)) in _TARGET_TASKS
+            and (
+                not reader_profile.require_target_task_match
+                or task_for(next((item for item in candidate_pages if item.page_id == target), page)) in _TARGET_TASKS
+            )
         )
         has_learning_edge = bool(valid_edges)
         candidate_tasks = sum(
