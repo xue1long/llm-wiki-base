@@ -15,3 +15,4 @@
 - [2026-09-06 Book 叙事化单章样例](feedback-book-narrative-sample-2026-09-06.md) — MiniMax sample and full-book gating decision
 - [feedback-wiki-to-book-v4-implementation-2026-09-05.md](feedback-wiki-to-book-v4-implementation-2026-09-05.md) — V3/V4 implementation and acceptance evidence
 - [feedback-wiki-to-book-boundaries-2026-09-05.md](feedback-wiki-to-book-boundaries-2026-09-05.md) — external ingest paths, lineage digest consistency, encyclopedic provider wiring
+- [2026-09-06 书系整改 + 真实 baseline](feedback-book-series-target-baseline-2026-09-06.md) — 三本主教程真实 baseline 失败，全套 dry-run/旧指针/跨书安全门落地；pilot 与 reader-task 记录为 not-applicable
