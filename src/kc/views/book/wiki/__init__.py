@@ -24,7 +24,10 @@ from .quality_gate import QualityGateReport, check_quality_gate, evaluate_qualit
 from .rubric import EvidenceLocator, RubricSpec, load_rubric, load_rubric_specs
 from .reader_tasks import ReaderTaskReport, ReaderTaskRunner, run_reader_task, run_reader_tasks, task_pass_rate
 from .encyclopedic_outline import EncyclopedicUnavailable, generate_encyclopedic_outline, safe_summary
-from .cross_links import build_cross_link_candidates
+from .cross_links import (
+    _NAMESPACE_RELATIONS, build_cross_link_candidates, dangling_cross_links,
+    find_dangling_cross_links, validate_cross_links,
+)
 from .theme_outline import (
     ThemeOutlineError, load_theme_outline, plan_theme_outline,
     place_page_summaries, save_theme_outline, validate_theme_outline,
@@ -34,7 +37,10 @@ from .partition import (
     SeriesGateResult, evaluate_series_gate,
 )
 from .series_model import SCHEMA_VERSION as SERIES_MANIFEST_SCHEMA_VERSION, BookManifest, SeriesManifest, canonical_digest, transition_status
-from .series_validate import dependency_report, read_legacy_manifest, validate_book_manifest, validate_release_files, validate_series_manifest
+from .series_validate import (
+    dependency_report, detect_dependency_cycles, read_legacy_manifest,
+    validate_book_manifest, validate_release_files, validate_series_manifest,
+)
 
 __all__ = [
     "LockBusyError",
@@ -51,9 +57,12 @@ __all__ = [
     "resolve_active_version",
     "QualityGateReport", "check_quality_gate", "evaluate_quality_gate", "EvidenceLocator", "RubricSpec", "load_rubric", "load_rubric_specs",
     "ReaderTaskReport", "ReaderTaskRunner", "run_reader_task", "run_reader_tasks", "task_pass_rate",
-    "EncyclopedicUnavailable", "generate_encyclopedic_outline", "safe_summary", "build_cross_link_candidates",
+    "EncyclopedicUnavailable", "generate_encyclopedic_outline", "safe_summary",
+    "build_cross_link_candidates", "validate_cross_links",
+    "find_dangling_cross_links", "dangling_cross_links", "_NAMESPACE_RELATIONS",
     "ThemeOutlineError", "load_theme_outline", "plan_theme_outline", "place_page_summaries", "save_theme_outline", "validate_theme_outline",
     "CandidateDecision", "GateMetrics", "GovernanceConfig", "ReaderProfile", "SeriesGateResult", "evaluate_series_gate",
     "SERIES_MANIFEST_SCHEMA_VERSION", "BookManifest", "SeriesManifest", "canonical_digest", "transition_status",
-    "dependency_report", "read_legacy_manifest", "validate_book_manifest", "validate_release_files", "validate_series_manifest",
+    "dependency_report", "detect_dependency_cycles", "read_legacy_manifest",
+    "validate_book_manifest", "validate_release_files", "validate_series_manifest",
 ]
