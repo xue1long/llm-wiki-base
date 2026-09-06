@@ -94,7 +94,7 @@ _DEPTH_BY_TYPE: dict[PageType, str] = {
 # Deliberately NOT the page-type enum — these are content processing depths.
 PROCESSING_DEPTH_VALUES = ["concept", "memory", "operation"]
 
-# 17 built-in relation types (mirror of lint._BUILTIN_RELATIONS) + x-* custom.
+# 21 built-in relation types (17 graph edges + 4 namespace edges) + x-* custom.
 # Phase 3 follow-up：relations[].type 的 JSON schema 加 enum 约束，防止 LLM
 # 输出 `mentions` / `related` / `interacts_with` 等非标准类型（M9 非法 relation）。
 RELATION_TYPES = [
@@ -102,6 +102,7 @@ RELATION_TYPES = [
     "caused_by", "contradicts", "supports", "supported_by", "supersedes",
     "superseded_by", "depends_on", "required_by", "analogous_to",
     "opposite_of", "derived_from", "derives",
+    "taxonomy_of", "belongs_to_audience", "hosted_on_platform", "has_credibility",
 ]
 
 # Placeholder substrings that lint flags as ERROR (M4). Phase 3 实测：
