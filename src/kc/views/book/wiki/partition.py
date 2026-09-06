@@ -124,8 +124,15 @@ def _candidate_pages(snapshot: WikiSnapshot, profile: ReaderProfile) -> dict[str
     grouped: dict[str, list] = defaultdict(list)
     for page in snapshot.pages:
         grouped[(page.primary_taxonomy or "unassigned").strip()].append(page)
-    keys = set(profile.candidate_taxonomies) | set(grouped)
-    return {key: tuple(sorted(grouped.get(key, ()), key=lambda page: page.page_id)) for key in sorted(keys)}
+    # Only return keys the caller asked about (``profile.candidate_taxonomies``)
+    # plus the implicit ``unassigned`` bucket. Real taxonomies that the
+    # profile never referenced are excluded so callers do not silently
+    # include unrelated candidates. Each requested taxonomy always appears
+    # (with an empty tuple when the snapshot has no pages for it) so the
+    # resulting CandidateDecision is auditable per the plan contract.
+    requested = set(profile.candidate_taxonomies) | {"unassigned"}
+    return {key: tuple(sorted(grouped.get(key, ()), key=lambda page: page.page_id))
+            for key in sorted(requested)}
 
 
 def _duplicate_rate(pages: tuple) -> tuple[int, float, int]:
