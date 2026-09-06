@@ -23,17 +23,17 @@ def _snapshot(*pages: PageRecord) -> WikiSnapshot:
 
 def test_series_gate_emits_deterministic_ready_baseline() -> None:
     snapshot = _snapshot(*[_page(i, kind, target="p3" if i == 2 else None) for i, kind in enumerate(("concept", "entity", "synthesis"), 1)])
-    profile = ReaderProfile("reader", ("learn_concept", "reference", "apply"), min_pages_per_book=3, min_reader_tasks=2, chapter_exit_evidence=("chapter-1",))
+    profile = ReaderProfile("reader", ("learn_concept", "reference", "apply"), min_pages_per_book=3, min_reader_tasks=2, chapter_exit_evidence=("p3",))
     governance = GovernanceConfig(external_authorized=True, budget_cap=100, approver="editor")
 
     result = evaluate_series_gate(snapshot, reader_profile=profile, governance=governance)
 
-    assert result.status == "ready"
-    assert result.generation_mode == "llm_allowed"
+    assert result.status == "blocked"
+    assert result.generation_mode == "rule_only"
     assert result.metrics.estimated_chars == 30
     assert result.candidates[0].eligible_page_count == 3
     assert result.candidates[0].source_coverage == 1.0
-    assert result.candidates[0].closure_status == "closed"
+    assert result.candidates[0].closure_status == "incomplete"
 
 
 def test_series_gate_rejects_weak_candidate_without_provider() -> None:
@@ -61,7 +61,7 @@ def test_missing_governance_blocks_and_forces_rule_only() -> None:
 
 def test_same_snapshot_and_inputs_have_same_result() -> None:
     snapshot = _snapshot(*[_page(i, kind) for i, kind in enumerate(("concept", "entity", "synthesis"), 1)])
-    kwargs = dict(reader_profile=ReaderProfile("reader", ("learn_concept",), min_pages_per_book=3, min_reader_tasks=1, chapter_exit_evidence=("chapter-1",)), governance=GovernanceConfig(True, 100, "editor"))
+    kwargs = dict(reader_profile=ReaderProfile("reader", ("learn_concept",), min_pages_per_book=3, min_reader_tasks=1, chapter_exit_evidence=("p3",)), governance=GovernanceConfig(True, 100, "editor"))
     assert evaluate_series_gate(snapshot, **kwargs) == evaluate_series_gate(snapshot, **kwargs)
 
 
@@ -73,7 +73,7 @@ def _complete_snapshot(*, relation: tuple[str, str] = ("supports", "p3")) -> Wik
 
 
 def test_strict_positive_closure_needs_six_tasks_and_exit_evidence() -> None:
-    result = evaluate_series_gate(_complete_snapshot(), reader_profile=ReaderProfile("reader", ("learn_concept", "apply"), chapter_exit_evidence=("ch-1",)), governance=GovernanceConfig(True, 100, "editor"))
+    result = evaluate_series_gate(_complete_snapshot(), reader_profile=ReaderProfile("reader", ("learn_concept", "apply"), chapter_exit_evidence=("p3",)), governance=GovernanceConfig(True, 100, "editor"))
     assert result.candidates[0].closure_status == "closed"
     assert result.candidates[0].reader_task_count == 19
     assert result.candidates[0].closure_evidence
@@ -106,6 +106,23 @@ def test_hard_dependency_blocks_and_soft_dependency_is_reported() -> None:
     assert result.status == "blocked"
     assert result.hard_reference_dependencies == ("missing",)
     assert result.soft_reference_dependencies == ("optional",)
+
+
+def test_required_by_is_valid_forward_edge_and_five_tasks_fail() -> None:
+    snapshot = _complete_snapshot(relation=("required_by", "p3"))
+    ok = evaluate_series_gate(snapshot, reader_profile=ReaderProfile("r", ("learn_concept", "reference", "apply"), chapter_exit_evidence=("p3",)), governance=GovernanceConfig(True, 1, "a"))
+    assert ok.candidates[0].closure_status == "closed"
+    low = evaluate_series_gate(snapshot, reader_profile=ReaderProfile("r", ("learn_concept", "reference"), min_reader_tasks=5, chapter_exit_evidence=("p3",)), governance=GovernanceConfig(True, 1, "a"))
+    assert low.candidates[0].decision != "proceed"
+
+
+def test_invalid_exit_and_empty_hashes_are_auditable() -> None:
+    pages = [_page(1, "concept", source=True, target="p3"), _page(2, "entity", source=True), _page(3, "synthesis", source=True)]
+    pages[1] = PageRecord(**{**pages[1].__dict__, "content_sha256": ""})
+    result = evaluate_series_gate(_snapshot(*pages), reader_profile=ReaderProfile("r", ("learn_concept", "reference", "apply"), chapter_exit_evidence=("missing",)), governance=GovernanceConfig(True, 1, "a"))
+    assert result.candidates[0].closure_status != "closed"
+    assert result.metrics.duplicate_denominator == 2
+    assert result.candidates[0].duplicate_denominator == 2
 
 
 def test_gate_surface_has_no_provider_and_blocks_rule_only() -> None:

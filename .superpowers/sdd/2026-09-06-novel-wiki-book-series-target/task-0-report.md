@@ -66,3 +66,12 @@
 - 新增测试覆盖：完整正向闭环、6 task 下限、反向/自环失败、无关系 `None`、三候选 cancel/merge、hard/soft 依赖、入口无 provider 且 rule-only。
 - 实际验证：`TEMP=.tmp-pytest TMP=.tmp-pytest TMPDIR=.tmp-pytest PYTHONPATH=. <bundled-python> -m pytest tests/test_kc/test_book_series_baseline.py -q` → 10 passed；同命令加 `tests/test_kc/test_book_wiki_scanner.py tests/test_kc/test_book_wiki_e2e.py` → 26 passed。
 - 范围裁决：`duplicate_rate` 仍以全部页面为分母，因 scanner 产出总有非空哈希；空哈希分母细化留作后续契约。`build_chapter_chunks` 为共享既有功能，本轮不删除；章节连续出口在 Task 0 仅以未知状态门控。
+
+## 复审 Round 3 修复
+
+- `min_reader_tasks` 入口统一钳制为至少 6，调用方传入 1/2 不能绕过，并通过 `INSUFFICIENT_READER_TASKS` 留痕。
+- 章节出口证据现在必须是候选内真实 page ID，且页面 task type 属于 target task；无效 token 保持未知/不闭环。
+- taxonomy namespace 仅接受 `taxonomy/` 与 `taxonomy-` 前缀。
+- duplicate rate 分母固定为有有效 `content_sha256` 的页面数，`duplicate_denominator` 写入全局与候选结果；补充空 hash 测试。
+- 新增 required_by 正向边、5/6 task 下限、无效出口、taxonomyfoo、空 hash 边界测试。
+- 实际验证：`TEMP=.tmp-pytest TMP=.tmp-pytest TMPDIR=.tmp-pytest PYTHONPATH=. <bundled-python> -m pytest tests/test_kc/test_book_series_baseline.py tests/test_kc/test_book_wiki_scanner.py tests/test_kc/test_book_wiki_e2e.py -q` → 29 passed。

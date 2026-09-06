@@ -44,6 +44,7 @@ class GateMetrics:
     estimated_chars: int
     reader_task_candidates: int
     relation_unresolved_count: int = 0
+    duplicate_denominator: int = 0
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,7 @@ class CandidateDecision:
     soft_reference_dependencies: tuple[str, ...] = ()
     closure_evidence: tuple[str, ...] = ()
     closure_status_reason: str = ""
+    duplicate_denominator: int = 0
 
 
 @dataclass(frozen=True)
@@ -98,13 +100,14 @@ def _candidate_pages(snapshot: WikiSnapshot, profile: ReaderProfile) -> dict[str
     return {key: tuple(sorted(grouped.get(key, ()), key=lambda page: page.page_id)) for key in sorted(keys)}
 
 
-def _duplicate_rate(pages: tuple) -> tuple[int, float]:
+def _duplicate_rate(pages: tuple) -> tuple[int, float, int]:
     hashes: dict[str, int] = defaultdict(int)
     for page in pages:
         if page.content_sha256:
             hashes[page.content_sha256] += 1
     duplicate_pages = sum(count - 1 for count in hashes.values() if count > 1)
-    return duplicate_pages, _rate(duplicate_pages, len(pages))
+    denominator = sum(bool(page.content_sha256) for page in pages)
+    return duplicate_pages, _rate(duplicate_pages, denominator), denominator
 
 
 def evaluate_series_gate(
@@ -122,27 +125,29 @@ def evaluate_series_gate(
     type_counts: dict[str, int] = defaultdict(int)
     for page in pages:
         type_counts[page.page_type] += 1
-    duplicate_pages, duplicate_rate = _duplicate_rate(pages)
+    duplicate_pages, duplicate_rate, duplicate_denominator = _duplicate_rate(pages)
     pages_with_sources = sum(bool(page.sources) for page in pages)
     page_ids = {page.page_id for page in pages}
     relation_count = sum(len(page.relation_targets) for page in pages)
     relation_unresolved = sum(
         1 for page in pages for _, target in page.relation_targets
-        if target not in page_ids and not target.startswith("taxonomy")
+        if target not in page_ids and not (target.startswith("taxonomy/") or target.startswith("taxonomy-"))
     )
     relation_parse_rate = _rate(relation_count - relation_unresolved, relation_count) if relation_count else None
+    min_reader_tasks = max(6, reader_profile.min_reader_tasks)
     task_candidates = sum(_TASK_TYPES.get(page.page_type, "reference") in reader_profile.task_types for page in pages)
     metrics = GateMetrics(
         tuple(sorted(type_counts.items())), len(pages), duplicate_pages, duplicate_rate,
         pages_with_sources, _rate(pages_with_sources, len(pages)), relation_count,
         relation_parse_rate,
         sum(max(0, page.char_count) for page in pages), task_candidates, relation_unresolved,
+        sum(bool(page.content_sha256) for page in pages),
     )
     candidates: list[CandidateDecision] = []
     for candidate_id, candidate_pages in _candidate_pages(snapshot, reader_profile).items():
         ids = tuple(page.page_id for page in candidate_pages)
         count = len(candidate_pages)
-        _, candidate_duplicate_rate = _duplicate_rate(candidate_pages)
+        _, candidate_duplicate_rate, candidate_duplicate_denominator = _duplicate_rate(candidate_pages)
         coverage = _rate(sum(bool(page.sources) for page in candidate_pages), count)
         types = {page.page_type.lower() for page in candidate_pages}
         task_for = lambda page: (page.task_type or _TASK_TYPES.get(page.page_type, "reference")).lower()
@@ -165,8 +170,11 @@ def evaluate_series_gate(
             task_for(page) in reader_profile.task_types
             for page in candidate_pages
         )
-        chapter_known = bool(reader_profile.chapter_exit_evidence)
-        closure_ok = all(closure_parts) and has_learning_edge and candidate_tasks >= reader_profile.min_reader_tasks and chapter_known
+        exit_ids = set(reader_profile.chapter_exit_evidence)
+        chapter_known = bool(exit_ids) and exit_ids <= candidate_ids and all(
+            task_for(page) in _TARGET_TASKS for page in candidate_pages if page.page_id in exit_ids
+        )
+        closure_ok = all(closure_parts) and has_learning_edge and candidate_tasks >= min_reader_tasks and chapter_known
         closure_status = "closed" if closure_ok else "unknown" if not chapter_known else "incomplete" if any(closure_parts) else "none"
         reasons: list[str] = []
         if coverage < reader_profile.min_source_coverage:
@@ -177,7 +185,7 @@ def evaluate_series_gate(
             reasons.append("NO_LEARNING_CLOSURE")
         if not chapter_known:
             reasons.append("CHAPTER_EXIT_UNKNOWN")
-        if candidate_tasks < reader_profile.min_reader_tasks:
+        if candidate_tasks < min_reader_tasks:
             reasons.append("INSUFFICIENT_READER_TASKS")
         cross_candidate = any(
             target not in candidate_ids and target in page_ids
@@ -191,6 +199,7 @@ def evaluate_series_gate(
             (), (),
             tuple(f"edge:{source}:{kind}->{target}" for source, kind, target in valid_edges),
             ";".join(reasons),
+            candidate_duplicate_denominator,
         ))
     governance = governance or GovernanceConfig()
     block_reasons = tuple(name for name, value in (
