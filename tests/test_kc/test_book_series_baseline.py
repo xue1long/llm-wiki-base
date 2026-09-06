@@ -72,6 +72,16 @@ def _complete_snapshot(*, relation: tuple[str, str] = ("supports", "p3")) -> Wik
     return _snapshot(*pages)
 
 
+def _reader_task_boundary_snapshot(reader_task_count: int) -> WikiSnapshot:
+    pages = list(_complete_snapshot(relation=("required_by", "p3")).pages)
+    counted_ids = {"p1", "p3", *(f"p{i}" for i in range(4, reader_task_count + 2))}
+    task_types = {"p1": "learn_concept", "p3": "apply"}
+    return _snapshot(*[
+        PageRecord(**{**page.__dict__, "task_type": task_types.get(page.page_id, "learn_concept" if page.page_id in counted_ids else "excluded")})
+        for page in pages
+    ])
+
+
 def test_strict_positive_closure_needs_six_tasks_and_exit_evidence() -> None:
     result = evaluate_series_gate(_complete_snapshot(), reader_profile=ReaderProfile("reader", ("learn_concept", "apply"), chapter_exit_evidence=("p3",)), governance=GovernanceConfig(True, 100, "editor"))
     assert result.candidates[0].closure_status == "closed"
@@ -108,12 +118,47 @@ def test_hard_dependency_blocks_and_soft_dependency_is_reported() -> None:
     assert result.soft_reference_dependencies == ("optional",)
 
 
-def test_required_by_is_valid_forward_edge_and_five_tasks_fail() -> None:
-    snapshot = _complete_snapshot(relation=("required_by", "p3"))
-    ok = evaluate_series_gate(snapshot, reader_profile=ReaderProfile("r", ("learn_concept", "reference", "apply"), chapter_exit_evidence=("p3",)), governance=GovernanceConfig(True, 1, "a"))
-    assert ok.candidates[0].closure_status == "closed"
-    low = evaluate_series_gate(snapshot, reader_profile=ReaderProfile("r", ("learn_concept", "reference"), min_reader_tasks=5, chapter_exit_evidence=("p3",)), governance=GovernanceConfig(True, 1, "a"))
-    assert low.candidates[0].decision != "proceed"
+def test_empty_default_candidate_does_not_satisfy_hard_dependency() -> None:
+    profile = ReaderProfile("r", ("learn_concept",))
+    governance = GovernanceConfig(True, 1, "a", hard_reference_dependencies=("book-c",))
+
+    empty = evaluate_series_gate(_snapshot(_page(1, "concept")), reader_profile=profile, governance=governance)
+    filled = evaluate_series_gate(_snapshot(_page(1, "concept"), _page(2, "concept", "book-c")), reader_profile=profile, governance=governance)
+
+    assert next(candidate for candidate in empty.candidates if candidate.candidate_id == "book-c").eligible_page_count == 0
+    assert empty.hard_reference_dependencies == ("book-c",)
+    assert "hard_reference_dependencies" in empty.block_reasons
+    assert all(candidate.hard_reference_dependencies == ("book-c",) for candidate in empty.candidates)
+    assert next(candidate for candidate in filled.candidates if candidate.candidate_id == "book-c").eligible_page_count == 1
+    assert "hard_reference_dependencies" not in filled.block_reasons
+    assert all(candidate.hard_reference_dependencies == () for candidate in filled.candidates)
+
+
+def test_required_by_forward_edge_closes_at_six_reader_tasks_not_five() -> None:
+    profile = ReaderProfile("r", ("learn_concept", "apply"), min_reader_tasks=1, chapter_exit_evidence=("p3",))
+    governance = GovernanceConfig(True, 1, "a")
+
+    five = evaluate_series_gate(_reader_task_boundary_snapshot(5), reader_profile=profile, governance=governance)
+    six = evaluate_series_gate(_reader_task_boundary_snapshot(6), reader_profile=profile, governance=governance)
+
+    assert five.candidates[0].reader_task_count == 5
+    assert five.candidates[0].closure_status == "incomplete"
+    assert "INSUFFICIENT_READER_TASKS" in five.candidates[0].reason_codes
+    assert six.candidates[0].reader_task_count == 6
+    assert six.candidates[0].closure_status == "closed"
+    assert six.candidates[0].decision == "proceed"
+    assert "edge:p1:required_by->p3" in six.candidates[0].closure_evidence
+
+
+def test_taxonomyfoo_is_an_unresolved_relation_target() -> None:
+    page = _page(1, "concept")
+    page = PageRecord(**{**page.__dict__, "relation_targets": (("supports", "taxonomyfoo"),)})
+
+    result = evaluate_series_gate(_snapshot(page), reader_profile=ReaderProfile("r", ("learn_concept",)), governance=GovernanceConfig(True, 1, "a"))
+
+    assert result.metrics.relation_count == 1
+    assert result.metrics.relation_unresolved_count == 1
+    assert result.metrics.relation_parse_rate == 0.0
 
 
 def test_invalid_exit_and_empty_hashes_are_auditable() -> None:
