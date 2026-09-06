@@ -18,4 +18,3 @@ def test_index_maps_all_pages_and_outline_assignments():
     index = build_index(WikiSnapshot("s", "wiki", "v2", pages, ()), [{"volumes": [{"chapters": [{"chapter_id": "c1", "page_ids": ["p1"]}]}]}])
     assert index.entries["p1"].chapter_id == "c1"
     assert index.entries["p1"].page_type == "concept"
-
