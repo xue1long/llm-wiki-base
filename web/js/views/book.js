@@ -23,6 +23,8 @@
   App.renderBook = function renderBook(root) {
     let files = [];
     let book = null;
+    let series = null;
+    let selectedBookId = "";
     let selectedVolume = "all";
     let query = "";
     let busy = false;
@@ -48,6 +50,9 @@
           <div id="bookBuildResult"></div>
         </div>
         <div class="book-toolbar">
+          <select id="bookSelect" class="book-version-select" aria-label="选择 Book" disabled>
+            <option>加载书系…</option>
+          </select>
           <div class="book-volumes" id="bookVolumes"></div>
           <select id="bookVersionSelect" class="book-version-select" aria-label="选择 Book 版本" disabled>
             <option>加载 Book 版本…</option>
@@ -69,6 +74,7 @@
     const stats = root.querySelector("#bookStats");
     const volumeBar = root.querySelector("#bookVolumes");
     const versionSelect = root.querySelector("#bookVersionSelect");
+    const bookSelect = root.querySelector("#bookSelect");
     const search = root.querySelector("#bookSearch");
     const buildStatusEl = root.querySelector("#bookBuildStatus");
     const buildResultEl = root.querySelector("#bookBuildResult");
@@ -95,6 +101,11 @@
     });
     search.addEventListener("input", () => { query = search.value.trim().toLowerCase(); renderToc(); });
     versionSelect.addEventListener("change", () => loadBook(versionSelect.value));
+    bookSelect.addEventListener("change", () => {
+      selectedBookId = bookSelect.value;
+      renderBookInfo();
+      renderToc();
+    });
 
     statusBtn.addEventListener("click", () => { loadStatus(); });
     dryRunBtn.addEventListener("click", () => { runBuild(false); });
@@ -177,7 +188,7 @@
       try {
         const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki${query}`);
         book = data;
-        files = data.chapters || [];
+        files = (data.chapters || []).filter(chapter => !selectedBookId || !chapter.book_id || chapter.book_id === selectedBookId);
         renderVolumeBar();
         stats.textContent = `${files.length.toLocaleString()} 章 · ${(data.page_count || 0).toLocaleString()} 页`;
         renderBookInfo();
@@ -187,6 +198,30 @@
         stats.textContent = "加载失败";
         toc.innerHTML = `<div class="banner-err">Book 加载失败：${App.escapeHtml(error.message)}</div>`;
         info.innerHTML = `<div class="book-info-empty">当前没有可预览的激活版本</div>`;
+      }
+    }
+
+    async function loadSeries() {
+      try {
+        const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki/series`);
+        series = data;
+        const books = Array.isArray(data.books) ? data.books : [];
+        if (!books.length) {
+          bookSelect.innerHTML = "<option>暂无可选 Book</option>";
+          return;
+        }
+        bookSelect.innerHTML = books.map(item => {
+          const id = String(item.book_id || "");
+          const status = String(item.status || "unknown");
+          const label = `${id || "匿名旧版"} · ${status}`;
+          return `<option value="${App.escapeHtml(id)}">${App.escapeHtml(label)}</option>`;
+        }).join("");
+        bookSelect.disabled = false;
+        selectedBookId = String(books[0].book_id || "");
+        bookSelect.value = selectedBookId;
+      } catch (error) {
+        series = null;
+        bookSelect.innerHTML = "<option>书系信息不可用</option>";
       }
     }
 
@@ -287,7 +322,8 @@
           <div><dt>关系边</dt><dd>${Number(book.total_relations || 0).toLocaleString()}</dd></div>
           <div><dt>未解析</dt><dd>${Number(book.unresolved || 0).toLocaleString()} · ${(Number(book.unresolved_ratio || 0) * 100).toFixed(2)}%</dd></div>
         </dl>
-        <div class="book-info-mode">${App.escapeHtml(book.reading_experience_mode || "rule_only")}</div>`;
+        <div class="book-info-mode">${App.escapeHtml(book.reading_experience_mode || "rule_only")}</div>
+        ${series && selectedBookId ? `<div class="book-info-section-title">当前 Book</div><div>${App.escapeHtml(selectedBookId)}</div>` : ""}`;
     }
 
     function renderChapterInfo(chapter, data) {
@@ -305,6 +341,7 @@
     }
 
     loadStatus();
+    loadSeries();
     loadVersions();
   };
 })();

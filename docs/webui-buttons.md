@@ -97,6 +97,7 @@
 | **预览构建** | Book 构建栏 | 执行 dry-run，不写入正式目录 | `POST /api/v1/kc/book/build`（`apply=false`） |
 | **生成并写入磁盘** | Book 构建栏 | 执行 KC Book 写入 | `POST /api/v1/kc/book/build`（`apply=true`） |
 | **章节目录按钮** | 左侧目录 | 切换当前正式 Wiki-to-Book 章节 | `GET /api/v1/projects/{id}/book-wiki/content?path=...` |
+| **Book 书系下拉** | 左侧目录上方 | 选择书系中的 Book；选项显示 ready/partial/invalid 状态，匿名旧版保持只读 | `GET /api/v1/projects/{id}/book-wiki/series` |
 | **卷筛选 / 搜索** | 左侧目录上方 | 按类型和章节标题过滤目录 | — |
 | **Book 版本下拉** | 左侧目录上方 | 切换可用的完整性校验 Book release | `GET /api/v1/projects/{id}/book-wiki/versions` + `GET /api/v1/projects/{id}/book-wiki?version=...` |
 
