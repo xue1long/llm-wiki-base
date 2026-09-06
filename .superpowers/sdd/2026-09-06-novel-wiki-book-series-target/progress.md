@@ -57,3 +57,36 @@ Task 2 review: manual fail-closed audit PASS; implementation is deterministic, l
 Task 3-8 preflight: existing outline/compiler/provenance/sample/WebUI/pilot modules and tests are present in working tree from prior V3/V4 work; will validate and commit only missing target artifacts.
 Task 3: implementation commit 9b365015; outline contract/LLM outline regression validated in broader suite. Task 4: implementation commit deb8ffe8; 33 mode/preflight/quality tests passed. Task 5: implementation commit 540add75; 6 provenance/relation tests passed. Task 6: implementation commit 93c81b88; 15 sample/CLI tests passed. Task 7 implementation delegated to WebUI agent.
 Task 7: implementation commit bc96e6f6; Book UI now loads series endpoint and exposes book/status selector; docs/webui-buttons.md synchronized; diff check clean.
+
+## New session recovery (2026-09-06) — gap closure for Tasks 5/8
+
+Continuation context: new agent session reopened the work; the prior `Task 1 fix round 2 follow-up` had `detect_dependency_cycles` shipped without a termination proof — running on a 2-node chain (`a -> b`, `b -> ∅`) re-walked `a -> b` infinitely because only the `active` set tracked recursion. The priority `pytest` invocation (`tests/test_kc/test_book_series_relations_safety.py` + `tests/test_kc/test_book_series_cli_gaps.py`) initially hung the runner for 120s.
+
+### Red → Green recovery commits (single slice, TDD-per-test)
+
+| Fix | Files | Tests previously red → now green |
+|---|---|---|
+| Cycle DFS termination bug (`detect_dependency_cycles` infinite loop) | `src/kc/views/book/wiki/series_validate.py` | All 17 relations-safety cases including self-loop, 2-/3-node cycles, and namespace-edge isolation |
+| Empty `--series` rejected at parse time | `src/cli.py` | `test_book_build_rejects_unknown_series_value` |
+| `exit_artifact` string vs list unification on manifest | `src/kc/views/book/wiki/compiler.py` | `test_compiled_manifest_records_series_book_and_reader_promise` |
+| Re-publish idempotency for CURRENT pointer (avoid touching already-correct pointer) | `src/kc/views/book/wiki/compiler.py` | `test_independent_book_rollback_does_not_corrupt_old_pointer` + `test_failing_book_publish_does_not_overwrite_previous_pointer` |
+| `required-not-ready` covers optional-but-invalid books too | `src/kc/views/book/wiki/series_validate.py` | `test_hard_dependency_missing_blocks_publish` + `test_series_status_downgrades_to_partial_when_subset_succeeds` |
+
+### Regression evidence
+
+- `tests/test_kc/test_book_series_relations_safety.py`: 17 passed
+- `tests/test_kc/test_book_series_cli_gaps.py`: 7 passed
+- `tests/test_kc/test_book_series_staged_failure.py`: 4 passed (Task 5/8 surface — independent staged rollback, hard-dependency publish gate, partial-series downgrade, baseline auto-downgrade)
+- Combined prior session scoped regression: 28 passed in 1.40s
+- Broader `tests/test_kc/` regression (excluding the long-running test groups for unrelated knowledge/health subsystems): **492 passed in 21.76s**
+- `tests/test_cli_ext/` regression: **179 passed in 117s**
+
+### Remaining red lines honored
+
+- No LLM call was issued to fill baseline gaps.
+- No default 3-book assumption was baked into the code path.
+- No full `--apply` was executed; all evidence is from in-process `publish_book` artifacts on `tmp_path`.
+- The pre-existing `CURRENT.json` fixtures were never overwritten by the simulated failure path.
+- Each fix slice is test-first, scoped to the failing case, and the broader test surface still passes.
+
+Next: dispatch a reviewer subagent on the staged-failure slice; if clean, fold into the Task 5/8 plan ledger and prepare acceptance docs.

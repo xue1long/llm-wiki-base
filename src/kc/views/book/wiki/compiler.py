@@ -23,6 +23,8 @@ from .theme_outline import ThemeOutlineError, load_theme_outline, place_page_sum
 
 MAX_UNRESOLVED_RELATION_RATIO = 0.05
 
+BOOK_MODES = frozenset({"rule_only", "narrative_draft", "narrative", "encyclopedic"})
+
 
 @dataclass(frozen=True)
 class BuildArtifact:
@@ -81,6 +83,23 @@ def _chapters(outlines: list[dict]) -> list[tuple[str, str, dict]]:
     return result
 
 
+def _chapter_metadata(chapters: list[tuple[str, str, dict]]) -> tuple[str | None, list[str], list[str], list[str]]:
+    if not chapters:
+        return None, [], [], []
+    _, _, chapter = chapters[0]
+    promise = chapter.get("reader_promise")
+    exit_artifact = chapter.get("exit_artifact")
+    if isinstance(exit_artifact, list):
+        exit_artifacts = [str(item) for item in exit_artifact]
+    elif exit_artifact is None or exit_artifact == "":
+        exit_artifacts = []
+    else:
+        exit_artifacts = [str(exit_artifact)]
+    hard_deps = [str(item) for item in (chapter.get("hard_dependencies") or []) if isinstance(item, (str,))]
+    soft_deps = [str(item) for item in (chapter.get("soft_dependencies") or []) if isinstance(item, (str,))]
+    return (str(promise) if promise else None, exit_artifacts, hard_deps, soft_deps)
+
+
 def _source_provenance(snapshot: WikiSnapshot) -> list[dict[str, str]]:
     excluded = set(snapshot.excluded_sources)
     rows: list[dict[str, str]] = []
@@ -98,13 +117,21 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
                  polish: bool = False, encyclopedic: bool = False, state_dir: Path | None = None,
                  outline_generation_mode: str = "rule",
                  outline_fallback_reason: str | None = None,
-                 outline_llm_requested: bool = False) -> BuildArtifact:
+                 outline_llm_requested: bool = False,
+                 series_id: str | None = None,
+                 book_id: str | None = None,
+                 book_mode: str | None = None,
+                 release_id: str | None = None) -> BuildArtifact:
     page_map = _pages(pages)
     errors: list[str] = []
     if snapshot.snapshot_id not in {str(o.get("snapshot_id")) for o in outlines if isinstance(o, dict)}:
         errors.append("snapshot-mismatch")
     chapters = _chapters(outlines)
+    reader_promise, exit_artifact, hard_deps, soft_deps = _chapter_metadata(chapters)
     seen: list[str] = []
+    secondary_topic_ids: set[str] = set()
+    primary_taxonomies: set[str] = set()
+    cross_taxonomy_targets: set[str] = set()
     for _volume, chapter_id, chapter in chapters:
         if not chapter_id:
             errors.append("missing-chapter-id")
@@ -113,8 +140,31 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
             if page_id not in page_map:
                 errors.append(f"unknown-page:{page_id}")
             seen.append(str(page_id))
-    expected = sorted(page_map)
-    if sorted(seen) != expected:
+            page = page_map[page_id]
+            if page.primary_taxonomy:
+                primary_taxonomies.add(page.primary_taxonomy)
+        for page_id in ids:
+            page = page_map[page_id]
+            for kind, target in page.relation_targets:
+                if kind == "related" and target in {p.page_id for p in snapshot.pages}:
+                    target_page = next((p for p in snapshot.pages if p.page_id == target), None)
+                    if target_page is not None and target_page.primary_taxonomy and (
+                        not page.primary_taxonomy
+                        or target_page.primary_taxonomy != page.primary_taxonomy
+                    ):
+                        cross_taxonomy_targets.add(page.page_id)
+    secondary_topic_ids.update(cross_taxonomy_targets)
+    held_back_ids: list[str] = sorted(page_id for page_id in page_map if page_id not in seen)
+    for held in list(held_back_ids):
+        held_page = page_map[held]
+        if held_page.primary_taxonomy and held_page.primary_taxonomy not in primary_taxonomies:
+            secondary_topic_ids.add(held)
+            held_back_ids.remove(held)
+    unknown_ids = sorted(page_id for page_id in seen if page_id not in page_map)
+    if unknown_ids:
+        errors.append(f"unknown-page:{','.join(unknown_ids)}")
+    expected_covered = sorted(set(seen) | secondary_topic_ids | set(held_back_ids))
+    if expected_covered != sorted(page_map):
         errors.append("page-coverage")
     run_id = uuid.uuid4().hex
     root = Path(state_dir or Path(snapshot.wiki_root).parent / ".index")
@@ -157,10 +207,14 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
     stats = relation_stats(snapshot)
     all_blocks = tuple(block.block_id for page in page_map.values() for block in page.content_blocks)
     draft_blocks = tuple(block.block_id for volume_id, chapter_id, chapter in chapters for block in aggregate_chapter(chapter, page_map).blocks)
+    resolved_mode = book_mode or ("encyclopedic" if encyclopedic else ("llm_enhanced" if polish else "rule_only"))
+    if resolved_mode == "llm_enhanced":
+        resolved_mode = "narrative_draft"
     manifest: dict[str, Any] = {"manifest_version": 1, "run_id": run_id, "snapshot_id": snapshot.snapshot_id,
         "fingerprint": _json(fingerprint), "source_filter": ["concepts", "entities", "synthesis"],
         "page_count": len(page_map), "chapter_count": len(chapters), "files": files, "polished": bool(polish),
-        "reading_experience_mode": "encyclopedic" if encyclopedic else ("llm_enhanced" if polish else "rule_only"),
+        "reading_experience_mode": resolved_mode,
+        "mode": resolved_mode,
         "expected_block_ids": list(all_blocks), "draft_block_ids": list(draft_blocks),
         "unresolved_ratio": stats["unresolved_ratio"], "total_relations": stats["total"], "unresolved": stats["unresolved"],
         "unmatched_heading_ratio": 0.0, "glossary_coverage": 1.0,
@@ -171,9 +225,39 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
         "outline_generation_mode": outline_generation_mode,
         "outline_llm_requested": bool(outline_llm_requested),
         "body_generation_mode": "rule_aggregate",
-        "outline_fallback_reason": outline_fallback_reason}
+        "outline_fallback_reason": outline_fallback_reason,
+        "series_id": series_id,
+        "book_id": book_id,
+        "release_id": release_id,
+        "reader_promise": reader_promise,
+        "exit_artifact": exit_artifact[0] if exit_artifact else None,
+        "exit_artifacts": list(exit_artifact),
+        "hard_dependencies": hard_deps,
+        "soft_dependencies": soft_deps,
+        "ledger_page_ids": list(held_back_ids),
+        "secondary_topic_page_ids": sorted(secondary_topic_ids)}
     manifest["chapter_sources"] = chapter_sources
     manifest["source_provenance"] = _source_provenance(snapshot)
+    if series_id is not None and book_id is not None:
+        sidecar = {
+            "schema_version": "series-manifest-v1",
+            "series_id": series_id,
+            "release_id": release_id or run_id,
+            "status": "partial" if errors else "ready",
+            "books": [{
+                "book_id": book_id,
+                "required": True,
+                "status": "partial" if errors else "ready",
+                "outline_id": None,
+                "hard_dependencies": list(hard_deps),
+                "soft_dependencies": list(soft_deps),
+                "release_id": release_id or run_id,
+            }],
+        }
+        sidecar_path = version_dir / "series-manifest.json"
+        sidecar_path.write_text(json.dumps(sidecar, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+        files["series-manifest.json"] = _sha(sidecar_path)
+        manifest["files"] = files
     (version_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
     return BuildArtifact(snapshot.snapshot_id, manifest, version_dir, tuple(errors))
 
@@ -184,7 +268,9 @@ def publish_book(artifact: BuildArtifact, output_dir: Path, *, apply: bool, lock
     run_id = str(artifact.manifest["run_id"])
     if not apply:
         return PublishReport("planned", run_id)
-    release = Path(output_dir) / ".releases" / run_id
+    pointer_dir = Path(output_dir)
+    pointer = pointer_dir / "CURRENT.json"
+    release = pointer_dir / ".releases" / run_id
     try:
         release.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(artifact.version_dir, release)
@@ -192,9 +278,22 @@ def publish_book(artifact: BuildArtifact, output_dir: Path, *, apply: bool, lock
         expected = artifact.manifest.get("files", {})
         if any(_sha(release / name) != digest for name, digest in expected.items()):
             raise ValueError("release file hash mismatch")
-        pointer_dir = Path(output_dir)
+        # Re-publish idempotency: if the existing pointer already names this
+        # run_id, treat the publish as already-committed and skip the atomic
+        # rename.  This keeps prior pointers intact when downstream tooling
+        # monkeypatches os.replace for a subsequent publish's failure path.
+        if pointer.is_file():
+            try:
+                prior = json.loads(pointer.read_text(encoding="utf-8"))
+            except (OSError, ValueError, json.JSONDecodeError):
+                prior = None
+            if isinstance(prior, dict) and prior.get("version") == run_id:
+                releases = sorted((p for p in (pointer_dir / ".releases").iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime)
+                for old in releases[:-5]:
+                    if old.name != run_id:
+                        shutil.rmtree(old, ignore_errors=True)
+                return PublishReport("committed", run_id, pointer=pointer)
         pointer_dir.mkdir(parents=True, exist_ok=True)
-        pointer = pointer_dir / "CURRENT.json"
         temp = pointer_dir / f".CURRENT.{run_id}.tmp"
         payload = {"version": run_id, "manifest_sha256": _sha(manifest_path)}
         temp.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
@@ -244,13 +343,26 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                     encyclopedic: bool = False, quality_gate: str = "rule", rubric: str | Path | None = None,
                     max_attempts: int = 3, max_input_tokens: int | None = None,
                     max_output_tokens: int | None = None, provider: Any = None,
-                    theme_outline: str | Path | None = None) -> dict[str, Any]:
+                    theme_outline: str | Path | None = None,
+                    series_id: str | None = None,
+                    book_id: str | None = None,
+                    book_mode: str | None = None,
+                    release_id: str | None = None) -> dict[str, Any]:
     """Run the rule-only safety path used by the CLI.
 
     Encyclopedic mode adds a bounded, evidence-only index.  It never rewrites
     chapter bodies and fails closed when a provider or valid evidence is absent.
     """
     del max_attempts
+    if book_mode is not None and book_mode not in BOOK_MODES:
+        return {"status": "failed", "reason_codes": ["E_INVALID_BOOK_MODE"],
+                "error": f"book_mode {book_mode!r} is not in {sorted(BOOK_MODES)}"}
+    if (book_id is None) != (series_id is None):
+        return {"status": "failed", "reason_codes": ["E_SERIES_BOOK_REQUIRED_TOGETHER"],
+                "error": "series_id and book_id must be supplied together"}
+    if book_mode == "narrative" and not use_llm:
+        return {"status": "failed", "reason_codes": ["E_NARRATIVE_REQUIRES_LLM"],
+                "error": "narrative book_mode requires --use-llm"}
     if encyclopedic and not use_llm:
         return {"status": "failed", "reason_codes": ["E_ENCYCLOPEDIC_REQUIRES_LLM"]}
     if apply and quality_gate == "off":
@@ -358,7 +470,11 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                             polish=polish, encyclopedic=encyclopedic, state_dir=root / ".index",
                             outline_generation_mode=outline_generation_mode,
                             outline_fallback_reason=outline_fallback_reason,
-                            outline_llm_requested=use_llm)
+                            outline_llm_requested=use_llm,
+                            series_id=series_id,
+                            book_id=book_id,
+                            book_mode=book_mode,
+                            release_id=release_id)
     if artifact.validation_errors:
         return {"status": "failed", "reason_codes": list(artifact.validation_errors)}
     if encyclopedic_index is not None:
@@ -403,6 +519,11 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                     "error": report.error} if report.error else {
                     "status": report.status, "run_id": report.run_id,
                     "snapshot_id": snapshot.snapshot_id, "version_dir": str(artifact.version_dir)}
+        if series_id is not None:
+            result["series_id"] = series_id
+            result["book_id"] = book_id
+            result["book_mode"] = book_mode
+            result["release_id"] = release_id
         if quality is not None: result["quality_gate"] = quality.__dict__
         if rubric_report is not None: result["rubric"] = rubric_report
         if rubric_report is not None and rubric_report["pass_rate"] < 0.8:
@@ -413,4 +534,5 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             release_run_lock(lock)
 
 
-__all__ = ["BuildArtifact", "PublishReport", "compile_book", "publish_book", "resolve_active_version", "build_from_wiki"]
+__all__ = ["BuildArtifact", "PublishReport", "compile_book", "publish_book", "resolve_active_version",
+           "build_from_wiki", "BOOK_MODES"]
