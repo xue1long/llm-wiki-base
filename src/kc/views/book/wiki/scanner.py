@@ -213,6 +213,7 @@ def _record(path: Path, kind: str, root: Path) -> tuple[PageRecord, bytes] | tup
         token_count=None,
         custom_type=str(fm.get("custom_type", "") or "").strip(),
         sources=_sources(fm, path),
+        task_type=str(fm.get("task_type", "") or "").strip() or None,
     ), raw
 
 
@@ -276,6 +277,7 @@ def _canonical_payload(snapshot: WikiSnapshot) -> dict[str, Any]:
                 "token_count": p.token_count,
                 "custom_type": p.custom_type,
                 "sources": list(p.sources),
+                "task_type": p.task_type,
             }
             for p in sorted(snapshot.pages, key=lambda page: page.path)
         ],
