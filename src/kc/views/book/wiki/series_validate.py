@@ -84,7 +84,9 @@ def validate_series_manifest(payload: object) -> dict[str, Any]:
     dep = dependency_report(books)
     errors.extend(dep["errors"])
     recorded_digest = payload.get("manifest_sha256")
-    if recorded_digest is not None and recorded_digest != canonical_digest(payload):
+    if (not isinstance(recorded_digest, str) or len(recorded_digest) != 64
+            or any(c not in "0123456789abcdef" for c in recorded_digest)
+            or recorded_digest != canonical_digest(payload)):
         errors.append("manifest-hash")
     required = [b for b in books if isinstance(b, dict) and b.get("required") is True]
     ready = all(b.get("status") == "ready" and b.get("release_id", payload.get("release_id")) == payload.get("release_id") for b in required)
@@ -119,10 +121,14 @@ def read_legacy_manifest(payload: object) -> dict[str, Any]:
     """Expose old releases as one anonymous book; never infer new ownership."""
     if not isinstance(payload, dict):
         return {"legacy": True, "series_id": None, "book_id": None, "status": "invalid"}
-    return {"legacy": payload.get("schema_version") != SCHEMA_VERSION,
-            "series_id": payload.get("series_id") if payload.get("schema_version") == SCHEMA_VERSION else None,
-            "book_id": payload.get("book_id") if payload.get("schema_version") == SCHEMA_VERSION else None,
-            "status": payload.get("status", "ready"), "manifest": payload}
+    is_current = payload.get("schema_version") == SCHEMA_VERSION and bool(payload.get("series_id"))
+    status = payload.get("status")
+    if status not in STATUSES:
+        status = "invalid"
+    return {"legacy": not is_current,
+            "series_id": payload.get("series_id") if is_current else None,
+            "book_id": payload.get("book_id") if is_current else None,
+            "status": status}
 
 
 __all__ = ["validate_book_manifest", "validate_series_manifest", "validate_release_files", "dependency_report", "read_legacy_manifest"]
