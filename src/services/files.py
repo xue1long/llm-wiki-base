@@ -335,8 +335,9 @@ def book_wiki_series_manifest(project_id: str) -> dict:
             public = {key: book[key] for key in (
                 "book_id", "required", "status", "outline_id",
                 "hard_dependencies", "soft_dependencies") if key in book}
-            for key in ("book_id", "outline_id"):
-                public_id(public_id(public.get(key)))
+            public_id(public_id(public.get("book_id")))
+            if public.get("outline_id") is not None:
+                public_id(public_id(public["outline_id"]))
             for key in ("hard_dependencies", "soft_dependencies"):
                 public[key] = [public_id(value) for value in public.get(key, [])]
             public_books.append(public)
@@ -346,7 +347,7 @@ def book_wiki_series_manifest(project_id: str) -> dict:
     legacy["books"] = [{"book_id": None, "required": True,
                          "status": legacy["status"], "outline_id": None,
                          "hard_dependencies": [], "soft_dependencies": []}]
-    legacy["release_id"] = manifest.get("run_id")
+    legacy["release_id"] = None
     return legacy
 
 
