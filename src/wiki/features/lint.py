@@ -114,13 +114,14 @@ _PLACEHOLDER_SUBSTRINGS = (
     "来源未提供具体例子",
 )
 
-# 17 built-in relation types (src/pipeline/generator.py) — anything else
+# 21 built-in relation types (17 graph edges + 4 namespace edges) — anything else
 # (unless x-*) is illegal.
 _BUILTIN_RELATIONS = frozenset({
     "is_part_of", "contains", "references", "referenced_by", "causes",
     "caused_by", "contradicts", "supports", "supported_by", "supersedes",
     "superseded_by", "depends_on", "required_by", "analogous_to",
     "opposite_of", "derived_from", "derives",
+    "taxonomy_of", "belongs_to_audience", "hosted_on_platform", "has_credibility",
 })
 
 # Heading under which the v3.0.0 synthesis template lists viewpoint rows.

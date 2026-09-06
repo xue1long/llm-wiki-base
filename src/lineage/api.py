@@ -21,6 +21,18 @@ _TRANSITIONS = {
 }
 
 
+def _hash_matches(path: Path, expected: str) -> bool:
+    """Match current bytes and legacy LF-normalized text hashes."""
+    try:
+        raw = path.read_bytes()
+        if hashlib.sha256(raw).hexdigest() == expected:
+            return True
+        text = raw.decode("utf-8").replace("\r\n", "\n")
+        return hashlib.sha256(text.encode("utf-8")).hexdigest() == expected
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
 class LineageStore:
     def __init__(self, connection: sqlite3.Connection, project_root: Path):
         self._db = connection
@@ -98,7 +110,7 @@ class LineageStore:
             target = root / path
             if not target.is_file():
                 continue
-            if hashlib.sha256(target.read_bytes()).hexdigest() != expected:
+            if not _hash_matches(target, expected):
                 continue
             ids = tuple(x for x in source_ids.split("\n") if x)
             db.execute("INSERT OR REPLACE INTO artifacts(artifact_kind, artifact_id, path, content_hash, status) VALUES ('wiki', ?, ?, ?, 'committed')", (page_id, path, expected))
@@ -110,9 +122,21 @@ class LineageStore:
     def prepare_wiki_commits(self, entries) -> None:
         with self._db:
             for page_id, source_ids, path, digest in entries:
-                old = self._db.execute("SELECT content_hash FROM pending_wiki_commits WHERE wiki_page_id = ?", (page_id,)).fetchone()
-                if old and old[0] != digest:
-                    raise ValueError(f"pending Wiki commit conflict: {page_id}")
+                old = self._db.execute(
+                    "SELECT path, content_hash FROM pending_wiki_commits WHERE wiki_page_id = ?",
+                    (page_id,),
+                ).fetchone()
+                if old and old[1] != digest:
+                    # A previous process may have flushed the file and then
+                    # crashed before recovery cleared its pending row.  If the
+                    # on-disk bytes still match that row, the commit completed;
+                    # replace the stale intent.  Otherwise retain the conflict
+                    # guard against two different writers.
+                    target = self._project_root / str(old[0])
+                    completed = target.is_file() and _hash_matches(target, old[1])
+                    if not completed:
+                        raise ValueError(f"pending Wiki commit conflict: {page_id}")
+                    self._db.execute("DELETE FROM pending_wiki_commits WHERE wiki_page_id = ?", (page_id,))
                 self._db.execute("INSERT OR REPLACE INTO pending_wiki_commits VALUES (?, ?, ?, ?)", (page_id, "\n".join(source_ids), path, digest))
 
     def pending_wiki_commits(self) -> tuple[str, ...]:
@@ -142,10 +166,23 @@ class LineageStore:
 
         raw = str(source_path)
         is_url = raw.startswith(("https://", "http://"))
-        key = raw if is_url else canonical_raw_key(raw, self._project_root)
+        external = False
+        if is_url:
+            key = raw
+        else:
+            try:
+                key = canonical_raw_key(raw, self._project_root)
+            except ValueError:
+                if not Path(raw).is_absolute():
+                    raise
+                # In-memory/API ingestion may receive a source file outside the
+                # project. Keep a stable absolute identity, but never read that
+                # file implicitly; callers must provide source_text.
+                key = Path(raw).resolve(strict=False).as_posix()
+                external = True
         existing = self.source_id_for_path(key)
         path = self._project_root / key
-        if not is_url and path.is_file():
+        if not is_url and not external and path.is_file():
             content = path.read_bytes()
         elif source_text is not None:
             content = source_text.encode("utf-8")
