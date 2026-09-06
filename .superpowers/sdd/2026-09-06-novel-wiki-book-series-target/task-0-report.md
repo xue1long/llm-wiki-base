@@ -57,3 +57,12 @@
 - 默认输出 `book-a`、`book-b`、`book-c` 三个候选；空候选产生 `cancel`，跨候选关系产生 `merge`，满足门槛才 `proceed`。
 - hard/soft reference dependencies 进入候选和结果，缺失 hard dependency 会阻断；soft 缺失可审计但不阻断。
 - 新增回归覆盖 fail-closed、reader task/关系闭环、三候选裁决和依赖字段；`test_book_series_baseline.py`、scanner、e2e 共 21 passed。
+
+## 复审 Round 2 修复
+
+- 闭环关系仅接受 `supports`/`required_by`，且必须是候选内 source task（learn_concept/reference/foundation/orientation）指向 target task（apply/example/application/explanation/method）的非自环边；无关系或悬空关系保持未知/失败。
+- `ReaderProfile` 默认要求至少 6 个 reader tasks，并要求提供章节出口证据；Task 0 没有章节数据时输出 `CHAPTER_EXIT_UNKNOWN`，不得伪装为 `closed`。
+- `CandidateDecision` 增加 `closure_evidence` 与 `closure_status_reason`。
+- 新增测试覆盖：完整正向闭环、6 task 下限、反向/自环失败、无关系 `None`、三候选 cancel/merge、hard/soft 依赖、入口无 provider 且 rule-only。
+- 实际验证：`TEMP=.tmp-pytest TMP=.tmp-pytest TMPDIR=.tmp-pytest PYTHONPATH=. <bundled-python> -m pytest tests/test_kc/test_book_series_baseline.py -q` → 10 passed；同命令加 `tests/test_kc/test_book_wiki_scanner.py tests/test_kc/test_book_wiki_e2e.py` → 26 passed。
+- 范围裁决：`duplicate_rate` 仍以全部页面为分母，因 scanner 产出总有非空哈希；空哈希分母细化留作后续契约。`build_chapter_chunks` 为共享既有功能，本轮不删除；章节连续出口在 Task 0 仅以未知状态门控。

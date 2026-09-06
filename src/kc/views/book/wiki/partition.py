@@ -17,6 +17,7 @@ class ReaderProfile:
     min_source_coverage: float = 0.80
     min_reader_tasks: int = 6
     candidate_taxonomies: tuple[str, ...] = ("book-a", "book-b", "book-c")
+    chapter_exit_evidence: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -26,6 +27,8 @@ class GovernanceConfig:
     approver: str | None = None
     hard_reference_dependencies: tuple[str, ...] = ()
     soft_reference_dependencies: tuple[str, ...] = ()
+    closure_evidence: tuple[str, ...] = ()
+    closure_status_reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -58,6 +61,8 @@ class CandidateDecision:
     reason_codes: tuple[str, ...]
     hard_reference_dependencies: tuple[str, ...] = ()
     soft_reference_dependencies: tuple[str, ...] = ()
+    closure_evidence: tuple[str, ...] = ()
+    closure_status_reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -77,6 +82,8 @@ _TASK_TYPES = {
     "foundation": "learn_concept", "orientation": "learn_concept",
     "method": "apply", "explanation": "apply", "application": "apply", "example": "apply",
 }
+_SOURCE_TASKS = {"learn_concept", "reference", "foundation", "orientation"}
+_TARGET_TASKS = {"apply", "example", "application", "explanation", "method"}
 
 
 def _rate(numerator: int, denominator: int) -> float:
@@ -138,20 +145,29 @@ def evaluate_series_gate(
         _, candidate_duplicate_rate = _duplicate_rate(candidate_pages)
         coverage = _rate(sum(bool(page.sources) for page in candidate_pages), count)
         types = {page.page_type.lower() for page in candidate_pages}
+        task_for = lambda page: (page.task_type or _TASK_TYPES.get(page.page_type, "reference")).lower()
         closure_parts = (
             bool(types & {"concept", "foundation", "orientation"}),
             bool(types & {"entity", "method", "explanation"}),
             bool(types & {"synthesis", "application", "example"}),
         )
         candidate_ids = set(ids)
-        has_learning_edge = any(
-            target in candidate_ids for page in candidate_pages for _, target in page.relation_targets
+        valid_edges = tuple(
+            (page.page_id, relation_type, target)
+            for page in candidate_pages for relation_type, target in page.relation_targets
+            if relation_type in {"supports", "required_by"}
+            and page.page_id != target and target in candidate_ids
+            and task_for(page) in _SOURCE_TASKS
+            and task_for(next((item for item in candidate_pages if item.page_id == target), page)) in _TARGET_TASKS
         )
+        has_learning_edge = bool(valid_edges)
         candidate_tasks = sum(
-            _TASK_TYPES.get(page.page_type, "reference") in reader_profile.task_types
+            task_for(page) in reader_profile.task_types
             for page in candidate_pages
         )
-        closure_status = "closed" if all(closure_parts) and has_learning_edge and candidate_tasks >= reader_profile.min_reader_tasks else "incomplete" if any(closure_parts) else "none"
+        chapter_known = bool(reader_profile.chapter_exit_evidence)
+        closure_ok = all(closure_parts) and has_learning_edge and candidate_tasks >= reader_profile.min_reader_tasks and chapter_known
+        closure_status = "closed" if closure_ok else "unknown" if not chapter_known else "incomplete" if any(closure_parts) else "none"
         reasons: list[str] = []
         if coverage < reader_profile.min_source_coverage:
             reasons.append("LOW_SOURCE_COVERAGE")
@@ -159,6 +175,8 @@ def evaluate_series_gate(
             reasons.append("INSUFFICIENT_PAGES")
         if closure_status != "closed":
             reasons.append("NO_LEARNING_CLOSURE")
+        if not chapter_known:
+            reasons.append("CHAPTER_EXIT_UNKNOWN")
         if candidate_tasks < reader_profile.min_reader_tasks:
             reasons.append("INSUFFICIENT_READER_TASKS")
         cross_candidate = any(
@@ -171,6 +189,8 @@ def evaluate_series_gate(
             coverage, candidate_duplicate_rate, sum(max(0, page.char_count) for page in candidate_pages),
             candidate_tasks, closure_status, decision, tuple(reasons),
             (), (),
+            tuple(f"edge:{source}:{kind}->{target}" for source, kind, target in valid_edges),
+            ";".join(reasons),
         ))
     governance = governance or GovernanceConfig()
     block_reasons = tuple(name for name, value in (
