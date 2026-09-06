@@ -59,6 +59,15 @@ async def book_wiki_versions(project_id: str):
         return files_service.book_wiki_versions(project_id)
     except ProjectNotFoundError as e:
         raise HTTPException(404, str(e))
+
+
+@router.get("/projects/{project_id}/book-wiki/series")
+async def book_wiki_series(project_id: str):
+    """Return the series manifest or the legacy anonymous single-book view."""
+    try:
+        return files_service.book_wiki_series_manifest(project_id)
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))
     except files_service.BookWikiUnavailableError as e:
         raise HTTPException(404, str(e))
 

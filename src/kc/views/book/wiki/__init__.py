@@ -33,6 +33,8 @@ from .partition import (
     CandidateDecision, GateMetrics, GovernanceConfig, ReaderProfile,
     SeriesGateResult, evaluate_series_gate,
 )
+from .series_model import SCHEMA_VERSION as SERIES_MANIFEST_SCHEMA_VERSION, BookManifest, SeriesManifest, canonical_digest, transition_status
+from .series_validate import dependency_report, read_legacy_manifest, validate_book_manifest, validate_release_files, validate_series_manifest
 
 __all__ = [
     "LockBusyError",
@@ -52,4 +54,6 @@ __all__ = [
     "EncyclopedicUnavailable", "generate_encyclopedic_outline", "safe_summary", "build_cross_link_candidates",
     "ThemeOutlineError", "load_theme_outline", "plan_theme_outline", "place_page_summaries", "save_theme_outline", "validate_theme_outline",
     "CandidateDecision", "GateMetrics", "GovernanceConfig", "ReaderProfile", "SeriesGateResult", "evaluate_series_gate",
+    "SERIES_MANIFEST_SCHEMA_VERSION", "BookManifest", "SeriesManifest", "canonical_digest", "transition_status",
+    "dependency_report", "read_legacy_manifest", "validate_book_manifest", "validate_release_files", "validate_series_manifest",
 ]
