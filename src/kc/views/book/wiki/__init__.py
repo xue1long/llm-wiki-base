@@ -29,6 +29,10 @@ from .theme_outline import (
     ThemeOutlineError, load_theme_outline, plan_theme_outline,
     place_page_summaries, save_theme_outline, validate_theme_outline,
 )
+from .partition import (
+    CandidateDecision, GateMetrics, GovernanceConfig, ReaderProfile,
+    SeriesGateResult, evaluate_series_gate,
+)
 
 __all__ = [
     "LockBusyError",
@@ -47,4 +51,5 @@ __all__ = [
     "ReaderTaskReport", "ReaderTaskRunner", "run_reader_task", "run_reader_tasks", "task_pass_rate",
     "EncyclopedicUnavailable", "generate_encyclopedic_outline", "safe_summary", "build_cross_link_candidates",
     "ThemeOutlineError", "load_theme_outline", "plan_theme_outline", "place_page_summaries", "save_theme_outline", "validate_theme_outline",
+    "CandidateDecision", "GateMetrics", "GovernanceConfig", "ReaderProfile", "SeriesGateResult", "evaluate_series_gate",
 ]
