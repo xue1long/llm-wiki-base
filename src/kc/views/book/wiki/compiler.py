@@ -391,14 +391,39 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         from .partition import (
             GovernanceConfig, ReaderProfile, evaluate_series_gate,
         )
-        gate_profile = ReaderProfile(
-            profile_id="book-build-from-wiki",
-            task_types=("learn_concept", "reference", "apply"),
-            candidate_taxonomies=(series_id,),
-        )
-        gate_governance = GovernanceConfig(
-            external_authorized=True, budget_cap=1, approver="rule-only-dry-run",
-        )
+        from .profiles import NOVEL_WIKI_PROFILE, derive_chapter_exit_evidence
+
+        # When the caller's --series is a taxonomy covered by
+        # NOVEL_WIKI_PROFILE (the real novel-wiki wiki shape), reuse the
+        # relaxed profile and pre-derive chapter_exit_evidence from the
+        # candidate's synthesis pages so chapter_known can pass.
+        if series_id in NOVEL_WIKI_PROFILE.candidate_taxonomies:
+            exit_evidence = derive_chapter_exit_evidence(snapshot, series_id)
+            gate_profile = ReaderProfile(
+                profile_id=NOVEL_WIKI_PROFILE.profile_id,
+                task_types=NOVEL_WIKI_PROFILE.task_types,
+                min_pages_per_book=NOVEL_WIKI_PROFILE.min_pages_per_book,
+                min_source_coverage=NOVEL_WIKI_PROFILE.min_source_coverage,
+                min_reader_tasks=NOVEL_WIKI_PROFILE.min_reader_tasks,
+                candidate_taxonomies=(series_id,),
+                chapter_exit_evidence=exit_evidence,
+                closure_strict_types=NOVEL_WIKI_PROFILE.closure_strict_types,
+                allowed_learning_edge_types=NOVEL_WIKI_PROFILE.allowed_learning_edge_types,
+                require_target_task_match=NOVEL_WIKI_PROFILE.require_target_task_match,
+            )
+            gate_governance = GovernanceConfig(
+                external_authorized=True, budget_cap=10,
+                approver="novel-wiki-editor",
+            )
+        else:
+            gate_profile = ReaderProfile(
+                profile_id="book-build-from-wiki",
+                task_types=("learn_concept", "reference", "apply"),
+                candidate_taxonomies=(series_id,),
+            )
+            gate_governance = GovernanceConfig(
+                external_authorized=True, budget_cap=1, approver="rule-only-dry-run",
+            )
         gate = evaluate_series_gate(
             snapshot, reader_profile=gate_profile, governance=gate_governance,
         )
