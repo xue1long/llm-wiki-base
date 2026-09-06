@@ -1,0 +1,239 @@
+"""Deterministic page partitioning and bounded, whole-page chapter chunks."""
+from __future__ import annotations
+
+from collections import defaultdict
+from dataclasses import dataclass
+import hashlib
+import json
+
+from .model import WikiSnapshot
+
+
+@dataclass(frozen=True)
+class ReaderProfile:
+    profile_id: str
+    task_types: tuple[str, ...]
+    min_pages_per_book: int = 20
+    min_source_coverage: float = 0.80
+
+
+@dataclass(frozen=True)
+class GovernanceConfig:
+    external_authorized: bool | None = None
+    budget_cap: int | None = None
+    approver: str | None = None
+    hard_reference_dependencies: tuple[str, ...] = ()
+    soft_reference_dependencies: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class GateMetrics:
+    page_type_counts: tuple[tuple[str, int], ...]
+    total_pages: int
+    duplicate_pages: int
+    duplicate_rate: float
+    pages_with_sources: int
+    source_coverage: float
+    relation_count: int
+    relation_parse_rate: float
+    estimated_chars: int
+    reader_task_candidates: int
+
+
+@dataclass(frozen=True)
+class CandidateDecision:
+    candidate_id: str
+    eligible_page_ids: tuple[str, ...]
+    eligible_page_count: int
+    chapter_density: float
+    source_coverage: float
+    duplicate_rate: float
+    estimated_chars: int
+    reader_task_count: int
+    closure_status: str
+    decision: str
+    reason_codes: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class SeriesGateResult:
+    snapshot_fingerprint: str
+    metrics: GateMetrics
+    candidates: tuple[CandidateDecision, ...]
+    status: str
+    generation_mode: str
+    block_reasons: tuple[str, ...] = ()
+
+
+_TASK_TYPES = {
+    "concept": "learn_concept", "entity": "reference", "synthesis": "apply",
+    "foundation": "learn_concept", "orientation": "learn_concept",
+    "method": "apply", "explanation": "apply", "application": "apply", "example": "apply",
+}
+
+
+def _rate(numerator: int, denominator: int) -> float:
+    return numerator / denominator if denominator else 0.0
+
+
+def _candidate_pages(snapshot: WikiSnapshot) -> dict[str, tuple]:
+    grouped: dict[str, list] = defaultdict(list)
+    for page in snapshot.pages:
+        grouped[(page.primary_taxonomy or "unassigned").strip()].append(page)
+    return {key: tuple(sorted(pages, key=lambda page: page.page_id)) for key, pages in sorted(grouped.items())}
+
+
+def _duplicate_rate(pages: tuple) -> tuple[int, float]:
+    hashes: dict[str, int] = defaultdict(int)
+    for page in pages:
+        if page.content_sha256:
+            hashes[page.content_sha256] += 1
+    duplicate_pages = sum(count - 1 for count in hashes.values() if count > 1)
+    return duplicate_pages, _rate(duplicate_pages, len(pages))
+
+
+def evaluate_series_gate(
+    snapshot: WikiSnapshot,
+    *,
+    reader_profile: ReaderProfile,
+    governance: GovernanceConfig | None = None,
+) -> SeriesGateResult:
+    """Build a deterministic, rule-only book-series baseline.
+
+    This function intentionally has no provider/callback argument: a result
+    can only authorize later LLM work after all local governance fields exist.
+    """
+    pages = tuple(sorted(snapshot.pages, key=lambda page: page.page_id))
+    type_counts: dict[str, int] = defaultdict(int)
+    for page in pages:
+        type_counts[page.page_type] += 1
+    duplicate_pages, duplicate_rate = _duplicate_rate(pages)
+    pages_with_sources = sum(bool(page.sources) for page in pages)
+    relation_count = sum(len(page.relation_targets) for page in pages)
+    # Scanner only exposes successfully parsed structured relations; malformed
+    # relation frontmatter fails closed during scan, so parsed input is 100%.
+    relation_parse_rate = 1.0 if relation_count else 1.0
+    task_candidates = sum(_TASK_TYPES.get(page.page_type, "reference") in reader_profile.task_types for page in pages)
+    metrics = GateMetrics(
+        tuple(sorted(type_counts.items())), len(pages), duplicate_pages, duplicate_rate,
+        pages_with_sources, _rate(pages_with_sources, len(pages)), relation_count,
+        relation_parse_rate, sum(max(0, page.char_count) for page in pages), task_candidates,
+    )
+    candidates: list[CandidateDecision] = []
+    for candidate_id, candidate_pages in _candidate_pages(snapshot).items():
+        ids = tuple(page.page_id for page in candidate_pages)
+        count = len(candidate_pages)
+        _, candidate_duplicate_rate = _duplicate_rate(candidate_pages)
+        coverage = _rate(sum(bool(page.sources) for page in candidate_pages), count)
+        types = {page.page_type.lower() for page in candidate_pages}
+        closure_parts = (
+            bool(types & {"concept", "foundation", "orientation"}),
+            bool(types & {"entity", "method", "explanation"}),
+            bool(types & {"synthesis", "application", "example"}),
+        )
+        closure_status = "closed" if all(closure_parts) else "incomplete" if any(closure_parts) else "none"
+        reasons: list[str] = []
+        if coverage < reader_profile.min_source_coverage:
+            reasons.append("LOW_SOURCE_COVERAGE")
+        if count < reader_profile.min_pages_per_book:
+            reasons.append("INSUFFICIENT_PAGES")
+        if closure_status != "closed":
+            reasons.append("NO_LEARNING_CLOSURE")
+        decision = "proceed" if not reasons else "reference" if candidate_pages else "cancel"
+        candidates.append(CandidateDecision(
+            candidate_id, ids, count, _rate(count, len({page.page_type for page in candidate_pages})),
+            coverage, candidate_duplicate_rate, sum(max(0, page.char_count) for page in candidate_pages),
+            sum(_TASK_TYPES.get(page.page_type, "reference") in reader_profile.task_types for page in candidate_pages),
+            closure_status, decision, tuple(reasons),
+        ))
+    governance = governance or GovernanceConfig()
+    block_reasons = tuple(name for name, value in (
+        ("external_authorized", governance.external_authorized),
+        ("budget_cap", governance.budget_cap),
+        ("approver", governance.approver),
+    ) if value is None or value is False or value == "")
+    fingerprint_payload = {
+        "snapshot": snapshot.snapshot_id,
+        "profile": reader_profile.__dict__,
+        "governance": governance.__dict__,
+    }
+    fingerprint = hashlib.sha256(json.dumps(fingerprint_payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    blocked = bool(block_reasons)
+    return SeriesGateResult(
+        fingerprint, metrics, tuple(candidates), "blocked" if blocked else "ready",
+        "rule_only" if blocked else "llm_allowed", block_reasons,
+    )
+
+
+def partition_pages(snapshot: WikiSnapshot) -> dict[str, tuple[str, ...]]:
+    """Group classified pages by type/taxonomy; keep unclassified pages in fallback."""
+    groups: dict[tuple[str, str], list[str]] = defaultdict(list)
+    fallback: list[str] = []
+    pages = {page.page_id: page for page in snapshot.pages}
+    for page in snapshot.pages:
+        taxonomy = (page.primary_taxonomy or "").strip()
+        if taxonomy:
+            groups[(page.page_type, taxonomy)].append(page.page_id)
+        else:
+            fallback.append(page.page_id)
+    result = {
+        f"{page_type}-{taxonomy}": tuple(sorted(ids))
+        for (page_type, taxonomy), ids in sorted(groups.items())
+    }
+    if fallback:
+        result["fallback"] = tuple(sorted(fallback))
+    # Detect malformed caller snapshots early, before any LLM call.
+    if sorted(i for ids in result.values() for i in ids) != sorted(pages):
+        raise ValueError("partition does not cover snapshot page IDs exactly")
+    return result
+
+
+def build_chapter_chunks(
+    snapshot: WikiSnapshot,
+    partitions: dict[str, tuple[str, ...]],
+    *,
+    context_window: int,
+    output_reserve: int,
+) -> dict[str, tuple[str, ...]]:
+    """Pack complete pages in stable order, never splitting a page or content block.
+
+    ``token_count`` is preferred; otherwise ``char_count`` is used as a
+    deliberately conservative estimate so a missing tokenizer cannot cause
+    an over-limit request.
+    """
+    if context_window <= 0 or output_reserve < 0 or output_reserve >= context_window:
+        raise ValueError("context_window must exceed non-negative output_reserve")
+    page_map = {page.page_id: page for page in snapshot.pages}
+    expected = sorted(page_map)
+    actual = sorted(i for ids in partitions.values() for i in ids)
+    if actual != expected or len(actual) != len(set(actual)):
+        raise ValueError("partitions must cover each snapshot page ID exactly once")
+    limit = context_window - output_reserve
+    result: dict[str, tuple[str, ...]] = {}
+    for volume_id in sorted(partitions):
+        current: list[str] = []
+        used = 0
+        ordinal = 0
+        for page_id in sorted(partitions[volume_id]):
+            page = page_map[page_id]
+            cost = max(1, page.token_count if page.token_count is not None else page.char_count)
+            if current and used + cost > limit:
+                result[f"{volume_id}:{ordinal}"] = tuple(current)
+                ordinal += 1
+                current, used = [], 0
+            current.append(page_id)
+            used += cost
+            # An over-limit page is deliberately isolated and rule-only downstream.
+            if used > limit:
+                result[f"{volume_id}:{ordinal}"] = tuple(current)
+                ordinal += 1
+                current, used = [], 0
+        if current:
+            result[f"{volume_id}:{ordinal}"] = tuple(current)
+    return result
+
+
+__all__ = [
+    "partition_pages", "build_chapter_chunks", "ReaderProfile", "GovernanceConfig",
+    "GateMetrics", "CandidateDecision", "SeriesGateResult", "evaluate_series_gate",
+]
