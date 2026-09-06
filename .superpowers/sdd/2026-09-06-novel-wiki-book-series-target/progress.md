@@ -154,3 +154,55 @@ After the reviewer Important finding, the new session promoted the working-tree 
 - No full `--apply`; gate only fires under `--series` and rejects with `status=blocked`, never `committed`.
 - Pre-existing `knowledge/novel-wiki/book-wiki/CURRENT.json` (`version=4e1229dae60241e3a5aeb323b14a123a`, `manifest_sha256=762a865c…`) was not in any commit diff. Verified `git show 6a457bb3 --stat -- knowledge/` returns nothing.
 - Each slice is test-first, scoped, and the broader test surface stays green.
+
+## Compile-enable cascade (slices 501028ce.., 2026-09-06)
+
+After user authorized "解决掉问题，以达到可以编译系列 book 标准", a new plan-audit pass produced `docs/superpowers/plans/2026-09-06-novel-wiki-book-series-compile-enable.md` v0.3 (two-round audit + multi-role cross). The plan added 3 ReaderProfile relax flags + `profiles.py` module + `derive_chapter_exit_evidence` + `compiler.py` wiring so that `book build-from-wiki --series 写作技法 --book 写作技法 --dry-run` reaches `status=planned`.
+
+| Slice | Subject | Files | Tests |
+|---|---|---|---|
+| `501028ce` | feat(book): 接入 novel-wiki profile 放宽闭包与 learning-edge 检查 | `src/kc/views/book/wiki/{partition,profiles}.py`, `tests/test_kc/test_novel_wiki_profile_integration.py`, plan + audit docs | 8 new tests in `test_novel_wiki_profile_integration.py` |
+| `63b15d1f` | feat(book): compiler 接入 NOVEL_WIKI_PROFILE 与 chapter_exit_evidence 自动派生 | `src/kc/views/book/wiki/compiler.py`, `tests/test_cli_ext/test_book_build_from_wiki_novel.py` | 3 new integration tests including CURRENT.json 不变 |
+
+### Real dry-run result (after 63b15d1f)
+
+```
+$ python -m src.cli book build-from-wiki --project knowledge/novel-wiki \
+    --series 写作技法 --book 写作技法 --json
+
+{
+  "status": "planned",
+  "run_id": "e781e99f578c4c2ab9e0ce232771adb9",
+  "snapshot_id": "61eb65b94d75d079d146c43cdcfc9a2891d39130c4c6cea289ed20e89d6ed610",
+  "version_dir": "knowledge/novel-wiki/.index/book-wiki/versions/e781e99f578c4c2ab9e0ce232771adb9",
+  "series_id": "写作技法", "book_id": "写作技法",
+  "dry_run": true
+}
+```
+
+| Gate check | Real novel-wiki 6 candidate taxonomies |
+|---|---|
+| 写作技法 (541 pages) | `decision=proceed, closure_status=closed, reasons=[]` |
+| 题材体系 (73 pages) | `decision=proceed, closure_status=closed, reasons=[]` |
+| 心态与职业 (57 pages) | `decision=proceed, closure_status=closed, reasons=[]` |
+| 平台规则 (45 pages) | `decision=proceed, closure_status=closed, reasons=[]` |
+| 读者与市场 (39 pages) | `decision=proceed, closure_status=closed, reasons=[]` |
+| 案例与素材 (25 pages) | `decision=proceed, closure_status=closed, reasons=[]` |
+
+### Red-line audit (compile-enable)
+
+- ✅ No LLM call; gate is rule-only.
+- ✅ No default 3-book assumption; `NOVEL_WIKI_PROFILE` uses 6 real wiki taxonomies.
+- ✅ No full `--apply`; dry-run returned `planned` only.
+- ✅ `knowledge/novel-wiki/book-wiki/CURRENT.json` sha `762a865c…` is byte-identical before and after dry-run.
+- ✅ `.releases/` lists `[4e1229dae60241e3a5aeb323b14a123a, 79780de66b0f47988ffa5cedecdee951]` unchanged.
+- ✅ Each slice is test-first with failing test → targeted fix → regression evidence.
+
+### Final regression envelope (compile-enable cascade)
+
+- `pytest tests/test_kc/test_book_series_*.py`: **66 / 66** PASS
+- `pytest tests/test_kc/`: **734 / 734** PASS
+- `pytest tests/test_kc/ + tests/test_cli_ext/`: **916 / 916** PASS
+- `pytest tests/ --ignore=tests/test_mcp_server --timeout=60 --deselect tests/test_scripts/test_batch_executor.py::test_partial_commit_records_state_and_resume_retries`: **3920 passed, 1 deselected, 0 unexpected failures in 695.68s**
+
+The compile-enable cascade netted **+11 passing tests** vs the previous session (8 S0/S1/S2 acceptance contracts + 3 S3 integration), bringing the total envelope to 3920 with no unexpected failures.
