@@ -353,7 +353,7 @@ def build_series_assignment(
             "source_status": "present" if page.sources else "missing",
             "content_fingerprint": page.content_sha256,
             "primary_book_id": None if reason else taxonomy,
-            "chapter_id": None if reason else f"chapter-{taxonomy}-{page.page_type}",
+            "chapter_id": None if reason else f"chapter-{taxonomy}-{page.page_id}",
             "secondary_topics": [],
             "ledger_reason": reason,
         })

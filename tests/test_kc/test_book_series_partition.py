@@ -27,7 +27,7 @@ def test_unique_primary_is_assigned_and_secondary_topics_are_references():
     result = build_series_assignment(snapshot(page("p1", "book-a")), candidate_taxonomies=("book-a",))
     row = result["assignments"][0]
     assert row["primary_book_id"] == "book-a"
-    assert row["chapter_id"] == "chapter-book-a-concept"
+    assert row["chapter_id"] == "chapter-book-a-p1"
     assert row["secondary_topics"] == []
     assert row["ledger_reason"] is None
 
