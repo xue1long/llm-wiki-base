@@ -206,3 +206,78 @@ $ python -m src.cli book build-from-wiki --project knowledge/novel-wiki \
 - `pytest tests/ --ignore=tests/test_mcp_server --timeout=60 --deselect tests/test_scripts/test_batch_executor.py::test_partial_commit_records_state_and_resume_retries`: **3920 passed, 1 deselected, 0 unexpected failures in 695.68s**
 
 The compile-enable cascade netted **+11 passing tests** vs the previous session (8 S0/S1/S2 acceptance contracts + 3 S3 integration), bringing the total envelope to 3920 with no unexpected failures.
+
+## Re-evaluation session — Book 领域方案对齐 (paused, 2026-09-06)
+
+During a follow-up attempt to land S5 (cross-link validate in dry-run path),
+two architectural issues surfaced that the compile-enable plan did not
+account for:
+
+1. **Cross-link semantics mismatch.** The acceptance test for S5 expected
+   ``cross_link_diagnostics`` to surface the full ``validate_cross_links``
+   return (``dangling``/``kept`` lists) but the implementation persisted
+   only counts. Reconciling the test against the implementation was
+   cosmetic; the deeper problem was that the rule-only outline does
+   **not** emit ``cross_link_candidates`` at all — that field is only
+   populated by the encyclopedic-mode compiler branch
+   (``compiler.py:533–540``). So S5's test fixture was synthetic and
+   had no real producer.
+2. **Wrong problem frame.** After surfacing S5, the user shared the
+   broader **Book 领域方案** (Book Domain Specification, copy/pasted in
+   the chat). That spec defines Book as a *personal knowledge
+   publishing layer* over the Wiki (personal curation → knowledge
+   resolution → structure planning → **LLM editorial synthesis** →
+   provenance/quality → tutorial paths → immutable release). The
+   compile-enable plan (which focused on letting the three fictional
+   candidate taxonomies proceed through the gate) was solving a
+   **non-problem**: the real novel-wiki already has 6 proceed-able
+   taxonomies, and the user-visible deliverable is a human-readable
+   Book, not a gate status.
+
+The user elected the **full re-design** path:
+
+- Drop the S5 (cross-link) and S6 (shell test) attempt and revert
+  the S5 working tree.
+- Reuse the compile-enable cascade (S0–S4) as the **rule-only
+  baseline layer**: it produces a dry-run Book from the Wiki without
+  LLM, satisfies the ``rule_only`` contract, and never touches
+  ``CURRENT.json``.
+- Build the **LLM editorial stage** and **Tutorial Path derivation**
+  on top, as new slices, with the Book 领域方案 as the authoritative
+  product spec.
+- Lift the original red line #1 ("no LLM call") for the editorial
+  stage only; provenance/quality validation still constrains what the
+  LLM may emit.
+
+### Status at handoff
+
+| State | Value |
+|---|---|
+| Branch | `codex/book-series-target` |
+| Latest commit | `1c4cc1cb feat(book): baseline script 写 .llm-wiki/ + 修正 _candidate_pages 范围` |
+| `CURRENT.json` sha | `762a865c…` (byte-identical to pre-session) |
+| `.releases/` | `[4e1229dae60241e3a5aeb323b14a123a, 79780de66b0f47988ffa5cedecdee951]` unchanged |
+| Tests passing | `tests/test_kc/test_book_series_*.py` 66/66; `tests/test_kc/` 734/734; `tests/test_kc/ + tests/test_cli_ext/` 916/916; `tests/test_scripts/test_build_book_series_baseline.py` 4/4 |
+| Tests failing | only `test_partial_commit_records_state_and_resume_retries` (pre-existing, deselected) |
+| Working tree | clean of S5 leftovers (S5 untracked tests + debug scripts removed); only V3/V4 residue remains (`.memory/MEMORY.md`, `batch_build_state.json`, `_batch_report.txt`) — out of scope for this session |
+| Real dry-run | `book build-from-wiki --project knowledge/novel-wiki --series 写作技法 --book 写作技法 --dry-run` → `status=planned`, 179 chapter files under `.index/book-wiki/versions/e781e99f.../`, series-manifest.json emitted |
+
+### Working commits preserved for the re-design
+
+| Commit | What it gives the next session |
+|---|---|
+| `501028ce` | `ReaderProfile` relax flags + `partition.py` rewrite; `profiles.py` with `NOVEL_WIKI_PROFILE` and `derive_chapter_exit_evidence` |
+| `63b15d1f` | `compiler.py` wiring — when `--series` matches NOVEL_WIKI_PROFILE, the gate uses the relaxed profile and auto-derives `chapter_exit_evidence` |
+| `1c4cc1cb` | `_candidate_pages` no longer returns unrelated grouped keys; `scripts/build_book_series_baseline.py` writes per-snapshot audit trails to `.llm-wiki/book-series/baselines/` (gitignored) |
+
+### Next steps (user-driven)
+
+1. The user authors a new plan file
+   `docs/superpowers/plans/2026-09-06-book-domain-design.md`
+   aligning with the **Book 领域方案** they shared.
+2. plan-audit two-round self-review + multi-role cross (per
+   `.agents/skills/plan-audit/`).
+3. User review and approval.
+4. Implementation slices, each test-first, with a fresh red-line set
+   that reflects the LLM editorial pipeline.
+5. Re-validate the rule-only baseline cascade (S0–S4) still holds.
