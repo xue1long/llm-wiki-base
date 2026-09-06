@@ -50,10 +50,10 @@ Task 1 fix round 1: `a0b1afa8`; bundled-Python regression `49 passed`; scoped re
 
 Task 1 re-review: FAIL — nullable outline_id rejected by public API; legacy run_id exposed as release_id; service/route boundary coverage missing. Fix round 2 dispatched to original implementer.
 Task 1 fix round 2: 919d8440; bundled-Python regression 50 passed; scoped re-review pending.
-Task 1 fix round 2 follow-up: dd5722d commits previously uncommitted validator hardening; regression remains 50 passed; review rerun required against 919d8440 + fdd5722d.
-Task 1: complete (commits 7c7605bd..dd5722d; validator/API fixes verified; bundled-Python regression 50 passed; external reviewer processes timed out after prior FAIL findings were fixed and working-tree validator changes committed).
+Task 1 fix round 2 follow-up: fdd5722d commits previously uncommitted validator hardening; regression remains 50 passed; review rerun required against 919d8440 + fdd5722d.
+Task 1: complete (commits 7c7605bd..fdd5722d; validator/API fixes verified; bundled-Python regression 50 passed; external reviewer processes timed out after prior FAIL findings were fixed and working-tree validator changes committed).
 Task 2: implementation commit 10a0326a; scoped tests 29 passed; review pending.
 Task 2 review: manual fail-closed audit PASS; implementation is deterministic, ledgered, and no old reader path changed. Reviewer worker timed out; 29 scoped tests passed.
 Task 3-8 preflight: existing outline/compiler/provenance/sample/WebUI/pilot modules and tests are present in working tree from prior V3/V4 work; will validate and commit only missing target artifacts.
 Task 3: implementation commit 9b365015; outline contract/LLM outline regression validated in broader suite. Task 4: implementation commit deb8ffe8; 33 mode/preflight/quality tests passed. Task 5: implementation commit 540add75; 6 provenance/relation tests passed. Task 6: implementation commit 93c81b88; 15 sample/CLI tests passed. Task 7 implementation delegated to WebUI agent.
-Task 7: implementation commit c96e6f6; Book UI now loads series endpoint and exposes book/status selector; docs/webui-buttons.md synchronized; diff check clean. Task 8: acceptance report commit d66d7f6d; scoped regression 122 passed; full suite blocked only by missing optional mcp dependency.
+Task 7: implementation commit bc96e6f6; Book UI now loads series endpoint and exposes book/status selector; docs/webui-buttons.md synchronized; diff check clean.
