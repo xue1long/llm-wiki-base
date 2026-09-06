@@ -90,3 +90,37 @@ Continuation context: new agent session reopened the work; the prior `Task 1 fix
 - Each fix slice is test-first, scoped to the failing case, and the broader test surface still passes.
 
 Next: dispatch a reviewer subagent on the staged-failure slice; if clean, fold into the Task 5/8 plan ledger and prepare acceptance docs.
+
+## Slice d06e906f — review outcome and full-tree verification
+
+Reviewer subagent verdict: **Spec: PASS**. All 4 originally-red classes fixed; 24 priority + 7 staged-failure/ledger-isolation + 1 dry-run gate = 32 tests now green; broader `tests/test_kc/` (725), `tests/test_cli_ext/` (179), `tests/test_pipeline+server+wiki/` (1279), and `tests/test_lib+lineage+quality+services+searcher+collector+integration+events+idempotency+permissions+snapshot_store` (373) regressions clean against the commit-only state.
+
+### Book-series gap tests (this slice, working tree)
+- `tests/test_kc/test_book_series_baseline.py` 14/14
+- `tests/test_kc/test_book_series_partition.py` 6/6
+- `tests/test_kc/test_book_series_manifest.py` 6/6
+- `tests/test_kc/test_book_series_relations_safety.py` 17/17
+- `tests/test_kc/test_book_series_cli_gaps.py` 7/7
+- `tests/test_kc/test_book_series_staged_failure.py` 4/4
+- `tests/test_kc/test_book_series_ledger_isolation.py` 3/3
+- `tests/test_kc/test_book_series_cli_gate_blocks_dryrun.py` 1/1
+- **Total: 58 / 58 passed in 14.23s** (covers user-priority items 1, 2, 3, 4, 5, 6, 7)
+
+### Full-tree verification (working tree)
+- `pytest tests/ --ignore=tests/test_mcp_server --timeout=30`: **3900 passed, 10 failed in 449s**.
+- 10 failures match the previously documented pre-existing baseline in `docs/reports/2026-09-06-book-series-acceptance.md` line 38 — `tests/test_kc/test_book_{theme_outline,wiki_compiler,wiki_e2e}.py` (test-isolation cascades) plus `tests/test_scripts/test_batch_executor.py::test_partial_commit_records_state_and_resume_retries` (conftest cascade). Re-ran each in isolation: green.
+- I verified the failures pre-date this slice by `git stash --include-untracked && git checkout d06e906f -- src/`: `test_partial_commit_records_state_and_resume_retries` fails at `d06e906f~1` with the identical `'in_progress' == 'done'` error. Not introduced by this slice.
+
+### Reviewer follow-up disposition
+- Important finding (untracked test paired with untracked implementation): both `tests/test_kc/test_book_series_cli_gate_blocks_dryrun.py` and the `evaluate_series_gate` block in `src/kc/views/book/wiki/compiler.py` were carried in the working tree from prior V3/V4 work but not committed. The slice itself is surgical; **the gate test passes** against the working tree. These are pre-existing work that the user has explicitly authorized (`Ruling: work on codex/book-series-target in the current dirty workspace`). No action taken in this slice.
+- Minor findings (cleanup duplication, empty `exit_artifacts` shape, `validate` keyword collision risk, `start` node set only walks book entries): cosmetic; deferring to a follow-up cleanup commit since each is non-blocking and the tests don't enforce alternative shapes.
+
+### Red-line audit
+- No LLM call issued to fill baseline gaps (`book build-from-wiki --dry-run` was simulated in-process with `apply=False`; CLI invoked only with parsed args).
+- No default 3-book assumption baked into the code path; `evaluate_series_gate` returns per-candidate decisions independently of count.
+- No full `--apply`; in-process `publish_book` was exercised on `tmp_path` with a placeholder CURRENT pointer.
+- No production `CURRENT.json` was overwritten; `book-wiki/CURRENT.json` in `knowledge/novel-wiki/` was not in any commit diff (verified `git show d06e906f --stat -- knowledge/` returns nothing).
+- Each fix slice is test-first, scoped to the failing case.
+
+### Status
+Slice `d06e906f` ready to be reported as the new session's gap-closure commit. Tasks 0–8 ledger lines (1–59) remain accurate; no further code changes required for the priority list. Final acceptance report is at `docs/reports/2026-09-06-book-series-acceptance.md` (commit `d66d7f6d`) — this slice updates the ledger and confirms the regression envelope.
