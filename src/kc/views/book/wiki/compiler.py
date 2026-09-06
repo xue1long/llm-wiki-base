@@ -383,6 +383,33 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         return {"status": "failed", "reason_codes": [exc.code], "error": str(exc)}
     if not snapshot.pages:
         return {"status": "failed", "reason_codes": ["no-pages"], "error": "no eligible wiki pages"}
+    # Series gate: only enforced when the caller opts into a series context
+    # (via --series). A traditional wiki without --series still produces the
+    # rule-only artifact; the gate blocks dry-run when the named series has
+    # no retained candidate.
+    if series_id:
+        from .partition import (
+            GovernanceConfig, ReaderProfile, evaluate_series_gate,
+        )
+        gate_profile = ReaderProfile(
+            profile_id="book-build-from-wiki",
+            task_types=("learn_concept", "reference", "apply"),
+            candidate_taxonomies=(series_id,),
+        )
+        gate_governance = GovernanceConfig(
+            external_authorized=True, budget_cap=1, approver="rule-only-dry-run",
+        )
+        gate = evaluate_series_gate(
+            snapshot, reader_profile=gate_profile, governance=gate_governance,
+        )
+        retained = tuple(c for c in gate.candidates if c.decision == "proceed")
+        if not retained:
+            return {"status": "blocked", "reason_codes": ["E_SERIES_GATE_NO_RETAINED_CANDIDATE"],
+                    "series_id": series_id,
+                    "series_status": gate.status,
+                    "generation_mode": gate.generation_mode,
+                    "block_reasons": list(gate.block_reasons),
+                    "candidates": [c.__dict__ for c in gate.candidates]}
     relation_summary = relation_stats(snapshot)
     if relation_summary["unresolved_ratio"] > MAX_UNRESOLVED_RELATION_RATIO:
         return {"status": "failed", "reason_codes": ["unresolved-relation-over-threshold"],
