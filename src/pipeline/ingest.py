@@ -56,6 +56,14 @@ from ..wiki.storage.page_writer import write_page
 from .retry import PermanentFailure
 from .readiness_gate import apply_readiness_gate, resolve_specialist, route_after_readiness
 
+
+def _ingest_source_key(source_path, project_root) -> str:
+    """Canonical key with a stable, explicit identity for external inputs."""
+    try:
+        return canonical_raw_key(str(source_path), project_root)
+    except ValueError:
+        return Path(str(source_path)).resolve(strict=False).as_posix()
+
 # Resolve analyze/generate via the pipeline package namespace so
 # monkey-patches on `src.pipeline.pipeline.analyze` /
 # `src.pipeline.pipeline.generate` (set by tests like
@@ -388,6 +396,18 @@ def _normalize_generated_pages(
     for page in pages:
         # Task 3：字段 owner —— 系统字段先经 finalize_generated_page 裁定
         finalize_generated_page(page, paths, now=now)
+        # V4 disk contract removes category/taxonomy_sub from frontmatter;
+        # preserve those generator outputs as auditable taxonomy relations.
+        from src.utils.slugify import slugify as _slugify
+        from src.wiki.features.relations import Relation
+        for _taxonomy in (getattr(page, "category", ""), getattr(page, "taxonomy_sub", "")):
+            _taxonomy = str(_taxonomy or "").strip()
+            if not _taxonomy:
+                continue
+            _target = _taxonomy if _taxonomy.startswith("taxonomy-") else f"taxonomy-{_taxonomy}"
+            _target = _slugify(_target)
+            if _target and not any(r.type == "taxonomy_of" and r.target_id == _target for r in page.relations):
+                page.relations.append(Relation(target_id=_target, type="taxonomy_of"))
         # M9（Phase 3 实测）：过滤非法 relation 类型——LLM 或历史页可能输出
         # `related_to` / `contrasts` / `part_of` 等非 17 型（+ x-*）类型。
         # JSON schema enum 只约束新 LLM 输出；存量页（extras）合并时也须清理。
@@ -580,10 +600,7 @@ async def generate_ingest(
     from .readiness_replay import serialize_audit
     from .triage import triage
 
-    try:
-        _source_key = canonical_raw_key(str(source_path), paths.root)
-    except ValueError:
-        _source_key = str(source_path)
+    _source_key = _ingest_source_key(source_path, paths.root)
     _source_file = Path(str(source_path))
     try:
         _file_size = _source_file.stat().st_size
@@ -755,14 +772,14 @@ async def generate_ingest(
         candidate = _merge_candidate_chunks(_chunk_candidates)
         if not hasattr(candidate, "claims") or not candidate.claims or not candidate.evidence:
             raise ValueError("candidate requires non-empty claims and evidence")
-        _source_key = canonical_raw_key(str(source_path), paths.root)
+        _source_key = _ingest_source_key(source_path, paths.root)
         _candidate_status = getattr(candidate, "status", None)
         if getattr(_candidate_status, "value", _candidate_status) == "rejected":
             raise ValueError("candidate status is rejected")
         _candidate_source_id = getattr(candidate, "source_id", "")
         if not _candidate_source_id:
             raise ValueError("candidate requires source_id")
-        if canonical_raw_key(str(_candidate_source_id), paths.root) != _source_key:
+        if _ingest_source_key(_candidate_source_id, paths.root) != _source_key:
             raise ValueError("candidate source_id does not match source")
         document = _result.canonical_document
         review = await CandidateReviewer().review(
