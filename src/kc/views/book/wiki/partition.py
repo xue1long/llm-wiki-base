@@ -15,6 +15,8 @@ class ReaderProfile:
     task_types: tuple[str, ...]
     min_pages_per_book: int = 20
     min_source_coverage: float = 0.80
+    min_reader_tasks: int = 6
+    candidate_taxonomies: tuple[str, ...] = ("book-a", "book-b", "book-c")
 
 
 @dataclass(frozen=True)
@@ -35,9 +37,10 @@ class GateMetrics:
     pages_with_sources: int
     source_coverage: float
     relation_count: int
-    relation_parse_rate: float
+    relation_parse_rate: float | None
     estimated_chars: int
     reader_task_candidates: int
+    relation_unresolved_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -53,6 +56,8 @@ class CandidateDecision:
     closure_status: str
     decision: str
     reason_codes: tuple[str, ...]
+    hard_reference_dependencies: tuple[str, ...] = ()
+    soft_reference_dependencies: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -63,6 +68,8 @@ class SeriesGateResult:
     status: str
     generation_mode: str
     block_reasons: tuple[str, ...] = ()
+    hard_reference_dependencies: tuple[str, ...] = ()
+    soft_reference_dependencies: tuple[str, ...] = ()
 
 
 _TASK_TYPES = {
@@ -76,11 +83,12 @@ def _rate(numerator: int, denominator: int) -> float:
     return numerator / denominator if denominator else 0.0
 
 
-def _candidate_pages(snapshot: WikiSnapshot) -> dict[str, tuple]:
+def _candidate_pages(snapshot: WikiSnapshot, profile: ReaderProfile) -> dict[str, tuple]:
     grouped: dict[str, list] = defaultdict(list)
     for page in snapshot.pages:
         grouped[(page.primary_taxonomy or "unassigned").strip()].append(page)
-    return {key: tuple(sorted(pages, key=lambda page: page.page_id)) for key, pages in sorted(grouped.items())}
+    keys = set(profile.candidate_taxonomies) | set(grouped)
+    return {key: tuple(sorted(grouped.get(key, ()), key=lambda page: page.page_id)) for key in sorted(keys)}
 
 
 def _duplicate_rate(pages: tuple) -> tuple[int, float]:
@@ -109,18 +117,22 @@ def evaluate_series_gate(
         type_counts[page.page_type] += 1
     duplicate_pages, duplicate_rate = _duplicate_rate(pages)
     pages_with_sources = sum(bool(page.sources) for page in pages)
+    page_ids = {page.page_id for page in pages}
     relation_count = sum(len(page.relation_targets) for page in pages)
-    # Scanner only exposes successfully parsed structured relations; malformed
-    # relation frontmatter fails closed during scan, so parsed input is 100%.
-    relation_parse_rate = 1.0 if relation_count else 1.0
+    relation_unresolved = sum(
+        1 for page in pages for _, target in page.relation_targets
+        if target not in page_ids and not target.startswith("taxonomy")
+    )
+    relation_parse_rate = _rate(relation_count - relation_unresolved, relation_count) if relation_count else None
     task_candidates = sum(_TASK_TYPES.get(page.page_type, "reference") in reader_profile.task_types for page in pages)
     metrics = GateMetrics(
         tuple(sorted(type_counts.items())), len(pages), duplicate_pages, duplicate_rate,
         pages_with_sources, _rate(pages_with_sources, len(pages)), relation_count,
-        relation_parse_rate, sum(max(0, page.char_count) for page in pages), task_candidates,
+        relation_parse_rate,
+        sum(max(0, page.char_count) for page in pages), task_candidates, relation_unresolved,
     )
     candidates: list[CandidateDecision] = []
-    for candidate_id, candidate_pages in _candidate_pages(snapshot).items():
+    for candidate_id, candidate_pages in _candidate_pages(snapshot, reader_profile).items():
         ids = tuple(page.page_id for page in candidate_pages)
         count = len(candidate_pages)
         _, candidate_duplicate_rate = _duplicate_rate(candidate_pages)
@@ -131,7 +143,15 @@ def evaluate_series_gate(
             bool(types & {"entity", "method", "explanation"}),
             bool(types & {"synthesis", "application", "example"}),
         )
-        closure_status = "closed" if all(closure_parts) else "incomplete" if any(closure_parts) else "none"
+        candidate_ids = set(ids)
+        has_learning_edge = any(
+            target in candidate_ids for page in candidate_pages for _, target in page.relation_targets
+        )
+        candidate_tasks = sum(
+            _TASK_TYPES.get(page.page_type, "reference") in reader_profile.task_types
+            for page in candidate_pages
+        )
+        closure_status = "closed" if all(closure_parts) and has_learning_edge and candidate_tasks >= reader_profile.min_reader_tasks else "incomplete" if any(closure_parts) else "none"
         reasons: list[str] = []
         if coverage < reader_profile.min_source_coverage:
             reasons.append("LOW_SOURCE_COVERAGE")
@@ -139,12 +159,18 @@ def evaluate_series_gate(
             reasons.append("INSUFFICIENT_PAGES")
         if closure_status != "closed":
             reasons.append("NO_LEARNING_CLOSURE")
-        decision = "proceed" if not reasons else "reference" if candidate_pages else "cancel"
+        if candidate_tasks < reader_profile.min_reader_tasks:
+            reasons.append("INSUFFICIENT_READER_TASKS")
+        cross_candidate = any(
+            target not in candidate_ids and target in page_ids
+            for page in candidate_pages for _, target in page.relation_targets
+        )
+        decision = "proceed" if not reasons else "merge" if cross_candidate else "reference" if candidate_pages else "cancel"
         candidates.append(CandidateDecision(
             candidate_id, ids, count, _rate(count, len({page.page_type for page in candidate_pages})),
             coverage, candidate_duplicate_rate, sum(max(0, page.char_count) for page in candidate_pages),
-            sum(_TASK_TYPES.get(page.page_type, "reference") in reader_profile.task_types for page in candidate_pages),
-            closure_status, decision, tuple(reasons),
+            candidate_tasks, closure_status, decision, tuple(reasons),
+            (), (),
         ))
     governance = governance or GovernanceConfig()
     block_reasons = tuple(name for name, value in (
@@ -152,16 +178,29 @@ def evaluate_series_gate(
         ("budget_cap", governance.budget_cap),
         ("approver", governance.approver),
     ) if value is None or value is False or value == "")
+    candidate_ids = set(_candidate_pages(snapshot, reader_profile))
+    missing_hard = tuple(sorted(set(governance.hard_reference_dependencies) - candidate_ids))
+    if missing_hard:
+        block_reasons += ("hard_reference_dependencies",)
+    soft_missing = tuple(sorted(set(governance.soft_reference_dependencies) - candidate_ids))
     fingerprint_payload = {
         "snapshot": snapshot.snapshot_id,
         "profile": reader_profile.__dict__,
         "governance": governance.__dict__,
     }
     fingerprint = hashlib.sha256(json.dumps(fingerprint_payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
-    blocked = bool(block_reasons)
+    blocked = bool(block_reasons) or not candidates or not any(candidate.decision == "proceed" for candidate in candidates)
+    if not candidates or not any(candidate.decision == "proceed" for candidate in candidates):
+        block_reasons += ("no_retained_candidate",)
+    candidates = [CandidateDecision(
+        **{**candidate.__dict__,
+           "hard_reference_dependencies": missing_hard,
+           "soft_reference_dependencies": soft_missing}
+    ) for candidate in candidates]
     return SeriesGateResult(
         fingerprint, metrics, tuple(candidates), "blocked" if blocked else "ready",
         "rule_only" if blocked else "llm_allowed", block_reasons,
+        tuple(governance.hard_reference_dependencies), tuple(governance.soft_reference_dependencies),
     )
 
 

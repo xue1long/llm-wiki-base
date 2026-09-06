@@ -6,12 +6,12 @@ from src.kc.views.book.wiki.partition import (
 )
 
 
-def _page(i: int, page_type: str, taxonomy: str = "book-a", *, source: bool = True) -> PageRecord:
+def _page(i: int, page_type: str, taxonomy: str = "book-a", *, source: bool = True, target: str | None = None) -> PageRecord:
     return PageRecord(
         page_id=f"p{i}", title=f"Page {i}", page_type=page_type,
         path=f"{page_type}/p{i}.md", primary_taxonomy=taxonomy,
         summary="summary", content_blocks=(ContentBlock(f"p{i}:0", f"p{i}", None, "body", 0),),
-        relation_targets=(), content_sha256=f"hash-{i}", char_count=10,
+        relation_targets=(("teaches", target),) if target else (), content_sha256=f"hash-{i}", char_count=10,
         token_count=None, sources=(f"source-{i}",) if source else (),
     )
 
@@ -21,8 +21,8 @@ def _snapshot(*pages: PageRecord) -> WikiSnapshot:
 
 
 def test_series_gate_emits_deterministic_ready_baseline() -> None:
-    snapshot = _snapshot(*[_page(i, kind) for i, kind in enumerate(("concept", "entity", "synthesis"), 1)])
-    profile = ReaderProfile("reader", ("learn_concept", "apply"))
+    snapshot = _snapshot(*[_page(i, kind, target="p1" if i > 1 else None) for i, kind in enumerate(("concept", "entity", "synthesis"), 1)])
+    profile = ReaderProfile("reader", ("learn_concept", "apply"), min_pages_per_book=3, min_reader_tasks=2)
     governance = GovernanceConfig(external_authorized=True, budget_cap=100, approver="editor")
 
     result = evaluate_series_gate(snapshot, reader_profile=profile, governance=governance)
@@ -50,7 +50,7 @@ def test_series_gate_rejects_weak_candidate_without_provider() -> None:
 
 
 def test_missing_governance_blocks_and_forces_rule_only() -> None:
-    snapshot = _snapshot(*[_page(i, kind) for i, kind in enumerate(("concept", "entity", "synthesis"), 1)])
+    snapshot = _snapshot(*[_page(i, kind, target="p1" if i > 1 else None) for i, kind in enumerate(("concept", "entity", "synthesis"), 1)])
     result = evaluate_series_gate(snapshot, reader_profile=ReaderProfile("reader", ("learn_concept",)))
 
     assert result.status == "blocked"
@@ -60,5 +60,5 @@ def test_missing_governance_blocks_and_forces_rule_only() -> None:
 
 def test_same_snapshot_and_inputs_have_same_result() -> None:
     snapshot = _snapshot(*[_page(i, kind) for i, kind in enumerate(("concept", "entity", "synthesis"), 1)])
-    kwargs = dict(reader_profile=ReaderProfile("reader", ("learn_concept",)), governance=GovernanceConfig(True, 100, "editor"))
+    kwargs = dict(reader_profile=ReaderProfile("reader", ("learn_concept",), min_pages_per_book=3, min_reader_tasks=1), governance=GovernanceConfig(True, 100, "editor"))
     assert evaluate_series_gate(snapshot, **kwargs) == evaluate_series_gate(snapshot, **kwargs)
