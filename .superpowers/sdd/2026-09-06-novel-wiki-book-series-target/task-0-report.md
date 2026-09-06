@@ -48,3 +48,12 @@
 ## 后续阻塞状态
 
 实现和验证不阻塞后续任务。后续任务消费 `SeriesGateResult` 时必须保留 `rule_only` 和 `blocked` 状态，不得在门禁失败时调用叙事 Provider。
+
+## 审查修复记录
+
+- 所有候选均未 `proceed` 时，结果强制 `status=blocked`、`generation_mode=rule_only`，并记录 `no_retained_candidate`。
+- 闭环增加最小 reader task 数（默认 6）和候选内前置页面到出口页面的结构化 relation 边；仅有页面类型不再闭环。
+- 关系指标按结构化关系总数与悬空目标计数计算；无关系时为 `None`（未知），不再恒定伪造 1.0。
+- 默认输出 `book-a`、`book-b`、`book-c` 三个候选；空候选产生 `cancel`，跨候选关系产生 `merge`，满足门槛才 `proceed`。
+- hard/soft reference dependencies 进入候选和结果，缺失 hard dependency 会阻断；soft 缺失可审计但不阻断。
+- 新增回归覆盖 fail-closed、reader task/关系闭环、三候选裁决和依赖字段；`test_book_series_baseline.py`、scanner、e2e 共 21 passed。
