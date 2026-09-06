@@ -301,6 +301,34 @@ def book_wiki_manifest(project_id: str, version: str | None = None) -> dict:
     }
 
 
+def book_wiki_series_manifest(project_id: str) -> dict:
+    """Read a verified series manifest, with anonymous single-book fallback."""
+    import json
+    from ..kc.views.book.wiki.series_validate import read_legacy_manifest, validate_series_manifest
+
+    release, manifest = _active_book_wiki(project_id)
+    series_path = release / "series-manifest.json"
+    if series_path.is_file():
+        expected = (manifest.get("files") or {}).get("series-manifest.json")
+        actual = hashlib.sha256(series_path.read_bytes()).hexdigest()
+        if not expected or expected != actual:
+            raise BookWikiUnavailableError("Series manifest failed integrity checks")
+        try:
+            payload = json.loads(series_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+            raise BookWikiUnavailableError("Series manifest is unreadable") from exc
+        report = validate_series_manifest(payload)
+        if not report["ok"]:
+            raise BookWikiUnavailableError("Series manifest failed validation")
+        return payload
+    legacy = read_legacy_manifest(manifest)
+    legacy["books"] = [{"book_id": manifest.get("book_id"), "required": True,
+                         "status": "ready", "outline_id": manifest.get("outline_id"),
+                         "hard_dependencies": [], "soft_dependencies": []}]
+    legacy["release_id"] = manifest.get("run_id")
+    return legacy
+
+
 def read_book_wiki_content(project_id: str, path: str, version: str | None = None) -> dict:
     """Read one chapter from the verified active Book release."""
     release, manifest = _active_book_wiki(project_id, version=version)
