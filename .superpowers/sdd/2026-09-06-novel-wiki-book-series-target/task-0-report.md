@@ -75,3 +75,31 @@
 - duplicate rate 分母固定为有有效 `content_sha256` 的页面数，`duplicate_denominator` 写入全局与候选结果；补充空 hash 测试。
 - 新增 required_by 正向边、5/6 task 下限、无效出口、taxonomyfoo、空 hash 边界测试。
 - 实际验证：`TEMP=.tmp-pytest TMP=.tmp-pytest TMPDIR=.tmp-pytest PYTHONPATH=. <bundled-python> -m pytest tests/test_kc/test_book_series_baseline.py tests/test_kc/test_book_wiki_scanner.py tests/test_kc/test_book_wiki_e2e.py -q` → 29 passed。
+
+## 复审 Round 4 修复
+
+- 测试现在真实包含 `taxonomyfoo`，并断言单条该目标关系产生 `relation_unresolved_count=1`、`relation_parse_rate=0.0`。
+- reader task 边界夹具分别真实产生 5 和 6 个候选任务，并直接断言 `reader_task_count`；5 个任务得到 `INSUFFICIENT_READER_TASKS`/`incomplete`，6 个任务保留 `required_by` 前置页→出口页正向边并得到 `closed`/`proceed`。
+- hard dependency 仅由非空候选满足。默认空 `book-c` 现在写入候选结果的 `hard_reference_dependencies=("book-c",)` 并增加同名 block reason；加入一个 `book-c` 页面后该缺失字段清空。soft dependency 行为未改。
+- RED 命令：
+
+```powershell
+$tmpPath = (Resolve-Path -LiteralPath '.tmp-pytest').Path
+$env:TEMP = $tmpPath
+$env:TMP = $tmpPath
+$env:TMPDIR = $tmpPath
+$env:PYTHONPATH = '.'
+& 'C:\Users\HP\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m pytest tests/test_kc/test_book_series_baseline.py -q
+```
+
+  结果：1 failed, 13 passed；失败点为默认空 `book-c` 未产生 `hard_reference_dependencies` block reason，符合预期。
+- GREEN 定向命令同上，结果：14 passed in 0.44s。
+- scanner/e2e 回归命令：
+
+```powershell
+& 'C:\Users\HP\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m pytest tests/test_kc/test_book_series_baseline.py tests/test_kc/test_book_wiki_scanner.py tests/test_kc/test_book_wiki_e2e.py -q
+```
+
+  结果：31 passed in 1.48s。
+- 产品入口仍无 provider 参数；本轮实现与测试没有远程 LLM 调用，也未增加第三方依赖或删除旧功能。
+- `graphify update .` 无法运行：已安装 launcher 指向不存在的 Python 3.12，改用 bundled Python 执行时缺少 `graphify` 模块；未修改 graphify 输出。

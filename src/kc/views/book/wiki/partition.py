@@ -207,7 +207,7 @@ def evaluate_series_gate(
         ("budget_cap", governance.budget_cap),
         ("approver", governance.approver),
     ) if value is None or value is False or value == "")
-    candidate_ids = set(_candidate_pages(snapshot, reader_profile))
+    candidate_ids = {candidate_id for candidate_id, candidate_pages in _candidate_pages(snapshot, reader_profile).items() if candidate_pages}
     missing_hard = tuple(sorted(set(governance.hard_reference_dependencies) - candidate_ids))
     if missing_hard:
         block_reasons += ("hard_reference_dependencies",)
