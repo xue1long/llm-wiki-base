@@ -56,3 +56,5 @@ next_status = transition_status("draft", "partial")
 本机复测：`C:\tmp\otel-verify\Scripts\python.exe -m pytest ...` 仍因 uv trampoline `permission denied (os error 5)` 无法启动；`C:\Program Files\PostgreSQL\17\pgAdmin 4\python\python.exe -m py_compile ...` 通过。完整 pytest 回归需使用协作环境 bundled Python 执行。
 
 追加修复：修正 curated public shape 的括号语法错误；series API 仅暴露允许字段并拒绝不安全 ID，legacy 使用匿名 `book_id`/`outline_id`，同时保留旧状态。语法编译再次通过。
+
+复审第二轮：允许 `outline_id` 为 `null`；legacy API 的 `release_id` 固定匿名为 `null`，不透传旧 `run_id`；新增 nullable outline 契约测试。服务/路由篡改文件和字段过滤回归由协作环境使用 bundled Python 执行。

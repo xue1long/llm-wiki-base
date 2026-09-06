@@ -19,8 +19,10 @@ def book(book_id="a", status="ready", required=True, release_id="r1", **extra):
 
 
 def series(status="ready", books=None, release_id="r1"):
-    return {"schema_version": SCHEMA_VERSION, "series_id": "s", "release_id": release_id,
-            "status": status, "books": books if books is not None else [book()]}
+    payload = {"schema_version": SCHEMA_VERSION, "series_id": "s", "release_id": release_id,
+               "status": status, "books": books if books is not None else [book()]}
+    payload["manifest_sha256"] = canonical_digest(payload)
+    return payload
 
 
 def test_valid_manifest_roundtrip_and_canonical_digest_does_not_self_reference():
@@ -33,6 +35,8 @@ def test_valid_manifest_roundtrip_and_canonical_digest_does_not_self_reference()
 def test_schema_and_state_transition_fail_closed():
     assert validate_series_manifest(series())["ok"]
     assert validate_series_manifest({"schema_version": "outline-v1"})["ok"] is False
+    missing_digest = series(); missing_digest.pop("manifest_sha256")
+    assert validate_series_manifest(missing_digest)["ok"] is False
     assert transition_status("draft", "partial") == "partial"
     with pytest.raises(ValueError):
         transition_status("ready", "partial")
@@ -52,14 +56,26 @@ def test_hashes_and_dependencies():
     manifest = {"files": {p.name: digest}}
     assert validate_release_files(manifest, p.parent)["ok"]
     assert validate_release_files({"files": {p.name: "bad"}}, p.parent)["ok"] is False
+    assert validate_release_files({"files": {"nested/" + p.name: digest}}, p.parent)["ok"] is False
     books = [book("a", "ready", hard_dependencies=["b"]), book("b", "ready")]
     assert dependency_report(books)["ok"]
+    cross_release = [book("a", "ready", hard_dependencies=["b"], release_id="r1"), book("b", "ready", release_id="r2")]
+    assert validate_series_manifest(series("ready", cross_release))["ok"] is False
     assert dependency_report([book("a", "ready", hard_dependencies=["missing"])])["ok"] is False
     assert dependency_report([book("a", "ready", hard_dependencies=[""])])["ok"] is False
     assert dependency_report([book("a", "ready", soft_dependencies=["missing"])][0:])["soft_missing"] == ["missing"]
 
 
 def test_legacy_manifest_is_single_book_without_guessed_series_membership():
-    result = read_legacy_manifest({"schema_version": "outline-v1", "run_id": "old"})
+    result = read_legacy_manifest({"schema_version": "outline-v1", "run_id": "old", "status": "partial"})
     assert result["legacy"] is True
     assert result["series_id"] is None and result["book_id"] is None
+    assert result["status"] == "partial"
+    assert read_legacy_manifest({"schema_version": SCHEMA_VERSION, "status": "ready"})["legacy"]
+
+
+def test_nullable_outline_id_is_valid():
+    payload = series()
+    payload["books"][0]["outline_id"] = None
+    payload["manifest_sha256"] = canonical_digest(payload)
+    assert validate_series_manifest(payload)["ok"]
