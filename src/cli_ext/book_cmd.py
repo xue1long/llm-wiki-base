@@ -181,6 +181,9 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
         raise SystemExit(EXIT_BUILD_FAILED)
 
     try:
+        book_mode = None
+        if getattr(args, "narrative", False):
+            book_mode = "narrative" if bool(args.apply) else "narrative_draft"
         result = build_from_wiki(
             ctx.path, output_dir=output_dir, use_llm=bool(args.use_llm),
             polish=bool(args.polish), apply=bool(args.apply),
@@ -189,6 +192,10 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
             encyclopedic=bool(getattr(args, "encyclopedic", False)),
             quality_gate=getattr(args, "quality_gate", "rule"), rubric=getattr(args, "rubric", None),
             theme_outline=getattr(args, "theme_outline", None),
+            series_id=getattr(args, "series", None),
+            book_id=getattr(args, "book", None),
+            book_mode=book_mode,
+            release_id=getattr(args, "release_id", None),
         )
     except LockBusyError:
         raise SystemExit(EXIT_LOCK_BUSY)
