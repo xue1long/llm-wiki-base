@@ -217,9 +217,12 @@ def _active_book_wiki(project_id: str, version: str | None = None) -> tuple[Path
 
     ctx, _paths = resolve_project(project_id, by_id_only=True)
     book_dir = ctx.path / "book-wiki"
-    release = (_verified_book_release(book_dir, version)[0] if version else resolve_active_version(book_dir))
-    if release is None:
-        raise BookWikiUnavailableError("No active book-wiki release")
+    if version is None:
+        active = resolve_active_version(book_dir)
+        if active is None:
+            raise BookWikiUnavailableError("No active book-wiki release")
+        version = active.name
+    release, verified_manifest = _verified_book_release(book_dir, version)
     manifest_path = release / "manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -227,7 +230,7 @@ def _active_book_wiki(project_id: str, version: str | None = None) -> tuple[Path
         raise BookWikiUnavailableError("Active book-wiki manifest is unreadable") from exc
     if not isinstance(manifest, dict):
         raise BookWikiUnavailableError("Active book-wiki manifest is invalid")
-    return release, manifest
+    return release, verified_manifest
 
 
 def book_wiki_versions(project_id: str) -> dict:
@@ -320,10 +323,28 @@ def book_wiki_series_manifest(project_id: str) -> dict:
         report = validate_series_manifest(payload)
         if not report["ok"]:
             raise BookWikiUnavailableError("Series manifest failed validation")
-        return payload
+        def public_id(value):
+            if not isinstance(value, str) or not value or Path(value).is_absolute() or "/" in value or "\\" in value or ".." in value:
+                raise BookWikiUnavailableError("Series manifest contains an unsafe public identifier")
+            return value
+
+        public_books = []
+        for book in payload.get("books", []):
+            if not isinstance(book, dict):
+                raise BookWikiUnavailableError("Series manifest contains an invalid book")
+            public = {key: book[key] for key in (
+                "book_id", "required", "status", "outline_id",
+                "hard_dependencies", "soft_dependencies") if key in book}
+            for key in ("book_id", "outline_id"):
+                public_id(public_id(public.get(key)))
+            for key in ("hard_dependencies", "soft_dependencies"):
+                public[key] = [public_id(value) for value in public.get(key, [])]
+            public_books.append(public)
+        return {"series_id": public_id(payload["series_id"]), "release_id": public_id(payload["release_id"]),
+                "status": payload["status"], "books": public_books}
     legacy = read_legacy_manifest(manifest)
-    legacy["books"] = [{"book_id": manifest.get("book_id"), "required": True,
-                         "status": "ready", "outline_id": manifest.get("outline_id"),
+    legacy["books"] = [{"book_id": None, "required": True,
+                         "status": legacy["status"], "outline_id": None,
                          "hard_dependencies": [], "soft_dependencies": []}]
     legacy["release_id"] = manifest.get("run_id")
     return legacy

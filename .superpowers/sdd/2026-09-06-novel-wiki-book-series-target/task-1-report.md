@@ -44,3 +44,15 @@ next_status = transition_status("draft", "partial")
 ## 修复追加
 
 首轮定向 pytest 由协作环境发现 round-trip 失败：输入未提供的可选空 `hashes` 被序列化回 payload。修复为仅序列化非空可选字段；必需字段仍始终输出，校验语义不变。修复后应重跑本测试及相关 book/files 回归。
+
+## Review 修复
+
+- series API 现在只返回 `series_id`、`release_id`、`status`、`books` 公共字段；legacy 不再嵌入原始 manifest。
+- active release 统一经过 `_verified_book_release` 的全部文件路径/哈希校验；series manifest 也必须列入 release `files` 映射并匹配 SHA-256。
+- `series-manifest-v1` 强制要求 64 位 canonical `manifest_sha256`。
+- legacy 保留原 status；缺失或非法 schema/`series_id` 返回匿名 legacy，非法状态降为 `invalid`，不伪造 ready。
+- nested release-root 路径继续明确拒绝（只允许 release 根下单段相对文件名），并增加测试。
+
+本机复测：`C:\tmp\otel-verify\Scripts\python.exe -m pytest ...` 仍因 uv trampoline `permission denied (os error 5)` 无法启动；`C:\Program Files\PostgreSQL\17\pgAdmin 4\python\python.exe -m py_compile ...` 通过。完整 pytest 回归需使用协作环境 bundled Python 执行。
+
+追加修复：修正 curated public shape 的括号语法错误；series API 仅暴露允许字段并拒绝不安全 ID，legacy 使用匿名 `book_id`/`outline_id`，同时保留旧状态。语法编译再次通过。
