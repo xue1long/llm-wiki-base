@@ -301,7 +301,101 @@ def build_chapter_chunks(
     return result
 
 
+def build_series_assignment(
+    snapshot: WikiSnapshot,
+    *,
+    candidate_taxonomies: tuple[str, ...] = ("book-a", "book-b", "book-c"),
+) -> dict:
+    """Create a deterministic, rule-only page ownership ledger."""
+    allowed = {str(value).strip() for value in candidate_taxonomies if str(value).strip()}
+    pages = tuple(sorted(snapshot.pages, key=lambda page: (page.page_id, page.path)))
+    counts: dict[str, int] = defaultdict(int)
+    for page in pages:
+        counts[page.page_id] += 1
+    page_map = {page.page_id: page for page in pages}
+    conflicting_ids = {page_id for page_id, count in counts.items() if count > 1}
+    conflict_pages: set[str] = set()
+    isolated_pages: set[str] = set()
+    for page in pages:
+        taxonomy = (page.primary_taxonomy or "").strip()
+        for _, target in page.relation_targets:
+            target_page = page_map.get(target)
+            if not target_page:
+                isolated_pages.add(page.page_id)
+            elif taxonomy and (target_page.primary_taxonomy or "").strip() != taxonomy:
+                conflict_pages.update((page.page_id, target))
+
+    seen_hashes: set[str] = set()
+    rows: list[dict] = []
+    for page in pages:
+        taxonomy = (page.primary_taxonomy or "").strip()
+        reason = None
+        if page.page_id in conflicting_ids:
+            reason = "duplicate_page_id"
+        elif page.page_id in conflict_pages:
+            reason = "cross_book_conflict"
+        elif page.page_id in isolated_pages:
+            reason = "isolated_relation"
+        elif taxonomy not in allowed:
+            reason = "unknown_taxonomy"
+        elif not page.sources:
+            reason = "missing_source"
+        elif not page.content_sha256:
+            reason = "missing_canonical_hash"
+        elif page.content_sha256 in seen_hashes:
+            reason = "duplicate_canonical"
+        if reason is None:
+            seen_hashes.add(page.content_sha256)
+        rows.append({
+            "page_id": page.page_id,
+            "page_type": page.page_type,
+            "primary_taxonomy": taxonomy or None,
+            "source_status": "present" if page.sources else "missing",
+            "content_fingerprint": page.content_sha256,
+            "primary_book_id": None if reason else taxonomy,
+            "chapter_id": None if reason else f"chapter-{taxonomy}-{page.page_type}",
+            "secondary_topics": [],
+            "ledger_reason": reason,
+        })
+
+    payload = {
+        "snapshot_id": snapshot.snapshot_id,
+        "schema_version": snapshot.schema_version,
+        "candidate_taxonomies": sorted(allowed),
+        "pages": [
+            {key: value for key, value in row.items() if key not in {"primary_book_id", "chapter_id", "ledger_reason"}}
+            for row in rows
+        ],
+    }
+    fingerprint = hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+    reason_counts: dict[str, int] = defaultdict(int)
+    for row in rows:
+        if row["ledger_reason"]:
+            reason_counts[row["ledger_reason"]] += 1
+    return {
+        "schema_version": "series-assignment-v1",
+        "snapshot_fingerprint": fingerprint,
+        "fingerprint": fingerprint,
+        "assignments": rows,
+        "metrics": {
+            "total_pages": len(rows),
+            "assigned_pages": sum(row["primary_book_id"] is not None for row in rows),
+            "ledger_pages": sum(row["ledger_reason"] is not None for row in rows),
+            "duplicate_pages": reason_counts["duplicate_canonical"],
+            "duplicate_page_ids": sum(count - 1 for count in counts.values() if count > 1),
+            "missing_sources": reason_counts["missing_source"],
+            "unknown_taxonomies": reason_counts["unknown_taxonomy"],
+            "conflict_pages": len(conflict_pages) + len(conflicting_ids),
+            "isolated_relations": sum(
+                1 for page in pages for _, target in page.relation_targets if target not in page_map
+            ),
+            "ledger_reasons": dict(sorted(reason_counts.items())),
+        },
+    }
+
+
 __all__ = [
     "partition_pages", "build_chapter_chunks", "ReaderProfile", "GovernanceConfig",
     "GateMetrics", "CandidateDecision", "SeriesGateResult", "evaluate_series_gate",
+    "build_series_assignment",
 ]
