@@ -29,10 +29,14 @@ class BookManifest:
     hashes: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return {"book_id": self.book_id, "required": self.required, "status": self.status,
+        data = {"book_id": self.book_id, "required": self.required, "status": self.status,
                 "outline_id": self.outline_id, "hard_dependencies": list(self.hard_dependencies),
-                "soft_dependencies": list(self.soft_dependencies), "release_id": self.release_id,
-                "hashes": dict(self.hashes)}
+                "soft_dependencies": list(self.soft_dependencies)}
+        if self.release_id is not None:
+            data["release_id"] = self.release_id
+        if self.hashes:
+            data["hashes"] = dict(self.hashes)
+        return data
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "BookManifest":

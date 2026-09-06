@@ -40,3 +40,7 @@ next_status = transition_status("draft", "partial")
 - 本 Task 未把 manifest 写入现有 compiler 发布流程；后续 Task 负责书系编译与原子指针发布接入。
 - 当前哈希 API 校验 manifest `files` 映射，调用方需把 outline、sidecar、正文列入映射。
 - pytest 因宿主 Python 权限问题未执行。
+
+## 修复追加
+
+首轮定向 pytest 由协作环境发现 round-trip 失败：输入未提供的可选空 `hashes` 被序列化回 payload。修复为仅序列化非空可选字段；必需字段仍始终输出，校验语义不变。修复后应重跑本测试及相关 book/files 回归。
