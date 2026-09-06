@@ -124,3 +124,33 @@ Reviewer subagent verdict: **Spec: PASS**. All 4 originally-red classes fixed; 2
 
 ### Status
 Slice `d06e906f` ready to be reported as the new session's gap-closure commit. Tasks 0–8 ledger lines (1–59) remain accurate; no further code changes required for the priority list. Final acceptance report is at `docs/reports/2026-09-06-book-series-acceptance.md` (commit `d66d7f6d`) — this slice updates the ledger and confirms the regression envelope.
+
+## Session-end cascade (slices 6a457bb3..956213b4)
+
+After the reviewer Important finding, the new session promoted the working-tree V3/V4 work into commits, one logical concern per commit:
+
+| Slice | Subject | Files | Tests |
+|---|---|---|---|
+| `6a457bb3` | feat(book): 接入 series gate 阻断 dry-run 与 cross-links 公共 seam | `src/kc/views/book/wiki/{__init__,cross_links,compiler}.py`, `tests/test_kc/test_book_series_cli_gate_blocks_dryrun.py` | 726/726 kc; previously broken e2e/wiki_compiler/theme_outline tests now pass because the gate is gated on `series_id is not None` |
+| `a542430a` | feat(book): CLI book build-from-wiki 接入 series 参数 | `src/cli_ext/book_cmd.py` | 4/4 cli_ext book_build_from_wiki |
+| `dd0b5f9d` | fix(book): Windows LF/CRLF 兼容与 lineage 哈希回退 | `src/lib/write_hooks.py`, `src/lineage/api.py`, `src/wiki/features/lint.py` | 126/126 lib+lineage+project |
+| `00a2769a` | feat(ingest): V4 disk contract 与 namespace relations 接入 | `src/pipeline/{generator,ingest}.py` | 608/608 pipeline |
+| `24dd2185` | test(book): 补 LLM provider 环境变量与 project resolve 回归 | `tests/test_llm/test_provider_factory.py`, `tests/test_project/test_context_resolve.py` | 39/39 |
+| `69a95746` | docs(book): 标记书系计划 Tasks 0-6 完成状态 | `docs/superpowers/plans/2026-09-06-novel-wiki-book-series-target.md` | docs only |
+| `956213b4` | docs(memory): 索引书系整改 + 真实 baseline 反馈 | `.memory/MEMORY.md` | docs only |
+
+### Final regression envelope
+
+- `pytest tests/test_kc/test_book_series_*.py`: **58/58 PASS**
+- `pytest tests/test_kc/`: **726/726 PASS** (was 725/1-fail in the previous session; the e2e tests that were broken by the untracked gate block now pass because the gate only fires when `series_id` is supplied)
+- `pytest tests/test_cli_ext/`: **179/179 PASS**
+- `pytest tests/test_pipeline+server+wiki/`: **1279/1279 PASS**
+- `pytest tests/ --ignore=tests/test_mcp_server --timeout=30`: **3909 passed, 1 failed in 336s** (the single failure is `tests/test_scripts/test_batch_executor.py::test_partial_commit_records_state_and_resume_retries`, pre-existing — verified at parent commit `fb707d9b`).
+
+### Red-line audit (final session)
+
+- No LLM call issued to fill baseline gaps; `evaluate_series_gate` is purely rule-only.
+- No default 3-book assumption baked into the gate; `candidate_taxonomies=(series_id,)` is set from caller input, never hard-coded.
+- No full `--apply`; gate only fires under `--series` and rejects with `status=blocked`, never `committed`.
+- Pre-existing `knowledge/novel-wiki/book-wiki/CURRENT.json` (`version=4e1229dae60241e3a5aeb323b14a123a`, `manifest_sha256=762a865c…`) was not in any commit diff. Verified `git show 6a457bb3 --stat -- knowledge/` returns nothing.
+- Each slice is test-first, scoped, and the broader test surface stays green.
