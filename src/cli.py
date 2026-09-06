@@ -577,8 +577,27 @@ def build_parser() -> "argparse.ArgumentParser":
     p_book_wiki.add_argument("--max-input-tokens", type=int, default=None)
     p_book_wiki.add_argument("--max-output-tokens", type=int, default=None)
     p_book_wiki.add_argument("--theme-outline", help="Use a theme-only outline and map Wiki summaries into it")
+    def _require_id(value: str) -> str:
+        if not value or not value.strip():
+            raise argparse.ArgumentTypeError("must be a non-empty id")
+        return value
+
+    p_book_wiki.add_argument("--series", type=_require_id,
+                             help="Series id for staged book-series publishing")
+    p_book_wiki.add_argument("--book", type=_require_id,
+                             help="Book id within the series (must pair with --series)")
+    p_book_wiki.add_argument("--release-id", default=None, help="Release id for the series manifest")
+    p_book_wiki.add_argument("--narrative", action="store_true",
+                             help="Enable narrative mode for the selected book (requires --use-llm)")
     p_book_wiki.add_argument("--json", action="store_true", help="Emit JSON instead of text")
-    p_book_wiki.set_defaults(func=cmd_book_build_from_wiki)
+
+    def _validate_narrative(args, _parser):
+        if args.narrative and not args.use_llm:
+            _parser.error("--narrative requires --use-llm")
+        if (args.book is None) != (args.series is None):
+            _parser.error("--series and --book must be supplied together")
+
+    p_book_wiki.set_defaults(func=cmd_book_build_from_wiki, validate=_validate_narrative)
     p_book_theme = p_book_sub.add_parser(
         "outline-from-theme", help="Generate a volume/chapter outline without reading Wiki"
     )
@@ -630,6 +649,10 @@ def main():
     if args.command is None:
         parser.print_help()
         sys.exit(1)
+
+    validate = getattr(args, "validate", None)
+    if callable(validate):
+        validate(args, parser)
 
     args.func(args)
 

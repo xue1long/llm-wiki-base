@@ -13,6 +13,62 @@ def _result(errors: list[str], **extra: Any) -> dict[str, Any]:
     return {"ok": not errors, "errors": errors, **extra}
 
 
+def detect_dependency_cycles(books: list[dict[str, Any]]) -> dict[str, list[str]]:
+    """Return deterministic hard/soft dependency cycles keyed by start node.
+
+    Self-loops, two-node cycles, and longer cycles are each reported once
+    per starting node so the publisher can fail-closed before touching the
+    staged release. Namespace relations are not book-level and never appear
+    here.
+    """
+    nodes: list[str] = []
+    edges: dict[str, list[str]] = {}
+    for book in books:
+        if not isinstance(book, dict):
+            continue
+        bid = book.get("book_id")
+        if not isinstance(bid, str) or not bid:
+            continue
+        nodes.append(bid)
+        deps: list[str] = []
+        for kind in ("hard_dependencies", "soft_dependencies"):
+            for dep in book.get(kind, ()) or ():
+                if isinstance(dep, str) and dep:
+                    deps.append(dep)
+        edges[bid] = deps
+    cycles: dict[str, list[str]] = {}
+    for start in nodes:
+        # Self-loop is the trivial cycle; surface it before any DFS.
+        if start in edges.get(start, ()):
+            cycles.setdefault(start, []).extend([start, start])
+            continue
+        stack: list[str] = [start]
+        active: set[str] = {start}
+        visited: set[str] = {start}
+        recorded = False
+        while stack and not recorded:
+            cur = stack[-1]
+            nxts = [d for d in edges.get(cur, ()) if d in edges]
+            back = next((d for d in nxts if d in active and d != cur), None)
+            if back is not None:
+                idx = stack.index(back)
+                cycles.setdefault(start, []).extend(stack[idx:] + [back])
+                recorded = True
+                break
+            # Use a fully visited set so we never re-enter a node we've already
+            # finished exploring (the original code relied only on `active` and
+            # would re-walk into b after popping it, causing an infinite loop).
+            next_node = next((d for d in nxts if d not in visited), None)
+            if next_node is None:
+                stack.pop()
+                active.discard(cur)
+            else:
+                stack.append(next_node)
+                active.add(next_node)
+                visited.add(next_node)
+    return cycles
+
+
 def validate_book_manifest(payload: object, *, release_id: str | None = None) -> dict[str, Any]:
     errors: list[str] = []
     if not isinstance(payload, dict):
@@ -30,7 +86,10 @@ def validate_book_manifest(payload: object, *, release_id: str | None = None) ->
         value = payload.get(key)
         if not isinstance(value, list) or any(not isinstance(x, str) for x in value):
             errors.append(f"{key}-type")
-    if release_id is not None and payload.get("release_id") not in (None, release_id):
+    # Release binding is enforced whenever the series provided a release_id,
+    # regardless of overall status — cross-release deps can never ship atomically.
+    book_release = payload.get("release_id")
+    if release_id is not None and book_release not in (None, release_id):
         errors.append("release-mismatch")
     return _result(errors)
 
@@ -50,6 +109,9 @@ def dependency_report(books: list[dict[str, Any]]) -> dict[str, Any]:
                         errors.append(f"hard-dependency:{book.get('book_id')}:{dep}")
                     else:
                         soft_missing.append(str(dep))
+    cycles = detect_dependency_cycles(books)
+    for start in sorted(cycles):
+        errors.append(f"dependency-cycle:{start}:{' -> '.join(cycles[start])}")
     return _result(errors, soft_missing=sorted(set(soft_missing)))
 
 
@@ -73,6 +135,7 @@ def validate_series_manifest(payload: object) -> dict[str, Any]:
         errors.append("books-type")
         books = []
     seen: set[str] = set()
+    seen_outlines: dict[str, str] = {}
     for book in books:
         report = validate_book_manifest(book, release_id=payload.get("release_id"))
         errors.extend(f"book:{e}" for e in report["errors"])
@@ -81,6 +144,13 @@ def validate_series_manifest(payload: object) -> dict[str, Any]:
             if bid in seen:
                 errors.append(f"duplicate-book:{bid}")
             seen.add(bid)
+            # outline_id must be unique within one release (None is allowed).
+            oid = book.get("outline_id")
+            if isinstance(oid, str) and oid:
+                if oid in seen_outlines:
+                    errors.append(f"outline-conflict:{oid}:{seen_outlines[oid]}:{bid}")
+                else:
+                    seen_outlines[oid] = bid
     dep = dependency_report(books)
     errors.extend(dep["errors"])
     recorded_digest = payload.get("manifest_sha256")
@@ -92,7 +162,12 @@ def validate_series_manifest(payload: object) -> dict[str, Any]:
     ready = all(b.get("status") == "ready" and b.get("release_id", payload.get("release_id")) == payload.get("release_id") for b in required)
     if payload.get("status") == "ready" and (not ready or dep["errors"]):
         errors.append("ready-gate")
-    if payload.get("status") == "ready" and any(b.get("status") in {"invalid", "partial"} for b in required):
+    # Any book marked invalid/partial (required or optional) blocks a ``ready``
+    # series; the caller must downgrade to ``partial`` and acknowledge the
+    # missing book explicitly via the partial-status path below.
+    if payload.get("status") == "ready" and any(
+            b.get("status") in {"invalid", "partial"} for b in books
+            if isinstance(b, dict)):
         errors.append("required-not-ready")
     return _result(errors, soft_missing=dep["soft_missing"], canonical_digest=canonical_digest(payload))
 
@@ -131,4 +206,5 @@ def read_legacy_manifest(payload: object) -> dict[str, Any]:
             "status": status}
 
 
-__all__ = ["validate_book_manifest", "validate_series_manifest", "validate_release_files", "dependency_report", "read_legacy_manifest"]
+__all__ = ["validate_book_manifest", "validate_series_manifest", "validate_release_files",
+           "dependency_report", "detect_dependency_cycles", "read_legacy_manifest"]
