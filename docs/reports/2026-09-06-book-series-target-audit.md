@@ -1,6 +1,6 @@
 # 书系目标方案复审记录
 
-**对象：** `docs/superpowers/specs/2026-09-06-novel-wiki-book-series-target.md`、`docs/superpowers/plans/2026-09-06-novel-wiki-book-series-target.md`  
+**对象：** `docs/superpowers/specs/2026-09-06-novel-wiki-book-series-target.md`、`docs/superpowers/plans/2026-09-06-novel-wiki-book-series-target.md`
 **结论：** “三本主教程 + 参考库”比单书五卷更适合当前知识库，但必须先完成页面归属基线和连续样例，不能直接全量编译。
 
 ## 第一轮：漏洞清单

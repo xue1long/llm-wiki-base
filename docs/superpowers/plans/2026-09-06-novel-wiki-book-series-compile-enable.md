@@ -90,7 +90,7 @@ NOVEL_WIKI_PROFILE = ReaderProfile(
 
 def derive_chapter_exit_evidence(snapshot, candidate_taxonomy: str) -> tuple[str, ...]:
     """Auto-derive synthesis/concept page_ids in the candidate taxonomy.
-    
+
     Returns up to 3 page_ids: (highest-char synthesis) + 1 concept anchor.
     Empty tuple if no synthesis exists in candidate.
     """

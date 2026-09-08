@@ -1,7 +1,7 @@
 # 叙事化写作方法论目标方案审计记录
 
-**审计对象：** `docs/superpowers/specs/2026-09-06-novel-wiki-narrative-book-design.md` 与 `docs/superpowers/plans/2026-09-06-novel-wiki-narrative-book.md`  
-**审计方式：** 独立第三方视角；第一轮全面漏洞审计，第二轮失败路径压力测试。  
+**审计对象：** `docs/superpowers/specs/2026-09-06-novel-wiki-narrative-book-design.md` 与 `docs/superpowers/plans/2026-09-06-novel-wiki-narrative-book.md`
+**审计方式：** 独立第三方视角；第一轮全面漏洞审计，第二轮失败路径压力测试。
 **结论：** 方案可作为受控样章和 dry-run 的目标方案；在信息盲区补齐、样章人工验收和质量门实现前，不具备全书正式发布条件。
 
 ## 第一轮：问题分级
