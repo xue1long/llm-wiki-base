@@ -49,7 +49,7 @@ def _project(tmp_path: Path) -> Path:
 
 class _PolishedProvider:
     async def complete(self, messages, **_kwargs):
-        request = json.loads(messages[0]["content"])
+        request = json.loads(messages[-1]["content"])
         if "source_pages" in request:
             section = request["allowed_sections"][0]
             payload = {
@@ -108,3 +108,20 @@ def test_publish_failure_marks_lineage_failed(monkeypatch, tmp_path: Path) -> No
     assert run is not None
     assert run["status"] == "failed"
     assert store.artifacts(artifact_kind="book", status="published") == ()
+
+
+def test_lineage_failure_after_pointer_switch_is_audit_warning(monkeypatch, tmp_path: Path) -> None:
+    root = _project(tmp_path)
+
+    def fail_lineage(self, *args, **kwargs):
+        raise OSError("lineage unavailable")
+
+    monkeypatch.setattr(LineageStore, "record_book_release", fail_lineage)
+    result = build_from_wiki(
+        root, output_dir=root / "book-wiki", use_llm=True, polish=True, apply=True,
+        provider=_PolishedProvider(), quality_gate="rule"
+    )
+
+    assert result["status"] == "published_with_audit_warning"
+    assert "lineage_record_failed" in result["error"]
+    assert (root / "book-wiki" / "CURRENT.json").is_file()

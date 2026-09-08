@@ -13,7 +13,7 @@ from src.kc.views.book.wiki.scanner import scan_wiki_snapshot
 
 class _PolishedProvider:
     async def complete(self, messages, **_kwargs):
-        request = json.loads(messages[0]["content"])
+        request = json.loads(messages[-1]["content"])
         if "source_pages" in request:
             section = request["allowed_sections"][0]
             payload = {"chapter_id": request["chapter_id"], "content_status": "complete",
