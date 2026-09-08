@@ -350,6 +350,7 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
     files: dict[str, str] = {}
     used: set[str] = set()
     chapter_files: dict[str, str] = {}
+    planned_chapters: list[str] = []
     chapter_sources: dict[str, list[str]] = {}
     section_source_ids: dict[str, dict[str, list[str]]] = {}
     chapter_body_present = True
@@ -360,7 +361,10 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
             errors.append(f"filename-collision:{name}")
             continue
         used.add(name)
-        chapter_files[chapter_id] = name
+        if plan_only:
+            planned_chapters.append(chapter_id)
+        else:
+            chapter_files[chapter_id] = name
         draft = aggregate_chapter(chapter, page_map)
         chapter_sources[name] = sorted({source for page_id in draft.page_ids for source in page_map[page_id].sources})
         if plan_only:
@@ -523,6 +527,8 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
         manifest["chapter_body_present"] = False
         manifest["section_source_ids_present"] = False
     manifest["chapter_files"] = chapter_files
+    if plan_only:
+        manifest["planned_chapters"] = planned_chapters
     manifest["chapter_sources"] = chapter_sources
     manifest["source_provenance"] = _source_provenance(snapshot)
     if series_id is not None and book_id is not None:
@@ -903,6 +909,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                 snapshot, chunks, provider,
                 context_window=max_input_tokens or 8000,
                 token_budget=max_output_tokens or 1000,
+                project_rules=rules.text,
             ))
             outline = planned_outlines[0]
             outline_generation_mode = str(outline.get("generation_mode", "llm"))
@@ -1060,7 +1067,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                             llm_metadata=llm_metadata,
                             rules_hash=rules.rules_hash,
                             rules_snapshot=rules.text,
-                            rules_path="book.rules.md",
+                            rules_path=rules.path,
                             plan_only=not use_llm and not polish and not apply,
                             run_id=lineage_run_id)
     if artifact.validation_errors:
@@ -1151,7 +1158,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         )
         acceptance.update({
             "rules_hash": rules.rules_hash,
-            "rules_path": "book.rules.md",
+            "rules_path": rules.path,
             "rules_snapshot": rules.text,
         })
         write_release_acceptance_report(artifact.version_dir, acceptance)
@@ -1175,7 +1182,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         )
         acceptance.update({
             "rules_hash": rules.rules_hash,
-            "rules_path": "book.rules.md",
+            "rules_path": rules.path,
             "rules_snapshot": rules.text,
         })
         try:
@@ -1220,11 +1227,16 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             )
             acceptance.update({
                 "rules_hash": rules.rules_hash,
-                "rules_path": "book.rules.md",
+                "rules_path": rules.path,
                 "rules_snapshot": rules.text,
             })
             write_release_acceptance_report(acceptance_dir, acceptance)
-        result = {"status": "failed" if lineage_error else report.status, "run_id": report.run_id,
+        result_status = (
+            "published_with_audit_warning"
+            if report.status == "committed" and lineage_error
+            else "failed" if lineage_error else report.status
+        )
+        result = {"status": result_status, "run_id": report.run_id,
                     "snapshot_id": snapshot.snapshot_id, "version_dir": str(artifact.version_dir),
                     "error": lineage_error or report.error} if report.error or lineage_error else {
                     "status": report.status, "run_id": report.run_id,

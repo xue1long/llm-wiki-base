@@ -145,10 +145,12 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
     mode = getattr(args, "build_mode", None)
     if mode is None:
         # Namespaces built by older callers do not have the new mode field.
-        # Keep their non-publishing behavior while mapping the old apply flag.
-        mode = "apply" if bool(getattr(args, "apply", False)) else "plan"
-        use_llm = bool(getattr(args, "use_llm", False))
-        polish = bool(getattr(args, "polish", False))
+        # Normalize every legacy LLM request to a complete body-generating mode.
+        legacy_apply = bool(getattr(args, "apply", False))
+        legacy_llm = bool(getattr(args, "use_llm", False) or getattr(args, "polish", False))
+        mode = "apply" if legacy_apply else "preview" if legacy_llm else "plan"
+        use_llm = mode in {"preview", "apply"}
+        polish = use_llm
         apply = mode == "apply"
     else:
         use_llm = mode in {"preview", "apply"}

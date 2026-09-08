@@ -13,6 +13,7 @@ _RULES_FILENAME = "book.rules.md"
 class BookRulesSnapshot:
     """The immutable rules input captured for one Book build."""
 
+    path: str
     text: str
     rules_hash: str
 
@@ -39,6 +40,7 @@ def load_book_rules(project_root: Path | str) -> BookRulesSnapshot:
         raise BookRulesError(f"Book rules are empty: {path}")
 
     return BookRulesSnapshot(
+        path=_RULES_FILENAME,
         text=text,
         rules_hash=sha256(text.encode("utf-8")).hexdigest(),
     )
