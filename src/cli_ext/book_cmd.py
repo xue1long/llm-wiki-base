@@ -141,7 +141,19 @@ def _wiki_exit_code(errors: tuple[Any, ...]) -> int:
 
 
 def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
-    """Run the V3 wiki compiler; dry-run is the default."""
+    """Run the V3 wiki compiler using the public plan/preview/apply modes."""
+    mode = getattr(args, "build_mode", None)
+    if mode is None:
+        # Namespaces built by older callers do not have the new mode field.
+        # Keep their non-publishing behavior while mapping the old apply flag.
+        mode = "apply" if bool(getattr(args, "apply", False)) else "plan"
+        use_llm = bool(getattr(args, "use_llm", False))
+        polish = bool(getattr(args, "polish", False))
+        apply = mode == "apply"
+    else:
+        use_llm = mode in {"preview", "apply"}
+        polish = use_llm
+        apply = mode == "apply"
     ctx = _resolve(args.project)
     output_dir = Path(args.output_dir)
     if not output_dir.is_absolute():
@@ -149,15 +161,15 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
 
     preflight = run_preflight(
         str(ctx.path), output_dir=output_dir,
-        use_llm=bool(args.use_llm), provider_name=getattr(args, "provider", None),
-        polish=bool(args.polish),
+        use_llm=use_llm, provider_name=getattr(args, "provider", None),
+        polish=polish,
     )
-    if getattr(args, "encyclopedic", False) and not args.use_llm:
-        payload = {"status": "blocked", "errors": [{"code": "E_ENCYCLOPEDIC_REQUIRES_LLM", "message": "--encyclopedic requires --use-llm"}], "output_dir": str(output_dir.resolve())}
+    if getattr(args, "encyclopedic", False) and not use_llm:
+        payload = {"status": "blocked", "errors": [{"code": "E_ENCYCLOPEDIC_REQUIRES_LLM", "message": "--encyclopedic requires --preview or --apply"}], "output_dir": str(output_dir.resolve())}
         if args.json:
             print(json.dumps(payload, ensure_ascii=False, indent=2))
         else:
-            print("Error [E_ENCYCLOPEDIC_REQUIRES_LLM]: --encyclopedic requires --use-llm", file=sys.stderr)
+            print("Error [E_ENCYCLOPEDIC_REQUIRES_LLM]: --encyclopedic requires --preview or --apply", file=sys.stderr)
         raise SystemExit(EXIT_BUDGET_EXHAUSTED)
     if not preflight.ok:
         payload = {"status": "blocked", "errors": [e.__dict__ for e in preflight.errors],
@@ -183,12 +195,16 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
     try:
         book_mode = None
         if getattr(args, "narrative", False):
-            book_mode = "narrative" if bool(args.apply) else "narrative_draft"
+            book_mode = "narrative" if apply else "narrative_draft"
         result = build_from_wiki(
-            ctx.path, output_dir=output_dir, use_llm=bool(args.use_llm),
-            polish=bool(args.polish), apply=bool(args.apply),
-            max_attempts=args.max_attempts, max_input_tokens=args.max_input_tokens,
-            max_output_tokens=args.max_output_tokens,
+            ctx.path, output_dir=output_dir, use_llm=use_llm,
+            polish=polish, apply=apply,
+             max_attempts=args.max_attempts, max_input_tokens=args.max_input_tokens,
+             max_output_tokens=args.max_output_tokens,
+             max_llm_calls=getattr(args, "max_llm_calls", 3),
+             max_runtime_seconds=getattr(args, "max_runtime_seconds", 900),
+             budget_cap=getattr(args, "budget_cap", None),
+             approver=getattr(args, "approver", None),
             encyclopedic=bool(getattr(args, "encyclopedic", False)),
             quality_gate=getattr(args, "quality_gate", "rule"), rubric=getattr(args, "rubric", None),
             theme_outline=getattr(args, "theme_outline", None),
@@ -209,15 +225,15 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
     payload = result if isinstance(result, dict) else getattr(result, "__dict__", {"status": "ok"})
     if not isinstance(payload, dict):
         payload = {"status": "ok", "result": str(payload)}
-    if not args.apply:
+    if not apply:
         payload.setdefault("dry_run", True)
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
     else:
         print(f"Wiki book: {payload.get('status', 'ok')}")
         print(f"  output_dir={output_dir.resolve()}")
-        if not args.apply:
-            print("  dry-run: nothing was published")
+        if not apply:
+            print(f"  mode={mode}: nothing was published")
     if payload.get("status") in {"failed", "blocked"}:
         codes = payload.get("errors", ()) or payload.get("reason_codes", ())
         raise SystemExit(_wiki_exit_code(tuple(codes)))
