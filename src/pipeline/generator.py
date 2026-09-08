@@ -43,6 +43,7 @@ from ..knowledge.core.candidate import KnowledgeCandidate
 from ..knowledge.core.object import KnowledgeObject
 from ..llm.types import TruncatedResponseError
 from ._pipeline_common import parse_llm_json
+from .prompt_policy import PROMPT_INJECTION_POLICY
 from .retry import RetryExhausted
 from .schemas import AnalysisResult
 from .wiki_rules_prompt import WIKI_RULES_SUMMARY
@@ -1789,6 +1790,7 @@ async def _call_with_slot_retry(
             response = await provider.complete(
                 messages=[{"role": "user", "content": base_prompt + extra}],
                 response_format=response_format if _json_mode else None,
+                system=PROMPT_INJECTION_POLICY,
                 timeout=timeout,
                 max_tokens=attempt_max_tokens,
             )

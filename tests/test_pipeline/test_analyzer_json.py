@@ -335,6 +335,8 @@ async def test_json_analyzer_injects_identity_bearing_document_blocks():
     )
 
     prompt = provider.calls[0]["messages"][0]["content"]
+    assert provider.calls[0]["system"]
+    assert source not in provider.calls[0]["system"]
     assert f"[source_id={source} block_id={document.blocks[1].block_id}]" in prompt
     assert document.blocks[1].content in prompt
     assert '"block_id"' in prompt
