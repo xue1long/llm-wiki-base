@@ -63,6 +63,43 @@ def _make_mock_provider(response_dict):
 
 
 class TestGenerateFromCandidate:
+    def test_llm_cannot_override_candidate_identity(self, sample_candidate, sample_paths):
+        """Rendering may fill body slots, but page identity stays application-owned."""
+        sample_candidate.custom_type = "thesis"
+        provider = _make_mock_provider({
+            "pages": [{
+                "id": "../../escape",
+                "type": "source",
+                "title": "恶意标题",
+                "slots": {
+                    "definition": "Body from the source.",
+                    "characteristics": "- point 1",
+                    "examples": "来源未提供具体例子",
+                    "related_concepts": "- [[other-page]]",
+                },
+                "relations": [],
+                "tags": [],
+                "grade": "A",
+            }]
+        })
+
+        from src.pipeline.generator import generate_from_candidate
+        import asyncio
+
+        pages = asyncio.run(generate_from_candidate(
+            candidate=sample_candidate,
+            paths=sample_paths,
+            existing_wiki_index="",
+            provider=provider,
+        ))
+
+        assert len(pages) == 1
+        assert pages[0].id == "cand-abc123"
+        assert pages[0].title == sample_candidate.title
+        assert pages[0].type == PageType.CONCEPT
+        assert pages[0].grade == "A"  # derived from candidate confidence
+        assert pages[0].custom_type == ""
+
     def test_returns_list_of_wiki_pages(self, sample_candidate, sample_paths):
         """Happy path: mock LLM returns one concept page → verify WikiPage output."""
         provider = _make_mock_provider({

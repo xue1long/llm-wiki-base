@@ -62,3 +62,29 @@ def test_promoter_is_fail_closed_for_rejected_candidate(tmp_path: Path) -> None:
         assert "validated" in str(exc)
     else:
         raise AssertionError("rejected candidates must not be promoted")
+
+
+def test_promoter_does_not_publish_partial_bundle(tmp_path: Path, monkeypatch) -> None:
+    """A failed bundle write must leave no visible manifest or partial bundle."""
+    document = normalize_text("Source quote", source="raw/sources/demo.md")
+    candidate = _candidate(block_id=document.blocks[0].block_id)
+    review = asyncio.run(CandidateReviewer().review(candidate, document))
+
+    from src.kc import mainline
+    original_write = mainline._write_text
+
+    def fail_on_candidate(path: Path, content: str) -> None:
+        if path.name == "candidate.json":
+            raise OSError("simulated disk failure")
+        original_write(path, content)
+
+    monkeypatch.setattr(mainline, "_write_text", fail_on_candidate)
+    try:
+        CandidatePromoter().promote(candidate, review, project_root=tmp_path, document=document)
+    except OSError:
+        pass
+    else:
+        raise AssertionError("simulated bundle failure must be surfaced")
+
+    bundle_root = tmp_path / ".index" / "kc" / "bundles"
+    assert not list(bundle_root.rglob("manifest.json"))

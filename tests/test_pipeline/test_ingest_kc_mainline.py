@@ -264,3 +264,34 @@ async def test_run_ingest_blocks_rejected_candidate_before_generation(
     assert not generated
     assert not list(paths.wiki.rglob("*.md"))
     assert (paths.root / ".index" / "quarantine" / "kc-rejected-candidate-test" / "candidate.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_legacy_pipeline_marks_terminal_errors_no_retry(monkeypatch):
+    """The compatibility handler must preserve terminal retry classification."""
+    import importlib
+
+    pipeline_mod = importlib.import_module("src.pipeline.pipeline")
+    updates = []
+
+    async def fail_ingest(**kwargs):
+        raise InvalidInputError("malicious generated path")
+
+    class QueueStub:
+        def release_in_flight(self, task_id):
+            return None
+
+    monkeypatch.setattr(pipeline_mod, "_resolve_wiki_paths", lambda **kwargs: object())
+    monkeypatch.setattr(pipeline_mod, "_get_provider", lambda **kwargs: object())
+    monkeypatch.setattr(pipeline_mod, "run_ingest", fail_ingest)
+    monkeypatch.setattr("src.queue.update_task_status", lambda *args, **kwargs: updates.append(kwargs))
+    monkeypatch.setattr("src.queue.service.get_default_queue_service", lambda: QueueStub())
+
+    await pipeline_mod._on_collector_done({
+        "task_id": "terminal-error",
+        "raw_path": "raw/sources/demo.md",
+        "content": "source",
+    })
+
+    assert updates
+    assert updates[0]["error"].startswith("[no-retry]")

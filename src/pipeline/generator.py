@@ -1085,16 +1085,20 @@ async def generate_from_candidate(
         "ingestor_version": "2.0.0",
     }
 
-    for p in filled_pages:
-        title = p.get("title", candidate.title)
-        slug = _slugify(title) or p.get("id", "")
-
-        if candidate.custom_type and schema_registry and schema_registry.is_custom(candidate.custom_type):
-            page_type = schema_registry.get_base_type(candidate.custom_type)
-        else:
-            page_type = _resolve_page_type(p.get("type"), schema_registry)
-        if page_type is None:
-            _logger.warning(f"Unknown page type: {p.get('type')}")
+    from .generator_constraint import KO_TYPE_TO_PAGE_TYPE
+    application_page_type = KO_TYPE_TO_PAGE_TYPE.get(candidate.type, PageType.CONCEPT)
+    for page_index, p in enumerate(filled_pages):
+        # The candidate has already passed the application-side review. The
+        # LLM only supplies body slots and optional semantic annotations.
+        title = candidate.title
+        candidate_id = candidate.id if page_index == 0 else f"{candidate.id}-{page_index}"
+        slug = _sanitize_generated_id(candidate_id)
+        page_type = application_page_type
+        if slug is None:
+            _logger.warning(
+                "[generate_from_candidate] dropping candidate with invalid id: %r",
+                candidate.id,
+            )
             continue
 
         # Deterministic source-page slug
@@ -1102,17 +1106,6 @@ async def generate_from_candidate(
             map_slug = source_slug_map.get(candidate.source_id)
             if map_slug:
                 slug = map_slug
-
-        # Sanitize generated ids (skip source pages with deterministic slug)
-        if page_type != PageType.SOURCE:
-            cleaned = _sanitize_generated_id(slug)
-            if cleaned is None:
-                _logger.warning(
-                    "[generate_from_candidate] dropping page with unrecoverable id: %r",
-                    p.get("id"),
-                )
-                continue
-            slug = cleaned
 
         template = resolved_templates.get(page_type)
         body_md = _render_page_body(
@@ -1142,14 +1135,16 @@ async def generate_from_candidate(
             id=slug, title=title, type=page_type,
             sources=[normalize_source_path(candidate.source_id, paths.root)],
             created_at=now, updated_at=now, body=body_md,
-            grade=p.get("grade", _derived_grade),
-            processing_depth=p.get("processing_depth") or _DEPTH_BY_TYPE.get(page_type, "concept"),
-            is_immutable=p.get("is_immutable", False),
+            grade=_derived_grade,
+            processing_depth=processing_depth_hint or _DEPTH_BY_TYPE.get(page_type, "concept"),
+            is_immutable=False,
             relations=parse_relations_from_response(deduped_relations),
             tags=_resolve_page_tags_unified(p),
             category=p.get("category", ""),
             taxonomy_sub=p.get("taxonomy_sub", ""),
-            custom_type=candidate.custom_type,
+            # V4 deliberately does not persist custom types; keep the page
+            # on the base PageType contract until that schema is redesigned.
+            custom_type="",
         )
         page._ko_extra = {"provenance": _provenance_payload}
         pages.append(page)

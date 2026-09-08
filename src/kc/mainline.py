@@ -4,6 +4,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
+import tempfile
 from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
@@ -131,57 +133,64 @@ class CandidatePromoter:
             f"{document.document_id}:{candidate.id}:{self.projection_version}".encode()
         ).hexdigest()
         bundle_dir = Path(project_root) / ".index" / "kc" / "bundles"
-        objects_dir = bundle_dir / bundle_key / "objects"
-        evidence_dir = bundle_dir / bundle_key / "evidence"
-        objects_dir.mkdir(parents=True, exist_ok=True)
-        evidence_dir.mkdir(parents=True, exist_ok=True)
-        for obj in review.objects:
-            _write_text(
-                objects_dir / f"{obj.id}.json",
-                json.dumps(_json_value(obj), ensure_ascii=False, indent=2),
-            )
-        for item in candidate.evidence:
-            quote = item.get("quote", "")
-            evidence = evidence_for_quote(
-                document_id=document.document_id,
-                block_id=str(item.get("block_id", "")),
-                quote=str(quote),
-                supports=tuple(
-                    review.objects[index].id
-                    for index, claim in enumerate(candidate.claims)
-                    if item.get("source_path") == str(document.source)
-                    and isinstance(claim.get("evidence_refs"), list)
-                    and any(ref == candidate.evidence.index(item) for ref in claim["evidence_refs"])
-                    and index < len(review.objects)
-                ),
-            )
-            evidence_path = evidence_dir / f"{evidence.evidence_id}.json"
-            _write_text(
-                evidence_path,
-                json.dumps(_json_value(evidence), ensure_ascii=False, indent=2),
-            )
+        bundle_dir.mkdir(parents=True, exist_ok=True)
+        final_dir = bundle_dir / bundle_key
+        final_manifest = final_dir / "manifest.json"
+        if final_manifest.exists():
+            return PromotionResult(bundle_key, candidate.id, tuple(obj.id for obj in review.objects), final_manifest)
+        stage_dir = Path(tempfile.mkdtemp(prefix=f".{bundle_key}.", dir=bundle_dir))
+        try:
+            objects_dir = stage_dir / "objects"
+            evidence_dir = stage_dir / "evidence"
+            objects_dir.mkdir()
+            evidence_dir.mkdir()
+            for obj in review.objects:
+                _write_text(
+                    objects_dir / f"{obj.id}.json",
+                    json.dumps(_json_value(obj), ensure_ascii=False, indent=2),
+                )
+            for item in candidate.evidence:
+                quote = item.get("quote", "")
+                evidence = evidence_for_quote(
+                    document_id=document.document_id,
+                    block_id=str(item.get("block_id", "")),
+                    quote=str(quote),
+                    supports=tuple(
+                        review.objects[index].id
+                        for index, claim in enumerate(candidate.claims)
+                        if item.get("source_path") == str(document.source)
+                        and isinstance(claim.get("evidence_refs"), list)
+                        and any(ref == candidate.evidence.index(item) for ref in claim["evidence_refs"])
+                        and index < len(review.objects)
+                    ),
+                )
+                _write_text(
+                    evidence_dir / f"{evidence.evidence_id}.json",
+                    json.dumps(_json_value(evidence), ensure_ascii=False, indent=2),
+                )
+            candidate_payload = _json_value(candidate)
+            candidate_payload["status"] = CandidateStatus.PROMOTED.value
+            _write_text(stage_dir / "candidate.json", json.dumps(candidate_payload, ensure_ascii=False, indent=2))
+            manifest = {
+                "bundle_key": bundle_key,
+                "candidate_id": candidate.id,
+                "document_id": document.document_id,
+                "source_path": str(document.source),
+                "normalization_version": document.normalization_version,
+                "parser_version": document.parser_version,
+                "projection_version": self.projection_version,
+                "object_ids": [obj.id for obj in review.objects],
+                "candidate_path": f"{bundle_key}/candidate.json",
+                "stores": {"knowledge_object": "ready", "wiki": "pending", "index": "pending", "vector": "pending"},
+                "status": "staged",
+            }
+            _write_text(stage_dir / "manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+            stage_dir.replace(final_dir)
+        except Exception:
+            shutil.rmtree(stage_dir, ignore_errors=True)
+            raise
         candidate.status = CandidateStatus.PROMOTED
-        candidate_path = bundle_dir / bundle_key / "candidate.json"
-        _write_text(
-            candidate_path,
-            json.dumps(_json_value(candidate), ensure_ascii=False, indent=2),
-        )
-        manifest = {
-            "bundle_key": bundle_key,
-            "candidate_id": candidate.id,
-            "document_id": document.document_id,
-            "source_path": str(document.source),
-            "normalization_version": document.normalization_version,
-            "parser_version": document.parser_version,
-            "projection_version": self.projection_version,
-            "object_ids": [obj.id for obj in review.objects],
-            "candidate_path": str(candidate_path.relative_to(bundle_dir)),
-            "stores": {"knowledge_object": "ready", "wiki": "pending", "index": "pending", "vector": "pending"},
-            "status": "staged",
-        }
-        manifest_path = bundle_dir / bundle_key / "manifest.json"
-        _write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2))
-        return PromotionResult(bundle_key, candidate.id, tuple(obj.id for obj in review.objects), manifest_path)
+        return PromotionResult(bundle_key, candidate.id, tuple(obj.id for obj in review.objects), final_manifest)
 
 
 def finalize_bundle(

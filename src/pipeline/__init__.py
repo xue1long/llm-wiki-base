@@ -182,7 +182,8 @@ class _PipelineCompatShim:
             update_task_status(task_id, TaskStatus.APPROVED)
         except Exception as exc:
             _logger.exception("ingest failed for %s", task_id)
-            update_task_status(task_id, TaskStatus.FAILED, error=f"{type(exc).__name__}: {exc}")
+            from ..lib.errors import format_error_for_queue
+            update_task_status(task_id, TaskStatus.FAILED, error=format_error_for_queue(exc))
         finally:
             get_default_queue_service().release_in_flight(task_id)
 
