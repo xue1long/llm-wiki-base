@@ -100,11 +100,13 @@
 | **Book 书系下拉** | 左侧目录上方 | 选择书系中的 Book；选项显示 ready/partial/invalid 状态，匿名旧版保持只读 | `GET /api/v1/projects/{id}/book-wiki/series` |
 | **卷筛选 / 搜索** | 左侧目录上方 | 按类型和章节标题过滤目录 | — |
 | **Book 版本下拉** | 左侧目录上方 | 切换可用的完整性校验 Book release | `GET /api/v1/projects/{id}/book-wiki/versions` + `GET /api/v1/projects/{id}/book-wiki?version=...` |
+| **教程路径下拉** | 左侧目录上方 | 以章节/小节引用顺序导航；不复制正文，路径失效时仍保留 Book 阅读 | `GET /api/v1/projects/{id}/book-wiki`（读取 `tutorial_paths`） |
 
 Book 阅读页读取 `CURRENT.json` 指向的完整性校验 release：
 `GET /api/v1/projects/{id}/book-wiki` 获取目录和章节信息，右侧面板展示 release、来源、关系和质量摘要。
 版本下拉先读取 `GET /api/v1/projects/{id}/book-wiki/versions`，切换后通过 `version` 查询参数读取指定 release；章节正文请求同样携带该版本号。
 目录中的卷名和章名来自 release 的 `outline.json`；旧 release 缺少大纲时回退显示文件名。
+教程路径只改变目录导航顺序，不改变章节正文、来源或 release；`book_freshness`、`generation_mode` 和 `release_status` 由编译器 manifest 原样展示。
 
 ## 4. 聊天页（Chat）
 

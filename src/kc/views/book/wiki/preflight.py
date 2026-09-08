@@ -31,7 +31,8 @@ Content-export authorization
 ----------------------------
 ``--polish`` requires explicit consent to send content to an external
 provider. The marker is ``<project_root>/.llm-wiki/policy.json`` with the
-shape ``{"content_export_authorized": true}``. The marker is intentionally
+shape ``{"content_export_authorized": true, "external_llm_allowed": true}``.
+The marker is intentionally
 machine-readable and reviewable in code review (not an env var or
 provider-specific flag) — operators see one file that gates external
 content transmission for a project.
@@ -56,7 +57,6 @@ import ctypes
 import errno
 import json
 import os
-import sys
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -80,7 +80,8 @@ ACCEPTED_SCHEMA_VERSIONS: tuple[str, ...] = ("v2.0",)
 DEFAULT_PROVIDER_ENV = "RUFLO_LLM_PROVIDER"
 
 #: Marker file inside ``.llm-wiki/`` that authorises ``--polish`` content
-#: export. JSON shape: ``{"content_export_authorized": true}``.
+#: export. JSON shape: ``{"content_export_authorized": true,
+#: "external_llm_allowed": true}``.
 POLICY_FILENAME = "policy.json"
 
 #: Subdirectories of the project root that the compiler MUST NOT use as
@@ -448,9 +449,10 @@ def _resolve_provider(provider_name: str | None) -> tuple[str | None, str | None
 def _validate_polish_authorization(
     project_root: Path,
     polish: bool,
+    use_llm: bool = False,
 ) -> tuple[ValidationError, ...]:
-    """Check ``--polish`` authorization marker (.llm-wiki/policy.json)."""
-    if not polish:
+    """Check explicit authorization before any external LLM request."""
+    if not (polish or use_llm):
         return ()
     policy_path = project_root / ".llm-wiki" / POLICY_FILENAME
     if not policy_path.exists():
@@ -459,7 +461,7 @@ def _validate_polish_authorization(
                 code="E_POLISH_UNAUTHORIZED",
                 stage="preflight",
                 message=(
-                    "--polish requires content-export authorization. "
+                    "LLM builds require content-export authorization. "
                     f"Create {policy_path} with "
                     f"'{{\"content_export_authorized\": true}}' to enable."
                 ),
@@ -477,7 +479,7 @@ def _validate_polish_authorization(
                 context={"policy_path": str(policy_path)},
             ),
         )
-    if not isinstance(data, dict) or not data.get("content_export_authorized"):
+    if polish and (not isinstance(data, dict) or not data.get("content_export_authorized")):
         return (
             ValidationError(
                 code="E_POLICY_REVOKED",
@@ -485,6 +487,19 @@ def _validate_polish_authorization(
                 message=(
                     f"{POLICY_FILENAME} does not authorise content export "
                     "(content_export_authorized must be true)."
+                ),
+                context={"policy_path": str(policy_path)},
+            ),
+        )
+    if not isinstance(data, dict) or data.get("external_llm_allowed") is not True:
+        return (
+            ValidationError(
+                code="E_EXTERNAL_LLM_UNAUTHORIZED",
+                stage="preflight",
+                message=(
+                    f"{POLICY_FILENAME} must explicitly set "
+                    "external_llm_allowed to true before source text is sent "
+                    "to an external LLM."
                 ),
                 context={"policy_path": str(policy_path)},
             ),
@@ -544,8 +559,8 @@ def run_preflight(
         model = None
         tokenizer = None
 
-    # (5) Polish authorization (only when polish).
-    errors.extend(_validate_polish_authorization(project_root, polish))
+    # (5) External LLM authorization, including outline-only LLM builds.
+    errors.extend(_validate_polish_authorization(project_root, polish, use_llm))
 
     # Eligible-page count: 0 in preflight (no scan performed).
     # Task 1 will populate this from the WikiSnapshot.

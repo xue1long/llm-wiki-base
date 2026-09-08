@@ -4,10 +4,12 @@ from __future__ import annotations
 import hashlib
 import re
 from collections import Counter
+from typing import Iterable
 
 from .aggregator import ChapterDraft
 
 _WIKILINK = re.compile(r"\[\[([^]|]+)(?:\|[^]]*)?\]\]")
+_SECTION_STATUSES = frozenset({"normal", "disputed", "blocked", "editorial"})
 
 
 def canonical_body(draft: ChapterDraft) -> str:
@@ -58,4 +60,45 @@ def validate_polished_chapter(draft: ChapterDraft, polished: object) -> tuple[st
     return tuple(dict.fromkeys(errors))
 
 
-__all__ = ["body_sha256", "canonical_body", "validate_polished_chapter"]
+def validate_generated_chapter(
+    draft: ChapterDraft,
+    generated: object,
+    *,
+    section_plan: Iterable[dict],
+    conflict_page_ids: set[str] | frozenset[str] = frozenset(),
+) -> tuple[str, ...]:
+    """Validate an LLM body against compiler-owned structure and provenance."""
+    errors: list[str] = []
+    if getattr(generated, "chapter_id", None) != draft.chapter_id:
+        errors.append("chapter_id")
+    status = getattr(generated, "content_status", None)
+    if status != "complete":
+        errors.append("content_status")
+    expected = tuple(str(row.get("section_id")) for row in section_plan)
+    planned_pages = {
+        str(row.get("section_id")): set(row.get("page_ids", ()))
+        for row in section_plan
+        if isinstance(row, dict) and "page_ids" in row
+    }
+    actual = tuple(getattr(section, "section_id", "") for section in getattr(generated, "sections", ()))
+    if actual != expected or len(set(actual)) != len(actual):
+        errors.append("section_ids")
+    allowed_pages = set(draft.page_ids)
+    for section in getattr(generated, "sections", ()):
+        section_status = getattr(section, "status", None)
+        if section_status not in _SECTION_STATUSES:
+            errors.append("section_status")
+        body = getattr(section, "body", None)
+        if not isinstance(body, str) or not body.strip():
+            errors.append("section_body")
+        refs = tuple(getattr(section, "source_page_ids", ()))
+        if not refs or any(page_id not in allowed_pages for page_id in refs):
+            errors.append("source_page_ids")
+        if section.section_id in planned_pages and not set(refs).issubset(planned_pages[section.section_id]):
+            errors.append("source_page_ids")
+        if set(refs) & set(conflict_page_ids) and section_status != "disputed":
+            errors.append("conflict_status")
+    return tuple(dict.fromkeys(errors))
+
+
+__all__ = ["body_sha256", "canonical_body", "validate_generated_chapter", "validate_polished_chapter"]

@@ -22,8 +22,11 @@
 
   App.renderBook = function renderBook(root) {
     let files = [];
+    let releaseFiles = [];
     let book = null;
     let series = null;
+    let tutorialPaths = [];
+    let selectedPath = "";
     let selectedBookId = "";
     let selectedVolume = "all";
     let query = "";
@@ -57,6 +60,9 @@
           <select id="bookVersionSelect" class="book-version-select" aria-label="选择 Book 版本" disabled>
             <option>加载 Book 版本…</option>
           </select>
+          <select id="bookPathSelect" class="book-version-select" aria-label="选择教程路径" disabled>
+            <option>教程路径…</option>
+          </select>
           <input id="bookSearch" class="book-search" placeholder="搜索章节标题…" aria-label="搜索章节标题" />
         </div>
         <div class="book-layout">
@@ -74,6 +80,7 @@
     const stats = root.querySelector("#bookStats");
     const volumeBar = root.querySelector("#bookVolumes");
     const versionSelect = root.querySelector("#bookVersionSelect");
+    const pathSelect = root.querySelector("#bookPathSelect");
     const bookSelect = root.querySelector("#bookSelect");
     const search = root.querySelector("#bookSearch");
     const buildStatusEl = root.querySelector("#bookBuildStatus");
@@ -106,6 +113,12 @@
       renderBookInfo();
       renderToc();
     });
+    pathSelect.addEventListener("change", () => {
+      selectedPath = pathSelect.value;
+      applyTutorialPath();
+      renderToc();
+      renderBookInfo();
+    });
 
     statusBtn.addEventListener("click", () => { loadStatus(); });
     dryRunBtn.addEventListener("click", () => { runBuild(false); });
@@ -129,6 +142,33 @@
 
     function joinCodes(codes) {
       return App.escapeHtml((codes || []).join(", ") || "未知");
+    }
+
+    function renderPathSelect() {
+      if (!tutorialPaths.length) {
+        pathSelect.innerHTML = "<option value=\"\">无教程路径</option>";
+        pathSelect.disabled = true;
+        return;
+      }
+      pathSelect.innerHTML = `<option value="">按目录阅读</option>${tutorialPaths.map(path =>
+        `<option value="${App.escapeHtml(String(path.path_id || ""))}">${App.escapeHtml(String(path.title || path.path_id || "未命名路径"))}</option>`
+      ).join("")}`;
+      pathSelect.disabled = false;
+      pathSelect.value = tutorialPaths.some(path => String(path.path_id) === selectedPath) ? selectedPath : "";
+    }
+
+    function applyTutorialPath() {
+      const path = tutorialPaths.find(item => String(item.path_id) === selectedPath);
+      if (!path) {
+        files = releaseFiles.slice();
+        return;
+      }
+      const order = new Map((path.steps || []).map((step, index) => [String(step.chapter_id), index]));
+      files = releaseFiles.slice().sort((left, right) => {
+        const leftIndex = order.has(String(left.outline_id)) ? order.get(String(left.outline_id)) : Number.MAX_SAFE_INTEGER;
+        const rightIndex = order.has(String(right.outline_id)) ? order.get(String(right.outline_id)) : Number.MAX_SAFE_INTEGER;
+        return leftIndex - rightIndex || Number(left.order || 0) - Number(right.order || 0);
+      });
     }
 
     async function loadStatus() {
@@ -188,7 +228,11 @@
       try {
         const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki${query}`);
         book = data;
-        files = (data.chapters || []).filter(chapter => !selectedBookId || !chapter.book_id || chapter.book_id === selectedBookId);
+        releaseFiles = (data.chapters || []).filter(chapter => !selectedBookId || !chapter.book_id || chapter.book_id === selectedBookId);
+        tutorialPaths = Array.isArray(data.tutorial_paths) ? data.tutorial_paths : [];
+        files = releaseFiles.slice();
+        renderPathSelect();
+        applyTutorialPath();
         renderVolumeBar();
         stats.textContent = `${files.length.toLocaleString()} 章 · ${(data.page_count || 0).toLocaleString()} 页`;
         renderBookInfo();
@@ -315,14 +359,14 @@
       if (!book) return;
       info.innerHTML = `<div class="book-info-eyebrow">ACTIVE RELEASE</div>
         <div class="book-info-title">${App.escapeHtml(String(book.version || "unknown").slice(0, 12))}</div>
-        <div class="book-info-status"><span class="book-info-dot"></span> 已通过完整性校验</div>
+        <div class="book-info-status"><span class="book-info-dot"></span> ${App.escapeHtml(book.book_freshness || "unknown")} · ${App.escapeHtml(book.release_status || "complete")}</div>
         <dl class="book-info-list">
           <div><dt>章节</dt><dd>${Number(book.chapter_count || files.length).toLocaleString()}</dd></div>
           <div><dt>Wiki 页面</dt><dd>${Number(book.page_count || 0).toLocaleString()}</dd></div>
           <div><dt>关系边</dt><dd>${Number(book.total_relations || 0).toLocaleString()}</dd></div>
           <div><dt>未解析</dt><dd>${Number(book.unresolved || 0).toLocaleString()} · ${(Number(book.unresolved_ratio || 0) * 100).toFixed(2)}%</dd></div>
         </dl>
-        <div class="book-info-mode">${App.escapeHtml(book.reading_experience_mode || "rule_only")}</div>
+        <div class="book-info-mode">${App.escapeHtml(book.generation_mode || book.reading_experience_mode || "rule_only")}${selectedPath ? ` · 路径：${App.escapeHtml(selectedPath)}` : ""}</div>
         ${series && selectedBookId ? `<div class="book-info-section-title">当前 Book</div><div>${App.escapeHtml(selectedBookId)}</div>` : ""}`;
     }
 

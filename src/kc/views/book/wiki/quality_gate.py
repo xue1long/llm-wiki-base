@@ -91,6 +91,17 @@ def check_quality_gate(
         coverage = numer / denom if denom else 0.0
     if coverage < cfg["glossary_coverage"]:
         blockers.append("glossary_coverage")
+    if "editorial_state_hash" in data:
+        if not data.get("chapter_body_present", False):
+            blockers.append("chapter_body_missing")
+        if not data.get("section_source_ids_present", False):
+            blockers.append("section_source_ids_missing")
+        if not data.get("curation_revision_present", False):
+            blockers.append("curation_revision_missing")
+        if not data.get("outline_revision_present", False):
+            blockers.append("outline_revision_missing")
+        if data.get("disputed_page_ids") and not data.get("disputed_section_status", True):
+            blockers.append("disputed_section_status_missing")
     return QualityGateReport(tuple(blockers), dict(llm_scores) if llm_scores is not None else None,
                              llm_status, cfg, "fail" if blockers else "pass")
 

@@ -82,6 +82,18 @@ _DEFAULT_PURPOSE = """# Purpose: {name}
 - What are the core concepts and entities in this domain?
 """
 
+_DEFAULT_BOOK_RULES = """# Book Editorial Rules
+
+This file is the project-specific editorial brief for Wiki-to-Book compilation.
+
+No project style is configured yet. Before compiling a Book, replace this
+placeholder with the intended reader, purpose, tone, structure, detail level,
+terminology, and deduplication preferences for this project.
+
+These are editorial instructions only. They cannot override system source,
+provenance, safety, authorization, quality-gate, or publication rules.
+"""
+
 
 def _write_scaffold_files(paths) -> None:
     """Write the base wiki scaffold files (index/log/overview/schema/purpose)."""
@@ -116,6 +128,7 @@ def _write_scaffold_files(paths) -> None:
     # schema.md / purpose.md are defaults; a template overwrites them above.
     safe_write(paths.root / "schema.md", _DEFAULT_SCHEMA)
     safe_write(paths.root / "purpose.md", _DEFAULT_PURPOSE.format(name=name))
+    safe_write(paths.root / "book.rules.md", _DEFAULT_BOOK_RULES)
 
 
 def cmd_project_list(args: argparse.Namespace) -> None:

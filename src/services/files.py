@@ -262,7 +262,28 @@ def book_wiki_versions(project_id: str) -> dict:
 def book_wiki_manifest(project_id: str, version: str | None = None) -> dict:
     """Describe the active Wiki-to-Book release for the reader UI."""
     release, manifest = _active_book_wiki(project_id, version=version)
+    from ..kc.views.book.wiki.acceptance import (
+        derive_book_freshness, load_release_acceptance_report,
+    )
+    derived_freshness, freshness_reason = derive_book_freshness(release.parents[2], manifest)
+    acceptance = load_release_acceptance_report(release)
+    if acceptance is not None:
+        acceptance = {
+            **acceptance,
+            "current_freshness": derived_freshness,
+            "current_freshness_reason": freshness_reason,
+        }
     chapter_sources = manifest.get("chapter_sources") or {}
+    section_source_ids = manifest.get("section_source_ids") or {}
+    tutorial_paths = []
+    paths_file = release / "editorial" / "paths.json"
+    if paths_file.is_file():
+        try:
+            payload = json.loads(paths_file.read_text(encoding="utf-8"))
+            if isinstance(payload, dict) and isinstance(payload.get("paths"), list):
+                tutorial_paths = payload["paths"]
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            tutorial_paths = []
     files = manifest.get("files") or {}
     outline_volumes, outline_chapters = _book_outline_metadata(release)
     chapters = []
@@ -286,6 +307,7 @@ def book_wiki_manifest(project_id: str, version: str | None = None) -> dict:
             "order": len(chapters) + 1,
             "size": path.stat().st_size,
             "sources": list(sources) if isinstance(sources, list) else [],
+            "section_source_ids": section_source_ids.get(name, {}),
         })
     return {
         "version": manifest.get("run_id"),
@@ -296,6 +318,15 @@ def book_wiki_manifest(project_id: str, version: str | None = None) -> dict:
         "unresolved": manifest.get("unresolved", 0),
         "unresolved_ratio": manifest.get("unresolved_ratio", 0),
         "reading_experience_mode": manifest.get("reading_experience_mode", "rule_only"),
+        "generation_mode": manifest.get("generation_mode", "rule_only"),
+        "release_status": manifest.get("release_status", "complete"),
+        "book_freshness": derived_freshness,
+        "book_freshness_reason": freshness_reason,
+        "wiki_snapshot_hash": manifest.get("wiki_snapshot_hash", manifest.get("snapshot_id")),
+        "editorial_state_hash": manifest.get("editorial_state_hash"),
+        "release_manifest_hash": manifest.get("release_manifest_hash"),
+        "tutorial_paths": tutorial_paths,
+        "acceptance": acceptance,
         "volumes": [
             {**volume, "chapter_count": sum(1 for chapter in chapters if chapter["volume_id"] == volume["id"])}
             for volume in outline_volumes

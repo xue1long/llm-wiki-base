@@ -332,7 +332,7 @@ class TestRunPreflight:
 
         _bootstrap_project(tmp_path)
         (tmp_path / ".llm-wiki" / "policy.json").write_text(
-            json.dumps({"content_export_authorized": True}, ensure_ascii=False),
+            json.dumps({"content_export_authorized": True, "external_llm_allowed": True}, ensure_ascii=False),
             encoding="utf-8",
         )
 

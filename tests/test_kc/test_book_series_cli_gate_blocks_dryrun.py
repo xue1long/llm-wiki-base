@@ -32,6 +32,8 @@ def _page(pid: str, taxonomy: str = "book-a", source: bool = True,
 def _wiki(tmp_path: Path, *pages: PageRecord) -> Path:
     """Create a wiki tree that survives scan_wiki_snapshot's strict frontmatter rules."""
     root = tmp_path / "wiki"
+    root.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "book.rules.md").write_text("# Book rules\n\n- Preserve source meaning.\n", encoding="utf-8")
     for d in ("concepts", "entities", "synthesis"):
         (root / d).mkdir(parents=True, exist_ok=True)
     for page in pages:

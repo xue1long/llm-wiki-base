@@ -31,6 +31,7 @@ class PageRecord:
     # the compiler snapshot so chapters and manifests can expose traceability.
     sources: tuple[str, ...] = ()
     task_type: str | None = None
+    sensitivity: str = ""
 
 
 @dataclass(frozen=True)
