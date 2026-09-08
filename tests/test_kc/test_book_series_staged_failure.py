@@ -11,18 +11,16 @@ Contracts enforced (per 2026-09-06 book-series plan Task 5/8):
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
 from pathlib import Path
 
-import pytest
 
 from src.kc.views.book.wiki.compiler import publish_book
 from src.kc.views.book.wiki.model import ContentBlock, PageRecord, WikiSnapshot
 from src.kc.views.book.wiki.polish_llm import GeneratedChapter, GeneratedSection
 from src.kc.views.book.wiki.partition import (
-    CandidateDecision, GovernanceConfig, ReaderProfile, evaluate_series_gate,
+    GovernanceConfig, ReaderProfile, evaluate_series_gate,
 )
 from src.kc.views.book.wiki.series_model import SCHEMA_VERSION, canonical_digest
 from src.kc.views.book.wiki.series_validate import (

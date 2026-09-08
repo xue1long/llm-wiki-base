@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-from src.kc.views.book.wiki.model import ContentBlock, PageRecord, WikiSnapshot
 from src.kc.views.book.wiki.scanner import (
     SnapshotChangedError,
     WikiScanError,

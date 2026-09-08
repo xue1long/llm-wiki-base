@@ -17,12 +17,12 @@ from pathlib import Path
 import pytest
 
 from src.cli import build_parser
-from src.kc.views.book.wiki.compiler import compile_book, build_from_wiki
+from src.kc.views.book.wiki.compiler import compile_book
 from src.kc.views.book.wiki.model import ContentBlock, PageRecord, WikiSnapshot
 from src.kc.views.book.wiki.polish_llm import GeneratedChapter, GeneratedSection
 from src.kc.views.book.wiki.partition import build_series_assignment
 from src.kc.views.book.wiki.series_model import (
-    SCHEMA_VERSION, SeriesManifest, canonical_digest,
+    SCHEMA_VERSION, canonical_digest,
 )
 from src.kc.views.book.wiki.series_validate import (
     dependency_report, validate_series_manifest,

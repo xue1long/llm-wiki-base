@@ -430,7 +430,6 @@ class TestRunLock:
         from src.kc.views.book.wiki.preflight import (
             LockBusyError,
             acquire_run_lock,
-            release_run_lock,
         )
 
         lock_path = tmp_path / "run.lock"

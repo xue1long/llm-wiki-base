@@ -12,10 +12,8 @@ Contracts enforced (per 2026-09-06 book-series plan Task 2):
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-import pytest
 
 from src.kc.views.book.wiki.compiler import compile_book
 from src.kc.views.book.wiki.model import ContentBlock, PageRecord, WikiSnapshot

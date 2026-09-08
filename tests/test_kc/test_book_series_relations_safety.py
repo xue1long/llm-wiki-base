@@ -17,7 +17,6 @@ The tests deliberately exercise the public seams exposed from
 """
 from __future__ import annotations
 
-import inspect
 
 import pytest
 

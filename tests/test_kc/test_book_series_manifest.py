@@ -1,5 +1,4 @@
 import hashlib
-import json
 
 import pytest
 
@@ -7,7 +6,7 @@ from src.kc.views.book.wiki.series_model import (
     SCHEMA_VERSION, SeriesManifest, canonical_digest, transition_status,
 )
 from src.kc.views.book.wiki.series_validate import (
-    validate_book_manifest, validate_series_manifest, validate_release_files,
+    validate_series_manifest, validate_release_files,
     dependency_report, read_legacy_manifest,
 )
 

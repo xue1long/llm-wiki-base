@@ -6,7 +6,6 @@ Slice S0b: real novel-wiki writing-craft has ≥1 non-namespace edge.
 """
 from __future__ import annotations
 
-import pytest
 
 from src.kc.views.book.wiki.model import ContentBlock, PageRecord, WikiSnapshot
 from src.kc.views.book.wiki.partition import (
@@ -46,7 +45,7 @@ def _writing_craft_synthetic(*, n_concept: int = 30, n_synthesis: int = 1) -> li
         pages.append(_page(f"wc-s{i}", page_type="synthesis", taxonomy="写作技法"))
     # Add in-candidate supports edges: each concept → first synthesis
     if n_synthesis:
-        first_synth = f"wc-s0"
+        first_synth = "wc-s0"
         for i in range(n_concept):
             pages[i] = PageRecord(**{**pages[i].__dict__,
                 "relation_targets": (("supports", first_synth),)})

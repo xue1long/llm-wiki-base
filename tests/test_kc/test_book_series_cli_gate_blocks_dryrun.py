@@ -13,10 +13,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from src.kc.views.book.wiki.compiler import build_from_wiki
-from src.kc.views.book.wiki.model import ContentBlock, PageRecord, WikiSnapshot
+from src.kc.views.book.wiki.model import ContentBlock, PageRecord
 
 
 def _page(pid: str, taxonomy: str = "book-a", source: bool = True,

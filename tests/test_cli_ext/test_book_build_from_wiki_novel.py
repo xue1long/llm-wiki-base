@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 
 def _make_novel_wiki_minimal(root: Path) -> Path:

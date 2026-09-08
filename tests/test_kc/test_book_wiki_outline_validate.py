@@ -1,8 +1,7 @@
-from dataclasses import replace
 
 import pytest
 
-from src.kc.views.book.wiki.model import ContentBlock, PageRecord, WikiSnapshot
+from src.kc.views.book.wiki.model import PageRecord, WikiSnapshot
 from src.kc.views.book.wiki.outline_validate import (
     build_page_index,
     validate_outline,
