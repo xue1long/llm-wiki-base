@@ -6,24 +6,60 @@ import asyncio
 import json
 import os
 import shutil
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from .aggregator import aggregate_chapter, relation_stats
 from .model import PageRecord, WikiSnapshot
+from .editorial_state import (
+    BookEditorialState, editorial_state_hash, load_editorial_state,
+    validate_editorial_state,
+)
 from .reading_aids import build_glossary, build_glossary_index, build_index
-from .preflight import LockBusyError, acquire_run_lock, release_run_lock, run_preflight
+from .preflight import acquire_run_lock, release_run_lock, run_preflight
 from .partition import build_chapter_chunks, partition_pages
 from .scanner import WikiScanError, scan_wiki_snapshot
 from .outline_validate import SCHEMA_VERSION, validate_outline
 from .outline_llm import OutlinePlanningError, plan_outline
 from .theme_outline import ThemeOutlineError, load_theme_outline, place_page_summaries_sync
+from .polish_llm import GeneratedChapter, generate_chapter_body
+from .rules import BookRulesError, load_book_rules
+from .acceptance import build_release_acceptance_report, write_release_acceptance_report
+from src.lineage import LineageStore
 
 MAX_UNRESOLVED_RELATION_RATIO = 0.05
 
 BOOK_MODES = frozenset({"rule_only", "narrative_draft", "narrative", "encyclopedic"})
+_RESTRICTED_SENSITIVITY = frozenset({"secret", "private", "restricted", "confidential"})
+
+
+class _LLMBudgetExceeded(RuntimeError):
+    pass
+
+
+class _BudgetedProvider:
+    """One publication-scoped counter for every outbound provider request."""
+
+    def __init__(self, provider: Any, *, max_calls: int, started: float, max_runtime: int):
+        self._provider = provider
+        self.max_calls = max_calls
+        self.started = started
+        self.max_runtime = max_runtime
+        self.calls = 0
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._provider, name)
+
+    async def complete(self, *args: Any, **kwargs: Any) -> Any:
+        if self.calls >= self.max_calls:
+            raise _LLMBudgetExceeded("max_llm_calls exhausted")
+        if time.monotonic() - self.started >= self.max_runtime:
+            raise _LLMBudgetExceeded("max_runtime_seconds exhausted")
+        self.calls += 1
+        return await self._provider.complete(*args, **kwargs)
 
 
 @dataclass(frozen=True)
@@ -40,6 +76,16 @@ class PublishReport:
     run_id: str
     pointer: Path | None = None
     error: str | None = None
+
+
+def _body_llm_status(generated_chapters: Mapping[str, Any] | None) -> str:
+    """Return the publication status of the optional polished chapter bodies."""
+    if generated_chapters is None:
+        return "disabled"
+    return "passed" if all(
+        getattr(chapter, "content_status", None) == "complete"
+        for chapter in generated_chapters.values()
+    ) else "failed"
 
 
 def _json(value: Any) -> Any:
@@ -62,6 +108,22 @@ def _sha(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _canonical(value: Any) -> bytes:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def _manifest_with_digest(manifest: dict[str, Any]) -> dict[str, Any]:
+    payload = {key: value for key, value in manifest.items() if key != "release_manifest_hash"}
+    digest = hashlib.sha256(_canonical(payload)).hexdigest()
+    return {**payload, "release_manifest_hash": digest}
+
+
+def _write_manifest(path: Path, manifest: dict[str, Any]) -> dict[str, Any]:
+    result = _manifest_with_digest(manifest)
+    path.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+    return result
+
+
 def _safe(value: str) -> str:
     result = "".join(c if c.isalnum() or c in "._-" else "_" for c in str(value))
     return result.strip(".") or "unnamed"
@@ -69,6 +131,50 @@ def _safe(value: str) -> str:
 
 def _pages(value: dict[str, PageRecord] | tuple[PageRecord, ...] | list[PageRecord]) -> dict[str, PageRecord]:
     return value if isinstance(value, dict) else {page.page_id: page for page in value}
+
+
+def _body_section_plan(
+    chapter: dict[str, Any],
+    page_map: Mapping[str, PageRecord],
+    *,
+    require_explicit: bool = False,
+) -> tuple[dict[str, Any], ...]:
+    chapter_id = str(chapter.get("chapter_id", ""))
+    page_ids = [item if isinstance(item, str) else item.get("page_id") for item in chapter.get("page_ids", ())]
+    if any(page_id not in page_map for page_id in page_ids):
+        raise ValueError("theme_section_unknown_page")
+    sections = chapter.get("sections")
+    if not isinstance(sections, list) or not sections:
+        if require_explicit:
+            raise ValueError("theme_sections_required")
+        # Keep generated outlines compatible while removing the unsafe page-per-section fallback.
+        return ({"section_id": f"{chapter_id}--content", "title": str(chapter.get("title", chapter_id)),
+                 "page_ids": list(page_ids)},)
+
+    planned: list[dict[str, Any]] = []
+    assigned: list[str] = []
+    seen_ids: set[str] = set()
+    for row in sections:
+        if not isinstance(row, dict) or not isinstance(row.get("section_id"), str) or not row["section_id"]:
+            raise ValueError("theme_section_invalid")
+        section_id = row["section_id"]
+        if section_id in seen_ids:
+            raise ValueError("theme_section_duplicate_id")
+        section_page_ids = row.get("page_ids")
+        if not isinstance(section_page_ids, list) or not section_page_ids:
+            raise ValueError("theme_section_page_ids_required")
+        if any(page_id not in page_map or page_id not in page_ids for page_id in section_page_ids):
+            raise ValueError("theme_section_unknown_page")
+        if len(set(section_page_ids)) != len(section_page_ids) or set(assigned) & set(section_page_ids):
+            raise ValueError("theme_section_duplicate_page")
+        seen_ids.add(section_id)
+        assigned.extend(section_page_ids)
+        planned.append({"section_id": section_id,
+                        "title": str(row.get("title", section_id)),
+                        "page_ids": list(section_page_ids)})
+    if set(assigned) != set(page_ids) or len(assigned) != len(page_ids):
+        raise ValueError("theme_section_page_coverage")
+    return tuple(planned)
 
 
 def _chapters(outlines: list[dict]) -> list[tuple[str, str, dict]]:
@@ -113,17 +219,85 @@ def _source_provenance(snapshot: WikiSnapshot) -> list[dict[str, str]]:
     return sorted(rows, key=lambda row: tuple(row.get(k, "") for k in ("page_id", "source", "relation_type", "target_id")))
 
 
+def _lineage_page_sources(store: LineageStore, snapshot: WikiSnapshot) -> dict[str, tuple[str, ...]]:
+    """Resolve page provenance to registered source ids without backfilling history."""
+    result: dict[str, tuple[str, ...]] = {}
+    for page in snapshot.pages:
+        source_ids = {
+            source_id
+            for source in page.sources
+            if (source_id := store.source_id_for_path(source)) is not None
+        }
+        if not source_ids:
+            source_ids.update(store.artifact_sources(page.page_id))
+        result[page.page_id] = tuple(sorted(source_ids))
+    return result
+
+
+def _lineage_snapshot(store: LineageStore, source_ids: tuple[str, ...]) -> str:
+    hashes = {
+        row["source_id"]: row["source_hash"]
+        for row in store.sources()
+        if row["source_id"] in source_ids
+    }
+    return "\n".join(f"{source_id}:{hashes[source_id]}" for source_id in sorted(hashes))
+
+
+def _lineage_member_input_hash(page_ids: list[str], page_map: dict[str, PageRecord]) -> str:
+    payload = "\n".join(
+        f"{page_id}:{page_map[page_id].content_sha256}"
+        for page_id in sorted(page_ids)
+        if page_id in page_map
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fingerprint: Any,
-                 polish: bool = False, encyclopedic: bool = False, state_dir: Path | None = None,
+                polish: bool = False, encyclopedic: bool = False, state_dir: Path | None = None,
                  outline_generation_mode: str = "rule",
                  outline_fallback_reason: str | None = None,
                  outline_llm_requested: bool = False,
                  series_id: str | None = None,
                  book_id: str | None = None,
-                 book_mode: str | None = None,
-                 release_id: str | None = None) -> BuildArtifact:
+                  book_mode: str | None = None,
+                  release_id: str | None = None,
+                  editorial_state: BookEditorialState | None = None,
+                  generated_chapters: Mapping[str, Any] | None = None,
+                  llm_metadata: Mapping[str, Any] | None = None,
+                  rules_hash: str | None = None,
+                  rules_snapshot: str | None = None,
+                  rules_path: str | None = None,
+                  plan_only: bool = False,
+                  run_id: str | None = None) -> BuildArtifact:
     page_map = _pages(pages)
     errors: list[str] = []
+    conflict_page_ids: set[str] = set()
+    if editorial_state is not None:
+        state_errors = validate_editorial_state(editorial_state, page_ids=set(page_map))
+        if state_errors:
+            errors.extend(f"editorial-state:{error}" for error in state_errors)
+        elif editorial_state.book.get("source_snapshot_id") != snapshot.snapshot_id:
+            errors.append("editorial-state:snapshot-mismatch")
+        else:
+            allowed = {"include", "conflict"}
+            included_ids = {
+                row["page_id"] for row in editorial_state.curation["pages"]
+                if row.get("disposition") in allowed
+            }
+            conflict_page_ids = {
+                row["page_id"] for row in editorial_state.curation["pages"]
+                if row.get("disposition") == "conflict"
+            }
+            reviewed_hashes = {
+                row["page_id"]: row.get("content_hash_at_review")
+                for row in editorial_state.curation["pages"]
+                if row.get("disposition") in allowed
+            }
+            for page_id in included_ids:
+                if reviewed_hashes.get(page_id) != page_map[page_id].content_sha256:
+                    errors.append(f"editorial-state:content-hash-mismatch:{page_id}")
+            page_map = {page_id: page for page_id, page in page_map.items() if page_id in included_ids}
+            outlines = [editorial_state.outline]
     if snapshot.snapshot_id not in {str(o.get("snapshot_id")) for o in outlines if isinstance(o, dict)}:
         errors.append("snapshot-mismatch")
     chapters = _chapters(outlines)
@@ -166,7 +340,7 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
     expected_covered = sorted(set(seen) | secondary_topic_ids | set(held_back_ids))
     if expected_covered != sorted(page_map):
         errors.append("page-coverage")
-    run_id = uuid.uuid4().hex
+    run_id = run_id or uuid.uuid4().hex
     root = Path(state_dir or Path(snapshot.wiki_root).parent / ".index")
     versions = root if root.name == "versions" else root / "book-wiki" / "versions"
     version_dir = versions / run_id
@@ -175,18 +349,60 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
     version_dir.mkdir(parents=True, exist_ok=False)
     files: dict[str, str] = {}
     used: set[str] = set()
+    chapter_files: dict[str, str] = {}
     chapter_sources: dict[str, list[str]] = {}
+    section_source_ids: dict[str, dict[str, list[str]]] = {}
+    chapter_body_present = True
+    section_source_ids_present = True
     for volume_id, chapter_id, chapter in chapters:
         name = f"{_safe(volume_id)}__{_safe(chapter_id)}.md"
         if name in used:
             errors.append(f"filename-collision:{name}")
             continue
         used.add(name)
+        chapter_files[chapter_id] = name
         draft = aggregate_chapter(chapter, page_map)
         chapter_sources[name] = sorted({source for page_id in draft.page_ids for source in page_map[page_id].sources})
-        text = "## 本章导读\n\n本章为规则版排序。\n\n"
-        text += "\n\n".join((f"### {block.heading}" if block.heading else "") + ("\n\n" if block.heading else "") + block.body for block in draft.blocks)
-        text += "\n\n## 本章衔接\n\n本章为规则版排序。\n"
+        if plan_only:
+            continue
+        generated = generated_chapters.get(chapter_id) if generated_chapters is not None else None
+        generated_ok = generated is not None and getattr(generated, "content_status", None) == "complete"
+        if generated_ok:
+            rows = {
+                str(section.section_id): section
+                for section in getattr(generated, "sections", ())
+            }
+            section_source_ids[name] = {
+                section_id: sorted({str(page_id) for page_id in section.source_page_ids})
+                for section_id, section in rows.items()
+            }
+            chapter_body_present = chapter_body_present and all(
+                isinstance(section.body, str) and bool(section.body.strip())
+                for section in rows.values()
+            )
+            section_source_ids_present = section_source_ids_present and all(
+                bool(section.source_page_ids) for section in rows.values()
+            )
+            rendered_sections = []
+            for section in getattr(generated, "sections", ()):
+                marker = "> 内容状态：争议，需结合来源重新核对。\n\n" if section.status == "disputed" else ""
+                rendered_sections.append(f"### {section.title}\n\n{marker}{section.body}")
+            text = "## 本章导读\n\n本章正文由结构化生成阶段生成。\n\n" + "\n\n".join(rendered_sections)
+        else:
+            chapter_body_present = chapter_body_present and bool(draft.blocks)
+            section_source_ids_present = section_source_ids_present and bool(chapter_sources[name])
+            section_source_ids[name] = {f"block:{block.block_id}": [block.page_id] for block in draft.blocks}
+            text = "## 本章导读\n\n本章为规则版排序。\n\n"
+            rendered_blocks = []
+            for block in draft.blocks:
+                marker = "> 内容状态：争议，需结合来源重新核对。\n\n" if block.page_id in conflict_page_ids else ""
+                rendered_blocks.append(marker + (f"### {block.heading}" if block.heading else "") + ("\n\n" if block.heading else "") + block.body)
+            text += "\n\n".join(rendered_blocks)
+        transition = (
+            "本章按主题合并后的章节结构编排。"
+            if generated_ok else "本章为规则版排序。"
+        )
+        text += f"\n\n## 本章衔接\n\n{transition}\n"
         path = version_dir / name
         path.write_text(text, encoding="utf-8")
         files[name] = _sha(path)
@@ -204,17 +420,35 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
     outline_path = version_dir / "outline.json"
     outline_path.write_text(json.dumps(outlines, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
     files["outline.json"] = _sha(outline_path)
+    if editorial_state is not None:
+        sidecars = {
+            "editorial/book.json": editorial_state.book,
+            "editorial/curation.json": editorial_state.curation,
+            "editorial/outline.json": editorial_state.outline,
+            "editorial/paths.json": editorial_state.paths,
+        }
+        for relative, payload in sidecars.items():
+            sidecar_path = version_dir / relative
+            sidecar_path.parent.mkdir(parents=True, exist_ok=True)
+            sidecar_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+            files[relative] = _sha(sidecar_path)
     stats = relation_stats(snapshot)
     all_blocks = tuple(block.block_id for page in page_map.values() for block in page.content_blocks)
     draft_blocks = tuple(block.block_id for volume_id, chapter_id, chapter in chapters for block in aggregate_chapter(chapter, page_map).blocks)
     resolved_mode = book_mode or ("encyclopedic" if encyclopedic else ("llm_enhanced" if polish else "rule_only"))
     if resolved_mode == "llm_enhanced":
         resolved_mode = "narrative_draft"
+    if plan_only:
+        resolved_mode = "plan"
     manifest: dict[str, Any] = {"manifest_version": 1, "run_id": run_id, "snapshot_id": snapshot.snapshot_id,
         "fingerprint": _json(fingerprint), "source_filter": ["concepts", "entities", "synthesis"],
         "page_count": len(page_map), "chapter_count": len(chapters), "files": files, "polished": bool(polish),
         "reading_experience_mode": resolved_mode,
         "mode": resolved_mode,
+        "generation_mode": "plan" if plan_only else "rule_only",
+        "release_status": "planned" if plan_only else "complete",
+        "book_freshness": "fresh",
+        "wiki_snapshot_hash": snapshot.snapshot_id,
         "expected_block_ids": list(all_blocks), "draft_block_ids": list(draft_blocks),
         "unresolved_ratio": stats["unresolved_ratio"], "total_relations": stats["total"], "unresolved": stats["unresolved"],
         "unmatched_heading_ratio": 0.0, "glossary_coverage": 1.0,
@@ -224,7 +458,7 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
         "excluded_sources": list(snapshot.excluded_sources),
         "outline_generation_mode": outline_generation_mode,
         "outline_llm_requested": bool(outline_llm_requested),
-        "body_generation_mode": "rule_aggregate",
+        "body_generation_mode": "none" if plan_only else ("llm_sections" if generated_chapters is not None else "rule_aggregate"),
         "outline_fallback_reason": outline_fallback_reason,
         "series_id": series_id,
         "book_id": book_id,
@@ -236,6 +470,59 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
         "soft_dependencies": soft_deps,
         "ledger_page_ids": list(held_back_ids),
         "secondary_topic_page_ids": sorted(secondary_topic_ids)}
+    if editorial_state is not None:
+        all_generated = generated_chapters is not None and all(
+            chapter_id in generated_chapters and
+            getattr(generated_chapters[chapter_id], "content_status", None) == "complete"
+            for _volume_id, chapter_id, _chapter in chapters
+        )
+        manifest.update({
+            "editorial_state_hash": editorial_state_hash(editorial_state),
+            "editorial_revision": editorial_state.book.get("editorial_revision"),
+            "book_freshness": "fresh",
+            "generation_mode": "llm" if generated_chapters is not None else "rule_only",
+            "release_status": "complete" if all_generated or generated_chapters is None else "partial",
+            "wiki_snapshot_hash": snapshot.snapshot_id,
+            "disputed_page_ids": sorted(conflict_page_ids),
+            "disputed_section_status": True,
+            "chapter_body_present": chapter_body_present,
+            "section_source_ids_present": section_source_ids_present,
+            "curation_revision_present": editorial_state.curation.get("editorial_revision") is not None,
+            "outline_revision_present": editorial_state.outline.get("editorial_revision") is not None,
+            "chapter_source_ids": chapter_sources,
+            "section_source_ids": section_source_ids,
+            "tutorial_path_ids": sorted(
+                str(row["path_id"])
+                for row in editorial_state.paths.get("paths", ())
+                if isinstance(row, dict) and isinstance(row.get("path_id"), str)
+            ),
+        })
+    elif generated_chapters is not None:
+        all_generated = all(
+            chapter_id in generated_chapters and
+            getattr(generated_chapters[chapter_id], "content_status", None) == "complete"
+            for _volume_id, chapter_id, _chapter in chapters
+        )
+        manifest.update({
+            "generation_mode": "llm" if all_generated else "llm_partial",
+            "release_status": "complete" if all_generated else "partial",
+            "section_source_ids": section_source_ids,
+        })
+    if llm_metadata is not None:
+        manifest["llm_metadata"] = _json(llm_metadata)
+        manifest["llm_prompt_hashes"] = {
+            chapter_id: getattr(generated, "prompt_hash", None)
+            for chapter_id, generated in generated_chapters.items()
+            if getattr(generated, "prompt_hash", None)
+        } if generated_chapters is not None else {}
+    if rules_hash is not None and rules_snapshot is not None:
+        manifest["rules_hash"] = rules_hash
+        manifest["rules_snapshot"] = rules_snapshot
+        manifest["rules_path"] = rules_path or "book.rules.md"
+    if plan_only:
+        manifest["chapter_body_present"] = False
+        manifest["section_source_ids_present"] = False
+    manifest["chapter_files"] = chapter_files
     manifest["chapter_sources"] = chapter_sources
     manifest["source_provenance"] = _source_provenance(snapshot)
     if series_id is not None and book_id is not None:
@@ -258,13 +545,23 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
         sidecar_path.write_text(json.dumps(sidecar, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
         files["series-manifest.json"] = _sha(sidecar_path)
         manifest["files"] = files
-    (version_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+    manifest = _write_manifest(version_dir / "manifest.json", manifest)
     return BuildArtifact(snapshot.snapshot_id, manifest, version_dir, tuple(errors))
 
 
 def publish_book(artifact: BuildArtifact, output_dir: Path, *, apply: bool, lock: Any) -> PublishReport:
     if artifact.validation_errors:
         return PublishReport("failed", str(artifact.manifest.get("run_id", "")), error=";".join(artifact.validation_errors))
+    if artifact.manifest.get("release_status") in {"partial", "failed"}:
+        return PublishReport(
+            "failed", str(artifact.manifest.get("run_id", "")),
+            error=f"release_status={artifact.manifest.get('release_status')} is not publishable",
+        )
+    if apply and artifact.manifest.get("generation_mode") != "llm":
+        return PublishReport(
+            "failed", str(artifact.manifest.get("run_id", "")),
+            error="LLM-polished chapter bodies are required for apply",
+        )
     run_id = str(artifact.manifest["run_id"])
     if not apply:
         return PublishReport("planned", run_id)
@@ -328,7 +625,8 @@ def resolve_active_version(output_dir: Path) -> Path | None:
             return None
         for name, expected in files.items():
             relative = Path(str(name))
-            if relative.is_absolute() or ".." in relative.parts or relative.name != str(name):
+            normalized_name = str(name).replace("\\", "/")
+            if relative.is_absolute() or ".." in relative.parts or relative.as_posix() != normalized_name:
                 return None
             target = release / relative
             if not target.is_file() or _sha(target) != expected:
@@ -343,6 +641,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                     encyclopedic: bool = False, quality_gate: str = "rule", rubric: str | Path | None = None,
                     max_attempts: int = 3, max_input_tokens: int | None = None,
                     max_output_tokens: int | None = None, provider: Any = None,
+                    max_llm_calls: int = 3, max_runtime_seconds: int = 900,
+                    budget_cap: int | None = None, approver: str | None = None,
                     theme_outline: str | Path | None = None,
                     series_id: str | None = None,
                     book_id: str | None = None,
@@ -353,7 +653,6 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
     Encyclopedic mode adds a bounded, evidence-only index.  It never rewrites
     chapter bodies and fails closed when a provider or valid evidence is absent.
     """
-    del max_attempts
     if book_mode is not None and book_mode not in BOOK_MODES:
         return {"status": "failed", "reason_codes": ["E_INVALID_BOOK_MODE"],
                 "error": f"book_mode {book_mode!r} is not in {sorted(BOOK_MODES)}"}
@@ -369,6 +668,25 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         return {"status": "failed", "reason_codes": ["E_QUALITY_GATE_REQUIRED_FOR_APPLY"],
                 "error": "quality gate off is allowed only for dry-run"}
     root = Path(project_root).resolve()
+    try:
+        rules = load_book_rules(root)
+    except BookRulesError as exc:
+        return {
+            "status": "blocked",
+            "reason_codes": ["E_BOOK_RULES_UNAVAILABLE"],
+            "error": str(exc),
+        }
+    if use_llm and (max_llm_calls <= 0 or max_runtime_seconds <= 0):
+        return {"status": "blocked", "reason_codes": ["E_LLM_BUDGET_INVALID"]}
+    llm_started = time.monotonic()
+
+    def _wrap_provider(value: Any) -> Any:
+        if value is None or not use_llm or isinstance(value, _BudgetedProvider):
+            return value
+        return _BudgetedProvider(value, max_calls=max_llm_calls,
+                                 started=llm_started, max_runtime=max_runtime_seconds)
+
+    provider = _wrap_provider(provider)
     # An injected provider is an explicit in-process dependency (used by
     # callers/tests); registry validation still applies to CLI/env-driven use.
     preflight = run_preflight(str(root), output_dir=Path(output_dir), use_llm=use_llm,
@@ -383,6 +701,98 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         return {"status": "failed", "reason_codes": [exc.code], "error": str(exc)}
     if not snapshot.pages:
         return {"status": "failed", "reason_codes": ["no-pages"], "error": "no eligible wiki pages"}
+    lineage: LineageStore | None = None
+    lineage_page_sources: dict[str, tuple[str, ...]] = {}
+    lineage_source_ids: tuple[str, ...] = ()
+    lineage_run_id: str | None = None
+    lineage_page_map = _pages(snapshot.pages)
+
+    def _fail_lineage(reason: str) -> None:
+        if lineage is not None and lineage_run_id is not None:
+            run = lineage.build_run(lineage_run_id)
+            if run is not None and run["status"] == "running":
+                lineage.fail_build_run(lineage_run_id, reason)
+    policy: dict[str, Any] = {}
+    resolved_approver: str | None = None
+    resolved_budget: int | None = None
+    allowed_paths: Any = None
+    if use_llm and not polish:
+        policy_path = root / ".llm-wiki" / "policy.json"
+        try:
+            loaded = json.loads(policy_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError):
+            loaded = {}
+        if not isinstance(loaded, dict) or loaded.get("external_llm_allowed") is not True:
+            return {"status": "blocked", "reason_codes": ["E_EXTERNAL_LLM_UNAUTHORIZED"]}
+        early_allowed_paths = loaded.get("allowed_paths") if isinstance(loaded, dict) else None
+        if early_allowed_paths is not None:
+            if (not isinstance(early_allowed_paths, list) or
+                    any(not isinstance(item, str) for item in early_allowed_paths)):
+                return {"status": "blocked", "reason_codes": ["E_LLM_ALLOWLIST_INVALID"]}
+            allowed = {item.replace("\\", "/") for item in early_allowed_paths}
+            unauthorized = sorted({source for page in snapshot.pages for source in page.sources
+                                   if source.replace("\\", "/") not in allowed})
+            if unauthorized:
+                return {"status": "blocked", "reason_codes": ["E_LLM_SOURCE_NOT_ALLOWLISTED"],
+                        "paths": unauthorized[:20]}
+        restricted = sorted({page.page_id for page in snapshot.pages
+                             if page.sensitivity in _RESTRICTED_SENSITIVITY})
+        if restricted:
+            return {"status": "blocked", "reason_codes": ["E_LLM_RESTRICTED_SOURCE"],
+                    "page_ids": restricted[:20]}
+    if polish:
+        policy_path = root / ".llm-wiki" / "policy.json"
+        if policy_path.is_file():
+            try:
+                loaded = json.loads(policy_path.read_text(encoding="utf-8"))
+                policy = loaded if isinstance(loaded, dict) else {}
+            except (OSError, ValueError, json.JSONDecodeError):
+                policy = {}
+        resolved_approver = approver or policy.get("approver")
+        resolved_budget = budget_cap if budget_cap is not None else policy.get("budget_cap")
+        if not isinstance(resolved_approver, str) or not resolved_approver.strip():
+            return {"status": "blocked", "reason_codes": ["E_LLM_APPROVER_REQUIRED"]}
+        if not isinstance(resolved_budget, int) or resolved_budget <= 0 or max_llm_calls > resolved_budget:
+            return {"status": "blocked", "reason_codes": ["E_LLM_BUDGET_CAP"]}
+        allowed_paths = policy.get("allowed_paths")
+        if allowed_paths is not None:
+            if not isinstance(allowed_paths, list) or any(not isinstance(item, str) for item in allowed_paths):
+                return {"status": "blocked", "reason_codes": ["E_LLM_ALLOWLIST_INVALID"]}
+            allowed = {item.replace("\\", "/") for item in allowed_paths}
+            unauthorized = sorted({source for page in snapshot.pages for source in page.sources
+                                   if source.replace("\\", "/") not in allowed})
+            if unauthorized:
+                return {"status": "blocked", "reason_codes": ["E_LLM_SOURCE_NOT_ALLOWLISTED"],
+                        "paths": unauthorized[:20]}
+        restricted = sorted({page.page_id for page in snapshot.pages
+                             if page.sensitivity in _RESTRICTED_SENSITIVITY})
+        if restricted:
+            return {"status": "blocked", "reason_codes": ["E_LLM_RESTRICTED_SOURCE"],
+                    "page_ids": restricted[:20]}
+    editorial_state: BookEditorialState | None = None
+    editorial_root = Path(output_dir)
+    if (editorial_root / "book.json").is_file():
+        try:
+            editorial_state = load_editorial_state(editorial_root)
+        except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+            return {"status": "failed", "reason_codes": ["E_EDITORIAL_STATE_INVALID"], "error": str(exc)}
+        state_errors = validate_editorial_state(
+            editorial_state, page_ids={page.page_id for page in snapshot.pages}
+        )
+        if state_errors:
+            return {"status": "failed", "reason_codes": ["E_EDITORIAL_STATE_INVALID"],
+                    "errors": list(state_errors)}
+        if editorial_state.book.get("source_snapshot_id") != snapshot.snapshot_id:
+            active = resolve_active_version(Path(output_dir))
+            return {
+                "status": "stale",
+                "book_freshness": "stale",
+                "reason_codes": ["E_EDITORIAL_SNAPSHOT_MISMATCH"],
+                "current_release": active.name if active is not None else None,
+            }
+        if encyclopedic or theme_outline is not None or (use_llm and not polish):
+            return {"status": "blocked", "reason_codes": ["E_EDITORIAL_STATE_RULE_ONLY"]}
+        book_id = book_id or str(editorial_state.book["book_id"])
     # Series gate: only enforced when the caller opts into a series context
     # (via --series). A traditional wiki without --series still produces the
     # rule-only artifact; the gate blocks dry-run when the named series has
@@ -439,16 +849,21 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
     if relation_summary["unresolved_ratio"] > MAX_UNRESOLVED_RELATION_RATIO:
         return {"status": "failed", "reason_codes": ["unresolved-relation-over-threshold"],
                 "relation_stats": _json(relation_summary)}
-    if theme_outline is not None:
+    if editorial_state is not None:
+        outline = editorial_state.outline
+        outline_generation_mode = "persisted"
+        outline_fallback_reason = None
+        chunks = {}
+    elif theme_outline is not None:
         if not use_llm:
             return {"status": "failed", "reason_codes": ["E_THEME_OUTLINE_REQUIRES_LLM"]}
         if provider is None:
             try:
                 from src.llm.provider_factory import create_llm_provider
-                provider = create_llm_provider(preflight.provider or "")
+                provider = _wrap_provider(create_llm_provider(preflight.provider or ""))
             except Exception as exc:
                 return {"status": "failed", "reason_codes": ["E_OUTLINE_PROVIDER_UNAVAILABLE"],
-                        "error": f"LLM provider unavailable: {exc}"}
+                        "error": f"LLM provider unavailable: {exc}", "llm_status": "unavailable"}
         try:
             theme = load_theme_outline(Path(theme_outline))
             outline = place_page_summaries_sync(theme, snapshot, provider)
@@ -462,7 +877,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         chunks = build_chapter_chunks(snapshot, partitions,
                                        context_window=max_input_tokens or 8000,
                                        output_reserve=max_output_tokens or 1000)
-    if theme_outline is None:
+    if editorial_state is None and theme_outline is None:
         volumes: dict[str, list[dict[str, Any]]] = {}
         for chapter_id, page_ids in sorted(chunks.items()):
             volume_id = chapter_id.rsplit(":", 1)[0]
@@ -475,14 +890,14 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         outline = rule_outline
         outline_generation_mode = "rule"
         outline_fallback_reason: str | None = None
-    if use_llm and theme_outline is None:
+    if editorial_state is None and use_llm and theme_outline is None:
         if provider is None:
             try:
                 from src.llm.provider_factory import create_llm_provider
-                provider = create_llm_provider(preflight.provider or "")
+                provider = _wrap_provider(create_llm_provider(preflight.provider or ""))
             except Exception as exc:
                 return {"status": "failed", "reason_codes": ["E_OUTLINE_PROVIDER_UNAVAILABLE"],
-                        "error": f"LLM provider unavailable: {exc}"}
+                        "error": f"LLM provider unavailable: {exc}", "llm_status": "unavailable"}
         try:
             planned_outlines = asyncio.run(plan_outline(
                 snapshot, chunks, provider,
@@ -499,24 +914,137 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             outline = rule_outline
             outline_generation_mode = "rule_fallback"
             outline_fallback_reason = type(exc).__name__
-    validation = validate_outline(snapshot, [outline])
-    if not validation.ok:
-        return {"status": "failed", "reason_codes": [e.code for e in validation.errors]}
+    if editorial_state is None:
+        validation = validate_outline(snapshot, [outline])
+        if not validation.ok:
+            return {"status": "failed", "reason_codes": [e.code for e in validation.errors]}
+    if apply:
+        lineage = LineageStore.open(root)
+        lineage_page_sources = _lineage_page_sources(lineage, snapshot)
+        lineage_source_ids = tuple(sorted({
+            source_id for source_ids in lineage_page_sources.values() for source_id in source_ids
+        }))
+    if lineage is not None:
+        lineage_run_id = uuid.uuid4().hex
+        lineage.create_build_run(
+            lineage_source_ids,
+            _lineage_snapshot(lineage, lineage_source_ids),
+            wiki_snapshot=snapshot.snapshot_id,
+            book_id=book_id or root.name,
+            run_id=lineage_run_id,
+        )
+        for _volume_id, chapter_id, chapter in _chapters([outline]):
+            page_ids = [
+                item if isinstance(item, str) else str(item.get("page_id", ""))
+                for item in chapter.get("page_ids", ())
+            ]
+            input_hash = _lineage_member_input_hash(page_ids, lineage_page_map)
+            for page_id in page_ids:
+                for source_id in lineage_page_sources.get(page_id, ()):
+                    lineage.record_build_member(
+                        lineage_run_id, source_id, chapter_id, "planned",
+                        input_hash=input_hash,
+                    )
     encyclopedic_index = None
     if encyclopedic:
         if provider is None:
             try:
                 from src.llm.provider_factory import create_llm_provider
-                provider = create_llm_provider(preflight.provider or "")
+                provider = _wrap_provider(create_llm_provider(preflight.provider or ""))
             except Exception as exc:
+                _fail_lineage("encyclopedic_provider_unavailable")
                 return {"status": "failed", "reason_codes": ["E_ENCYCLOPEDIC_PROVIDER_UNAVAILABLE"],
-                        "error": f"LLM provider unavailable: {exc}"}
+                        "error": f"LLM provider unavailable: {exc}", "llm_status": "unavailable"}
         try:
             from .encyclopedic_outline import generate_encyclopedic_outline
             encyclopedic_index = asyncio.run(generate_encyclopedic_outline(snapshot, provider))
         except Exception as exc:
+            _fail_lineage("encyclopedic_provider_unavailable")
             return {"status": "failed", "reason_codes": ["E_ENCYCLOPEDIC_PROVIDER_UNAVAILABLE"],
-                    "error": str(exc)}
+                    "error": str(exc), "llm_status": "unavailable"}
+    generated_chapters: dict[str, GeneratedChapter] | None = None
+    llm_metadata: dict[str, Any] | None = None
+    if polish:
+        if not use_llm:
+            _fail_lineage("body_generation_requires_llm")
+            return {"status": "blocked", "reason_codes": ["E_BODY_GENERATION_REQUIRES_LLM"]}
+        if provider is None:
+            try:
+                from src.llm.provider_factory import create_llm_provider
+                provider = _wrap_provider(create_llm_provider(preflight.provider or ""))
+            except Exception as exc:
+                _fail_lineage("body_provider_unavailable")
+                return {"status": "blocked", "reason_codes": ["E_BODY_PROVIDER_UNAVAILABLE"],
+                        "error": str(exc), "llm_status": "unavailable"}
+        llm_metadata = {
+            "provider": preflight.provider or type(provider).__name__,
+            "model": preflight.model,
+            "approver": resolved_approver,
+            "budget_cap": resolved_budget,
+            "max_llm_calls": max_llm_calls,
+            "max_input_tokens": max_input_tokens or 60000,
+            "max_output_tokens": max_output_tokens or min(15000, resolved_budget * 5000),
+            "max_retries": max_attempts,
+            "max_runtime_seconds": max_runtime_seconds,
+            "allowed_paths_checked": allowed_paths is not None,
+            "llm_calls_used": 0,
+            "sensitive_classifications_checked": True,
+            "external_llm_authorized": True,
+            "source_allowlist_passed": True,
+            "sensitive_gate_passed": True,
+        }
+        generated_chapters = {}
+        included_page_map = _pages(snapshot.pages)
+        conflict_page_ids = frozenset()
+        if editorial_state is not None:
+            included_page_ids = {
+                row["page_id"] for row in editorial_state.curation.get("pages", ())
+                if isinstance(row, dict) and row.get("disposition") in {"include", "conflict"}
+            }
+            included_page_map = {page_id: page for page_id, page in included_page_map.items() if page_id in included_page_ids}
+            conflict_page_ids = frozenset(
+                row["page_id"] for row in editorial_state.curation.get("pages", ())
+                if isinstance(row, dict) and row.get("disposition") == "conflict"
+            )
+        for index, (_volume_id, chapter_id, chapter) in enumerate(_chapters([outline])):
+            if (isinstance(provider, _BudgetedProvider) and
+                    (provider.calls >= max_llm_calls or
+                     time.monotonic() - llm_started >= max_runtime_seconds)):
+                generated_chapters[chapter_id] = GeneratedChapter(
+                    chapter_id, (), "failed", "budget_exhausted",
+                )
+                continue
+            draft = aggregate_chapter(chapter, included_page_map)
+            try:
+                section_plan = _body_section_plan(
+                    chapter,
+                    included_page_map,
+                    require_explicit=editorial_state is not None,
+                )
+            except ValueError as exc:
+                _fail_lineage("section_plan_invalid")
+                return {
+                    "status": "blocked",
+                    "reason_codes": ["E_BOOK_THEME_SECTIONS_INVALID"],
+                    "chapter_id": chapter_id,
+                    "error": str(exc),
+                }
+            generated_chapters[chapter_id] = asyncio.run(generate_chapter_body(
+                draft, provider,
+                section_plan=section_plan,
+                project_rules=rules.text,
+                conflict_page_ids=conflict_page_ids,
+                token_budget=max_output_tokens or min(15000, resolved_budget * 5000),
+                retries=max_attempts,
+            ))
+        if isinstance(provider, _BudgetedProvider):
+            llm_metadata["llm_calls_used"] = provider.calls
+        llm_metadata["failure_reasons"] = sorted({
+            str(generated.failure_reason)
+            for generated in generated_chapters.values()
+            if generated.content_status != "complete" and generated.failure_reason
+        })
+
     artifact = compile_book(snapshot, [outline], snapshot.pages,
                             fingerprint={"snapshot_id": snapshot.snapshot_id, "use_llm": use_llm},
                             polish=polish, encyclopedic=encyclopedic, state_dir=root / ".index",
@@ -526,8 +1054,17 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                             series_id=series_id,
                             book_id=book_id,
                             book_mode=book_mode,
-                            release_id=release_id)
+                            release_id=release_id,
+                            editorial_state=editorial_state,
+                            generated_chapters=generated_chapters,
+                            llm_metadata=llm_metadata,
+                            rules_hash=rules.rules_hash,
+                            rules_snapshot=rules.text,
+                            rules_path="book.rules.md",
+                            plan_only=not use_llm and not polish and not apply,
+                            run_id=lineage_run_id)
     if artifact.validation_errors:
+        _fail_lineage("compile_validation_failed")
         return {"status": "failed", "reason_codes": list(artifact.validation_errors)}
     if encyclopedic_index is not None:
         from .cross_links import build_cross_link_candidates
@@ -541,14 +1078,26 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         artifact = BuildArtifact(artifact.snapshot_id, manifest, artifact.version_dir, artifact.validation_errors)
     quality = None
     rubric_report = None
+    llm_status = _body_llm_status(generated_chapters)
     if quality_gate not in {"rule", "both", "off"}:
+        _fail_lineage("quality_gate_invalid")
         return {"status": "failed", "reason_codes": ["E_INVALID_QUALITY_GATE"]}
-    if quality_gate in {"rule", "both"}:
+    plan_only = not use_llm and not polish and not apply
+    if quality_gate in {"rule", "both"} and not plan_only:
         from .quality_gate import check_quality_gate
-        quality = check_quality_gate(artifact.manifest, llm_status="disabled" if quality_gate == "rule" else "unavailable")
+        quality = check_quality_gate(artifact.manifest, llm_status=llm_status)
         artifact = BuildArtifact(artifact.snapshot_id, {**artifact.manifest, "quality_gate": quality.__dict__}, artifact.version_dir, artifact.validation_errors)
         if not quality.ok:
+            _fail_lineage("quality_gate_blocked")
             return {"status": "failed", "reason_codes": ["E_QUALITY_GATE_BLOCKED"], "quality_gate": quality.__dict__}
+    if apply and llm_status != "passed":
+        _fail_lineage("llm_required_for_apply")
+        return {
+            "status": "failed",
+            "reason_codes": ["E_LLM_REQUIRED_FOR_APPLY"],
+            "llm_status": llm_status,
+            "quality_gate": quality.__dict__ if quality is not None else {"status": "off"},
+        }
     if rubric:
         from .rubric import load_rubric
         from .reader_tasks import run_reader_tasks, task_pass_rate
@@ -560,15 +1109,124 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
     if quality is None:
         artifact = BuildArtifact(artifact.snapshot_id, {**artifact.manifest, "quality_gate": {"status": "off"}}, artifact.version_dir, artifact.validation_errors)
     # Rewrite manifest after optional gate/rubric metadata is known.
-    (artifact.version_dir / "manifest.json").write_text(json.dumps(artifact.manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+    manifest = _write_manifest(artifact.version_dir / "manifest.json", artifact.manifest)
+    artifact = BuildArtifact(artifact.snapshot_id, manifest, artifact.version_dir, artifact.validation_errors)
+    if lineage is not None and lineage_run_id is not None:
+        chapter_files = artifact.manifest.get("chapter_files", {})
+        chapter_sources = artifact.manifest.get("chapter_sources", {})
+        if isinstance(chapter_files, dict) and isinstance(chapter_sources, dict):
+            for chapter_id, filename in chapter_files.items():
+                if not isinstance(chapter_id, str) or not isinstance(filename, str):
+                    continue
+                source_ids = tuple(sorted({
+                    source_id
+                    for source in chapter_sources.get(filename, ())
+                    if isinstance(source, str)
+                    and (source_id := lineage.source_id_for_path(source)) is not None
+                }))
+                chapter_path = artifact.version_dir / filename
+                if not source_ids or not chapter_path.is_file():
+                    continue
+                output_path = chapter_path.relative_to(root).as_posix()
+                output_hash = _sha(chapter_path)
+                page_ids = [
+                    item if isinstance(item, str) else str(item.get("page_id", ""))
+                    for volume_id, current_id, chapter in _chapters([outline])
+                    if current_id == chapter_id
+                    for item in chapter.get("page_ids", ())
+                ]
+                input_hash = _lineage_member_input_hash(page_ids, lineage_page_map)
+                for source_id in source_ids:
+                    lineage.record_build_member(
+                        lineage_run_id, source_id, chapter_id, "staged",
+                        input_hash=input_hash, output_hash=output_hash,
+                        output_path=output_path,
+                    )
+    if generated_chapters is not None and any(
+        generated.content_status != "complete" for generated in generated_chapters.values()
+    ):
+        _fail_lineage("llm_partial")
+        acceptance = build_release_acceptance_report(
+            root, artifact.version_dir, publication_status="partial",
+        )
+        acceptance.update({
+            "rules_hash": rules.rules_hash,
+            "rules_path": "book.rules.md",
+            "rules_snapshot": rules.text,
+        })
+        write_release_acceptance_report(artifact.version_dir, acceptance)
+        return {
+            "status": "partial",
+            "generation_mode": "llm_partial",
+            "release_status": "partial",
+            "run_id": artifact.manifest["run_id"],
+            "snapshot_id": snapshot.snapshot_id,
+            "version_dir": str(artifact.version_dir),
+            "reason_codes": ["E_LLM_PARTIAL"],
+            "acceptance": acceptance,
+        }
+    acceptance: dict[str, Any] | None = None
+    if apply:
+        acceptance = build_release_acceptance_report(
+            root,
+            artifact.version_dir,
+            publication_status="committed",
+            expected_pointer_version=str(artifact.manifest["run_id"]),
+        )
+        acceptance.update({
+            "rules_hash": rules.rules_hash,
+            "rules_path": "book.rules.md",
+            "rules_snapshot": rules.text,
+        })
+        try:
+            # Stage all release evidence before CURRENT.json is switched.
+            write_release_acceptance_report(artifact.version_dir, acceptance)
+        except Exception as exc:
+            _fail_lineage("acceptance_write_failed")
+            return {
+                "status": "failed",
+                "reason_codes": ["E_RELEASE_ACCEPTANCE_WRITE_FAILED"],
+                "error": f"{type(exc).__name__}: {exc}",
+                "run_id": artifact.manifest["run_id"],
+                "snapshot_id": snapshot.snapshot_id,
+                "version_dir": str(artifact.version_dir),
+            }
     lock = None
     try:
         if apply:
             lock = acquire_run_lock(root / ".index" / "book-wiki.lock", stale_after_seconds=3600)
         report = publish_book(artifact, Path(output_dir), apply=apply, lock=lock)
-        result = {"status": report.status, "run_id": report.run_id,
+        lineage_error: str | None = None
+        if lineage is not None and lineage_run_id is not None:
+            if report.status == "committed" and apply:
+                manifest_path = Path(output_dir) / ".releases" / report.run_id / "manifest.json"
+                try:
+                    lineage.record_book_release(
+                        lineage_run_id,
+                        lineage_source_ids,
+                        manifest_path.relative_to(root).as_posix(),
+                        _sha(manifest_path),
+                    )
+                except Exception as exc:
+                    # The release pointer is already durable; leave the run
+                    # running so the next LineageStore.open() can reconcile it.
+                    lineage_error = f"lineage_record_failed: {type(exc).__name__}: {exc}"
+            elif report.status != "committed":
+                _fail_lineage(report.error or "book_publish_failed")
+        if not (apply and report.status == "committed"):
+            acceptance_dir = artifact.version_dir
+            acceptance = build_release_acceptance_report(
+                root, acceptance_dir, publication_status=report.status,
+            )
+            acceptance.update({
+                "rules_hash": rules.rules_hash,
+                "rules_path": "book.rules.md",
+                "rules_snapshot": rules.text,
+            })
+            write_release_acceptance_report(acceptance_dir, acceptance)
+        result = {"status": "failed" if lineage_error else report.status, "run_id": report.run_id,
                     "snapshot_id": snapshot.snapshot_id, "version_dir": str(artifact.version_dir),
-                    "error": report.error} if report.error else {
+                    "error": lineage_error or report.error} if report.error or lineage_error else {
                     "status": report.status, "run_id": report.run_id,
                     "snapshot_id": snapshot.snapshot_id, "version_dir": str(artifact.version_dir)}
         if series_id is not None:
@@ -577,7 +1235,9 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             result["book_mode"] = book_mode
             result["release_id"] = release_id
         if quality is not None: result["quality_gate"] = quality.__dict__
+        result["llm_status"] = llm_status
         if rubric_report is not None: result["rubric"] = rubric_report
+        result["acceptance"] = acceptance
         if rubric_report is not None and rubric_report["pass_rate"] < 0.8:
             result["warnings"] = ["E_RUBRIC_BELOW_THRESHOLD"]
         return result

@@ -23,6 +23,10 @@ def _make_novel_wiki_minimal(root: Path) -> Path:
     Mirrors the real wiki structure: 540 concept + 1 synthesis in
     写作技法 taxonomy, with supports edges from concept → synthesis.
     """
+    (root / "book.rules.md").write_text(
+        "# Book rules\n\n- Preserve source meaning.\n",
+        encoding="utf-8",
+    )
     wiki = root / "wiki"
     for d in ("concepts", "entities", "synthesis"):
         (wiki / d).mkdir(parents=True, exist_ok=True)

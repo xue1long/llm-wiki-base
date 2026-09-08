@@ -567,15 +567,25 @@ def build_parser() -> "argparse.ArgumentParser":
     p_book_wiki.add_argument("--project", help="Project id or name")
     p_book_wiki.add_argument("--output-dir", default="book-wiki",
                              help="Output directory, relative to the project root")
-    p_book_wiki.add_argument("--use-llm", action="store_true", help="Opt in to LLM stages")
-    p_book_wiki.add_argument("--polish", action="store_true", help="Allow LLM content polishing")
-    p_book_wiki.add_argument("--encyclopedic", action="store_true", help="Enable encyclopedic cross-page mode (requires --use-llm)")
+    p_book_wiki.add_argument("--use-llm", action="store_true", help="Legacy compatibility input")
+    p_book_wiki.add_argument("--polish", action="store_true", help="Legacy compatibility input")
+    p_book_wiki.add_argument("--encyclopedic", action="store_true", help="Enable encyclopedic cross-page mode (requires --preview or --apply)")
     p_book_wiki.add_argument("--quality-gate", choices=("rule", "both", "off"), default="rule", help="Quality gate mode (default: rule)")
     p_book_wiki.add_argument("--rubric", help="Versioned reader-task rubric YAML")
-    p_book_wiki.add_argument("--apply", action="store_true", help="Publish after all validation gates pass")
+    mode_group = p_book_wiki.add_mutually_exclusive_group()
+    mode_group.add_argument("--plan", dest="build_mode", action="store_const", const="plan",
+                            help="Plan only; do not call LLM (default)")
+    mode_group.add_argument("--preview", dest="build_mode", action="store_const", const="preview",
+                            help="Generate an LLM-polished preview without publishing")
+    mode_group.add_argument("--apply", dest="build_mode", action="store_const", const="apply",
+                            help="Generate, validate, and publish the LLM-polished Book")
     p_book_wiki.add_argument("--max-attempts", type=int, default=3)
     p_book_wiki.add_argument("--max-input-tokens", type=int, default=None)
     p_book_wiki.add_argument("--max-output-tokens", type=int, default=None)
+    p_book_wiki.add_argument("--max-llm-calls", type=int, default=3)
+    p_book_wiki.add_argument("--max-runtime-seconds", type=int, default=900)
+    p_book_wiki.add_argument("--budget-cap", type=int, default=None)
+    p_book_wiki.add_argument("--approver", default=None)
     p_book_wiki.add_argument("--theme-outline", help="Use a theme-only outline and map Wiki summaries into it")
     def _require_id(value: str) -> str:
         if not value or not value.strip():
@@ -588,12 +598,23 @@ def build_parser() -> "argparse.ArgumentParser":
                              help="Book id within the series (must pair with --series)")
     p_book_wiki.add_argument("--release-id", default=None, help="Release id for the series manifest")
     p_book_wiki.add_argument("--narrative", action="store_true",
-                             help="Enable narrative mode for the selected book (requires --use-llm)")
+                             help="Enable narrative mode for the selected book (requires --preview or --apply)")
     p_book_wiki.add_argument("--json", action="store_true", help="Emit JSON instead of text")
 
     def _validate_narrative(args, _parser):
-        if args.narrative and not args.use_llm:
-            _parser.error("--narrative requires --use-llm")
+        mode_explicit = args.build_mode is not None
+        legacy_llm = bool(args.use_llm or args.polish)
+        if not mode_explicit and args.use_llm and args.polish:
+            args.build_mode = "preview"
+        else:
+            args.build_mode = args.build_mode or "plan"
+        if args.build_mode == "plan" and legacy_llm:
+            _parser.error("legacy --use-llm/--polish cannot be combined with --plan")
+        if args.build_mode != "plan":
+            args.use_llm = True
+            args.polish = True
+        if args.narrative and args.build_mode == "plan":
+            _parser.error("--narrative requires --preview or --apply")
         if (args.book is None) != (args.series is None):
             _parser.error("--series and --book must be supplied together")
 

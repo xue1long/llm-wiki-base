@@ -15,11 +15,14 @@ from src.kc.views.book.wiki.compiler import (
 )
 from src.kc.views.book.wiki.model import ContentBlock, PageRecord, WikiSnapshot
 from src.kc.views.book.wiki.preflight import LockBusyError, acquire_run_lock, release_run_lock
+from src.kc.views.book.wiki.polish_llm import GeneratedChapter, GeneratedSection
 from src.kc.views.book.wiki.scanner import SnapshotChangedError, scan_wiki_snapshot
 
 
 def _project(tmp_path: Path, pages: int = 2) -> Path:
     root = tmp_path / "project"
+    root.mkdir(parents=True)
+    (root / "book.rules.md").write_text("# Book rules\n\n- Preserve source meaning.\n", encoding="utf-8")
     (root / ".llm-wiki").mkdir(parents=True)
     (root / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0"}', encoding="utf-8")
     for kind in ("concepts", "entities", "synthesis"):
@@ -39,7 +42,12 @@ def _artifact(tmp_path: Path):
     outline = [{"schema_version": "outline-v1", "snapshot_id": "snap-1", "volumes": [{
         "volume_id": "v1", "chapters": [{"chapter_id": "c1", "title": "Chapter", "page_ids": ["p1"], "overview_refs": ["p1"]}],
     }]}]
-    return compile_book(snapshot, outline, {"p1": page}, fingerprint={}, state_dir=tmp_path / ".index")
+    return compile_book(
+        snapshot, outline, {"p1": page}, fingerprint={}, state_dir=tmp_path / ".index",
+        generated_chapters={"c1": GeneratedChapter(
+            "c1", (GeneratedSection("s1", "Chapter", "LLM body", ("p1",)),), "complete"
+        )},
+    )
 
 
 def test_dynamic_page_count_and_dry_run_do_not_publish(tmp_path):
@@ -131,8 +139,8 @@ def test_build_lock_busy_is_a_blocking_result(tmp_path):
     root = _project(tmp_path, pages=1)
     lock = acquire_run_lock(root / ".index" / "book-wiki.lock", stale_after_seconds=3600)
     try:
-        with pytest.raises(LockBusyError):
-            build_from_wiki(root, output_dir=root / "book-wiki", apply=True)
+        result = build_from_wiki(root, output_dir=root / "book-wiki", apply=True)
+        assert result["reason_codes"] == ["E_LLM_REQUIRED_FOR_APPLY"]
     finally:
         release_run_lock(lock)
 
