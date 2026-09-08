@@ -53,7 +53,7 @@ from ..kc.views.book.materialize import materialize_book_manifest, materialize_b
 from ..lib.project import resolve_project
 from ..project.context import ProjectNotFoundError
 from ..kc.views.book.wiki import run_preflight, LockBusyError
-from ..kc.views.book.wiki.theme_outline import ThemeOutlineError, plan_theme_outline, save_theme_outline
+from ..kc.views.book.wiki.theme_outline import plan_theme_outline, save_theme_outline
 
 # ── Exit-code contract ─────────────────────────────────────────────────
 EXIT_OK: int = 0

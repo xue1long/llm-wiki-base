@@ -185,7 +185,8 @@ def evaluate_series_gate(
         _, candidate_duplicate_rate, candidate_duplicate_denominator = _duplicate_rate(candidate_pages)
         coverage = _rate(sum(bool(page.sources) for page in candidate_pages), count)
         types = {page.page_type.lower() for page in candidate_pages}
-        task_for = lambda page: (page.task_type or _TASK_TYPES.get(page.page_type, "reference")).lower()
+        def task_for(page):
+            return (page.task_type or _TASK_TYPES.get(page.page_type, "reference")).lower()
         # v0.3 plan-audit S1: closure_parts is now driven by
         # ``reader_profile.closure_strict_types`` (pipe-separated OR groups).
         # Default keeps the original 3-slot semantics so existing strict tests
