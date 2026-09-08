@@ -14,6 +14,33 @@ from src.services.batch_state import set_raw_status
 from src.wiki.features.batch_gate import run_precommit_gate
 
 
+def _clear_failed_lineage_reservations(paths, pages, failed_paths) -> None:
+    """Release only reservations for paths that this flush proved failed.
+
+    ``LineageStore.prepare_wiki_commits`` intentionally rejects a different
+    pending reservation for the same page.  A partial atomic flush is the one
+    narrow case where the caller knows which page write failed, so reclaim
+    only those page ids while the project commit lock is still held.  Other
+    pending rows remain protected by the normal conflict check.
+    """
+    if not failed_paths:
+        return
+    from src.lineage import LineageStore
+    from src.wiki.storage.page_writer import page_path_for
+
+    failed = set()
+    for raw_path in failed_paths:
+        path = Path(raw_path)
+        if not path.is_absolute():
+            path = Path(paths.root) / path
+        failed.add(path.resolve())
+
+    lineage = LineageStore.open(paths.root)
+    for page in pages:
+        if page_path_for(paths, page.type, page.id).resolve() in failed:
+            lineage.clear_pending_wiki_commit(page.id)
+
+
 def _prepare_batch(args):
     from .hooks import _resolve_paths, _resolve_provider
     from .hooks import _is_fake_mode
@@ -271,6 +298,7 @@ async def _phase_commit(paths, generated, pending, batch_key, args,
             except AtomicCommitError as exc:
                 err += 1
                 partial_raws.append(raw)
+                _clear_failed_lineage_reservations(paths, pages, exc.failed_paths)
                 print(f"  COMMIT PARTIAL {raw}: {exc} — raw marked "
                       "partial_commit (resume retries idempotently)", flush=True)
                 set_raw_status(paths, batch_key, raw, "partial_commit",

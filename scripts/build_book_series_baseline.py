@@ -142,12 +142,20 @@ def _write_snapshot(project_root: Path, snapshot, profile, governance, results_b
 
     out_dir = project_root / ".llm-wiki" / "book-series" / "baselines"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_file = out_dir / f"{snapshot.snapshot_id[:12]}-{int(datetime.now(timezone.utc).timestamp())}.json"
-    out_file.write_text(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
-        encoding="utf-8",
-    )
-    return out_file
+    stem = f"{snapshot.snapshot_id[:12]}-{int(datetime.now(timezone.utc).timestamp())}"
+    content = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ) + "\n"
+    for ordinal in range(1_000_000):
+        suffix = "" if ordinal == 0 else f"-{ordinal:03d}"
+        out_file = out_dir / f"{stem}{suffix}.json"
+        try:
+            with out_file.open("x", encoding="utf-8") as handle:
+                handle.write(content)
+            return out_file
+        except FileExistsError:
+            continue
+    raise RuntimeError(f"could not allocate unique baseline filename under {out_dir}")
 
 
 def _prune(out_dir: Path, keep: int = 5) -> int:
