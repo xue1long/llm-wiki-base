@@ -1,5 +1,7 @@
 # Project Memory Index
 
+- [2026-09-09 合并阻塞修复](feedback-merge-blockers-2026-09-09.md) — LanceDB 删除结果兼容、原子 flush lineage 恢复、书籍编译契约补齐；Windows 测试需隔离配置和 cwd
+
 - [2026-09-08 Unified Book 管线整改](feedback-unified-book-remediation-2026-09-08.md) — plan 无正文/无 LLM，apply 验收证据先于 CURRENT 切换，实例规则缺失时 fail-closed
 
 - [2026-09-07 Unified Book 真实 Provider 试读](feedback-unified-book-real-provider-pilot-2026-09-07.md) — MiniMax-M3 连通，但章节 JSON 解析未通过；修复 Provider 工厂 None 包装和嵌套 sidecar 路径校验，未发布
