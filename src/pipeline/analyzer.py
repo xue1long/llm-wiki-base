@@ -11,6 +11,7 @@ from ..wiki.features.tag_namespace import build_tag_prompt_section
 from ..wiki.schema_registry import SchemaRegistry
 from src.kc.compiler.normalize import normalize_text
 from ._pipeline_common import parse_llm_json
+from .prompt_policy import PROMPT_INJECTION_POLICY
 from .schemas import AnalysisResult, ConceptMention, EntityMention, PageSpec
 
 
@@ -402,6 +403,7 @@ async def analyze(
                 llm_resp = await bl.call(
                     prompt=prompt + extra,
                     response_format=ANALYZER_RESPONSE_FORMAT if _json_mode else None,
+                    system=PROMPT_INJECTION_POLICY,
                 )
             except RuntimeError as exc:
                 exc_str = str(exc)
@@ -605,6 +607,7 @@ async def _analyze_json(
                 llm_resp = await bl.call(
                     prompt=prompt + extra,
                     response_format=_ANALYZER_JSON_RESPONSE_FORMAT if _json_mode else None,
+                    system=PROMPT_INJECTION_POLICY,
                 )
             except RuntimeError as exc:
                 exc_str = str(exc)
