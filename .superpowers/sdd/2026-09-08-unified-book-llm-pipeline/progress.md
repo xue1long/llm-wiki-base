@@ -40,3 +40,16 @@
 - Remediation: manifest and acceptance evidence record `rules_path` in addition to the rules hash/snapshot; five reusable rule fixtures added.
 - Regression verification: `tests/test_kc` 795 passed; CLI Book suites 43 passed; acceptance-write atomicity test passed.
 - Full-repository run was stopped after a slow unrelated broad pass; `--maxfail=1` exposed one legacy novel-wiki fixture missing `book.rules.md`, which was migrated, but the 540-page suite was not rerun to completion.
+
+## Final personal-plan implementation pass
+
+- Ruling: reuse the existing implementation as the baseline; only close the final plan's four concrete gaps instead of redoing completed work.
+- Added regression tests for outline prompt boundaries, plan manifest file truth, post-pointer lineage failure, and legacy CLI outline-only normalization.
+- Fixed `plan_outline()` to receive project rules and a fixed system contract.
+- Fixed plan manifests so `chapter_files` contains only written files and `planned_chapters` carries plan-only chapter IDs.
+- Fixed post-pointer lineage failure status to `published_with_audit_warning`.
+- Fixed legacy Namespace compatibility so any legacy LLM request becomes complete preview/apply body generation.
+- Added rules snapshot path metadata and used it in release evidence.
+- Updated ADR to the personal release-truth and failure semantics.
+- Verification: focused book/compiler/CLI suites `53 passed`; full `tests/test_kc` `798 passed`; CLI Book suites `35 passed`.
+- Graphify update was attempted after code changes but was interrupted after the repository-wide update produced no completion output; no graphify result is claimed.
