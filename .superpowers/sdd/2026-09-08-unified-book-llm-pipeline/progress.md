@@ -53,3 +53,12 @@
 - Updated ADR to the personal release-truth and failure semantics.
 - Verification: focused book/compiler/CLI suites `53 passed`; full `tests/test_kc` `798 passed`; CLI Book suites `35 passed`.
 - Graphify update was attempted after code changes but was interrupted after the repository-wide update produced no completion output; no graphify result is claimed.
+
+## Finalization execution
+
+- Added `.graphifyignore` to exclude rebuildable test outputs and Book release artifacts from future graph scans.
+- Added an isolated plan-manifest regression test instead of staging the mixed historical changes in `test_book_wiki_compiler.py`.
+- Committed the scoped delivery closure as `138cbb22 test(book): close personal pipeline regression gates`.
+- Fresh scoped regression verification: `21 passed`.
+- Repaired the graphify invocation path by using the installed tool environment directly; AST extraction reached 209/209 uncached code files.
+- The subsequent graph build exceeded the bounded wait window and was interrupted. Existing `graph.json` and `manifest.json` match the pre-update SHA-256 backups; the existing graph remains queryable but is not claimed synchronized.
