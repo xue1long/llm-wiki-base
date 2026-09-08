@@ -41,6 +41,23 @@ def test_list_empty(tmp_path):
     assert QuarantineStore.list(tmp_path, task_id="nonexistent") == []
 
 
+def test_put_candidate_keeps_rejected_candidate_out_of_wiki(tmp_path):
+    from src.knowledge.core.candidate import KnowledgeCandidate
+    from src.knowledge.core.object import KnowledgeType
+
+    candidate = KnowledgeCandidate(
+        id="cand_1", source_id="raw/sources/x.md", type=KnowledgeType.CONCEPT,
+        title="T", claims=[{"statement": "C"}], confidence=0.1,
+        evidence=[{"quote": "Q"}], raw_llm_output={"title": "T"},
+    )
+    path = QuarantineStore.put_candidate(
+        tmp_path, "task1", candidate, "evidence rejected",
+    )
+    assert path == tmp_path / ".index" / "quarantine" / "task1" / "candidate.json"
+    assert path.exists()
+    assert "evidence rejected" in path.with_name("candidate.judgment.json").read_text()
+
+
 def test_put_atomic_pair_write_failure(tmp_path, monkeypatch):
     """If the page write succeeds but the judgment write raises, NEITHER
     file should be visible after the put. QuarantineStore.put wraps both

@@ -21,6 +21,16 @@ def test_page_path_for(tmp_path):
     assert page_path_for(p, PageType.SYNTHESIS, "s") == p.wiki_synthesis / "s.md"
 
 
+@pytest.mark.parametrize("slug", [
+    "../escape", r"..\escape", "nested/name", r"nested\name",
+    r"C:\escape", "bad:name", "bad\nname", "..",
+])
+def test_page_path_for_rejects_untrusted_slug(tmp_path, slug):
+    ensure_knowledge_base(tmp_path)
+    with pytest.raises(ValueError):
+        page_path_for(WikiPaths(tmp_path), PageType.CONCEPT, slug)
+
+
 def test_write_and_read_page(tmp_path):
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)

@@ -770,17 +770,27 @@ async def generate_ingest(
                 prompt_blocks=_prompt_chunk,
             ))
         candidate = _merge_candidate_chunks(_chunk_candidates)
+        from ..lib.errors import InvalidInputError
+        from ..quality.quarantine import QuarantineStore
+
+        def _reject_candidate(reason: str):
+            try:
+                QuarantineStore.put_candidate(paths.root, task_id, candidate, reason)
+            except Exception:
+                _logger.exception("[run_ingest] failed to quarantine rejected candidate")
+            raise InvalidInputError(reason)
+
         if not hasattr(candidate, "claims") or not candidate.claims or not candidate.evidence:
-            raise ValueError("candidate requires non-empty claims and evidence")
+            _reject_candidate("candidate requires non-empty claims and evidence")
         _source_key = _ingest_source_key(source_path, paths.root)
         _candidate_status = getattr(candidate, "status", None)
         if getattr(_candidate_status, "value", _candidate_status) == "rejected":
-            raise ValueError("candidate status is rejected")
+            _reject_candidate(getattr(candidate, "failure_reason", None) or "candidate status is rejected")
         _candidate_source_id = getattr(candidate, "source_id", "")
         if not _candidate_source_id:
-            raise ValueError("candidate requires source_id")
+            _reject_candidate("candidate requires source_id")
         if _ingest_source_key(_candidate_source_id, paths.root) != _source_key:
-            raise ValueError("candidate source_id does not match source")
+            _reject_candidate("candidate source_id does not match source")
         document = _result.canonical_document
         review = await CandidateReviewer().review(
             candidate,
@@ -789,7 +799,7 @@ async def generate_ingest(
             visible_block_ids={block.block_id for block in _result.prompt_blocks},
         )
         if review.status != "validated" or not review.projections:
-            raise ValueError(
+            _reject_candidate(
                 candidate.failure_reason or "KC structural review rejected candidate"
             )
         _kc_review = {
