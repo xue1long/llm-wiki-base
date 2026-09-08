@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from src.pipeline.ingest import _merge_candidate_chunks, generate_ingest, run_ingest
+from src.lib.errors import InvalidInputError, format_error_for_queue
 from src.kc.compiler.normalize import normalize_text
 from src.knowledge.core.candidate import CandidateStatus, KnowledgeCandidate
 from src.knowledge.core.object import KnowledgeType
@@ -198,7 +199,7 @@ async def test_run_ingest_blocks_generation_when_candidate_evidence_is_invalid(
         fake_generate_from_candidate,
     )
 
-    with pytest.raises(ValueError, match="quote does not match"):
+    with pytest.raises(InvalidInputError, match="quote does not match"):
         await run_ingest(
             paths=paths,
             source_path=raw,
@@ -209,6 +210,8 @@ async def test_run_ingest_blocks_generation_when_candidate_evidence_is_invalid(
 
     assert not generated
     assert not list(paths.wiki.rglob("*.md"))
+    assert (paths.root / ".index" / "quarantine" / "kc-invalid-evidence-test" / "candidate.json").exists()
+    assert format_error_for_queue(InvalidInputError("quote does not match")).startswith("[no-retry]")
 
 
 @pytest.mark.asyncio
@@ -249,7 +252,7 @@ async def test_run_ingest_blocks_rejected_candidate_before_generation(
         fake_generate_from_candidate,
     )
 
-    with pytest.raises(ValueError, match="rejected"):
+    with pytest.raises(InvalidInputError, match="rejected"):
         await run_ingest(
             paths=paths,
             source_path=raw,
@@ -260,3 +263,4 @@ async def test_run_ingest_blocks_rejected_candidate_before_generation(
 
     assert not generated
     assert not list(paths.wiki.rglob("*.md"))
+    assert (paths.root / ".index" / "quarantine" / "kc-rejected-candidate-test" / "candidate.json").exists()

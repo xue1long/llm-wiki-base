@@ -4,6 +4,9 @@ These services extract logic previously inlined in src/server/routes/files.py
 (path traversal check, rglob walk, response shaping). Routes now become
 thin wrappers that map service exceptions to HTTPException.
 """
+import hashlib
+import json
+
 import pytest
 
 from src.services import files as files_service
@@ -343,6 +346,43 @@ def test_upload_file_rejects_unsupported_ext(monkeypatch, tmp_path):
     import pytest
     with pytest.raises(files_service.UnsupportedFileTypeError):
         files_service.upload_file("u", "script.exe", b"\x00")
+
+
+def test_book_wiki_versions_lists_verified_releases_and_reads_selected(monkeypatch, tmp_path):
+    project_dir = tmp_path / "kb"
+    (project_dir / ".llm-wiki").mkdir(parents=True)
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id":"u","name":"p","schema_version":"v2.0"}', encoding="utf-8")
+    book_dir = project_dir / "book-wiki"
+    for version, title in (("v1", "Old"), ("v2", "New")):
+        release = book_dir / ".releases" / version
+        release.mkdir(parents=True)
+        chapter = f"# {title}\n"
+        (release / "v001__c001.md").write_text(chapter, encoding="utf-8")
+        digest = hashlib.sha256((release / "v001__c001.md").read_bytes()).hexdigest()
+        outline = [{"volumes": [{"volume_id": "v001", "title": "第一卷", "chapters": [{"chapter_id": "c001", "title": "第一章"}]}]}]
+        (release / "outline.json").write_text(json.dumps(outline), encoding="utf-8")
+        outline_digest = hashlib.sha256((release / "outline.json").read_bytes()).hexdigest()
+        manifest = {"run_id": version, "chapter_count": 1, "page_count": 1,
+                    "files": {"v001__c001.md": digest, "outline.json": outline_digest}}
+        (release / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    active_manifest = (book_dir / ".releases" / "v2" / "manifest.json").read_bytes()
+    (book_dir / "CURRENT.json").write_text(json.dumps({
+        "version": "v2", "manifest_sha256": hashlib.sha256(active_manifest).hexdigest()
+    }), encoding="utf-8")
+    monkeypatch.setattr(
+        "src.services.files.resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+
+    versions = files_service.book_wiki_versions("u")["versions"]
+    assert {item["version"] for item in versions} == {"v1", "v2"}
+    assert next(item for item in versions if item["version"] == "v2")["active"] is True
+    selected_manifest = files_service.book_wiki_manifest("u", version="v1")
+    assert selected_manifest["volumes"][0]["title"] == "第一卷"
+    assert selected_manifest["chapters"][0]["title"] == "第一章"
+    selected = files_service.read_book_wiki_content("u", "v001__c001.md", version="v1")
+    assert selected["content"] == "# Old\n"
 
 
 def _fake_resolve(project_dir):

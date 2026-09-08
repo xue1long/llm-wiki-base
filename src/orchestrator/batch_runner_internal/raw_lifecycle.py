@@ -103,7 +103,8 @@ async def _commit_raw(paths, raw_rel, pages, extras, batch_key, task_id,
     _crash_at("cascade")
     await _commit_ingest(paths, raw_rel, pages, extras, task_id,
                           meta=meta, expected_page_hashes=expected_page_hashes)
-    set_raw_status(paths, batch_key, raw_rel, "done", branch=branch)
+    set_raw_status(paths, batch_key, raw_rel, "done", branch=branch,
+                   failed_paths=[])
     return branch
 
 

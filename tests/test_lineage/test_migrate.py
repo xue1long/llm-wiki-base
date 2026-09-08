@@ -14,13 +14,14 @@ def test_migration_defaults_to_dry_run(tmp_path: Path) -> None:
     assert report["dry_run"] is True
     assert report["scan_complete"] is True
     assert "backup" not in report
+    assert not (tmp_path / ".index" / "lineage" / "state.db").exists()
 
 
 def test_migration_apply_backups_lineage_db(tmp_path: Path) -> None:
     raw = tmp_path / "raw" / "sources"
     raw.mkdir(parents=True)
     (raw / "a.md").write_text("a", encoding="utf-8")
-    migrate(tmp_path)
+    migrate(tmp_path, apply=True)
 
     report = migrate(tmp_path, apply=True)
 

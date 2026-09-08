@@ -424,7 +424,8 @@ body {
 .book-volume { border:1px solid var(--border); border-radius:999px; padding:8px 14px; background:var(--bg-app); color:var(--text-secondary); cursor:pointer; }
 .book-volume.active, .book-volume:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-light); }
 .book-search { width:260px; padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-app); color:var(--text-primary); }
-.book-layout { display:grid; grid-template-columns:minmax(260px, 360px) 1fr; gap:18px; min-height:620px; }
+.book-version-select { min-width:270px; max-width:360px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-app); color:var(--text-primary); }
+.book-layout { display:grid; grid-template-columns:minmax(230px, 290px) minmax(0, 1fr) minmax(220px, 270px); gap:18px; min-height:620px; align-items:start; }
 .book-toc, .book-reader { border:1px solid var(--border); border-radius:16px; background:var(--bg-app); }
 .book-toc { max-height:calc(100vh - 250px); overflow:auto; padding:14px; }
 .book-volume-group + .book-volume-group { margin-top:18px; }
@@ -440,7 +441,22 @@ body {
 .book-reader-empty span { color:var(--accent); font-size:28px; }
 .book-reader-empty h2 { margin:12px 0 4px; font-size:24px; }
 .book-reader-empty p { margin:0; }
-@media (max-width: 800px) { .book-hero, .book-toolbar { display:block; } .book-stats { margin-top:18px; } .book-search { width:100%; margin-top:12px; } .book-layout { grid-template-columns:1fr; } .book-toc { max-height:320px; } }
+.book-info { position:sticky; top:18px; padding:22px 20px; border:1px solid var(--border); border-radius:16px; background:var(--bg-surface); box-shadow:var(--shadow-card); min-height:260px; }
+.book-info-eyebrow { color:var(--accent); font-size:10px; font-weight:800; letter-spacing:.16em; }
+.book-info-title { margin:10px 0 12px; color:var(--text-primary); font:700 20px/1.25 Georgia, serif; overflow-wrap:anywhere; }
+.book-info-status { display:flex; align-items:center; gap:7px; color:var(--success-text); font-size:12px; }
+.book-info-dot { width:7px; height:7px; border-radius:50%; background:var(--success); box-shadow:0 0 0 4px var(--success-light); }
+.book-info-list { display:grid; gap:11px; margin:22px 0; }
+.book-info-list div { display:flex; justify-content:space-between; gap:12px; border-bottom:1px solid var(--border-light); padding-bottom:9px; }
+.book-info-list dt { color:var(--text-muted); font-size:12px; }
+.book-info-list dd { margin:0; color:var(--text-primary); font:600 12px var(--font-mono); text-align:right; }
+.book-info-mode { display:inline-flex; padding:5px 8px; border-radius:999px; background:var(--accent-light); color:var(--accent); font:600 10px var(--font-mono); }
+.book-info-section-title { margin:24px 0 8px; color:var(--text-muted); font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.book-info-sources { display:grid; gap:8px; margin:0; padding:0; list-style:none; color:var(--text-secondary); font-size:11px; line-height:1.45; }
+.book-info-sources li { overflow-wrap:anywhere; }
+.book-info-empty { color:var(--text-muted); font-size:12px; line-height:1.6; }
+@media (max-width: 1050px) { .book-layout { grid-template-columns:minmax(210px, 260px) minmax(0, 1fr); } .book-info { grid-column:1 / -1; position:static; min-height:auto; } .book-info-list { grid-template-columns:repeat(4, 1fr); } }
+@media (max-width: 800px) { .book-hero, .book-toolbar { display:block; } .book-stats { margin-top:18px; } .book-search, .book-version-select { width:100%; max-width:none; margin-top:12px; } .book-layout { grid-template-columns:1fr; } .book-toc { max-height:320px; } .book-info { grid-column:auto; } .book-info-list { grid-template-columns:1fr 1fr; } }
 
 /* ---------- Book build panel (Knowledge Compiler) ---------- */
 .book-build { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin:18px 0 0; padding:14px 16px; border:1px solid var(--border); border-radius:var(--radius-xl); background:var(--bg-surface); }

@@ -35,7 +35,17 @@ def cmd_lineage_health(args) -> int:
 def cmd_lineage_show(args) -> int:
     ctx = _resolve(args.project)
     store = LineageStore.open(ctx.path)
-    payload = {"sources": list(store.sources()), "artifacts": list(store.artifacts()),
-               "pending_outbox": [list(item) for item in store.pending_outbox()]}
+    runs = list(store.build_runs())
+    payload = {
+        "sources": list(store.sources()),
+        "artifacts": list(store.artifacts()),
+        "build_runs": runs,
+        "build_members": [
+            member
+            for run in runs
+            for member in store.build_member_details(run["run_id"])
+        ],
+        "pending_outbox": [list(item) for item in store.pending_outbox()],
+    }
     print(json.dumps(payload, ensure_ascii=False, indent=2) if args.json else json.dumps(payload, ensure_ascii=False))
     return 0

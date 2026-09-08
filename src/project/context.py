@@ -5,6 +5,8 @@ Created via:
 - ProjectContext.from_path(path) — for explicit init / discovery
 - ProjectContext.resolve(project_arg) — for CLI entry points
 """
+import json
+import os
 from dataclasses import dataclass
 
 # Private names below are compatibility exports used by CLI tests/callers.
@@ -106,12 +108,38 @@ class ProjectContext:
         """
         # Step 1: explicit --project arg
         if project_arg:
+            # Accept an initialized project path directly.  This keeps
+            # read-only CLI commands usable when the optional global registry
+            # is unavailable (for example in a restricted runtime).
+            candidate = Path(project_arg).expanduser()
+            project_json = candidate / ProjectIdentity.PROJECT_JSON_PATH
+            if candidate.is_dir() and project_json.is_file():
+                try:
+                    return cls._from_project_path(candidate)
+                except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+                    raise ProjectNotFoundError(
+                        f"Project path '{project_arg}' is invalid: {exc}"
+                    ) from exc
             entry = GlobalRegistryStore.by_id(project_arg)
             if entry:
                 return cls._from_registry_entry(entry)
             entry = GlobalRegistryStore.by_name(project_arg)
             if entry:
                 return cls._from_registry_entry(entry)
+            # The server may run with an explicit project root while the
+            # optional global registry is read-only or unavailable. Resolve
+            # that root by its on-disk identity without attempting a write.
+            explicit_root = os.environ.get("RUFLO_PROJECT_ROOT")
+            if explicit_root:
+                root = Path(explicit_root).expanduser()
+                project_json = root / ProjectIdentity.PROJECT_JSON_PATH
+                if root.is_dir() and project_json.is_file():
+                    try:
+                        ctx = cls._from_project_path(root)
+                    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+                        ctx = None
+                    if ctx and project_arg in {ctx.id, ctx.name}:
+                        return ctx
             raise ProjectNotFoundError(
                 f"No project with id/name '{project_arg}'. "
                 f"Run `python -m src.cli project list` to see known projects."
@@ -172,5 +200,20 @@ class ProjectContext:
             identity=identity,
             path=safe_resolve(project_path),
             name=entry.name,
+            schema_version=identity.schema_version,
+        )
+
+    @classmethod
+    def _from_project_path(cls, project_path: Path) -> "ProjectContext":
+        """Read an initialized project without touching the global registry."""
+        project_path = safe_resolve(project_path)
+        project_json = project_path / ProjectIdentity.PROJECT_JSON_PATH
+        identity = ProjectIdentity.from_dict(
+            json.loads(project_json.read_text(encoding="utf-8"))
+        )
+        return cls(
+            identity=identity,
+            path=project_path,
+            name=identity.name or project_path.name,
             schema_version=identity.schema_version,
         )

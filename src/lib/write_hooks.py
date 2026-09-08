@@ -115,7 +115,9 @@ def safe_write(path: Union[str, Path], content: str) -> None:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(content, encoding="utf-8")
+    # Write bytes so the digest recorded by lineage is identical on POSIX and
+    # Windows; text-mode newline translation otherwise turns LF into CRLF.
+    tmp.write_bytes(content.encode("utf-8"))
     _atomic_replace(tmp, path)
 
 
@@ -135,9 +137,15 @@ def flush_pending_writes() -> int:
     partial commit look like success — callers must now observe the error
     and mark the task FAILED.
     """
+    return _flush_pending_writes()
+
+
+def _flush_pending_writes(before_flush=None) -> int:
     bucket = _pending_writes_by_thread.pop(threading.get_ident(), {})
     if not bucket:
         return 0
+    if before_flush is not None:
+        before_flush(bucket)
     count = len(bucket)
     failed: list[Path] = []
     # Test hook: RUFLO_FLUSH_FAIL_PATHS=<name>[;<name>...] forces matching
@@ -159,7 +167,7 @@ def flush_pending_writes() -> int:
             else:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 tmp = path.with_name(path.name + ".tmp")
-                tmp.write_text(content, encoding="utf-8")
+                tmp.write_bytes(content.encode("utf-8"))
                 _atomic_replace(tmp, path)
         except Exception:
             failed.append(path)

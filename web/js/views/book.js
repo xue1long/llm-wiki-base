@@ -5,7 +5,7 @@
 // Two surfaces share this page:
 //   * Build panel  -> GET  /api/v1/kc/book/status
 //                     POST /api/v1/kc/book/build   (dry-run by default)
-//   * Reader pane  -> the existing read-only Wiki listing (unchanged)
+//   * Reader pane  -> the integrity-verified read-only Wiki-to-Book release
 //
 // The build is dry-run by default on purpose: a book build touches every
 // claim in the project. "预览构建" proves the plan first; only the explicit
@@ -15,13 +15,19 @@
 
   window.App = window.App || {};
 
-  const VOLUMES = [
+    const VOLUMES = [
     ["all", "全部"], ["sources", "Sources"], ["concepts", "Concepts"],
     ["entities", "Entities"], ["synthesis", "Synthesis"],
-  ];
+      ];
 
   App.renderBook = function renderBook(root) {
     let files = [];
+    let releaseFiles = [];
+    let book = null;
+    let series = null;
+    let tutorialPaths = [];
+    let selectedPath = "";
+    let selectedBookId = "";
     let selectedVolume = "all";
     let query = "";
     let busy = false;
@@ -47,7 +53,16 @@
           <div id="bookBuildResult"></div>
         </div>
         <div class="book-toolbar">
+          <select id="bookSelect" class="book-version-select" aria-label="选择 Book" disabled>
+            <option>加载书系…</option>
+          </select>
           <div class="book-volumes" id="bookVolumes"></div>
+          <select id="bookVersionSelect" class="book-version-select" aria-label="选择 Book 版本" disabled>
+            <option>加载 Book 版本…</option>
+          </select>
+          <select id="bookPathSelect" class="book-version-select" aria-label="选择教程路径" disabled>
+            <option>教程路径…</option>
+          </select>
           <input id="bookSearch" class="book-search" placeholder="搜索章节标题…" aria-label="搜索章节标题" />
         </div>
         <div class="book-layout">
@@ -55,13 +70,18 @@
           <article class="book-reader" id="bookReader">
             <div class="book-reader-empty"><span>✦</span><h2>选择一页开始阅读</h2><p>左侧目录会按 Wiki 类型整理当前实例。</p></div>
           </article>
+          <aside class="book-info" id="bookInfo"><div class="skeleton skeleton-line"></div></aside>
         </div>
       </section>`;
 
     const toc = root.querySelector("#bookToc");
     const reader = root.querySelector("#bookReader");
+    const info = root.querySelector("#bookInfo");
     const stats = root.querySelector("#bookStats");
     const volumeBar = root.querySelector("#bookVolumes");
+    const versionSelect = root.querySelector("#bookVersionSelect");
+    const pathSelect = root.querySelector("#bookPathSelect");
+    const bookSelect = root.querySelector("#bookSelect");
     const search = root.querySelector("#bookSearch");
     const buildStatusEl = root.querySelector("#bookBuildStatus");
     const buildResultEl = root.querySelector("#bookBuildResult");
@@ -69,9 +89,16 @@
     const dryRunBtn = root.querySelector("#bookDryRunBtn");
     const applyBtn = root.querySelector("#bookApplyBtn");
 
-    volumeBar.innerHTML = VOLUMES.map(([id, label]) =>
-      `<button class="book-volume${id === selectedVolume ? " active" : ""}" data-volume="${id}">${label}</button>`
-    ).join("");
+    function renderVolumeBar() {
+      const volumes = Array.isArray(book?.volumes) && book.volumes.length
+        ? [["all", "全部"], ...book.volumes.map(volume => [volume.id, volume.title])]
+        : VOLUMES;
+      if (!volumes.some(([id]) => id === selectedVolume)) selectedVolume = "all";
+      volumeBar.innerHTML = volumes.map(([id, label]) =>
+        `<button class="book-volume${id === selectedVolume ? " active" : ""}" data-volume="${App.escapeHtml(id)}">${App.escapeHtml(label)}</button>`
+      ).join("");
+    }
+    renderVolumeBar();
     volumeBar.addEventListener("click", event => {
       const button = event.target.closest("[data-volume]");
       if (!button) return;
@@ -80,6 +107,18 @@
       renderToc();
     });
     search.addEventListener("input", () => { query = search.value.trim().toLowerCase(); renderToc(); });
+    versionSelect.addEventListener("change", () => loadBook(versionSelect.value));
+    bookSelect.addEventListener("change", () => {
+      selectedBookId = bookSelect.value;
+      renderBookInfo();
+      renderToc();
+    });
+    pathSelect.addEventListener("change", () => {
+      selectedPath = pathSelect.value;
+      applyTutorialPath();
+      renderToc();
+      renderBookInfo();
+    });
 
     statusBtn.addEventListener("click", () => { loadStatus(); });
     dryRunBtn.addEventListener("click", () => { runBuild(false); });
@@ -103,6 +142,33 @@
 
     function joinCodes(codes) {
       return App.escapeHtml((codes || []).join(", ") || "未知");
+    }
+
+    function renderPathSelect() {
+      if (!tutorialPaths.length) {
+        pathSelect.innerHTML = "<option value=\"\">无教程路径</option>";
+        pathSelect.disabled = true;
+        return;
+      }
+      pathSelect.innerHTML = `<option value="">按目录阅读</option>${tutorialPaths.map(path =>
+        `<option value="${App.escapeHtml(String(path.path_id || ""))}">${App.escapeHtml(String(path.title || path.path_id || "未命名路径"))}</option>`
+      ).join("")}`;
+      pathSelect.disabled = false;
+      pathSelect.value = tutorialPaths.some(path => String(path.path_id) === selectedPath) ? selectedPath : "";
+    }
+
+    function applyTutorialPath() {
+      const path = tutorialPaths.find(item => String(item.path_id) === selectedPath);
+      if (!path) {
+        files = releaseFiles.slice();
+        return;
+      }
+      const order = new Map((path.steps || []).map((step, index) => [String(step.chapter_id), index]));
+      files = releaseFiles.slice().sort((left, right) => {
+        const leftIndex = order.has(String(left.outline_id)) ? order.get(String(left.outline_id)) : Number.MAX_SAFE_INTEGER;
+        const rightIndex = order.has(String(right.outline_id)) ? order.get(String(right.outline_id)) : Number.MAX_SAFE_INTEGER;
+        return leftIndex - rightIndex || Number(left.order || 0) - Number(right.order || 0);
+      });
     }
 
     async function loadStatus() {
@@ -155,47 +221,115 @@
       }
     }
 
-    // ---------- Read-only Wiki reader (fallback surface) ----------
+    // ---------- Read-only Wiki-to-Book reader ----------
 
-    App.api(`/api/v1/projects/${App.state.projectId}/files?root=wiki&recursive=true&max_files=10000`)
-      .then(data => {
-        files = (data.files || []).filter(file => !file.isDir && file.path.endsWith(".md"));
-        stats.textContent = `${files.length.toLocaleString()} 页 Wiki`;
+    async function loadBook(version = "") {
+      const query = version ? `?version=${encodeURIComponent(version)}` : "";
+      try {
+        const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki${query}`);
+        book = data;
+        releaseFiles = (data.chapters || []).filter(chapter => !selectedBookId || !chapter.book_id || chapter.book_id === selectedBookId);
+        tutorialPaths = Array.isArray(data.tutorial_paths) ? data.tutorial_paths : [];
+        files = releaseFiles.slice();
+        renderPathSelect();
+        applyTutorialPath();
+        renderVolumeBar();
+        stats.textContent = `${files.length.toLocaleString()} 章 · ${(data.page_count || 0).toLocaleString()} 页`;
+        renderBookInfo();
         renderToc();
-      })
-      .catch(error => {
+      } catch (error) {
+        book = null;
         stats.textContent = "加载失败";
         toc.innerHTML = `<div class="banner-err">Book 加载失败：${App.escapeHtml(error.message)}</div>`;
-      });
+        info.innerHTML = `<div class="book-info-empty">当前没有可预览的激活版本</div>`;
+      }
+    }
 
-    function volumeFor(path) {
-      const parts = App.normalizeWikiPath(path).split("/");
-      return ["sources", "concepts", "entities", "synthesis"].includes(parts[0]) ? parts[0] : "other";
+    async function loadSeries() {
+      try {
+        const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki/series`);
+        series = data;
+        const books = Array.isArray(data.books) ? data.books : [];
+        if (!books.length) {
+          bookSelect.innerHTML = "<option>暂无可选 Book</option>";
+          return;
+        }
+        bookSelect.innerHTML = books.map(item => {
+          const id = String(item.book_id || "");
+          const status = String(item.status || "unknown");
+          const label = `${id || "匿名旧版"} · ${status}`;
+          return `<option value="${App.escapeHtml(id)}">${App.escapeHtml(label)}</option>`;
+        }).join("");
+        bookSelect.disabled = false;
+        selectedBookId = String(books[0].book_id || "");
+        bookSelect.value = selectedBookId;
+      } catch (error) {
+        series = null;
+        bookSelect.innerHTML = "<option>书系信息不可用</option>";
+      }
+    }
+
+    async function loadVersions() {
+      try {
+        const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki/versions`);
+        const versions = data.versions || [];
+        if (!versions.length) {
+          versionSelect.innerHTML = "<option>暂无可用 Book 版本</option>";
+          return;
+        }
+        versionSelect.innerHTML = versions.map(item => {
+          const label = `${String(item.version).slice(0, 12)} · ${Number(item.chapter_count || 0).toLocaleString()}章 · ${Number(item.page_count || 0).toLocaleString()}页${item.active ? " · 当前" : ""}`;
+          return `<option value="${App.escapeHtml(String(item.version))}">${App.escapeHtml(label)}</option>`;
+        }).join("");
+        versionSelect.disabled = false;
+        const active = versions.find(item => item.active) || versions[0];
+        versionSelect.value = active.version;
+        await loadBook(active.version);
+      } catch (error) {
+        versionSelect.innerHTML = "<option>版本列表不可用</option>";
+        await loadBook();
+      }
+    }
+
+    function volumeFor(chapter) {
+      const raw = typeof chapter === "string"
+        ? chapter
+        : (chapter.chapter_id || chapter.path || "");
+      if (typeof chapter !== "string" && chapter.volume_id) return chapter.volume_id;
+      const prefix = String(raw).split(/[\\/]/).pop().split("-", 1)[0];
+      const volumes = { source: "sources", concept: "concepts", entity: "entities", synthesis: "synthesis" };
+      return volumes[prefix] || "chapters";
+    }
+
+    function volumeLabel(chapter) {
+      if (chapter?.volume_title) return chapter.volume_title;
+      const id = volumeFor(chapter);
+      const match = (book?.volumes || []).find(volume => volume.id === id);
+      return match?.title || ({ sources: "Sources · 来源", concepts: "Concepts · 概念", entities: "Entities · 实体", synthesis: "Synthesis · 综合", chapters: "章节" }[id] || id);
     }
 
     function renderToc() {
       const filtered = files.filter(file => {
-        const volume = volumeFor(file.path);
-        const title = (file.path.split(/[\\/]/).pop() || "").replace(/\.md$/, "");
+        const volume = volumeFor(file);
+        const title = file.title || file.chapter_id || file.path;
         return (selectedVolume === "all" || volume === selectedVolume) && (!query || title.toLowerCase().includes(query));
       });
       const grouped = new Map();
       for (const file of filtered) {
-        const volume = volumeFor(file.path);
+        const volume = volumeFor(file);
         if (!grouped.has(volume)) grouped.set(volume, []);
         grouped.get(volume).push(file);
       }
-      const labels = { sources: "Sources · 来源", concepts: "Concepts · 概念", entities: "Entities · 实体", synthesis: "Synthesis · 综合", other: "Other" };
       if (!filtered.length) {
         toc.innerHTML = `<div class="book-empty">没有匹配的章节</div>`;
         return;
       }
       toc.innerHTML = Array.from(grouped, ([volume, items]) => `
         <section class="book-volume-group">
-          <div class="book-volume-heading">${labels[volume]} <span>${items.length}</span></div>
+          <div class="book-volume-heading">${App.escapeHtml(volumeLabel(items[0]))} <span>${items.length}</span></div>
           ${items.slice(0, 300).map(file => {
-            const title = (file.path.split(/[\\/]/).pop() || "").replace(/\.md$/, "");
-            return `<button class="book-chapter" data-path="${App.escapeHtml(App.normalizeWikiPath(file.path))}">${App.escapeHtml(title)}</button>`;
+            const title = file.title || file.chapter_id || file.path;
+            return `<button class="book-chapter" data-path="${App.escapeHtml(file.path)}">${App.escapeHtml(title)}</button>`;
           }).join("")}
           ${items.length > 300 ? `<div class="book-more">还有 ${items.length - 300} 页，请继续搜索</div>` : ""}
         </section>`).join("");
@@ -207,17 +341,51 @@
       toc.querySelectorAll(".book-chapter").forEach(el => el.classList.toggle("active", el === button));
       reader.innerHTML = `<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div>`;
       try {
-        const data = await App.api(`/api/v1/projects/${App.state.projectId}/files/content?path=${encodeURIComponent(button.dataset.path)}`);
-        const parsed = App.parseFrontmatter(data.content || "");
+        const params = new URLSearchParams({path: button.dataset.path});
+        if (versionSelect.value && !versionSelect.disabled) params.set("version", versionSelect.value);
+        const data = await App.api(`/api/v1/projects/${App.state.projectId}/book-wiki/content?${params}`);
         const title = button.textContent;
-        reader.innerHTML = `<div class="book-reader-kicker">${App.escapeHtml(volumeFor(button.dataset.path))}</div>
-          <h2>${App.escapeHtml(title)}</h2>${App.renderFrontmatter(parsed.fm)}<div class="reader-body">${App.renderMd(parsed.body)}</div>`;
-        App.updateBreadcrumb(`book/${button.dataset.path}`);
+        const chapter = files.find(item => item.path === button.dataset.path);
+        reader.innerHTML = `<div class="book-reader-kicker">${App.escapeHtml(volumeLabel(chapter || {}))} · WIKI-TO-BOOK</div>
+          <h2>${App.escapeHtml(title)}</h2><div class="reader-body">${App.renderMd(data.content || "")}</div>`;
+        renderChapterInfo(chapter, data);
+        App.updateBreadcrumb(`book-wiki/${button.dataset.path}`);
       } catch (error) {
         reader.innerHTML = `<div class="banner-err">章节读取失败：${App.escapeHtml(error.message)}</div>`;
       }
     }
 
+    function renderBookInfo() {
+      if (!book) return;
+      info.innerHTML = `<div class="book-info-eyebrow">ACTIVE RELEASE</div>
+        <div class="book-info-title">${App.escapeHtml(String(book.version || "unknown").slice(0, 12))}</div>
+        <div class="book-info-status"><span class="book-info-dot"></span> ${App.escapeHtml(book.book_freshness || "unknown")} · ${App.escapeHtml(book.release_status || "complete")}</div>
+        <dl class="book-info-list">
+          <div><dt>章节</dt><dd>${Number(book.chapter_count || files.length).toLocaleString()}</dd></div>
+          <div><dt>Wiki 页面</dt><dd>${Number(book.page_count || 0).toLocaleString()}</dd></div>
+          <div><dt>关系边</dt><dd>${Number(book.total_relations || 0).toLocaleString()}</dd></div>
+          <div><dt>未解析</dt><dd>${Number(book.unresolved || 0).toLocaleString()} · ${(Number(book.unresolved_ratio || 0) * 100).toFixed(2)}%</dd></div>
+        </dl>
+        <div class="book-info-mode">${App.escapeHtml(book.generation_mode || book.reading_experience_mode || "rule_only")}${selectedPath ? ` · 路径：${App.escapeHtml(selectedPath)}` : ""}</div>
+        ${series && selectedBookId ? `<div class="book-info-section-title">当前 Book</div><div>${App.escapeHtml(selectedBookId)}</div>` : ""}`;
+    }
+
+    function renderChapterInfo(chapter, data) {
+      if (!chapter) return renderBookInfo();
+      const sources = (chapter.sources || []).slice(0, 4);
+      info.innerHTML = `<div class="book-info-eyebrow">CHAPTER ${String(chapter.order).padStart(3, "0")}</div>
+        <div class="book-info-title">${App.escapeHtml(chapter.title || chapter.chapter_id)}</div>
+        <div class="book-info-status"><span class="book-info-dot"></span> 当前阅读</div>
+        <dl class="book-info-list">
+          <div><dt>章节大小</dt><dd>${Math.ceil((data.size || chapter.size || 0) / 1024)} KB</dd></div>
+          <div><dt>来源文件</dt><dd>${sources.length}${chapter.sources && chapter.sources.length > sources.length ? "+" : ""}</dd></div>
+        </dl>
+        <div class="book-info-section-title">来源</div>
+        <ul class="book-info-sources">${sources.length ? sources.map(source => `<li>${App.escapeHtml(source)}</li>`).join("") : "<li>暂无来源记录</li>"}</ul>`;
+    }
+
     loadStatus();
+    loadSeries();
+    loadVersions();
   };
 })();

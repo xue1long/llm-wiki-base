@@ -87,7 +87,28 @@
 
 ---
 
-## 3. 聊天页（Chat）
+## 3. Book 阅读页
+
+**文件：** [web/js/views/book.js](../web/js/views/book.js)
+
+| 控件 | 位置 | 功能 | 后端 API |
+|------|------|------|----------|
+| **刷新状态** | Book 构建栏 | 刷新 KC Book 构建状态 | `GET /api/v1/kc/book/status?project_id=...` |
+| **预览构建** | Book 构建栏 | 执行 dry-run，不写入正式目录 | `POST /api/v1/kc/book/build`（`apply=false`） |
+| **生成并写入磁盘** | Book 构建栏 | 执行 KC Book 写入 | `POST /api/v1/kc/book/build`（`apply=true`） |
+| **章节目录按钮** | 左侧目录 | 切换当前正式 Wiki-to-Book 章节 | `GET /api/v1/projects/{id}/book-wiki/content?path=...` |
+| **Book 书系下拉** | 左侧目录上方 | 选择书系中的 Book；选项显示 ready/partial/invalid 状态，匿名旧版保持只读 | `GET /api/v1/projects/{id}/book-wiki/series` |
+| **卷筛选 / 搜索** | 左侧目录上方 | 按类型和章节标题过滤目录 | — |
+| **Book 版本下拉** | 左侧目录上方 | 切换可用的完整性校验 Book release | `GET /api/v1/projects/{id}/book-wiki/versions` + `GET /api/v1/projects/{id}/book-wiki?version=...` |
+| **教程路径下拉** | 左侧目录上方 | 以章节/小节引用顺序导航；不复制正文，路径失效时仍保留 Book 阅读 | `GET /api/v1/projects/{id}/book-wiki`（读取 `tutorial_paths`） |
+
+Book 阅读页读取 `CURRENT.json` 指向的完整性校验 release：
+`GET /api/v1/projects/{id}/book-wiki` 获取目录和章节信息，右侧面板展示 release、来源、关系和质量摘要。
+版本下拉先读取 `GET /api/v1/projects/{id}/book-wiki/versions`，切换后通过 `version` 查询参数读取指定 release；章节正文请求同样携带该版本号。
+目录中的卷名和章名来自 release 的 `outline.json`；旧 release 缺少大纲时回退显示文件名。
+教程路径只改变目录导航顺序，不改变章节正文、来源或 release；`book_freshness`、`generation_mode` 和 `release_status` 由编译器 manifest 原样展示。
+
+## 4. 聊天页（Chat）
 
 **文件：** [web/js/views/chat.js](../web/js/views/chat.js)
 
@@ -97,7 +118,7 @@
 
 ---
 
-## 4. 图谱页（Graph）
+## 5. 图谱页（Graph）
 
 **文件：** [web/js/views/graph.js](../web/js/views/graph.js)
 
@@ -109,7 +130,7 @@
 
 ---
 
-## 5. 设置页（Settings）
+## 6. 设置页（Settings）
 
 **文件：** [web/js/views/settings.js](../web/js/views/settings.js)
 
@@ -134,7 +155,7 @@
 
 ---
 
-## 6. 状态页（Status）
+## 7. 状态页（Status）
 
 **文件：** [web/js/views/status.js](../web/js/views/status.js)
 
@@ -186,7 +207,7 @@
 
 ---
 
-## 7. 热度页（Heat）
+## 8. 热度页（Heat）
 
 **文件：** [web/js/views/heat.js](../web/js/views/heat.js)
 
@@ -207,7 +228,7 @@
 
 ---
 
-## 8. 模板页（Templates）
+## 9. 模板页（Templates）
 
 **文件：** [web/js/views/templates.js](../web/js/views/templates.js)
 

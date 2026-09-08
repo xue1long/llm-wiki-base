@@ -36,6 +36,26 @@ def test_resolve_by_name(tmp_path, monkeypatch):
     assert resolved.name == "myproject"
 
 
+def test_resolve_by_initialized_path_without_registry(tmp_path, monkeypatch):
+    """An explicit KB path resolves even when the global registry is unavailable."""
+    import json
+    from src.project import paths, registry, context
+    from src.project.identity import ProjectIdentity
+
+    project_dir = tmp_path / "p"
+    (project_dir / ".llm-wiki").mkdir(parents=True)
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        json.dumps(ProjectIdentity("project-id", "myproject", 0).to_dict()), encoding="utf-8"
+    )
+    monkeypatch.setattr(paths, "registry_path", lambda: tmp_path / "missing" / "registry.json")
+    monkeypatch.setattr(registry, "_default_registry_path", lambda: tmp_path / "missing" / "registry.json")
+    monkeypatch.setattr(context, "_registry_path", lambda: tmp_path / "missing" / "registry.json", raising=False)
+
+    resolved = ProjectContext.resolve(str(project_dir), by_id_only=True)
+    assert resolved.path == project_dir.resolve()
+    assert resolved.name == "myproject"
+
+
 def test_resolve_cwd_upward(tmp_path, monkeypatch):
     """resolve(None) + CWD inside project → finds via upward search."""
     from src.project import paths, registry, context

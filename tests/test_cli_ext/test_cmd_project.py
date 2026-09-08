@@ -54,9 +54,13 @@ def test_cmd_project_init_creates_scaffold(tmp_path, monkeypatch):
                 "wiki/claims", "wiki/decisions", "raw/sources", ".index"]:
         assert (project_dir / rel).is_dir(), rel
     for rel in ["wiki/index.md", "wiki/log.md", "wiki/overview.md", "schema.md", "purpose.md",
-                ".llm-wiki/project.json"]:
+                "book.rules.md", ".llm-wiki/project.json"]:
         assert (project_dir / rel).is_file(), rel
     assert "# Index" in (project_dir / "wiki" / "index.md").read_text()
+    rules = (project_dir / "book.rules.md").read_text(encoding="utf-8")
+    assert "No project style is configured yet" in rules
+    assert "authorization" in rules
+    assert not (project_dir / ".llm-wiki" / "policy.json").exists()
 
 
 def test_cmd_project_init_applies_template(tmp_path, monkeypatch):

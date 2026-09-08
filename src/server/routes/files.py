@@ -41,6 +41,54 @@ async def file_content(project_id: str, path: str):
         raise HTTPException(413, str(e))
 
 
+@router.get("/projects/{project_id}/book-wiki")
+async def book_wiki(project_id: str, version: str | None = None):
+    """Return the integrity-verified active Wiki-to-Book release."""
+    try:
+        return files_service.book_wiki_manifest(project_id, version=version)
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except files_service.BookWikiUnavailableError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/projects/{project_id}/book-wiki/versions")
+async def book_wiki_versions(project_id: str):
+    """List integrity-verified Wiki-to-Book releases for the selector."""
+    try:
+        return files_service.book_wiki_versions(project_id)
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/projects/{project_id}/book-wiki/series")
+async def book_wiki_series(project_id: str):
+    """Return the series manifest or the legacy anonymous single-book view."""
+    try:
+        return files_service.book_wiki_series_manifest(project_id)
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except files_service.BookWikiUnavailableError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/projects/{project_id}/book-wiki/content")
+async def book_wiki_content(project_id: str, path: str, version: str | None = None):
+    """Read one chapter from the active Wiki-to-Book release."""
+    try:
+        return files_service.read_book_wiki_content(project_id, path, version=version)
+    except ProjectNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except files_service.BookWikiUnavailableError as e:
+        raise HTTPException(404, str(e))
+    except files_service.PathTraversalError as e:
+        raise HTTPException(403, str(e))
+    except files_service.FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except files_service.FileTooLargeError as e:
+        raise HTTPException(413, str(e))
+
+
 @router.get("/projects/{project_id}/raw-files")
 async def raw_files(project_id: str):
     """List raw source files (PDF, DOCX, XLSX, etc.) under raw/sources/."""

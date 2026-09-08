@@ -29,11 +29,11 @@ class ScriptedLLMProvider:
         if messages is None:
             prompt = kwargs.pop("prompt", None)
             if prompt is not None:
-                self.calls.append({"prompt": prompt, "schema": response_format})
+                self.calls.append({"prompt": prompt, "schema": response_format, "system": system})
             else:
-                self.calls.append({"messages": [], "schema": response_format})
+                self.calls.append({"messages": [], "schema": response_format, "system": system})
         else:
-            self.calls.append({"messages": messages, "schema": response_format})
+            self.calls.append({"messages": messages, "schema": response_format, "system": system})
 
         if not self.scripted:
             # Retry exhaustion: replay the most recent scripted entry so

@@ -229,6 +229,9 @@ def enqueue_source(
         )
     files = collect_files(folder_abs)
     supported = [f for f in files if f.suffix.lower() in _SUPPORTED_EXTENSIONS]
+    # Seed lineage for every discovered file before queue workers start.
+    from ..lineage import LineageStore
+    LineageStore.open(paths.root).discover_raw_sources()
 
     # Generate batch_id for tracking
     import uuid as _uuid

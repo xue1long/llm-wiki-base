@@ -1,0 +1,11 @@
+# Rebuildable test and runtime outputs; keep them out of the code graph.
+.tmp/
+knowledge/*/book-wiki/
+knowledge/*/.tmp-*/
+graphify-out/
+
+# Agent review packages are process artifacts, not source architecture.
+.superpowers/sdd/*/task-*-brief.md
+.superpowers/sdd/*/task-*-report.md
+.superpowers/sdd/*/task-*-review*.md
+.superpowers/sdd/*/task-*-fix-review-package.md

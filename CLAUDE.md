@@ -71,6 +71,7 @@ python -m src.cli dedup auto [--threshold high] --project <id>
 python -m src.cli lint [--cache-ttl N] [--no-cache] --project <id>
 python -m src.cli lint-cache-clear --project <id>
 python -m src.cli schema {list|diff|upgrade|downgrade|backup}
+python -m src.cli book {show|build} --project <id> [--apply]
 python -m src.cli serve [--host H] [--port P] [--daemon]
 python -m src.cli mcp                          # stdio MCP server (13 tools: 8 legacy HTTP + 5 memory)
 ```
@@ -129,6 +130,18 @@ cat <project_path>/wiki/index.md                                    # catalog (i
 cat <project_path>/wiki/log.md                                       # audit trail
 python -m src.cli health --project <project_id>                     # H1/H2/H4 checks
 ```
+
+### Building a Book
+
+Book compilation is project-scoped and reads Knowledge Core data from `.index/kc/bundles/` plus `publication_state.json`; it does not concatenate existing `wiki/` Markdown directly.
+
+```bash
+python -m src.cli book show --project <project_id> --json
+python -m src.cli book build --project <project_id> --json
+python -m src.cli book build --project <project_id> --apply --json
+```
+
+The first two commands are read-only/dry-run. `--apply` writes Markdown chapters and JSON metadata to `<project_root>/book/`. Use `--title <title>` or `--out <path>` when needed. Missing or empty KC data returns `nothing to build` and creates no empty Book.
 
 ## Architecture (Wiki v2 — current)
 

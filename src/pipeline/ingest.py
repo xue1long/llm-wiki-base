@@ -56,6 +56,14 @@ from ..wiki.storage.page_writer import write_page
 from .retry import PermanentFailure
 from .readiness_gate import apply_readiness_gate, resolve_specialist, route_after_readiness
 
+
+def _ingest_source_key(source_path, project_root) -> str:
+    """Canonical key with a stable, explicit identity for external inputs."""
+    try:
+        return canonical_raw_key(str(source_path), project_root)
+    except ValueError:
+        return Path(str(source_path)).resolve(strict=False).as_posix()
+
 # Resolve analyze/generate via the pipeline package namespace so
 # monkey-patches on `src.pipeline.pipeline.analyze` /
 # `src.pipeline.pipeline.generate` (set by tests like
@@ -388,6 +396,18 @@ def _normalize_generated_pages(
     for page in pages:
         # Task 3：字段 owner —— 系统字段先经 finalize_generated_page 裁定
         finalize_generated_page(page, paths, now=now)
+        # V4 disk contract removes category/taxonomy_sub from frontmatter;
+        # preserve those generator outputs as auditable taxonomy relations.
+        from src.utils.slugify import slugify as _slugify
+        from src.wiki.features.relations import Relation
+        for _taxonomy in (getattr(page, "category", ""), getattr(page, "taxonomy_sub", "")):
+            _taxonomy = str(_taxonomy or "").strip()
+            if not _taxonomy:
+                continue
+            _target = _taxonomy if _taxonomy.startswith("taxonomy-") else f"taxonomy-{_taxonomy}"
+            _target = _slugify(_target)
+            if _target and not any(r.type == "taxonomy_of" and r.target_id == _target for r in page.relations):
+                page.relations.append(Relation(target_id=_target, type="taxonomy_of"))
         # M9（Phase 3 实测）：过滤非法 relation 类型——LLM 或历史页可能输出
         # `related_to` / `contrasts` / `part_of` 等非 17 型（+ x-*）类型。
         # JSON schema enum 只约束新 LLM 输出；存量页（extras）合并时也须清理。
@@ -580,10 +600,7 @@ async def generate_ingest(
     from .readiness_replay import serialize_audit
     from .triage import triage
 
-    try:
-        _source_key = canonical_raw_key(str(source_path), paths.root)
-    except ValueError:
-        _source_key = str(source_path)
+    _source_key = _ingest_source_key(source_path, paths.root)
     _source_file = Path(str(source_path))
     try:
         _file_size = _source_file.stat().st_size
@@ -753,17 +770,27 @@ async def generate_ingest(
                 prompt_blocks=_prompt_chunk,
             ))
         candidate = _merge_candidate_chunks(_chunk_candidates)
+        from ..lib.errors import InvalidInputError
+        from ..quality.quarantine import QuarantineStore
+
+        def _reject_candidate(reason: str):
+            try:
+                QuarantineStore.put_candidate(paths.root, task_id, candidate, reason)
+            except Exception:
+                _logger.exception("[run_ingest] failed to quarantine rejected candidate")
+            raise InvalidInputError(reason)
+
         if not hasattr(candidate, "claims") or not candidate.claims or not candidate.evidence:
-            raise ValueError("candidate requires non-empty claims and evidence")
-        _source_key = canonical_raw_key(str(source_path), paths.root)
+            _reject_candidate("candidate requires non-empty claims and evidence")
+        _source_key = _ingest_source_key(source_path, paths.root)
         _candidate_status = getattr(candidate, "status", None)
         if getattr(_candidate_status, "value", _candidate_status) == "rejected":
-            raise ValueError("candidate status is rejected")
+            _reject_candidate(getattr(candidate, "failure_reason", None) or "candidate status is rejected")
         _candidate_source_id = getattr(candidate, "source_id", "")
         if not _candidate_source_id:
-            raise ValueError("candidate requires source_id")
-        if canonical_raw_key(str(_candidate_source_id), paths.root) != _source_key:
-            raise ValueError("candidate source_id does not match source")
+            _reject_candidate("candidate requires source_id")
+        if _ingest_source_key(_candidate_source_id, paths.root) != _source_key:
+            _reject_candidate("candidate source_id does not match source")
         document = _result.canonical_document
         review = await CandidateReviewer().review(
             candidate,
@@ -772,7 +799,7 @@ async def generate_ingest(
             visible_block_ids={block.block_id for block in _result.prompt_blocks},
         )
         if review.status != "validated" or not review.projections:
-            raise ValueError(
+            _reject_candidate(
                 candidate.failure_reason or "KC structural review rejected candidate"
             )
         _kc_review = {
@@ -1567,6 +1594,9 @@ async def commit_ingest(
     """
     from .quality_gate import check_pages
     from .triage import TriageResult, write_triage_result
+    from ..lineage import LineageStore
+    _lineage = LineageStore.open(paths.root)
+    _current_source_id = _lineage.ensure_source(source_path)
     if readiness_audit is not None:
         from .readiness_audit import write_readiness_record
         write_readiness_record(paths.root, readiness_audit)
@@ -1638,7 +1668,23 @@ async def commit_ingest(
     # Failure is fail-closed so a committed page can never lack a recovery hint.
     mark_intent(paths, _publication_pages)
 
-    with AtomicContext(flush_callback=flush_pending_writes):
+    from ..utils.path import normalize_source_path
+    def _prepare_lineage(bucket):
+        entries = []
+        page_by_path = {page_path_for(paths, p.type, p.id): p for p in _publication_pages}
+        for path, content in bucket.items():
+            page = page_by_path.get(path)
+            if page is None or content == DELETE_SENTINEL:
+                continue
+            source_ids = tuple(
+                sid for raw in (page.sources or [])
+                if (sid := _lineage.source_id_for_path(normalize_source_path(raw, paths.root))) is not None
+            ) or ((_current_source_id,) if _current_source_id else ())
+            entries.append((page.id, source_ids, path.relative_to(paths.root).as_posix(), hashlib.sha256(content.encode("utf-8")).hexdigest()))
+        _lineage.prepare_wiki_commits(entries)
+
+    from ..lib.write_hooks import DELETE_SENTINEL
+    with AtomicContext(flush_callback=flush_pending_writes, before_flush=_prepare_lineage):
         for page in pages:
             write_page(paths, page,
                        expected_content_hash=(expected_page_hashes or {}).get(page.id))
@@ -1657,7 +1703,6 @@ async def commit_ingest(
         )
 
     from ..lineage.api import LineageStore
-    from ..utils.path import normalize_source_path
     _lineage = LineageStore.open(paths.root)
     for _page in _publication_pages:
         _page_path = page_path_for(paths, _page.type, _page.id)
@@ -1667,6 +1712,8 @@ async def commit_ingest(
                 normalize_source_path(raw, paths.root)
             )) is not None
         )
+        if not _source_ids and _current_source_id is not None and _page is not _extra:
+            _source_ids = (_current_source_id,)
         _lineage.record_wiki_commit(
             _page.id,
             _source_ids,
@@ -1738,6 +1785,8 @@ async def run_ingest(
 
     Returns list of generated WikiPage objects.
     """
+    from ..lineage import LineageStore
+    LineageStore.open(paths.root).ensure_source(source_path, source_text=source_text)
     pages, extra_pages, _meta = await generate_ingest(
         paths=paths,
         source_path=source_path,

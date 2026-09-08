@@ -1,0 +1,42 @@
+schema_version: rubric-spec-v1
+tasks:
+  - task_id: hook-writing-variety
+    scenario: 新手找到钩子写法
+    expected_evidence:
+      - {locator_type: heading, pattern: "## 钩子"}
+      - {locator_type: wikilink, pattern: "[[钩子-悬念]]"}
+      - {locator_type: quote, pattern: "开篇抛出悬念"}
+    rubric_dimensions: [hook_type_count, cite_count]
+    threshold: 0.8
+  - task_id: outline-three-act
+    scenario: 章节包含三段结构
+    expected_evidence:
+      - {locator_type: heading, pattern: "## 开端"}
+      - {locator_type: heading, pattern: "## 发展"}
+      - {locator_type: heading, pattern: "## 高潮"}
+    rubric_dimensions: [three_act_complete]
+    threshold: 0.8
+  - task_id: conflict-resolution
+    scenario: 章节展示冲突策略
+    expected_evidence:
+      - {locator_type: heading, pattern: "## 冲突策略"}
+      - {locator_type: wikilink, pattern: "[[冲突-升级]]"}
+      - {locator_type: wikilink, pattern: "[[冲突-缓和]]"}
+      - {locator_type: wikilink, pattern: "[[冲突-反转]]"}
+    rubric_dimensions: [strategy_count]
+    threshold: 0.8
+  - task_id: platform-rules
+    scenario: 平台条款可追溯
+    expected_evidence:
+      - {locator_type: page_id, pattern: fixture-platform-start}
+      - {locator_type: page_id, pattern: fixture-platform-tomato}
+    rubric_dimensions: [platform_count]
+    threshold: 0.8
+  - task_id: case-traceability
+    scenario: 案例素材可追溯
+    expected_evidence:
+      - {locator_type: page_id, pattern: fixture-case-01}
+      - {locator_type: page_id, pattern: fixture-case-02}
+      - {locator_type: page_id, pattern: fixture-case-03}
+    rubric_dimensions: [traceable_case_count]
+    threshold: 0.8

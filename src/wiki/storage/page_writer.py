@@ -10,11 +10,12 @@ decision_record/evidence_refs/valid_from/valid_to/custom_type/category/
 taxonomy_sub/...) live on the in-memory WikiPage dataclass for code that
 needs them, but are NOT written to disk and NOT validated on read.
 """
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import yaml
 
 from ...lib.write_hooks import safe_write
+from ...lib.errors import InvalidInputError
 from ..core.paths import WikiPaths
 from ..core.types import PageType, WikiPage
 from ..features.tag_namespace import validate_tag_compliance
@@ -32,6 +33,20 @@ class PageNotFoundError(Exception):
     pass
 
 
+def _validate_slug(slug: str) -> None:
+    """Reject model-controlled values that could escape the wiki directory."""
+    if not isinstance(slug, str) or not slug or slug != slug.strip():
+        raise InvalidInputError("invalid wiki slug")
+    if Path(slug).is_absolute() or PureWindowsPath(slug).is_absolute():
+        raise InvalidInputError("wiki slug must be relative")
+    if ".." in slug or "/" in slug or "\\" in slug:
+        raise InvalidInputError("wiki slug must be a single filename")
+    if any(ord(char) < 32 or ord(char) == 127 for char in slug):
+        raise InvalidInputError("wiki slug contains control characters")
+    if any(char in slug for char in '<>:"|?*') or slug.endswith((".", " ")):
+        raise InvalidInputError("wiki slug contains invalid filename characters")
+
+
 def page_path_for(paths: WikiPaths, type_: PageType, slug: str) -> Path:
     """Return canonical path for (type, slug) using V4 type system.
 
@@ -40,16 +55,29 @@ def page_path_for(paths: WikiPaths, type_: PageType, slug: str) -> Path:
     ``page_path_for_stub`` instead.
     """
     if type_ not in _TYPE_TO_DIR:
-        raise ValueError(
+        raise InvalidInputError(
             f"V4: type {type_!r} not in {sorted(_TYPE_TO_DIR.keys())}; "
             "use page_path_for_stub for stubs"
         )
+    _validate_slug(slug)
     dir_prop = _TYPE_TO_DIR[type_]
-    return getattr(paths, dir_prop) / f"{slug}.md"
+    directory = getattr(paths, dir_prop)
+    target = directory / f"{slug}.md"
+    try:
+        target.resolve().relative_to(directory.resolve())
+    except ValueError as exc:
+        raise InvalidInputError("wiki page path escapes its type directory") from exc
+    return target
 
 
 def page_path_for_stub(paths: WikiPaths, slug: str) -> Path:
-    return paths.wiki_stubs / f"{slug}.md"
+    _validate_slug(slug)
+    target = paths.wiki_stubs / f"{slug}.md"
+    try:
+        target.resolve().relative_to(paths.wiki_stubs.resolve())
+    except ValueError as exc:
+        raise InvalidInputError("wiki stub path escapes its directory") from exc
+    return target
 
 
 def _snapshot_raw(paths: WikiPaths, page_id: str, file_path: Path) -> None:
