@@ -114,8 +114,13 @@ def test_strict_theme_outline_does_not_create_fallback_chapter():
 
 def test_build_from_wiki_can_consume_theme_outline(tmp_path):
     project = tmp_path / "project"
+    project.mkdir(parents=True)
+    (project / "book.rules.md").write_text(
+        "# Book rules\n\n- Preserve source meaning.\n", encoding="utf-8"
+    )
     (project / ".llm-wiki").mkdir(parents=True)
     (project / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0"}', encoding="utf-8")
+    (project / ".llm-wiki" / "policy.json").write_text('{"external_llm_allowed":true}', encoding="utf-8")
     for name in ("concepts", "entities", "synthesis"):
         (project / "wiki" / name).mkdir(parents=True)
     (project / "wiki" / "concepts" / "p0.md").write_text(

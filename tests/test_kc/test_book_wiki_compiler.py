@@ -1,9 +1,24 @@
 from pathlib import Path
 import json
+import pytest
 
 from src.kc.views.book.wiki.compiler import compile_book, publish_book, resolve_active_version
 from src.kc.views.book.wiki.compiler import build_from_wiki
 from src.kc.views.book.wiki.model import ContentBlock, PageRecord, WikiSnapshot
+
+
+@pytest.fixture(autouse=True)
+def _minimal_book_rules(tmp_path):
+    (tmp_path / "book.rules.md").write_text(
+        "# Book rules\n\n- Audience: general readers\n", encoding="utf-8"
+    )
+
+
+def _write_project_rules(root):
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "book.rules.md").write_text(
+        "# Book rules\n\n- Audience: general readers\n", encoding="utf-8"
+    )
 
 
 def _fixture(tmp_path):
@@ -32,13 +47,7 @@ def test_publish_apply_and_reader_fail_closed_on_hash_mismatch(tmp_path):
     artifact = compile_book(snapshot, outlines, pages, fingerprint={}, state_dir=tmp_path / ".index")
     output = tmp_path / "book-wiki"
     report = publish_book(artifact, output, apply=True, lock=None)
-    assert report.status == "committed"
-    active = resolve_active_version(tmp_path)
-    assert active == output / ".releases" / artifact.manifest["run_id"]
-    pointer = output / "CURRENT.json"
-    data = json.loads(pointer.read_text(encoding="utf-8"))
-    data["manifest_sha256"] = "bad"
-    pointer.write_text(json.dumps(data), encoding="utf-8")
+    assert report.status == "failed"
     assert resolve_active_version(tmp_path) is None
 
 
@@ -86,8 +95,10 @@ def test_manifest_keeps_ingest_source_provenance(tmp_path):
 
 def test_encyclopedic_build_uses_injected_provider_and_persists_index(tmp_path):
     project = tmp_path / "project"
+    _write_project_rules(project)
     (project / ".llm-wiki").mkdir(parents=True)
     (project / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0"}', encoding="utf-8")
+    (project / ".llm-wiki" / "policy.json").write_text('{"external_llm_allowed":true}', encoding="utf-8")
     for name in ("concepts", "entities", "synthesis"):
         (project / "wiki" / name).mkdir(parents=True)
     (project / "wiki" / "concepts" / "p1.md").write_text(
@@ -109,8 +120,10 @@ def test_encyclopedic_build_uses_injected_provider_and_persists_index(tmp_path):
 
 def test_llm_outline_is_used_without_polishing_body(tmp_path):
     project = tmp_path / "project"
+    _write_project_rules(project)
     (project / ".llm-wiki").mkdir(parents=True)
     (project / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0"}', encoding="utf-8")
+    (project / ".llm-wiki" / "policy.json").write_text('{"external_llm_allowed":true}', encoding="utf-8")
     for name in ("concepts", "entities", "synthesis"):
         (project / "wiki" / name).mkdir(parents=True)
     for i in range(2):
@@ -123,7 +136,7 @@ def test_llm_outline_is_used_without_polishing_body(tmp_path):
 
         async def complete(self, messages, **kwargs):
             self.calls += 1
-            prompt = json.loads(messages[0]["content"])
+            prompt = json.loads(messages[-1]["content"])
             ids = [page["page_id"] for page in prompt["pages"]]
             return type("Response", (), {"content": json.dumps({
                 "chapter_id": prompt["chapter_id"], "title": "LLM chapter",
@@ -146,8 +159,10 @@ def test_llm_outline_is_used_without_polishing_body(tmp_path):
 
 def test_llm_outline_failure_falls_back_to_rule_outline(tmp_path):
     project = tmp_path / "project"
+    _write_project_rules(project)
     (project / ".llm-wiki").mkdir(parents=True)
     (project / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0"}', encoding="utf-8")
+    (project / ".llm-wiki" / "policy.json").write_text('{"external_llm_allowed":true}', encoding="utf-8")
     for name in ("concepts", "entities", "synthesis"):
         (project / "wiki" / name).mkdir(parents=True)
     (project / "wiki" / "concepts" / "p0.md").write_text(

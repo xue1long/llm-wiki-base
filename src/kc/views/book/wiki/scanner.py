@@ -214,6 +214,7 @@ def _record(path: Path, kind: str, root: Path) -> tuple[PageRecord, bytes] | tup
         custom_type=str(fm.get("custom_type", "") or "").strip(),
         sources=_sources(fm, path),
         task_type=str(fm.get("task_type", "") or "").strip() or None,
+        sensitivity=str(fm.get("sensitivity", fm.get("classification", "")) or "").strip().lower(),
     ), raw
 
 

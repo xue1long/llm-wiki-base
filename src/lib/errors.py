@@ -69,6 +69,8 @@ def format_error_for_queue(exc: BaseException) -> str:
     """Format an exception for task.error, adding the no-retry marker for
     terminal classes so the queue dead-letters instead of retrying."""
     text = str(exc) or type(exc).__name__
+    if classify_error(exc) == "retryable" and type(exc) is RuntimeError:
+        text = f"{type(exc).__name__}: {text}"
     if classify_error(exc) != "retryable":
         return NO_RETRY_MARKER + text
     return text

@@ -1669,9 +1669,9 @@ async def commit_ingest(
     mark_intent(paths, _publication_pages)
 
     from ..utils.path import normalize_source_path
+    page_by_path = {page_path_for(paths, p.type, p.id): p for p in _publication_pages}
     def _prepare_lineage(bucket):
         entries = []
-        page_by_path = {page_path_for(paths, p.type, p.id): p for p in _publication_pages}
         for path, content in bucket.items():
             page = page_by_path.get(path)
             if page is None or content == DELETE_SENTINEL:
@@ -1683,24 +1683,34 @@ async def commit_ingest(
             entries.append((page.id, source_ids, path.relative_to(paths.root).as_posix(), hashlib.sha256(content.encode("utf-8")).hexdigest()))
         _lineage.prepare_wiki_commits(entries)
 
-    from ..lib.write_hooks import DELETE_SENTINEL
-    with AtomicContext(flush_callback=flush_pending_writes, before_flush=_prepare_lineage):
-        for page in pages:
-            write_page(paths, page,
-                       expected_content_hash=(expected_page_hashes or {}).get(page.id))
-        for page in _extra:
-            write_page(paths, page,
-                       expected_content_hash=(expected_page_hashes or {}).get(page.id))
-        append_to_index(
-            paths,
-            [(p.id, p.type, p.title) for p in pages],
-        )
-        log_event(
-            paths,
-            event=event,
-            task_id=task_id,
-            detail=f"generated {len(pages)} pages from {Path(str(source_path)).name}",
-        )
+    from ..lib.write_hooks import DELETE_SENTINEL, AtomicCommitError
+    try:
+        with AtomicContext(flush_callback=flush_pending_writes, before_flush=_prepare_lineage):
+            for page in pages:
+                write_page(paths, page,
+                           expected_content_hash=(expected_page_hashes or {}).get(page.id))
+            for page in _extra:
+                write_page(paths, page,
+                           expected_content_hash=(expected_page_hashes or {}).get(page.id))
+            append_to_index(
+                paths,
+                [(p.id, p.type, p.title) for p in pages],
+            )
+            log_event(
+                paths,
+                event=event,
+                task_id=task_id,
+                detail=f"generated {len(pages)} pages from {Path(str(source_path)).name}",
+            )
+    except AtomicCommitError as exc:
+        # A failed flush leaves durable intents for paths that did not land.
+        # Remove only those failed page intents; successful paths remain
+        # recoverable and the normal lineage conflict guard stays intact.
+        for failed_path in exc.failed_paths:
+            page = page_by_path.get(Path(failed_path))
+            if page is not None:
+                _lineage.clear_pending_wiki_commit(page.id)
+        raise
 
     from ..lineage.api import LineageStore
     _lineage = LineageStore.open(paths.root)

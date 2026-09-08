@@ -257,7 +257,12 @@ def delete_by_source(paths: WikiPaths, raw_path: str) -> int:
     # Escape single quotes so a path containing one cannot break the SQL
     # predicate nor inject arbitrary filter logic.
     escaped = raw_path.replace("'", "''")
-    return table.delete(f"path = '{escaped}'").num_deleted_rows
+    predicate = f"path = '{escaped}'"
+    # LanceDB 0.27 returns only DeleteResult(version=...), not a deletion
+    # count. Count first so callers retain the documented return value.
+    deleted = table.count_rows(filter=predicate)
+    table.delete(predicate)
+    return deleted
 
 
 def current_project_paths() -> Optional[WikiPaths]:
