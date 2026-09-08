@@ -22,6 +22,33 @@ class QuarantinedPage:
 
 class QuarantineStore:
     @staticmethod
+    def put_candidate(project_root, task_id: str, candidate, reason: str) -> Path:
+        """Persist a rejected candidate without publishing it to the wiki."""
+        quarantine_dir = Path(project_root) / QUARANTINE_DIR / task_id
+        quarantine_dir.mkdir(parents=True, exist_ok=True)
+        candidate_path = quarantine_dir / "candidate.json"
+        judgment_path = quarantine_dir / "candidate.judgment.json"
+        payload = {
+            "id": getattr(candidate, "id", ""),
+            "source_id": getattr(candidate, "source_id", ""),
+            "type": getattr(getattr(candidate, "type", ""), "value", getattr(candidate, "type", "")),
+            "title": getattr(candidate, "title", ""),
+            "claims": getattr(candidate, "claims", []),
+            "confidence": getattr(candidate, "confidence", 0.0),
+            "evidence": getattr(candidate, "evidence", []),
+            "status": getattr(getattr(candidate, "status", ""), "value", getattr(candidate, "status", "")),
+        }
+        judgment = {"kind": "candidate_rejected", "reason": reason}
+
+        def _default(value):
+            return getattr(value, "value", str(value))
+
+        with AtomicContext(flush_callback=flush_pending_writes):
+            safe_write(candidate_path, json.dumps(payload, ensure_ascii=False, default=_default, indent=2))
+            safe_write(judgment_path, json.dumps(judgment, ensure_ascii=False, indent=2))
+        return candidate_path
+
+    @staticmethod
     def put(project_root, task_id: str, page_id: str, content: str, judgment: Judgment) -> Path:
         """Write page to quarantine dir + sidecar judgment JSON.
 
