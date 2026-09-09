@@ -28,7 +28,10 @@ from .outline_llm import OutlinePlanningError, estimate_outline_call_sites, plan
 from .theme_outline import ThemeOutlineError, load_theme_outline, place_page_summaries_sync
 from .polish_llm import GeneratedChapter, generate_chapter_body
 from .rules import BookRulesError, load_book_rules
-from .acceptance import build_release_acceptance_report, write_release_acceptance_report
+from .acceptance import (
+    build_release_acceptance_report, load_release_acceptance_report,
+    write_release_acceptance_report,
+)
 from src.lineage import LineageStore
 
 MAX_UNRESOLVED_RELATION_RATIO = 0.05
@@ -390,6 +393,69 @@ def publish_validated_candidate(
         if release.is_dir():
             shutil.rmtree(release, ignore_errors=True)
         return PublishReport("failed", candidate.release_id, error=f"{type(exc).__name__}: {exc}")
+
+
+def promote_preview_release(
+    project_root: Path,
+    *,
+    output_dir: Path,
+    release_id: str,
+) -> dict[str, Any]:
+    """Validate and publish one preview release without provider access."""
+    root = Path(project_root).resolve()
+    try:
+        candidate = validate_candidate_release(root, output_dir=output_dir, release_id=release_id)
+    except CandidateReleaseValidationError as exc:
+        return {
+            "status": "failed",
+            "reason_codes": [f"E_CANDIDATE_{str(exc).upper()}"],
+            "source_release_id": release_id,
+            "llm_calls_used": 0,
+        }
+    if not str(candidate.manifest.get("generation_mode", "")).startswith("llm"):
+        return {
+            "status": "failed",
+            "reason_codes": ["E_CANDIDATE_GENERATION_MODE"],
+            "source_release_id": release_id,
+            "llm_calls_used": 0,
+        }
+    acceptance = load_release_acceptance_report(candidate.source_dir)
+    if acceptance is None or acceptance.get("automated_acceptance") != "pass":
+        return {
+            "status": "failed",
+            "reason_codes": ["E_CANDIDATE_ACCEPTANCE"],
+            "source_release_id": release_id,
+            "llm_calls_used": 0,
+        }
+    lock = None
+    try:
+        lock = acquire_run_lock(root / ".index" / "book-wiki.lock", stale_after_seconds=3600)
+        report = publish_validated_candidate(candidate, apply=True, lock=lock)
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "reason_codes": ["E_BOOK_LOCK"],
+            "source_release_id": release_id,
+            "llm_calls_used": 0,
+            "error": str(exc),
+        }
+    finally:
+        if lock is not None:
+            release_run_lock(lock)
+    result = {
+        "status": report.status,
+        "run_id": report.run_id,
+        "source_release_id": release_id,
+        "snapshot_id": candidate.snapshot_id,
+        "manifest_sha256": candidate.manifest_sha256,
+        "llm_calls_used": 0,
+        "acceptance": acceptance,
+        "vector_index": "not_updated",
+        "vector_hint": "Use `vector status` or `vector reconcile` separately.",
+    }
+    if report.error:
+        result["error"] = report.error
+    return result
 
 
 def _safe(value: str) -> str:
@@ -921,41 +987,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
     if apply_from is not None:
         if not apply:
             return {"status": "failed", "reason_codes": ["E_APPLY_FROM_REQUIRES_APPLY"]}
-        try:
-            candidate = validate_candidate_release(
-                root, output_dir=Path(output_dir), release_id=apply_from,
-            )
-        except CandidateReleaseValidationError as exc:
-            return {
-                "status": "failed",
-                "reason_codes": [f"E_CANDIDATE_{str(exc).upper()}"],
-                "source_release_id": apply_from,
-            }
-        if not str(candidate.manifest.get("generation_mode", "")).startswith("llm"):
-            return {
-                "status": "failed",
-                "reason_codes": ["E_CANDIDATE_GENERATION_MODE"],
-                "source_release_id": apply_from,
-            }
-        lock = None
-        try:
-            lock = acquire_run_lock(root / ".index" / "book-wiki.lock", stale_after_seconds=3600)
-            report = publish_validated_candidate(candidate, apply=True, lock=lock)
-        finally:
-            if lock is not None:
-                release_run_lock(lock)
-        result = {
-            "status": report.status,
-            "run_id": report.run_id,
-            "source_release_id": apply_from,
-            "snapshot_id": candidate.snapshot_id,
-            "llm_calls_used": 0,
-            "vector_index": "not_updated",
-            "vector_hint": "Use `vector status` or `vector reconcile` separately.",
-        }
-        if report.error:
-            result["error"] = report.error
-        return result
+        return promote_preview_release(root, output_dir=Path(output_dir), release_id=apply_from)
     if (book_id is None) != (series_id is None):
         return {"status": "failed", "reason_codes": ["E_SERIES_BOOK_REQUIRED_TOGETHER"],
                 "error": "series_id and book_id must be supplied together"}
@@ -1647,6 +1679,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
 __all__ = [
     "BuildArtifact", "PublishReport", "CandidateReleaseValidationError",
     "ValidatedCandidate", "compile_book", "publish_book", "publish_validated_candidate",
+    "promote_preview_release",
     "resolve_active_version", "load_candidate_lifecycle",
     "write_candidate_lifecycle", "validate_candidate_release",
     "build_from_wiki", "BOOK_MODES",
