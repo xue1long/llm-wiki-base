@@ -374,6 +374,8 @@ def publish_validated_candidate(
             if _sha(release / name) != digest:
                 raise ValueError(f"release_file_hash_mismatch:{name}")
         write_candidate_lifecycle(release, state="published", manifest=candidate.manifest)
+        if isinstance(prior, dict) and prior.get("version") == candidate.release_id:
+            return PublishReport("committed", candidate.release_id, pointer=pointer)
         pointer_dir.mkdir(parents=True, exist_ok=True)
         temp = pointer_dir / f".CURRENT.{candidate.release_id}.tmp"
         payload = {"version": candidate.release_id, "manifest_sha256": candidate.manifest_sha256}
@@ -848,7 +850,20 @@ def publish_book(artifact: BuildArtifact, output_dir: Path, *, apply: bool, lock
         lifecycle_state="candidate",
         files=tuple(sorted((str(name), str(digest)) for name, digest in files.items())),
     )
-    return publish_validated_candidate(candidate, apply=apply, lock=lock)
+    owned_lock = None
+    if apply and lock is None:
+        try:
+            owned_lock = acquire_run_lock(
+                candidate.project_root / ".index" / "book-wiki.lock",
+                stale_after_seconds=3600,
+            )
+        except Exception as exc:
+            return PublishReport("failed", run_id, error=f"{type(exc).__name__}: {exc}")
+    try:
+        return publish_validated_candidate(candidate, apply=apply, lock=lock or owned_lock)
+    finally:
+        if owned_lock is not None:
+            release_run_lock(owned_lock)
 
 
 def resolve_active_version(output_dir: Path) -> Path | None:
