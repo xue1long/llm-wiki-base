@@ -84,6 +84,31 @@ def test_apply_from_promotes_preview_without_provider_calls(tmp_path):
     assert active is not None and active.name == release_id
 
 
+def test_full_scope_apply_from_reuses_candidate_release(tmp_path):
+    root = _project(tmp_path)
+    provider = _CountingProvider()
+    state_path = root / ".index" / "book-wiki" / "batch.json"
+    preview = build_from_wiki(
+        root, output_dir=root / "book-wiki", scope_mode="full_knowledge",
+        use_llm=True, polish=True, apply=False, provider=provider,
+        max_llm_calls=2, budget_cap=2, budget_manifest=state_path,
+    )
+    assert preview["status"] == "planned"
+    release_id = preview["run_id"]
+    calls_before_apply = provider.calls
+
+    promoted = build_from_wiki(
+        root, output_dir=root / "book-wiki", scope_mode="full_knowledge",
+        apply=True, apply_from=release_id,
+    )
+
+    assert promoted["status"] == "committed"
+    assert promoted["llm_calls_used"] == 0
+    assert provider.calls == calls_before_apply
+    active = resolve_active_version(root / "book-wiki")
+    assert active is not None and active.name == release_id
+
+
 def test_apply_from_rejects_stale_preview_without_replacing_current(tmp_path):
     root = _project(tmp_path)
     provider = _CountingProvider()

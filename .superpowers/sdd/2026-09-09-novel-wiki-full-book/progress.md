@@ -35,7 +35,7 @@
 - Task 3: complete — resumable batch state and pre-call budget gate; 34 related tests passed
 - Task 4: complete — full-scope provenance/coverage acceptance gate; 36 related tests passed
 - Task 5: complete — WebUI/service metadata and source appendix reader integration; 13 service tests plus JS syntax passed
-- Task 6: pending
+- Task 6: blocked — fake-provider preview/apply-from passed; real run awaits current project registration and MiniMax provider configuration
 
 ## Decisions
 
@@ -72,3 +72,9 @@
 - Findings: none.
 - Verification: `uv run --offline pytest tests/test_server/test_service_files.py -q` → 13 passed; `node --check web/js/views/book.js` passed.
 - UI metadata exposes scope, coverage, chapter/page counts and source appendix count; Book publication remains separate from LanceDB updates.
+
+## Task 6 review
+
+- Verification: `uv run --offline pytest tests/test_kc/test_book_promotion.py -q` → 3 passed.
+- Direct-path full plan gate already passed: 1255 pages, 179 chapters, 463 source appendix entries, coverage 1.0.
+- Real CLI preview was fail-closed before LLM: project ID resolves to the stale backup project (`...novel-wiki-staging`), and no MiniMax provider/API configuration exists in the current environment.
