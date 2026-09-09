@@ -201,7 +201,7 @@
 
   Record that a two-chapter LLM publication with one retry allowance needs approval for the call count reported by the plan's actual call-site accounting. In the current persisted-outline path this is expected to be four calls only if there are exactly two chapter calls and one retry per chapter; documentation must state that condition instead of treating four as an intrinsic constant.
 
-- [ ] **Step 2: Run the full relevant verification**
+- [x] **Step 2: Run the full relevant verification**
 
   ```text
   uv run --offline pytest tests/test_kc/ tests/test_cli_ext/test_book_build_from_wiki.py tests/test_cli_ext/test_book_build_from_wiki_modes.py -q
@@ -210,11 +210,11 @@
 
   If `graphify update .` hits the known uv trampoline permission error, record it as an environment limitation; it must not be mistaken for a Book failure.
 
-- [ ] **Step 3: Verify an authorized real publish**
+- [x] **Step 3: Verify an authorized real publish**
 
   First run a plan with the absolute target path and inspect `minimum_llm_calls`, `worst_case_llm_calls`, and `retry_reserve_shortfall`. Only after explicit approval of the displayed cap, run `--apply`. Verify release acceptance, manifest hash, chapter files, and `CURRENT.json`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
   ```text
   git add docs/environment/SETUP.md .memory/MEMORY.md
