@@ -1,5 +1,9 @@
 # Project Memory Index
 
+- [2026-09-09 novel-wiki Book 预算根因](feedback-novel-wiki-book-budget-root-cause-2026-09-09.md) — max_attempts 默认 3 与 pilot max_retries=1 不一致，3 次全局调用预算被重试耗尽；已统一默认值并通过 31 个相关测试
+
+- [2026-09-08 功能分支合并方案整改](feedback-merge-plan-audit-2026-09-08.md) — 远端 main 动态冻结、干净 worktree 分批验证、Batch 4.1 元数据归属、squash 后整体回滚、Graphify 与代码合并解耦、Luna 并行审查上限 2
+
 - [2026-09-08 Unified Book 管线整改](feedback-unified-book-remediation-2026-09-08.md) — plan 无正文/无 LLM，apply 验收证据先于 CURRENT 切换，实例规则缺失时 fail-closed
 
 - [2026-09-07 Unified Book 真实 Provider 试读](feedback-unified-book-real-provider-pilot-2026-09-07.md) — MiniMax-M3 连通，但章节 JSON 解析未通过；修复 Provider 工厂 None 包装和嵌套 sidecar 路径校验，未发布

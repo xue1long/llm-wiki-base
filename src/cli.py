@@ -579,7 +579,7 @@ def build_parser() -> "argparse.ArgumentParser":
                             help="Generate an LLM-polished preview without publishing")
     mode_group.add_argument("--apply", dest="build_mode", action="store_const", const="apply",
                             help="Generate, validate, and publish the LLM-polished Book")
-    p_book_wiki.add_argument("--max-attempts", type=int, default=3)
+    p_book_wiki.add_argument("--max-attempts", type=int, default=1)
     p_book_wiki.add_argument("--max-input-tokens", type=int, default=None)
     p_book_wiki.add_argument("--max-output-tokens", type=int, default=None)
     p_book_wiki.add_argument("--max-llm-calls", type=int, default=3)

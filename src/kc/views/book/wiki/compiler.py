@@ -645,7 +645,7 @@ def resolve_active_version(output_dir: Path) -> Path | None:
 def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = False,
                     polish: bool = False, apply: bool = False,
                     encyclopedic: bool = False, quality_gate: str = "rule", rubric: str | Path | None = None,
-                    max_attempts: int = 3, max_input_tokens: int | None = None,
+                    max_attempts: int = 1, max_input_tokens: int | None = None,
                     max_output_tokens: int | None = None, provider: Any = None,
                     max_llm_calls: int = 3, max_runtime_seconds: int = 900,
                     budget_cap: int | None = None, approver: str | None = None,
