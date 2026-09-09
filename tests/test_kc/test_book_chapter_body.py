@@ -203,6 +203,33 @@ def test_malformed_string_array_gets_one_contract_repair_retry():
     assert result.sections[0].body.startswith("修复后的结构化正文")
 
 
+def test_plain_text_repair_joins_long_string_array_as_one_section_body():
+    draft = _draft()
+
+    class Provider:
+        calls = 0
+
+        async def complete(self, _messages, **_kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                return SimpleNamespace(content=json.dumps(["标题一"]), truncated=False)
+            return SimpleNamespace(content=json.dumps([
+                "第一段是足够长的正文，说明写作方法的核心概念以及它在章节中的作用。",
+                "第二段继续解释适用场景、常见误区和实际使用方式，形成连贯的章节正文。",
+            ]), truncated=False)
+
+    provider = Provider()
+    result = asyncio.run(generate_chapter_body(
+        draft, provider,
+        section_plan=({"section_id": "s1", "title": "Overview", "page_ids": ["p1", "p2"]},),
+        retries=1,
+    ))
+
+    assert result.content_status == "complete"
+    assert result.sections[0].source_page_ids == ("p1", "p2")
+    assert "第二段" in result.sections[0].body
+
+
 def test_unstructured_body_reports_safe_top_level_shape():
     result = asyncio.run(generate_chapter_body(
         _draft(),

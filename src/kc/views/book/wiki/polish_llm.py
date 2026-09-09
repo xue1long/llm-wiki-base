@@ -313,6 +313,14 @@ async def generate_chapter_body(
                         content, draft, section_plan, prompt_hash,
                         conflict_page_ids,
                     )
+                if isinstance(parsed, list) and parsed and all(
+                    isinstance(item, str) for item in parsed
+                ):
+                    return _plain_text_repair_result(
+                        "\n\n".join(item.strip() for item in parsed),
+                        draft, section_plan, prompt_hash,
+                        conflict_page_ids,
+                    )
                 payload = _normalize_chapter_payload(parsed, draft.chapter_id)
             else:
                 payload = _normalize_chapter_payload(parse_llm_json(response), draft.chapter_id)
