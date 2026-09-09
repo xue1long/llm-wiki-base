@@ -30,6 +30,13 @@ def test_default_mode_is_plan() -> None:
     assert args.use_llm is False
     assert args.polish is False
     assert args.max_attempts == 1
+    assert args.scope == "pilot"
+
+
+def test_full_knowledge_scope_is_parseable() -> None:
+    args = _parse("--scope", "full_knowledge")
+
+    assert args.scope == "full_knowledge"
 
 
 @pytest.mark.parametrize(

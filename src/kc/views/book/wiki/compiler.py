@@ -596,6 +596,7 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
                   book_mode: str | None = None,
                   release_id: str | None = None,
                   editorial_state: BookEditorialState | None = None,
+                  scope_mode: str = "pilot",
                   generated_chapters: Mapping[str, Any] | None = None,
                   llm_metadata: Mapping[str, Any] | None = None,
                   rules_hash: str | None = None,
@@ -780,6 +781,7 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
         resolved_mode = "plan"
     manifest: dict[str, Any] = {"manifest_version": 1, "run_id": run_id, "snapshot_id": snapshot.snapshot_id,
         "fingerprint": _json(fingerprint), "source_filter": ["concepts", "entities", "synthesis"],
+        "scope_mode": scope_mode,
         "page_count": len(page_map), "chapter_count": len(chapters), "files": files, "polished": bool(polish),
         "reading_experience_mode": resolved_mode,
         "mode": resolved_mode,
@@ -974,7 +976,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                     book_id: str | None = None,
                     book_mode: str | None = None,
                     release_id: str | None = None,
-                    apply_from: str | None = None) -> dict[str, Any]:
+                    apply_from: str | None = None,
+                    scope_mode: str = "pilot") -> dict[str, Any]:
     """Run the rule-only safety path used by the CLI.
 
     Encyclopedic mode adds a bounded, evidence-only index.  It never rewrites
@@ -983,6 +986,9 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
     if book_mode is not None and book_mode not in BOOK_MODES:
         return {"status": "failed", "reason_codes": ["E_INVALID_BOOK_MODE"],
                 "error": f"book_mode {book_mode!r} is not in {sorted(BOOK_MODES)}"}
+    if scope_mode not in {"pilot", "full_knowledge"}:
+        return {"status": "failed", "reason_codes": ["E_INVALID_SCOPE_MODE"],
+                "error": f"scope_mode {scope_mode!r} is not supported"}
     root = Path(project_root).resolve()
     if apply_from is not None:
         if not apply:
@@ -1122,7 +1128,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                     "page_ids": restricted[:20]}
     editorial_state: BookEditorialState | None = None
     editorial_root = Path(output_dir)
-    if (editorial_root / "book.json").is_file():
+    if scope_mode == "pilot" and (editorial_root / "book.json").is_file():
         try:
             editorial_state = load_editorial_state(editorial_root)
         except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
@@ -1477,6 +1483,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                             book_id=book_id,
                             book_mode=book_mode,
                             release_id=release_id,
+                            scope_mode=scope_mode,
                             editorial_state=editorial_state,
                             generated_chapters=generated_chapters,
                             llm_metadata=llm_metadata,

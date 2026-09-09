@@ -221,6 +221,7 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
             book_mode=book_mode,
             release_id=getattr(args, "release_id", None),
             apply_from=apply_from,
+            scope_mode=getattr(args, "scope", "pilot"),
         )
     except LockBusyError:
         raise SystemExit(EXIT_LOCK_BUSY)

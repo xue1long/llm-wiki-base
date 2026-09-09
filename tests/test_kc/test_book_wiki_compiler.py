@@ -156,6 +156,41 @@ def test_build_from_wiki_uses_persisted_editorial_state(tmp_path):
     assert manifest["generation_mode"] == "rule_only"
 
 
+def test_build_from_wiki_full_knowledge_scope_ignores_pilot_curation(tmp_path):
+    project = tmp_path / "project"
+    _write_project_rules(project)
+    (project / ".llm-wiki").mkdir(parents=True)
+    (project / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0"}', encoding="utf-8")
+    (project / ".llm-wiki" / "policy.json").write_text('{"external_llm_allowed":true}', encoding="utf-8")
+    for name in ("concepts", "entities", "synthesis"):
+        (project / "wiki" / name).mkdir(parents=True)
+    for page_id, title in (("p1", "One"), ("p2", "Two")):
+        (project / "wiki" / "concepts" / f"{page_id}.md").write_text(
+            f"---\nid: {page_id}\ntitle: {title}\ntype: concept\n---\nBody {page_id}\n",
+            encoding="utf-8",
+        )
+    snapshot = scan_wiki_snapshot(project / "wiki")
+    state = build_editorial_state(
+        snapshot,
+        book_id="book-1",
+        outline={
+            "schema_version": "book-outline-v1",
+            "volumes": [{
+                "volume_id": "v1",
+                "chapters": [{"chapter_id": "c1", "title": "Chapter", "page_ids": ["p1"]}],
+            }],
+        },
+    )
+    output = project / "book-wiki"
+    save_editorial_state(output, state)
+
+    result = build_from_wiki(project, output_dir=output, scope_mode="full_knowledge")
+    assert result["status"] == "planned"
+    manifest = json.loads((Path(result["version_dir"]) / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["page_count"] == 2
+    assert manifest["scope_mode"] == "full_knowledge"
+
+
 def test_polish_blocks_persisted_outline_without_theme_sections(tmp_path):
     project = tmp_path / "project"
     _write_project_rules(project)
