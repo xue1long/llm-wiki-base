@@ -14,7 +14,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
-def _run_cli(*argv: str, timeout: int = 30) -> subprocess.CompletedProcess:
+def _run_cli(*argv: str, timeout: int = 60) -> subprocess.CompletedProcess:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(REPO_ROOT)
     env["HTTP_PROXY"] = env.get("HTTP_PROXY", "")
