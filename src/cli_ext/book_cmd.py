@@ -201,7 +201,7 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
         result = build_from_wiki(
             ctx.path, output_dir=output_dir, use_llm=use_llm,
             polish=polish, apply=apply,
-             max_attempts=args.max_attempts, max_input_tokens=args.max_input_tokens,
+             max_attempts=getattr(args, "max_attempts", 1), max_input_tokens=args.max_input_tokens,
              max_output_tokens=args.max_output_tokens,
              max_llm_calls=getattr(args, "max_llm_calls", 3),
              max_runtime_seconds=getattr(args, "max_runtime_seconds", 900),

@@ -29,6 +29,7 @@ def test_default_mode_is_plan() -> None:
     assert args.build_mode == "plan"
     assert args.use_llm is False
     assert args.polish is False
+    assert args.max_attempts == 1
 
 
 @pytest.mark.parametrize(

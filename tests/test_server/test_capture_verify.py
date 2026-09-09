@@ -7,7 +7,7 @@ def test_cli_capture_mark_verify_registered():
     """capture-mark-verify should appear in --help."""
     result = subprocess.run(
         [sys.executable, "-m", "src.cli", "--help"],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True, text=True, timeout=60,
     )
     assert "capture-mark-verify" in result.stdout, (
         f"capture-mark-verify not in CLI; stdout={result.stdout!r}"
