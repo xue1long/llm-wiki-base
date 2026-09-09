@@ -457,6 +457,9 @@ def test_build_from_wiki_polish_writes_complete_body_audit_metadata(tmp_path):
     assert metadata["retry_reserve_shortfall"] == 2
     assert metadata["call_sites"]["outline"]["actual_calls"] == 1
     assert metadata["call_sites"]["chapter_body"]["actual_calls"] == 1
+    assert metadata["call_sites"]["outline"]["requested"] is True
+    assert metadata["call_sites"]["chapter_body"]["requested"] is True
+    assert all("pending" not in site for site in metadata["call_sites"].values())
     assert "结构化正文" in next(Path(result["version_dir"]).glob("*.md")).read_text(encoding="utf-8")
 
 
@@ -510,9 +513,8 @@ def test_build_from_wiki_constructs_registry_provider_when_not_injected(tmp_path
         max_attempts=0, max_llm_calls=1,
     )
 
-    assert result["status"] == "partial"
-    assert result["acceptance"]["llm_failure_reasons"]
-    assert "NoneType" not in " ".join(result["acceptance"]["llm_failure_reasons"])
+    assert result["status"] == "blocked"
+    assert result["reason_codes"] == ["E_LLM_BUDGET_INSUFFICIENT"]
 
 
 def test_publication_llm_budget_counts_outline_and_body_requests(tmp_path):
@@ -548,12 +550,11 @@ def test_publication_llm_budget_counts_outline_and_body_requests(tmp_path):
         provider=provider, max_llm_calls=1, apply=False,
     )
 
-    assert result["status"] == "partial"
-    assert provider.calls == 1
+    assert result["status"] == "blocked"
+    assert provider.calls == 0
+    assert result["minimum_llm_calls"] == 2
     assert not (root / "book-wiki" / "CURRENT.json").exists()
-    assert result["acceptance"]["automated_acceptance"] == "fail"
-    assert "release_status_not_complete" in result["acceptance"]["automated_errors"]
-    assert "budget_exhausted" in result["acceptance"]["llm_failure_reasons"]
+    assert result["reason_codes"] == ["E_LLM_BUDGET_INSUFFICIENT"]
 
 
 def test_apply_reports_specific_llm_failure_code(tmp_path):
@@ -563,7 +564,7 @@ def test_apply_reports_specific_llm_failure_code(tmp_path):
     (root / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0"}', encoding="utf-8")
     (root / ".llm-wiki" / "policy.json").write_text(
         '{"content_export_authorized":true,"external_llm_allowed":true,'
-        '"approver":"owner","budget_cap":1}',
+        '"approver":"owner","budget_cap":2}',
         encoding="utf-8",
     )
     for name in ("concepts", "entities", "synthesis"):
@@ -579,7 +580,7 @@ def test_apply_reports_specific_llm_failure_code(tmp_path):
 
     result = build_from_wiki(
         root, output_dir=root / "book-wiki", use_llm=True, polish=True,
-        provider=Provider(), max_llm_calls=1, apply=True,
+        provider=Provider(), max_llm_calls=2, apply=True,
     )
 
     assert result["status"] == "failed"

@@ -79,6 +79,26 @@ def test_apply_from_skips_preflight_and_forwards_promotion_id(monkeypatch, tmp_p
     assert seen["polish"] is False
 
 
+def test_book_result_reports_vectors_are_separate(monkeypatch, tmp_path: Path, capsys):
+    monkeypatch.setattr(
+        book_cmd, "_resolve", lambda _project: SimpleNamespace(path=tmp_path)
+    )
+    monkeypatch.setattr(
+        book_cmd,
+        "run_preflight",
+        lambda *args, **kwargs: SimpleNamespace(ok=True, errors=()),
+    )
+    compiler = types.ModuleType("src.kc.views.book.wiki.compiler")
+    compiler.build_from_wiki = lambda *args, **kwargs: {"status": "planned"}
+    monkeypatch.setitem(sys.modules, compiler.__name__, compiler)
+
+    args = _parse("--plan", "--json")
+    assert book_cmd.cmd_book_build_from_wiki(args) == 0
+    output = capsys.readouterr().out
+    assert '"vector_index": "not_updated"' in output
+    assert "vector status" in output
+
+
 @pytest.mark.parametrize("legacy_flag", ["--use-llm", "--polish"])
 def test_plan_rejects_legacy_llm_flags(legacy_flag: str) -> None:
     with pytest.raises(SystemExit):

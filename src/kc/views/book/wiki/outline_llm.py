@@ -32,6 +32,41 @@ def _rule_chapter(snapshot: WikiSnapshot, chapter_id: str, page_ids: tuple[str, 
             "page_ids": list(page_ids), "overview_refs": [page_ids[0]], "confidence": 1.0}
 
 
+def _outline_prompt(snapshot: WikiSnapshot, chapter_id: str, page_ids: tuple[str, ...], project_rules: str) -> str:
+    pages = {p.page_id: p for p in snapshot.pages}
+    return json.dumps({
+        "chapter_id": chapter_id,
+        "project_rules": {"kind": "project_rules", "content": project_rules},
+        "pages": [{"page_id": page_id, "title": pages[page_id].title, "summary": pages[page_id].summary}
+                   for page_id in page_ids],
+    }, ensure_ascii=False)
+
+
+def estimate_outline_call_sites(
+    snapshot: WikiSnapshot,
+    chapter_chunks: dict[str, tuple[str, ...]],
+    *,
+    token_budget: int,
+    project_rules: str = "",
+) -> int:
+    """Count chunks that fit the same prompt budget used by ``plan_outline``."""
+    if token_budget <= 0:
+        return 0
+    pages = {p.page_id: p for p in snapshot.pages}
+    spent = 0
+    eligible = 0
+    for chapter_id in sorted(chapter_chunks):
+        ids = tuple(chapter_chunks[chapter_id])
+        if not ids or any(page_id not in pages for page_id in ids):
+            continue
+        estimate = max(1, len(_outline_prompt(snapshot, chapter_id, ids, project_rules)) // 4)
+        if spent + estimate > token_budget:
+            continue
+        eligible += 1
+        spent += estimate
+    return eligible
+
+
 def _transient(exc: BaseException) -> bool:
     status = getattr(exc, "status_code", getattr(exc, "status", None))
     return status in (408, 429, 500, 502, 503, 504) or isinstance(exc, (TimeoutError, asyncio.TimeoutError, ConnectionError))
@@ -88,11 +123,7 @@ async def plan_outline(snapshot: WikiSnapshot, chapter_chunks: dict[str, tuple[s
             raise OutlinePlanningError("chapter contains unknown or empty page IDs")
         volume_id = chapter_id.rsplit(":", 1)[0]
         rule = _rule_chapter(snapshot, chapter_id, ids)
-        prompt = json.dumps({
-            "chapter_id": chapter_id,
-            "project_rules": {"kind": "project_rules", "content": project_rules},
-            "pages": [{"page_id": i, "title": pages[i].title, "summary": pages[i].summary} for i in ids],
-        }, ensure_ascii=False)
+        prompt = _outline_prompt(snapshot, chapter_id, ids, project_rules)
         estimate = max(1, len(prompt) // 4)
         if spent + estimate > token_budget:
             volumes[volume_id].append(rule)
@@ -124,4 +155,4 @@ async def plan_outline(snapshot: WikiSnapshot, chapter_chunks: dict[str, tuple[s
     return outlines
 
 
-__all__ = ["OutlinePlanningError", "plan_outline"]
+__all__ = ["OutlinePlanningError", "estimate_outline_call_sites", "plan_outline"]

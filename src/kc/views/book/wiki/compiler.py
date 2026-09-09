@@ -24,7 +24,7 @@ from .preflight import acquire_run_lock, release_run_lock, run_preflight
 from .partition import build_chapter_chunks, partition_pages
 from .scanner import WikiScanError, scan_wiki_snapshot
 from .outline_validate import SCHEMA_VERSION, validate_outline
-from .outline_llm import OutlinePlanningError, plan_outline
+from .outline_llm import OutlinePlanningError, estimate_outline_call_sites, plan_outline
 from .theme_outline import ThemeOutlineError, load_theme_outline, place_page_summaries_sync
 from .polish_llm import GeneratedChapter, generate_chapter_body
 from .rules import BookRulesError, load_book_rules
@@ -935,6 +935,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             "source_release_id": apply_from,
             "snapshot_id": candidate.snapshot_id,
             "llm_calls_used": 0,
+            "vector_index": "not_updated",
+            "vector_hint": "Use `vector status` or `vector reconcile` separately.",
         }
         if report.error:
             result["error"] = report.error
@@ -978,12 +980,12 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         name: str,
         before: int,
         *,
-        pending: bool,
+        requested: bool,
         minimum_calls: int,
         configured_max_calls: int,
     ) -> None:
         call_sites[name] = {
-            "pending": pending,
+            "requested": requested,
             "actual_calls": max(0, _calls_used() - before),
             "minimum_calls": minimum_calls,
             "configured_max_calls": configured_max_calls,
@@ -1156,7 +1158,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         outline_generation_mode = "persisted"
         outline_fallback_reason = None
         chunks = {}
-        _record_call_site("outline", _calls_used(), pending=False,
+        _record_call_site("outline", _calls_used(), requested=False,
                           minimum_calls=0, configured_max_calls=0)
     elif theme_outline is not None:
         if not use_llm:
@@ -1176,12 +1178,12 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             return {"status": "failed", "reason_codes": ["E_THEME_OUTLINE_INVALID"], "error": str(exc)}
         theme_batches = (len(snapshot.pages) + 39) // 40
         _record_call_site(
-            "theme_mapping", outline_before_calls, pending=True,
+            "theme_mapping", outline_before_calls, requested=True,
             minimum_calls=theme_batches,
             configured_max_calls=theme_batches * 2,
         )
         call_sites["outline"] = {
-            "pending": False, "actual_calls": 0,
+            "requested": False, "actual_calls": 0,
             "minimum_calls": 0, "configured_max_calls": 0,
         }
         outline_generation_mode = "theme_mapped"
@@ -1206,6 +1208,24 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         outline_generation_mode = "rule"
         outline_fallback_reason: str | None = None
     if editorial_state is None and use_llm and theme_outline is None:
+        outline_eligible_calls = estimate_outline_call_sites(
+            snapshot, chunks, token_budget=max_output_tokens or 1000,
+            project_rules=rules.text,
+        )
+        remaining_minimum_calls = (
+            outline_eligible_calls
+            + (1 if encyclopedic else 0)
+            + (len(_chapters([rule_outline])) if polish else 0)
+        )
+        if _calls_used() + remaining_minimum_calls > max_llm_calls:
+            return {
+                "status": "blocked",
+                "reason_codes": ["E_LLM_BUDGET_INSUFFICIENT"],
+                "call_sites": call_sites,
+                "minimum_llm_calls": _calls_used() + remaining_minimum_calls,
+                "configured_max_llm_calls": max_llm_calls,
+                "retry_reserve_shortfall": max(0, _calls_used() + remaining_minimum_calls - max_llm_calls),
+            }
         if provider is None:
             try:
                 from src.llm.provider_factory import create_llm_provider
@@ -1232,10 +1252,9 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             outline_generation_mode = "rule_fallback"
             outline_fallback_reason = type(exc).__name__
         outline_actual_calls = max(0, _calls_used() - outline_before_calls)
-        outline_attempts = min(len(chunks), outline_actual_calls)
         _record_call_site(
-            "outline", outline_before_calls, pending=True,
-            minimum_calls=outline_attempts, configured_max_calls=outline_attempts * 3,
+            "outline", outline_before_calls, requested=outline_eligible_calls > 0,
+            minimum_calls=outline_eligible_calls, configured_max_calls=outline_eligible_calls * 3,
         )
     if editorial_state is None:
         validation = validate_outline(snapshot, [outline])
@@ -1298,7 +1317,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             _fail_lineage("encyclopedic_provider_unavailable")
             return {"status": "failed", "reason_codes": ["E_ENCYCLOPEDIC_PROVIDER_UNAVAILABLE"],
                     "error": str(exc), "llm_status": "unavailable"}
-        _record_call_site("encyclopedic", encyclopedic_before_calls, pending=True,
+        _record_call_site("encyclopedic", encyclopedic_before_calls, requested=True,
                           minimum_calls=1, configured_max_calls=1)
     generated_chapters: dict[str, GeneratedChapter] | None = None
     llm_metadata: dict[str, Any] | None = None
@@ -1378,7 +1397,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                 retries=max_attempts,
             ))
         _record_call_site(
-            "chapter_body", chapter_before_calls, pending=True,
+            "chapter_body", chapter_before_calls, requested=True,
             minimum_calls=len(planned_chapters),
             configured_max_calls=len(planned_chapters) * (1 + max_attempts),
         )
@@ -1598,6 +1617,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             result["release_id"] = release_id
         if quality is not None: result["quality_gate"] = quality.__dict__
         result["llm_status"] = llm_status
+        result["vector_index"] = "not_updated"
+        result["vector_hint"] = "Use `vector status` or `vector reconcile` separately."
         if rubric_report is not None: result["rubric"] = rubric_report
         result["acceptance"] = acceptance
         if rubric_report is not None and rubric_report["pass_rate"] < 0.8:

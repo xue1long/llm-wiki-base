@@ -193,6 +193,21 @@ first attempts but short of retries may run and fail closed with a specific
 diagnostic. `CURRENT.json` advances only after the release acceptance and
 manifest-integrity checks pass.
 
+### 4.6 Preview promotion and vectors
+
+After a preview is accepted, promote that exact staged release without a
+second provider call:
+
+```powershell
+python -m src.cli book build-from-wiki --project D:\path\to\knowledge\novel-wiki `
+  --apply --apply-from <preview-release-id> --json
+```
+
+`--apply-from` is provider-free and does not rewrite the preview manifest or
+chapter files. Book publication also does not update LanceDB. Check derived
+vector state separately with `python -m src.cli vector status --project <id>`
+or reconcile it explicitly with `python -m src.cli vector reconcile --project <id>`.
+
 ## 5. What lives in this directory
 
 | File | Purpose |

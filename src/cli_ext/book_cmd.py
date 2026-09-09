@@ -234,6 +234,8 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
     payload = result if isinstance(result, dict) else getattr(result, "__dict__", {"status": "ok"})
     if not isinstance(payload, dict):
         payload = {"status": "ok", "result": str(payload)}
+    payload.setdefault("vector_index", "not_updated")
+    payload.setdefault("vector_hint", "Use `vector status` or `vector reconcile` separately.")
     if not apply:
         payload.setdefault("dry_run", True)
     if args.json:
