@@ -31,7 +31,7 @@
 ## Tasks
 
 - Task 1: complete — `scope_mode` CLI/compiler seam; 30 affected tests passed; manual diff review clean
-- Task 2: pending
+- Task 2: complete — deterministic indexes/coverage/source appendix; 18 tests passed; real plan gate 1255/179/463 passed
 - Task 3: pending
 - Task 4: pending
 - Task 5: pending
@@ -47,3 +47,9 @@
 - Findings: none.
 - Verification: `uv run --offline pytest tests/test_kc/test_book_wiki_compiler.py tests/test_cli_ext/test_book_build_from_wiki_modes.py -q` → 30 passed.
 - Scope default remains `pilot`; `full_knowledge` bypasses persisted pilot curation and records the mode in the release manifest.
+
+## Task 2 review
+
+- Findings: none.
+- Verification: `uv run --offline pytest tests/test_kc/test_book_wiki_compiler.py tests/test_kc/test_book_wiki_outline_llm.py -q` → 18 passed.
+- Real full plan gate: `page_count=1255`, `chapter_count=179`, `source_appendix_count=463`, `coverage_ratio=1.0`, `release_status=planned`.

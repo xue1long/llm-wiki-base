@@ -162,11 +162,15 @@ def test_build_from_wiki_full_knowledge_scope_ignores_pilot_curation(tmp_path):
     (project / ".llm-wiki").mkdir(parents=True)
     (project / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0"}', encoding="utf-8")
     (project / ".llm-wiki" / "policy.json").write_text('{"external_llm_allowed":true}', encoding="utf-8")
-    for name in ("concepts", "entities", "synthesis"):
+    for name in ("concepts", "entities", "synthesis", "sources"):
         (project / "wiki" / name).mkdir(parents=True)
+    (project / "wiki" / "sources" / "s1.md").write_text(
+        "---\nid: source-1\ntitle: Source One\ntype: source\nsources: [raw/sources/one.md]\n---\nSource body\n",
+        encoding="utf-8",
+    )
     for page_id, title in (("p1", "One"), ("p2", "Two")):
         (project / "wiki" / "concepts" / f"{page_id}.md").write_text(
-            f"---\nid: {page_id}\ntitle: {title}\ntype: concept\n---\nBody {page_id}\n",
+            f"---\nid: {page_id}\ntitle: {title}\ntype: concept\nsources: [raw/sources/one.md]\n---\nBody {page_id}\n",
             encoding="utf-8",
         )
     snapshot = scan_wiki_snapshot(project / "wiki")
@@ -189,6 +193,16 @@ def test_build_from_wiki_full_knowledge_scope_ignores_pilot_curation(tmp_path):
     manifest = json.loads((Path(result["version_dir"]) / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["page_count"] == 2
     assert manifest["scope_mode"] == "full_knowledge"
+    assert manifest["source_appendix_count"] == 1
+    assert manifest["files"]["sources-index.md"]
+    assert manifest["files"]["coverage-ledger.json"]
+    appendix = json.loads((Path(result["version_dir"]) / "sources-index.json").read_text(encoding="utf-8"))
+    assert appendix["sources"][0]["path"] == "sources/s1.md"
+    assert appendix["sources"][0]["page_ids"] == ["p1", "p2"]
+    assert len(appendix["sources"][0]["sha256"]) == 64
+    coverage = json.loads((Path(result["version_dir"]) / "coverage-ledger.json").read_text(encoding="utf-8"))
+    assert coverage["eligible_page_count"] == coverage["covered_page_count"] == 2
+    assert coverage["coverage_ratio"] == 1.0
 
 
 def test_polish_blocks_persisted_outline_without_theme_sections(tmp_path):

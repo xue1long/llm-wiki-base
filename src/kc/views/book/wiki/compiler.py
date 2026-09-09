@@ -28,6 +28,7 @@ from .outline_llm import OutlinePlanningError, estimate_outline_call_sites, plan
 from .theme_outline import ThemeOutlineError, load_theme_outline, place_page_summaries_sync
 from .polish_llm import GeneratedChapter, generate_chapter_body
 from .rules import BookRulesError, load_book_rules
+from .source_appendix import build_source_appendix, render_source_appendix, serialise_appendix
 from .acceptance import (
     build_release_acceptance_report, load_release_acceptance_report,
     write_release_acceptance_report,
@@ -759,6 +760,49 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
     outline_path = version_dir / "outline.json"
     outline_path.write_text(json.dumps(outlines, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
     files["outline.json"] = _sha(outline_path)
+    source_appendix_count = 0
+    if scope_mode == "full_knowledge":
+        appendix = build_source_appendix(snapshot)
+        source_appendix_count = int(appendix["source_count"])
+        sources_index = version_dir / "sources-index.md"
+        sources_index.write_text(render_source_appendix(appendix), encoding="utf-8")
+        files[sources_index.name] = _sha(sources_index)
+        source_appendix_path = version_dir / "sources-index.json"
+        source_appendix_path.write_text(serialise_appendix(appendix), encoding="utf-8")
+        files[source_appendix_path.name] = _sha(source_appendix_path)
+        volume_index = {
+            "schema_version": "book-volume-index-v1",
+            "volumes": [{
+                "volume_id": volume_id,
+                "title": volume.get("title", volume_id),
+                "chapter_ids": [str(chapter.get("chapter_id", "")) for chapter in volume.get("chapters", ())],
+            } for volume in outlines[0].get("volumes", ()) for volume_id in [str(volume.get("volume_id", ""))]],
+        }
+        chapter_index = {
+            "schema_version": "book-chapter-index-v1",
+            "chapters": [{
+                "volume_id": volume_id,
+                "chapter_id": chapter_id,
+                "title": chapter.get("title", chapter_id),
+                "page_ids": [item if isinstance(item, str) else str(item.get("page_id", "")) for item in chapter.get("page_ids", ())],
+            } for volume_id, chapter_id, chapter in chapters],
+        }
+        for name, payload in (("volume-index.json", volume_index), ("chapter-index.json", chapter_index)):
+            path = version_dir / name
+            path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+            files[name] = _sha(path)
+        coverage = {
+            "schema_version": "book-coverage-ledger-v1",
+            "snapshot_id": snapshot.snapshot_id,
+            "eligible_page_count": len(snapshot.pages),
+            "covered_page_count": len(expected_covered),
+            "missing_page_ids": sorted(set(page_map) - set(expected_covered)),
+            "duplicate_page_ids": sorted(page_id for page_id in seen if seen.count(page_id) > 1),
+            "coverage_ratio": len(expected_covered) / len(page_map) if page_map else 1.0,
+        }
+        coverage_path = version_dir / "coverage-ledger.json"
+        coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+        files[coverage_path.name] = _sha(coverage_path)
     if editorial_state is not None:
         sidecars = {
             "editorial/book.json": editorial_state.book,
@@ -782,7 +826,11 @@ def compile_book(snapshot: WikiSnapshot, outlines: list[dict], pages: Any, *, fi
     manifest: dict[str, Any] = {"manifest_version": 1, "run_id": run_id, "snapshot_id": snapshot.snapshot_id,
         "fingerprint": _json(fingerprint), "source_filter": ["concepts", "entities", "synthesis"],
         "scope_mode": scope_mode,
-        "page_count": len(page_map), "chapter_count": len(chapters), "files": files, "polished": bool(polish),
+        "page_count": len(page_map), "eligible_page_count": len(snapshot.pages),
+        "covered_page_count": len(expected_covered),
+        "coverage_ratio": len(expected_covered) / len(page_map) if page_map else 1.0,
+        "source_appendix_count": source_appendix_count,
+        "chapter_count": len(chapters), "files": files, "polished": bool(polish),
         "reading_experience_mode": resolved_mode,
         "mode": resolved_mode,
         "generation_mode": "plan" if plan_only else "rule_only",
