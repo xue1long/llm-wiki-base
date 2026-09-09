@@ -33,7 +33,7 @@
 - Task 1: complete — `scope_mode` CLI/compiler seam; 30 affected tests passed; manual diff review clean
 - Task 2: complete — deterministic indexes/coverage/source appendix; 18 tests passed; real plan gate 1255/179/463 passed
 - Task 3: complete — resumable batch state and pre-call budget gate; 34 related tests passed
-- Task 4: pending
+- Task 4: complete — full-scope provenance/coverage acceptance gate; 36 related tests passed
 - Task 5: pending
 - Task 6: pending
 
@@ -60,3 +60,9 @@
 - Verification: `uv run --offline pytest tests/test_kc/test_book_wiki_batch_state.py tests/test_kc/test_book_wiki_compiler.py tests/test_cli_ext/test_book_build_from_wiki_modes.py -q` → 34 passed.
 - Full scope skips outline LLM calls; the approved 358 cap therefore covers 179 chapter calls plus one retry each.
 - Budget insufficiency is blocked before provider invocation; completed chapters are reused from atomic JSON state on resume.
+
+## Task 4 review
+
+- Findings: one regression found and fixed: the pre-call full-scope budget check was initially applied to pilot outline retries; it is now scoped to full scope or persisted editorial builds.
+- Verification: `uv run --offline pytest tests/test_kc/test_book_acceptance_report.py tests/test_kc/test_book_chapter_body.py tests/test_kc/test_book_wiki_staged_failure.py -q` → 36 passed.
+- Full-scope acceptance now requires complete page coverage, source appendix evidence, and one provenance map per chapter; human review remains advisory.

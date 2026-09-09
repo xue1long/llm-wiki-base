@@ -1403,7 +1403,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             }
         from .batch_state import save as save_batch_state
         save_batch_state(batch_state_path, batch_state)
-    if (use_llm and _calls_used() + pending_minimum_calls > max_llm_calls):
+    if (use_llm and (scope_mode == "full_knowledge" or editorial_state is not None) and
+            _calls_used() + pending_minimum_calls > max_llm_calls):
         return {
             "status": "blocked",
             "reason_codes": ["E_LLM_BUDGET_INSUFFICIENT"],

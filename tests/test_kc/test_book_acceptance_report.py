@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from src.kc.views.book.wiki.acceptance import (
+    _check_provenance,
     build_release_acceptance_report,
     derive_book_freshness,
     load_human_approval,
@@ -85,6 +86,26 @@ def test_acceptance_report_is_deterministic_and_human_review_is_advisory(tmp_pat
     assert first["human_content_review"] == "not_requested"
     assert "approval" not in first
     assert "manual_gates" not in first
+
+
+def test_full_scope_provenance_requires_complete_coverage_and_appendix():
+    ok, errors = _check_provenance({
+        "scope_mode": "full_knowledge",
+        "eligible_page_count": 2,
+        "covered_page_count": 1,
+        "coverage_ratio": 0.5,
+        "source_appendix_count": 1,
+        "files": {},
+        "chapter_count": 2,
+        "chapter_sources": {"c1": []},
+    })
+
+    assert not ok
+    assert {
+        "full_scope_coverage_incomplete",
+        "source_appendix_missing",
+        "full_scope_chapter_provenance_incomplete",
+    } <= set(errors)
 
 
 def test_acceptance_freshness_is_derived_and_stale_is_not_approval(tmp_path):

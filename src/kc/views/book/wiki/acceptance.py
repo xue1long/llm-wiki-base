@@ -156,6 +156,22 @@ def _check_provenance(manifest: dict[str, Any]) -> tuple[bool, list[str]]:
     errors: list[str] = []
     if not isinstance(manifest.get("chapter_sources"), dict):
         errors.append("chapter_sources_missing")
+    if manifest.get("scope_mode") == "full_knowledge":
+        eligible = manifest.get("eligible_page_count")
+        covered = manifest.get("covered_page_count")
+        ratio = manifest.get("coverage_ratio")
+        if not isinstance(eligible, int) or not isinstance(covered, int) or covered != eligible or ratio != 1.0:
+            errors.append("full_scope_coverage_incomplete")
+        appendix_count = manifest.get("source_appendix_count")
+        files = manifest.get("files")
+        if not isinstance(appendix_count, int) or appendix_count < 0:
+            errors.append("source_appendix_count_missing")
+        elif appendix_count and (not isinstance(files, dict) or "sources-index.md" not in files):
+            errors.append("source_appendix_missing")
+        chapter_count = manifest.get("chapter_count")
+        chapter_sources = manifest.get("chapter_sources")
+        if not isinstance(chapter_count, int) or not isinstance(chapter_sources, dict) or len(chapter_sources) != chapter_count:
+            errors.append("full_scope_chapter_provenance_incomplete")
     if manifest.get("editorial_state_hash") is not None:
         if not isinstance(manifest.get("section_source_ids"), dict):
             errors.append("section_source_ids_missing")
