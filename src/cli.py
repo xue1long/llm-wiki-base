@@ -579,6 +579,8 @@ def build_parser() -> "argparse.ArgumentParser":
                             help="Generate an LLM-polished preview without publishing")
     mode_group.add_argument("--apply", dest="build_mode", action="store_const", const="apply",
                             help="Generate, validate, and publish the LLM-polished Book")
+    p_book_wiki.add_argument("--apply-from", metavar="RELEASE_ID",
+                             help="Promote an existing preview release without another LLM call (requires --apply)")
     p_book_wiki.add_argument("--max-attempts", type=int, default=1)
     p_book_wiki.add_argument("--max-input-tokens", type=int, default=None)
     p_book_wiki.add_argument("--max-output-tokens", type=int, default=None)
@@ -615,6 +617,8 @@ def build_parser() -> "argparse.ArgumentParser":
             args.polish = True
         if args.narrative and args.build_mode == "plan":
             _parser.error("--narrative requires --preview or --apply")
+        if args.apply_from and args.build_mode != "apply":
+            _parser.error("--apply-from requires --apply")
         if (args.book is None) != (args.series is None):
             _parser.error("--series and --book must be supplied together")
 

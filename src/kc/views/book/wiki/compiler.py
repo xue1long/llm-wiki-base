@@ -292,6 +292,15 @@ def validate_candidate_release(
             identity_name = {"project_id": "project", "domain_id": "domain", "book_id": "book"}[key]
             raise CandidateReleaseValidationError(f"{identity_name}_identity_mismatch")
 
+    wiki_dir = root / "wiki"
+    if wiki_dir.is_dir():
+        try:
+            current_snapshot = scan_wiki_snapshot(wiki_dir)
+        except (OSError, WikiScanError, ValueError) as exc:
+            raise CandidateReleaseValidationError("snapshot_unavailable") from exc
+        if manifest.get("snapshot_id") != current_snapshot.snapshot_id:
+            raise CandidateReleaseValidationError("snapshot_mismatch")
+
     entries = manifest.get("files")
     if not isinstance(entries, dict):
         raise CandidateReleaseValidationError("files_invalid")
@@ -329,6 +338,56 @@ def validate_candidate_release(
         lifecycle_state=lifecycle,
         files=tuple(verified),
     )
+
+
+def publish_validated_candidate(
+    candidate: ValidatedCandidate,
+    *,
+    apply: bool,
+    lock: Any,
+) -> PublishReport:
+    """Publish one already-validated candidate without regenerating content."""
+    if not apply:
+        return PublishReport("planned", candidate.release_id)
+    if lock is None:
+        return PublishReport("failed", candidate.release_id, error="publication_lock_required")
+    pointer_dir = candidate.output_dir
+    pointer = pointer_dir / "CURRENT.json"
+    release = pointer_dir / ".releases" / candidate.release_id
+    try:
+        prior = None
+        if pointer.is_file():
+            try:
+                prior = json.loads(pointer.read_text(encoding="utf-8"))
+            except (OSError, ValueError, json.JSONDecodeError):
+                prior = None
+        if isinstance(prior, dict) and prior.get("version") == candidate.release_id and release.is_dir():
+            return PublishReport("committed", candidate.release_id, pointer=pointer)
+        if release.exists():
+            raise ValueError("published_release_exists")
+        release.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(candidate.source_dir, release)
+        manifest_path = release / "manifest.json"
+        if _manifest_file_sha(manifest_path) != candidate.manifest_sha256:
+            raise ValueError("release_manifest_changed")
+        for name, digest in candidate.files:
+            if _sha(release / name) != digest:
+                raise ValueError(f"release_file_hash_mismatch:{name}")
+        write_candidate_lifecycle(release, state="published", manifest=candidate.manifest)
+        pointer_dir.mkdir(parents=True, exist_ok=True)
+        temp = pointer_dir / f".CURRENT.{candidate.release_id}.tmp"
+        payload = {"version": candidate.release_id, "manifest_sha256": candidate.manifest_sha256}
+        temp.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+        os.replace(temp, pointer)
+        releases = sorted((p for p in (pointer_dir / ".releases").iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime)
+        for old in releases[:-5]:
+            if old.name != candidate.release_id:
+                shutil.rmtree(old, ignore_errors=True)
+        return PublishReport("committed", candidate.release_id, pointer=pointer)
+    except Exception as exc:
+        if release.is_dir():
+            shutil.rmtree(release, ignore_errors=True)
+        return PublishReport("failed", candidate.release_id, error=f"{type(exc).__name__}: {exc}")
 
 
 def _safe(value: str) -> str:
@@ -776,47 +835,20 @@ def publish_book(artifact: BuildArtifact, output_dir: Path, *, apply: bool, lock
             error="LLM-polished chapter bodies are required for apply",
         )
     run_id = str(artifact.manifest["run_id"])
-    if not apply:
-        return PublishReport("planned", run_id)
-    pointer_dir = Path(output_dir)
-    pointer = pointer_dir / "CURRENT.json"
-    release = pointer_dir / ".releases" / run_id
-    try:
-        release.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(artifact.version_dir, release)
-        manifest_path = release / "manifest.json"
-        expected = artifact.manifest.get("files", {})
-        if any(_sha(release / name) != digest for name, digest in expected.items()):
-            raise ValueError("release file hash mismatch")
-        # Re-publish idempotency: if the existing pointer already names this
-        # run_id, treat the publish as already-committed and skip the atomic
-        # rename.  This keeps prior pointers intact when downstream tooling
-        # monkeypatches os.replace for a subsequent publish's failure path.
-        if pointer.is_file():
-            try:
-                prior = json.loads(pointer.read_text(encoding="utf-8"))
-            except (OSError, ValueError, json.JSONDecodeError):
-                prior = None
-            if isinstance(prior, dict) and prior.get("version") == run_id:
-                releases = sorted((p for p in (pointer_dir / ".releases").iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime)
-                for old in releases[:-5]:
-                    if old.name != run_id:
-                        shutil.rmtree(old, ignore_errors=True)
-                return PublishReport("committed", run_id, pointer=pointer)
-        pointer_dir.mkdir(parents=True, exist_ok=True)
-        temp = pointer_dir / f".CURRENT.{run_id}.tmp"
-        payload = {"version": run_id, "manifest_sha256": _sha(manifest_path)}
-        temp.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
-        os.replace(temp, pointer)
-        # Keep a small bounded history; the active release is never eligible.
-        releases = sorted((p for p in (pointer_dir / ".releases").iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime)
-        for old in releases[:-5]:
-            if old.name != run_id:
-                shutil.rmtree(old, ignore_errors=True)
-        return PublishReport("committed", run_id, pointer=pointer)
-    except Exception as exc:
-        shutil.rmtree(release, ignore_errors=True)
-        return PublishReport("failed", run_id, error=f"{type(exc).__name__}: {exc}")
+    files = artifact.manifest.get("files", {})
+    candidate = ValidatedCandidate(
+        project_root=Path(artifact.version_dir).resolve().parents[3],
+        output_dir=Path(output_dir).resolve(),
+        release_id=run_id,
+        source_dir=Path(artifact.version_dir).resolve(),
+        manifest=artifact.manifest,
+        manifest_sha256=_manifest_file_sha(Path(artifact.version_dir) / "manifest.json"),
+        content_identity=str(artifact.manifest.get("release_manifest_hash", "")),
+        snapshot_id=artifact.manifest.get("snapshot_id"),
+        lifecycle_state="candidate",
+        files=tuple(sorted((str(name), str(digest)) for name, digest in files.items())),
+    )
+    return publish_validated_candidate(candidate, apply=apply, lock=lock)
 
 
 def resolve_active_version(output_dir: Path) -> Path | None:
@@ -860,7 +892,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                     series_id: str | None = None,
                     book_id: str | None = None,
                     book_mode: str | None = None,
-                    release_id: str | None = None) -> dict[str, Any]:
+                    release_id: str | None = None,
+                    apply_from: str | None = None) -> dict[str, Any]:
     """Run the rule-only safety path used by the CLI.
 
     Encyclopedic mode adds a bounded, evidence-only index.  It never rewrites
@@ -869,6 +902,43 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
     if book_mode is not None and book_mode not in BOOK_MODES:
         return {"status": "failed", "reason_codes": ["E_INVALID_BOOK_MODE"],
                 "error": f"book_mode {book_mode!r} is not in {sorted(BOOK_MODES)}"}
+    root = Path(project_root).resolve()
+    if apply_from is not None:
+        if not apply:
+            return {"status": "failed", "reason_codes": ["E_APPLY_FROM_REQUIRES_APPLY"]}
+        try:
+            candidate = validate_candidate_release(
+                root, output_dir=Path(output_dir), release_id=apply_from,
+            )
+        except CandidateReleaseValidationError as exc:
+            return {
+                "status": "failed",
+                "reason_codes": [f"E_CANDIDATE_{str(exc).upper()}"],
+                "source_release_id": apply_from,
+            }
+        if not str(candidate.manifest.get("generation_mode", "")).startswith("llm"):
+            return {
+                "status": "failed",
+                "reason_codes": ["E_CANDIDATE_GENERATION_MODE"],
+                "source_release_id": apply_from,
+            }
+        lock = None
+        try:
+            lock = acquire_run_lock(root / ".index" / "book-wiki.lock", stale_after_seconds=3600)
+            report = publish_validated_candidate(candidate, apply=True, lock=lock)
+        finally:
+            if lock is not None:
+                release_run_lock(lock)
+        result = {
+            "status": report.status,
+            "run_id": report.run_id,
+            "source_release_id": apply_from,
+            "snapshot_id": candidate.snapshot_id,
+            "llm_calls_used": 0,
+        }
+        if report.error:
+            result["error"] = report.error
+        return result
     if (book_id is None) != (series_id is None):
         return {"status": "failed", "reason_codes": ["E_SERIES_BOOK_REQUIRED_TOGETHER"],
                 "error": "series_id and book_id must be supplied together"}
@@ -880,7 +950,6 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
     if apply and quality_gate == "off":
         return {"status": "failed", "reason_codes": ["E_QUALITY_GATE_REQUIRED_FOR_APPLY"],
                 "error": "quality gate off is allowed only for dry-run"}
-    root = Path(project_root).resolve()
     try:
         rules = load_book_rules(root)
     except BookRulesError as exc:
@@ -1541,7 +1610,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
 
 __all__ = [
     "BuildArtifact", "PublishReport", "CandidateReleaseValidationError",
-    "ValidatedCandidate", "compile_book", "publish_book",
+    "ValidatedCandidate", "compile_book", "publish_book", "publish_validated_candidate",
     "resolve_active_version", "load_candidate_lifecycle",
     "write_candidate_lifecycle", "validate_candidate_release",
     "build_from_wiki", "BOOK_MODES",

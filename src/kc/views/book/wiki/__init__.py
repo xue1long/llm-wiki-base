@@ -19,7 +19,7 @@ from .preflight import (
     release_run_lock,
     run_preflight,
 )
-from .compiler import BuildArtifact, PublishReport, compile_book, publish_book, resolve_active_version
+from .compiler import BuildArtifact, PublishReport, compile_book, publish_book, publish_validated_candidate, resolve_active_version
 from .editorial_state import (
     BookEditorialState, build_editorial_state, editorial_state_hash,
     load_editorial_state, save_editorial_state, validate_editorial_state,
@@ -65,6 +65,7 @@ __all__ = [
     "PublishReport",
     "compile_book",
     "publish_book",
+    "publish_validated_candidate",
     "resolve_active_version",
     "BookEditorialState", "build_editorial_state", "editorial_state_hash",
     "load_editorial_state", "save_editorial_state", "validate_editorial_state",

@@ -47,6 +47,38 @@ def test_formal_modes_are_mutually_exclusive() -> None:
         _parse("--plan", "--preview")
 
 
+def test_apply_from_requires_apply() -> None:
+    with pytest.raises(SystemExit):
+        _parse("--apply-from", "a" * 32)
+
+
+def test_apply_from_skips_preflight_and_forwards_promotion_id(monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(
+        book_cmd, "_resolve", lambda _project: SimpleNamespace(path=tmp_path)
+    )
+    monkeypatch.setattr(
+        book_cmd,
+        "run_preflight",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("preflight must be skipped")),
+    )
+    compiler = types.ModuleType("src.kc.views.book.wiki.compiler")
+    seen: dict[str, object] = {}
+
+    def build_from_wiki(*args, **kwargs):
+        seen.update(kwargs)
+        return {"status": "committed"}
+
+    compiler.build_from_wiki = build_from_wiki
+    monkeypatch.setitem(sys.modules, compiler.__name__, compiler)
+
+    args = _parse("--apply", "--apply-from", "a" * 32)
+    assert book_cmd.cmd_book_build_from_wiki(args) == 0
+    assert seen["apply"] is True
+    assert seen["apply_from"] == "a" * 32
+    assert seen["use_llm"] is False
+    assert seen["polish"] is False
+
+
 @pytest.mark.parametrize("legacy_flag", ["--use-llm", "--polish"])
 def test_plan_rejects_legacy_llm_flags(legacy_flag: str) -> None:
     with pytest.raises(SystemExit):

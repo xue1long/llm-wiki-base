@@ -142,6 +142,7 @@ def _wiki_exit_code(errors: tuple[Any, ...]) -> int:
 
 def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
     """Run the V3 wiki compiler using the public plan/preview/apply modes."""
+    apply_from = getattr(args, "apply_from", None)
     mode = getattr(args, "build_mode", None)
     if mode is None:
         # Namespaces built by older callers do not have the new mode field.
@@ -156,12 +157,17 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
         use_llm = mode in {"preview", "apply"}
         polish = use_llm
         apply = mode == "apply"
+    if apply_from:
+        mode = "apply"
+        use_llm = False
+        polish = False
+        apply = True
     ctx = _resolve(args.project)
     output_dir = Path(args.output_dir)
     if not output_dir.is_absolute():
         output_dir = ctx.path / output_dir
 
-    preflight = run_preflight(
+    preflight = None if apply_from else run_preflight(
         str(ctx.path), output_dir=output_dir,
         use_llm=use_llm, provider_name=getattr(args, "provider", None),
         polish=polish,
@@ -173,7 +179,7 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
         else:
             print("Error [E_ENCYCLOPEDIC_REQUIRES_LLM]: --encyclopedic requires --preview or --apply", file=sys.stderr)
         raise SystemExit(EXIT_BUDGET_EXHAUSTED)
-    if not preflight.ok:
+    if preflight is not None and not preflight.ok:
         payload = {"status": "blocked", "errors": [e.__dict__ for e in preflight.errors],
                    "output_dir": str(output_dir.resolve())}
         if args.json:
@@ -214,6 +220,7 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
             book_id=getattr(args, "book", None),
             book_mode=book_mode,
             release_id=getattr(args, "release_id", None),
+            apply_from=apply_from,
         )
     except LockBusyError:
         raise SystemExit(EXIT_LOCK_BUSY)
