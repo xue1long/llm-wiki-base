@@ -159,6 +159,53 @@ def _retry_feedback(exc: Exception, section_plan: tuple[dict, ...]) -> str:
     )
 
 
+def _is_string_array_failure(exc: Exception) -> bool:
+    return "response_not_structured_chapter:type=list:items=str" in str(exc)
+
+
+def _plain_text_repair_result(
+    content: str,
+    draft: ChapterDraft,
+    section_plan: tuple[dict, ...],
+    prompt_hash: str,
+    conflict_page_ids: set[str] | frozenset[str] = frozenset(),
+) -> GeneratedChapter:
+    """Wrap one safe prose-only repair in compiler-owned metadata.
+
+    This path is intentionally limited to one planned section.  The provider
+    cannot safely choose section boundaries or provenance when it has already
+    violated the structured contract, so the compiler supplies both.
+    """
+    if len(section_plan) != 1:
+        raise ValueError("plain_text_repair_requires_one_section")
+    body = content.strip()
+    if not body or body.startswith(("{", "[", "```")) or len(body) < 40:
+        raise ValueError("plain_text_repair_not_readable_prose")
+    planned = section_plan[0]
+    source_page_ids = tuple(str(page_id) for page_id in planned.get("page_ids", ()))
+    if not source_page_ids:
+        source_page_ids = tuple(draft.page_ids)
+    result = GeneratedChapter(
+        draft.chapter_id,
+        (GeneratedSection(
+            str(planned.get("section_id", "")),
+            str(planned.get("title", "")),
+            body,
+            source_page_ids,
+            "normal",
+        ),),
+        "complete",
+        prompt_hash=prompt_hash,
+    )
+    errors = validate_generated_chapter(
+        draft, result, section_plan=section_plan,
+        conflict_page_ids=conflict_page_ids,
+    )
+    if errors:
+        raise ValueError(",".join(errors))
+    return result
+
+
 async def generate_chapter_body(
     draft: ChapterDraft,
     provider: Any,
@@ -217,14 +264,32 @@ async def generate_chapter_body(
     ).hexdigest()
     attempt_reasons: list[str] = []
     retry_feedback = ""
+    retry_mode = "structured"
     for attempt in range(retries + 1):
         try:
             request_payload = dict(prompt_payload)
             if retry_feedback:
                 request_payload["retry_feedback"] = retry_feedback
+            response_format = {"type": "json_object"}
+            if retry_mode == "plain_text":
+                request_payload = {
+                    "chapter_id": draft.chapter_id,
+                    "repair_mode": "plain_text_section_body",
+                    "section": dict(section_plan[0]),
+                    "project_rules": prompt_payload["project_rules"],
+                    "source_pages": prompt_payload["source_pages"],
+                    "retry_feedback": retry_feedback,
+                    "task": (
+                        "Return only readable prose for this one section as plain text. "
+                        "Do not return JSON, an array, a list of titles, headings, metadata, "
+                        "or source IDs. Write at least two coherent paragraphs based only on "
+                        "the supplied source pages; the compiler will add the section metadata."
+                    ),
+                }
+                response_format = {"type": "text"}
             response = await provider.complete(
                 [{"role": "user", "content": json.dumps(request_payload, ensure_ascii=False)}],
-                response_format={"type": "json_object"},
+                response_format=response_format,
                 system=_CHAPTER_HARD_CONTRACT,
                 max_tokens=token_budget,
                 temperature=0,
@@ -240,7 +305,17 @@ async def generate_chapter_body(
             content = getattr(response, "content", "")
             if getattr(response, "truncated", False) or not content.strip():
                 raise ValueError("truncated_or_empty_response")
-            payload = _normalize_chapter_payload(parse_llm_json(response), draft.chapter_id)
+            if retry_mode == "plain_text":
+                try:
+                    parsed = parse_llm_json(response)
+                except Exception:
+                    return _plain_text_repair_result(
+                        content, draft, section_plan, prompt_hash,
+                        conflict_page_ids,
+                    )
+                payload = _normalize_chapter_payload(parsed, draft.chapter_id)
+            else:
+                payload = _normalize_chapter_payload(parse_llm_json(response), draft.chapter_id)
             if not isinstance(payload.get("sections"), list):
                 keys = ",".join(sorted(str(key) for key in payload)[:20])
                 raise ValueError(f"response_not_structured_chapter:keys={keys}")
@@ -264,6 +339,7 @@ async def generate_chapter_body(
             attempt_reasons.append(",".join(errors))
             if attempt < retries:
                 retry_feedback = _retry_feedback(ValueError(",".join(errors)), section_plan)
+                retry_mode = "structured"
                 await asyncio.sleep(0)
                 continue
             return _failed_body(
@@ -274,6 +350,11 @@ async def generate_chapter_body(
             attempt_reasons.append(f"{type(exc).__name__}: {exc}")
             if attempt < retries:
                 retry_feedback = _retry_feedback(exc, section_plan)
+                retry_mode = (
+                    "plain_text"
+                    if _is_string_array_failure(exc) and len(section_plan) == 1
+                    else "structured"
+                )
                 await asyncio.sleep(0)
                 continue
             return _failed_body(

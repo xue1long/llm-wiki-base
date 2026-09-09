@@ -178,23 +178,18 @@ def test_malformed_string_array_gets_one_contract_repair_retry():
     class Provider:
         calls = 0
 
-        async def complete(self, messages, **_kwargs):
+        async def complete(self, messages, **kwargs):
             self.calls += 1
             if self.calls == 1:
                 return SimpleNamespace(content=json.dumps(["标题一"]), truncated=False)
             request = json.loads(messages[0]["content"])
             assert "JSON array of strings" in request["retry_feedback"]
-            return SimpleNamespace(content=json.dumps({
-                "chapter_id": "c1",
-                "content_status": "complete",
-                "sections": [{
-                    "section_id": "s1",
-                    "title": "Overview",
-                    "body": "修复后的结构化正文",
-                    "source_page_ids": ["p1", "p2"],
-                    "status": "normal",
-                }],
-            }), truncated=False)
+            assert request["repair_mode"] == "plain_text_section_body"
+            assert kwargs["response_format"] == {"type": "text"}
+            return SimpleNamespace(
+                content="修复后的结构化正文。这里保留来源中的核心方法，并将多个素材整合为一段可读的章节说明。",
+                truncated=False,
+            )
 
     provider = Provider()
     result = asyncio.run(generate_chapter_body(
@@ -205,7 +200,7 @@ def test_malformed_string_array_gets_one_contract_repair_retry():
 
     assert provider.calls == 2
     assert result.content_status == "complete"
-    assert result.sections[0].body == "修复后的结构化正文"
+    assert result.sections[0].body.startswith("修复后的结构化正文")
 
 
 def test_unstructured_body_reports_safe_top_level_shape():
