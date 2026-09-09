@@ -8,6 +8,7 @@ from pathlib import Path
 from src.kc.views.book.wiki.aggregator import aggregate_chapter
 import src.kc.views.book.wiki.compiler as compiler
 from src.kc.views.book.wiki.compiler import build_from_wiki, compile_book
+from src.kc.views.book.wiki.editorial_state import build_editorial_state, save_editorial_state
 from src.kc.views.book.wiki.model import ContentBlock, PageRecord
 from src.kc.views.book.wiki.polish_llm import GeneratedChapter, GeneratedSection, generate_chapter_body
 from src.kc.views.book.wiki.preflight import PreflightReport
@@ -45,6 +46,33 @@ def _provider_text(content):
         async def complete(self, *_args, **_kwargs):
             return SimpleNamespace(content=content, truncated=False)
     return Provider()
+
+
+def test_budget_failure_keeps_prior_contract_failure_reason():
+    class BudgetExhausted(RuntimeError):
+        budget_exhausted = True
+
+    class Provider:
+        def __init__(self):
+            self.calls = 0
+
+        async def complete(self, *_args, **_kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                return SimpleNamespace(content=json.dumps(["标题一", "标题二"]), truncated=False)
+            raise BudgetExhausted("max_llm_calls exhausted")
+
+    provider = Provider()
+    result = asyncio.run(generate_chapter_body(
+        _draft(), provider,
+        section_plan=({"section_id": "s1", "title": "Overview"},),
+        retries=1,
+    ))
+
+    assert provider.calls == 2
+    assert result.failure_code == "E_LLM_BUDGET_EXHAUSTED"
+    assert "response_not_structured_chapter" in (result.failure_reason or "")
+    assert "max_llm_calls exhausted" in (result.failure_reason or "")
 
 
 def test_structured_body_requires_compiler_owned_sections_and_provenance():
@@ -191,6 +219,61 @@ def test_body_prompt_declares_top_level_object_contract():
     assert "merge those pages into one explanation" in task
     assert "Deduplicate repeated claims across the chapter" in task
     assert "Do not restate the same definition in adjacent sentences" in task
+
+
+def test_retry_includes_structured_contract_feedback():
+    prompts = []
+
+    class Provider:
+        calls = 0
+
+        async def complete(self, messages, **_kwargs):
+            self.calls += 1
+            prompts.append(json.loads(messages[0]["content"]))
+            if self.calls == 1:
+                return SimpleNamespace(content=json.dumps(["标题一", "标题二"]), truncated=False)
+            return SimpleNamespace(content=json.dumps({
+                "chapter_id": "c1",
+                "content_status": "complete",
+                "sections": [{
+                    "section_id": "s1",
+                    "title": "Overview",
+                    "body": "修复后的正文",
+                    "source_page_ids": ["p1", "p2"],
+                    "status": "normal",
+                }],
+            }), truncated=False)
+
+    provider = Provider()
+    result = asyncio.run(generate_chapter_body(
+        _draft(), provider,
+        section_plan=({"section_id": "s1", "title": "Overview"},),
+        retries=1,
+    ))
+
+    assert result.content_status == "complete"
+    assert provider.calls == 2
+    assert "retry_feedback" in prompts[1]
+    assert "top-level object contract" in prompts[1]["retry_feedback"]
+
+
+def test_provider_failure_is_terminal_without_retry():
+    class Provider:
+        calls = 0
+
+        async def complete(self, *_args, **_kwargs):
+            self.calls += 1
+            raise TimeoutError("provider down")
+
+    provider = Provider()
+    result = asyncio.run(generate_chapter_body(
+        _draft(), provider,
+        section_plan=({"section_id": "s1", "title": "Overview"},),
+        retries=1,
+    ))
+
+    assert provider.calls == 1
+    assert result.failure_code == "E_LLM_PROVIDER_FAILED"
 
 
 def test_conflict_source_requires_disputed_section_status():
@@ -367,6 +450,13 @@ def test_build_from_wiki_polish_writes_complete_body_audit_metadata(tmp_path):
     assert manifest["release_status"] == "complete"
     assert manifest["llm_metadata"]["approver"] == "test-owner"
     assert manifest["llm_prompt_hashes"]
+    metadata = manifest["llm_metadata"]
+    assert metadata["llm_calls_used"] == 2
+    assert metadata["minimum_llm_calls"] == 2
+    assert metadata["configured_max_llm_calls"] == 5
+    assert metadata["retry_reserve_shortfall"] == 2
+    assert metadata["call_sites"]["outline"]["actual_calls"] == 1
+    assert metadata["call_sites"]["chapter_body"]["actual_calls"] == 1
     assert "结构化正文" in next(Path(result["version_dir"]).glob("*.md")).read_text(encoding="utf-8")
 
 
@@ -464,6 +554,87 @@ def test_publication_llm_budget_counts_outline_and_body_requests(tmp_path):
     assert result["acceptance"]["automated_acceptance"] == "fail"
     assert "release_status_not_complete" in result["acceptance"]["automated_errors"]
     assert "budget_exhausted" in result["acceptance"]["llm_failure_reasons"]
+
+
+def test_apply_reports_specific_llm_failure_code(tmp_path):
+    root = tmp_path / "project"
+    _write_project_rules(root)
+    (root / ".llm-wiki").mkdir(parents=True)
+    (root / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0"}', encoding="utf-8")
+    (root / ".llm-wiki" / "policy.json").write_text(
+        '{"content_export_authorized":true,"external_llm_allowed":true,'
+        '"approver":"owner","budget_cap":1}',
+        encoding="utf-8",
+    )
+    for name in ("concepts", "entities", "synthesis"):
+        (root / "wiki" / name).mkdir(parents=True)
+    (root / "wiki" / "concepts" / "p1.md").write_text(
+        "---\nid: p1\ntitle: One\ntype: concept\nsources: [raw/p1.md]\n---\nBody\n",
+        encoding="utf-8",
+    )
+
+    class Provider:
+        async def complete(self, *_args, **_kwargs):
+            return SimpleNamespace(content=json.dumps(["标题一", "标题二"]), truncated=False)
+
+    result = build_from_wiki(
+        root, output_dir=root / "book-wiki", use_llm=True, polish=True,
+        provider=Provider(), max_llm_calls=1, apply=True,
+    )
+
+    assert result["status"] == "failed"
+    assert "E_LLM_REQUIRED_FOR_APPLY" in result["reason_codes"]
+    assert "E_LLM_BUDGET_EXHAUSTED" in result["reason_codes"]
+    assert not (root / "book-wiki" / "CURRENT.json").exists()
+
+
+def test_persisted_outline_blocks_before_insufficient_budget_call(tmp_path):
+    root = tmp_path / "project"
+    _write_project_rules(root)
+    (root / ".llm-wiki").mkdir(parents=True)
+    (root / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0"}', encoding="utf-8")
+    (root / ".llm-wiki" / "policy.json").write_text(
+        '{"content_export_authorized":true,"external_llm_allowed":true,'
+        '"approver":"owner","budget_cap":2}',
+        encoding="utf-8",
+    )
+    for name in ("concepts", "entities", "synthesis"):
+        (root / "wiki" / name).mkdir(parents=True)
+    for page_id in ("p1", "p2"):
+        (root / "wiki" / "concepts" / f"{page_id}.md").write_text(
+            f"---\nid: {page_id}\ntitle: {page_id}\ntype: concept\nsources: [raw/{page_id}.md]\n---\nBody\n",
+            encoding="utf-8",
+        )
+    snapshot = compiler.scan_wiki_snapshot(root / "wiki")
+    state = build_editorial_state(
+        snapshot,
+        book_id="book-1",
+        outline={"schema_version": "book-outline-v1", "snapshot_id": snapshot.snapshot_id,
+                 "volumes": [{"volume_id": "v1", "title": "v1", "chapters": [
+                     {"chapter_id": "c1", "title": "C1", "page_ids": ["p1"]},
+                     {"chapter_id": "c2", "title": "C2", "page_ids": ["p2"]},
+                 ]}]},
+    )
+    save_editorial_state(root / "book-wiki", state)
+
+    class Provider:
+        calls = 0
+
+        async def complete(self, *_args, **_kwargs):
+            self.calls += 1
+            raise AssertionError("budget preflight should run before the provider")
+
+    provider = Provider()
+    result = build_from_wiki(
+        root, output_dir=root / "book-wiki", use_llm=True, polish=True,
+        provider=provider, max_llm_calls=1,
+    )
+
+    assert result["status"] == "blocked"
+    assert result["reason_codes"] == ["E_LLM_BUDGET_INSUFFICIENT"]
+    assert result["minimum_llm_calls"] == 2
+    assert provider.calls == 0
+    assert not (root / "book-wiki" / "CURRENT.json").exists()
 
 
 def test_restricted_source_blocks_before_provider_call(tmp_path):

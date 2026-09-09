@@ -37,7 +37,7 @@ _RESTRICTED_SENSITIVITY = frozenset({"secret", "private", "restricted", "confide
 
 
 class _LLMBudgetExceeded(RuntimeError):
-    pass
+    budget_exhausted = True
 
 
 class _BudgetedProvider:
@@ -86,6 +86,15 @@ def _body_llm_status(generated_chapters: Mapping[str, Any] | None) -> str:
         getattr(chapter, "content_status", None) == "complete"
         for chapter in generated_chapters.values()
     ) else "failed"
+
+
+def _body_llm_failure_codes(generated_chapters: Mapping[str, Any] | None) -> list[str]:
+    if generated_chapters is None:
+        return []
+    return sorted({
+        code for chapter in generated_chapters.values()
+        if (code := getattr(chapter, "failure_code", ""))
+    })
 
 
 def _json(value: Any) -> Any:
@@ -693,6 +702,26 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                                  started=llm_started, max_runtime=max_runtime_seconds)
 
     provider = _wrap_provider(provider)
+    call_sites: dict[str, dict[str, Any]] = {}
+
+    def _calls_used() -> int:
+        return provider.calls if isinstance(provider, _BudgetedProvider) else 0
+
+    def _record_call_site(
+        name: str,
+        before: int,
+        *,
+        pending: bool,
+        minimum_calls: int,
+        configured_max_calls: int,
+    ) -> None:
+        call_sites[name] = {
+            "pending": pending,
+            "actual_calls": max(0, _calls_used() - before),
+            "minimum_calls": minimum_calls,
+            "configured_max_calls": configured_max_calls,
+        }
+
     # An injected provider is an explicit in-process dependency (used by
     # callers/tests); registry validation still applies to CLI/env-driven use.
     preflight = run_preflight(str(root), output_dir=Path(output_dir), use_llm=use_llm,
@@ -860,6 +889,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         outline_generation_mode = "persisted"
         outline_fallback_reason = None
         chunks = {}
+        _record_call_site("outline", _calls_used(), pending=False,
+                          minimum_calls=0, configured_max_calls=0)
     elif theme_outline is not None:
         if not use_llm:
             return {"status": "failed", "reason_codes": ["E_THEME_OUTLINE_REQUIRES_LLM"]}
@@ -872,9 +903,20 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                         "error": f"LLM provider unavailable: {exc}", "llm_status": "unavailable"}
         try:
             theme = load_theme_outline(Path(theme_outline))
+            outline_before_calls = _calls_used()
             outline = place_page_summaries_sync(theme, snapshot, provider)
         except (ThemeOutlineError, OSError, ValueError) as exc:
             return {"status": "failed", "reason_codes": ["E_THEME_OUTLINE_INVALID"], "error": str(exc)}
+        theme_batches = (len(snapshot.pages) + 39) // 40
+        _record_call_site(
+            "theme_mapping", outline_before_calls, pending=True,
+            minimum_calls=theme_batches,
+            configured_max_calls=theme_batches * 2,
+        )
+        call_sites["outline"] = {
+            "pending": False, "actual_calls": 0,
+            "minimum_calls": 0, "configured_max_calls": 0,
+        }
         outline_generation_mode = "theme_mapped"
         outline_fallback_reason: str | None = None
         chunks = {}
@@ -904,6 +946,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             except Exception as exc:
                 return {"status": "failed", "reason_codes": ["E_OUTLINE_PROVIDER_UNAVAILABLE"],
                         "error": f"LLM provider unavailable: {exc}", "llm_status": "unavailable"}
+        outline_before_calls = _calls_used()
         try:
             planned_outlines = asyncio.run(plan_outline(
                 snapshot, chunks, provider,
@@ -921,10 +964,28 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             outline = rule_outline
             outline_generation_mode = "rule_fallback"
             outline_fallback_reason = type(exc).__name__
+        outline_actual_calls = max(0, _calls_used() - outline_before_calls)
+        outline_attempts = min(len(chunks), outline_actual_calls)
+        _record_call_site(
+            "outline", outline_before_calls, pending=True,
+            minimum_calls=outline_attempts, configured_max_calls=outline_attempts * 3,
+        )
     if editorial_state is None:
         validation = validate_outline(snapshot, [outline])
         if not validation.ok:
             return {"status": "failed", "reason_codes": [e.code for e in validation.errors]}
+    planned_chapters = tuple(_chapters([outline]))
+    pending_minimum_calls = (1 if encyclopedic else 0) + (len(planned_chapters) if polish else 0)
+    if (use_llm and editorial_state is not None and
+            _calls_used() + pending_minimum_calls > max_llm_calls):
+        return {
+            "status": "blocked",
+            "reason_codes": ["E_LLM_BUDGET_INSUFFICIENT"],
+            "call_sites": call_sites,
+            "minimum_llm_calls": _calls_used() + pending_minimum_calls,
+            "configured_max_llm_calls": max_llm_calls,
+            "retry_reserve_shortfall": max(0, _calls_used() + pending_minimum_calls - max_llm_calls),
+        }
     if apply:
         lineage = LineageStore.open(root)
         lineage_page_sources = _lineage_page_sources(lineage, snapshot)
@@ -962,6 +1023,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                 _fail_lineage("encyclopedic_provider_unavailable")
                 return {"status": "failed", "reason_codes": ["E_ENCYCLOPEDIC_PROVIDER_UNAVAILABLE"],
                         "error": f"LLM provider unavailable: {exc}", "llm_status": "unavailable"}
+        encyclopedic_before_calls = _calls_used()
         try:
             from .encyclopedic_outline import generate_encyclopedic_outline
             encyclopedic_index = asyncio.run(generate_encyclopedic_outline(snapshot, provider))
@@ -969,6 +1031,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             _fail_lineage("encyclopedic_provider_unavailable")
             return {"status": "failed", "reason_codes": ["E_ENCYCLOPEDIC_PROVIDER_UNAVAILABLE"],
                     "error": str(exc), "llm_status": "unavailable"}
+        _record_call_site("encyclopedic", encyclopedic_before_calls, pending=True,
+                          minimum_calls=1, configured_max_calls=1)
     generated_chapters: dict[str, GeneratedChapter] | None = None
     llm_metadata: dict[str, Any] | None = None
     if polish:
@@ -1013,12 +1077,14 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                 row["page_id"] for row in editorial_state.curation.get("pages", ())
                 if isinstance(row, dict) and row.get("disposition") == "conflict"
             )
-        for index, (_volume_id, chapter_id, chapter) in enumerate(_chapters([outline])):
+        chapter_before_calls = _calls_used()
+        for index, (_volume_id, chapter_id, chapter) in enumerate(planned_chapters):
             if (isinstance(provider, _BudgetedProvider) and
                     (provider.calls >= max_llm_calls or
                      time.monotonic() - llm_started >= max_runtime_seconds)):
                 generated_chapters[chapter_id] = GeneratedChapter(
                     chapter_id, (), "failed", "budget_exhausted",
+                    failure_code="E_LLM_BUDGET_EXHAUSTED",
                 )
                 continue
             draft = aggregate_chapter(chapter, included_page_map)
@@ -1044,13 +1110,29 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                 token_budget=max_output_tokens or min(15000, resolved_budget * 5000),
                 retries=max_attempts,
             ))
+        _record_call_site(
+            "chapter_body", chapter_before_calls, pending=True,
+            minimum_calls=len(planned_chapters),
+            configured_max_calls=len(planned_chapters) * (1 + max_attempts),
+        )
         if isinstance(provider, _BudgetedProvider):
             llm_metadata["llm_calls_used"] = provider.calls
+        llm_metadata["call_sites"] = call_sites
+        llm_metadata["minimum_llm_calls"] = sum(
+            item["minimum_calls"] for item in call_sites.values()
+        )
+        llm_metadata["configured_max_llm_calls"] = sum(
+            item["configured_max_calls"] for item in call_sites.values()
+        )
+        llm_metadata["retry_reserve_shortfall"] = max(
+            0, llm_metadata["configured_max_llm_calls"] - max_llm_calls
+        )
         llm_metadata["failure_reasons"] = sorted({
             str(generated.failure_reason)
             for generated in generated_chapters.values()
             if generated.content_status != "complete" and generated.failure_reason
         })
+        llm_metadata["failure_codes"] = _body_llm_failure_codes(generated_chapters)
 
     artifact = compile_book(snapshot, [outline], snapshot.pages,
                             fingerprint={"snapshot_id": snapshot.snapshot_id, "use_llm": use_llm},
@@ -1099,9 +1181,10 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             return {"status": "failed", "reason_codes": ["E_QUALITY_GATE_BLOCKED"], "quality_gate": quality.__dict__}
     if apply and llm_status != "passed":
         _fail_lineage("llm_required_for_apply")
+        failure_codes = _body_llm_failure_codes(generated_chapters)
         return {
             "status": "failed",
-            "reason_codes": ["E_LLM_REQUIRED_FOR_APPLY"],
+            "reason_codes": ["E_LLM_REQUIRED_FOR_APPLY", *failure_codes],
             "llm_status": llm_status,
             "quality_gate": quality.__dict__ if quality is not None else {"status": "off"},
         }

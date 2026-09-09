@@ -165,6 +165,34 @@ to drop the broken package from `sys.modules` before the real
 lancedb is restored, so the test file's import triggers a clean
 re-import of the whole chain.
 
+### 4.5 LLM Book republish budget
+
+For an LLM Book republish, use the absolute project path when the short
+project name can resolve to a stale backup. Run a preview first and inspect
+the generated manifest:
+
+```powershell
+python -m src.cli book build-from-wiki --project D:\path\to\knowledge\novel-wiki `
+  --preview --max-attempts 1 --max-llm-calls <approved-cap> --json
+```
+
+The manifest's `llm_metadata` is the budget record of truth:
+`llm_calls_used` is observed provider traffic, `minimum_llm_calls` is the
+current artifact's mandatory first-attempt demand,
+`configured_max_llm_calls` is derived from the actual outline/theme/index/
+chapter call sites and retry policy, and `retry_reserve_shortfall` reports
+how much of that configured retry reserve the approved cap cannot cover.
+Do not treat four calls as an intrinsic constant: in the persisted-outline
+path it is four only when there are exactly two chapter calls and one retry
+per chapter.
+
+Only after the preview's cap and metadata are explicitly approved, repeat the
+same command with `--apply`. A cap below the mandatory persisted-outline
+minimum is blocked before any provider call; a cap that is sufficient for
+first attempts but short of retries may run and fail closed with a specific
+diagnostic. `CURRENT.json` advances only after the release acceptance and
+manifest-integrity checks pass.
+
 ## 5. What lives in this directory
 
 | File | Purpose |

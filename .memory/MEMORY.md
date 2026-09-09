@@ -1,5 +1,6 @@
 # Project Memory Index
 
+- [2026-09-09 Book LLM republish 加固](feedback-book-llm-republish-hardening-2026-09-09.md) — 严格章节对象契约、有限重试反馈、Provider/预算终止分类、实际调用点预算元数据与持久化大纲最低预算预阻断；`CURRENT.json` 继续 fail-closed
 - [2026-09-09 novel-wiki Book 预算根因](feedback-novel-wiki-book-budget-root-cause-2026-09-09.md) — max_attempts 默认 3 与 pilot max_retries=1 不一致，3 次全局调用预算被重试耗尽；已统一默认值并通过 31 个相关测试
 
 - [2026-09-08 功能分支合并方案整改](feedback-merge-plan-audit-2026-09-08.md) — 远端 main 动态冻结、干净 worktree 分批验证、Batch 4.1 元数据归属、squash 后整体回滚、Graphify 与代码合并解耦、Luna 并行审查上限 2

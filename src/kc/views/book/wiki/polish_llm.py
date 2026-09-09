@@ -51,6 +51,7 @@ class GeneratedChapter:
     sections: tuple[GeneratedSection, ...]
     content_status: str
     failure_reason: str | None = None
+    failure_code: str = ""
     editorial_markers: tuple[str, ...] = ()
     prompt_hash: str | None = None
 
@@ -104,8 +105,22 @@ async def polish_chapter(
     return _fallback(draft, "llm_failed")
 
 
-def _failed_body(draft: ChapterDraft, reason: str, prompt_hash: str | None = None) -> GeneratedChapter:
-    return GeneratedChapter(draft.chapter_id, (), "failed", reason, prompt_hash=prompt_hash)
+def _failed_body(
+    draft: ChapterDraft,
+    reason: str,
+    prompt_hash: str | None = None,
+    failure_code: str = "E_LLM_RESPONSE_INVALID",
+) -> GeneratedChapter:
+    return GeneratedChapter(
+        draft.chapter_id, (), "failed", reason,
+        failure_code=failure_code, prompt_hash=prompt_hash,
+    )
+
+
+def _provider_failure_code(exc: Exception) -> str:
+    if getattr(exc, "budget_exhausted", False):
+        return "E_LLM_BUDGET_EXHAUSTED"
+    return "E_LLM_PROVIDER_FAILED"
 
 
 def _normalize_chapter_payload(
@@ -140,8 +155,8 @@ async def generate_chapter_body(
 ) -> GeneratedChapter:
     """Generate prose inside a compiler-owned section/provenance contract."""
     if token_budget <= 0:
-        return _failed_body(draft, "budget_exhausted")
-    prompt = json.dumps({
+        return _failed_body(draft, "budget_exhausted", failure_code="E_LLM_BUDGET_EXHAUSTED")
+    prompt_payload = {
         "chapter_id": draft.chapter_id,
         "project_rules": {
             "kind": "project_rules",
@@ -180,17 +195,32 @@ async def generate_chapter_body(
             'Use only the exact literal section status values "normal", "disputed", "blocked", or "editorial"; '
             'use "normal" unless the cited sources conflict, then use "disputed".'
         ),
-    }, ensure_ascii=False)
-    prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+    }
+    prompt_hash = hashlib.sha256(
+        json.dumps(prompt_payload, ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    attempt_reasons: list[str] = []
+    retry_feedback = ""
     for attempt in range(retries + 1):
         try:
+            request_payload = dict(prompt_payload)
+            if retry_feedback:
+                request_payload["retry_feedback"] = retry_feedback
             response = await provider.complete(
-                [{"role": "user", "content": prompt}],
+                [{"role": "user", "content": json.dumps(request_payload, ensure_ascii=False)}],
                 response_format={"type": "json_object"},
                 system=_CHAPTER_HARD_CONTRACT,
                 max_tokens=token_budget,
                 temperature=0,
             )
+        except Exception as exc:
+            reason = f"{type(exc).__name__}: {exc}"
+            attempt_reasons.append(reason)
+            return _failed_body(
+                draft, "; ".join(attempt_reasons), prompt_hash,
+                _provider_failure_code(exc),
+            )
+        try:
             content = getattr(response, "content", "")
             if getattr(response, "truncated", False) or not content.strip():
                 raise ValueError("truncated_or_empty_response")
@@ -213,13 +243,34 @@ async def generate_chapter_body(
                 draft, result, section_plan=section_plan,
                 conflict_page_ids=conflict_page_ids,
             )
-            return result if not errors else _failed_body(draft, ",".join(errors), prompt_hash)
-        except Exception as exc:
+            if not errors:
+                return result
+            attempt_reasons.append(",".join(errors))
             if attempt < retries:
+                retry_feedback = (
+                    "The previous response failed the top-level object contract. "
+                    "Return exactly one JSON object with a sections array; never return an array."
+                )
                 await asyncio.sleep(0)
                 continue
-            return _failed_body(draft, f"{type(exc).__name__}: {exc}", prompt_hash)
-    return _failed_body(draft, "llm_failed", prompt_hash)
+            return _failed_body(
+                draft, "; ".join(attempt_reasons), prompt_hash,
+                "E_LLM_RESPONSE_INVALID",
+            )
+        except Exception as exc:
+            attempt_reasons.append(f"{type(exc).__name__}: {exc}")
+            if attempt < retries:
+                retry_feedback = (
+                    "The previous response failed the top-level object contract. "
+                    "Return exactly one JSON object with a sections array; never return an array."
+                )
+                await asyncio.sleep(0)
+                continue
+            return _failed_body(
+                draft, "; ".join(attempt_reasons), prompt_hash,
+                "E_LLM_RESPONSE_INVALID",
+            )
+    return _failed_body(draft, "llm_failed", prompt_hash, "E_LLM_RESPONSE_INVALID")
 
 
 __all__ = [
