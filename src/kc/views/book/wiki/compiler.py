@@ -5,6 +5,7 @@ import hashlib
 import asyncio
 import json
 import os
+import re
 import shutil
 import time
 import uuid
@@ -78,6 +79,34 @@ class PublishReport:
     error: str | None = None
 
 
+class CandidateReleaseValidationError(ValueError):
+    """Raised when a staged Book candidate cannot be promoted safely."""
+
+
+_CANDIDATE_STATES = frozenset({
+    "candidate", "validated", "published", "superseded", "expired", "rejected",
+})
+_CANDIDATE_MUTABLE_FILES = frozenset({
+    "candidate-state.json", "release-acceptance.json", "human-approval.json",
+})
+
+
+@dataclass(frozen=True)
+class ValidatedCandidate:
+    """Closed, integrity-checked input for the single Book publication seam."""
+
+    project_root: Path
+    output_dir: Path
+    release_id: str
+    source_dir: Path
+    manifest: dict[str, Any]
+    manifest_sha256: str
+    content_identity: str
+    snapshot_id: str | None
+    lifecycle_state: str
+    files: tuple[tuple[str, str], ...]
+
+
 def _body_llm_status(generated_chapters: Mapping[str, Any] | None) -> str:
     """Return the publication status of the optional polished chapter bodies."""
     if generated_chapters is None:
@@ -131,6 +160,175 @@ def _write_manifest(path: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     result = _manifest_with_digest(manifest)
     path.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
     return result
+
+
+def _candidate_versions_dir(project_root: Path) -> Path:
+    return Path(project_root).resolve() / ".index" / "book-wiki" / "versions"
+
+
+def _candidate_state_path(release_dir: Path) -> Path:
+    return Path(release_dir) / "candidate-state.json"
+
+
+def _manifest_file_sha(manifest_path: Path) -> str:
+    return hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+
+
+def _read_identity_file(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        raise CandidateReleaseValidationError(f"identity_unreadable:{path.name}") from exc
+    if not isinstance(payload, dict):
+        raise CandidateReleaseValidationError(f"identity_invalid:{path.name}")
+    return payload
+
+
+def load_candidate_lifecycle(release_dir: Path, *, manifest: Mapping[str, Any]) -> str:
+    """Read mutable lifecycle evidence without changing manifest identity."""
+    path = _candidate_state_path(release_dir)
+    if not path.is_file():
+        return "candidate"
+    payload = _read_identity_file(path)
+    state = payload.get("state")
+    if state not in _CANDIDATE_STATES:
+        raise CandidateReleaseValidationError("lifecycle_invalid")
+    release_id = str(manifest.get("run_id", ""))
+    if payload.get("release_id") != release_id:
+        raise CandidateReleaseValidationError("lifecycle_release_mismatch")
+    manifest_path = Path(release_dir) / "manifest.json"
+    if payload.get("manifest_sha256") != _manifest_file_sha(manifest_path):
+        raise CandidateReleaseValidationError("lifecycle_manifest_mismatch")
+    return str(state)
+
+
+def write_candidate_lifecycle(
+    release_dir: Path,
+    *,
+    state: str,
+    manifest: Mapping[str, Any],
+) -> Path:
+    """Atomically write lifecycle evidence outside the immutable manifest."""
+    if state not in _CANDIDATE_STATES:
+        raise CandidateReleaseValidationError("lifecycle_invalid")
+    release = Path(release_dir)
+    manifest_path = release / "manifest.json"
+    if not manifest_path.is_file():
+        raise CandidateReleaseValidationError("manifest_missing")
+    release_id = str(manifest.get("run_id", ""))
+    if not re.fullmatch(r"[0-9a-f]{32}", release_id):
+        raise CandidateReleaseValidationError("release_id_invalid")
+    payload = {
+        "schema_version": "book-candidate-lifecycle-v1",
+        "release_id": release_id,
+        "manifest_sha256": _manifest_file_sha(manifest_path),
+        "state": state,
+    }
+    target = _candidate_state_path(release)
+    temp = target.with_name(f".{target.name}.{release_id}.tmp")
+    temp.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+    os.replace(temp, target)
+    return target
+
+
+def _candidate_file_name(name: Any) -> str:
+    if not isinstance(name, str) or not name:
+        raise CandidateReleaseValidationError("file_path_invalid")
+    relative = Path(name)
+    normalized = name.replace("\\", "/")
+    if relative.is_absolute() or ".." in relative.parts or relative.as_posix() != normalized:
+        raise CandidateReleaseValidationError("file_path_invalid")
+    return normalized
+
+
+def _candidate_project_identity(project_root: Path) -> dict[str, Any]:
+    project_path = Path(project_root) / ".llm-wiki" / "project.json"
+    payload = _read_identity_file(project_path) if project_path.is_file() else {}
+    if "project_id" not in payload and payload.get("id") is not None:
+        payload["project_id"] = payload["id"]
+    return payload
+
+
+def _candidate_book_identity(output_dir: Path) -> dict[str, Any]:
+    book_path = Path(output_dir) / "book.json"
+    return _read_identity_file(book_path) if book_path.is_file() else {}
+
+
+def validate_candidate_release(
+    project_root: Path,
+    *,
+    output_dir: Path,
+    release_id: str,
+) -> ValidatedCandidate:
+    """Load and validate one staged candidate without mutating it."""
+    if not isinstance(release_id, str) or not re.fullmatch(r"[0-9a-f]{32}", release_id):
+        raise CandidateReleaseValidationError("release_id_invalid")
+    root = Path(project_root).resolve()
+    target = Path(output_dir).resolve()
+    release = _candidate_versions_dir(root) / release_id
+    if not release.is_dir() or not release.resolve().is_relative_to(_candidate_versions_dir(root).resolve()):
+        raise CandidateReleaseValidationError("candidate_missing")
+    manifest_path = release / "manifest.json"
+    if not manifest_path.is_file():
+        raise CandidateReleaseValidationError("manifest_missing")
+    manifest = _read_identity_file(manifest_path)
+    if manifest.get("run_id") != release_id:
+        raise CandidateReleaseValidationError("release_id_mismatch")
+    if manifest.get("release_status") != "complete":
+        raise CandidateReleaseValidationError("release_status_not_complete")
+    content_identity = manifest.get("release_manifest_hash")
+    expected_identity = hashlib.sha256(_canonical({
+        key: value for key, value in manifest.items() if key != "release_manifest_hash"
+    })).hexdigest()
+    if content_identity != expected_identity:
+        raise CandidateReleaseValidationError("manifest_digest_mismatch")
+
+    project_identity = _candidate_project_identity(root)
+    book_identity = _candidate_book_identity(target)
+    for key in ("project_id", "domain_id", "book_id"):
+        candidate_value = manifest.get(key)
+        current_value = book_identity.get(key, project_identity.get(key))
+        if candidate_value is not None and current_value is not None and candidate_value != current_value:
+            identity_name = {"project_id": "project", "domain_id": "domain", "book_id": "book"}[key]
+            raise CandidateReleaseValidationError(f"{identity_name}_identity_mismatch")
+
+    entries = manifest.get("files")
+    if not isinstance(entries, dict):
+        raise CandidateReleaseValidationError("files_invalid")
+    verified: list[tuple[str, str]] = []
+    for raw_name, expected_hash in sorted(entries.items(), key=lambda item: str(item[0])):
+        name = _candidate_file_name(raw_name)
+        if not isinstance(expected_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_hash):
+            raise CandidateReleaseValidationError("file_hash_invalid")
+        path = release / name
+        if not path.is_file() or _sha(path) != expected_hash:
+            raise CandidateReleaseValidationError(f"file_hash_mismatch:{name}")
+        verified.append((name, expected_hash))
+
+    allowed_unlisted = {"manifest.json", *_CANDIDATE_MUTABLE_FILES}
+    actual = {
+        path.relative_to(release).as_posix()
+        for path in release.rglob("*")
+        if path.is_file()
+    }
+    unlisted = sorted(actual - set(allowed_unlisted) - {name for name, _ in verified})
+    if unlisted:
+        raise CandidateReleaseValidationError(f"files_not_closed:{unlisted[0]}")
+    lifecycle = load_candidate_lifecycle(release, manifest=manifest)
+    if lifecycle in {"rejected", "expired", "superseded"}:
+        raise CandidateReleaseValidationError(f"lifecycle_not_promotable:{lifecycle}")
+    return ValidatedCandidate(
+        project_root=root,
+        output_dir=target,
+        release_id=release_id,
+        source_dir=release,
+        manifest=manifest,
+        manifest_sha256=_manifest_file_sha(manifest_path),
+        content_identity=str(content_identity),
+        snapshot_id=manifest.get("snapshot_id"),
+        lifecycle_state=lifecycle,
+        files=tuple(verified),
+    )
 
 
 def _safe(value: str) -> str:
@@ -1341,5 +1539,10 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             release_run_lock(lock)
 
 
-__all__ = ["BuildArtifact", "PublishReport", "compile_book", "publish_book", "resolve_active_version",
-           "build_from_wiki", "BOOK_MODES"]
+__all__ = [
+    "BuildArtifact", "PublishReport", "CandidateReleaseValidationError",
+    "ValidatedCandidate", "compile_book", "publish_book",
+    "resolve_active_version", "load_candidate_lifecycle",
+    "write_candidate_lifecycle", "validate_candidate_release",
+    "build_from_wiki", "BOOK_MODES",
+]
