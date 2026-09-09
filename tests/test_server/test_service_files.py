@@ -359,12 +359,17 @@ def test_book_wiki_versions_lists_verified_releases_and_reads_selected(monkeypat
         release.mkdir(parents=True)
         chapter = f"# {title}\n"
         (release / "v001__c001.md").write_text(chapter, encoding="utf-8")
+        (release / "sources-index.md").write_text("# Sources index\n", encoding="utf-8")
         digest = hashlib.sha256((release / "v001__c001.md").read_bytes()).hexdigest()
+        sources_digest = hashlib.sha256((release / "sources-index.md").read_bytes()).hexdigest()
         outline = [{"volumes": [{"volume_id": "v001", "title": "第一卷", "chapters": [{"chapter_id": "c001", "title": "第一章"}]}]}]
         (release / "outline.json").write_text(json.dumps(outline), encoding="utf-8")
         outline_digest = hashlib.sha256((release / "outline.json").read_bytes()).hexdigest()
         manifest = {"run_id": version, "chapter_count": 1, "page_count": 1,
-                    "files": {"v001__c001.md": digest, "outline.json": outline_digest}}
+                    "scope_mode": "full_knowledge", "coverage_ratio": 1.0,
+                    "source_appendix_count": 463,
+                    "files": {"v001__c001.md": digest, "outline.json": outline_digest,
+                              "sources-index.md": sources_digest}}
         (release / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     active_manifest = (book_dir / ".releases" / "v2" / "manifest.json").read_bytes()
     (book_dir / "CURRENT.json").write_text(json.dumps({
@@ -381,6 +386,9 @@ def test_book_wiki_versions_lists_verified_releases_and_reads_selected(monkeypat
     selected_manifest = files_service.book_wiki_manifest("u", version="v1")
     assert selected_manifest["volumes"][0]["title"] == "第一卷"
     assert selected_manifest["chapters"][0]["title"] == "第一章"
+    assert selected_manifest["scope_mode"] == "full_knowledge"
+    assert selected_manifest["source_appendix"]["count"] == 463
+    assert selected_manifest["chapters"][0]["path"] == "v001__c001.md"
     selected = files_service.read_book_wiki_content("u", "v001__c001.md", version="v1")
     assert selected["content"] == "# Old\n"
 

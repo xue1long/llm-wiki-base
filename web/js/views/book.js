@@ -234,7 +234,7 @@
         renderPathSelect();
         applyTutorialPath();
         renderVolumeBar();
-        stats.textContent = `${files.length.toLocaleString()} 章 · ${(data.page_count || 0).toLocaleString()} 页`;
+        stats.textContent = `${files.length.toLocaleString()} 章 · ${(data.page_count || 0).toLocaleString()} 页 · ${Number(data.source_appendix?.count || 0).toLocaleString()} 来源`;
         renderBookInfo();
         renderToc();
       } catch (error) {
@@ -363,6 +363,9 @@
         <dl class="book-info-list">
           <div><dt>章节</dt><dd>${Number(book.chapter_count || files.length).toLocaleString()}</dd></div>
           <div><dt>Wiki 页面</dt><dd>${Number(book.page_count || 0).toLocaleString()}</dd></div>
+          <div><dt>范围</dt><dd>${App.escapeHtml(book.scope_mode || "pilot")}</dd></div>
+          <div><dt>覆盖率</dt><dd>${(Number(book.coverage_ratio || 0) * 100).toFixed(1)}%</dd></div>
+          <div><dt>来源附录</dt><dd>${Number(book.source_appendix?.count || 0).toLocaleString()}</dd></div>
           <div><dt>关系边</dt><dd>${Number(book.total_relations || 0).toLocaleString()}</dd></div>
           <div><dt>未解析</dt><dd>${Number(book.unresolved || 0).toLocaleString()} · ${(Number(book.unresolved_ratio || 0) * 100).toFixed(2)}%</dd></div>
         </dl>

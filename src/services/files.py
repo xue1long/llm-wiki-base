@@ -254,6 +254,8 @@ def book_wiki_versions(project_id: str) -> dict:
                 "active": active is not None and release == active,
                 "chapter_count": int(manifest.get("chapter_count", 0) or 0),
                 "page_count": int(manifest.get("page_count", 0) or 0),
+                "scope_mode": manifest.get("scope_mode", "pilot"),
+                "source_appendix_count": int(manifest.get("source_appendix_count", 0) or 0),
                 "created_at": candidate.stat().st_mtime,
             })
     return {"versions": versions}
@@ -288,7 +290,7 @@ def book_wiki_manifest(project_id: str, version: str | None = None) -> dict:
     outline_volumes, outline_chapters = _book_outline_metadata(release)
     chapters = []
     for name in sorted(files):
-        if not name.endswith(".md") or name in {"index.md", "glossary.md"}:
+        if not name.endswith(".md") or name in {"index.md", "glossary.md", "sources-index.md"}:
             continue
         path = release / name
         if not path.is_file():
@@ -313,6 +315,14 @@ def book_wiki_manifest(project_id: str, version: str | None = None) -> dict:
         "version": manifest.get("run_id"),
         "snapshot_id": manifest.get("snapshot_id"),
         "page_count": manifest.get("page_count", 0),
+        "eligible_page_count": manifest.get("eligible_page_count", manifest.get("page_count", 0)),
+        "covered_page_count": manifest.get("covered_page_count", manifest.get("page_count", 0)),
+        "coverage_ratio": manifest.get("coverage_ratio", 1.0),
+        "scope_mode": manifest.get("scope_mode", "pilot"),
+        "source_appendix": {
+            "count": manifest.get("source_appendix_count", 0),
+            "path": "sources-index.md" if "sources-index.md" in files else None,
+        },
         "chapter_count": manifest.get("chapter_count", len(chapters)),
         "total_relations": manifest.get("total_relations", 0),
         "unresolved": manifest.get("unresolved", 0),

@@ -34,7 +34,7 @@
 - Task 2: complete — deterministic indexes/coverage/source appendix; 18 tests passed; real plan gate 1255/179/463 passed
 - Task 3: complete — resumable batch state and pre-call budget gate; 34 related tests passed
 - Task 4: complete — full-scope provenance/coverage acceptance gate; 36 related tests passed
-- Task 5: pending
+- Task 5: complete — WebUI/service metadata and source appendix reader integration; 13 service tests plus JS syntax passed
 - Task 6: pending
 
 ## Decisions
@@ -66,3 +66,9 @@
 - Findings: one regression found and fixed: the pre-call full-scope budget check was initially applied to pilot outline retries; it is now scoped to full scope or persisted editorial builds.
 - Verification: `uv run --offline pytest tests/test_kc/test_book_acceptance_report.py tests/test_kc/test_book_chapter_body.py tests/test_kc/test_book_wiki_staged_failure.py -q` → 36 passed.
 - Full-scope acceptance now requires complete page coverage, source appendix evidence, and one provenance map per chapter; human review remains advisory.
+
+## Task 5 review
+
+- Findings: none.
+- Verification: `uv run --offline pytest tests/test_server/test_service_files.py -q` → 13 passed; `node --check web/js/views/book.js` passed.
+- UI metadata exposes scope, coverage, chapter/page counts and source appendix count; Book publication remains separate from LanceDB updates.
