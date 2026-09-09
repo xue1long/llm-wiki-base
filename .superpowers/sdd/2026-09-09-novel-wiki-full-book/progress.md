@@ -32,7 +32,7 @@
 
 - Task 1: complete — `scope_mode` CLI/compiler seam; 30 affected tests passed; manual diff review clean
 - Task 2: complete — deterministic indexes/coverage/source appendix; 18 tests passed; real plan gate 1255/179/463 passed
-- Task 3: pending
+- Task 3: complete — resumable batch state and pre-call budget gate; 34 related tests passed
 - Task 4: pending
 - Task 5: pending
 - Task 6: pending
@@ -53,3 +53,10 @@
 - Findings: none.
 - Verification: `uv run --offline pytest tests/test_kc/test_book_wiki_compiler.py tests/test_kc/test_book_wiki_outline_llm.py -q` → 18 passed.
 - Real full plan gate: `page_count=1255`, `chapter_count=179`, `source_appendix_count=463`, `coverage_ratio=1.0`, `release_status=planned`.
+
+## Task 3 review
+
+- Findings: none.
+- Verification: `uv run --offline pytest tests/test_kc/test_book_wiki_batch_state.py tests/test_kc/test_book_wiki_compiler.py tests/test_cli_ext/test_book_build_from_wiki_modes.py -q` → 34 passed.
+- Full scope skips outline LLM calls; the approved 358 cap therefore covers 179 chapter calls plus one retry each.
+- Budget insufficiency is blocked before provider invocation; completed chapters are reused from atomic JSON state on resume.

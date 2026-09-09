@@ -29,6 +29,7 @@ from .theme_outline import ThemeOutlineError, load_theme_outline, place_page_sum
 from .polish_llm import GeneratedChapter, generate_chapter_body
 from .rules import BookRulesError, load_book_rules
 from .source_appendix import build_source_appendix, render_source_appendix, serialise_appendix
+from .batch_state import BatchStateError, chapter_from_dict, load_or_create, record as record_batch
 from .acceptance import (
     build_release_acceptance_report, load_release_acceptance_report,
     write_release_acceptance_report,
@@ -1025,7 +1026,10 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                     book_mode: str | None = None,
                     release_id: str | None = None,
                     apply_from: str | None = None,
-                    scope_mode: str = "pilot") -> dict[str, Any]:
+                    scope_mode: str = "pilot",
+                    batch_size: int = 15,
+                    resume: bool = False,
+                    budget_manifest: str | Path | None = None) -> dict[str, Any]:
     """Run the rule-only safety path used by the CLI.
 
     Encyclopedic mode adds a bounded, evidence-only index.  It never rewrites
@@ -1308,7 +1312,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         outline = rule_outline
         outline_generation_mode = "rule"
         outline_fallback_reason: str | None = None
-    if editorial_state is None and use_llm and theme_outline is None:
+    if editorial_state is None and use_llm and theme_outline is None and scope_mode != "full_knowledge":
         outline_eligible_calls = estimate_outline_call_sites(
             snapshot, chunks, token_budget=max_output_tokens or 1000,
             project_rules=rules.text,
@@ -1363,8 +1367,43 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             return {"status": "failed", "reason_codes": [e.code for e in validation.errors]}
     planned_chapters = tuple(_chapters([outline]))
     pending_minimum_calls = (1 if encyclopedic else 0) + (len(planned_chapters) if polish else 0)
-    if (use_llm and editorial_state is not None and
-            _calls_used() + pending_minimum_calls > max_llm_calls):
+    batch_state = None
+    batch_state_path: Path | None = None
+    prior_calls = 0
+    if use_llm and polish and scope_mode == "full_knowledge":
+        if batch_size <= 0:
+            return {"status": "blocked", "reason_codes": ["E_BATCH_SIZE_INVALID"]}
+        batch_state_path = Path(budget_manifest) if budget_manifest is not None else root / ".index" / "book-wiki" / "batch-state.json"
+        try:
+            batch_state = load_or_create(
+                batch_state_path,
+                snapshot_id=snapshot.snapshot_id,
+                chapter_ids=tuple(chapter_id for _volume_id, chapter_id, _chapter in planned_chapters),
+                batch_size=batch_size,
+                max_attempts=max_attempts,
+                max_llm_calls=max_llm_calls,
+                resume=resume,
+            )
+            prior_calls = int(batch_state.get("budget", {}).get("actual_calls", 0))
+            batch_state["budget"]["minimum_calls"] = pending_minimum_calls + prior_calls
+            batch_state["budget"]["configured_max_calls"] = (
+                (1 if encyclopedic else 0) + len(planned_chapters) * (1 + max_attempts)
+            )
+            batch_state["budget"]["max_llm_calls"] = max_llm_calls
+        except (BatchStateError, OSError, TypeError, ValueError) as exc:
+            return {"status": "blocked", "reason_codes": ["E_BATCH_STATE_INVALID"], "error": str(exc)}
+        if prior_calls + pending_minimum_calls > max_llm_calls:
+            return {
+                "status": "blocked",
+                "reason_codes": ["E_LLM_BUDGET_INSUFFICIENT"],
+                "minimum_llm_calls": prior_calls + pending_minimum_calls,
+                "configured_max_llm_calls": max_llm_calls,
+                "retry_reserve_shortfall": max(0, prior_calls + pending_minimum_calls - max_llm_calls),
+                "budget_manifest": str(batch_state_path),
+            }
+        from .batch_state import save as save_batch_state
+        save_batch_state(batch_state_path, batch_state)
+    if (use_llm and _calls_used() + pending_minimum_calls > max_llm_calls):
         return {
             "status": "blocked",
             "reason_codes": ["E_LLM_BUDGET_INSUFFICIENT"],
@@ -1434,6 +1473,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                 _fail_lineage("body_provider_unavailable")
                 return {"status": "blocked", "reason_codes": ["E_BODY_PROVIDER_UNAVAILABLE"],
                         "error": str(exc), "llm_status": "unavailable"}
+        if isinstance(provider, _BudgetedProvider) and prior_calls:
+            provider.calls = prior_calls
         llm_metadata = {
             "provider": preflight.provider or type(provider).__name__,
             "model": preflight.model,
@@ -1466,14 +1507,6 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             )
         chapter_before_calls = _calls_used()
         for index, (_volume_id, chapter_id, chapter) in enumerate(planned_chapters):
-            if (isinstance(provider, _BudgetedProvider) and
-                    (provider.calls >= max_llm_calls or
-                     time.monotonic() - llm_started >= max_runtime_seconds)):
-                generated_chapters[chapter_id] = GeneratedChapter(
-                    chapter_id, (), "failed", "budget_exhausted",
-                    failure_code="E_LLM_BUDGET_EXHAUSTED",
-                )
-                continue
             draft = aggregate_chapter(chapter, included_page_map)
             try:
                 section_plan = _body_section_plan(
@@ -1489,6 +1522,30 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                     "chapter_id": chapter_id,
                     "error": str(exc),
                 }
+            input_hash = hashlib.sha256(json.dumps({
+                "chapter_id": chapter_id,
+                "page_ids": list(draft.page_ids),
+                "block_ids": list(draft.block_ids),
+                "section_plan": section_plan,
+                "rules_hash": rules.rules_hash,
+            }, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+            cached = batch_state.get("chapters", {}).get(chapter_id) if batch_state is not None else None
+            if isinstance(cached, dict) and cached.get("status") == "complete" and cached.get("input_hash") == input_hash:
+                try:
+                    generated_chapters[chapter_id] = chapter_from_dict(cached["result"])
+                    continue
+                except (BatchStateError, KeyError, TypeError, ValueError):
+                    return {"status": "blocked", "reason_codes": ["E_BATCH_STATE_INVALID"], "chapter_id": chapter_id}
+            if (isinstance(provider, _BudgetedProvider) and
+                    (provider.calls >= max_llm_calls or
+                     time.monotonic() - llm_started >= max_runtime_seconds)):
+                generated_chapters[chapter_id] = GeneratedChapter(
+                    chapter_id, (), "failed", "budget_exhausted",
+                    failure_code="E_LLM_BUDGET_EXHAUSTED",
+                )
+                if batch_state is not None and batch_state_path is not None:
+                    record_batch(batch_state_path, batch_state, generated_chapters[chapter_id], input_hash=input_hash, calls=_calls_used())
+                continue
             generated_chapters[chapter_id] = asyncio.run(generate_chapter_body(
                 draft, provider,
                 section_plan=section_plan,
@@ -1497,6 +1554,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                 token_budget=max_output_tokens or min(15000, resolved_budget * 5000),
                 retries=max_attempts,
             ))
+            if batch_state is not None and batch_state_path is not None:
+                record_batch(batch_state_path, batch_state, generated_chapters[chapter_id], input_hash=input_hash, calls=_calls_used())
         _record_call_site(
             "chapter_body", chapter_before_calls, requested=True,
             minimum_calls=len(planned_chapters),
@@ -1520,13 +1579,17 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             if generated.content_status != "complete" and generated.failure_reason
         })
         llm_metadata["failure_codes"] = _body_llm_failure_codes(generated_chapters)
+        if batch_state_path is not None:
+            llm_metadata["batch_size"] = batch_size
+            llm_metadata["batch_state_path"] = str(batch_state_path)
+            llm_metadata["resumed"] = resume
 
     artifact = compile_book(snapshot, [outline], snapshot.pages,
                             fingerprint={"snapshot_id": snapshot.snapshot_id, "use_llm": use_llm},
                             polish=polish, encyclopedic=encyclopedic, state_dir=root / ".index",
                             outline_generation_mode=outline_generation_mode,
                             outline_fallback_reason=outline_fallback_reason,
-                            outline_llm_requested=use_llm,
+                            outline_llm_requested=use_llm and scope_mode != "full_knowledge",
                             series_id=series_id,
                             book_id=book_id,
                             book_mode=book_mode,

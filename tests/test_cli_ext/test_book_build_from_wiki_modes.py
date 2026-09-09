@@ -37,6 +37,8 @@ def test_full_knowledge_scope_is_parseable() -> None:
     args = _parse("--scope", "full_knowledge")
 
     assert args.scope == "full_knowledge"
+    assert args.batch_size == 15
+    assert args.resume is False
 
 
 @pytest.mark.parametrize(

@@ -222,6 +222,9 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
             release_id=getattr(args, "release_id", None),
             apply_from=apply_from,
             scope_mode=getattr(args, "scope", "pilot"),
+            batch_size=getattr(args, "batch_size", 15),
+            resume=bool(getattr(args, "resume", False)),
+            budget_manifest=getattr(args, "budget_manifest", None),
         )
     except LockBusyError:
         raise SystemExit(EXIT_LOCK_BUSY)

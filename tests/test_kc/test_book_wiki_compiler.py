@@ -205,6 +205,93 @@ def test_build_from_wiki_full_knowledge_scope_ignores_pilot_curation(tmp_path):
     assert coverage["coverage_ratio"] == 1.0
 
 
+def test_full_scope_budget_manifest_blocks_before_provider_call(tmp_path):
+    project = tmp_path / "project"
+    _write_project_rules(project)
+    (project / ".llm-wiki").mkdir(parents=True)
+    (project / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0"}', encoding="utf-8")
+    (project / ".llm-wiki" / "policy.json").write_text(
+        '{"content_export_authorized":true,"external_llm_allowed":true,"approver":"owner","budget_cap":2}', encoding="utf-8")
+    for name in ("concepts", "entities", "synthesis"):
+        (project / "wiki" / name).mkdir(parents=True)
+    for page_id in ("p1", "p2"):
+        (project / "wiki" / "concepts" / f"{page_id}.md").write_text(
+            f"---\nid: {page_id}\ntitle: {page_id}\ntype: concept\n---\n" + ("Body " * 2500),
+            encoding="utf-8",
+        )
+
+    class Provider:
+        calls = 0
+
+        async def complete(self, *_args, **_kwargs):
+            self.calls += 1
+            raise AssertionError("full-scope budget gate should run before the provider")
+
+    provider = Provider()
+    manifest = project / ".index" / "book-wiki" / "budget.json"
+    result = build_from_wiki(
+        project, output_dir=project / "book-wiki", scope_mode="full_knowledge",
+        use_llm=True, polish=True, provider=provider, max_llm_calls=1,
+        budget_manifest=manifest,
+    )
+
+    assert result["status"] == "blocked"
+    assert result["reason_codes"] == ["E_LLM_BUDGET_INSUFFICIENT"]
+    assert result["minimum_llm_calls"] == 2
+    assert provider.calls == 0
+    assert manifest.is_file()
+
+
+def test_full_scope_resume_reuses_completed_chapter_without_provider_call(tmp_path):
+    project = tmp_path / "project"
+    _write_project_rules(project)
+    (project / ".llm-wiki").mkdir(parents=True)
+    (project / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0"}', encoding="utf-8")
+    (project / ".llm-wiki" / "policy.json").write_text(
+        '{"content_export_authorized":true,"external_llm_allowed":true,"approver":"owner","budget_cap":2}',
+        encoding="utf-8")
+    for name in ("concepts", "entities", "synthesis"):
+        (project / "wiki" / name).mkdir(parents=True)
+    (project / "wiki" / "concepts" / "p1.md").write_text(
+        "---\nid: p1\ntitle: One\ntype: concept\nsources: [raw/p1.md]\n---\nBody\n", encoding="utf-8")
+
+    class Provider:
+        def __init__(self, fail=False):
+            self.calls = 0
+            self.fail = fail
+
+        async def complete(self, messages, **_kwargs):
+            self.calls += 1
+            if self.fail:
+                raise AssertionError("completed batch must not call provider on resume")
+            payload = json.loads(messages[0]["content"])
+            section = payload["allowed_sections"][0]
+            return type("Response", (), {"content": json.dumps({
+                "chapter_id": payload["chapter_id"], "content_status": "complete",
+                "sections": [{"section_id": section["section_id"], "title": section["title"],
+                              "body": "正文", "source_page_ids": ["p1"], "status": "normal"}],
+            }), "truncated": False})()
+
+    state_path = project / ".index" / "book-wiki" / "batch.json"
+    first_provider = Provider()
+    first = build_from_wiki(
+        project, output_dir=project / "book-wiki", scope_mode="full_knowledge",
+        use_llm=True, polish=True, provider=first_provider, max_llm_calls=2,
+        budget_manifest=state_path,
+    )
+    assert first["status"] == "planned"
+    assert first_provider.calls == 1
+
+    second_provider = Provider(fail=True)
+    second = build_from_wiki(
+        project, output_dir=project / "book-wiki", scope_mode="full_knowledge",
+        use_llm=True, polish=True, provider=second_provider, max_llm_calls=2,
+        resume=True, budget_manifest=state_path,
+    )
+    assert second["status"] == "planned"
+    assert second_provider.calls == 0
+
+
 def test_polish_blocks_persisted_outline_without_theme_sections(tmp_path):
     project = tmp_path / "project"
     _write_project_rules(project)
