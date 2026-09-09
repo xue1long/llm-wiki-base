@@ -172,6 +172,42 @@ def test_structured_body_rejects_string_array_as_not_prose():
     assert "response_not_structured_chapter:type=list" in (result.failure_reason or "")
 
 
+def test_malformed_string_array_gets_one_contract_repair_retry():
+    draft = _draft()
+
+    class Provider:
+        calls = 0
+
+        async def complete(self, messages, **_kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                return SimpleNamespace(content=json.dumps(["标题一"]), truncated=False)
+            request = json.loads(messages[0]["content"])
+            assert "JSON array of strings" in request["retry_feedback"]
+            return SimpleNamespace(content=json.dumps({
+                "chapter_id": "c1",
+                "content_status": "complete",
+                "sections": [{
+                    "section_id": "s1",
+                    "title": "Overview",
+                    "body": "修复后的结构化正文",
+                    "source_page_ids": ["p1", "p2"],
+                    "status": "normal",
+                }],
+            }), truncated=False)
+
+    provider = Provider()
+    result = asyncio.run(generate_chapter_body(
+        draft, provider,
+        section_plan=({"section_id": "s1", "title": "Overview"},),
+        retries=1,
+    ))
+
+    assert provider.calls == 2
+    assert result.content_status == "complete"
+    assert result.sections[0].body == "修复后的结构化正文"
+
+
 def test_unstructured_body_reports_safe_top_level_shape():
     result = asyncio.run(generate_chapter_body(
         _draft(),

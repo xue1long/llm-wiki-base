@@ -39,3 +39,4 @@
 - [2026-09-06 v2 迁移根因分析](2026-09-06-v2-migration-root-cause-analysis.md) — 21+26+26 问题中只有 3 项真架构缺陷（V5 白名单 + capture type + tag 不兼容），其他 23 项是实施细节/文档疏漏；方案**架构正确**
 - [2026-09-07 Unified Book 主题分组安全整改](feedback-unified-book-theme-group-remediation-2026-09-07.md) — 修复一页一节退化；显式主题 section、来源闭包校验、章节级去重提示词；相关 33 测试 + 全部 KC 773 测试通过
 - [2026-09-09 Book preview → promotion 实施](feedback-book-preview-promotion-2026-09-09.md) — `--apply-from` 复用同一 preview release、人工审批非阻塞、预算前置估算、vector 状态拆分；完整 KC/CLI 回归 836 passed
+- [2026-09-09 Book 章节响应契约修复](feedback-book-response-contract-repair-2026-09-09.md) — MiniMax `list[str]` 响应触发形状感知重试反馈；仍保持 fail-closed provenance 校验

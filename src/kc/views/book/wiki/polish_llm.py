@@ -143,6 +143,22 @@ def _normalize_chapter_payload(
     raise ValueError(f"response_not_structured_chapter:type={type(payload).__name__}")
 
 
+def _retry_feedback(exc: Exception, section_plan: tuple[dict, ...]) -> str:
+    message = str(exc)
+    if "response_not_structured_chapter:type=list:items=str" in message:
+        section_ids = [str(row.get("section_id", "")) for row in section_plan]
+        return (
+            "The previous response failed the top-level object contract: it was a JSON array of strings, which is invalid. "
+            "Return exactly one top-level JSON object, never an array. "
+            f"Use the compiler-owned section IDs {section_ids!r} in the sections array. "
+            "Each section object must contain section_id, title, body, source_page_ids, and status."
+        )
+    return (
+        "The previous response failed the top-level object contract. "
+        "Return exactly one JSON object with a sections array; never return an array."
+    )
+
+
 async def generate_chapter_body(
     draft: ChapterDraft,
     provider: Any,
@@ -247,10 +263,7 @@ async def generate_chapter_body(
                 return result
             attempt_reasons.append(",".join(errors))
             if attempt < retries:
-                retry_feedback = (
-                    "The previous response failed the top-level object contract. "
-                    "Return exactly one JSON object with a sections array; never return an array."
-                )
+                retry_feedback = _retry_feedback(ValueError(",".join(errors)), section_plan)
                 await asyncio.sleep(0)
                 continue
             return _failed_body(
@@ -260,10 +273,7 @@ async def generate_chapter_body(
         except Exception as exc:
             attempt_reasons.append(f"{type(exc).__name__}: {exc}")
             if attempt < retries:
-                retry_feedback = (
-                    "The previous response failed the top-level object contract. "
-                    "Return exactly one JSON object with a sections array; never return an array."
-                )
+                retry_feedback = _retry_feedback(exc, section_plan)
                 await asyncio.sleep(0)
                 continue
             return _failed_body(
