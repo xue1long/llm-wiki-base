@@ -4,10 +4,14 @@ import json
 import hashlib
 from pathlib import Path
 
+import pytest
+
 from src.kc.views.book.wiki.acceptance import (
     build_release_acceptance_report,
     derive_book_freshness,
+    load_human_approval,
     load_release_acceptance_report,
+    write_human_approval,
 )
 from src.kc.views.book.wiki.compiler import build_from_wiki, resolve_active_version
 
@@ -17,7 +21,7 @@ def _project(tmp_path: Path) -> Path:
     root.mkdir(parents=True)
     (root / "book.rules.md").write_text("# Book rules\n\n- Preserve source meaning.\n", encoding="utf-8")
     (root / ".llm-wiki").mkdir(parents=True)
-    (root / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0"}', encoding="utf-8")
+    (root / ".llm-wiki" / "project.json").write_text('{"schema_version":"v2.0","id":"project-1"}', encoding="utf-8")
     (root / ".llm-wiki" / "policy.json").write_text(
         '{"content_export_authorized":true,"external_llm_allowed":true,"approver":"test","budget_cap":3}',
         encoding="utf-8",
@@ -65,7 +69,7 @@ def _apply(root: Path):
     )
 
 
-def test_acceptance_report_is_deterministic_and_keeps_manual_gate_pending(tmp_path):
+def test_acceptance_report_is_deterministic_and_human_review_is_advisory(tmp_path):
     root = _project(tmp_path)
     result = _apply(root)
     assert result["status"] == "committed"
@@ -77,12 +81,10 @@ def test_acceptance_report_is_deterministic_and_keeps_manual_gate_pending(tmp_pa
 
     assert first == second
     assert first["automated_acceptance"] == "pass"
-    assert first["approval"] == "pending"
-    assert all(value == "pending" for value in first["manual_gates"].values())
-    assert set(first["manual_gates"]) == {
-        "real_provider_readability", "human_acceptance",
-    }
-    assert json.loads((release / "release-acceptance.json").read_text(encoding="utf-8"))["approval"] == "pending"
+    assert first["human_readability_review"] == "not_requested"
+    assert first["human_content_review"] == "not_requested"
+    assert "approval" not in first
+    assert "manual_gates" not in first
 
 
 def test_acceptance_freshness_is_derived_and_stale_is_not_approval(tmp_path):
@@ -103,7 +105,8 @@ def test_acceptance_freshness_is_derived_and_stale_is_not_approval(tmp_path):
     assert reason == "snapshot_differs_from_release"
     assert report["freshness"] == "stale"
     assert report["automated_acceptance"] == "fail"
-    assert report["approval"] == "pending"
+    assert report["human_readability_review"] == "not_requested"
+    assert report["human_content_review"] == "not_requested"
 
 
 def test_tampered_acceptance_sidecar_is_not_returned(tmp_path):
@@ -140,3 +143,90 @@ def test_acceptance_allows_nested_editorial_sidecars(tmp_path):
     report = build_release_acceptance_report(tmp_path, release)
 
     assert report["checks"]["manifest_integrity"] == "pass"
+
+
+def test_human_approval_sidecar_is_optional_and_bound_to_manifest(tmp_path):
+    root = _project(tmp_path)
+    result = _apply(root)
+    release = resolve_active_version(root / "book-wiki")
+    assert result["status"] == "committed" and release is not None
+    manifest = json.loads((release / "manifest.json").read_text(encoding="utf-8"))
+
+    assert load_human_approval(release, manifest) is None
+    path = write_human_approval(
+        release,
+        {
+            "schema_version": "human-approval-v1",
+            "release_id": manifest["run_id"],
+            "manifest_sha256": hashlib.sha256((release / "manifest.json").read_bytes()).hexdigest(),
+            "human_readability_review": "approved",
+            "human_content_review": "not_requested",
+            "reviewer": "test",
+        },
+    )
+    assert path.name == "human-approval.json"
+    approval = load_human_approval(release, manifest)
+    assert approval is not None
+    assert approval["human_readability_review"] == "approved"
+    report = build_release_acceptance_report(root, release, publication_status="committed")
+    assert report["automated_acceptance"] == "pass"
+    assert report["human_readability_review"] == "approved"
+
+
+def test_invalid_human_approval_does_not_change_manifest(tmp_path):
+    root = _project(tmp_path)
+    result = _apply(root)
+    release = resolve_active_version(root / "book-wiki")
+    assert result["status"] == "committed" and release is not None
+    manifest_path = release / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest_before = manifest_path.read_bytes()
+
+    with pytest.raises(ValueError, match="manifest_sha256"):
+        write_human_approval(
+            release,
+            {
+                "schema_version": "human-approval-v1",
+                "release_id": manifest["run_id"],
+                "manifest_sha256": "wrong",
+                "human_readability_review": "approved",
+                "human_content_review": "not_requested",
+            },
+        )
+    assert manifest_path.read_bytes() == manifest_before
+
+    (release / "human-approval.json").write_text(
+        json.dumps({
+            "schema_version": "human-approval-v1",
+            "release_id": manifest["run_id"],
+            "manifest_sha256": hashlib.sha256(manifest_before).hexdigest(),
+            "project_id": "wrong-project",
+            "human_readability_review": "approved",
+            "human_content_review": "not_requested",
+        }),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="project_id"):
+        load_human_approval(release, manifest)
+
+
+def test_old_acceptance_report_with_pending_manual_gates_still_loads(tmp_path):
+    root = _project(tmp_path)
+    result = _apply(root)
+    release = resolve_active_version(root / "book-wiki")
+    assert result["status"] == "committed" and release is not None
+    manifest = json.loads((release / "manifest.json").read_text(encoding="utf-8"))
+    payload = {
+        "schema_version": "release-acceptance-v1",
+        "release_id": manifest["run_id"],
+        "snapshot_id": manifest["snapshot_id"],
+        "manifest_sha256": hashlib.sha256((release / "manifest.json").read_bytes()).hexdigest(),
+        "approval": "pending",
+        "manual_gates": {"real_provider_readability": "pending", "human_acceptance": "pending"},
+    }
+    (release / "release-acceptance.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    loaded = load_release_acceptance_report(release)
+    assert loaded is not None
+    assert loaded["approval"] == "pending"
+    assert loaded["human_readability_review"] == "pending"

@@ -4,14 +4,14 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from .scanner import WikiScanError, scan_wiki_snapshot
 
-MANUAL_GATES = (
-    "real_provider_readability",
-    "human_acceptance",
-)
+HUMAN_REVIEW_STATUSES = frozenset({"not_requested", "pending", "approved", "rejected"})
+# Kept for import compatibility with older Book tooling; new reports use the
+# two explicit human review fields below.
+MANUAL_GATES = ("real_provider_readability", "human_acceptance")
 
 
 def _canonical(value: Any) -> bytes:
@@ -24,6 +24,94 @@ def _sha(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _release_identity(release_dir: Path, manifest: Mapping[str, Any]) -> dict[str, str]:
+    identity = {
+        key: value for key, value in manifest.items()
+        if key in {"project_id", "book_id", "domain_id"} and isinstance(value, str)
+    }
+    try:
+        book = json.loads((Path(release_dir) / "book.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        book = {}
+    if isinstance(book, dict):
+        for key in ("project_id", "book_id", "domain_id"):
+            if key not in identity and isinstance(book.get(key), str):
+                identity[key] = book[key]
+    project = {}
+    for parent in (Path(release_dir), *Path(release_dir).parents):
+        project_path = parent / ".llm-wiki" / "project.json"
+        if not project_path.is_file():
+            continue
+        try:
+            project = json.loads(project_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            project = {}
+        break
+    if isinstance(project, dict) and "project_id" not in identity:
+        project_id = project.get("project_id", project.get("id"))
+        if isinstance(project_id, str):
+            identity["project_id"] = project_id
+    return identity
+
+
+def _validate_human_approval(
+    release_dir: Path,
+    manifest: Mapping[str, Any],
+    payload: Mapping[str, Any],
+) -> dict[str, Any]:
+    if payload.get("schema_version") != "human-approval-v1":
+        raise ValueError("human_approval_schema_version")
+    if payload.get("release_id") != manifest.get("run_id"):
+        raise ValueError("human_approval_release_id")
+    manifest_path = Path(release_dir) / "manifest.json"
+    if payload.get("manifest_sha256") != _sha(manifest_path):
+        raise ValueError("human_approval_manifest_sha256")
+    for key in ("human_readability_review", "human_content_review"):
+        status = payload.get(key, "not_requested")
+        if status not in HUMAN_REVIEW_STATUSES:
+            raise ValueError(f"human_approval_{key}")
+    expected_identity = _release_identity(Path(release_dir), manifest)
+    for key in ("project_id", "book_id", "domain_id"):
+        actual = payload.get(key)
+        if actual is None:
+            continue
+        expected = expected_identity.get(key)
+        if expected is None or actual != expected:
+            raise ValueError(f"human_approval_{key}")
+    return {
+        **dict(payload),
+        "human_readability_review": payload.get("human_readability_review", "not_requested"),
+        "human_content_review": payload.get("human_content_review", "not_requested"),
+    }
+
+
+def load_human_approval(release_dir: Path, manifest: Mapping[str, Any]) -> dict[str, Any] | None:
+    path = Path(release_dir) / "human-approval.json"
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        raise ValueError("human_approval_unreadable") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("human_approval_invalid")
+    return _validate_human_approval(Path(release_dir), manifest, payload)
+
+
+def write_human_approval(release_dir: Path, payload: Mapping[str, Any]) -> Path:
+    release_dir = Path(release_dir)
+    try:
+        manifest = json.loads((release_dir / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        raise ValueError("manifest_unreadable") from exc
+    if not isinstance(manifest, dict):
+        raise ValueError("manifest_invalid")
+    validated = _validate_human_approval(release_dir, manifest, payload)
+    path = release_dir / "human-approval.json"
+    path.write_text(json.dumps(validated, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+    return path
 
 
 def derive_book_freshness(project_root: Path, manifest: dict[str, Any]) -> tuple[str, str]:
@@ -140,6 +228,16 @@ def build_release_acceptance_report(
         if pointer == "fail":
             errors.append("current_pointer_invalid")
 
+    human_readability_review = "not_requested"
+    human_content_review = "not_requested"
+    try:
+        human_approval = load_human_approval(Path(release_dir), manifest)
+    except ValueError:
+        human_approval = None
+    if human_approval is not None:
+        human_readability_review = human_approval["human_readability_review"]
+        human_content_review = human_approval["human_content_review"]
+
     automated_ok = (
         not errors and manifest_ok and provenance_ok and release_status == "complete"
         and freshness == "fresh" and budget_ok and authorization != "fail"
@@ -154,7 +252,6 @@ def build_release_acceptance_report(
         "generation_mode": generation_mode,
         "freshness": freshness,
         "freshness_reason": freshness_reason,
-        "approval": "pending",
         "checks": {
             "manifest_integrity": "pass" if manifest_ok else "fail",
             "chapter_provenance": "pass" if provenance_ok else "fail",
@@ -164,9 +261,10 @@ def build_release_acceptance_report(
             "current_pointer": pointer,
         },
         "automated_acceptance": "pass" if automated_ok else "fail",
+        "human_readability_review": human_readability_review,
+        "human_content_review": human_content_review,
         "automated_errors": sorted(set(errors + manifest_errors + provenance_errors)),
         "llm_failure_reasons": list(llm_metadata.get("failure_reasons", ())) if isinstance(llm_metadata, dict) else [],
-        "manual_gates": dict.fromkeys(MANUAL_GATES, "pending"),
         "publication_status": publication_status,
     }
 
@@ -193,10 +291,16 @@ def load_release_acceptance_report(release_dir: Path) -> dict[str, Any] | None:
         or payload.get("manifest_sha256") != _sha(release_dir / "manifest.json")
     ):
         return None
+    if "human_readability_review" not in payload:
+        gates = payload.get("manual_gates", {})
+        if isinstance(gates, dict):
+            payload["human_readability_review"] = gates.get("real_provider_readability", "not_requested")
+            payload["human_content_review"] = gates.get("human_acceptance", "not_requested")
     return payload
 
 
 __all__ = [
-    "MANUAL_GATES", "build_release_acceptance_report", "derive_book_freshness",
-    "load_release_acceptance_report", "write_release_acceptance_report",
+    "HUMAN_REVIEW_STATUSES", "MANUAL_GATES", "build_release_acceptance_report", "derive_book_freshness",
+    "load_human_approval", "load_release_acceptance_report", "write_human_approval",
+    "write_release_acceptance_report",
 ]

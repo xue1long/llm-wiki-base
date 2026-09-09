@@ -39,8 +39,9 @@ from .theme_outline import (
     place_page_summaries, save_theme_outline, validate_theme_outline,
 )
 from .acceptance import (
-    MANUAL_GATES, build_release_acceptance_report, derive_book_freshness,
-    load_release_acceptance_report, write_release_acceptance_report,
+    HUMAN_REVIEW_STATUSES, MANUAL_GATES, build_release_acceptance_report,
+    derive_book_freshness, load_human_approval, load_release_acceptance_report,
+    write_human_approval, write_release_acceptance_report,
 )
 from .partition import (
     CandidateDecision, GateMetrics, GovernanceConfig, ReaderProfile,
@@ -75,8 +76,8 @@ __all__ = [
     "build_cross_link_candidates", "validate_cross_links",
     "find_dangling_cross_links", "dangling_cross_links", "_NAMESPACE_RELATIONS",
     "ThemeOutlineError", "load_theme_outline", "plan_theme_outline", "place_page_summaries", "save_theme_outline", "validate_theme_outline",
-    "MANUAL_GATES", "build_release_acceptance_report", "derive_book_freshness",
-    "load_release_acceptance_report", "write_release_acceptance_report",
+    "HUMAN_REVIEW_STATUSES", "MANUAL_GATES", "build_release_acceptance_report", "derive_book_freshness",
+    "load_human_approval", "load_release_acceptance_report", "write_human_approval", "write_release_acceptance_report",
     "CandidateDecision", "GateMetrics", "GovernanceConfig", "ReaderProfile", "SeriesGateResult", "evaluate_series_gate",
     "SERIES_MANIFEST_SCHEMA_VERSION", "BookManifest", "SeriesManifest", "canonical_digest", "transition_status",
     "dependency_report", "detect_dependency_cycles", "read_legacy_manifest",
