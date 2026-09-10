@@ -21,8 +21,14 @@ def _fixture(tmp_path):
     return source, target
 
 
+def _ample_disk(monkeypatch):
+    usage = type("Usage", (), {"free": 20 * 1024 * 1024 * 1024})()
+    monkeypatch.setattr(v2_full.shutil, "disk_usage", lambda _: usage)
+
+
 def test_apply_resume_skips_completed_staged_outputs(tmp_path, monkeypatch):
     source, target = _fixture(tmp_path)
+    _ample_disk(monkeypatch)
     real_copy = v2_full.copy_raw_file
     calls = 0
 
@@ -45,8 +51,9 @@ def test_apply_resume_skips_completed_staged_outputs(tmp_path, monkeypatch):
     assert (target / ".index" / "migration" / "runs" / "resume-1" / "promoted_paths.json").exists()
 
 
-def test_successful_run_can_be_rolled_back_by_run_id(tmp_path):
+def test_successful_run_can_be_rolled_back_by_run_id(tmp_path, monkeypatch):
     source, target = _fixture(tmp_path)
+    _ample_disk(monkeypatch)
     result = v2_full.migrate_v2(target, source, run_id="rollback-1", apply=True)
 
     preview = v2_full.migrate_v2(
@@ -64,8 +71,9 @@ def test_successful_run_can_be_rolled_back_by_run_id(tmp_path):
     assert result["run_record_path"]
 
 
-def test_collision_is_detected_before_any_promotion(tmp_path):
+def test_collision_is_detected_before_any_promotion(tmp_path, monkeypatch):
     source, target = _fixture(tmp_path)
+    _ample_disk(monkeypatch)
     existing = target / "raw" / "sources" / "01_B站视频转录" / "one.txt"
     existing.parent.mkdir(parents=True)
     existing.write_text("keep", encoding="utf-8")
@@ -75,3 +83,16 @@ def test_collision_is_detected_before_any_promotion(tmp_path):
 
     assert existing.read_text(encoding="utf-8") == "keep"
     assert not (target / "wiki" / "concepts" / "card.md").exists()
+
+
+def test_dry_run_writes_auditable_reports_and_disk_result(tmp_path):
+    source, target = _fixture(tmp_path)
+    result = v2_full.migrate_v2(target, source, run_id="audit-1", apply=False)
+    staging = target / ".index" / "staging" / "audit-1"
+
+    assert result["dry_run"] is True
+    assert "passed" in result["disk_preflight"]
+    assert (staging / "migration-manifest.json").exists()
+    assert (staging / "migration_report.csv").exists()
+    assert (staging / "migration_warnings.csv").exists()
+    assert (staging / "pending_decisions.csv").exists()

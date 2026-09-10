@@ -31,6 +31,7 @@ Status: content migration complete; vector rebuild pending embedding provider
 - [x] F integration and PoC.
 - [x] G content dry-run, apply, and validation.
 - [x] G resume / exact rollback / pre-promotion collision behavior tested (8 focused cases).
+- [x] G disk preflight, source hash recheck, and CSV audit reports implemented and tested.
 - [ ] G vector rebuild apply and service smoke test (blocked by missing embedding provider).
 
 ## Evidence log
@@ -43,3 +44,5 @@ Status: content migration complete; vector rebuild pending embedding provider
 - Target health: H1/H2/H4/H5 all 0 issues; status HEALTHY.
 - Focused tests: 120 passed.
 - Vector dry-run: 1,924 pages / 6,136 chunks; apply awaits embedding provider configuration.
+- Current disk gate: required 8.75 GB, available 3.61 GB; apply correctly refuses to start.
+- Current audit dry-run: 5,138 manifest rows, 5,138 report rows, 811 warning rows, 155 pending-decision rows; 124 focused tests passed.

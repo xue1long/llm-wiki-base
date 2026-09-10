@@ -7,3 +7,4 @@
 - 向量 dry-run：1,924 页 / 6,136 chunks；正式重建因未配置 embedding provider 暂停，不能宣称完成。
 - 本机 CLI 用 UUID 解析项目会受注册表目录 WinError 5 影响；健康检查应直接传目标项目路径。
 - 后续故障演练发现并修复 resume 未跳过已完成 staging 输出、raw checkpoint 文件名限制、promotion 前碰撞可能部分写入、以及 promotion 后缺少可回滚记录；新增 8 个恢复/回滚/碰撞测试。
+- 迁移器已增加 G8 磁盘预检、apply 开始与 promotion 前源哈希复核，以及 migration_report/migration_warnings/pending_decisions CSV；当前资源预检明确为 8.75GB 需求 / 3.61GB 可用，拒绝 apply。
