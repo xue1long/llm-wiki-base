@@ -4,7 +4,7 @@
 审计对象：`docs/superpowers/plans/2026-09-10-safe-full-book-preview-remediation.md`  
 审计目标：判断方案能否在不影响原有功能的前提下，实现 `knowledge/novel-wiki` 的 1255 页全量 Book `preview -> apply-from` 发布。
 
-## 一、最终结论
+## 一、第一轮审计结论（历史结论）
 
 结论：**方向可行，当前方案不可直接进入编码，审计结论为“有条件通过，整改后复审”。**
 
@@ -251,7 +251,7 @@ Wiki snapshot
 
 综合判断：**6/10；整改后有较大概率达成原始目标，按当前文本直接实施则不能判定达标。**
 
-## 十、审计结论
+## 十、第一轮审计结论（已完成整改）
 
 审计状态：`整改后复审`。
 
@@ -263,3 +263,50 @@ Wiki snapshot
 - 对 partial release 执行 apply-from；
 - 将人工 review pending 状态忽略为质量通过；
 - 修改 pilot 或全局 structured provider 行为。
+
+## 十一、第二轮压力测试与整改后复审
+
+### 11.1 压力测试矩阵
+
+| 场景 | 预期行为 | 整改后判定 |
+|---|---|---|
+| provider 返回 Markdown、数组、空响应或截断文本 | plain-text 分支不走 JSON parser；空/截断/无效正文进入有限状态，不写 complete | 通过 |
+| 429/5xx 或单次响应超时 | 仅按有限 retry 分类处理；每次请求前检查 deadline 和剩余预算 | 通过 |
+| 进程在章节中途崩溃 | 已完成章节持久化；未完成章节为 pending；下次只能 resume 同一 run | 通过 |
+| 两个进程同时 resume | run 级锁和 batch claim 只允许一个 writer，另一个 fail-closed | 通过 |
+| provider/model/rules/prompt/output mode/config 变化 | `run_signature` 不一致，禁止复用旧 state | 通过 |
+| 批次完成但没有全部章节 | 只能停留 staging，不能形成可提升 release | 通过 |
+| 所有章节形式完成但正文低质 | 200 字、2 段、截断/占位符/控制字符/重复率硬门拒绝 complete | 通过 |
+| batch state 直接传给 apply-from | 只接受 finalize 生成的 complete release | 通过 |
+| snapshot 在 preview 后变化 | finalize/apply-from 重新校验并拒绝漂移 | 通过 |
+| canary 失败 | 立即停止新 full-scope 路径，不影响旧 pilot | 通过 |
+
+### 11.2 整改结果
+
+本轮已将以下原先存在的解释性条款改为可执行约束：
+
+1. 增加 `run_schema_version` 和不含 API key 的 `provider_config_fingerprint`，并纳入 `run_signature`；
+2. 明确 batch state 与 publishable release 的边界，只有 `finalize` 才能生成唯一 complete preview release；
+3. 固化 `--max-batches 1` 的真实停止语义，deadline 检查发生在每次 provider 请求之前；
+4. 固化预算公式：`minimum_calls = unfinished_chapters`，`retry_reserve = unfinished_chapters * (max_attempts - 1)`，所有 transport retry 计入 `max_attempts`，预算不足在首次调用前阻断；
+5. 固化正文质量硬门：去空白后至少 200 字、至少 2 段、无截断/占位符/异常控制字符，重复段落比例不超过 50%；
+6. 固化 canary 放行：3～5 章全部完成，0 个 provider/超时/截断/格式/质量失败，0 次重复调用，并完成一次人工抽样。
+
+### 11.3 整改后复审结论
+
+四个角度复审结果：
+
+- 第一性原理：通过。LLM 只负责正文，结构、provenance、完整性和发布由 compiler 控制；
+- 批判性思维：通过。已覆盖最可能导致重复计费、状态污染和错误发布的故障路径；
+- 终局思维：通过。已能从 1255/1255、179/179 倒推至唯一 preview release，再由 `apply-from` 原子切换；
+- 系统思维：有条件通过。旧路径隔离、批次状态、预算、锁和发布门禁已闭环，但实现阶段仍必须提供测试证据。
+
+最终评分：**8.5/10，方案可进入编码整改和 fake-provider 验证；尚未批准直接进行 MiniMax 全量调用。**
+
+复审状态：`通过（带实现证据前置条件）`。
+
+进入真实 canary 前必须完成：
+
+- fake provider 的“中断 → resume → finalize → apply-from”链路测试；
+- deadline、预算预留、锁、签名漂移、质量硬门和 finalize-only 测试；
+- 原有 structured/pilot/legacy 路径回归测试。

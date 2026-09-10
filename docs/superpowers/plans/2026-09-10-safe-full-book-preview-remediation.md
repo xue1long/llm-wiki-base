@@ -1,6 +1,6 @@
 # Plan: 全量 Book Preview 安全整改（兼容原有功能）
 
-status: revised_pending_reaudit
+status: audited_ready_for_implementation
 branch: codex/book-safe-full-preview
 
 ## Goal
@@ -73,9 +73,12 @@ prompt_version
 compiler_version
 budget_cap
 batch_size
+max_attempts
+run_schema_version
+provider_config_fingerprint
 ```
 
-将以上字段的规范化 JSON 哈希作为 `run_signature`。`--resume` 只有在完整签名一致时才允许；任一字段变化都必须创建新 run，禁止复用旧章节结果。
+`provider_config_fingerprint` 只包含 endpoint、model、timeout 和协议版本等非敏感配置，绝不包含 API key。将以上字段的规范化 JSON 哈希作为 `run_signature`。`--resume` 只有在完整签名一致时才允许；任一字段变化都必须创建新 run，禁止复用旧章节结果。
 
 批次状态和 release 分层：
 
@@ -83,6 +86,13 @@ batch_size
 2. batch state 不得被 `apply-from` 直接提升；
 3. 只有所有 179 个章节完成后，`finalize release` 才能基于同一个 run manifest 生成唯一的 complete preview release；
 4. partial/failed/pending 状态只能停留在 staging。
+
+### Publishable release invariant
+
+- 批次执行只写 batch state 和 staging 章节，不写可被 promotion 识别的 complete release manifest；
+- `finalize` 必须重新汇总同一 run 的全部 batch state，校验章节 ID 恰好为 179 个、页面分配恰好为 1255 个、正文质量硬门全部通过，之后才写入唯一的 complete preview release；
+- `apply-from` 只接受 `finalize` 生成且 `release_status=complete` 的 release，并在提升前再次校验 snapshot、run signature 和 manifest hash；
+- finalize 或 apply-from 任一校验失败都 fail-closed，不产生 `CURRENT.json` 变更。
 
 全量覆盖拆成三个独立指标：
 
@@ -120,6 +130,7 @@ batch_size
   - 旧 CLI namespace 无新字段时仍可运行。
 - Implementation:
   - 增加 `--output-mode`；
+  - 增加 `--max-batches` 和 `--finalize`，但仅对 full-scope 新路径生效；
   - 通过 keyword argument 传入 compiler；
   - 不修改旧参数默认值和旧函数签名的既有行为。
 - Acceptance:
@@ -149,7 +160,7 @@ batch_size
 - Acceptance:
   - MiniMax 返回 Markdown、标题或普通段落均可稳定落入 compiler-owned section；
   - LLM 不再负责 provenance 字段；
-  - 明显空泛、截断、重复或占位符正文不能被标记为 complete；
+  - 正文去空白后少于 200 个字符、少于 2 个段落、包含截断标记/占位符/异常控制字符，或重复段落比例超过 50% 时，不能被标记为 complete；
   - 旧 structured path 无行为变化。
 - Status: pending
 
@@ -174,6 +185,8 @@ batch_size
   - 每章完成即写入 state，每批结束返回可恢复状态；
   - transport retry 仍由现有 retry 层处理；plain-text 的空响应、截断和 policy 错误使用有限状态分类，不触发无限重试；
   - 每批开始前计算最低调用数、重试预留和剩余预算，不足时在首次 provider 调用前阻断。
+  - 预算预留采用可审计公式：`minimum_calls = unfinished_chapters`，`retry_reserve = unfinished_chapters * (max_attempts - 1)`，只有 `remaining_budget >= minimum_calls + retry_reserve` 才能 claim 新批次；所有 transport retry 都计入 `max_attempts`，不得在预算外隐式重试；
+  - `--max-batches 1` 在一个 batch 完成或 deadline 到达后立即返回，不得继续 claim 下一批；deadline 检查必须发生在每次 provider 请求之前。
 - Acceptance:
   - 179 章可以拆成多个独立进程完成；
   - 每个批次均可审计调用数、失败原因和 snapshot ID；
@@ -193,12 +206,15 @@ batch_size
   - 发布后 vector 状态仍为独立状态。
   - 只有 finalize 后的 complete release 才能被 `apply-from` 接受；
   - finalize 只生成一个 release manifest，且其 run signature 与所有 batch 一致。
+  - 未 finalize 的 batch state 即使章节全部 complete，也不能被 `apply-from` 接受；
+  - source snapshot、规则或 provider 配置漂移时 finalize/apply-from 均拒绝。
 - Implementation:
   - 复用现有 release acceptance 和 promotion seam；
   - 增加显式 finalize 步骤：汇总 batch state，重新校验 1255/1255、179/179、source appendix 和 body quality gates，再写唯一 candidate release；
   - 将 output mode、实际调用数、批次信息写入 manifest；
   - `apply-from` 只接受 finalize 产物，拒绝直接传入 batch state 或 partial release；
-  - 不增加人工可读性或人工验收为硬阻塞；保留其报告字段。
+  - 不增加人工可读性或人工验收为硬阻塞；保留其报告字段。自动质量硬门固定为：正文去空白后至少 200 个字符、至少 2 个段落、无截断标记、无占位符、无异常控制字符，且重复段落比例不得超过 50%；
+  - `content_evidence_sample_coverage` 只作为报告/告警指标，不冒充 `body_generation_coverage`，也不改变 1255/1255 与 179/179 的自动硬门。
 - Acceptance:
   - preview release 与 apply-from release ID、snapshot ID 和 manifest hash 一致；
   - partial 永远不能成为 `CURRENT`。
@@ -214,14 +230,14 @@ batch_size
   - run signature 变化、双进程 resume、deadline、预算不足和 finalize 失败均有回归测试。
 - Implementation:
   1. plan-only：确认 1255 页、179 章、463 来源；
-  2. 真实 MiniMax canary：3～5 章，只生成 staging；必须 100% complete、0 个 provider/截断/格式失败，并通过人工抽样；
+  2. 真实 MiniMax canary：3～5 章，只生成 staging；必须 100% complete、0 个 provider/超时/截断/格式/质量失败、0 次重复调用，并通过 1 次人工抽样；任一条件不满足即停止，不进入全量；
   3. canary 通过后，按 10～15 章/批次执行 full-scope preview；每批独立进程并使用 `--resume`；
   4. 全部批次完成后执行 finalize，生成唯一 complete preview release；
   5. 自动验收 pass 后才执行 `apply-from`；
   6. 最后单独执行 `vector status`，不自动 reconcile。
 - Acceptance:
   - 小批量失败时只停止新模式，不影响 pilot；
-  - 全量满足 179/179 complete、coverage=1.0、automated acceptance=pass；
+  - 全量满足 179/179 complete、`page_assignment_coverage=1.0`、`body_generation_coverage=1.0`、automated acceptance=pass；
   - `page_assignment_coverage=1.0`、`body_generation_coverage=1.0`，抽样内容覆盖达到预设阈值；
   - 调用数不超过本次明确批准的 358 次；
   - 所有 batch 和 finalize 使用同一个 run signature；
@@ -231,8 +247,8 @@ batch_size
 ## Audit
 
 - Round 1: completed with findings — 已完成全面漏洞审计；C1/C2、M1～M8、O1～O4 已转化为本次方案的 finalize、run signature、质量门、预算门、锁和 canary 条款。
-- Round 2: pending — 模拟 provider 返回纯文本、数组、超时、429、进程中断、损坏 state 和重复 resume。
-- Re-audit gate: pending — 进入编码前必须复核上述增补没有改变旧默认路径，并完成 fake provider 的中断恢复链路。
+- Round 2: completed with findings and remediation — 已压力测试纯文本/数组/空响应/截断、超时、429/5xx、进程中断、损坏 state、重复 resume、配置漂移、低质量正文和 partial release 误提升；已补齐 finalize-only、量化质量硬门、预算预留公式、真实 batch stop 语义和 canary 放行条件。
+- Re-audit gate: passed with implementation evidence required — 未发现新的 C/M 级方案缺口；旧 structured/pilot 路径仍由 output-mode 默认值隔离。进入编码后必须以 fake provider 完成“中断 → resume → finalize → apply-from”链路，并用回归测试证明这些门禁，而不能仅凭文档声称完成。
 - Human review: pending — 在真实 MiniMax canary 结果上检查正文可读性和 source coverage；不改变自动 acceptance report。
 - Open risks:
   - MiniMax 响应延迟仍可能较高；由 deadline、批次边界和 resume 控制，不依赖单次进程完成全量。
