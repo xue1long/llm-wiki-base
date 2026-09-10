@@ -1030,6 +1030,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                     scope_mode: str = "pilot",
                     batch_size: int = 15,
                     resume: bool = False,
+                    max_batches: int | None = None,
+                    finalize: bool = False,
                     budget_manifest: str | Path | None = None) -> dict[str, Any]:
     """Run the rule-only safety path used by the CLI.
 
@@ -1047,6 +1049,14 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         if not apply:
             return {"status": "failed", "reason_codes": ["E_APPLY_FROM_REQUIRES_APPLY"]}
         return promote_preview_release(root, output_dir=Path(output_dir), release_id=apply_from)
+    if finalize and apply:
+        return {"status": "failed", "reason_codes": ["E_FINALIZE_REQUIRES_PREVIEW"]}
+    if finalize and scope_mode != "full_knowledge":
+        return {"status": "failed", "reason_codes": ["E_BATCH_CONTROLS_REQUIRE_FULL_SCOPE"]}
+    if max_batches is not None and scope_mode != "full_knowledge":
+        return {"status": "failed", "reason_codes": ["E_BATCH_CONTROLS_REQUIRE_FULL_SCOPE"]}
+    if max_batches is not None and max_batches <= 0:
+        return {"status": "blocked", "reason_codes": ["E_MAX_BATCHES_INVALID"]}
     if (book_id is None) != (series_id is None):
         return {"status": "failed", "reason_codes": ["E_SERIES_BOOK_REQUIRED_TOGETHER"],
                 "error": "series_id and book_id must be supplied together"}
@@ -1371,10 +1381,17 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
     batch_state = None
     batch_state_path: Path | None = None
     prior_calls = 0
-    if use_llm and polish and scope_mode == "full_knowledge":
+    full_batch_mode = scope_mode == "full_knowledge" and (
+        (use_llm and polish) or finalize
+    )
+    finalized_chapters: dict[str, GeneratedChapter] | None = None
+    if full_batch_mode:
         if batch_size <= 0:
             return {"status": "blocked", "reason_codes": ["E_BATCH_SIZE_INVALID"]}
         batch_state_path = Path(budget_manifest) if budget_manifest is not None else root / ".index" / "book-wiki" / "batch-state.json"
+        if finalize and not batch_state_path.is_file():
+            return {"status": "blocked", "reason_codes": ["E_BATCH_STATE_MISSING"],
+                    "budget_manifest": str(batch_state_path)}
         try:
             batch_state = load_or_create(
                 batch_state_path,
@@ -1383,7 +1400,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                 batch_size=batch_size,
                 max_attempts=max_attempts,
                 max_llm_calls=max_llm_calls,
-                resume=resume,
+                resume=resume or finalize,
             )
             prior_calls = int(batch_state.get("budget", {}).get("actual_calls", 0))
             batch_state["budget"]["minimum_calls"] = pending_minimum_calls + prior_calls
@@ -1393,7 +1410,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             batch_state["budget"]["max_llm_calls"] = max_llm_calls
         except (BatchStateError, OSError, TypeError, ValueError) as exc:
             return {"status": "blocked", "reason_codes": ["E_BATCH_STATE_INVALID"], "error": str(exc)}
-        if prior_calls + pending_minimum_calls > max_llm_calls:
+        if not finalize and prior_calls + pending_minimum_calls > max_llm_calls:
             return {
                 "status": "blocked",
                 "reason_codes": ["E_LLM_BUDGET_INSUFFICIENT"],
@@ -1404,6 +1421,24 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             }
         from .batch_state import save as save_batch_state
         save_batch_state(batch_state_path, batch_state)
+        if finalize:
+            finalized_chapters = {}
+            for chapter_id in batch_state.get("chapter_ids", ()):
+                entry = batch_state.get("chapters", {}).get(chapter_id)
+                if not isinstance(entry, dict) or entry.get("status") != "complete":
+                    return {
+                        "status": "partial",
+                        "release_status": "staging",
+                        "reason_codes": ["E_BATCH_INCOMPLETE"],
+                        "completed_chapters": len(finalized_chapters),
+                        "chapter_count": len(batch_state.get("chapter_ids", ())),
+                        "budget_manifest": str(batch_state_path),
+                    }
+                try:
+                    finalized_chapters[chapter_id] = chapter_from_dict(entry["result"])
+                except (BatchStateError, KeyError, TypeError, ValueError) as exc:
+                    return {"status": "blocked", "reason_codes": ["E_BATCH_STATE_INVALID"],
+                            "chapter_id": chapter_id, "error": str(exc)}
     if (use_llm and (scope_mode == "full_knowledge" or editorial_state is not None) and
             _calls_used() + pending_minimum_calls > max_llm_calls):
         return {
@@ -1508,6 +1543,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                 if isinstance(row, dict) and row.get("disposition") == "conflict"
             )
         chapter_before_calls = _calls_used()
+        processed_chapters = 0
+        batch_limit = batch_size * max_batches if max_batches is not None else None
         for index, (_volume_id, chapter_id, chapter) in enumerate(planned_chapters):
             draft = aggregate_chapter(chapter, included_page_map)
             try:
@@ -1538,6 +1575,8 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                     continue
                 except (BatchStateError, KeyError, TypeError, ValueError):
                     return {"status": "blocked", "reason_codes": ["E_BATCH_STATE_INVALID"], "chapter_id": chapter_id}
+            if batch_limit is not None and processed_chapters >= batch_limit:
+                break
             if (isinstance(provider, _BudgetedProvider) and
                     (provider.calls >= max_llm_calls or
                      time.monotonic() - llm_started >= max_runtime_seconds)):
@@ -1558,6 +1597,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             ))
             if batch_state is not None and batch_state_path is not None:
                 record_batch(batch_state_path, batch_state, generated_chapters[chapter_id], input_hash=input_hash, calls=_calls_used())
+            processed_chapters += 1
         _record_call_site(
             "chapter_body", chapter_before_calls, requested=True,
             minimum_calls=len(planned_chapters),
@@ -1586,9 +1626,45 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             llm_metadata["batch_state_path"] = str(batch_state_path)
             llm_metadata["resumed"] = resume
 
+    if finalize:
+        generated_chapters = finalized_chapters or {}
+        llm_metadata = {
+            "provider": "finalize",
+            "model": None,
+            "max_llm_calls": 0,
+            "budget_cap": 0,
+            "llm_calls_used": 0,
+            "batch_state_path": str(batch_state_path),
+            "resumed": True,
+            "finalized": True,
+            "external_llm_authorized": True,
+            "source_allowlist_passed": True,
+            "sensitive_gate_passed": True,
+            "call_sites": {"chapter_body": {
+                "requested": False, "actual_calls": 0,
+                "minimum_calls": 0, "configured_max_calls": 0,
+            }},
+        }
+
+    if max_batches is not None and not finalize:
+        completed = sum(
+            isinstance(entry, dict) and entry.get("status") == "complete"
+            for entry in (batch_state or {}).get("chapters", {}).values()
+        )
+        return {
+            "status": "partial",
+            "release_status": "staging",
+            "generation_mode": "llm_partial",
+            "completed_chapters": completed,
+            "chapter_count": len(planned_chapters),
+            "snapshot_id": snapshot.snapshot_id,
+            "budget_manifest": str(batch_state_path),
+            "reason_codes": ["E_BATCH_LIMIT_REACHED"],
+        }
+
     artifact = compile_book(snapshot, [outline], snapshot.pages,
-                            fingerprint={"snapshot_id": snapshot.snapshot_id, "use_llm": use_llm},
-                            polish=polish, encyclopedic=encyclopedic, state_dir=root / ".index",
+                            fingerprint={"snapshot_id": snapshot.snapshot_id, "use_llm": use_llm, "finalize": finalize},
+                            polish=polish or finalize, encyclopedic=encyclopedic, state_dir=root / ".index",
                             outline_generation_mode=outline_generation_mode,
                             outline_fallback_reason=outline_fallback_reason,
                             outline_llm_requested=use_llm and scope_mode != "full_knowledge",
@@ -1603,7 +1679,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                             rules_hash=rules.rules_hash,
                             rules_snapshot=rules.text,
                             rules_path=rules.path,
-                            plan_only=not use_llm and not polish and not apply,
+                            plan_only=not use_llm and not polish and not apply and not finalize,
                             run_id=lineage_run_id)
     if artifact.validation_errors:
         _fail_lineage("compile_validation_failed")
@@ -1624,7 +1700,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
     if quality_gate not in {"rule", "both", "off"}:
         _fail_lineage("quality_gate_invalid")
         return {"status": "failed", "reason_codes": ["E_INVALID_QUALITY_GATE"]}
-    plan_only = not use_llm and not polish and not apply
+    plan_only = not use_llm and not polish and not apply and not finalize
     if quality_gate in {"rule", "both"} and not plan_only:
         from .quality_gate import check_quality_gate
         quality = check_quality_gate(artifact.manifest, llm_status=llm_status)

@@ -41,6 +41,13 @@ def test_full_knowledge_scope_is_parseable() -> None:
     assert args.resume is False
 
 
+def test_full_scope_resume_controls_are_parseable() -> None:
+    args = _parse("--scope", "full_knowledge", "--max-batches", "1", "--finalize")
+
+    assert args.max_batches == 1
+    assert args.finalize is True
+
+
 def test_provider_is_parseable_for_real_llm_modes() -> None:
     args = _parse("--preview", "--provider", "minimax")
 
@@ -184,6 +191,30 @@ def test_provider_is_forwarded_to_preflight_and_compiler(
     assert book_cmd.cmd_book_build_from_wiki(args) == 0
     assert seen["preflight_provider"] == "minimax"
     assert seen["compiler_provider"] == "minimax"
+
+
+def test_batch_controls_are_forwarded_to_compiler(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        book_cmd, "_resolve", lambda _project: SimpleNamespace(path=tmp_path)
+    )
+    monkeypatch.setattr(
+        book_cmd, "run_preflight",
+        lambda *args, **kwargs: SimpleNamespace(ok=True, errors=()),
+    )
+    compiler = types.ModuleType("src.kc.views.book.wiki.compiler")
+    seen: dict[str, object] = {}
+
+    def build_from_wiki(*_args, **kwargs):
+        seen.update(kwargs)
+        return {"status": "planned"}
+
+    compiler.build_from_wiki = build_from_wiki
+    monkeypatch.setitem(sys.modules, compiler.__name__, compiler)
+
+    args = _parse("--scope", "full_knowledge", "--max-batches", "1", "--finalize")
+    assert book_cmd.cmd_book_build_from_wiki(args) == 0
+    assert seen["max_batches"] == 1
+    assert seen["finalize"] is True
 
 
 def test_legacy_namespace_cannot_create_outline_only_mode(monkeypatch, tmp_path: Path):

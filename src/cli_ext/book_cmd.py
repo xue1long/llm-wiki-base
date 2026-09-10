@@ -225,6 +225,8 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
             scope_mode=getattr(args, "scope", "pilot"),
             batch_size=getattr(args, "batch_size", 15),
             resume=bool(getattr(args, "resume", False)),
+            max_batches=getattr(args, "max_batches", None),
+            finalize=bool(getattr(args, "finalize", False)),
             budget_manifest=getattr(args, "budget_manifest", None),
         )
     except LockBusyError:
