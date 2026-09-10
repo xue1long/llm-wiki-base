@@ -9,13 +9,15 @@ Content migration: **PASS**. Full migration objective: **PENDING** until vector 
 | Manifest closure | PASS | 5,138 manifest rows; every item has a disposition |
 | Raw integrity | PASS | 0 missing and 0 SHA-256 mismatches |
 | V6 / legacy field persistence | PASS | Focused Wiki tests |
-| Resume and rollback | PASS | Injected interruption, exact run rollback, and collision tests |
+| Resume and rollback implementation | PASS | Injected interruption, exact run rollback, and collision tests in an isolated fixture |
 | Target collision protection | PASS | Pre-promotion collision abort leaves live target unchanged |
 | H1 / H2 / H4 / H5 | PASS | 0 issues; target status HEALTHY |
 | Migration reports | PASS | 5,138 report rows, 811 warning rows, 155 pending rows |
 | Embedding provider precheck | PENDING | No embedding provider is configured |
 | Vector rebuild | PENDING | Dry-run: 1,924 pages / 6,136 chunks; no live LanceDB yet |
 | Service and vector search smoke test | PENDING | Depends on vector rebuild |
+
+The live content apply run (`migration-20260910`) was executed before durable promotion records were added. Its exact rollback evidence is therefore **PENDING** until the run record is backfilled or the content is re-applied with the revised implementation.
 
 ## Test evidence
 

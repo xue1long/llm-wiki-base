@@ -46,3 +46,4 @@ Status: content migration complete; vector rebuild pending embedding provider
 - Vector dry-run: 1,924 pages / 6,136 chunks; apply awaits embedding provider configuration.
 - Current disk gate: required 8.75 GB, available 3.61 GB; apply correctly refuses to start.
 - Current audit dry-run: 5,138 manifest rows, 5,138 report rows, 811 warning rows, 155 pending-decision rows; 124 focused tests passed.
+- Historical live apply predates durable promotion records; exact rollback evidence for `migration-20260910` remains pending backfill or re-apply.

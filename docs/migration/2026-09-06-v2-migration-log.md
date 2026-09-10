@@ -35,4 +35,4 @@ The content apply run used `migration-20260910`. The final audit dry-run used th
 
 ## Current state
 
-Content migration and native Wiki health checks are complete. Vector rebuild remains pending because no embedding provider is configured and the disk preflight reports 3.61 GB available versus 8.75 GB required.
+Content migration and native Wiki health checks are complete. The revised migration implementation has durable resume/rollback records, but the historical apply run predates that revision; its manifest is preserved while its promotion record still needs to be backfilled or the run repeated. Vector rebuild remains pending because no embedding provider is configured and the disk preflight reports 3.61 GB available versus 8.75 GB required.
