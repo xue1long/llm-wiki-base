@@ -992,6 +992,29 @@ body {
 .status-toolbar button:hover { background: var(--bg-app); }
 .status-countdown { font-size: 12px; color: var(--text-muted); }
 
+/* Project lifecycle summary */
+.status-summary { margin-bottom: 20px; }
+.status-summary-card {
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px;
+}
+.status-summary-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.status-summary-heading h2 { margin: 0; font-size: 16px; }
+.status-summary-overall { color: var(--accent); font-size: 13px; font-weight: 600; }
+.status-stage-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
+.status-stage-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; background: var(--bg-subtle); }
+.status-stage-name { font-weight: 700; color: var(--accent); margin-bottom: 7px; }
+.status-stage-values { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--text-secondary); }
+.status-summary-meta { margin-top: 12px; color: var(--text-muted); font-size: 12px; }
+.status-summary-error { color: var(--danger); font-size: 13px; margin-top: 10px; }
+.status-summary-muted { color: var(--text-muted); }
+.status-source-details { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+.status-source-details summary { cursor: pointer; color: var(--text-secondary); font-size: 13px; }
+.status-source-table-wrap { overflow-x: auto; margin-top: 10px; }
+.status-source-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.status-source-table th, .status-source-table td { border-bottom: 1px solid var(--border); padding: 7px 8px; text-align: left; white-space: nowrap; }
+.status-source-table th { color: var(--text-secondary); font-weight: 600; }
+.status-source-table td:first-child { max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+
 /* Metric cards */
 .status-metrics {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;
@@ -1593,10 +1616,12 @@ body {
 @media (max-width: 1024px) {
   /* tablet: Agent default collapsed, sidebar narrower */
   .status-metrics { grid-template-columns: repeat(2, 1fr); }
+  .status-stage-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 768px) {
   /* mobile: single-column, hamburger sidebar, agent bottom drawer */
   .status-metrics { grid-template-columns: 1fr; }
+  .status-stage-grid { grid-template-columns: 1fr; }
   .provider-grid { grid-template-columns: 1fr; }
 }
 

@@ -1,5 +1,7 @@
 # Project Memory Index
 
+- [2026-09-10 状态汇总层接入 WebUI](feedback-status-summary-webui-2026-09-10.md) — 新增只读项目状态 API、状态页项目选择和 RAW/KC/Wiki/Book 生命周期面板；16 个相关测试通过
+
 - [2026-09-10 v2 → ruflo-kb 迁移执行](feedback-v2-migration-execution-2026-09-10.md) — 并行实现并完成内容迁移、哈希与 H1/H2/H4/H5 验收；向量重建待 embedding provider
 
 - [2026-09-09 novel-wiki Book 重新发布](feedback-novel-wiki-book-republish-2026-09-09.md) — MiniMax preview/apply 均在 4 次上限内，2 次实际调用；release `e3843bfbbc8343bab5c4ef63964c1801` 已切换 CURRENT，manifest 哈希回读一致

@@ -9,13 +9,16 @@
     let countdown = 30;
     let countdownInterval = null;
     let autoRefresh = true;
+    let loadGeneration = 0;
 
     root.innerHTML = `
       <div class="status-toolbar">
+        <div id="statusProjectSelector"></div>
         <button id="refreshStatusBtn">刷新</button>
         <span class="status-countdown" id="statusCountdown">30s 后自动刷新</span>
         <button id="cancelRefreshBtn" class="btn-sm" style="display:none;">取消自动刷新</button>
       </div>
+      <div id="statusSummary" class="status-summary"></div>
       <div class="status-metrics" id="statusMetrics">
         <div class="metric-card"><div class="skeleton skeleton-line"></div></div>
         <div class="metric-card"><div class="skeleton skeleton-line"></div></div>
@@ -26,6 +29,16 @@
         <div class="stat-card">加载中...</div>
       </div>
     `;
+
+    App.renderProjectSelect(document.getElementById("statusProjectSelector"), {
+      selectedId: App.state.projectId,
+      label: "项目实例",
+      onChange: async (id) => {
+        await App.switchProject(id);
+        resetCountdown();
+        loadAll();
+      },
+    });
 
     document.getElementById("refreshStatusBtn").addEventListener("click", () => {
       resetCountdown();
@@ -66,21 +79,31 @@
     loadAll();
 
     async function loadAll() {
+      const projectId = App.state.projectId;
+      const generation = ++loadGeneration;
+      if (!projectId) {
+        renderLifecycleSummary({ __err: "未选择项目" });
+        return;
+      }
       const grid = document.getElementById("statusGrid");
       grid.innerHTML = `<div class="stat-card"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>`;
 
       const tasks = {
+        lifecycle: App.api(`/api/v1/projects/${projectId}/status-summary`).catch(e => ({ __err: e.message })),
         health: App.api("/health").catch(e => ({ __err: e.message })),
-        project: App.api(`/api/v1/projects/${App.state.projectId}`).catch(e => ({ __err: e.message })),
-        files:   App.api(`/api/v1/projects/${App.state.projectId}/files?root=wiki`).catch(e => ({ __err: e.message })),
-        rawFiles: App.api(`/api/v1/projects/${App.state.projectId}/raw-files`).catch(e => ({ __err: e.message })),
-        graph:  App.api(`/api/v1/projects/${App.state.projectId}/wiki/graph`).catch(e => ({ __err: e.message })),
-        reviews: App.api(`/api/v1/projects/${App.state.projectId}/reviews?status=open`).catch(e => ({ __err: e.message })),
-        schema:  App.api(`/api/v1/projects/${App.state.projectId}/schema`).catch(e => ({ __err: e.message })),
-        lint:    App.api(`/api/v1/projects/${App.state.projectId}/lint`).catch(e => ({ __err: e.message })),
+        project: App.api(`/api/v1/projects/${projectId}`).catch(e => ({ __err: e.message })),
+        files:   App.api(`/api/v1/projects/${projectId}/files?root=wiki`).catch(e => ({ __err: e.message })),
+        rawFiles: App.api(`/api/v1/projects/${projectId}/raw-files`).catch(e => ({ __err: e.message })),
+        graph:  App.api(`/api/v1/projects/${projectId}/wiki/graph`).catch(e => ({ __err: e.message })),
+        reviews: App.api(`/api/v1/projects/${projectId}/reviews?status=open`).catch(e => ({ __err: e.message })),
+        schema:  App.api(`/api/v1/projects/${projectId}/schema`).catch(e => ({ __err: e.message })),
+        lint:    App.api(`/api/v1/projects/${projectId}/lint`).catch(e => ({ __err: e.message })),
         queue:   App.api(`/api/v1/queue/status`).catch(e => ({ __err: e.message })),
       };
-      const [health, project, files, rawFiles, graph, reviews, schema, lint, queue] = await Promise.all(Object.values(tasks));
+      const [lifecycle, health, project, files, rawFiles, graph, reviews, schema, lint, queue] = await Promise.all(Object.values(tasks));
+      if (generation !== loadGeneration || projectId !== App.state.projectId) return;
+
+      renderLifecycleSummary(lifecycle);
 
       // Metric cards
       const wikiCount = files.__err ? "—" : (files.totalCount ?? "—");
@@ -179,6 +202,65 @@
       return `<div class="stat-card"><h3>${App.escapeHtml(title)}</h3>${rows.map(([k, v]) =>
         `<div class="stat-row"><span class="stat-key">${App.escapeHtml(k)}</span><span class="stat-val">${v}</span></div>`
       ).join("")}</div>`;
+    }
+
+    function renderLifecycleSummary(summary) {
+      const host = document.getElementById("statusSummary");
+      if (summary.__err) {
+        host.innerHTML = `<div class="status-summary-card"><h2>项目生命周期</h2><div class="status-summary-error">${App.escapeHtml(summary.__err)}</div></div>`;
+        return;
+      }
+
+      const statusNames = {
+        unavailable: "状态库不可用", empty: "暂无来源", not_started: "未开始",
+        discovered: "已发现", ingested: "已摄取", pending: "等待中",
+        in_progress: "处理中", committed: "已完成", published: "已发布",
+        kc_published: "KC 已发布", wiki_committed: "Wiki 已提交",
+        book_compiled: "Book 已编译", failed: "失败", blocked: "已阻塞",
+        stale: "已过期", deleted: "已删除", partial: "部分完成",
+      };
+      const statusName = (value) => statusNames[value] || value || "未知";
+      const stages = [
+        ["raw", "RAW"], ["kc", "KC"], ["wiki", "Wiki"], ["book", "Book"],
+      ];
+      const counts = summary.counts || {};
+      const stageCards = stages.map(([key, label]) => {
+        const entries = Object.entries(counts[key] || {});
+        const detail = entries.length
+          ? entries.map(([state, count]) => `<span>${App.escapeHtml(statusName(state))} ${count}</span>`).join("")
+          : '<span class="status-summary-muted">无记录</span>';
+        return `<div class="status-stage-card"><div class="status-stage-name">${label}</div><div class="status-stage-values">${detail}</div></div>`;
+      }).join("");
+
+      const sources = summary.sources || [];
+      const sourceRows = sources.map(source => `
+        <tr>
+          <td>${App.escapeHtml(source.source_path)}</td>
+          <td>${App.escapeHtml(statusName(source.raw_status))}</td>
+          <td>${App.escapeHtml(statusName(source.kc_status))}</td>
+          <td>${App.escapeHtml(statusName(source.wiki_status))}</td>
+          <td>${App.escapeHtml(statusName(source.book_status))}</td>
+          <td>${App.escapeHtml(statusName(source.overall_status))}</td>
+        </tr>`).join("");
+
+      host.innerHTML = `
+        <div class="status-summary-card">
+          <div class="status-summary-heading">
+            <h2>项目生命周期</h2>
+            <span class="status-summary-overall">${App.escapeHtml(statusName(summary.status))}</span>
+          </div>
+          <div class="status-stage-grid">${stageCards}</div>
+          <div class="status-summary-meta">来源 ${summary.counts?.sources ?? sources.length} 个 · 待提交 Wiki ${summary.pending_wiki_commits ?? 0} 个 · Book 构建 ${summary.build_runs ?? 0} 次</div>
+          <details class="status-source-details">
+            <summary>来源明细 (${sources.length})</summary>
+            <div class="status-source-table-wrap">
+              <table class="status-source-table">
+                <thead><tr><th>来源</th><th>RAW</th><th>KC</th><th>Wiki</th><th>Book</th><th>总状态</th></tr></thead>
+                <tbody>${sourceRows || '<tr><td colspan="6" class="status-summary-muted">暂无来源记录</td></tr>'}</tbody>
+              </table>
+            </div>
+          </details>
+        </div>`;
     }
 
     // ── Queue control card (P0) ─────────────────────────────────
