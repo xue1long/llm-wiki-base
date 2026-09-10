@@ -149,6 +149,7 @@ async def retry_with_backoff(
     cb_name: str = "llm",
     max_retry_after: float = 60.0,
     retry_delays: Optional[tuple[float, ...]] = None,
+    before_attempt: Optional[Callable[[int], None]] = None,
 ) -> T:
     """Retry an async callable with exponential backoff for transient errors.
 
@@ -177,6 +178,9 @@ async def retry_with_backoff(
         max_retry_after: Upper bound for Retry-After header (default 60 s).
         retry_delays: Override the exponential backoff schedule. Defaults to
             ``_RETRY_DELAYS`` (2s → 10s → 30s).
+        before_attempt: Optional synchronous hook invoked immediately before
+            each outbound attempt.  A hook exception marked
+            ``budget_exhausted`` is propagated unchanged.
 
     Returns:
         The return value of *fn* on success.
@@ -216,10 +220,17 @@ async def retry_with_backoff(
             ) from last_error
 
         try:
+            # A publication-scoped budget hook must see every network
+            # attempt, including retries.  Let the owner abort without
+            # classifying its budget exception as a provider failure.
+            if before_attempt is not None:
+                before_attempt(attempt)
             return await fn()
         except (RetryExhausted, PermanentFailure, CircuitBreakerOpen):
             raise
         except Exception as exc:
+            if getattr(exc, "budget_exhausted", False):
+                raise
             last_error = exc
             error_type = classify_error(exc)
 
@@ -302,12 +313,14 @@ class RetryLLMProvider:
         cb_name: str = "llm",
         max_retry_after: float = 60.0,
         retry_delays: Optional[tuple[float, ...]] = None,
+        before_attempt: Optional[Callable[[int], None]] = None,
     ):
         self._inner = inner
         self._max_retries = max_retries
         self._cb_name = cb_name
         self._max_retry_after = max_retry_after
         self._retry_delays = retry_delays
+        self._before_attempt = before_attempt
 
     # -- chat entry points go through the same retry path -------------------
     async def complete(self, messages, **kwargs):
@@ -317,10 +330,15 @@ class RetryLLMProvider:
             cb_name=self._cb_name,
             max_retry_after=self._max_retry_after,
             retry_delays=self._retry_delays,
+            before_attempt=self._before_attempt,
         )
 
     async def chat(self, messages, **kwargs):
         return await self.complete(messages, **kwargs)
+
+    def _set_attempt_hook(self, hook: Callable[[int], None]) -> None:
+        """Attach a publication budget hook without changing normal callers."""
+        self._before_attempt = hook
 
     # -- everything else delegates to the inner provider --------------------
     def __getattr__(self, name):

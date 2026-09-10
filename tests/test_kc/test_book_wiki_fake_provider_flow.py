@@ -70,7 +70,7 @@ def test_fake_provider_interrupt_resume_finalize_apply_from(tmp_path: Path):
         root, output_dir=root / "book-wiki", scope_mode="full_knowledge",
         use_llm=True, polish=True, provider=first_provider,
         batch_size=1, max_batches=1, max_attempts=0,
-        max_llm_calls=4, budget_cap=4, budget_manifest=state_path,
+        max_llm_calls=2, budget_cap=2, budget_manifest=state_path,
     )
     assert first["status"] == "partial"
     assert first_provider.calls == 1
@@ -83,7 +83,7 @@ def test_fake_provider_interrupt_resume_finalize_apply_from(tmp_path: Path):
         root, output_dir=root / "book-wiki", scope_mode="full_knowledge",
         use_llm=True, polish=True, provider=resume_provider,
         batch_size=1, max_batches=1, max_attempts=0,
-        max_llm_calls=4, budget_cap=4, resume=True,
+        max_llm_calls=2, budget_cap=2, resume=True,
         budget_manifest=state_path,
     )
     assert resumed["status"] == "partial"

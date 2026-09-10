@@ -55,16 +55,28 @@ class _BudgetedProvider:
         self.started = started
         self.max_runtime = max_runtime
         self.calls = 0
+        self._transport_budgeted = False
+        setter = getattr(provider, "_set_attempt_hook", None)
+        if callable(setter):
+            setter(self._reserve)
+            self._transport_budgeted = True
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._provider, name)
 
-    async def complete(self, *args: Any, **kwargs: Any) -> Any:
+    def _reserve(self, _attempt: int = 0) -> None:
         if self.calls >= self.max_calls:
             raise _LLMBudgetExceeded("max_llm_calls exhausted")
         if time.monotonic() - self.started >= self.max_runtime:
             raise _LLMBudgetExceeded("max_runtime_seconds exhausted")
         self.calls += 1
+
+    async def complete(self, *args: Any, **kwargs: Any) -> Any:
+        # RetryLLMProvider invokes the hook above before every real network
+        # attempt.  Plain/injected providers have no hook, so retain the
+        # original one-call reservation here.
+        if not self._transport_budgeted:
+            self._reserve()
         return await self._provider.complete(*args, **kwargs)
 
 
@@ -1020,6 +1032,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                     max_output_tokens: int | None = None, provider: Any = None,
                     provider_name: str | None = None,
                     max_llm_calls: int = 3, max_runtime_seconds: int = 900,
+                    transport_max_retries: int | None = None,
                     budget_cap: int | None = None, approver: str | None = None,
                     theme_outline: str | Path | None = None,
                     series_id: str | None = None,
@@ -1106,6 +1119,12 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
             "minimum_calls": minimum_calls,
             "configured_max_calls": configured_max_calls,
         }
+
+    def _create_registry_provider(name: str) -> Any:
+        from src.llm.provider_factory import create_llm_provider
+        if transport_max_retries is None:
+            return create_llm_provider(name)
+        return create_llm_provider(name, retry_max_retries=transport_max_retries)
 
     # An injected provider is an explicit in-process dependency (used by
     # callers/tests); registry validation still applies to CLI/env-driven use.
@@ -1282,7 +1301,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         if provider is None:
             try:
                 from src.llm.provider_factory import create_llm_provider
-                provider = _wrap_provider(create_llm_provider(preflight.provider or ""))
+                provider = _wrap_provider(_create_registry_provider(preflight.provider or ""))
             except Exception as exc:
                 return {"status": "failed", "reason_codes": ["E_OUTLINE_PROVIDER_UNAVAILABLE"],
                         "error": f"LLM provider unavailable: {exc}", "llm_status": "unavailable"}
@@ -1345,7 +1364,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         if provider is None:
             try:
                 from src.llm.provider_factory import create_llm_provider
-                provider = _wrap_provider(create_llm_provider(preflight.provider or ""))
+                provider = _wrap_provider(_create_registry_provider(preflight.provider or ""))
             except Exception as exc:
                 return {"status": "failed", "reason_codes": ["E_OUTLINE_PROVIDER_UNAVAILABLE"],
                         "error": f"LLM provider unavailable: {exc}", "llm_status": "unavailable"}
@@ -1403,6 +1422,13 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                 resume=resume or finalize,
             )
             prior_calls = int(batch_state.get("budget", {}).get("actual_calls", 0))
+            completed_ids = {
+                chapter_id for chapter_id, entry in batch_state.get("chapters", {}).items()
+                if isinstance(entry, dict) and entry.get("status") == "complete"
+            }
+            pending_minimum_calls = (1 if encyclopedic else 0) + (
+                max(0, len(planned_chapters) - len(completed_ids)) if polish else 0
+            )
             batch_state["budget"]["minimum_calls"] = pending_minimum_calls + prior_calls
             batch_state["budget"]["configured_max_calls"] = (
                 (1 if encyclopedic else 0) + len(planned_chapters) * (1 + max_attempts)
@@ -1481,7 +1507,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         if provider is None:
             try:
                 from src.llm.provider_factory import create_llm_provider
-                provider = _wrap_provider(create_llm_provider(preflight.provider or ""))
+                provider = _wrap_provider(_create_registry_provider(preflight.provider or ""))
             except Exception as exc:
                 _fail_lineage("encyclopedic_provider_unavailable")
                 return {"status": "failed", "reason_codes": ["E_ENCYCLOPEDIC_PROVIDER_UNAVAILABLE"],
@@ -1505,7 +1531,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
         if provider is None:
             try:
                 from src.llm.provider_factory import create_llm_provider
-                provider = _wrap_provider(create_llm_provider(preflight.provider or ""))
+                provider = _wrap_provider(_create_registry_provider(preflight.provider or ""))
             except Exception as exc:
                 _fail_lineage("body_provider_unavailable")
                 return {"status": "blocked", "reason_codes": ["E_BODY_PROVIDER_UNAVAILABLE"],

@@ -297,6 +297,49 @@ def test_retry_llm_provider_wraps_complete(sleep_log):
     assert sleep_log == [1.0]
 
 
+def test_retry_llm_provider_attempt_hook_sees_each_outbound_attempt(sleep_log):
+    """A caller-owned budget hook runs before the initial call and retry."""
+    from src.pipeline.retry import RetryLLMProvider
+
+    inner = _FakeProvider()
+    attempts: list[int] = []
+
+    async def _flaky(messages, **kwargs):
+        inner.calls.append({"messages": messages, "kwargs": kwargs})
+        if len(inner.calls) == 1:
+            raise _http_status_error(500)
+        return {"content": "ok"}
+
+    inner.complete = _flaky
+    wrapped = RetryLLMProvider(
+        inner, retry_delays=(0.1,), before_attempt=attempts.append,
+    )
+    assert asyncio.run(wrapped.complete([{"role": "user", "content": "hi"}])) == {"content": "ok"}
+    assert attempts == [0, 1]
+
+
+def test_retry_llm_provider_budget_hook_stops_before_extra_network_call(sleep_log):
+    """The publication budget counts retries, not just logical requests."""
+    from src.kc.views.book.wiki.compiler import _BudgetedProvider
+    from src.pipeline.retry import RetryLLMProvider
+
+    inner = _FakeProvider()
+
+    async def _always_transient(messages, **kwargs):
+        inner.calls.append({"messages": messages, "kwargs": kwargs})
+        raise _http_status_error(500)
+
+    inner.complete = _always_transient
+    wrapped = _BudgetedProvider(
+        RetryLLMProvider(inner, retry_delays=(0.1,)),
+        max_calls=1, started=0.0, max_runtime=10_000_000,
+    )
+    with pytest.raises(RuntimeError, match="max_llm_calls exhausted"):
+        asyncio.run(wrapped.complete([{"role": "user", "content": "hi"}]))
+    assert wrapped.calls == 1
+    assert len(inner.calls) == 1
+
+
 def test_retry_llm_provider_422_permanent(sleep_log):
     from src.pipeline.retry import RetryLLMProvider
 

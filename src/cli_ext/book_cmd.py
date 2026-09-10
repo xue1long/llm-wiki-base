@@ -212,6 +212,7 @@ def cmd_book_build_from_wiki(args: argparse.Namespace) -> int:
              provider_name=getattr(args, "provider", None),
              max_llm_calls=getattr(args, "max_llm_calls", 3),
              max_runtime_seconds=getattr(args, "max_runtime_seconds", 900),
+             transport_max_retries=getattr(args, "transport_max_retries", None),
              budget_cap=getattr(args, "budget_cap", None),
              approver=getattr(args, "approver", None),
             encyclopedic=bool(getattr(args, "encyclopedic", False)),

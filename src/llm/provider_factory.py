@@ -17,6 +17,8 @@ _logger = logging.getLogger(__name__)
 def create_llm_provider(
     registry_name: str,
     model_override: str | None = None,
+    *,
+    retry_max_retries: int = 3,
 ) -> LLMProvider:
     """Create an LLM provider instance from a global registry entry.
 
@@ -33,15 +35,18 @@ def create_llm_provider(
     """
     from .registry import ProviderRegistry
     config = ProviderRegistry.get(registry_name)
-    return _wrap_retry(_create_from_config(config, model_override))
+    return _wrap_retry(
+        _create_from_config(config, model_override),
+        max_retries=retry_max_retries,
+    )
 
 
-def _wrap_retry(provider) -> LLMProvider:
+def _wrap_retry(provider, *, max_retries: int = 3) -> LLMProvider:
     """Wrap a concrete provider with the retry/breaker layer (lazy import to
     avoid a module-level import cycle: pipeline.retry is import-safe only
     after the pipeline package has been initialised)."""
     from ..pipeline.retry import RetryLLMProvider
-    return RetryLLMProvider(provider)
+    return RetryLLMProvider(provider, max_retries=max_retries)
 
 
 def _create_from_config(config: ProviderConfig, model_override: str | None = None) -> LLMProvider:

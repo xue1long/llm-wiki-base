@@ -602,6 +602,8 @@ def build_parser() -> "argparse.ArgumentParser":
     p_book_wiki.add_argument("--max-output-tokens", type=int, default=None)
     p_book_wiki.add_argument("--max-llm-calls", type=int, default=3)
     p_book_wiki.add_argument("--max-runtime-seconds", type=int, default=900)
+    p_book_wiki.add_argument("--transport-max-retries", type=int, default=None,
+                             help="Provider transport retries per outbound call (scoped; default keeps provider policy)")
     p_book_wiki.add_argument("--budget-cap", type=int, default=None)
     p_book_wiki.add_argument("--approver", default=None)
     p_book_wiki.add_argument("--theme-outline", help="Use a theme-only outline and map Wiki summaries into it")
