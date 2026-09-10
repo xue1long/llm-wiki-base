@@ -29,4 +29,3 @@ def get_status_summary(project_id: str) -> dict[str, object]:
         "build_runs": summary.build_runs,
         "sources": sources,
     }
-

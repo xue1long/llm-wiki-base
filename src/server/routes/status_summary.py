@@ -14,4 +14,3 @@ async def status_summary(project_id: str):
         return status_summary_service.get_status_summary(project_id)
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-

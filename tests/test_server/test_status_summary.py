@@ -20,4 +20,3 @@ def test_status_summary_route_returns_service_payload(monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == expected
-

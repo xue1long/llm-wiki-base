@@ -51,4 +51,3 @@ def test_status_summary_service_returns_project_counts_without_local_paths(monke
     assert result["build_runs"] == 2
     assert "project_root" not in result
     assert "database_path" not in result
-
