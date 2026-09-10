@@ -1,5 +1,7 @@
 # Project Memory Index
 
+- [2026-09-10 v2 → ruflo-kb 迁移执行](feedback-v2-migration-execution-2026-09-10.md) — 并行实现并完成内容迁移、哈希与 H1/H2/H4/H5 验收；向量重建待 embedding provider
+
 - [2026-09-09 novel-wiki Book 重新发布](feedback-novel-wiki-book-republish-2026-09-09.md) — MiniMax preview/apply 均在 4 次上限内，2 次实际调用；release `e3843bfbbc8343bab5c4ef63964c1801` 已切换 CURRENT，manifest 哈希回读一致
 - [2026-09-09 Book LLM republish 加固](feedback-book-llm-republish-hardening-2026-09-09.md) — 严格章节对象契约、有限重试反馈、Provider/预算终止分类、实际调用点预算元数据与持久化大纲最低预算预阻断；`CURRENT.json` 继续 fail-closed
 - [2026-09-09 novel-wiki Book 预算根因](feedback-novel-wiki-book-budget-root-cause-2026-09-09.md) — max_attempts 默认 3 与 pilot max_retries=1 不一致，3 次全局调用预算被重试耗尽；已统一默认值并通过 31 个相关测试
@@ -40,3 +42,4 @@
 - [2026-09-07 Unified Book 主题分组安全整改](feedback-unified-book-theme-group-remediation-2026-09-07.md) — 修复一页一节退化；显式主题 section、来源闭包校验、章节级去重提示词；相关 33 测试 + 全部 KC 773 测试通过
 - [2026-09-09 Book preview → promotion 实施](feedback-book-preview-promotion-2026-09-09.md) — `--apply-from` 复用同一 preview release、人工审批非阻塞、预算前置估算、vector 状态拆分；完整 KC/CLI 回归 836 passed
 - [2026-09-09 Book 章节响应契约修复](feedback-book-response-contract-repair-2026-09-09.md) — MiniMax `list[str]` 响应触发形状感知重试反馈；仍保持 fail-closed provenance 校验
+- [2026-09-09 Book 发布完成](feedback-book-release-2026-09-09.md) — preview release `5aa755f...` 自动验收通过并经 `--apply-from` 发布；LanceDB 独立未更新

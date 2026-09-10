@@ -13,7 +13,10 @@ from ..health_check import Check, CheckIssue, CheckResult, CheckSeverity
 # deliberately excludes ``_`` so a malformed UUIDv7 string that
 # fails the hex check still rejects over the alt-2 path.
 ID_PATTERN = re.compile(
-    r"^(?:card_[0-9a-f]{13}_[0-9a-f]{8}_[a-z0-9-一-鿿]+|[a-z0-9-一-鿿]+)$"
+    # v2 provenance IDs include platform IDs (e.g. BV...), mixed case,
+    # underscores and human-readable Chinese titles.  They remain valid
+    # legacy slugs when they are safe single path components.
+    r"^(?:card_[0-9a-f]{13}_[0-9a-f]{8}_[a-z0-9-一-鿿]+|[^\r\n/\\:*?\"<>|]+)$"
 )
 
 
@@ -27,6 +30,10 @@ class H4IdFormatCheck(Check):
 
         wiki_root = self.project_path / "wiki"
         for md_file in self._all_wiki_pages():
+            # _stubs are unresolved placeholders, not canonical WikiPages;
+            # their source labels may intentionally contain path separators.
+            if "_stubs" in md_file.relative_to(wiki_root).parts:
+                continue
             # Skip non-content files at wiki root (index, log, and their machine twins)
             if md_file.parent == wiki_root and (
                 md_file.stem == "index" or md_file.stem.startswith("index-")

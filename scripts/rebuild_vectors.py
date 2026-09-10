@@ -336,14 +336,16 @@ def main() -> int:
     parser.add_argument("--run-id")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
-    from src.llm.embedding_runtime import get_embedding_provider
-
+    provider = None
+    if not args.dry_run:
+        from src.llm.embedding_runtime import get_embedding_provider
+        provider = get_embedding_provider()
     result = asyncio.run(
         rebuild_vectors(
             args.root,
             run_id=args.run_id,
             dry_run=args.dry_run,
-            provider=get_embedding_provider(),
+            provider=provider,
         )
     )
     print(json.dumps(result.__dict__, ensure_ascii=False, indent=2))

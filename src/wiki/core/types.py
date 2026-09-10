@@ -190,6 +190,14 @@ class WikiPage:
     # preserve the legacy unknown state).
     valid_from: int | None = None
     valid_to: int | None = None
+    # V6 migration fields.  They are intentionally additive so V5 pages
+    # remain readable while migrated metadata has stable top-level homes.
+    source_grade: str = "B"
+    platform: str = ""
+    use_context: str = ""
+    capture_type: str = ""
+    v2_origin: bool = False
+    _ko_extra: dict = field(default_factory=dict, repr=False)
 
     def to_frontmatter_dict(self) -> dict:
         """Serialize the page to a V5 strict-whitelist frontmatter dict.
@@ -221,6 +229,16 @@ class WikiPage:
             "updated_at": _to_iso_dt(self.updated_at),
             "relations": [r.to_dict() for r in self.relations],
             "tags": list(self.tags),
+            "processing_depth": self.processing_depth,
+            "source_grade": self.source_grade or self.grade,
+            "platform": self.platform,
+            "category": self.category,
+            "taxonomy_sub": self.taxonomy_sub,
+            "use_context": self.use_context,
+            "workflow_state": self.workflow_state,
+            "capture_type": self.capture_type,
+            "v2_origin": self.v2_origin,
+            "_ko_extra": dict(self._ko_extra),
         }
 
     @classmethod
@@ -236,6 +254,7 @@ class WikiPage:
             body=body,
             relations=[Relation.from_dict(r) for r in d.get("relations", []) if isinstance(r, dict)],
             grade=d.get("grade", "B"),
+            source_grade=d.get("source_grade", d.get("grade", "B")),
             processing_depth=d.get("processing_depth", "concept"),
             is_immutable=d.get("is_immutable", False),
             heat=d.get("heat", 50),
@@ -258,6 +277,10 @@ class WikiPage:
             valid_to=(
                 _coerce_ts_ms(d["valid_to"]) if d.get("valid_to") is not None else None
             ),
+            platform=str(d.get("platform", "")),
+            use_context=str(d.get("use_context", "")),
+            capture_type=str(d.get("capture_type", "")),
+            v2_origin=bool(d.get("v2_origin", False)),
         )
         # S1: restore _ko_extra for round-trip (capture source_status, etc.)
         ko_extra = d.get("_ko_extra")
@@ -294,6 +317,9 @@ class WikiPage:
                         if isinstance(item, dict)
                     ]
             page._ko_extra = ko_extra
+        elif isinstance(d.get("_ko_extra"), dict):
+            page._ko_extra = dict(d["_ko_extra"])
+        page.grade = page.source_grade or page.grade
         return page
 
 

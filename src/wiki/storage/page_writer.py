@@ -138,8 +138,11 @@ def write_page(paths: WikiPaths, page: WikiPage,
                     f"{expected_content_hash[:8]}… got {cur[:8]}…"
                 )
         _snapshot_raw(paths, page.id, path)
-    else:
-        validate_tag_compliance(page.tags)
+    validate_tag_compliance(
+        page.tags,
+        page_type=page.type.value if hasattr(page.type, "value") else str(page.type),
+        platform=getattr(page, "platform", ""),
+    )
 
     from ..features.gbrain_compat import (
         build_target_slugs, materialize_relations, rewrite_wikilinks,

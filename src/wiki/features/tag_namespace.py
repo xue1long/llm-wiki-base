@@ -28,6 +28,11 @@ TAG_PREFIXES: dict[str, str] = {
     "可信度": "可信度",
     "读者群": "读者群类型（Phase 1.4/Q13 新增）",
     "平台": "发布平台（Phase 1.4/Q13 新增）",
+    "tool": "migration-compatible tool namespace",
+    "scene": "migration-compatible scene namespace",
+    "media": "migration-compatible media namespace",
+    "author": "migration-compatible author namespace",
+    "status": "migration-compatible status namespace",
 }
 
 # ---------------------------------------------------------------------------
@@ -77,6 +82,7 @@ TAG_VALUES: dict[str, set[str] | None] = {
     "可信度": {"book", "web", "expert", "user", "ai", "unknown", "ugc", "mixed"},
     "读者群": {"男频", "女频", "全年龄", "青少年", "中老年"},
     "平台": {"起点", "番茄", "晋江", "纵横", "飞卢", "QQ阅读", "掌阅"},
+    "tool": None, "scene": None, "media": None, "author": None, "status": None,
 }
 
 # ---------------------------------------------------------------------------
@@ -227,7 +233,8 @@ class TagValidationError(ValueError):
         self.missing_pairs = missing_pairs or []
 
 
-def validate_tag_compliance(tags: list[str]) -> None:
+def validate_tag_compliance(tags: list[str], page_type: str | None = None,
+                            platform: str | None = None) -> None:
     """Validate tags against value domain + mandatory pairs. Raises on failure.
 
     Value-domain validation always applies. Mandatory-pair validation is
@@ -236,12 +243,21 @@ def validate_tag_compliance(tags: list[str]) -> None:
     """
     reasons: list[str] = []
     invalid_vals = validate_tag_values(tags)
+    # Legacy v2 concept/article pages used plain descriptive tags.  They are
+    # retained in the original namespace and are not rejected by the V6
+    # controlled-tag gate; malformed namespaced values still fail closed.
+    if page_type == "concept" or (page_type == "source" and platform != "B站"):
+        invalid_vals = [value for value in invalid_vals if "/" in value]
     if invalid_vals:
         reasons.append(f"invalid tag values: {invalid_vals}")
-    if tags:  # only enforce mandatory pairs when page has been tagged
-        missing = missing_mandatory_tags(tags)
-        if missing:
-            reasons.append(f"missing mandatory tags: {missing}")
+    legacy_controlled = any(
+        "/" in value and value.split("/", 1)[0] not in {"tool", "scene", "media", "author", "status"}
+        for value in tags
+    )
+    requires_pair = bool(tags) and ((page_type is None and legacy_controlled) or (page_type == "source" and platform == "B站"))
+    missing = missing_mandatory_tags(tags) if requires_pair else []
+    if missing:
+        reasons.append(f"missing mandatory tags: {missing}")
     if reasons:
         raise TagValidationError(
             "; ".join(reasons),

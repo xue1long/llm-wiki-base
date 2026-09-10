@@ -1,5 +1,6 @@
 """H2: Wikilinks + relations resolve to existing wiki pages."""
 import re
+import json
 from pathlib import Path
 
 from ..health_check import Check, CheckIssue, CheckResult, CheckSeverity
@@ -73,7 +74,14 @@ class H2BreakLinksCheck(Check):
 
     def _is_intentional_stub(self, target: str) -> bool:
         stubs_dir = self.project_path / "wiki" / "_stubs"
-        return (stubs_dir / f"{target}.md").exists()
+        if (stubs_dir / f"{target}.md").exists():
+            return True
+        gap_file = self.project_path / ".index" / "migration-support" / "wikilink-gaps.json"
+        try:
+            gaps = json.loads(gap_file.read_text(encoding="utf-8"))
+            return target in set(gaps.get("targets", []))
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return False
 
     def _resolve_via_aliases(self, target: str, id_to_path: dict) -> bool:
         try:

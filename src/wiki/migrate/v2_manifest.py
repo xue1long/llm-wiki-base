@@ -144,7 +144,7 @@ def _classify(relative: Path) -> tuple[str, str, str, str]:
     name = relative.name
     if posix.startswith("10_raw/"):
         tail = relative.relative_to("10_raw")
-        if name.endswith(".batch"):
+        if name.endswith(".batch") or ".batch" in relative.parts:
             return "metadata", "metadata-only", f"raw/metadata/{name}", "batch metadata"
         if tail.parts and tail.parts[0] == "_archive":
             return "raw", "archived", (Path("raw/_archive") / Path(*tail.parts[1:])).as_posix(), "archive"

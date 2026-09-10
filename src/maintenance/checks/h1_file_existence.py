@@ -20,6 +20,12 @@ class H1FileExistenceCheck(Check):
             for source in fm.get("sources", []):
                 if not isinstance(source, str):
                     continue
+                if not source.strip() or source.strip().lower() == "n/a":
+                    continue
+                if source.startswith(("http://", "https://")):
+                    # v2 preserves external provenance URLs in ``sources``;
+                    # they are not local files that H1 can or should probe.
+                    continue
                 stats["sources_checked"] += 1
                 if source.startswith("/") or (len(source) >= 2 and source[1] == ":"):
                     source_path = Path(source)

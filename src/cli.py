@@ -77,6 +77,7 @@ from .cli_ext.wiki_polish_cmd import (
 from .cli_ext.auth_token_cmd import add_auth_token_parser
 from .cli_ext.vector_cmd import add_vector_parser
 from .cli_ext import capture_cmd
+from .cli_ext.migrate_v2_cmd import add_migrate_v2_parser
 
 logging.basicConfig(
     level=logging.INFO,
@@ -414,6 +415,8 @@ def build_parser() -> "argparse.ArgumentParser":
     # Legacy script groups (migrate / audit / util — 遗留脚本收编)
     add_scripts_subcommands(subparsers)
 
+    add_migrate_v2_parser(subparsers)
+
     # Relations subcommand
     p_relations = subparsers.add_parser("relations", help="Manage wiki relations")
     p_rel_sub = p_relations.add_subparsers(dest="relations_command", required=True)
@@ -571,8 +574,12 @@ def build_parser() -> "argparse.ArgumentParser":
                              help="Book scope: existing pilot curation or all eligible knowledge pages")
     p_book_wiki.add_argument("--batch-size", type=int, default=15,
                              help="Full-scope chapter batch size for resumable builds")
+    p_book_wiki.add_argument("--max-batches", type=int, default=None,
+                             help="Stop after this many full-scope batches")
     p_book_wiki.add_argument("--resume", action="store_true",
                              help="Resume completed full-scope chapter batches")
+    p_book_wiki.add_argument("--finalize", action="store_true",
+                             help="Materialize a complete full-scope release from batch state without LLM calls")
     p_book_wiki.add_argument("--budget-manifest", default=None,
                              help="Path for the resumable budget/batch manifest")
     p_book_wiki.add_argument("--provider", help="LLM provider name for --preview/--apply")
