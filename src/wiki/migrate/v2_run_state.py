@@ -84,6 +84,11 @@ def run_state_path(project_root: Path, run_id: str) -> Path:
     return Path(project_root) / ".index" / "staging" / run_id / "run-state.json"
 
 
+def run_record_path(project_root: Path, run_id: str) -> Path:
+    _validate_run_id(run_id)
+    return Path(project_root) / ".index" / "migration" / "runs" / run_id
+
+
 def save_run_state(project_root: Path, state: RunState) -> Path:
     if _project_uuid(project_root) != state.project_uuid:
         raise RunStateError("project UUID mismatch")
@@ -125,7 +130,7 @@ def _read_checkpoint_rows(path: Path) -> list[dict[str, Any]]:
 
 def write_checkpoint(path: Path, item: CheckpointItem) -> None:
     path = Path(path)
-    if path.name != "migration_progress.jsonl" or not path.parent.name:
+    if path.name not in {"migration_progress.jsonl", "raw_progress.jsonl"} or not path.parent.name:
         raise RunStateError("invalid checkpoint path")
 
     rows = _read_checkpoint_rows(path)
@@ -157,21 +162,54 @@ def rollback_run(
     project_root: Path, run_id: str, dry_run: bool = True
 ) -> RollbackResult:
     root = Path(project_root).resolve()
-    state = load_run_state(root, run_id)
-    staging = run_state_path(root, state.run_id).parent.resolve()
-    staging_root = (root / ".index" / "staging").resolve()
-    if staging.parent != staging_root:
-        raise RunStateError("rollback path outside staging root")
-    if staging.is_symlink():
-        raise RunStateError("rollback staging path is a symlink")
+    staging = run_state_path(root, run_id).parent.resolve()
+    if staging.exists():
+        state = load_run_state(root, run_id)
+        staging_root = (root / ".index" / "staging").resolve()
+        if staging.parent != staging_root or staging.is_symlink():
+            raise RunStateError("rollback path outside staging root")
+        removed_paths = [
+            str(path)
+            for path in sorted(staging.rglob("*"), key=lambda candidate: candidate.as_posix())
+            if path.is_file()
+        ]
+        if not dry_run:
+            shutil.rmtree(staging)
+        return RollbackResult(
+            run_id=state.run_id, removed_paths=removed_paths, applied=not dry_run
+        )
 
-    removed_paths = [
-        str(path)
-        for path in sorted(staging.rglob("*"), key=lambda candidate: candidate.as_posix())
-        if path.is_file()
-    ]
+    record = run_record_path(root, run_id).resolve()
+    record_root = (root / ".index" / "migration" / "runs").resolve()
+    if record.parent != record_root or record.is_symlink():
+        raise RunStateError("rollback record outside migration runs")
+    try:
+        state = RunState(**json.loads((record / "run-state.json").read_text(encoding="utf-8")))
+        if _project_uuid(root) != state.project_uuid or state.run_id != run_id:
+            raise RunStateError("project UUID or run id mismatch")
+        promoted = json.loads((record / "promoted_paths.json").read_text(encoding="utf-8"))
+        if promoted.get("run_id") != run_id or promoted.get("project_uuid") != state.project_uuid:
+            raise RunStateError("promotion record authentication failed")
+        relative_paths = promoted.get("paths", [])
+        if not isinstance(relative_paths, list):
+            raise RunStateError("invalid promotion paths")
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        if isinstance(exc, RunStateError):
+            raise
+        raise RunStateError(f"cannot read migration record: {record}") from exc
+
+    targets = []
+    for relative in relative_paths:
+        path = (root / relative).resolve()
+        if path != root and root not in path.parents:
+            raise RunStateError("rollback target outside project root")
+        targets.append(path)
+    removed_paths = [str(path) for path in targets if path.is_file()]
     if not dry_run:
-        shutil.rmtree(staging)
-    return RollbackResult(
-        run_id=run_id, removed_paths=removed_paths, applied=not dry_run
-    )
+        for path in sorted(targets, key=lambda candidate: len(candidate.parts), reverse=True):
+            if path.is_file():
+                path.unlink()
+        state.status = "rolled-back"
+        state.phase = "rollback"
+        safe_write(record / "run-state.json", json.dumps(state.to_dict(), ensure_ascii=False, indent=2) + "\n")
+    return RollbackResult(run_id=run_id, removed_paths=removed_paths, applied=not dry_run)

@@ -30,6 +30,7 @@ Status: content migration complete; vector rebuild pending embedding provider
 - [x] Per-package review and corrections.
 - [x] F integration and PoC.
 - [x] G content dry-run, apply, and validation.
+- [x] G resume / exact rollback / pre-promotion collision behavior tested (8 focused cases).
 - [ ] G vector rebuild apply and service smoke test (blocked by missing embedding provider).
 
 ## Evidence log

@@ -3,11 +3,11 @@ import json, shutil, uuid
 import re
 from pathlib import Path
 
-from .v2_manifest import build_manifest, save_manifest
-from .v2_run_state import RunState, load_run_state, save_run_state, rollback_run
+from .v2_manifest import CheckpointItem, build_manifest, save_manifest
+from .v2_run_state import RunState, load_run_state, save_run_state, rollback_run, write_checkpoint
 from .v2_frontmatter import convert_frontmatter_and_body
 from .v2_quarantine import write_quarantine
-from .v2_raw import copy_raw_file, map_raw_path
+from .v2_raw import copy_raw_file, sha256_file
 
 def _frontmatter(path):
     text=path.read_text(encoding="utf-8", errors="replace")
@@ -29,6 +29,7 @@ def _materialize_gap_stubs(target):
     pages = list((target / "wiki").rglob("*.md"))
     known = {p.stem for p in pages}
     stubs = target / "wiki" / "_stubs"
+    created = []
     for page in pages:
         body = page.read_text(encoding="utf-8", errors="replace")
         for raw in pattern.findall(body):
@@ -42,6 +43,7 @@ def _materialize_gap_stubs(target):
                     _dump({"id": target_id, "title": target_id, "type": "concept", "sources": [], "relations": [], "tags": [], "_ko_extra": {"knowledge_gap": True}}, "# Knowledge gap\n\nUnresolved v2 wikilink; source text preserved."),
                     encoding="utf-8",
                 )
+                created.append(stub)
             known.add(target_id)
 
     gaps = set()
@@ -50,7 +52,10 @@ def _materialize_gap_stubs(target):
         gaps.update(raw.strip() for raw in pattern.findall(body) if raw.strip() not in known)
     gap_path = target / ".index" / "migration-support" / "wikilink-gaps.json"
     gap_path.parent.mkdir(parents=True, exist_ok=True)
-    gap_path.write_text(json.dumps({"targets": sorted(gaps)}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if not gap_path.exists():
+        gap_path.write_text(json.dumps({"targets": sorted(gaps)}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        created.append(gap_path)
+    return created
 
 def resolve_project(project, cwd=None):
     value=str(project); root=Path(cwd or Path.cwd()).resolve()
@@ -77,10 +82,22 @@ def migrate_v2(project_root, v2_path, *, run_id=None, apply=False, resume=False,
     result={"run_id":run_id,"manifest_hash":manifest.manifest_hash,"manifest_path":str(manifest_path),"counts":manifest.counts,"dry_run":not apply,"staging":str(staging)}
     if not apply: return result
     staging.mkdir(parents=True, exist_ok=True)
+    progress = staging / "migration_progress.jsonl"
+    raw_progress = staging / "raw_progress.jsonl"
+    save_run_state(target, state)
+    promoted_paths = []
     try:
         for item in manifest.items:
             src=source/Path(item.source_path); dst=payload/Path(item.target_path)
-            if item.disposition in {"skipped","support-artifact"}: continue
+            if item.source_path in state.checkpoint and dst.is_file():
+                if item.kind in {"source", "raw", "archive", "seed"} and sha256_file(dst) != item.sha256:
+                    raise ValueError(f"checkpoint output hash mismatch: {dst}")
+                continue
+            if item.disposition in {"skipped","support-artifact"}:
+                state.checkpoint[item.source_path]=item.disposition
+                write_checkpoint(progress, CheckpointItem(run_id, item.source_path, item.kind, "done"))
+                save_run_state(target, state)
+                continue
             if item.kind in {"source", "raw", "archive", "seed", "metadata"}:
                 if item.disposition == "metadata-only":
                     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -88,28 +105,50 @@ def migrate_v2(project_root, v2_path, *, run_id=None, apply=False, resume=False,
                 else:
                     copy_raw_file(src, dst, staging_root=staging, expected_sha256=item.sha256)
                 state.checkpoint[item.source_path]=item.disposition
+                write_checkpoint(progress, CheckpointItem(run_id, item.source_path, item.kind, "done"))
+                if item.kind in {"source", "raw", "archive", "seed"}:
+                    write_checkpoint(raw_progress, CheckpointItem(run_id, item.source_path, item.kind, "done"))
+                save_run_state(target, state)
                 continue
             if item.disposition == "quarantined":
-                fm,body=_frontmatter(src); write_quarantine(src.stem,fm,body,payload); continue
+                fm,body=_frontmatter(src); write_quarantine(src.stem,fm,body,payload)
+                state.checkpoint[item.source_path]=item.disposition
+                write_checkpoint(progress, CheckpointItem(run_id, item.source_path, item.kind, "done"))
+                save_run_state(target, state)
+                continue
             if item.kind == "wiki":
                 fm,body=_frontmatter(src); fm,body=convert_frontmatter_and_body(fm,file_stem=src.stem,body=body); dst.parent.mkdir(parents=True,exist_ok=True); dst.write_text(_dump(fm,body),encoding="utf-8")
             state.checkpoint[item.source_path]=item.disposition
+            write_checkpoint(progress, CheckpointItem(run_id, item.source_path, item.kind, "done"))
+            save_run_state(target, state)
         state.complete_phase("promotion",checkpoint=state.checkpoint,counts=manifest.counts); save_run_state(target,state)
-        for child in payload.rglob("*"):
-            if child.is_file():
-                dest=target/child.relative_to(payload); dest.parent.mkdir(parents=True,exist_ok=True)
-                if dest.exists(): raise FileExistsError(f"target collision: {dest}")
-                child.replace(dest)
+        files = [child for child in payload.rglob("*") if child.is_file()]
+        destinations = [(child, target/child.relative_to(payload)) for child in files]
+        collisions = [dest for _, dest in destinations if dest.exists()]
+        if collisions:
+            raise FileExistsError(f"target collision: {collisions[0]}")
+        for child, dest in destinations:
+            dest.parent.mkdir(parents=True,exist_ok=True)
+            child.replace(dest)
+            promoted_paths.append(dest.relative_to(target).as_posix())
+        created = _materialize_gap_stubs(target)
+        promoted_paths.extend(path.relative_to(target).as_posix() for path in created)
         # Keep the audit evidence after the temporary payload is removed.
         record = target / ".index" / "migration" / "runs" / run_id
         record.mkdir(parents=True, exist_ok=True)
+        (record / "promoted_paths.json").write_text(json.dumps({"run_id": run_id, "project_uuid": project_uuid, "paths": promoted_paths}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         shutil.copyfile(staging / "migration-manifest.json", record / "migration-manifest.json")
+        state.complete_phase("complete",checkpoint=state.checkpoint,counts=manifest.counts)
+        save_run_state(target,state)
         shutil.copyfile(staging / "run-state.json", record / "run-state.json")
         shutil.rmtree(staging)
-        _materialize_gap_stubs(target)
         result["manifest_path"] = str(record / "migration-manifest.json")
         result["run_record_path"] = str(record)
         result["dry_run"]=False; result["promoted"]=True
         return result
     except Exception as exc:
+        for relative in reversed(promoted_paths):
+            path = target / relative
+            if path.is_file():
+                path.unlink()
         state.fail(str(exc)); save_run_state(target,state); result["error"]=str(exc); raise
