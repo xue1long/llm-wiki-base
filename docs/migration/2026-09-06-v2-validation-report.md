@@ -17,7 +17,7 @@ Content migration: **PASS**. Full migration objective: **PENDING** until vector 
 | Vector rebuild | PENDING | Dry-run: 1,924 pages / 6,136 chunks; no live LanceDB yet |
 | Service and vector search smoke test | PENDING | Depends on vector rebuild |
 
-The live content apply run (`migration-20260910`) was executed before durable promotion records were added. Its exact rollback evidence is therefore **PENDING** until the run record is backfilled or the content is re-applied with the revised implementation.
+The live content apply run (`migration-20260910`) was executed before durable promotion records were added. A non-destructive backfill created its authenticated run record; rollback dry-run identified 5,301 paths for that project/run and did not remove anything.
 
 ## Test evidence
 

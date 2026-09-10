@@ -96,3 +96,16 @@ def test_dry_run_writes_auditable_reports_and_disk_result(tmp_path):
     assert (staging / "migration_report.csv").exists()
     assert (staging / "migration_warnings.csv").exists()
     assert (staging / "pending_decisions.csv").exists()
+
+
+def test_backfill_run_record_is_non_destructive(tmp_path, monkeypatch):
+    source, target = _fixture(tmp_path)
+    _ample_disk(monkeypatch)
+    result = v2_full.migrate_v2(target, source, run_id="original-1", apply=True)
+
+    backfilled = v2_full.backfill_run_record(
+        target, "backfilled-1", result["manifest_path"]
+    )
+    assert backfilled["backfilled"] is True
+    assert (target / "wiki" / "concepts" / "card.md").exists()
+    assert (target / ".index" / "migration" / "runs" / "backfilled-1" / "promoted_paths.json").exists()

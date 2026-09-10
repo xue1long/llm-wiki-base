@@ -9,6 +9,7 @@ from .v2_run_state import RunState, load_run_state, save_run_state, rollback_run
 from .v2_frontmatter import convert_frontmatter_and_body
 from .v2_quarantine import write_quarantine
 from .v2_raw import copy_raw_file, sha256_file
+from ...lib.write_hooks import safe_write
 
 _DISK_RESERVE_BYTES = 5 * 1024 * 1024 * 1024
 
@@ -55,6 +56,58 @@ def _disk_preflight(target, manifest):
         "required_bytes": required_bytes,
         "passed": free_bytes >= required_bytes,
     }
+
+
+def backfill_run_record(project_root, run_id, manifest_path):
+    """Record a previously promoted run without touching its live content."""
+    target = Path(project_root).resolve()
+    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    project_uuid = json.loads(
+        (target / ".llm-wiki" / "project.json").read_text(encoding="utf-8")
+    )["id"]
+    paths = []
+    for item in manifest.get("items", []):
+        if item.get("disposition") == "skipped":
+            continue
+        path = (target / item["target_path"]).resolve()
+        if path != target and target not in path.parents:
+            raise ValueError(f"manifest target outside project: {item['target_path']}")
+        if path.is_file():
+            paths.append(path.relative_to(target).as_posix())
+    for root in (target / "wiki" / "_stubs", target / ".index" / "migration-support"):
+        if root.exists():
+            paths.extend(
+                path.relative_to(target).as_posix()
+                for path in root.rglob("*")
+                if path.is_file()
+            )
+    paths = sorted(set(paths))
+    if not paths:
+        raise ValueError("no promoted files found to backfill")
+    record = target / ".index" / "migration" / "runs" / run_id
+    record.mkdir(parents=True, exist_ok=True)
+    state = RunState(
+        run_id=run_id,
+        project_uuid=project_uuid,
+        source_root=str(manifest.get("source_root", "")),
+        manifest_hash=str(manifest.get("manifest_hash", "")),
+        phase="complete",
+        checkpoint={item["source_path"]: item["disposition"] for item in manifest.get("items", [])},
+        counts=dict(manifest.get("counts", {})),
+        status="completed",
+    )
+    safe_write(record / "run-state.json", json.dumps(state.to_dict(), ensure_ascii=False, indent=2) + "\n")
+    safe_write(
+        record / "promoted_paths.json",
+        json.dumps(
+            {"run_id": run_id, "project_uuid": project_uuid, "paths": paths, "backfilled": True},
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+    )
+    shutil.copyfile(manifest_path, record / "migration-manifest.json")
+    return {"run_id": run_id, "record_path": str(record), "path_count": len(paths), "backfilled": True}
 
 def _frontmatter(path):
     text=path.read_text(encoding="utf-8", errors="replace")
