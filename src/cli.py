@@ -575,6 +575,7 @@ def build_parser() -> "argparse.ArgumentParser":
                              help="Resume completed full-scope chapter batches")
     p_book_wiki.add_argument("--budget-manifest", default=None,
                              help="Path for the resumable budget/batch manifest")
+    p_book_wiki.add_argument("--provider", help="LLM provider name for --preview/--apply")
     p_book_wiki.add_argument("--use-llm", action="store_true", help="Legacy compatibility input")
     p_book_wiki.add_argument("--polish", action="store_true", help="Legacy compatibility input")
     p_book_wiki.add_argument("--encyclopedic", action="store_true", help="Enable encyclopedic cross-page mode (requires --preview or --apply)")

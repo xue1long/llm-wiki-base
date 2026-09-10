@@ -107,15 +107,20 @@ def auto_register_on_first_run() -> list[ProjectContext]:
             # root cause of "which project am I actually looking at" — two
             # registries both call it "novel-wiki" while pointing at
             # different copies on disk.
-            if GlobalRegistryStore.by_path(kb_path) is None:
-                collision = GlobalRegistryStore.by_name(kb_path.name)
-                if collision is not None:
-                    _logger.warning(
-                        "[discovery] skipping %s: a project named %r already "
-                        "exists at %s (candidate at %s was NOT registered)",
-                        kb_path, collision.name, collision.path, kb_path,
-                    )
-                    continue
+            existing = GlobalRegistryStore.by_path(kb_path)
+            if existing is not None:
+                # An explicit registry name (for example an imported copy
+                # named "novel-wiki-full") is authoritative.  Re-running
+                # discovery must not overwrite it from project.json.
+                continue
+            collision = GlobalRegistryStore.by_name(kb_path.name)
+            if collision is not None:
+                _logger.warning(
+                    "[discovery] skipping %s: a project named %r already "
+                    "exists at %s (candidate at %s was NOT registered)",
+                    kb_path, collision.name, collision.path, kb_path,
+                )
+                continue
             ctx = ProjectContext.from_path(kb_path)  # from_path is idempotent (skips if exists)
             contexts.append(ctx)
         except Exception as e:

@@ -1018,6 +1018,7 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
                     encyclopedic: bool = False, quality_gate: str = "rule", rubric: str | Path | None = None,
                     max_attempts: int = 1, max_input_tokens: int | None = None,
                     max_output_tokens: int | None = None, provider: Any = None,
+                    provider_name: str | None = None,
                     max_llm_calls: int = 3, max_runtime_seconds: int = 900,
                     budget_cap: int | None = None, approver: str | None = None,
                     theme_outline: str | Path | None = None,
@@ -1099,9 +1100,9 @@ def build_from_wiki(project_root: Path, *, output_dir: Path, use_llm: bool = Fal
     # An injected provider is an explicit in-process dependency (used by
     # callers/tests); registry validation still applies to CLI/env-driven use.
     preflight = run_preflight(str(root), output_dir=Path(output_dir), use_llm=use_llm,
-                              provider_name=None, polish=polish) if provider is None else run_preflight(
+                              provider_name=provider_name, polish=polish) if provider is None else run_preflight(
                                   str(root), output_dir=Path(output_dir), use_llm=False,
-                                  provider_name=None, polish=polish)
+                                  provider_name=provider_name, polish=polish)
     if not preflight.ok:
         return {"status": "blocked", "errors": [e.code for e in preflight.errors]}
     try:

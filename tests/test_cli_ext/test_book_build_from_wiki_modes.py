@@ -41,6 +41,12 @@ def test_full_knowledge_scope_is_parseable() -> None:
     assert args.resume is False
 
 
+def test_provider_is_parseable_for_real_llm_modes() -> None:
+    args = _parse("--preview", "--provider", "minimax")
+
+    assert args.provider == "minimax"
+
+
 @pytest.mark.parametrize(
     ("flag", "expected_mode"),
     [("--preview", "preview"), ("--apply", "apply")],
@@ -150,6 +156,34 @@ def test_command_maps_formal_llm_modes_to_body_polishing(
     assert seen["use_llm"] is True
     assert seen["polish"] is True
     assert seen["apply"] is (flag == "--apply")
+
+
+def test_provider_is_forwarded_to_preflight_and_compiler(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        book_cmd, "_resolve", lambda _project: SimpleNamespace(path=tmp_path)
+    )
+    seen: dict[str, object] = {}
+
+    def fake_preflight(*_args, **kwargs):
+        seen["preflight_provider"] = kwargs["provider_name"]
+        return SimpleNamespace(ok=True, errors=())
+
+    monkeypatch.setattr(book_cmd, "run_preflight", fake_preflight)
+    compiler = types.ModuleType("src.kc.views.book.wiki.compiler")
+
+    def build_from_wiki(*_args, **kwargs):
+        seen["compiler_provider"] = kwargs["provider_name"]
+        return {"status": "preview"}
+
+    compiler.build_from_wiki = build_from_wiki
+    monkeypatch.setitem(sys.modules, compiler.__name__, compiler)
+
+    args = _parse("--preview", "--provider", "minimax")
+    assert book_cmd.cmd_book_build_from_wiki(args) == 0
+    assert seen["preflight_provider"] == "minimax"
+    assert seen["compiler_provider"] == "minimax"
 
 
 def test_legacy_namespace_cannot_create_outline_only_mode(monkeypatch, tmp_path: Path):

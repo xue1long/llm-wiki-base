@@ -125,3 +125,29 @@ def test_auto_register_no_op_when_registry_exists(tmp_path, monkeypatch):
     # Registry file untouched
     assert pre_registry.read_text(encoding="utf-8") == original_content
     assert contexts == []
+
+
+def test_auto_register_preserves_existing_display_name(tmp_path, monkeypatch):
+    """Discovery must not overwrite an explicit registry name override."""
+    from src.project import paths, registry
+    from src.project.registry import GlobalRegistryStore, ProjectRegistryEntry
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    kb = tmp_path / "novel-wiki"
+    (kb / ".llm-wiki").mkdir(parents=True)
+    (kb / ".llm-wiki" / "project.json").write_text(
+        '{"id":"project-id","name":"novel-wiki","created_at":0}',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(paths, "config_dir", lambda: config_dir)
+    monkeypatch.setattr(registry, "_default_registry_path", lambda: config_dir / "registry.json")
+    GlobalRegistryStore.upsert(ProjectRegistryEntry(
+        id="project-id", path=str(kb), name="novel-wiki-full",
+        last_opened=1, schema_version="v2.0",
+    ))
+    monkeypatch.setattr("src.project.discovery.DEFAULT_SEARCH_PATHS", [tmp_path], raising=False)
+
+    assert auto_register_on_first_run() == []
+    assert GlobalRegistryStore.by_id("project-id").name == "novel-wiki-full"
