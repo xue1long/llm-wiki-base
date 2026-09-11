@@ -27,6 +27,11 @@ _REPO = Path(__file__).resolve().parents[1]
 if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
+# Load .env (script bypasses src/cli.py:89-96 which does this normally).
+from dotenv import load_dotenv  # noqa: E402
+load_dotenv(_REPO / ".env", override=False)
+load_dotenv(Path.cwd() / ".env", override=False)
+
 from src.kc.views.book.wiki.polish_llm import generate_chapter_titles  # noqa: E402
 from src.lib.project import resolve_project  # noqa: E402
 from src.project.context import ProjectNotFoundError  # noqa: E402
@@ -59,16 +64,28 @@ async def _titles_for_manifest(manifest: dict, provider) -> dict:
     return await generate_chapter_titles(chapters_meta, provider)
 
 
-def _write_titles(release_dir: Path, manifest: dict, titles: dict) -> Path:
+def _write_titles(release_dir: Path, manifest: dict, result) -> Path:
     editorial = release_dir / "editorial"
     editorial.mkdir(parents=True, exist_ok=True)
+    # `result` is `ChapterTitleResult` (frozen dataclass). Tolerate a
+    # plain dict for callers/tests that pass one in directly.
+    if hasattr(result, "titles"):
+        titles_map = result.titles
+        truncated = result.truncated
+        renamed = result.renamed
+        failed = result.failed
+    else:
+        titles_map = result["titles"]
+        truncated = result["truncated"]
+        renamed = result["renamed"]
+        failed = result["failed"]
     payload = {
         "version": manifest.get("version"),
-        "titles": titles["titles"],
+        "titles": titles_map,
         "stats": {
-            "truncated": titles["truncated"],
-            "renamed": titles["renamed"],
-            "failed": titles["failed"],
+            "truncated": truncated,
+            "renamed": renamed,
+            "failed": failed,
         },
     }
     target = editorial / "chapter-titles.json"
@@ -149,8 +166,8 @@ def main() -> int:
     print(f"wrote {titles_path}")
     print(f"wrote {preface_path}")
     print(
-        f"stats: truncated={titles['truncated']}, renamed={titles['renamed']}, "
-        f"failed={titles['failed']}"
+        f"stats: truncated={titles.truncated}, renamed={titles.renamed}, "
+        f"failed={titles.failed}"
     )
     return 0
 

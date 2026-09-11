@@ -96,7 +96,10 @@ def main() -> int:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
 
-    snapshot = _load_snapshot(ctx.path)
+    # `scan_wiki_snapshot` expects the wiki/ subdir (compiler does
+    # the same at `compiler.py:1138`); passing the project root
+    # would silently find no pages.
+    snapshot = _load_snapshot(ctx.path / "wiki")
     result = partition_writing_technique_merged(snapshot)
     report = _summarize(result)
 
