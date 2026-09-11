@@ -1,0 +1,22 @@
+schema_version: 1
+author:
+  role: "网文作者评测角色"
+  identity: "Codex（按用户授权代行作者任务）"
+  human_confirmation_required: true
+tasks:
+  - task_id: A-001
+    description: "为一部快节奏玄幻新书设计首章冲突、首个期待点和后续高潮承接。"
+    case_ids: [W-001, W-002, W-004]
+    acceptable_answer: "能给出有证据来源的冲突、期待感和首高潮建议，并说明适用边界。"
+  - task_id: A-002
+    description: "把一个已经解决初期矛盾的主角继续推进到下一阶段，避免剧情停滞。"
+    case_ids: [W-003, W-005, W-006]
+    acceptable_answer: "能找到支线展开、大纲和结构化规划建议，并能用于下一步创作。"
+  - task_id: A-003
+    description: "设计一场重要对决，决定哪些内容需要渲染，哪些过程可以压缩。"
+    case_ids: [W-008, W-009, W-015]
+    acceptable_answer: "能分别找到气氛渲染、过程性打斗和节奏控制依据，形成可执行取舍。"
+  - task_id: A-004
+    description: "完善一个多线长篇的主角、叙事视角和关键对话悬念。"
+    case_ids: [W-010, W-011, W-012, W-014]
+    acceptable_answer: "能找到视角、角色提问和对话悬念建议，并记录采用或拒绝原因。"

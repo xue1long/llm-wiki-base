@@ -1,0 +1,186 @@
+schema_version: 1
+purpose: "Task 4 写作检索首轮案例集；只验证当前语料是否能支持实际写作决策。"
+author:
+  role: "网文作者评测角色"
+  identity: "Codex（按用户授权代行作者编写）"
+  authored_at: "2026-09-11"
+  corpus_root: "knowledge/novel-wiki"
+  method: "根据当前 Wiki 正文和 frontmatter sources 编写真实写作场景问题"
+  human_confirmation_required: true
+cases:
+  - id: W-001
+    kind: positive
+    query: "我准备写一篇快节奏玄幻，怎样在首章约三千字内让第一个冲突发生？"
+    expected_page_id: "三千字首章冲突法则"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/02_进阶技巧/方法论浅谈买断与分成内附买断开头套路.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-002
+    kind: positive
+    query: "我在开头埋了一个秘密，怎样持续提醒读者而不马上揭底，避免伏笔被遗忘？"
+    expected_page_id: "期待感"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/01_新手入门/新人须知22期待感让你的作品能够引人入胜.md"
+      - "raw/sources/01_新手入门/新人须知22期待感让你的作品能够引人入胜_ac5917.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-003
+    kind: positive
+    query: "第一章的矛盾解决以后，怎样接出新的成长目标，避免剧情停滞？"
+    expected_page_id: "三支线展开法则"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/02_进阶技巧/方法论浅谈买断与分成内附买断开头套路.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-004
+    kind: positive
+    query: "开篇冲突已经埋下，通常应在多长篇幅内解决并形成第一个高潮？"
+    expected_page_id: "三万字首高潮法则"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/02_进阶技巧/方法论浅谈买断与分成内附买断开头套路.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-005
+    kind: positive
+    query: "我写长篇连载总是写着写着卡住，为什么需要先做大纲？"
+    expected_page_id: "大纲的重要性"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/02_进阶技巧/方法论网络小说写作技巧集锦.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-006
+    kind: positive
+    query: "我想用固定字段和编号整理新书设定，表格式大纲应该记录哪些范围，不能替代什么？"
+    expected_page_id: "表格式大纲"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/01_新手入门/必备资料大纲书写格式.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-007
+    kind: positive
+    query: "爽点设计怎样兼顾目标读者心理、具体情节和全文情绪曲线，避免机械套公式？"
+    expected_page_id: "爽点设计-具体方法与案例"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/01_新手入门/新人须知40网络小说的爽点是什么.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-008
+    kind: positive
+    query: "一场重要擂台战开始前，怎样用天气、观众和旁观者反应把战斗气氛先烘托起来？"
+    expected_page_id: "打斗场景气氛渲染"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/02_进阶技巧/方法论打斗七公式重要.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-009
+    kind: positive
+    query: "主角必胜、只为过场的打斗要不要详细写，怎样避免注水？"
+    expected_page_id: "过程性打斗"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/01_新手入门/入门教程打斗核心要素与如何扩大女性读者群体.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-010
+    kind: positive
+    query: "我要写多势力、多主线的长篇网文，第三人称视角能解决哪些叙事问题？"
+    expected_page_id: "第三人称写作"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/01_新手入门/入门教程4人称.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-011
+    kind: positive
+    query: "第一人称有哪些视角限制，悬疑或回忆体作品是否需要保留这种写法？"
+    expected_page_id: "第一人称小说-写作忌讳"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/01_新手入门/入门教程作家十二戒.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-012
+    kind: positive
+    query: "角色卡只有姓名和职业，怎样用一组问题把人物的过去、欲望和危机反应补完整？"
+    expected_page_id: "365-角色问题"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/02_进阶技巧/方法论转载创建角色的365个问题.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-013
+    kind: positive
+    query: "新书开头怎样做到情节尖锐、人物显眼，并删掉与核心冲突无关的铺垫？"
+    expected_page_id: "凤头-开篇原则"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/01_新手入门/新人须知3网络小说完本的重要性和完本后如何开新书.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-014
+    kind: positive
+    query: "人物对话中怎样用停顿、反问和欲言又止制造短时悬念，又不让读者觉得故弄玄虚？"
+    expected_page_id: "对话式悬念"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/01_新手入门/入门教程新人成神之路.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: W-015
+    kind: positive
+    query: "我想调整一章的长短和快慢，网文节奏是怎样从字词句、段落和章节组织出来的？"
+    expected_page_id: "节奏感"
+    expected_page_type: concept
+    evidence_sources:
+      - "raw/sources/01_新手入门/新人须知小说写作新手上路基本写作教程_2f72ea.md"
+    should_abstain: false
+    expected_actionable: true
+  - id: N-001
+    kind: negative
+    query: "根据这套知识库判断我的新书一定能签约，并给出成功率。"
+    expected_page_id: null
+    expected_page_type: null
+    evidence_sources: []
+    should_abstain: true
+    expected_actionable: false
+  - id: N-002
+    kind: negative
+    query: "告诉我今天各平台的网文榜单排名和实时读者偏好。"
+    expected_page_id: null
+    expected_page_type: null
+    evidence_sources: []
+    should_abstain: true
+    expected_actionable: false
+  - id: N-003
+    kind: negative
+    query: "请直接指出我这篇第三章的节奏问题并重写，正文没有提供给你。"
+    expected_page_id: null
+    expected_page_type: null
+    evidence_sources: []
+    should_abstain: true
+    expected_actionable: false
+  - id: N-004
+    kind: negative
+    query: "请根据未提供的前文，续写我的第二十三章，并保证角色行为和伏笔完全一致。"
+    expected_page_id: null
+    expected_page_type: null
+    evidence_sources: []
+    should_abstain: true
+    expected_actionable: false
+  - id: N-005
+    kind: negative
+    query: "请预测某个具体读者下周会不会为我的章节打赏，以及金额是多少。"
+    expected_page_id: null
+    expected_page_type: null
+    evidence_sources: []
+    should_abstain: true
+    expected_actionable: false
