@@ -157,3 +157,122 @@ def test_outline_metadata_malformed_json_returns_empty(tmp_path):
     volumes, chapters = _book_outline_metadata(release)
     assert volumes == []
     assert chapters == {}
+
+# --- Task 1 review-only additions: behaviour that the fix preserves ---
+
+
+def _outline_with_empty_volume(tmp_path):
+    release = tmp_path / "release"
+    release.mkdir()
+    payload = [{
+        "schema_version": "outline-v1",
+        "snapshot_id": "x",
+        "volumes": [
+            {"volume_id": "v-empty", "title": "v-empty", "chapters": []},
+            {"volume_id": "v-full", "title": "v-full", "chapters": [
+                {"chapter_id": "v-full:0", "title": "v-full:0",
+                 "page_ids": [], "overview_refs": []},
+            ]},
+        ],
+    }]
+    (release / "outline.json").write_text(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    return release
+
+
+def _outline_large(tmp_path, n_volumes, n_chapters_per_volume):
+    release = tmp_path / "release"
+    release.mkdir()
+    volumes = []
+    for vi in range(n_volumes):
+        chapters = [
+            {"chapter_id": f"v{vi}:{ci}", "title": f"v{vi}:{ci}",
+             "page_ids": [], "overview_refs": []}
+            for ci in range(n_chapters_per_volume)
+        ]
+        volumes.append({"volume_id": f"v{vi}", "title": f"v{vi}", "chapters": chapters})
+    payload = [{"schema_version": "outline-v1", "snapshot_id": "x", "volumes": volumes}]
+    (release / "outline.json").write_text(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    return release
+
+
+# --- 9. empty chapters list still surfaces the volume (chapter_count = 0) ---
+
+
+def test_outline_metadata_empty_chapter_list_keeps_volume(tmp_path):
+    release = _outline_with_empty_volume(tmp_path)
+    volumes, chapters = _book_outline_metadata(release)
+    ids = sorted(v["id"] for v in volumes)
+    assert ids == ["v-empty", "v-full"]
+    assert "v-empty:0" not in chapters
+    assert "v-full:0" in chapters
+
+
+# --- 10. repeated calls return identical, side-effect-free results ---
+
+
+def test_outline_metadata_is_idempotent_across_calls(tmp_path):
+    release = _write_release(
+        tmp_path, _sample_outline(chapter_ids=("a:0", "a:1"), volume_id="a")
+    )
+    first_volumes, first_chapters = _book_outline_metadata(release)
+    second_volumes, second_chapters = _book_outline_metadata(release)
+    assert first_volumes == second_volumes
+    assert first_chapters == second_chapters
+    # Alias keys must still resolve after the second call.
+    assert second_chapters["a_0"]["volume_id"] == "a"
+    assert second_chapters["a_1"]["volume_id"] == "a"
+
+
+# --- 11. scale matches the real release shape (179 chapters) ---
+
+
+def test_outline_metadata_scales_to_real_release_shape(tmp_path):
+    # 9 volumes x ~20 chapters ~= 180, within 1 of the 179-chapter live release.
+    release = _outline_large(tmp_path, n_volumes=9, n_chapters_per_volume=20)
+    volumes, chapters = _book_outline_metadata(release)
+    assert len(volumes) == 9
+    # 180 chapters x 2 key spellings (native + alias) = 360 dict entries.
+    assert len(chapters) == 360
+    # Distinct chapter ids (native flavor, containing ":") is 180.
+    distinct_chapters = {k for k in chapters if ":" in k}
+    assert len(distinct_chapters) == 180
+    for vid in range(9):
+        for ci in range(20):
+            assert chapters[f"v{vid}:{ci}"]["volume_id"] == f"v{vid}"
+            assert chapters[f"v{vid}_{ci}"]["volume_id"] == f"v{vid}"
+
+
+# --- 12. integration pin: the alias resolves the lookup that
+#         `book_wiki_manifest` performs (src/services/files.py:299-300) ---
+
+
+def test_book_wiki_manifest_lookup_finds_aliased_chapter_id(tmp_path):
+    """`book_wiki_manifest` derives the lookup key by splitting the
+    filename stem on `"__"` and taking the right-hand side. Without
+    the dual-key alias in `_book_outline_metadata`, that key (the
+    underscore flavor) misses every chapter in outline.json.
+
+    This integration pin reproduces that exact lookup against the
+    minimal fixture, so any future regression that breaks the
+    alias shows up here without needing a full release build.
+    """
+    # Use a Latin-only volume/chapter so the literal fits in the source
+    # file without requiring an escape sequence; the alias mechanism is
+    # triggered by any `:` in the chapter_id, not by CJK specifically.
+    release = _write_release(
+        tmp_path,
+        _sample_outline(chapter_ids=("concept-tech:5",), volume_id="concept-tech"),
+    )
+    _, outline_chapters = _book_outline_metadata(release)
+
+    filename_stem = "concept-tech__concept-tech_5"
+    outline_id = filename_stem.split("__", 1)[-1]
+    meta = outline_chapters.get(outline_id, outline_chapters.get(filename_stem, {}))
+    assert meta.get("volume_id") == "concept-tech"
+    assert meta.get("volume_title") == "concept-tech"

@@ -400,3 +400,136 @@ def _fake_resolve(project_dir):
     identity = type("I", (), {"id": "u"})()
     ctx = ProjectContext(identity=identity, path=project_dir, name="p", schema_version="v2.0")
     return ctx, WikiPaths(project_dir)
+
+# ─── Task 2 HTTP integration smoke (Task 0 fix surface) ─────────────
+
+
+def _build_release_with_colon_chapter_ids(
+    project_dir: Path, *, version: str = "v1",
+    chapters=(
+        # (volume_id, native_chapter_id, body)
+        ("writing-tech", "writing-tech:5", "# Tech chapter 5\n"),
+        ("writing-tech", "writing-tech:6", "# Tech chapter 6\n"),
+        ("fallback", "fallback:0", "# Fallback chapter 0\n"),
+    ),
+):
+    """Drop a minimal release where chapter_ids contain `:`.
+
+    Matches the real release's naming convention (compiler.py:536
+    preserves the outline-supplied `chapter_id`). The on-disk filename
+    after `_safe()` is `{vol}__{chapter_id with `:` rewritten to `_`}.md`.
+    """
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / ".llm-wiki").mkdir(exist_ok=True)
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        json.dumps({"id": "u", "name": "p", "schema_version": "v2.0"}),
+        encoding="utf-8",
+    )
+    book_dir = project_dir / "book-wiki"
+    release = book_dir / ".releases" / version
+    release.mkdir(parents=True)
+    files = {}
+    for vol_id, chap_id, body in chapters:
+        # Mirror compiler.py:_safe: keep alnum + "._-"; rewrite everything else to `_`.
+        safe_vol = "".join(c if c.isalnum() or c in "._-" else "_" for c in vol_id)
+        safe_chap = "".join(c if c.isalnum() or c in "._-" else "_" for c in chap_id)
+        filename = f"{safe_vol}__{safe_chap}.md"
+        (release / filename).write_text(body, encoding="utf-8")
+        files[filename] = hashlib.sha256((release / filename).read_bytes()).hexdigest()
+    sources_index = release / "sources-index.md"
+    sources_index.write_text("# Sources index\n", encoding="utf-8")
+    files["sources-index.md"] = hashlib.sha256(sources_index.read_bytes()).hexdigest()
+    outline = {
+        "volumes": [
+            {"volume_id": vol, "title": vol, "chapters": [
+                {"chapter_id": chap, "title": chap, "page_ids": [], "overview_refs": []}
+            ]}
+            for vol, chap, _body in chapters
+        ],
+    }
+    (release / "outline.json").write_text(json.dumps(outline), encoding="utf-8")
+    files["outline.json"] = hashlib.sha256((release / "outline.json").read_bytes()).hexdigest()
+    manifest = {
+        "run_id": version, "chapter_count": len(chapters), "page_count": len(chapters),
+        "scope_mode": "full_knowledge", "coverage_ratio": 1.0,
+        "source_appendix_count": 0, "files": files,
+    }
+    (release / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (book_dir / "CURRENT.json").write_text(json.dumps({
+        "version": version, "manifest_sha256": hashlib.sha256(
+            (release / "manifest.json").read_bytes()).hexdigest(),
+    }), encoding="utf-8")
+
+
+def test_book_wiki_manifest_populates_volume_id_for_colon_chapter_ids(monkeypatch, tmp_path):
+    """Task 2 smoke: the JSON the WebUI consumes (via
+    GET /api/v1/projects/{id}/book-wiki) must carry `volume_id` for
+    every chapter whose outline id contains `:`. Before the fix, the
+    `_safe` filename rewrite caused every chapter to fall through the
+    fallback bucket in `web/js/views/book.js`.
+
+    Behavioural equivalent of a Playwright smoke test: instead of
+    driving the browser, we drive the same `book_wiki_manifest`
+    service the route calls. The WebUI consumes the JSON this returns
+    verbatim (see src/server/routes/files.py:44-52).
+    """
+    from src.services import files as files_service
+    project_dir = tmp_path / "kb"
+    _build_release_with_colon_chapter_ids(project_dir)
+    monkeypatch.setattr(
+        "src.services.files.resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+
+    manifest = files_service.book_wiki_manifest("u")
+    chapters = manifest["chapters"]
+    assert len(chapters) == 3, f"expected 3 chapters, got {len(chapters)}"
+
+    # Every chapter must carry volume_id AND volume_title — these are
+    # the fields `web/js/views/book.js`'s `volumeFor()` / `volumeLabel()`
+    # read to decide the bucket heading.
+    for ch in chapters:
+        assert ch.get("volume_id"), f"chapter {ch['path']} missing volume_id"
+        assert ch.get("volume_title"), f"chapter {ch['path']} missing volume_title"
+
+    # And `volumes[].chapter_count` must reflect the real chapter set,
+    # not the pre-fix `0` placeholder.
+    volume_counts = {v["id"]: v["chapter_count"] for v in manifest["volumes"]}
+    assert volume_counts.get("writing-tech") == 2
+    assert volume_counts.get("fallback") == 1
+    assert all(count > 0 for count in volume_counts.values()), (
+        f"some volume still reports chapter_count=0: {volume_counts}"
+    )
+
+    # Spot-check the bucketing shape: chapters share a volume_id iff
+    # they share a volume.
+    by_volume = {}
+    for ch in chapters:
+        by_volume.setdefault(ch["volume_id"], []).append(ch["path"])
+    assert sorted(by_volume["writing-tech"]) == sorted([
+        "writing-tech__writing-tech_5.md",
+        "writing-tech__writing-tech_6.md",
+    ])
+    assert by_volume["fallback"] == ["fallback__fallback_0.md"]
+
+
+def test_book_wiki_manifest_404s_when_release_missing(monkeypatch, tmp_path):
+    """Task 2 edge case: a project with no .releases/ must fail closed
+    rather than returning the file-prefix fallback the bug previously
+    surfaced. The service raises BookWikiUnavailableError, which the
+    route translates to HTTP 404.
+    """
+    from src.services import files as files_service
+    project_dir = tmp_path / "kb"
+    (project_dir / ".llm-wiki").mkdir(parents=True)
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        json.dumps({"id": "u", "name": "p", "schema_version": "v2.0"}),
+        encoding="utf-8",
+    )
+    # No book-wiki/ directory at all.
+    monkeypatch.setattr(
+        "src.services.files.resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+    with pytest.raises(files_service.BookWikiUnavailableError):
+        files_service.book_wiki_manifest("u")
