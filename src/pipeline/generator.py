@@ -26,6 +26,7 @@ from ..wiki.core.id_generator import normalize_id_chars
 from ..wiki.core.paths import WikiPaths
 from ..wiki.features.relations import parse_relations_from_response
 from ..wiki.features.tag_namespace import (
+    ACTIONABLE_TAG,
     TAG_PREFIXES,
     build_tag_prompt_section,
     normalize_tags,
@@ -288,15 +289,11 @@ When source truly lacks info for a required slot, write "来源未详述此方�
 ## Short-form template (used when processing_depth=memory)
 {SHORT_FORM_TEMPLATE}
 
-## Entity pages are REQUIRED
-Every entity listed in `suggested_pages` (type=entity) MUST have a
-corresponding entry in your `pages` output. The wiki knowledge graph
-depends on entity pages existing — without them, cross-references
-break and the graph is unnavigable. If the source has limited info
-about an entity, fill the slots with what IS available, note the gaps
-briefly (e.g. "来源未详述此概念"), and assign grade=C. Do NOT skip
-entity pages just because they're not "interesting" concept/synthesis
-material. Every missing entity page creates a broken link chain.
+## Entity pages are evidence-driven
+Create an entity page only when the source provides enough evidence and
+writing value for a substantive page. If an entity is only a mention or
+cannot support the required slots, omit it and leave the reference unresolved
+for the caller to record rather than inventing filler.
 
 ## Subject boundary (do not transfer claims across entities)
 When the source discusses multiple entities / models / products /
@@ -430,14 +427,9 @@ extract structured knowledge, and render wiki pages in ONE pass.
 
 ## Rules (all mandatory)
 
-**Page budget**: 5-15 pages total. For short sources (<2000 chars), aim for 5-8.
-Focus on the most important entities and concepts — quality over quantity.
-Every page must have substantive content.
-**MINIMUM**: Always generate at least 1 source page + 2 entity/concept pages.
-Even if the source is short or seemingly off-topic, extract what you can —
-empty extractions are worse than thin pages.
-**At least one entity page is REQUIRED** for every source document, regardless
-of length. A source with zero downstream pages is a pipeline failure.
+**Page count**: There is no fixed minimum or target. Generate only pages with
+direct evidence and enough writing value for substantive content. A short or
+off-topic source may produce no downstream pages.
 
 **Language**: 简体中文 for all user-visible text (title, slots, relations[].context).
 Slugs may be CJK or ASCII kebab-case — keep the concept's natural form, no forced pinyin.
@@ -493,9 +485,9 @@ template lacks them.
   examples (invent NOTHING) — prefer real examples from the source first
 - ALL OTHERS → Write "来源未详述此方面" (not empty, not placeholder)
 
-**Entity pages are REQUIRED**: Every meaningful entity (person, org, work, platform,
-genre) mentioned in the source MUST have a page. Missing entities create broken
-links. If the source has limited detail, write what IS available and grade=C.
+**Entity pages are evidence-driven**: Emit a page for a person, org, work,
+platform, or genre only when the source supports a substantive page. A mere
+mention may be omitted; do not create a thin page just to complete a link set.
 
 **Factuality**: Only use examples/titles/names from the source text. Do NOT invent
 plausible-sounding book titles, author quotes, or statistics. When no example
@@ -790,6 +782,13 @@ def _normalize_tags(tags: list, *, source_kind: str | None = None,
     """
     result = normalize_tags(tags, source_kind=source_kind,
                             source_path=source_path)
+    blocked_actionable = [tag for tag in result.tags if tag == ACTIONABLE_TAG]
+    if blocked_actionable:
+        _logger.warning(
+            "[generator] actionable tag requires human review; removed=%s",
+            blocked_actionable,
+        )
+    result.tags = [tag for tag in result.tags if tag != ACTIONABLE_TAG]
     if result.mapped or result.removed or result.mandatory_added:
         _logger.warning(
             "[generator] tag normalization: mapped=%s removed=%s mandatory_added=%s",
@@ -857,8 +856,8 @@ by a prior analyzer. Your job is to RENDER them into well-structured wiki pages.
 Use the exact claim statements and evidence quotes — do not paraphrase or invent
 facts not present in the claims.
 
-**Page budget**: Create 1-3 pages from the claims below. Focus on quality over
-quantity. At minimum, create ONE page for the primary concept/entity in the title.
+**Page count**: Create only pages supported by the claims below. There is no
+fixed minimum; if the claims do not support a substantive page, return none.
 
 **Slot filling — CRITICAL: NO EMPTY SLOTS ALLOWED**:
 - Every `<!-- slot:NAME -->` (no `?`) is REQUIRED and MUST have substantive content.
@@ -1869,33 +1868,15 @@ async def _call_with_slot_retry(
             continue
         last_response = response_dict
 
-        # Detect empty extraction — LLM returned zero pages.
-        # Trigger a retry with a stronger directive so the pipeline never
-        # silently produces a source page with "(无摘要)".
+        # Empty extraction is a valid evidence outcome. The ingest caller may
+        # still create its deterministic source record, but no downstream page
+        # should be invented to satisfy a quantity floor.
         if not response_dict.get("pages"):
-            _logger.warning(
-                "[Generator] LLM returned empty pages list on attempt %d/%d",
+            _logger.info(
+                "[Generator] LLM returned no evidence-backed pages on attempt %d/%d",
                 attempt + 1, MAX_GEN_ATTEMPTS,
             )
-            if attempt == MAX_GEN_ATTEMPTS - 1:
-                _logger.error(
-                    "Generator LLM returned empty pages after %d attempts",
-                    MAX_GEN_ATTEMPTS,
-                )
-                return {"pages": []}
-            extra = (
-                "\n\n## RETRY — EMPTY PAGES DETECTED\n"
-                "Your previous response had NO pages at all (empty pages list). "
-                "This is a pipeline error. You MUST extract at least:\n"
-                "- 1 source page (type=source) with summary and metadata\n"
-                "- 2+ entity or concept pages from the source content\n"
-                "Even if the text seems short or unrelated, find SOMETHING "
-                "to extract — names, terms, techniques, concepts, anything "
-                "mentioned in the text. An empty extraction is worse than "
-                "thin pages.\n"
-            )
-            _json_mode = False  # drop response_format on retry
-            continue
+            return response_dict
 
         last_missing = _find_missing_required_slots(
             response_dict.get("pages", []),
