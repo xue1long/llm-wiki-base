@@ -1,14 +1,20 @@
 """Review items — async human judgment queue (A3)."""
 import json
+import time
 import uuid
 from pathlib import Path
 
 from ..core.types import ReviewItem
+from .tag_namespace import ACTIONABLE_TAG
 from ...lib.write_hooks import safe_write
 
 
 REVIEWS_FILE = ".index/reviews.json"
 REVIEWS_RESOLVED_FILE = ".index/reviews_resolved.json"
+
+
+class HumanReviewRequiredError(ValueError):
+    """Raised when an actionable page has no valid human approval record."""
 
 
 def _review_file(paths, resolved: bool = False) -> Path:
@@ -47,6 +53,10 @@ def _item_to_dict(item: ReviewItem) -> dict:
         "created_at": item.created_at,
         "source_task_id": item.source_task_id,
         "status": item.status,
+        "page_id": item.page_id,
+        "reviewer": item.reviewer,
+        "decision": item.decision,
+        "decided_at": item.decided_at,
     }
 
 
@@ -82,6 +92,55 @@ def resolve_review(paths, item_id: str, action: str = "skip") -> None:
     resolved = load_reviews(paths, resolved=True)
     resolved.append(target)
     save_reviews(paths, resolved, resolved=True)
+
+
+def record_human_review(
+    paths, page_id: str, reviewer: str, decision: str, decided_at: int | None = None,
+) -> ReviewItem:
+    """Record one human usage decision in the existing resolved review store."""
+    reviewer = reviewer.strip() if isinstance(reviewer, str) else ""
+    if not page_id or not reviewer:
+        raise HumanReviewRequiredError("page_id and reviewer are required")
+    if decision not in {"approved", "rejected"}:
+        raise ValueError("decision must be approved or rejected")
+    item = ReviewItem(
+        id=f"usage-{uuid.uuid4().hex[:8]}",
+        type="page-usage",
+        title=page_id,
+        normalized_title=page_id,
+        detail="human usage decision",
+        confidence=1.0,
+        page_id=page_id,
+        reviewer=reviewer,
+        decision=decision,
+        decided_at=decided_at or int(time.time() * 1000),
+        status="resolved",
+    )
+    resolved = [
+        existing for existing in load_reviews(paths, resolved=True)
+        if not (existing.type == "page-usage" and existing.page_id == page_id)
+    ]
+    resolved.append(item)
+    save_reviews(paths, resolved, resolved=True)
+    return item
+
+
+def has_approved_usage_review(paths, page_id: str) -> bool:
+    return any(
+        item.type == "page-usage"
+        and item.page_id == page_id
+        and item.reviewer
+        and item.decision == "approved"
+        and item.decided_at > 0
+        for item in load_reviews(paths, resolved=True)
+    )
+
+
+def ensure_actionable_tag_review(paths, page_id: str, tags: list[str]) -> None:
+    if ACTIONABLE_TAG in tags and not has_approved_usage_review(paths, page_id):
+        raise HumanReviewRequiredError(
+            f"{page_id}: {ACTIONABLE_TAG} requires an approved human review"
+        )
 
 
 def unresolve_review(paths, item_id: str) -> None:

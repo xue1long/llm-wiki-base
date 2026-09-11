@@ -244,11 +244,11 @@ class WikiPage:
             id=d["id"],
             title=d["title"],
             type=PageType(d["type"]),
-            sources=list(d.get("sources", [])),
+            sources=list(d.get("sources") or []),
             created_at=_coerce_ts_ms(d.get("created_at")),
             updated_at=_coerce_ts_ms(d.get("updated_at")),
             body=body,
-            relations=[Relation.from_dict(r) for r in d.get("relations", []) if isinstance(r, dict)],
+            relations=[Relation.from_dict(r) for r in (d.get("relations") or []) if isinstance(r, dict)],
             grade=d.get("grade", "B"),
             source_grade=d.get("source_grade", d.get("grade", "B")),
             processing_depth=d.get("processing_depth", "concept"),
@@ -258,10 +258,10 @@ class WikiPage:
             zombie_since=(
                 _coerce_ts_ms(d["zombie_since"]) if d.get("zombie_since") is not None else None
             ),
-            tags=list(d.get("tags", [])),
+            tags=list(d.get("tags") or []),
             category=d.get("category", ""),
             taxonomy_sub=d.get("taxonomy_sub", ""),
-            related_entities=list(d.get("related_entities", [])),
+            related_entities=list(d.get("related_entities") or []),
             custom_type=str(d.get("custom_type", "")),
             workflow_state=str(d.get("workflow_state", "draft")),
             verified_at=_coerce_ts_ms(d.get("verified_at")),
@@ -339,6 +339,10 @@ class ReviewItem:
     created_at: int = 0
     source_task_id: Optional[str] = None
     status: str = "open"  # "open" | "resolved" | "dismissed"
+    page_id: Optional[str] = None
+    reviewer: Optional[str] = None
+    decision: Optional[str] = None
+    decided_at: int = 0
 
     def __post_init__(self):
         """Auto-compute normalized_title if caller didn't supply one."""

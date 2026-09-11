@@ -16,6 +16,7 @@ from ...lib.write_hooks import safe_write
 from ...lib.errors import InvalidInputError
 from ..core.paths import WikiPaths
 from ..core.types import PageType, WikiPage
+from ..features.review import ensure_actionable_tag_review
 from ..features.tag_namespace import validate_tag_compliance
 
 
@@ -124,6 +125,7 @@ def write_page(paths: WikiPaths, page: WikiPage,
     else:
         path = page_path_for(paths, page.type, page.id)
     path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_actionable_tag_review(paths, page.id, list(page.tags or []))
     if path.exists():
         if expected_content_hash is not None:
             import hashlib

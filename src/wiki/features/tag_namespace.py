@@ -33,7 +33,10 @@ TAG_PREFIXES: dict[str, str] = {
     "media": "migration-compatible media namespace",
     "author": "migration-compatible author namespace",
     "status": "migration-compatible status namespace",
+    "用途": "写作知识用途（仅可执行需人工审核）",
 }
+
+ACTIONABLE_TAG = "用途/可执行"
 
 # ---------------------------------------------------------------------------
 # Value domain constraints (None = free-form, any value allowed)
@@ -83,6 +86,7 @@ TAG_VALUES: dict[str, set[str] | None] = {
     "读者群": {"男频", "女频", "全年龄", "青少年", "中老年"},
     "平台": {"起点", "番茄", "晋江", "纵横", "飞卢", "QQ阅读", "掌阅"},
     "tool": None, "scene": None, "media": None, "author": None, "status": None,
+    "用途": {"可执行"},
 }
 
 # ---------------------------------------------------------------------------
