@@ -39,7 +39,7 @@
 
 ## 验证
 
-定向回归测试：`9 passed`，覆盖页面去重、actionable readiness、abstain、现有服务搜索行为和 20 案例输入约束。
+受影响目录回归测试：`139 passed`，覆盖页面去重、actionable readiness、abstain、现有服务搜索行为、异常 fallback 日志和 20 案例输入约束。
 
 ## 放行边界
 
