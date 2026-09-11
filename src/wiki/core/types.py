@@ -229,16 +229,6 @@ class WikiPage:
             "updated_at": _to_iso_dt(self.updated_at),
             "relations": [r.to_dict() for r in self.relations],
             "tags": list(self.tags),
-            "processing_depth": self.processing_depth,
-            "source_grade": self.source_grade or self.grade,
-            "platform": self.platform,
-            "category": self.category,
-            "taxonomy_sub": self.taxonomy_sub,
-            "use_context": self.use_context,
-            "workflow_state": self.workflow_state,
-            "capture_type": self.capture_type,
-            "v2_origin": self.v2_origin,
-            "_ko_extra": dict(self._ko_extra),
         }
 
     @classmethod
