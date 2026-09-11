@@ -202,11 +202,19 @@ def _book_outline_metadata(release: Path) -> tuple[list[dict], dict[str, dict]]:
             for chapter in volume.get("chapters") or []:
                 if not isinstance(chapter, dict) or not chapter.get("chapter_id"):
                     continue
-                chapters[str(chapter["chapter_id"])] = {
+                chapter_id = str(chapter["chapter_id"])
+                # `_safe()` rewrites `:` to `_` when writing the chapter filename,
+                # so `book_wiki_manifest` looks the chapter up by the underscore
+                # flavor. Index both spellings so the manifest can find it.
+                safe_chapter_id = chapter_id.replace(":", "_")
+                meta = {
                     "title": str(chapter.get("title") or chapter["chapter_id"]),
                     "volume_id": volume_id,
                     "volume_title": volume_title,
                 }
+                chapters[chapter_id] = meta
+                if safe_chapter_id != chapter_id:
+                    chapters[safe_chapter_id] = meta
     return volumes, chapters
 
 
