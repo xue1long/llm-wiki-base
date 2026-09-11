@@ -253,6 +253,30 @@ def test_partial_commit_records_state_and_resume_retries(mini_wiki: Path) -> Non
         assert index_after.count(f"**{slug}**") == 1, f"duplicate index entry: {slug}"
 
 
+def test_partial_commit_clears_relative_path_lineage_reservation(tmp_path: Path, monkeypatch) -> None:
+    """A relative --root must still release a failed page reservation."""
+    from src.lineage import LineageStore
+    from src.orchestrator.batch_runner_internal.phases import (
+        _clear_failed_lineage_reservations,
+    )
+    from src.wiki.core.types import PageType, WikiPage
+
+    monkeypatch.chdir(tmp_path.parent)
+    root = Path(tmp_path.name)
+    ensure_knowledge_base(root)
+    page = WikiPage(id="src-a", title="源A", type=PageType.SOURCE,
+                    sources=["raw/sources/a.md"], body="正文")
+    target = root / "wiki" / "sources" / "src-a.md"
+    store = LineageStore.open(root)
+    store.prepare_wiki_commits([("src-a", (), target.relative_to(root).as_posix(), "hash")])
+
+    _clear_failed_lineage_reservations(
+        WikiPaths(root), [page], [str(target)]
+    )
+
+    assert "src-a" not in LineageStore.open(root).pending_wiki_commits()
+
+
 
 
 # ---------------------------------------------------------------------------

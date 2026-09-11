@@ -30,10 +30,9 @@ def _clear_failed_lineage_reservations(paths, pages, failed_paths) -> None:
 
     failed = set()
     for raw_path in failed_paths:
-        path = Path(raw_path)
-        if not path.is_absolute():
-            path = Path(paths.root) / path
-        failed.add(path.resolve())
+        # safe_write may report a path relative to the process cwd when the
+        # project root itself was passed as a relative path.
+        failed.add(Path(raw_path).resolve())
 
     lineage = LineageStore.open(paths.root)
     for page in pages:
@@ -251,8 +250,13 @@ async def _phase_recheck_and_finalize(paths, batch_key, pending,
         print(f"BUDGET PAUSED: cumulative ${budget_state['cumulative_usd']:.2f} "
               f"> ${args.budget_usd:.2f}", flush=True)
         return 3
-    _set_batch_status(paths, batch_key, "committed",
-                      ok=ok, err=err, permanent_failed=perm)
+    if err or perm:
+        _set_batch_status(paths, batch_key, "failed",
+                          ok=ok, err=err, permanent_failed=perm)
+        print(f"BATCH FAILED ok={ok} err={err} permanent_failed={perm}", flush=True)
+        return 1
+    _set_batch_status(paths, batch_key, "committed", ok=ok, err=0,
+                      permanent_failed=0)
     update_batch_state(paths, lambda st: (
         st.setdefault("budget", {}).__setitem__(
             "cumulative_usd", cumulative + cost), st)[1])
@@ -318,6 +322,8 @@ async def _phase_commit(paths, generated, pending, batch_key, args,
                     perm += 1
                 else:
                     err += 1
+                set_raw_status(paths, batch_key, raw, "failed",
+                               last_error=f"COMMIT-FAIL: {exc}")
                 print(f"  COMMIT FAIL {raw}: {exc}", flush=True)
     for raw in failed_raws:
         err += 1

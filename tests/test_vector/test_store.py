@@ -4,7 +4,13 @@ import tempfile
 from pathlib import Path
 from src.wiki.storage.ensure import ensure_knowledge_base
 from src.wiki.core.paths import WikiPaths
-from src.vector.store import init_vector_store_for_paths, get_table, close_vector_store, __reset_for_testing
+from src.vector.store import (
+    init_vector_store_for_paths,
+    get_table,
+    close_vector_store,
+    delete_by_source,
+    __reset_for_testing,
+)
 
 
 def setup_function(_):
@@ -31,3 +37,13 @@ def test_vector_store_not_initialized():
     close_vector_store()  # Ensure clean state
     with pytest.raises(RuntimeError, match="not initialized"):
         get_table()
+
+
+def test_delete_by_source_accepts_lancedb_delete_result_without_row_count():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        ensure_knowledge_base(root)
+        paths = WikiPaths(root)
+        init_vector_store_for_paths(paths)
+
+        assert delete_by_source(paths, "raw/sources/missing.md") == 0
