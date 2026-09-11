@@ -30,6 +30,7 @@ from ..lib.write_hooks import safe_write
 from ..wiki.core.paths import WikiPaths
 
 _logger = logging.getLogger(__name__)
+_READY_KEY = "__ready__"
 
 
 def pending_path(paths: WikiPaths) -> Path:
@@ -56,17 +57,32 @@ def _save(paths: WikiPaths, data: dict) -> None:
     safe_write(p, json.dumps(data, indent=2, ensure_ascii=False))
 
 
+def _pending_entries(data: dict) -> dict:
+    return {key: value for key, value in data.items() if key != _READY_KEY}
+
+
+def _ready_pages(data: dict) -> dict:
+    ready = data.get(_READY_KEY, {})
+    pages = ready.get("pages", {}) if isinstance(ready, dict) else {}
+    return pages if isinstance(pages, dict) else {}
+
+
 def body_hash(body: str) -> str:
     """Stable hash of a page body (used to detect content changes)."""
     return hashlib.sha256(body.encode("utf-8")).hexdigest()[:16]
 
 
 def _page_entry(page, publication_state: str) -> dict:
+    page_hash = body_hash(page.body or "")
     return {
-        "hash": body_hash(page.body or ""),
+        "hash": page_hash,
+        "page_content_hash": page_hash,
+        "vector_content_hash": None,
+        "embedding_model": None,
         "ts": int(time.time()),
         "title": getattr(page, "title", "") or page.id,
         "publication_state": publication_state,
+        "status": publication_state,
     }
 
 
@@ -75,6 +91,7 @@ def mark_intent(paths: WikiPaths, pages: list) -> int:
     data = _load(paths)
     for page in pages:
         data[page.id] = _page_entry(page, "intent")
+        _ready_pages(data).pop(page.id, None)
     _save(paths, data)
     return len(pages)
 
@@ -102,6 +119,7 @@ def mark_pending(paths: WikiPaths, pages: list) -> int:
     data = _load(paths)
     for page in pages:
         data[page.id] = _page_entry(page, "pending")
+        _ready_pages(data).pop(page.id, None)
     _save(paths, data)
     return len(pages)
 
@@ -121,7 +139,7 @@ def clear_pending(paths: WikiPaths, page_ids: list[str]) -> int:
 
 def list_pending(paths: WikiPaths) -> dict:
     """Return the pending ledger (page_id → metadata)."""
-    return _load(paths)
+    return _pending_entries(_load(paths))
 
 
 def _find_page_file(paths: WikiPaths, page_id: str) -> Path | None:
@@ -161,7 +179,8 @@ def reconcile_pending(
     from ..wiki.storage.page_writer import read_page
 
     data = _load(paths)
-    if not data:
+    entries = _pending_entries(data)
+    if not entries:
         return {
             "attempted": 0,
             "ok": 0,
@@ -181,7 +200,8 @@ def reconcile_pending(
     intent_count = 0
     pending_count = 0
 
-    for pid, meta in list(data.items()):
+    changed = False
+    for pid, meta in list(entries.items()):
         attempted += 1
         state = meta.get("publication_state", "pending")
         if state == "intent":
@@ -204,17 +224,43 @@ def reconcile_pending(
             if body_hash(page.body or "") != meta.get("hash"):
                 _logger.info("[vector-pending] %s changed since mark; re-indexing", pid)
             success = embed_and_upsert(page, paths, table)
-            if success:
+            if isinstance(success, dict):
+                ok = success.get("status", "ok") == "ok"
+                vector_hash = success.get("vector_content_hash")
+                model = success.get("embedding_model")
+                failure_status = success.get("status", "failed")
+            else:
+                ok = bool(success)
+                vector_hash = body_hash(page.body or "") if ok else None
+                model = meta.get("embedding_model")
+                failure_status = "failed"
+            if ok:
                 ok_ids.append(pid)
+                meta["page_content_hash"] = body_hash(page.body or "")
+                meta["vector_content_hash"] = vector_hash
+                meta["embedding_model"] = model
+                ready = data.setdefault(_READY_KEY, {"pages": {}})
+                ready.setdefault("pages", {})[pid] = {
+                    "page_content_hash": meta["page_content_hash"],
+                    "vector_content_hash": vector_hash,
+                    "embedding_model": model,
+                }
+                changed = True
                 if state == "intent":
                     recovered += 1
             else:
+                meta["status"] = failure_status
+                changed = True
                 failed_ids.append(pid)
         except Exception as e:
+            meta["status"] = "failed"
+            changed = True
             _logger.warning("[vector-pending] reconcile failed for %s: %s", pid, e)
             failed_ids.append(pid)
 
     if orphaned:
+        changed = True
+    if changed:
         _save(paths, data)
     clear_pending(paths, ok_ids)
     # Refresh hashes for re-indexed-but-failed pages is not done (they
@@ -228,6 +274,54 @@ def reconcile_pending(
         "pending": pending_count,
         "recovered": recovered,
         "orphaned": orphaned,
+    }
+
+
+def readiness(paths: WikiPaths, embedding_model: str | None = None) -> dict:
+    """Return a conservative, explainable Wiki/Vector readiness result."""
+    data = _load(paths)
+    entries = _pending_entries(data)
+    states = {meta.get("status", meta.get("publication_state", "pending")) for meta in entries.values()}
+    if "failed" in states:
+        reason = "failed"
+    elif "unavailable" in states:
+        reason = "unavailable"
+    elif entries:
+        reason = "pending"
+    else:
+        reason = "ready"
+
+    ready_pages = _ready_pages(data)
+    if not ready_pages and not entries:
+        reason = "unavailable"
+    if reason == "ready":
+        if not embedding_model:
+            reason = "embedding_model"
+        else:
+            for metadata in ready_pages.values():
+                if (
+                    metadata.get("embedding_model") != embedding_model
+                    or not metadata.get("page_content_hash")
+                    or metadata.get("page_content_hash") != metadata.get("vector_content_hash")
+                ):
+                    reason = "embedding_model" if metadata.get("embedding_model") != embedding_model else "hash_mismatch"
+                    break
+    if reason == "ready":
+        for page in _iter_wiki_pages(paths):
+            metadata = ready_pages.get(page.id)
+            if metadata is None:
+                reason = "page_unpublished"
+                break
+            if body_hash(page.body or "") != metadata.get("page_content_hash"):
+                reason = "hash_mismatch"
+                break
+
+    return {
+        "ready": reason == "ready",
+        "reason": reason,
+        "pending": sum(1 for meta in entries.values() if meta.get("status", meta.get("publication_state")) in {"intent", "pending"}),
+        "failed": sum(1 for meta in entries.values() if meta.get("status") == "failed"),
+        "embedding_model": embedding_model,
     }
 
 

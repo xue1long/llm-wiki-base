@@ -14,7 +14,7 @@ import argparse
 import sys
 
 from ..lib.project import resolve_project
-from ..vector.pending import list_pending, reconcile_pending
+from ..vector.pending import body_hash, list_pending, reconcile_pending
 
 
 def cmd_vector_status(args: argparse.Namespace) -> None:
@@ -56,23 +56,31 @@ def cmd_vector_reconcile(args: argparse.Namespace) -> None:
 
         content = (page.body or "").strip()
         if not content:
-            return True  # nothing to index
+            return {
+                "status": "ok",
+                "vector_content_hash": body_hash(content),
+                "embedding_model": "",
+            }  # nothing to index
         init_vector_store_for_paths(paths)
         provider = get_embedding_provider()
         if provider is None:
             print("  no embedding provider configured; cannot reconcile",
                   file=sys.stderr)
-            return False
+            return {"status": "unavailable"}
         chunks = chunk_markdown(content)
         if not chunks:
-            return True
+            return {
+                "status": "ok",
+                "vector_content_hash": body_hash(content),
+                "embedding_model": getattr(provider, "model", ""),
+            }
         results = asyncio.run(provider.embed(chunks))
         if results and hasattr(results[0], "embedding"):
             embeddings = [e.embedding for e in results]
         else:
             embeddings = list(results)
         if not embeddings or len(embeddings) != len(chunks):
-            return False
+            return {"status": "failed"}
         now = int(datetime.now(timezone.utc).timestamp() * 1000)
         lance_chunks = [
             VectorChunk(
@@ -86,7 +94,11 @@ def cmd_vector_reconcile(args: argparse.Namespace) -> None:
             for i, chunk in enumerate(chunks)
         ]
         vector_upsert_chunks(lance_chunks)
-        return True
+        return {
+            "status": "ok",
+            "vector_content_hash": body_hash(content),
+            "embedding_model": str(getattr(provider, "model", "") or getattr(provider, "_model_name", "")),
+        }
 
     result = reconcile_pending(paths, _embed_and_upsert)
     print(f"Reconciled {result['attempted']} pending entr(ies): "

@@ -18,8 +18,16 @@ def test_search_returns_results(monkeypatch, tmp_path):
         "src.services.search.resolve_project",
         lambda project_id, by_id_only=True: _fake_resolve(project_dir),
     )
+    monkeypatch.setattr(
+        search_service,
+        "vector_readiness",
+        lambda paths, embedding_model=None: {"ready": True, "reason": "ready"},
+    )
+    monkeypatch.setattr(search_service, "_filter_actionable", lambda paths, results: results)
+    modes = []
 
-    async def fake_hybrid_search(query, top_k=10, paths=None):
+    async def fake_hybrid_search(query, top_k=10, paths=None, mode="hybrid"):
+        modes.append(mode)
         return [
             {"path": "wiki/a.md", "title": "A", "content": "abc", "score": 0.9, "source": "hybrid"},
         ]
@@ -32,6 +40,43 @@ def test_search_returns_results(monkeypatch, tmp_path):
     assert result["query"] == "my query"
     assert len(result["results"]) == 1
     assert result["results"][0]["path"] == "wiki/a.md"
+    assert modes == ["hybrid"]
+
+
+def test_search_blocks_semantic_until_ready_but_allows_keyword(monkeypatch, tmp_path):
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id": "u", "name": "p", "created_at": 1000, "schema_version": "v2.0"}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        search_service,
+        "resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+    monkeypatch.setattr(
+        search_service,
+        "vector_readiness",
+        lambda paths, embedding_model=None: {"ready": False, "reason": "pending"},
+    )
+    modes = []
+
+    async def fake_hybrid_search(query, top_k=10, paths=None, mode="hybrid"):
+        modes.append(mode)
+        return [{"path": "wiki/a.md", "title": "A", "content": "abc", "score": 1.0, "source": mode}]
+
+    monkeypatch.setattr(search_service, "hybrid_search", fake_hybrid_search)
+
+    blocked = asyncio.run(search_service.search("u", "query", mode="hybrid"))
+    keyword = asyncio.run(search_service.search("u", "query", mode="keyword"))
+
+    assert blocked["results"] == []
+    assert blocked["ready"] is False
+    assert blocked["diagnostics"]["reason"] == "pending"
+    assert keyword["results"][0]["source"] == "keyword"
+    assert modes == ["keyword"]
 
 
 def test_search_empty_results(monkeypatch, tmp_path):

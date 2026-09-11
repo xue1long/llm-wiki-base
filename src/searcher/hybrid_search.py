@@ -95,6 +95,7 @@ def rrf_fusion(
 
 async def hybrid_search(
     query: str, top_k: int = 10, paths: "WikiPaths | None" = None,
+    mode: str = "hybrid",
 ) -> list[SearchResult]:
     """混合检索: 语义 + 关键词
 
@@ -120,43 +121,46 @@ async def hybrid_search(
         raise ValueError(f"top_k must be >= 1, got {top_k}")
     if top_k > MAX_TOP_K:
         raise ValueError(f"top_k must be <= {MAX_TOP_K}, got {top_k}")
+    if mode not in {"hybrid", "keyword", "vector"}:
+        raise ValueError(f"unsupported search mode: {mode}")
 
     # 1. 语义检索 (需要 embedding 服务)
     semantic_results: list[SearchResult] = []
-    try:
-        provider = get_embedding_provider()
-    except RuntimeError:
-        provider = None
-    if provider is None:
-        logger.warning("hybrid_search: no embedding provider configured; keyword-only")
-    else:
+    if mode in {"hybrid", "vector"}:
         try:
-            embedding_result = await provider.embed([query])
-            # Normalise: accept either list[list[float]] or list[EmbeddingResponse].
-            first = embedding_result[0]
-            query_embedding = first.embedding if hasattr(first, "embedding") else first
-            vector_results: list["ChunkSearchResult"] = vector_search_chunks(query_embedding, top_k, paths)
+            provider = get_embedding_provider()
+        except RuntimeError:
+            provider = None
+        if provider is None:
+            logger.warning("hybrid_search: no embedding provider configured")
+        else:
+            try:
+                embedding_result = await provider.embed([query])
+                # Normalise: accept either list[list[float]] or list[EmbeddingResponse].
+                first = embedding_result[0]
+                query_embedding = first.embedding if hasattr(first, "embedding") else first
+                vector_results: list["ChunkSearchResult"] = vector_search_chunks(query_embedding, top_k, paths)
 
-            for r in vector_results:
-                # Stored vector paths are project-relative now; normalize any
-                # legacy absolute-inside-root rows so semantic + keyword sides
-                # share the SAME path key for RRF fusion.
-                semantic_results.append(SearchResult(
-                    path=normalize_source_path(r.path, paths.root) if paths is not None else r.path,
-                    title=Path(r.path).stem,
-                    content=r.content[:300],
-                    score=r.score,
-                    source="semantic",
-                ))
-        except Exception as e:
-            # Embed call failed or vector search unavailable. Fall through
-            # to keyword-only results. Log the failure mode (class + reason,
-            # truncated to 200 chars) and degrade gracefully.
-            logger.warning(
-                "hybrid_search: semantic retrieval failed (%s: %s); falling back to keyword-only",
-                type(e).__name__,
-                str(e)[:200],
-            )
+                for r in vector_results:
+                    # Stored vector paths are project-relative now; normalize any
+                    # legacy absolute-inside-root rows so semantic + keyword sides
+                    # share the SAME path key for RRF fusion.
+                    semantic_results.append(SearchResult(
+                        path=normalize_source_path(r.path, paths.root) if paths is not None else r.path,
+                        title=Path(r.path).stem,
+                        content=r.content[:300],
+                        score=r.score,
+                        source="semantic",
+                    ))
+            except Exception as e:
+                logger.warning(
+                    "hybrid_search: semantic retrieval failed (%s: %s)",
+                    type(e).__name__,
+                    str(e)[:200],
+                )
+
+    if mode == "vector":
+        return semantic_results[:top_k]
 
     # 2. 关键词检索
     keyword_results = await _keyword_search(query, top_k, paths=paths)
