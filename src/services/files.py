@@ -296,9 +296,26 @@ def book_wiki_manifest(project_id: str, version: str | None = None) -> dict:
             tutorial_paths = []
     files = manifest.get("files") or {}
     outline_volumes, outline_chapters = _book_outline_metadata(release)
+    # `preface.md` is a non-chapter editorial artifact (Task 3 of
+    # docs/superpowers/plans/2026-09-10-novel-wiki-fullbook-readability.md):
+    # the front matter written by `book retitle`, served as `preface`
+    # in the manifest response, and excluded from the clickable chapter
+    # list so it does not appear as a 4th unstyled heading.
+    _NON_CHAPTER_MARKDOWN = {"index.md", "glossary.md", "sources-index.md", "preface.md"}
+    preface = None
+    if "preface.md" in files:
+        preface_path = release / "preface.md"
+        if preface_path.is_file():
+            text = preface_path.read_text(encoding="utf-8")
+            preface = {
+                "path": "preface.md",
+                "kind": "preface",
+                "word_count": len(text),
+                "size": preface_path.stat().st_size,
+            }
     chapters = []
     for name in sorted(files):
-        if not name.endswith(".md") or name in {"index.md", "glossary.md", "sources-index.md"}:
+        if not name.endswith(".md") or name in _NON_CHAPTER_MARKDOWN:
             continue
         path = release / name
         if not path.is_file():
@@ -345,6 +362,7 @@ def book_wiki_manifest(project_id: str, version: str | None = None) -> dict:
         "release_manifest_hash": manifest.get("release_manifest_hash"),
         "tutorial_paths": tutorial_paths,
         "acceptance": acceptance,
+        "preface": preface,
         "volumes": [
             {**volume, "chapter_count": sum(1 for chapter in chapters if chapter["volume_id"] == volume["id"])}
             for volume in outline_volumes

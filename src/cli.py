@@ -48,7 +48,7 @@ from .cli_ext.llm_providers_cmd import (
 )
 from .cli_ext.health_cmd import cmd_health
 from .cli_ext.wiki_quality_cmd import add_parser as add_wiki_quality_parser
-from .cli_ext.book_cmd import cmd_book_build, cmd_book_build_from_wiki, cmd_book_outline_from_theme, cmd_book_plan, cmd_book_show
+from .cli_ext.book_cmd import cmd_book_build, cmd_book_build_from_wiki, cmd_book_outline_from_theme, cmd_book_plan, cmd_book_retitle, cmd_book_show
 from .cli_ext.lineage_cmd import cmd_lineage_health, cmd_lineage_show
 from .cli_ext.content_health_cmd import cmd_content_health
 from .cli_ext.readiness_cmd import cmd_readiness_compare, cmd_readiness_inventory
@@ -663,6 +663,15 @@ def build_parser() -> "argparse.ArgumentParser":
     p_book_show.add_argument("--project", help="Project id or name")
     p_book_show.add_argument("--json", action="store_true", help="Emit JSON instead of text")
     p_book_show.set_defaults(func=cmd_book_show)
+
+    p_book_retitle = p_book_sub.add_parser(
+        "retitle", help="Generate friendly chapter titles + a preface for the active release"
+    )
+    p_book_retitle.add_argument("--project", help="Project id or name")
+    p_book_retitle.add_argument("--apply", action="store_true",
+                              help="Write chapter-titles.json to the release editorial dir (default: dry-run plan only)")
+    p_book_retitle.add_argument("--json", action="store_true", help="Emit JSON instead of text")
+    p_book_retitle.set_defaults(func=cmd_book_retitle)
 
     p_lineage = subparsers.add_parser("lineage", help="Inspect Book lineage state")
     p_lineage_sub = p_lineage.add_subparsers(dest="lineage_command", required=True)

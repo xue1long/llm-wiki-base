@@ -533,3 +533,73 @@ def test_book_wiki_manifest_404s_when_release_missing(monkeypatch, tmp_path):
     )
     with pytest.raises(files_service.BookWikiUnavailableError):
         files_service.book_wiki_manifest("u")
+
+
+def test_book_wiki_manifest_exposes_preface_field(monkeypatch, tmp_path):
+    """Task 3 integration pin: a release that ships a `preface.md`
+    must surface it as a top-level `preface` field on the manifest,
+    excluded from the clickable `chapters` list. This is the only
+    way to keep the WebUI from rendering the preface as a 4th
+    unstyled bucket heading.
+    """
+    from src.services import files as files_service
+    project_dir = tmp_path / "kb"
+    # Reuse the colon-chapter release builder; append a preface on top.
+    _build_release_with_colon_chapter_ids(project_dir)
+    book_dir = project_dir / "book-wiki"
+    release = book_dir / ".releases" / "v1"
+    preface_text = (
+        "# 总序\n\n"
+        "本教程分 8 大主题，从人物塑造到平台规则，"
+        "建议按目录顺序阅读，每章约 25-35 分钟。"
+    )
+    (release / "preface.md").write_text(preface_text, encoding="utf-8")
+    # Add the preface to the manifest's files dict AND refresh the
+    # manifest hash on CURRENT.json; otherwise the integrity
+    # check rejects the release as stale.
+    manifest_path = release / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["files"]["preface.md"] = hashlib.sha256(
+        (release / "preface.md").read_bytes()).hexdigest()
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    (book_dir / "CURRENT.json").write_text(json.dumps({
+        "version": "v1",
+        "manifest_sha256": hashlib.sha256(
+            manifest_path.read_bytes()).hexdigest(),
+    }), encoding="utf-8")
+    monkeypatch.setattr(
+        "src.services.files.resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+
+    manifest = files_service.book_wiki_manifest("u")
+    assert manifest["preface"] is not None
+    assert manifest["preface"]["path"] == "preface.md"
+    assert manifest["preface"]["kind"] == "preface"
+    assert manifest["preface"]["word_count"] == len(preface_text)
+    # And preface must NOT appear in the chapter list.
+    chapter_paths = {ch["path"] for ch in manifest["chapters"]}
+    assert "preface.md" not in chapter_paths
+    # Existing exemptions (index/glossary/sources-index) still work.
+    # _build_release_with_colon_chapter_ids doesn't ship those, but the
+    # code path for them is the same: the field stays None.
+    # Field shape sanity:
+    assert set(manifest["preface"].keys()) == {"path", "kind", "word_count", "size"}
+
+
+def test_book_wiki_manifest_preface_is_none_when_missing(monkeypatch, tmp_path):
+    """When the release has no `preface.md`, the field is None and
+    the chapters list is unaffected (back-compat with releases
+    produced before Task 3)."""
+    from src.services import files as files_service
+    project_dir = tmp_path / "kb"
+    _build_release_with_colon_chapter_ids(project_dir)
+    monkeypatch.setattr(
+        "src.services.files.resolve_project",
+        lambda project_id, by_id_only=True: _fake_resolve(project_dir),
+    )
+
+    manifest = files_service.book_wiki_manifest("u")
+    assert manifest["preface"] is None
+    # Three real chapters still listed.
+    assert len(manifest["chapters"]) == 3

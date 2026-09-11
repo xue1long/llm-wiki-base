@@ -372,7 +372,170 @@ async def generate_chapter_body(
     return _failed_body(draft, "llm_failed", prompt_hash, "E_LLM_RESPONSE_INVALID")
 
 
+# ──────────────────────────────────────────────────────────────────
+# Task 3 (plan 2026-09-10-novel-wiki-fullbook-readability):
+# one-shot LLM call that produces a `chapter_id -> friendly_title`
+# map for every chapter in a release. Pure editorial layer; never
+# rewrites body text. When no provider is reachable, the function
+# degrades to deterministic per-page-title heuristics so the
+# pipeline stays testable offline.
+# ──────────────────────────────────────────────────────────────────
+
+import re as _re
+
+_TITLE_MAX_CHARS = 14
+_TITLE_DROP = _re.compile(r"[\s\*_`>#\[\]\(\)\-+=]+")
+
+
+@dataclass(frozen=True)
+class ChapterTitleResult:
+    """Outcome of `generate_chapter_titles`.
+
+    `titles` is the chapter_id -> friendly_title map. `truncated`
+    counts entries whose original LLM output exceeded 14 chars and
+    were cut. `renamed` counts collisions resolved with the "-2"
+    suffix. `failed` counts chapters whose LLM response was missing
+    or unusable and that fell back to the deterministic heuristic.
+    """
+    titles: dict[str, str]
+    truncated: int = 0
+    renamed: int = 0
+    failed: int = 0
+
+
+def _sanitize_title(raw):
+    """Strip markdown noise, collapse whitespace, cut to <=14 chars.
+
+    Returns "" if the input is unusable (None, not a string, all
+    markdown symbols). The caller falls back to a per-page heuristic.
+    """
+    if not isinstance(raw, str):
+        return ""
+    text = _TITLE_DROP.sub("", raw).strip()
+    if not text:
+        return ""
+    return text[:_TITLE_MAX_CHARS]
+
+
+def _disambiguate(titles):
+    """Append "-2"/"-3"/... suffix to collisions within the same
+    volume so every chapter_id maps to a distinct title. Returns the
+    number of renames applied.
+    """
+    from collections import defaultdict
+    renames = 0
+    by_volume = defaultdict(list)
+    for chapter_id, title in titles.items():
+        volume_id = chapter_id.split(":", 1)[0] if ":" in chapter_id else chapter_id
+        by_volume[volume_id].append((chapter_id, title))
+    for _volume_id, entries in by_volume.items():
+        seen = {}
+        for chapter_id, title in entries:
+            candidate = title
+            suffix = 2
+            while candidate in seen:
+                candidate = f"{title[:_TITLE_MAX_CHARS - len(str(suffix)) - 1]}-{suffix}"
+                suffix += 1
+                renames += 1
+            seen[candidate] = None
+            titles[chapter_id] = candidate
+    return renames
+
+
+def _fallback_title(chapter_meta):
+    """Deterministic per-chapter title when the LLM is unreachable.
+
+    Prefers the chapter's own `title` (from outline metadata) and
+    falls back to the first page's title. Always fits in <=14 chars.
+    """
+    for key in ("title", "first_page_title"):
+        candidate = _sanitize_title(chapter_meta.get(key))
+        if candidate:
+            return candidate
+    chapter_id = str(chapter_meta.get("chapter_id", ""))
+    return f"聚合章{chapter_id.split(':')[-1]}"[:_TITLE_MAX_CHARS]
+
+
+async def generate_chapter_titles(
+    chapters_metadata,
+    provider,
+    *,
+    token_budget: int = 4000,
+    retries: int = 1,
+):
+    """Ask the LLM for one friendly title per chapter.
+
+    `chapters_metadata` is an iterable of dicts with at least the
+    keys `chapter_id`, `title` (current outline title), and
+    `first_page_title` (title of the first page the chapter covers).
+
+    When `provider` is None or its `.complete()` raises, the
+    function falls back to deterministic per-chapter titles and
+    reports the failure count in `ChapterTitleResult.failed`. This
+    keeps the pipeline testable without network access.
+    """
+    chapters = list(chapters_metadata)
+    titles: dict[str, str] = {}
+    truncated = 0
+    failed = 0
+
+    prompt_payload = {
+        "task": (
+            "Return JSON object mapping chapter_id to a 6-14 char "
+            "Chinese friendly title that captures this chapter's "
+            "writing topic. Do not use markdown, brackets, or "
+            "punctuation. Keep titles short and specific."
+        ),
+        "chapters": [
+            {
+                "chapter_id": ch.get("chapter_id"),
+                "current_title": ch.get("title"),
+                "first_page_title": ch.get("first_page_title"),
+            }
+            for ch in chapters
+        ],
+    }
+    raw_payload = None
+    if provider is not None:
+        for attempt in range(retries + 1):
+            try:
+                response = await provider.complete(
+                    [{"role": "user", "content": json.dumps(prompt_payload, ensure_ascii=False)}],
+                    response_format={"type": "json_object"},
+                )
+                content = getattr(response, "content", "")
+                if not content:
+                    raise ValueError("empty_response")
+                parsed = json.loads(content)
+                if not isinstance(parsed, dict):
+                    raise ValueError("response_not_object")
+                raw_payload = parsed
+                break
+            except Exception:
+                if attempt < retries:
+                    continue
+
+    for ch in chapters:
+        chapter_id = str(ch.get("chapter_id"))
+        if raw_payload is not None:
+            candidate_raw = raw_payload.get(chapter_id)
+            candidate = _sanitize_title(candidate_raw)
+            if not candidate:
+                failed += 1
+                candidate = _fallback_title(ch)
+            elif len(_TITLE_DROP.sub("", str(candidate_raw))) > _TITLE_MAX_CHARS:
+                truncated += 1
+        else:
+            failed += 1
+            candidate = _fallback_title(ch)
+        titles[chapter_id] = candidate
+
+    renamed = _disambiguate(titles)
+    return ChapterTitleResult(titles=titles, truncated=truncated, renamed=renamed, failed=failed)
+
+
 __all__ = [
     "GeneratedChapter", "GeneratedSection", "PolishedChapter",
-    "generate_chapter_body", "polish_chapter",
+    "ChapterTitleResult",
+    "generate_chapter_body", "generate_chapter_titles", "polish_chapter",
 ]

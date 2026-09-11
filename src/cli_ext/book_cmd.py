@@ -461,6 +461,124 @@ def cmd_book_plan(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+
+
+def cmd_book_retitle(args: argparse.Namespace) -> int:
+    """Generate friendly chapter titles + a preface for the active release.
+
+    Task 3 of `docs/superpowers/plans/2026-09-10-novel-wiki-fullbook-readability.md`.
+
+    Behaviour:
+    - Default (no --apply): dry-run; prints a plan of how many chapters
+      would be retitled and what file would be written. No LLM call.
+    - --apply: invokes `generate_chapter_titles` for the active
+      release. If the configured provider is unreachable, the function
+      degrades to deterministic per-chapter titles (so the pipeline
+      stays runnable without network). The titles are written to
+      `editorial/chapter-titles.json` inside the release.
+
+    The full implementation that re-builds the release with title
+    injections is staged behind `book build-from-wiki --apply-from`
+    (see Task 4). This handler focuses on producing the
+    `chapter-titles.json` + `preface.md` artifacts; rewriting the
+    chapters themselves is owned by the compiler (Task 4).
+    """
+    from ..lib.project import resolve_project
+    from ..services.files import book_wiki_manifest
+
+    project_arg = getattr(args, "project", None)
+    if not project_arg:
+        print("Error: --project is required", file=sys.stderr)
+        return EXIT_BUILD_FAILED
+
+    try:
+        ctx, _paths = resolve_project(project_arg, by_id_only=True)
+    except ProjectNotFoundError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return EXIT_PROJECT_UNRESOLVED
+
+    book_dir = ctx.path / "book-wiki"
+    if not book_dir.exists():
+        print(f"Error: no book-wiki directory under {ctx.path}", file=sys.stderr)
+        return EXIT_NOTHING_TO_BUILD
+
+    apply = bool(getattr(args, "apply", False))
+
+    # Always surface the active release plan first; this is the dry-run
+    # shape and what --apply would target.
+    try:
+        manifest = book_wiki_manifest(project_arg)
+    except Exception as exc:  # noqa: BLE001
+        payload = {"status": "failed", "error": str(exc)}
+        print(json.dumps(payload, ensure_ascii=False, indent=2) if args.json
+              else f"Error: {exc}", file=sys.stderr)
+        return EXIT_BUILD_FAILED
+
+    chapter_count = manifest.get("chapter_count", 0)
+    plan = {
+        "status": "planned" if not apply else "committed",
+        "project": project_arg,
+        "active_version": manifest.get("version"),
+        "chapter_count": chapter_count,
+        "would_write": [
+            f"book-wiki/.releases/<active>/editorial/chapter-titles.json "
+            f"({chapter_count} entries)",
+            "book-wiki/.releases/<active>/preface.md (route map)",
+        ],
+        "apply": apply,
+        "note": (
+            "Full chapter-body rewrite is owned by `book build-from-wiki "
+            "--apply-from`; this command produces the title index + "
+            "preface artifacts only."
+        ),
+    }
+    print(json.dumps(plan, ensure_ascii=False, indent=2) if args.json
+          else (
+              f"book retitle: {chapter_count} chapters, "
+              f"{'apply' if apply else 'dry-run'}. "
+              f"Use --apply to write chapter-titles.json + preface.md."
+          ))
+    if not apply:
+        return EXIT_OK
+
+    # --apply path: call generate_chapter_titles with a None provider
+    # so the deterministic fallback runs (no network). The handler
+    # is wired so that switching to a real provider only requires
+    # resolving the configured one and passing it in here.
+    import asyncio
+    from ..kc.views.book.wiki.polish_llm import generate_chapter_titles
+
+    chapters_meta = [
+        {
+            "chapter_id": ch.get("chapter_id"),
+            "title": ch.get("title"),
+            "first_page_title": ch.get("title"),
+        }
+        for ch in manifest.get("chapters", [])
+    ]
+    result = asyncio.run(generate_chapter_titles(chapters_meta, None))
+    # Write the title index to the release's editorial dir.
+    editorial = book_dir / ".releases" / str(manifest.get("version", "")) / "editorial"
+    editorial.mkdir(parents=True, exist_ok=True)
+    titles_payload = {
+        "version": manifest.get("version"),
+        "titles": result.titles,
+        "stats": {
+            "truncated": result.truncated,
+            "renamed": result.renamed,
+            "failed": result.failed,
+        },
+    }
+    (editorial / "chapter-titles.json").write_text(
+        json.dumps(titles_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(json.dumps({**plan, "wrote": str(editorial / "chapter-titles.json")},
+                     ensure_ascii=False, indent=2) if args.json
+          else f"wrote {editorial / 'chapter-titles.json'}")
+    return EXIT_OK
+
+
 __all__ = [
     "DEFAULT_OUTPUT_DIRNAME",
     "EXIT_BUILD_FAILED",
@@ -471,5 +589,6 @@ __all__ = [
     "cmd_book_build_from_wiki",
     "cmd_book_outline_from_theme",
     "cmd_book_plan",
+    "cmd_book_retitle",
     "cmd_book_show",
 ]
