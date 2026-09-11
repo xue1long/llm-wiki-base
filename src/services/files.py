@@ -307,6 +307,27 @@ def book_wiki_manifest(project_id: str, version: str | None = None) -> dict:
         preface_path = release / "preface.md"
         if preface_path.is_file():
             text = preface_path.read_text(encoding="utf-8")
+
+    # Load friendly chapter titles injected by scripts/title_book_chapters.py
+    # (Task 3 of docs/superpowers/plans/2026-09-10-novel-wiki-fullbook-readability).
+    # When chapter-titles.json is present, its chapter_id -> title map
+    # overrides the outline-supplied title.
+    title_overrides: dict[str, str] = {}
+    if "chapter-titles.json" in files:
+        titles_path = release / "chapter-titles.json"
+        if titles_path.is_file():
+            try:
+                payload = json.loads(titles_path.read_text(encoding="utf-8"))
+                if isinstance(payload, dict):
+                    title_overrides = payload.get("titles", {}) or {}
+                if not isinstance(title_overrides, dict):
+                    title_overrides = {}
+            except (OSError, ValueError, json.JSONDecodeError):
+                title_overrides = {}
+    if "preface.md" in files:
+        preface_path = release / "preface.md"
+        if preface_path.is_file():
+            text = preface_path.read_text(encoding="utf-8")
             preface = {
                 "path": "preface.md",
                 "kind": "preface",
@@ -328,7 +349,12 @@ def book_wiki_manifest(project_id: str, version: str | None = None) -> dict:
             "path": name,
             "chapter_id": chapter_id,
             "outline_id": outline_id,
-            "title": chapter_meta.get("title") or chapter_id.replace("__", " / "),
+            "title": (
+                title_overrides.get(chapter_id)
+                or title_overrides.get(outline_id)
+                or chapter_meta.get("title")
+                or chapter_id.replace("__", " / ")
+            ),
             "volume_id": chapter_meta.get("volume_id"),
             "volume_title": chapter_meta.get("volume_title"),
             "order": len(chapters) + 1,
