@@ -7,13 +7,9 @@ response for the HTTP layer.
 The service passes the requested mode to the underlying searcher and blocks
 semantic writing search when the project's Wiki/Vector state is not ready.
 
-Audit I3: the service now resolves ``WikiPaths`` for the project and
-threads it through ``get_table(project_paths)`` so multi-project search
-does not cross-pollute vectors. ``hybrid_search`` doesn't yet accept
-project paths; the search service resolves the table explicitly so the
-vector component is project-scoped even though the keyword index is
-still global. This is the minimum surface change that closes the I3
-finding without breaking legacy callers.
+The service resolves ``WikiPaths`` for the project and passes both the paths
+and requested mode to the searcher, so readiness and vector retrieval remain
+project-scoped.
 """
 from __future__ import annotations
 
@@ -40,7 +36,7 @@ async def search(
     Returns a dict ready for the HTTP route:
         {
             "query": str,
-            "mode": str,           # passed-through; not used by hybrid_search
+            "mode": str,           # passed through to the underlying searcher
             "topK": int,           # echoed for the client
             "tokenHits": 0,        # reserved (not populated by current impl)
             "vectorHits": 0,       # reserved (not populated by current impl)
