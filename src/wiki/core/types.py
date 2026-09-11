@@ -200,11 +200,11 @@ class WikiPage:
     _ko_extra: dict = field(default_factory=dict, repr=False)
 
     def to_frontmatter_dict(self) -> dict:
-        """Serialize the page to a V5 strict-whitelist frontmatter dict.
+        """Serialize the page to the current V6 frontmatter dict.
 
-        V5 schema (per docs/architecture/novel-wiki-fields-template-2026-08-31.md,
-        bumped from V4 4.0.0 → V5 5.0.0 in commit g-docs-bump):
-            id, title, type, relations, tags, sources, created_at, updated_at
+        V6 schema extends the V4/V5 base keys with migration fields already
+        used by the current runtime. V5 pages remain readable through
+        defaults in ``from_dict``.
 
         V5 change: ``created_at`` / ``updated_at`` are emitted as ISO 8601
         strings (rendered via ``_to_iso_str``). PyYAML's default
@@ -213,12 +213,8 @@ class WikiPage:
         Legacy ms int / quoted ISO pages are still readable via
         ``_coerce_ts_ms`` in ``from_dict``.
 
-        All other fields (grade/processing_depth/heat/workflow_state/
-        decision_record/evidence_refs/valid_from/valid_to/_ko_extra/...) are
-        kept on the in-memory dataclass for backward compatibility with code
-        that constructs WikiPage objects directly, but are NOT written to
-        disk. The 8 V5 keys are the only contract between WikiPage and the
-        on-disk frontmatter.
+        Heat and other operational fields remain in memory; V6 migration
+        fields are written so migrated source meaning is not silently lost.
         """
         return {
             "id": self.id,
@@ -229,6 +225,16 @@ class WikiPage:
             "updated_at": _to_iso_dt(self.updated_at),
             "relations": [r.to_dict() for r in self.relations],
             "tags": list(self.tags),
+            "processing_depth": self.processing_depth,
+            "source_grade": self.source_grade or self.grade,
+            "platform": self.platform,
+            "category": self.category,
+            "taxonomy_sub": self.taxonomy_sub,
+            "use_context": self.use_context,
+            "workflow_state": self.workflow_state,
+            "capture_type": self.capture_type,
+            "v2_origin": self.v2_origin,
+            "_ko_extra": dict(self._ko_extra),
         }
 
     @classmethod
@@ -313,14 +319,9 @@ class WikiPage:
         return page
 
 
-# V4 has no workflow_state / processing_depth fields — they were removed
-# from the frontmatter schema in 2026-08-31. The in-memory dataclass still
-# keeps them for backward compatibility with code that constructs WikiPage
-# objects directly, but they are never written to disk. See ADR-002.
-
-# These two constants are kept for the legacy lint path — pages written by
-# pre-V4 pipelines still carry these fields in their frontmatter. The lint
-# uses these to flag invalid legacy values. New writes never include them.
+# These constants are kept for validation and legacy lint paths. V4/V5 pages
+# may omit the V6 migration fields; current writes include them. The page
+# reader supplies defaults when those fields are absent.
 VALID_WORKFLOW_STATES = frozenset({"draft", "ready", "verified", "outdated"})
 VALID_PROCESSING_DEPTHS = frozenset({"concept", "memory", "operation"})
 

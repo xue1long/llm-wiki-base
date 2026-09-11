@@ -1,6 +1,8 @@
-# novel-wiki 字段模板（V4 · 8 键 · 2026-08-31）
+# novel-wiki 字段模板（V4 历史参考 · 2026-08-31）
 
-> **本文档仅描述 `knowledge/novel-wiki/` 项目的字段终态。**
+> **当前运行时说明（2026-09-11）**：本文保留 V4 的历史精简方案，不再是当前写盘合同。当前 `WikiPage` 按 V6 写入基础 8 键加 10 个迁移字段；V4/V5 存量页仍按基础 8 键兼容读取。请以 [`docs/guides/wiki-spec.md`](../../guides/wiki-spec.md) 和 `scripts/validate_novel_wiki_frontmatter.py` 为当前合同。
+
+> **本文档仅描述 `knowledge/novel-wiki/` 项目的 V4 历史字段终态。**
 > **不构成 ruflo-kb 通用 `WikiPage` 模型的字段冻结**——通用模型见
 > [docs/guides/wiki-spec.md](../../guides/wiki-spec.md)。
 >
@@ -18,7 +20,7 @@
 >
 > 配套脚本：
 > - `scripts/backfill_novel_wiki_slugs.py`（已废止——V4 不存 slug）
-> - `scripts/validate_novel_wiki_frontmatter.py`（V4 校验脚本，待重写）
+> - `scripts/validate_novel_wiki_frontmatter.py`（兼容 V4/V5 存量页和 V6 当前页）
 >
 > 设计决策追溯：[ADR-002](./ADR-002-wiki-fields-long-term-evolution.md)（accepted）
 

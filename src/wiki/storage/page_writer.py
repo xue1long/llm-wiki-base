@@ -1,14 +1,12 @@
-"""Write + read wiki pages as markdown with V4 YAML frontmatter.
+"""Write + read wiki pages as markdown with V6 YAML frontmatter.
 
-V4 schema (per ADR-002, novel-wiki-fields-template-2026-08-31.md):
-    8 keys only — id, title, type, relations, tags, sources,
-                   created_at, updated_at
+V6 schema keeps the V4/V5 base keys and writes the migration fields already
+used by the current runtime: processing_depth, source_grade, platform,
+category, taxonomy_sub, use_context, workflow_state, capture_type, v2_origin
+and _ko_extra.
 
-The on-disk contract between WikiPage and the frontmatter is the 8 V4 keys.
-All other fields (grade/processing_depth/heat/workflow_state/_ko_extra/
-decision_record/evidence_refs/valid_from/valid_to/custom_type/category/
-taxonomy_sub/...) live on the in-memory WikiPage dataclass for code that
-needs them, but are NOT written to disk and NOT validated on read.
+V4/V5 pages remain readable; V6 writes preserve migration metadata while
+operational-only fields continue to stay in memory.
 """
 from pathlib import Path, PureWindowsPath
 
@@ -48,7 +46,7 @@ def _validate_slug(slug: str) -> None:
 
 
 def page_path_for(paths: WikiPaths, type_: PageType, slug: str) -> Path:
-    """Return canonical path for (type, slug) using V4 type system.
+    """Return canonical path for (type, slug) using the four base types.
 
     V4 has only source/entity/concept/synthesis — no claim/decision/
     procedure/event and no custom_type routing. Stubs use
@@ -56,7 +54,7 @@ def page_path_for(paths: WikiPaths, type_: PageType, slug: str) -> Path:
     """
     if type_ not in _TYPE_TO_DIR:
         raise InvalidInputError(
-            f"V4: type {type_!r} not in {sorted(_TYPE_TO_DIR.keys())}; "
+            f"type {type_!r} not in {sorted(_TYPE_TO_DIR.keys())}; "
             "use page_path_for_stub for stubs"
         )
     _validate_slug(slug)
@@ -110,7 +108,7 @@ def write_page(paths: WikiPaths, page: WikiPage,
                expected_content_hash: str | None = None) -> None:
     """Write page to disk via safe_write (respects AtomicContext).
 
-    V4 contract: only the 8 V4 keys are written to frontmatter. The
+    V6 contract: the current V6 whitelist is written to frontmatter. The
     ``slug`` is NOT injected — V4 derives it from the file path at read
     time. No custom_type / schema_registry / taxonomy_registry checks —
     V4 has none.
@@ -120,8 +118,7 @@ def write_page(paths: WikiPaths, page: WikiPage,
     a mismatch raises :class:`WriteConflictError` instead of silently
     overwriting a manual edit / concurrent write (plan Task 0.3).
     """
-    # V4: stub pages go to _stubs/ (preserves P7 stub-detection semantics
-    # without requiring processing_depth to be serialized).
+    # Stub pages go to _stubs/ while processing_depth remains in V6 metadata.
     if getattr(page, "processing_depth", "") == "stub":
         path = page_path_for_stub(paths, page.id)
     else:
@@ -151,8 +148,8 @@ def write_page(paths: WikiPaths, page: WikiPage,
     page.body = materialize_relations(
         rewrite_wikilinks(page.body, target_slugs), page.relations, target_slugs,
     )
-    # V4: WikiPage.to_frontmatter_dict() returns the strict 8-key whitelist.
-    # We do NOT inject `slug` — V4 derives it from the file path at read time.
+    # V6: WikiPage.to_frontmatter_dict() returns the current whitelist. We do
+    # NOT inject `slug` — it is derived from the file path at read time.
     fm_text = yaml.dump(
         page.to_frontmatter_dict(),
         allow_unicode=True,
@@ -166,10 +163,8 @@ def write_page(paths: WikiPaths, page: WikiPage,
 def read_page(path: Path) -> WikiPage:
     """Parse markdown file → WikiPage. Raises PageNotFoundError if missing.
 
-    V4 read: tolerates legacy fields in the frontmatter (grade/_ko_extra/...)
-    so that pages written by older pipeline versions remain accessible.
-    Legacy fields populate the in-memory WikiPage dataclass attributes but
-    are never re-written to disk by ``write_page``.
+    V4/V5 read: legacy eight-key pages remain accessible. Missing V6 fields
+    receive dataclass defaults; current writes emit the V6 contract.
     """
     if not path.exists():
         raise PageNotFoundError(f"Page not found: {path}")

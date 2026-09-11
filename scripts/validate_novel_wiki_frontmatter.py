@@ -1,11 +1,7 @@
-"""Validation tool (V4 schema): check novel-wiki WikiPage frontmatter against
-the strict 8-key template in
-`docs/architecture/novel-wiki-fields-template-2026-08-31.md`.
+"""Validate novel-wiki frontmatter against the current V6 contract.
 
-V4 schema (8 keys, strict whitelist):
-    id, title, type, relations, tags, sources, created_at, updated_at
-
-Any other top-level key triggers P0 (FAIL).
+The validator accepts both the legacy V4/V5 eight-key pages already present in+the corpus and the current V6 eighteen-key pages emitted by ``WikiPage``.
+Unknown top-level keys still trigger P0 (FAIL).
 
 The script is read-only by default. Use --strict to fail on any P0.
 
@@ -24,13 +20,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# V4 Schema (8 keys, strict)
+# V4/V5 legacy and V6 current schemas
 # ---------------------------------------------------------------------------
 REQUIRED_FIELDS = frozenset({
     "id", "title", "type", "relations", "tags", "sources",
     "created_at", "updated_at",
 })
-ALLOWED_FIELDS = REQUIRED_FIELDS  # V4: NO extra fields allowed
+V6_FIELDS = REQUIRED_FIELDS | frozenset({
+    "processing_depth", "source_grade", "platform", "category",
+    "taxonomy_sub", "use_context", "workflow_state", "capture_type",
+    "v2_origin", "_ko_extra",
+})
+ALLOWED_FIELDS = V6_FIELDS
 ALLOWED_TYPES = frozenset({"source", "entity", "concept", "synthesis"})
 
 TYPE_DIRS = {"concepts", "sources", "entities", "synthesis", "_stubs"}
@@ -149,12 +150,13 @@ def validate_page(md_path: Path, wiki_root: Path) -> PageReport:
             message=f"type '{ptype}' not in {sorted(ALLOWED_TYPES)}"
         ))
 
-    # P0: strict whitelist — any unknown field fails
+    # P0: strict whitelist — legacy eight-key and current V6 fields are valid
     for k in fields:
         if k not in ALLOWED_FIELDS:
             report.findings.append(Finding(
                 path=str(rel), severity="P0", code="V4020",
-                message=f"unknown field '{k}' — V4 strict whitelist: {sorted(ALLOWED_FIELDS)}"
+                message=f"unknown field '{k}' — allowed V4/V5 legacy or V6 fields: "
+                        f"{sorted(ALLOWED_FIELDS)}"
             ))
             report.unknown_fields.append(k)
 
@@ -191,8 +193,8 @@ def main() -> int:
     for f in findings_total:
         by_severity.setdefault(f.severity, []).append(f)
 
-    print(f"[validate-v4] scanned={scanned} wiki_root={wiki_root}")
-    print(f"[validate-v4] P0={len(by_severity['P0'])}")
+    print(f"[validate-v4/v6] scanned={scanned} wiki_root={wiki_root}")
+    print(f"[validate-v4/v6] P0={len(by_severity['P0'])}")
     print()
     print("=== P0 findings (top 20 by code) ===")
     by_code: Counter = Counter()
@@ -209,7 +211,7 @@ def main() -> int:
 
     if unknown_counter:
         print()
-        print("=== Unknown fields histogram (fields to be removed during V4 migration) ===")
+        print("=== Unknown fields histogram (fields outside V4/V5/V6 contract) ===")
         for fname, n in unknown_counter.most_common():
             print(f"  {fname:<20} {n:>5} pages")
 
