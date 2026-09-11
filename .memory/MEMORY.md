@@ -2,6 +2,7 @@
 
 - [2026-09-10 novel-wiki Book 4 项收益全部落地](feedback-novel-wiki-book-readability-shipped-2026-09-10.md) — A 目录分桶 / B 章名 / C preface / D 写作技法 77→7 主题章 均已 WebUI 实测 PASS；含 3 条落地路径、8 个坑（中文码点陷阱、write_text 换行符、outline sha 同步、--apply 默认 pilot 覆盖 baseline）
 - [2026-09-11 novel-wiki 写作知识库整改方案 v3](feedback-novel-wiki-remediation-v3-2026-09-11.md) — 按 Ponytail 必须整改项将方案从 656 行压缩为 218 行，保留 6 个必要任务，延后完整治理、synthesis/Book 联动和多级 rollout
+- [2026-09-11 novel-wiki Task 5 canary 与恢复](feedback-novel-wiki-task5-2026-09-11.md) — 3 个真实 raw canary 通过；写入失败可见、raw 不变、续跑恢复；修复 LanceDB 删除返回值和相对 root lineage reservation；全库 pending=1206，限写作索引受控放行
 
 - [2026-09-10 novel-wiki Book 可读性整改 rollout 执行](feedback-novel-wiki-book-rollout-2026-09-10.md) — 实践中发现 3 个脚本 bug + 1 个 rollout guide 缺漏 (默认 scope=pilot 覆盖了 179-chapter baseline); 修复 + 回滚 baseline + Task 0 (53 个真名卷) 全部生效；Task 3/4 部分生效，full_knowledge rebuild 待行
 - [2026-09-10 novel-wiki Book 可读性整改 (4 Task + rollout)](feedback-novel-wiki-book-readability-2026-09-10.md) — 发现 outline `: ` vs `_ ` key lookup 漏判 (Task 0 关键 bugfix,179/179 填上 volume_id) + 8 大真名章节重组 + 12 测试 + 351 行 rollout 文档;操作员可跑 LLM apply 完成
