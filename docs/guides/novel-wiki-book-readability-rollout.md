@@ -21,14 +21,14 @@ rules:
 
 | 项 | 当前值 | 操作员必须做的 |
 |---|---|---|
-| `MINIMAX_API_KEY` (或 `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`) | **未配置** | 配置 LLM provider key |
-| `RUFLO_LLM_PROVIDER` | `minimax` | 与 key 匹配 |
+| `MINIMAX_API_KEY` | **已配置** (在 repo 根 `.env` 中) | 如要换 provider, 改 `.env` + `python -m src.cli llm-providers add ...` 可选 |
+| `RUFLO_LLM_PROVIDER` | `minimax` | 无 `.env` 中 `RUFLO_LLM_PROVIDER` 一致 |
 | `knowledge/novel-wiki/.llm-wiki/policy.json` 中 `budget_cap` | `450` | **提到 800** |
 | LLM 调用预算（Task 3 + 4 合计） | 估算 377 次 | 真实可能 400-600；800 cap 兼容 |
 | 当前 active release | `f728939909c44bdf9d7efb6e26760c9d` | 保持现状作为 baseline |
 | 服务端 server | 未启动 | `python -m src.cli serve --host 127.0.0.1` |
 
-如果 LLM provider key 仍未配置，方案 Task 3 的 `generate_chapter_titles` 会自动回退到 `provider=None` 路径（用 outline 现有 title 当 friendly title），pipeline 不会崩，但章名质量不会提升。本指南**假设操作员愿意配置 LLM key**。
+如果 `.env` 中 key 未填或填错，方案 Task 3 的 `generate_chapter_titles` 会自动回退到 `provider=None` 路径（用 outline 现有 title 当 friendly title），pipeline 不会崩，但章名质量不会提升。`.env` 被 `.gitignore` 忽略，不会被提交；手动调整后需重新运行 CLI 才生效。
 
 ---
 
@@ -37,15 +37,22 @@ rules:
 ### Step 1：环境准备（5 分钟）
 
 ```bash
-# 1.1 配置 LLM provider（已配置 minimax 作为 default，只需补 key）
-# Linux/Mac：
-export MINIMAX_API_KEY="<your-key>"
-# Windows PowerShell：
-$env:MINIMAX_API_KEY = "<your-key>"
+# 1.1 验证 .env 被 CLI 自动加载（src/cli.py:89-96 会 load_dotenv repo 根 .env）
+python -c "
+import os
+from dotenv import load_dotenv
+from pathlib import Path
+load_dotenv(Path('.env').resolve(), override=False)
+load_dotenv(Path.cwd() / '.env', override=False)
+print('provider:', os.environ.get('RUFLO_LLM_PROVIDER'))
+print('key length:', len(os.environ.get('MINIMAX_API_KEY', '')))
+print('base_url:', os.environ.get('MINIMAX_BASE_URL'))
+print('model:', os.environ.get('MINIMAX_CHAT_MODEL'))
+"
+# 期望输出：provider: minimax / key length: 125 / base_url: https://api.minimaxi.com/v1 / model: MiniMax-M3
 
-# 1.2 验证 provider 可解析
-python -m src.cli llm-providers list
-# 应列出 minimax（来自 ~/.config/ruflo-kb/llm-providers.json 的 default slot）
+# 1.2 如果要换 provider（如 openai/anthropic/deepseek），改 .env 中的 RUFLO_LLM_PROVIDER
+# 并确保对应的 _API_KEY / _BASE_URL / _CHAT_MODEL 填好
 
 # 1.3 提 budget_cap 到 800
 # 编辑 knowledge/novel-wiki/.llm-wiki/policy.json：
