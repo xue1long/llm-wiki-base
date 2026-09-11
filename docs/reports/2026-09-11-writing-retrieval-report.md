@@ -22,6 +22,17 @@
 - 迁移 dry-run 计划 15 页，apply 成功 15 页。
 - raw 文件 1364 个；迁移前后聚合 SHA256 均为 `086BEE78BC671E6984ACDC447E26097B6B77E95ED3B57E5294AEDD4AB7E3B6A1`。
 - 严格 Frontmatter 检查结果为 `P0=0`。
+
+## 实际运行结果
+
+| 运行 | commit | corpus hash | 状态 | 正例 Top-5 | 负例 abstain |
+|---|---|---|---|---:|---:|
+| `hybrid` 默认写作检索 | 见 `2026-09-11-writing-retrieval-run.json` | `dddfc134e9a65f6aa5968a7f8678c231bb743a382c43fe5508d7367e99068f3a` | blocked: pending=1221 | 0/15 | 5/5* |
+| `keyword` 显式诊断回退 | 见 `2026-09-11-writing-keyword-run.json` | 同上 | complete | 0/15 | 5/5 |
+
+`*` 默认检索因 ready 闸门阻断，5/5 是保护性空结果，不能计入质量验收。keyword 运行使用完整自然语言问题，而当前关键词实现要求正文出现连续查询串，因此结果不能替代语义检索验收。
+
+作者任务执行记录见 `2026-09-11-writing-author-task-runs.yaml`。4 个任务均在 ready 闸门前停止，未伪造查询次数、耗时或采用结论。
 | 结果记录 | commit、corpus hash、mode、来源、采用原因 | 无对应运行记录 | 未满足 |
 
 ## 已排除的替代数据
@@ -32,7 +43,7 @@
 
 ## 闸门结论
 
-Task 4 已从“缺少输入”推进到“待运行”阶段。当前仍没有 Top-5 命中率、负例拒答率或作者任务成功率，这些数字必须由固定 corpus 和 commit 下的真实运行产生。
+Task 4 已完成案例、标签和运行器准备，并完成一次真实运行；结果为默认写作检索被 `pending=1221` 阻断，未通过业务验收。keyword 诊断回退也未命中 15 个完整自然语言问题，说明它不能替代语义检索。
 
 Task 5 仍不得执行；否则会把“案例已准备”误包装成“写作价值已验证”。
 
@@ -40,6 +51,6 @@ Task 5 仍不得执行；否则会把“案例已准备”误包装成“写作�
 
 继续运行前还需完成以下最小动作：
 
-1. 等待 Wiki/Vector 达到 ready；当前 pending 仍未完成，semantic/hybrid 不能作为有效结果。
-2. 在相同 corpus 下分别运行整改前后检索，并记录 commit、hash、mode、Top-5 和 provenance。
+1. 完成 Vector 发布并使 `ready=true`、`pending=0`、`failed=0`、模型和 hash 一致。
+2. 在相同 corpus 下重跑整改前后检索，并记录 commit、hash、mode、Top-5 和 provenance。
 3. 实际完成 3–5 个任务，补充查询次数、耗时、采用/拒绝结果和原因。

@@ -1,0 +1,24 @@
+schema_version: 1
+status: blocked_before_author_execution
+reason: "整改后的默认写作检索因 Wiki/Vector pending=1221 未达到 ready，不能把未检索状态记录成作者任务成功。"
+tasks:
+  - task_id: A-001
+    query_count: 0
+    elapsed_seconds: 0
+    accepted: false
+    reason: "ready 闸门未通过，未开始作者查询。"
+  - task_id: A-002
+    query_count: 0
+    elapsed_seconds: 0
+    accepted: false
+    reason: "ready 闸门未通过，未开始作者查询。"
+  - task_id: A-003
+    query_count: 0
+    elapsed_seconds: 0
+    accepted: false
+    reason: "ready 闸门未通过，未开始作者查询。"
+  - task_id: A-004
+    query_count: 0
+    elapsed_seconds: 0
+    accepted: false
+    reason: "ready 闸门未通过，未开始作者查询。"
