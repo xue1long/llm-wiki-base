@@ -14,6 +14,14 @@
 | 负例 | 5 个应拒答或 abstain 问题 | 同上 | 已补齐，待确认 |
 | 标注 | expected actionable page、证据来源、是否 abstain | 同上 | 已补齐，待确认 |
 | 作者任务 | 3–5 次真实作者任务 | `docs/evaluation/writing_author_tasks.yaml` | 4 个任务定义已补齐，待运行 |
+
+## 已完成的人工确认与迁移
+
+- 用户确认了 15 个正例页面，并批准批量授予 `用途/可执行`。
+- 审核记录写入现有 `.index/reviews_resolved.json`，reviewer 为 `user-confirmed`。
+- 迁移 dry-run 计划 15 页，apply 成功 15 页。
+- raw 文件 1364 个；迁移前后聚合 SHA256 均为 `086BEE78BC671E6984ACDC447E26097B6B77E95ED3B57E5294AEDD4AB7E3B6A1`。
+- 严格 Frontmatter 检查结果为 `P0=0`。
 | 结果记录 | commit、corpus hash、mode、来源、采用原因 | 无对应运行记录 | 未满足 |
 
 ## 已排除的替代数据
@@ -32,6 +40,6 @@ Task 5 仍不得执行；否则会把“案例已准备”误包装成“写作�
 
 继续运行前还需完成以下最小动作：
 
-1. 由作者/审核人确认案例中的 expected page 和 abstain 标注。
+1. 等待 Wiki/Vector 达到 ready；当前 pending 仍未完成，semantic/hybrid 不能作为有效结果。
 2. 在相同 corpus 下分别运行整改前后检索，并记录 commit、hash、mode、Top-5 和 provenance。
 3. 实际完成 3–5 个任务，补充查询次数、耗时、采用/拒绝结果和原因。

@@ -69,8 +69,13 @@ def test_usage_migration_is_dry_run_by_default_and_keeps_raw_unchanged(tmp_path)
     assert "用途/可执行" not in page.tags
     assert "raw source" == raw.read_text(encoding="utf-8")
 
+    before_apply = (paths.wiki_concepts / "reviewed-page.md").read_text(encoding="utf-8")
     result = migrate_page_usage(tmp_path, apply=True)
     assert result["applied"] == [page.id]
+    migrated = (paths.wiki_concepts / "reviewed-page.md").read_text(encoding="utf-8")
+    assert migrated == before_apply.replace(
+        "tags: []", "tags:\n- 用途/可执行", 1
+    )
     assert "用途/可执行" in read_page(
         paths.wiki_concepts / "reviewed-page.md"
     ).tags

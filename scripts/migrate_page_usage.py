@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -15,11 +16,33 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.lib.atomic_ctx import AtomicContext  # noqa: E402
-from src.lib.write_hooks import flush_pending_writes  # noqa: E402
+from src.lib.write_hooks import flush_pending_writes, safe_write  # noqa: E402
 from src.wiki.core.paths import WikiPaths  # noqa: E402
 from src.wiki.features.review import has_approved_usage_review  # noqa: E402
 from src.wiki.features.tag_namespace import ACTIONABLE_TAG  # noqa: E402
-from src.wiki.storage.page_writer import read_page, write_page  # noqa: E402
+from src.wiki.storage.page_writer import read_page  # noqa: E402
+
+
+_EMPTY_TAGS = re.compile(r"(?m)^tags:\s*\[\]\s*$")
+
+
+def _add_actionable_tag_preserving_page(path: Path) -> None:
+    """Add the approved tag without normalizing unrelated frontmatter.
+
+    The migration is intentionally limited to the current empty-list layout.
+    An unfamiliar tags layout fails closed instead of rewriting the page.
+    """
+    text = path.read_text(encoding="utf-8")
+    end = text.find("\n---", 4)
+    if end < 0:
+        raise ValueError(f"invalid frontmatter boundary: {path}")
+    frontmatter = text[:end]
+    if ACTIONABLE_TAG in frontmatter:
+        return
+    if len(_EMPTY_TAGS.findall(frontmatter)) != 1:
+        raise ValueError(f"unsupported tags layout; refusing rewrite: {path}")
+    updated = _EMPTY_TAGS.sub(f"tags:\n- {ACTIONABLE_TAG}", frontmatter, count=1)
+    safe_write(path, updated + text[end:])
 
 
 def _candidate_pages(paths: WikiPaths) -> list[tuple[Path, object]]:
@@ -42,9 +65,8 @@ def migrate_page_usage(project_root: Path, *, apply: bool = False) -> dict[str, 
         return {"planned": planned, "applied": []}
 
     with AtomicContext(flush_callback=flush_pending_writes):
-        for _, page in candidates:
-            page.tags = [*page.tags, ACTIONABLE_TAG]
-            write_page(paths, page)
+        for path, _ in candidates:
+            _add_actionable_tag_preserving_page(path)
     return {"planned": planned, "applied": planned}
 
 
