@@ -1,5 +1,6 @@
 # Project Memory Index
 
+- [2026-09-10 novel-wiki Book 可读性整改 rollout 执行](feedback-novel-wiki-book-rollout-2026-09-10.md) — 实践中发现 3 个脚本 bug + 1 个 rollout guide 缺漏 (默认 scope=pilot 覆盖了 179-chapter baseline); 修复 + 回滚 baseline + Task 0 (53 个真名卷) 全部生效；Task 3/4 部分生效，full_knowledge rebuild 待行
 - [2026-09-10 novel-wiki Book 可读性整改 (4 Task + rollout)](feedback-novel-wiki-book-readability-2026-09-10.md) — 发现 outline `: ` vs `_ ` key lookup 漏判 (Task 0 关键 bugfix,179/179 填上 volume_id) + 8 大真名章节重组 + 12 测试 + 351 行 rollout 文档;操作员可跑 LLM apply 完成
 - [2026-09-10 novel-wiki 全量 Book 发布](feedback-novel-wiki-fullbook-published-2026-09-10.md) — `full_knowledge` 范围 179 章节全部 complete，release `f728939909c44bdf9d7efb6e26760c9d` 已切换 CURRENT，6 次 resume 累计约 132 次 MiniMax 调用
 - [2026-09-10 状态汇总层接入 WebUI](feedback-status-summary-webui-2026-09-10.md) — 新增只读项目状态 API、状态页项目选择和 RAW/KC/Wiki/Book 生命周期面板；16 个相关测试通过
