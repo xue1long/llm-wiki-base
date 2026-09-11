@@ -1,175 +1,458 @@
 {
   "mode": "hybrid",
-  "commit": "9a6536f14500b7fdcf051508756e8c768b0e8841",
-  "status": "blocked",
-  "reason": "pending",
+  "commit": "48e168072f85c434636f12ddb6f2e510ed61b0c0",
+  "status": "complete",
+  "reason": "ready",
   "corpus_hash": "dddfc134e9a65f6aa5968a7f8678c231bb743a382c43fe5508d7367e99068f3a",
   "vector": {
-    "ready": false,
-    "reason": "pending",
-    "pending": 1221,
+    "ready": true,
+    "reason": "ready",
+    "pending": 0,
     "failed": 0,
-    "embedding_model": null
+    "embedding_model": "thenlper/gte-small-zh",
+    "scope": "actionable"
   },
   "cases": 20,
-  "positive_expected_hits": 0,
+  "positive_expected_hits": 15,
   "negative_abstains": 5,
   "results": [
     {
       "id": "W-001",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/凤头-开篇原则.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/凤头-开篇原则.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/凤头-开篇原则.md"
+      ],
       "expected_path": "wiki/concepts/三千字首章冲突法则.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-002",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/第一人称小说-写作忌讳.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/对话式悬念.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/第一人称小说-写作忌讳.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/对话式悬念.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/第一人称小说-写作忌讳.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/对话式悬念.md"
+      ],
       "expected_path": "wiki/concepts/期待感.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-003",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/三支线展开法则.md",
+        "wiki/concepts/大纲的重要性.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/三支线展开法则.md",
+        "wiki/concepts/大纲的重要性.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/三支线展开法则.md",
+        "wiki/concepts/大纲的重要性.md"
+      ],
       "expected_path": "wiki/concepts/三支线展开法则.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-004",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/过程性打斗.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/过程性打斗.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/过程性打斗.md"
+      ],
       "expected_path": "wiki/concepts/三万字首高潮法则.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-005",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/三万字首高潮法则.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/三万字首高潮法则.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/三万字首高潮法则.md"
+      ],
       "expected_path": "wiki/concepts/大纲的重要性.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-006",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/第三人称写作.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/第三人称写作.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/第三人称写作.md"
+      ],
       "expected_path": "wiki/concepts/表格式大纲.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-007",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/三千字首章冲突法则.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/三千字首章冲突法则.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/三千字首章冲突法则.md"
+      ],
       "expected_path": "wiki/concepts/爽点设计-具体方法与案例.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-008",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/打斗场景气氛渲染.md",
+        "wiki/concepts/过程性打斗.md",
+        "wiki/concepts/对话式悬念.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/打斗场景气氛渲染.md",
+        "wiki/concepts/过程性打斗.md",
+        "wiki/concepts/对话式悬念.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/打斗场景气氛渲染.md",
+        "wiki/concepts/过程性打斗.md",
+        "wiki/concepts/对话式悬念.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md"
+      ],
       "expected_path": "wiki/concepts/打斗场景气氛渲染.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-009",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/过程性打斗.md",
+        "wiki/concepts/打斗场景气氛渲染.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/三支线展开法则.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/过程性打斗.md",
+        "wiki/concepts/打斗场景气氛渲染.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/三支线展开法则.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/过程性打斗.md",
+        "wiki/concepts/打斗场景气氛渲染.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/三支线展开法则.md"
+      ],
       "expected_path": "wiki/concepts/过程性打斗.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-010",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/第三人称写作.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/凤头-开篇原则.md",
+        "wiki/concepts/三支线展开法则.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/第三人称写作.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/凤头-开篇原则.md",
+        "wiki/concepts/三支线展开法则.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/第三人称写作.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/凤头-开篇原则.md",
+        "wiki/concepts/三支线展开法则.md"
+      ],
       "expected_path": "wiki/concepts/第三人称写作.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-011",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/第一人称小说-写作忌讳.md",
+        "wiki/concepts/第三人称写作.md",
+        "wiki/concepts/对话式悬念.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/365-角色问题.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/第一人称小说-写作忌讳.md",
+        "wiki/concepts/第三人称写作.md",
+        "wiki/concepts/对话式悬念.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/365-角色问题.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/第一人称小说-写作忌讳.md",
+        "wiki/concepts/第三人称写作.md",
+        "wiki/concepts/对话式悬念.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/365-角色问题.md"
+      ],
       "expected_path": "wiki/concepts/第一人称小说-写作忌讳.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-012",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/365-角色问题.md",
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/三支线展开法则.md",
+        "wiki/concepts/第三人称写作.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/365-角色问题.md",
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/三支线展开法则.md",
+        "wiki/concepts/第三人称写作.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/365-角色问题.md",
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/三支线展开法则.md",
+        "wiki/concepts/第三人称写作.md"
+      ],
       "expected_path": "wiki/concepts/365-角色问题.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-013",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/凤头-开篇原则.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/三支线展开法则.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/凤头-开篇原则.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/三支线展开法则.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/凤头-开篇原则.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/三支线展开法则.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md"
+      ],
       "expected_path": "wiki/concepts/凤头-开篇原则.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-014",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/对话式悬念.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/365-角色问题.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/对话式悬念.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/365-角色问题.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/对话式悬念.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/365-角色问题.md"
+      ],
       "expected_path": "wiki/concepts/对话式悬念.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "W-015",
       "kind": "positive",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
-      "writing_top5": [],
+      "direct_top5": [
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/凤头-开篇原则.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/凤头-开篇原则.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md"
+      ],
+      "writing_top5": [
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/凤头-开篇原则.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md"
+      ],
       "expected_path": "wiki/concepts/节奏感.md",
-      "expected_hit": false,
-      "abstained": true
+      "expected_hit": true,
+      "abstained": false
     },
     {
       "id": "N-001",
       "kind": "negative",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
+      "direct_top5": [
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/三支线展开法则.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/三支线展开法则.md"
+      ],
       "writing_top5": [],
       "expected_path": null,
       "expected_hit": false,
@@ -178,8 +461,20 @@
     {
       "id": "N-002",
       "kind": "negative",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
+      "direct_top5": [
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/凤头-开篇原则.md",
+        "wiki/concepts/第一人称小说-写作忌讳.md",
+        "wiki/concepts/第三人称写作.md",
+        "wiki/concepts/节奏感.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/凤头-开篇原则.md",
+        "wiki/concepts/第一人称小说-写作忌讳.md",
+        "wiki/concepts/第三人称写作.md",
+        "wiki/concepts/节奏感.md"
+      ],
       "writing_top5": [],
       "expected_path": null,
       "expected_hit": false,
@@ -188,8 +483,20 @@
     {
       "id": "N-003",
       "kind": "negative",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
+      "direct_top5": [
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/第三人称写作.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/三万字首高潮法则.md",
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/第三人称写作.md"
+      ],
       "writing_top5": [],
       "expected_path": null,
       "expected_hit": false,
@@ -198,8 +505,20 @@
     {
       "id": "N-004",
       "kind": "negative",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
+      "direct_top5": [
+        "wiki/concepts/第一人称小说-写作忌讳.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/第三人称写作.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/第一人称小说-写作忌讳.md",
+        "wiki/concepts/大纲的重要性.md",
+        "wiki/concepts/三千字首章冲突法则.md",
+        "wiki/concepts/表格式大纲.md",
+        "wiki/concepts/第三人称写作.md"
+      ],
       "writing_top5": [],
       "expected_path": null,
       "expected_hit": false,
@@ -208,8 +527,20 @@
     {
       "id": "N-005",
       "kind": "negative",
-      "direct_top5": [],
-      "direct_actionable_top5": [],
+      "direct_top5": [
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/过程性打斗.md",
+        "wiki/concepts/打斗场景气氛渲染.md"
+      ],
+      "direct_actionable_top5": [
+        "wiki/concepts/期待感.md",
+        "wiki/concepts/节奏感.md",
+        "wiki/concepts/爽点设计-具体方法与案例.md",
+        "wiki/concepts/过程性打斗.md",
+        "wiki/concepts/打斗场景气氛渲染.md"
+      ],
       "writing_top5": [],
       "expected_path": null,
       "expected_hit": false,

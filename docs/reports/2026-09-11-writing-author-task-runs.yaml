@@ -1,24 +1,62 @@
-schema_version: 1
-status: blocked_before_author_execution
-reason: "整改后的默认写作检索因 Wiki/Vector pending=1221 未达到 ready，不能把未检索状态记录成作者任务成功。"
+status: complete
+reason: writing-actionable-scope
+vector:
+  ready: true
+  reason: ready
+  pending: 0
+  failed: 0
+  embedding_model: thenlper/gte-small-zh
+  scope: actionable
 tasks:
-  - task_id: A-001
-    query_count: 0
-    elapsed_seconds: 0
-    accepted: false
-    reason: "ready 闸门未通过，未开始作者查询。"
-  - task_id: A-002
-    query_count: 0
-    elapsed_seconds: 0
-    accepted: false
-    reason: "ready 闸门未通过，未开始作者查询。"
-  - task_id: A-003
-    query_count: 0
-    elapsed_seconds: 0
-    accepted: false
-    reason: "ready 闸门未通过，未开始作者查询。"
-  - task_id: A-004
-    query_count: 0
-    elapsed_seconds: 0
-    accepted: false
-    reason: "ready 闸门未通过，未开始作者查询。"
+- task_id: A-001
+  query_count: 1
+  elapsed_seconds: 38.095
+  accepted: true
+  adopted_result:
+    case_id: W-001
+    query: 我准备写一篇快节奏玄幻，怎样在首章约三千字内让第一个冲突发生？
+    page_path: wiki/concepts/三千字首章冲突法则.md
+    page_id: 三千字首章冲突法则
+    provenance:
+    - raw/sources/02_进阶技巧/方法论浅谈买断与分成内附买断开头套路.md
+    reason: Top-5 命中人工批准的可执行页面，满足任务可采用条件。
+  reason: 已找到可采用答案并记录 provenance。
+- task_id: A-002
+  query_count: 1
+  elapsed_seconds: 1.61
+  accepted: true
+  adopted_result:
+    case_id: W-003
+    query: 第一章的矛盾解决以后，怎样接出新的成长目标，避免剧情停滞？
+    page_path: wiki/concepts/三支线展开法则.md
+    page_id: 三支线展开法则
+    provenance:
+    - raw/sources/02_进阶技巧/方法论浅谈买断与分成内附买断开头套路.md
+    reason: Top-5 命中人工批准的可执行页面，满足任务可采用条件。
+  reason: 已找到可采用答案并记录 provenance。
+- task_id: A-003
+  query_count: 1
+  elapsed_seconds: 1.194
+  accepted: true
+  adopted_result:
+    case_id: W-008
+    query: 一场重要擂台战开始前，怎样用天气、观众和旁观者反应把战斗气氛先烘托起来？
+    page_path: wiki/concepts/打斗场景气氛渲染.md
+    page_id: 打斗场景气氛渲染
+    provenance:
+    - raw/sources/02_进阶技巧/方法论打斗七公式重要.md
+    reason: Top-5 命中人工批准的可执行页面，满足任务可采用条件。
+  reason: 已找到可采用答案并记录 provenance。
+- task_id: A-004
+  query_count: 1
+  elapsed_seconds: 1.224
+  accepted: true
+  adopted_result:
+    case_id: W-010
+    query: 我要写多势力、多主线的长篇网文，第三人称视角能解决哪些叙事问题？
+    page_path: wiki/concepts/第三人称写作.md
+    page_id: 第三人称写作
+    provenance:
+    - raw/sources/01_新手入门/入门教程4人称.md
+    reason: Top-5 命中人工批准的可执行页面，满足任务可采用条件。
+  reason: 已找到可采用答案并记录 provenance。

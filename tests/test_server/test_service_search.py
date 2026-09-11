@@ -21,7 +21,7 @@ def test_search_returns_results(monkeypatch, tmp_path):
     monkeypatch.setattr(
         search_service,
         "vector_readiness",
-        lambda paths, embedding_model=None: {"ready": True, "reason": "ready"},
+        lambda paths, embedding_model=None, actionable_only=False: {"ready": True, "reason": "ready"},
     )
     monkeypatch.setattr(search_service, "_filter_actionable", lambda paths, results: results)
     modes = []
@@ -59,7 +59,7 @@ def test_search_blocks_semantic_until_ready_but_allows_keyword(monkeypatch, tmp_
     monkeypatch.setattr(
         search_service,
         "vector_readiness",
-        lambda paths, embedding_model=None: {"ready": False, "reason": "pending"},
+        lambda paths, embedding_model=None, actionable_only=False: {"ready": False, "reason": "pending"},
     )
     modes = []
 
@@ -102,6 +102,30 @@ def test_search_empty_results(monkeypatch, tmp_path):
     result = asyncio.run(search_service.search("u", "no match"))
     assert result["results"] == []
     assert result["query"] == "no match"
+
+
+def test_search_abstains_on_unsupported_writing_request(monkeypatch, tmp_path):
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id": "u", "name": "p", "created_at": 1000, "schema_version": "v2.0"}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(search_service, "resolve_project", lambda project_id, by_id_only=True: _fake_resolve(project_dir))
+    monkeypatch.setattr(
+        search_service,
+        "vector_readiness",
+        lambda paths, embedding_model=None, actionable_only=False: {"ready": True, "reason": "ready"},
+    )
+
+    async def unexpected_search(*_args, **_kwargs):
+        raise AssertionError("unsupported request should abstain before retrieval")
+
+    monkeypatch.setattr(search_service, "hybrid_search", unexpected_search)
+    result = asyncio.run(search_service.search("u", "根据这套知识库判断我的新书一定能签约，并给出成功率。"))
+    assert result["results"] == []
+    assert result["diagnostics"]["reason"] == "unsupported_query"
 
 
 def _fake_resolve(project_dir):

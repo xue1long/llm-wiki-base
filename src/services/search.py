@@ -14,6 +14,7 @@ project-scoped.
 from __future__ import annotations
 
 import logging
+import re
 
 from ..lib.project import resolve_project
 from ..llm.embedding_runtime import get_embedding_provider
@@ -58,7 +59,7 @@ async def search(
             model = str(getattr(provider, "model", "") or getattr(provider, "_model_name", ""))
         except RuntimeError:
             pass
-        status = vector_readiness(paths, embedding_model=model)
+        status = vector_readiness(paths, embedding_model=model, actionable_only=True)
     if mode != "keyword" and status["ready"]:
         try:
             get_vector_table(paths)
@@ -66,7 +67,10 @@ async def search(
             logger.warning("Vector table init failed for project %s", project_id, exc_info=True)
             status = {**status, "ready": False, "reason": "unavailable"}
 
-    if mode != "keyword" and not status["ready"]:
+    if mode != "keyword" and status["ready"] and _should_abstain(query):
+        results = []
+        status = {**status, "reason": "unsupported_query"}
+    elif mode != "keyword" and not status["ready"]:
         results = []
     else:
         results = await hybrid_search(query, top_k=top_k, paths=paths, mode=mode)
@@ -87,6 +91,17 @@ async def search(
         "diagnostics": status if mode != "keyword" else {"ready": True, "reason": "keyword"},
         "results": results,
     }
+
+
+_UNSUPPORTED_WRITING_QUERY = re.compile(
+    r"一定|成功率|实时|今天.*榜单|下周.*打赏|预测.*(?:读者|打赏|金额)|"
+    r"没有提供|未提供|保证.*一致|直接指出.*重写"
+)
+
+
+def _should_abstain(query: str) -> bool:
+    """Reject prediction, real-time, or missing-context writing requests."""
+    return bool(_UNSUPPORTED_WRITING_QUERY.search(query))
 
 
 def _filter_actionable(paths, results: list) -> list:

@@ -57,6 +57,8 @@ class LocalEmbeddingProvider(EmbeddingProvider):
 
         _logger.info("Loading local embedding model %s ...", self._model_name)
         self._model = SentenceTransformer(self._model_name)
+        max_seq_length = os.environ.get("RUFLO_LOCAL_EMBEDDING_MAX_SEQ_LENGTH", "256")
+        self._model.max_seq_length = int(max_seq_length)
         _logger.info(
             "Local embedding model loaded: %s (dim=%d)",
             self._model_name,
@@ -79,7 +81,12 @@ class LocalEmbeddingProvider(EmbeddingProvider):
         import asyncio
 
         # sentence_transformers.encode runs synchronously on CPU
-        vectors = await asyncio.to_thread(model.encode, texts, normalize_embeddings=True)
+        vectors = await asyncio.to_thread(
+            model.encode,
+            texts,
+            batch_size=8,
+            normalize_embeddings=True,
+        )
 
         return [
             EmbeddingResponse(embedding=vec.tolist(), model=self._model_name)

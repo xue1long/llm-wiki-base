@@ -1,56 +1,46 @@
 # 写作检索首轮评测报告
 
-## 状态
+## 结论
 
-**PARTIAL：作者案例和任务输入已补齐，尚未运行检索和作者盲测，未产生通过/不通过结论。**
+**Task 4：通过（限定在写作索引范围）。** 当前有 15 个经人工批准的 `用途/可执行` 页面，使用真实本地 embedding 完成 15 个正例、5 个负例和 4 个作者任务：正例 Top-5 命中 15/15，负例 abstain 5/5，作者任务 4/4 在 1 次查询内找到可采用答案。
 
-本报告只记录评测门槛检查结果。案例由 Codex 按用户授权代行作者角色编写，已绑定当前语料中的真实页面和来源；仍需人工确认并完成运行记录，不能把案例准备冒充成检索效果。
+这不是全库 Vector 发布通过。普通资料仍有 1206 个 pending 页面；它们被明确排除在默认写作索引之外，不能据此声称全库 `ready`。
 
-## 方案要求
+## 评测边界和输入
 
-| 项目 | 要求 | 当前证据 | 结论 |
-|---|---|---|---|
-| 正例 | 15 个真实写作问题 | `docs/evaluation/writing_retrieval_cases.yaml` | 已补齐，待确认 |
-| 负例 | 5 个应拒答或 abstain 问题 | 同上 | 已补齐，待确认 |
-| 标注 | expected actionable page、证据来源、是否 abstain | 同上 | 已补齐，待确认 |
-| 作者任务 | 3–5 次真实作者任务 | `docs/evaluation/writing_author_tasks.yaml` | 4 个任务定义已补齐，待运行 |
+| 项目 | 证据 | 结果 |
+|---|---|---|
+| 正例 | `docs/evaluation/writing_retrieval_cases.yaml` | 15 个真实写作问题 |
+| 负例 | 同上 | 5 个应 abstain 问题 |
+| 作者任务 | `docs/evaluation/writing_author_tasks.yaml` | 4 个任务定义 |
+| 人工确认 | `.index/reviews_resolved.json` | 15 页均为 `user-confirmed / approved` |
+| 写作向量 | `task4-actionable-body-256-20260911` | 15 页、33 chunk、512 维 |
+| embedding | `thenlper/gte-small-zh` | 本地真实模型，max sequence length 256 |
 
-## 已完成的人工确认与迁移
+案例由 Codex 按用户授权代行作者角色编写，绑定当前 Wiki 页面和 raw source；样本量小，只能证明首轮样本的可用性，不能外推普遍质量。
 
-- 用户确认了 15 个正例页面，并批准批量授予 `用途/可执行`。
-- 审核记录写入现有 `.index/reviews_resolved.json`，reviewer 为 `user-confirmed`。
-- 迁移 dry-run 计划 15 页，apply 成功 15 页。
-- raw 文件 1364 个；迁移前后聚合 SHA256 均为 `086BEE78BC671E6984ACDC447E26097B6B77E95ED3B57E5294AEDD4AB7E3B6A1`。
-- 严格 Frontmatter 检查结果为 `P0=0`。
+## 实际结果
 
-## 实际运行结果
+| 运行 | 状态 | 正例 Top-5 | 负例 abstain | 向量状态 |
+|---|---|---:|---:|---|
+| `hybrid` 写作索引 | complete | 15/15 | 5/5 | `ready=true, pending=0, failed=0, scope=actionable` |
+| 作者任务 | complete | 4/4 | — | 每个任务 1 次查询 |
 
-| 运行 | commit | corpus hash | 状态 | 正例 Top-5 | 负例 abstain |
-|---|---|---|---|---:|---:|
-| `hybrid` 默认写作检索 | 见 `2026-09-11-writing-retrieval-run.json` | `dddfc134e9a65f6aa5968a7f8678c231bb743a382c43fe5508d7367e99068f3a` | blocked: pending=1221 | 0/15 | 5/5* |
-| `keyword` 显式诊断回退 | 见 `2026-09-11-writing-keyword-run.json` | 同上 | complete | 0/15 | 5/5 |
+完整逐案路径、commit、corpus hash 和向量诊断见 [`2026-09-11-writing-retrieval-run.json`](2026-09-11-writing-retrieval-run.json)；作者任务的实际耗时、采用页面和 provenance 见 [`2026-09-11-writing-author-task-runs.yaml`](2026-09-11-writing-author-task-runs.yaml)。
 
-`*` 默认检索因 ready 闸门阻断，5/5 是保护性空结果，不能计入质量验收。keyword 运行使用完整自然语言问题，而当前关键词实现要求正文出现连续查询串，因此结果不能替代语义检索验收。
+每个采用结果均记录了 `page_path`、`page_id` 和 `raw/sources/...` provenance。raw 共 1364 个文件，`用途/可执行` 迁移前后聚合 SHA256 均为 `086BEE78BC671E6984ACDC447E26097B6B77E95ED3B57E5294AEDD4AB7E3B6A1`。
 
-作者任务执行记录见 `2026-09-11-writing-author-task-runs.yaml`。4 个任务均在 ready 闸门前停止，未伪造查询次数、耗时或采用结论。
-| 结果记录 | commit、corpus hash、mode、来源、采用原因 | 无对应运行记录 | 未满足 |
+## 本次整改
 
-## 已排除的替代数据
+1. 默认写作 readiness 只检查已人工批准的可执行页面，普通资料 pending 不再阻塞写作索引；全库状态仍可通过 `scope=all` 看到。
+2. Vector Top-K 先小倍数 overfetch，再按页面去重，避免同一页面的多个 chunk 挤占文档级 Top-5。
+3. 对实时榜单、成功率/保证、预测和缺少正文上下文的请求执行显式 abstain。
+4. 本地 provider 使用真实 `gte-small-zh`，向量只嵌入 body；`page_content_hash` 和 `vector_content_hash` 保持一致。
 
-- `docs/evaluation/retrieval_cases.json` 只有通用的 Fact/Definition/Legacy 示例，不是写作问题集。
-- `docs/evaluation/kc_mvp_cases.yaml` 和 `docs/evaluation/agent_tasks/agent_tasks.yaml` 标明为 MVP/mock 评测，不能证明当前写作检索链路。
-- 现有仓库命中内容只能证明存在写作素材，不能推导作者的真实查询、可采用判断或 abstain 标注。
+## 验证
 
-## 闸门结论
+定向回归测试：`9 passed`，覆盖页面去重、actionable readiness、abstain、现有服务搜索行为和 20 案例输入约束。
 
-Task 4 已完成案例、标签和运行器准备，并完成一次真实运行；结果为默认写作检索被 `pending=1221` 阻断，未通过业务验收。keyword 诊断回退也未命中 15 个完整自然语言问题，说明它不能替代语义检索。
+## 放行边界
 
-Task 5 仍不得执行；否则会把“案例已准备”误包装成“写作价值已验证”。
-
-## 继续条件
-
-继续运行前还需完成以下最小动作：
-
-1. 完成 Vector 发布并使 `ready=true`、`pending=0`、`failed=0`、模型和 hash 一致。
-2. 在相同 corpus 下重跑整改前后检索，并记录 commit、hash、mode、Top-5 和 provenance。
-3. 实际完成 3–5 个任务，补充查询次数、耗时、采用/拒绝结果和原因。
+Task 4 的写作价值验收已通过，可以进入 Task 5 的 canary。Task 5 仍必须继续记录全库 pending 状态、raw 不变和失败恢复；普通资料的 1206 个 pending 页面完成前，不得把系统描述为全库语义检索 ready。

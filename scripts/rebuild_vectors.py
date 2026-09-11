@@ -252,8 +252,9 @@ async def rebuild_vectors(
             continue
         pending_batches.append((page_id, chunks, path))
 
-    for start in range(0, len(pending_batches), 100):
-        batch = pending_batches[start : start + 100]
+    # ponytail: 20-page batches keep CPU rebuild checkpoints bounded; raise only after profiling.
+    for start in range(0, len(pending_batches), 20):
+        batch = pending_batches[start : start + 20]
         texts = [chunk for _, chunks, _ in batch for chunk in chunks]
         vectors = await _embed_with_retry(provider, texts, sleep=sleep) if texts else []
         embeddings = _embedding_values(vectors)

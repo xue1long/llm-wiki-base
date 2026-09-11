@@ -277,10 +277,25 @@ def reconcile_pending(
     }
 
 
-def readiness(paths: WikiPaths, embedding_model: str | None = None) -> dict:
+def readiness(
+    paths: WikiPaths,
+    embedding_model: str | None = None,
+    *,
+    actionable_only: bool = False,
+) -> dict:
     """Return a conservative, explainable Wiki/Vector readiness result."""
     data = _load(paths)
-    entries = _pending_entries(data)
+    scoped_pages = list(_iter_wiki_pages(paths))
+    scoped_ids = {
+        page.id for page in scoped_pages
+        if not actionable_only or "用途/可执行" in (page.tags or [])
+    }
+    if actionable_only:
+        scoped_pages = [page for page in scoped_pages if page.id in scoped_ids]
+    entries = {
+        page_id: meta for page_id, meta in _pending_entries(data).items()
+        if not actionable_only or page_id in scoped_ids
+    }
     states = {meta.get("status", meta.get("publication_state", "pending")) for meta in entries.values()}
     if "failed" in states:
         reason = "failed"
@@ -291,7 +306,10 @@ def readiness(paths: WikiPaths, embedding_model: str | None = None) -> dict:
     else:
         reason = "ready"
 
-    ready_pages = _ready_pages(data)
+    ready_pages = {
+        page_id: metadata for page_id, metadata in _ready_pages(data).items()
+        if not actionable_only or page_id in scoped_ids
+    }
     if not ready_pages and not entries:
         reason = "unavailable"
     if reason == "ready":
@@ -307,7 +325,7 @@ def readiness(paths: WikiPaths, embedding_model: str | None = None) -> dict:
                     reason = "embedding_model" if metadata.get("embedding_model") != embedding_model else "hash_mismatch"
                     break
     if reason == "ready":
-        for page in _iter_wiki_pages(paths):
+        for page in scoped_pages:
             metadata = ready_pages.get(page.id)
             if metadata is None:
                 reason = "page_unpublished"
@@ -322,6 +340,7 @@ def readiness(paths: WikiPaths, embedding_model: str | None = None) -> dict:
         "pending": sum(1 for meta in entries.values() if meta.get("status", meta.get("publication_state")) in {"intent", "pending"}),
         "failed": sum(1 for meta in entries.values() if meta.get("status") == "failed"),
         "embedding_model": embedding_model,
+        "scope": "actionable" if actionable_only else "all",
     }
 
 

@@ -26,15 +26,25 @@ def vector_search_chunks(
     current project (legacy CLI / test compatibility).
     """
     table = get_table(project_paths)
-    results = table.search(query_embedding).limit(top_k).to_list()
+    # Fetch a small surplus because several chunks can belong to one page.
+    # ponytail: fixed 5x overfetch keeps document-level recall without a second ranking pass.
+    results = table.search(query_embedding).limit(max(top_k * 5, top_k)).to_list()
 
-    return [
-        ChunkSearchResult(
-            id=r["id"],
-            task_id=r["task_id"],
-            content=r["content"],
-            path=r["path"],
-            score=1 - (r.get("_distance", 0) or 0),  # 距离转相似度
+    unique = []
+    seen_paths = set()
+    for r in results:
+        if r["path"] in seen_paths:
+            continue
+        seen_paths.add(r["path"])
+        unique.append(
+            ChunkSearchResult(
+                id=r["id"],
+                task_id=r["task_id"],
+                content=r["content"],
+                path=r["path"],
+                score=1 - (r.get("_distance", 0) or 0),  # 距离转相似度
+            )
         )
-        for r in results
-    ]
+        if len(unique) == top_k:
+            break
+    return unique

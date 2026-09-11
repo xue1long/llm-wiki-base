@@ -11,6 +11,7 @@ from pathlib import Path
 import yaml
 
 from src.searcher.hybrid_search import hybrid_search
+from src.services.search import _should_abstain
 from src.vector.pending import readiness
 from src.wiki.core.paths import WikiPaths
 from src.wiki.storage.page_writer import read_page
@@ -60,7 +61,18 @@ def _is_actionable(paths: WikiPaths, result: dict) -> bool:
 async def _run(root: Path, cases_path: Path, mode: str = "hybrid") -> dict:
     paths = WikiPaths(root)
     cases = _load_cases(cases_path)
-    status = readiness(paths) if mode in {"hybrid", "vector"} else {
+    provider = None
+    if mode in {"hybrid", "vector"}:
+        from src.llm.embedding_runtime import set_embedding_provider
+        from src.llm.local_embed import LocalEmbeddingProvider
+
+        provider = LocalEmbeddingProvider()
+        set_embedding_provider(provider)
+    status = readiness(
+        paths,
+        embedding_model=getattr(provider, "_model_name", None),
+        actionable_only=True,
+    ) if mode in {"hybrid", "vector"} else {
         "ready": True, "reason": "keyword", "pending": None,
         "failed": None, "embedding_model": None,
     }
@@ -71,6 +83,10 @@ async def _run(root: Path, cases_path: Path, mode: str = "hybrid") -> dict:
         direct = await hybrid_search(case["query"], top_k=5, paths=paths, mode=mode)
         direct_actionable = [r for r in direct if _is_actionable(paths, r)]
         writing = [] if not status["ready"] else direct_actionable
+        if status["ready"] and mode in {"hybrid", "vector"} and _should_abstain(case["query"]):
+            writing = []
+        if mode == "keyword" and status["ready"]:
+            writing = direct_actionable
         expected = case.get("expected_page_id")
         expected_path = f"wiki/concepts/{expected}.md" if expected else None
         rows.append({
