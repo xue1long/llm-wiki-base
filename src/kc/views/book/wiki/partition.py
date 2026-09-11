@@ -438,8 +438,151 @@ def build_series_assignment(
     }
 
 
+
+# ──────────────────────────────────────────────────────────────────
+# Task 4 (plan 2026-09-10-novel-wiki-fullbook-readability):
+# consolidate the 68 writing-technique-related chapters into 8 named
+# chapters (人物塑造 / 情节节奏 / 开篇签约 / 套路爽点 / 描写文笔 /
+# 题材世界观 / 心态职业 / 平台读者) without losing any page_id or
+# disturbing other chapter buckets.
+# ──────────────────────────────────────────────────────────────────
+
+import re as _re_partition
+
+# Default regroup rules: new chapter_id -> regex over (title + summary).
+# Each page is matched against rules in order; first match wins. Pages
+# that match none of the writing-technique rules fall back to the
+# passthrough bucket (so the snapshot invariant still holds).
+DEFAULT_WRITING_TECHNIQUE_REGROUP: dict[str, "_re_partition.Pattern[str]"] = {
+    "concept-写作技法-人物塑造与设定": _re_partition.compile(
+        r"人物|主角|配角|性格|女主|反派|身世"
+    ),
+    "concept-写作技法-情节与节奏": _re_partition.compile(
+        r"情节|主线|支线|冲突|转折|伏笔|节奏"
+    ),
+    "concept-写作技法-开篇与签约": _re_partition.compile(
+        r"开篇|书名|简介|上架|A签|VIP|签约"
+    ),
+    "concept-写作技法-套路与爽点": _re_partition.compile(
+        r"套路|YY|扮猪|装B|金手指|打脸|碾压"
+    ),
+    "concept-写作技法-描写与文笔": _re_partition.compile(
+        r"描写|五感|对话|动作|环境|意象|文笔"
+    ),
+    "concept-写作技法-题材与世界观": _re_partition.compile(
+        r"题材|世界观|玄幻|仙侠|都市|历史|科幻"
+    ),
+    "concept-写作技法-心态与职业": _re_partition.compile(
+        r"心态|职业|坚持|完本|全职"
+    ),
+    "concept-写作技法-平台与读者": _re_partition.compile(
+        r"平台|读者|书评|签约"
+    ),
+}
+
+
+def _writing_technique_pages(snapshot) -> set[str]:
+    """Return the page_ids currently allocated to any
+    `concept-写作技法__...` chapter, plus `synthesis-写作技法__...`
+    pages. The 8 new chapters consume exactly this set; everything
+    else passes through unchanged.
+    """
+    return {
+        p.page_id
+        for p in snapshot.pages
+        if p.primary_taxonomy == "写作技法" or p.page_id.startswith("concept-写作技法")
+    }
+
+
+def partition_writing_technique_merged(
+    snapshot,
+    *,
+    regroup_rules=None,
+    passthrough_prefixes=("fallback", "entity-", "synthesis-"),
+):
+    """Consolidate writing-technique pages into 8 named chapters.
+
+    Returns a `chapter_id -> tuple[page_id, ...]` mapping whose
+    union is exactly `sorted(snapshot.pages)`, satisfying the
+    same coverage invariant `partition_pages` enforces.
+
+    - `regroup_rules` defaults to `DEFAULT_WRITING_TECHNIQUE_REGROUP`
+      (8 named chapters). Each rule's regex matches against the
+      page title (PageRecord.title); first match wins.
+    - Pages not currently in any writing-technique chapter
+      are passed through under their existing chapter_id (derived
+      from `primary_taxonomy` + first page title segment).
+    - Pages in writing-technique chapters that match none of the
+      rules fall into the first regroup rule ("人物塑造与设定")
+      as a deterministic catch-all so no page is lost.
+
+    The caller is expected to feed this into the existing
+    `build_chapter_chunks` pipeline (with appropriate
+    `context_window`) — see `partition.build_chapter_chunks`.
+    """
+    if regroup_rules is not None and not regroup_rules:
+        # Caller asked for custom rules but gave an empty mapping.
+        # That is a programming error, not a "use defaults" signal
+        # (use None for the default path).
+        raise ValueError("regroup_rules must contain at least one entry")
+    rules = regroup_rules if regroup_rules is not None else DEFAULT_WRITING_TECHNIQUE_REGROUP
+
+    page_map = {p.page_id: p for p in snapshot.pages}
+    expected = sorted(page_map)
+
+    writing_pages = _writing_technique_pages(snapshot)
+    rule_order = list(rules.keys())
+    new_chapters: dict[str, list[str]] = {cid: [] for cid in rule_order}
+    passthrough: dict[str, list[str]] = defaultdict(list)
+    catchall = rule_order[0]
+
+    for page in snapshot.pages:
+        if page.page_id in writing_pages:
+            matched = False
+            title = page.title or ""
+            for cid, pattern in rules.items():
+                if pattern.search(title):
+                    new_chapters[cid].append(page.page_id)
+                    matched = True
+                    break
+            if not matched:
+                new_chapters[catchall].append(page.page_id)
+            continue
+
+        # Passthrough: bucket by taxonomy unless its prefix is in
+        # `passthrough_prefixes` (handled separately), otherwise use
+        # the first page_id segment + its taxonomy label as bucket.
+        taxonomy = (page.primary_taxonomy or "").strip() or "passthrough"
+        bucket = f"{page.page_type}-{taxonomy}"
+        for prefix in passthrough_prefixes:
+            if taxonomy.startswith(prefix) or bucket.startswith(prefix):
+                bucket = prefix.rstrip("-")
+                break
+        passthrough[bucket].append(page.page_id)
+
+    # Merge new chapters and passthrough into one result dict.
+    result: dict[str, list[str]] = {}
+    for cid in rule_order:
+        if new_chapters[cid]:
+            result[cid] = new_chapters[cid]
+    for bucket, ids in sorted(passthrough.items()):
+        result[bucket] = ids
+
+    # Enforce coverage invariant: union must equal snapshot.pages.
+    actual = sorted(p for ids in result.values() for p in ids)
+    if actual != expected:
+        raise ValueError(
+            "partition_writing_technique_merged does not cover the "
+            f"snapshot: missing {sorted(set(expected) - set(actual))}, "
+            f"extra {sorted(set(actual) - set(expected))}"
+        )
+
+    # Convert each bucket to a stable tuple. Sort within a bucket so
+    # the chapter composition is deterministic across runs.
+    return {cid: tuple(sorted(ids)) for cid, ids in result.items()}
 __all__ = [
     "partition_pages", "build_chapter_chunks", "ReaderProfile", "GovernanceConfig",
     "GateMetrics", "CandidateDecision", "SeriesGateResult", "evaluate_series_gate",
     "build_series_assignment",
+    "partition_writing_technique_merged", "DEFAULT_WRITING_TECHNIQUE_REGROUP",
 ]
