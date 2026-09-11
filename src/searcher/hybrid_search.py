@@ -154,9 +154,10 @@ async def hybrid_search(
                     ))
             except Exception as e:
                 logger.warning(
-                    "hybrid_search: semantic retrieval failed (%s: %s)",
+                    "hybrid_search: semantic retrieval failed (%s: %s); %s",
                     type(e).__name__,
                     str(e)[:200],
+                    "keyword fallback will run" if mode == "hybrid" else "keyword fallback disabled for vector mode",
                 )
 
     if mode == "vector":
