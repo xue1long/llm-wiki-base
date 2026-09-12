@@ -8,7 +8,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterator, Mapping
+from typing import Any, Iterable, Iterator, Mapping
 
 from ...lib.time import now_ms
 from .types import (
@@ -318,27 +318,40 @@ def load_manifest(project_root: Path) -> dict[str, dict[str, Any]]:
     return {str(key): value for key, value in raw.items() if isinstance(value, dict)}
 
 
-def save_manifest(project_root: Path, snapshot: list[WikiSnapshotEntry]) -> None:
+def save_manifest(
+    project_root: Path,
+    snapshot: list[WikiSnapshotEntry],
+    *,
+    deleted_slugs: Iterable[str] = (),
+) -> None:
     root = Path(project_root)
     with project_lock(root):
+        previous = load_manifest(root)
+        payload = {entry.slug: entry.to_dict() for entry in snapshot}
+        for slug in deleted_slugs:
+            if slug in previous and slug not in payload:
+                payload[slug] = {**previous[slug], "deleted": True}
         _write_json(
             _manifest_path(root),
-            {entry.slug: entry.to_dict() for entry in snapshot},
+            payload,
         )
 
 
 def reconcile_manifest(project_root: Path) -> ReconcilePlan:
     current = {entry.slug: entry for entry in build_wiki_snapshot(Path(project_root))}
     previous = load_manifest(Path(project_root))
+    tombstones = {slug for slug, entry in previous.items() if entry.get("deleted") is True}
     added = sorted(set(current) - set(previous))
-    deleted = sorted(set(previous) - set(current))
+    restored = sorted(set(current) & tombstones)
+    deleted = sorted((set(previous) - set(current)) - tombstones)
     updated = sorted(
         slug
         for slug in set(current) & set(previous)
+        if slug not in tombstones
         if current[slug].content_hash != previous[slug].get("content_hash")
         or current[slug].path != previous[slug].get("path")
     )
-    return ReconcilePlan(added=added, updated=updated, deleted=deleted)
+    return ReconcilePlan(added=added, updated=updated, deleted=deleted, restored=restored)
 
 
 __all__ = [

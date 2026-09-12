@@ -10,7 +10,7 @@ from src.integrations.gbrain.api import (
     save_manifest,
 )
 from src.integrations.gbrain.types import SearchConfig
-from src.integrations.gbrain.sync import run_initial_import
+from src.integrations.gbrain.sync import reconcile_and_sync, run_initial_import
 
 
 def _project(root):
@@ -140,4 +140,27 @@ def test_manifest_reconcile_reports_add_update_delete(tmp_path):
     assert plan.added == ["wiki/concepts/new"]
     assert plan.updated == ["wiki/concepts/keep"]
     assert plan.deleted == ["wiki/concepts/old"]
+    assert plan.restored == []
     assert load_manifest(tmp_path)["wiki/concepts/keep"]["path"] == "wiki/concepts/keep.md"
+
+
+def test_manifest_reconcile_tracks_delete_and_restore(tmp_path):
+    _project(tmp_path)
+    page = tmp_path / "wiki" / "concepts" / "old.md"
+    page.parent.mkdir(parents=True)
+    page.write_text("old", encoding="utf-8")
+    save_manifest(tmp_path, build_wiki_snapshot(tmp_path))
+
+    page.unlink()
+    result = reconcile_and_sync(tmp_path, lambda *args: None)
+
+    assert result.success is True
+    assert load_manifest(tmp_path)["wiki/concepts/old"]["deleted"] is True
+
+    page.write_text("restored", encoding="utf-8")
+    plan = reconcile_manifest(tmp_path)
+
+    assert plan.added == []
+    assert plan.updated == []
+    assert plan.deleted == []
+    assert plan.restored == ["wiki/concepts/old"]

@@ -155,25 +155,39 @@ def reconcile_and_sync(
     applied: list[str] = []
     failed: list[str] = []
 
-    for operation, slugs in (
-        ("upsert", [*plan.updated, *plan.added]),
-        ("delete", plan.deleted),
-    ):
-        for slug in slugs:
-            entry: WikiSnapshotEntry | None = current.get(slug)
-            content = None if entry is None else (root / entry.path).read_text(encoding="utf-8")
-            for attempt in range(max_attempts):
-                try:
-                    build_mcp_intent(operation, config.source_id, slug, content)
-                    apply_intent(operation, config.source_id, slug, content)
-                    applied.append(slug)
-                    break
-                except Exception:
-                    if attempt == max_attempts - 1:
-                        failed.append(slug)
+    def apply(operation: str, slug: str) -> bool:
+        entry: WikiSnapshotEntry | None = current.get(slug)
+        content = None if entry is None else (root / entry.path).read_text(encoding="utf-8")
+        for attempt in range(max_attempts):
+            try:
+                build_mcp_intent(operation, config.source_id, slug, content)
+                apply_intent(operation, config.source_id, slug, content)
+                return True
+            except Exception:
+                if attempt == max_attempts - 1:
+                    return False
+        return False
+
+    for slug in plan.restored:
+        if not apply("restore", slug):
+            failed.append(slug)
+    for slug in [*plan.updated, *plan.added, *plan.restored]:
+        if slug in failed:
+            continue
+        if apply("upsert", slug):
+            if slug not in applied:
+                applied.append(slug)
+        else:
+            failed.append(slug)
+    for slug in plan.deleted:
+        if apply("delete", slug):
+            if slug not in applied:
+                applied.append(slug)
+        else:
+            failed.append(slug)
     if failed:
         return SyncResult(False, applied, failed)
-    save_manifest(root, snapshot)
+    save_manifest(root, snapshot, deleted_slugs=plan.deleted)
     return SyncResult(True, applied, [])
 
 

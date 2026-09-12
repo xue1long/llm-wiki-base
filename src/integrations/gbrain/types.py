@@ -138,3 +138,4 @@ class ReconcilePlan:
     added: list[str]
     updated: list[str]
     deleted: list[str]
+    restored: list[str]
