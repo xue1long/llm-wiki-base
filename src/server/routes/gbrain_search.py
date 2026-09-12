@@ -77,6 +77,7 @@ async def rebuild(
     return result
 
 
+@router.get("/projects/{project_id}/gbrain/jobs/{job_id}")
 @router.get("/projects/{project_id}/gbrain-search/jobs/{job_id}")
 async def job(project_id: str, job_id: str):
     return _call(gbrain_service.get_search_job, project_id, job_id)

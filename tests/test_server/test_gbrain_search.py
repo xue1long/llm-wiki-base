@@ -6,6 +6,7 @@ from src.server.routes.gbrain_search import (
     ConfirmRequest,
     disable,
     enable,
+    router,
     runtime_status,
 )
 
@@ -55,3 +56,9 @@ def test_runtime_status_route_delegates(monkeypatch):
     )
 
     assert asyncio.run(runtime_status("project-1")) == {"status": "missing"}
+
+
+def test_job_route_supports_gbrain_alias():
+    paths = {route.path for route in router.routes}
+
+    assert "/api/v1/projects/{project_id}/gbrain/jobs/{job_id}" in paths
