@@ -507,12 +507,39 @@
           <button class="btn-sm" id="settingsGbrainRebuild" type="button" style="display:none;">重建索引</button>
         </div>
       </div>
+      <div class="search-settings-card">
+        <div class="search-settings-row">
+          <div>
+            <strong>必要配置</strong>
+            <div class="settings-help">仅保存能被当前适配器验证生效的配置。</div>
+          </div>
+          <button class="btn-sm" id="settingsGbrainConfigSave" type="button">保存配置</button>
+        </div>
+        <div class="search-settings-form">
+          <label>GBrain 搜索模式
+            <select id="settingsGbrainMode">
+              <option value="conservative">保守 conservative</option>
+              <option value="balanced">平衡 balanced</option>
+              <option value="tokenmax">高召回 tokenmax</option>
+            </select>
+          </label>
+          <label>项目结果上限
+            <input id="settingsGbrainLimit" type="number" min="1" max="50" step="1" />
+          </label>
+        </div>
+        <div class="search-settings-config-status" id="settingsGbrainConfigStatus">读取配置中...</div>
+        <div class="settings-help">当前未开放 token budget、keyword-only：GBrain 当前版本的配置键无法在本适配器中可靠读回验证。</div>
+      </div>
     `;
 
     const toggle = root.querySelector("#settingsGbrainToggle");
     const setup = root.querySelector("#settingsGbrainSetup");
     const rebuild = root.querySelector("#settingsGbrainRebuild");
     const statusEl = root.querySelector("#settingsGbrainStatus");
+    const modeEl = root.querySelector("#settingsGbrainMode");
+    const limitEl = root.querySelector("#settingsGbrainLimit");
+    const configSave = root.querySelector("#settingsGbrainConfigSave");
+    const configStatusEl = root.querySelector("#settingsGbrainConfigStatus");
     let poll = null;
 
     function stopPolling() {
@@ -537,18 +564,60 @@
       if (syncing) startPolling(); else stopPolling();
     }
 
+    function applyConfig(config, runtime) {
+      const desired = config?.desired || {};
+      const effective = config?.effective || {};
+      modeEl.value = desired.gbrain_mode || "balanced";
+      limitEl.value = desired.result_limit || 20;
+      const ready = runtime?.status === "ready";
+      modeEl.disabled = !ready;
+      limitEl.disabled = false;
+      configSave.disabled = !ready;
+      if (config?.error) {
+        configStatusEl.textContent = "GBrain 配置读取失败：" + config.error;
+      } else if (!ready) {
+        configStatusEl.textContent = "GBrain 未就绪：可查看项目结果上限，搜索模式需先安装并验证 GBrain。";
+      } else if (config?.applied?.gbrain_mode) {
+        configStatusEl.textContent = `已生效：${effective.gbrain_mode}；项目结果上限：${desired.result_limit}`;
+      } else {
+        configStatusEl.textContent = `待应用：${desired.gbrain_mode}；当前 GBrain：${effective.gbrain_mode || "未知"}`;
+      }
+    }
+
     async function loadStatus() {
       if (!App.state.projectId) return;
       try {
-        const [status, runtime] = await Promise.all([
+        const [status, runtime, config] = await Promise.all([
           App.api(`/api/v1/projects/${App.state.projectId}/gbrain-search`),
           App.api(`/api/v1/projects/${App.state.projectId}/gbrain`),
+          App.api(`/api/v1/projects/${App.state.projectId}/gbrain-search/config`),
         ]);
         applyStatus(status, runtime);
+        applyConfig(config, runtime);
       } catch (e) {
         statusEl.textContent = "状态读取失败：" + e.message;
       }
     }
+
+    configSave.addEventListener("click", async () => {
+      if (!window.confirm("保存后会修改 GBrain 实例级搜索模式，可能影响共享该实例的其他项目。继续吗？")) return;
+      configSave.disabled = true;
+      try {
+        await App.api(`/api/v1/projects/${App.state.projectId}/gbrain-search/config`, {
+          method: "PUT",
+          body: {
+            gbrain_mode: modeEl.value,
+            result_limit: Number(limitEl.value),
+            confirm: true,
+          },
+        });
+        await loadStatus();
+        App.toast("GBrain 搜索配置已保存", "success");
+      } catch (e) {
+        App.toast("GBrain 配置保存失败: " + e.message, "error");
+        configSave.disabled = false;
+      }
+    });
 
     toggle.addEventListener("change", async () => {
       const enabling = toggle.checked;

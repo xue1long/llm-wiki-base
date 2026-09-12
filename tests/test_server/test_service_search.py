@@ -255,6 +255,32 @@ def test_search_honors_global_local_kill_switch(monkeypatch, tmp_path):
     assert result["diagnostics"]["reason"] == "local_pending"
 
 
+def test_search_applies_project_result_limit(monkeypatch, tmp_path):
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id": "u", "name": "p"}', encoding="utf-8"
+    )
+    config = ensure_search_config(project_dir)
+    save_search_config(project_dir, replace(config, result_limit=3))
+    monkeypatch.setattr(search_service, "resolve_project", lambda *args, **kwargs: _fake_resolve(project_dir))
+    monkeypatch.setattr(search_service, "vector_readiness", lambda *args, **kwargs: {"ready": True, "reason": "ready"})
+    monkeypatch.setattr(search_service, "_filter_actionable", lambda paths, results: results)
+    calls = []
+
+    async def fake_hybrid_search(query, top_k=10, paths=None, mode="hybrid"):
+        calls.append(top_k)
+        return []
+
+    monkeypatch.setattr(search_service, "hybrid_search", fake_hybrid_search)
+
+    result = asyncio.run(search_service.search("u", "query", top_k=20, mode="keyword"))
+
+    assert result["topK"] == 3
+    assert calls == [3]
+
+
 def _fake_resolve(project_dir):
     from src.project.context import ProjectContext
     from src.wiki.core.paths import WikiPaths

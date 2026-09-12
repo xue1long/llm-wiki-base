@@ -4,10 +4,13 @@ import asyncio
 
 from src.server.routes.gbrain_search import (
     ConfirmRequest,
+    SearchConfigRequest,
     disable,
     enable,
     router,
     runtime_status,
+    search_config,
+    update_search_config,
 )
 
 
@@ -62,3 +65,29 @@ def test_job_route_supports_gbrain_alias():
     paths = {route.path for route in router.routes}
 
     assert "/api/v1/projects/{project_id}/gbrain/jobs/{job_id}" in paths
+
+
+def test_search_config_route_reads_project_settings(monkeypatch):
+    monkeypatch.setattr(
+        "src.server.routes.gbrain_search.gbrain_service.get_search_config",
+        lambda project_id: {"desired": {"result_limit": 20}},
+    )
+
+    assert asyncio.run(search_config("project-1")) == {"desired": {"result_limit": 20}}
+
+
+def test_search_config_update_requires_confirmation(monkeypatch):
+    monkeypatch.setattr(
+        "src.server.routes.gbrain_search.gbrain_service.update_search_config",
+        lambda project_id, **kwargs: kwargs,
+    )
+
+    result = asyncio.run(
+        update_search_config(
+            "project-1",
+            SearchConfigRequest(gbrain_mode="balanced", result_limit=12, confirm=True),
+        )
+    )
+
+    assert result["gbrain_mode"] == "balanced"
+    assert result["result_limit"] == 12

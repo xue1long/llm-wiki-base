@@ -143,7 +143,15 @@ Book 阅读页读取 `CURRENT.json` 指向的完整性校验 release：
 |------|------|------|----------|
 | **⚙** | 左侧栏顶部，`ruflo-kb` 右侧 | 打开设置弹窗 | — |
 | **模型** | 设置弹窗左侧导航 | 显示 LLM Provider 管理 | 复用 Provider API |
-| **搜索** | 设置弹窗左侧导航 | 显示 GBrain MCP、安装、重建和搜索后端状态 | 复用 GBrain API |
+| **搜索** | 设置弹窗左侧导航 | 显示 GBrain MCP、安装、重建、必要搜索配置和搜索后端状态 | 复用 GBrain API |
+
+搜索设置中的“必要配置”仅包含已验证闭环的项目结果上限和 GBrain 搜索模式；模式通过 GBrain 正式 CLI 设置并读回确认，结果上限由 ruflo 项目搜索链路执行。token budget、keyword-only 暂不提供编辑入口，避免写入当前 GBrain 版本无法可靠验证的配置键。
+
+| 控件 | 位置 | 功能 | 后端 API |
+|------|------|------|----------|
+| **GBrain 搜索模式** | 设置 → 搜索 → 必要配置 | 选择 conservative / balanced / tokenmax，并确认 GBrain 实际生效值 | `GET/PUT /api/v1/projects/{id}/gbrain-search/config` |
+| **项目结果上限** | 设置 → 搜索 → 必要配置 | 限制本项目本地及 GBrain 搜索最多返回的结果数（1–50） | `GET/PUT /api/v1/projects/{id}/gbrain-search/config` |
+| **保存配置** | 设置 → 搜索 → 必要配置 | 需要确认；模式变更提示 GBrain 实例级影响 | `PUT /api/v1/projects/{id}/gbrain-search/config` |
 
 ### 6.2 Provider 卡片
 

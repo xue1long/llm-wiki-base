@@ -6,6 +6,9 @@ from enum import Enum
 from typing import Any, Mapping
 
 
+GBRAIN_SEARCH_MODES = ("conservative", "balanced", "tokenmax")
+
+
 class SearchStatus(str, Enum):
     DISABLED = "disabled"
     QUEUED = "queued"
@@ -33,9 +36,18 @@ class SearchConfig:
     backend: str = "gbrain"
     consent_at: int = 0
     config_epoch: int = 1
+    gbrain_mode: str = "balanced"
+    result_limit: int = 20
 
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any]) -> "SearchConfig":
+        mode = str(raw.get("gbrain_mode", "balanced"))
+        if mode not in GBRAIN_SEARCH_MODES:
+            mode = "balanced"
+        try:
+            result_limit = int(raw.get("result_limit", 20))
+        except (TypeError, ValueError):
+            result_limit = 20
         return cls(
             schema_version=int(raw.get("schema_version", 1)),
             enabled=bool(raw.get("enabled", False)),
@@ -45,6 +57,8 @@ class SearchConfig:
             backend=str(raw.get("backend", "gbrain")),
             consent_at=int(raw.get("consent_at", 0)),
             config_epoch=int(raw.get("config_epoch", 1)),
+            gbrain_mode=mode,
+            result_limit=max(1, min(result_limit, 50)),
         )
 
     def to_dict(self) -> dict[str, Any]:

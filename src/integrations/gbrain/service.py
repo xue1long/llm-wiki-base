@@ -18,7 +18,8 @@ from .api import (
 )
 from .runtime import load_runtime_config, resolve_runtime, validate_runtime
 from .state import load_runtime_state, save_runtime_state
-from .types import SearchStatus
+from .settings import GBrainSettingsError, apply_search_mode, read_search_mode
+from .types import GBRAIN_SEARCH_MODES, SearchStatus
 
 
 _RUNTIME_STATUS_CACHE_TTL = 30.0
@@ -54,6 +55,80 @@ def get_search_status(project_id: str) -> dict:
         "last_success_at": state.last_success_at,
         "last_error_code": state.last_error_code,
     }
+
+
+def get_search_config(project_id: str) -> dict:
+    root = resolve_project_root(project_id)
+    config = ensure_search_config(root)
+    runtime = load_runtime_state(root)
+    effective_mode = None
+    error = ""
+    runtime_ready = runtime.get("status") == "ready" and runtime.get("path")
+    if runtime_ready:
+        try:
+            effective_mode = read_search_mode(runtime["path"])
+        except GBrainSettingsError as exc:
+            error = str(exc)
+    return {
+        "desired": {
+            "gbrain_mode": config.gbrain_mode,
+            "result_limit": config.result_limit,
+        },
+        "effective": {
+            "gbrain_mode": effective_mode,
+            "result_limit": config.result_limit,
+        },
+        "applied": {
+            "gbrain_mode": effective_mode == config.gbrain_mode if effective_mode else False,
+            "result_limit": True,
+        },
+        "capabilities": {
+            "gbrain_mode": bool(runtime_ready and not error),
+            "result_limit": True,
+            "token_budget": False,
+            "keyword_only": False,
+        },
+        "scope": "gbrain_instance",
+        "warnings": [
+            "GBrain 搜索模式属于 GBrain 实例级配置，可能影响共享同一脑实例的其他项目。",
+            "当前适配器未验证 token budget 与 keyword-only 配置键，不提供编辑入口。",
+        ],
+        "error": error,
+    }
+
+
+def update_search_config(
+    project_id: str,
+    *,
+    gbrain_mode: str,
+    result_limit: int,
+    confirm: bool,
+) -> dict:
+    if not confirm:
+        raise ValueError("confirmation_required")
+    if gbrain_mode not in GBRAIN_SEARCH_MODES:
+        raise ValueError("invalid_gbrain_mode")
+    if not 1 <= result_limit <= 50:
+        raise ValueError("result_limit must be between 1 and 50")
+    root = resolve_project_root(project_id)
+    config = ensure_search_config(root)
+    runtime = load_runtime_state(root)
+    runtime_path = runtime.get("path")
+    runtime_ready = runtime.get("status") == "ready" and runtime_path
+    if not runtime_ready:
+        raise ValueError("gbrain_runtime_not_ready")
+    try:
+        apply_search_mode(runtime_path, gbrain_mode)
+    except GBrainSettingsError as exc:
+        raise ValueError(str(exc)) from exc
+    config = replace(
+        config,
+        gbrain_mode=gbrain_mode,
+        result_limit=result_limit,
+        config_epoch=config.config_epoch + 1,
+    )
+    save_search_config(root, config)
+    return get_search_config(project_id)
 
 
 def get_runtime_status(project_id: str) -> dict:
@@ -142,6 +217,8 @@ __all__ = [
     "get_search_job",
     "get_search_status",
     "get_runtime_status",
+    "get_search_config",
+    "update_search_config",
     "rebuild_search",
     "resolve_project_root",
     "setup_runtime_job",

@@ -1375,6 +1375,10 @@ body {
 .search-settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .search-settings-status { margin-top: 14px; padding: 10px; border-radius: var(--radius-md); background: var(--bg-subtle); color: var(--text-secondary); font-size: 13px; }
 .search-settings-actions { display: flex; gap: 8px; margin-top: 12px; }
+.search-settings-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.search-settings-form label { display: grid; gap: 6px; color: var(--text-secondary); font-size: 12px; }
+.search-settings-form select, .search-settings-form input { min-height: 32px; padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-primary); font: inherit; }
+.search-settings-config-status { margin-top: 12px; color: var(--text-secondary); font-size: 12px; }
 
 .settings-section { margin-bottom: 28px; }
 .settings-section h3 { font-size: 14px; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
+from typing import Literal
 
 from ...integrations.gbrain import service as gbrain_service
 from ...project.context import ProjectNotFoundError
@@ -11,6 +12,12 @@ router = APIRouter(prefix="/api/v1", tags=["gbrain-search"])
 
 
 class ConfirmRequest(BaseModel):
+    confirm: bool = False
+
+
+class SearchConfigRequest(BaseModel):
+    gbrain_mode: Literal["conservative", "balanced", "tokenmax"]
+    result_limit: int
     confirm: bool = False
 
 
@@ -26,6 +33,22 @@ def _call(fn, *args, **kwargs):
 @router.get("/projects/{project_id}/gbrain-search")
 async def status(project_id: str):
     return _call(gbrain_service.get_search_status, project_id)
+
+
+@router.get("/projects/{project_id}/gbrain-search/config")
+async def search_config(project_id: str):
+    return _call(gbrain_service.get_search_config, project_id)
+
+
+@router.put("/projects/{project_id}/gbrain-search/config")
+async def update_search_config(project_id: str, body: SearchConfigRequest):
+    return _call(
+        gbrain_service.update_search_config,
+        project_id,
+        gbrain_mode=body.gbrain_mode,
+        result_limit=body.result_limit,
+        confirm=body.confirm,
+    )
 
 
 @router.get("/projects/{project_id}/gbrain")

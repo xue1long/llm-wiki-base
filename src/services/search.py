@@ -57,6 +57,8 @@ async def search(
 
     if mode not in {"hybrid", "keyword", "vector"}:
         raise ValueError(f"unsupported search mode: {mode}")
+    search_config = load_search_config(paths.root)
+    top_k = min(top_k, search_config.result_limit)
     gbrain = _gbrain_readiness(paths.root)
     gbrain_fallback_reason = ""
     if mode == "hybrid" and page_type is None and gbrain["ready"] and not _should_abstain(query):

@@ -16,6 +16,8 @@ from src.integrations.gbrain.service import (
     get_search_status,
     rebuild_search,
     get_runtime_status,
+    get_search_config,
+    update_search_config,
 )
 
 
@@ -136,3 +138,48 @@ def test_runtime_status_reuses_recent_ready_validation(tmp_path, monkeypatch):
     get_runtime_status("demo")
 
     assert len(calls) == 1
+
+
+def test_search_config_reports_effective_mode_and_scope(tmp_path, monkeypatch):
+    _project(tmp_path)
+    monkeypatch.setattr(
+        "src.integrations.gbrain.service.resolve_project_root", lambda project_id: tmp_path
+    )
+    (tmp_path / "gbrain").mkdir()
+    from src.integrations.gbrain.state import save_runtime_state
+    save_runtime_state(tmp_path, {"status": "ready", "path": str(tmp_path / "gbrain")})
+    monkeypatch.setattr(
+        "src.integrations.gbrain.service.read_search_mode", lambda path: "conservative"
+    )
+
+    result = get_search_config("demo")
+
+    assert result["effective"]["gbrain_mode"] == "conservative"
+    assert result["scope"] == "gbrain_instance"
+    assert result["capabilities"]["token_budget"] is False
+
+
+def test_update_search_config_applies_and_persists_verified_mode(tmp_path, monkeypatch):
+    _project(tmp_path)
+    monkeypatch.setattr(
+        "src.integrations.gbrain.service.resolve_project_root", lambda project_id: tmp_path
+    )
+    (tmp_path / "gbrain").mkdir()
+    from src.integrations.gbrain.state import save_runtime_state
+    save_runtime_state(tmp_path, {"status": "ready", "path": str(tmp_path / "gbrain")})
+    calls = []
+    monkeypatch.setattr(
+        "src.integrations.gbrain.service.apply_search_mode",
+        lambda path, mode: calls.append((path, mode)) or {"gbrain_mode": mode},
+    )
+    monkeypatch.setattr(
+        "src.integrations.gbrain.service.read_search_mode", lambda path: "balanced"
+    )
+
+    result = update_search_config(
+        "demo", gbrain_mode="balanced", result_limit=12, confirm=True
+    )
+
+    assert calls == [(str(tmp_path / "gbrain"), "balanced")]
+    assert result["desired"] == {"gbrain_mode": "balanced", "result_limit": 12}
+    assert load_search_config(tmp_path).config_epoch == 2
