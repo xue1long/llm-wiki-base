@@ -18,5 +18,5 @@ Ruling: Existing unrelated dirty files are preserved; agents may stage only thei
 - Task A: complete — commit `2d659514`, real `embed_coverage_pct` contract and fail-closed parsing
 - Task B: complete — commit `0792b063`, filtered import staging and source ownership/idempotency
 - Task C: complete — commit `0792b063`, managed ref validation, install lock, repair promotion
-- Task D: complete — current working tree, pre-search incremental reconcile and MCP mutation
-- Task E: in_progress — final regression and real external GBrain verification
+- Task D: complete — commit `e0812c0a`, pre-search incremental reconcile and MCP mutation
+- Task E: complete — 57 focused tests passed; compileall and WebUI syntax checks passed; external GBrain initialize/tools/status contracts verified. Real import and write mutations were intentionally not run.
