@@ -1,7 +1,7 @@
 """HTTP lifecycle controls for optional project-level GBrain search."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 from ...integrations.gbrain import service as gbrain_service
@@ -29,8 +29,16 @@ async def status(project_id: str):
 
 
 @router.post("/projects/{project_id}/gbrain-search/enable", status_code=202)
-async def enable(project_id: str, body: ConfirmRequest):
-    return _call(gbrain_service.enable_search, project_id, confirm=body.confirm)
+async def enable(
+    project_id: str,
+    body: ConfirmRequest,
+    background_tasks: BackgroundTasks = None,
+):
+    result = _call(gbrain_service.enable_search, project_id, confirm=body.confirm)
+    if background_tasks is not None and result.get("status") == "queued":
+        from ...integrations.gbrain.worker import run_search_job_for_project
+        background_tasks.add_task(run_search_job_for_project, project_id, result["jobId"])
+    return result
 
 
 @router.post("/projects/{project_id}/gbrain-search/disable")
@@ -39,8 +47,16 @@ async def disable(project_id: str):
 
 
 @router.post("/projects/{project_id}/gbrain-search/rebuild", status_code=202)
-async def rebuild(project_id: str, body: ConfirmRequest):
-    return _call(gbrain_service.rebuild_search, project_id, confirm=body.confirm)
+async def rebuild(
+    project_id: str,
+    body: ConfirmRequest,
+    background_tasks: BackgroundTasks = None,
+):
+    result = _call(gbrain_service.rebuild_search, project_id, confirm=body.confirm)
+    if background_tasks is not None and result.get("status") == "queued":
+        from ...integrations.gbrain.worker import run_search_job_for_project
+        background_tasks.add_task(run_search_job_for_project, project_id, result["jobId"])
+    return result
 
 
 @router.get("/projects/{project_id}/gbrain-search/jobs/{job_id}")

@@ -300,6 +300,7 @@ WebUI 搜索页：
 - 已完成 Task 3 的受控执行小片：固定 CLI argv、MCP intent、重试和 manifest 成功提交已落地；真实导入仍需由后续项目级 API/job 显式触发。
 - 已完成项目级 HTTP 生命周期小片：状态、确认开启/重建、立即关闭回本地和 job 查询接口已接入；当前 job 只排队，真实 worker 仍待接入。
 - 已完成 Task 4 的 Adapter 小片：严格 payload/source/path 校验、chunk 去重、stdio source scope 和 GBrain 优先、本地回退已接入；完整后台 worker 与质量门仍待完成。
+- 已完成后台 worker 小片：确认开启后执行 runtime preflight、CLI 初次导入、manifest 提交和 coverage/epoch 门禁；失败保持 local，尚未做真实项目导入和 WebUI。
 - 未完成：项目级 `knowledge/` 导入、snapshot 增量同步、`/search` shadow 对比和 WebUI 接入仍受门禁限制。
 - 验证：GBrain 控制面针对性测试 `12 passed`；真实 GBrain P0 记录见 `docs/reports/2026-09-12-gbrain-p0-capability-validation.md`。
 
