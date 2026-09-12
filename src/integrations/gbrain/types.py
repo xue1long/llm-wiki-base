@@ -115,3 +115,26 @@ class GBrainJob:
         result = asdict(self)
         result["status"] = self.status.value
         return result
+
+
+@dataclass(frozen=True)
+class WikiSnapshotEntry:
+    path: str
+    slug: str
+    page_type: str
+    content_hash: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "path": self.path,
+            "slug": self.slug,
+            "page_type": self.page_type,
+            "content_hash": self.content_hash,
+        }
+
+
+@dataclass(frozen=True)
+class ReconcilePlan:
+    added: list[str]
+    updated: list[str]
+    deleted: list[str]

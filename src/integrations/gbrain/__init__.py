@@ -14,7 +14,15 @@ from .api import (
     update_job,
     validate_source_ownership,
 )
-from .types import GBrainJob, JobStatus, SearchConfig, SearchState, SearchStatus
+from .types import (
+    GBrainJob,
+    JobStatus,
+    ReconcilePlan,
+    SearchConfig,
+    SearchState,
+    SearchStatus,
+    WikiSnapshotEntry,
+)
 
 from .runtime import (
     RuntimeConfig,
@@ -49,6 +57,8 @@ __all__ = [
     "SearchConfig",
     "SearchState",
     "SearchStatus",
+    "ReconcilePlan",
+    "WikiSnapshotEntry",
     "enqueue_job",
     "ensure_search_config",
     "get_job",
@@ -60,4 +70,8 @@ __all__ = [
     "save_search_state",
     "update_job",
     "validate_source_ownership",
+    "build_wiki_snapshot",
+    "load_manifest",
+    "reconcile_manifest",
+    "save_manifest",
 ]

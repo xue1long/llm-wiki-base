@@ -11,7 +11,14 @@ from pathlib import Path
 from typing import Any, Iterator, Mapping
 
 from ...lib.time import now_ms
-from .types import GBrainJob, JobStatus, SearchConfig, SearchState
+from .types import (
+    GBrainJob,
+    JobStatus,
+    ReconcilePlan,
+    SearchConfig,
+    SearchState,
+    WikiSnapshotEntry,
+)
 
 
 class GBrainProjectError(ValueError):
@@ -32,6 +39,10 @@ def _state_path(root: Path) -> Path:
 
 def _jobs_path(root: Path) -> Path:
     return _gbrain_dir(root) / "jobs.json"
+
+
+def _manifest_path(root: Path) -> Path:
+    return _gbrain_dir(root) / "manifest.json"
 
 
 def _project_lock_path(root: Path) -> Path:
@@ -228,6 +239,77 @@ def update_job(
     raise GBrainProjectError("job_not_found")
 
 
+_EXCLUDED_WIKI_DIRS = {"_archive", "_stubs"}
+_EXCLUDED_WIKI_FILES = {"index.md", "log.md"}
+
+
+def _wiki_page_type(path: Path) -> str:
+    parent = path.parent.name
+    return {
+        "sources": "source",
+        "entities": "entity",
+        "concepts": "concept",
+        "synthesis": "synthesis",
+    }.get(parent, parent)
+
+
+def build_wiki_snapshot(project_root: Path) -> list[WikiSnapshotEntry]:
+    """Return deterministic, content-hashed entries for searchable Wiki pages."""
+    root = Path(project_root)
+    wiki = root / "wiki"
+    if not wiki.is_dir():
+        return []
+    entries: list[WikiSnapshotEntry] = []
+    for path in sorted(wiki.rglob("*.md")):
+        relative = path.relative_to(wiki)
+        if relative.name in _EXCLUDED_WIKI_FILES or any(
+            part in _EXCLUDED_WIKI_DIRS for part in relative.parts
+        ):
+            continue
+        content = path.read_bytes()
+        rel_path = path.relative_to(root).as_posix()
+        slug = "wiki/" + relative.with_suffix("").as_posix()
+        entries.append(
+            WikiSnapshotEntry(
+                path=rel_path,
+                slug=slug,
+                page_type=_wiki_page_type(relative),
+                content_hash=hashlib.sha256(content).hexdigest(),
+            )
+        )
+    return entries
+
+
+def load_manifest(project_root: Path) -> dict[str, dict[str, Any]]:
+    raw = _read_json(_manifest_path(Path(project_root)), {})
+    if not isinstance(raw, dict):
+        raise GBrainProjectError("invalid_manifest")
+    return {str(key): value for key, value in raw.items() if isinstance(value, dict)}
+
+
+def save_manifest(project_root: Path, snapshot: list[WikiSnapshotEntry]) -> None:
+    root = Path(project_root)
+    with project_lock(root):
+        _write_json(
+            _manifest_path(root),
+            {entry.slug: entry.to_dict() for entry in snapshot},
+        )
+
+
+def reconcile_manifest(project_root: Path) -> ReconcilePlan:
+    current = {entry.slug: entry for entry in build_wiki_snapshot(Path(project_root))}
+    previous = load_manifest(Path(project_root))
+    added = sorted(set(current) - set(previous))
+    deleted = sorted(set(previous) - set(current))
+    updated = sorted(
+        slug
+        for slug in set(current) & set(previous)
+        if current[slug].content_hash != previous[slug].get("content_hash")
+        or current[slug].path != previous[slug].get("path")
+    )
+    return ReconcilePlan(added=added, updated=updated, deleted=deleted)
+
+
 __all__ = [
     "GBrainProjectError",
     "enqueue_job",
@@ -241,4 +323,8 @@ __all__ = [
     "save_search_state",
     "update_job",
     "validate_source_ownership",
+    "build_wiki_snapshot",
+    "load_manifest",
+    "reconcile_manifest",
+    "save_manifest",
 ]
