@@ -153,6 +153,7 @@ def test_search_uses_ready_gbrain_before_local_vector(monkeypatch, tmp_path):
         ),
     )
     save_runtime_state(project_dir, {"status": "ready", "path": str(tmp_path / "gbrain")})
+    (tmp_path / "gbrain").mkdir()
     (project_dir / ".index" / "gbrain" / "manifest.json").write_text(
         '{"wiki/sources/a": {"path": "wiki/sources/a.md"}}', encoding="utf-8"
     )
@@ -171,6 +172,59 @@ def test_search_uses_ready_gbrain_before_local_vector(monkeypatch, tmp_path):
     assert result["results"][0]["source"] == "gbrain"
     assert result["diagnostics"]["backend"] == "gbrain"
     assert result["ready"] is True
+
+
+def test_search_rejects_stale_missing_runtime_path(monkeypatch, tmp_path):
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id": "u", "name": "p", "created_at": 1000}', encoding="utf-8"
+    )
+    config = ensure_search_config(project_dir)
+    save_search_config(project_dir, replace(config, enabled=True))
+    save_search_state(
+        project_dir,
+        replace(SearchState(), status=SearchStatus.READY, embedding_coverage=1.0, path_mapping_coverage=1.0),
+    )
+    save_runtime_state(project_dir, {"status": "ready", "path": str(tmp_path / "deleted-gbrain")})
+
+    monkeypatch.setattr(search_service, "resolve_project", lambda *args, **kwargs: _fake_resolve(project_dir))
+    monkeypatch.setattr(search_service, "vector_readiness", lambda *args, **kwargs: {"ready": False, "reason": "local_pending"})
+    monkeypatch.setattr(search_service, "hybrid_search", lambda *args, **kwargs: [])
+
+    result = asyncio.run(search_service.search("u", "query", mode="hybrid"))
+
+    assert result["ready"] is False
+    assert result["results"] == []
+
+
+def test_search_honors_global_local_kill_switch(monkeypatch, tmp_path):
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id": "u", "name": "p", "created_at": 1000}', encoding="utf-8"
+    )
+    config = ensure_search_config(project_dir)
+    save_search_config(project_dir, replace(config, enabled=True))
+    save_search_state(
+        project_dir,
+        replace(SearchState(), status=SearchStatus.READY, embedding_coverage=1.0, path_mapping_coverage=1.0),
+    )
+    runtime = tmp_path / "gbrain"
+    runtime.mkdir()
+    save_runtime_state(project_dir, {"status": "ready", "path": str(runtime)})
+
+    monkeypatch.setenv("RUFLO_SEARCH_BACKEND", "local")
+    monkeypatch.setattr(search_service, "resolve_project", lambda *args, **kwargs: _fake_resolve(project_dir))
+    monkeypatch.setattr(search_service, "vector_readiness", lambda *args, **kwargs: {"ready": False, "reason": "local_pending"})
+    monkeypatch.setattr(search_service, "run_mcp_search", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("kill switch bypassed")))
+
+    result = asyncio.run(search_service.search("u", "query", mode="hybrid"))
+
+    assert result["results"] == []
+    assert result["diagnostics"]["reason"] == "local_pending"
 
 
 def _fake_resolve(project_dir):

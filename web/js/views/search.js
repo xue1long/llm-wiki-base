@@ -5,6 +5,7 @@
   window.App = window.App || {};
 
   App.renderSearch = function renderSearch(root) {
+    if (root._gbrainCleanup) root._gbrainCleanup();
     root.innerHTML = `
       <div class="search-bar">
         <input type="text" id="qInput" placeholder="输入搜索关键词..." autofocus />
@@ -16,15 +17,92 @@
           <label class="type-radio"><input type="radio" name="stype" value="synthesis" />综合</label>
         </div>
         <button id="qBtn">搜索</button>
+        <label class="gbrain-toggle" title="仅在 GBrain 索引 ready 后切换 hybrid">
+          <input type="checkbox" id="gbrainToggle" /> GBrain MCP
+        </label>
+        <span id="gbrainStatus" style="color:var(--text-muted);">本地搜索</span>
       </div>
       <div id="searchStats" style="display:none;"></div>
       <div id="results"></div>
     `;
     const input = document.getElementById("qInput");
     const btn = document.getElementById("qBtn");
+    const gbrainToggle = document.getElementById("gbrainToggle");
+    const gbrainStatus = document.getElementById("gbrainStatus");
+    let gbrainPoll = null;
     const trigger = () => doSearch();
     btn.addEventListener("click", trigger);
     input.addEventListener("keydown", e => { if (e.key === "Enter") trigger(); });
+    gbrainToggle.addEventListener("change", onGBrainToggle);
+    root._gbrainCleanup = () => { if (gbrainPoll) clearInterval(gbrainPoll); };
+    loadGBrainStatus();
+
+    async function loadGBrainStatus() {
+      if (!App.state.projectId) return;
+      try {
+        applyGBrainStatus(await App.api(`/api/v1/projects/${App.state.projectId}/gbrain-search`));
+      } catch (e) {
+        gbrainStatus.textContent = "本地搜索（状态不可用）";
+      }
+    }
+
+    function applyGBrainStatus(status) {
+      const ready = status && status.ready === true && status.backend === "gbrain";
+      gbrainToggle.checked = !!status?.enabled;
+      if (ready) {
+        gbrainStatus.textContent = "GBrain hybrid";
+        stopGBrainPolling();
+        return;
+      }
+      const syncing = ["queued", "syncing"].includes(status?.status);
+      gbrainStatus.textContent = syncing ? "本地搜索（同步中）" : status?.status === "failed"
+        ? "本地搜索（同步失败）" : "本地搜索";
+      if (syncing && status.job_id) startGBrainPolling();
+    }
+
+    function startGBrainPolling() {
+      if (gbrainPoll) return;
+      gbrainPoll = setInterval(loadGBrainStatus, 3000);
+    }
+
+    function stopGBrainPolling() {
+      if (!gbrainPoll) return;
+      clearInterval(gbrainPoll);
+      gbrainPoll = null;
+    }
+
+    async function onGBrainToggle() {
+      const enabling = gbrainToggle.checked;
+      if (enabling) {
+        const confirmed = window.confirm("开启后会复制当前项目 Wiki 到 GBrain，并可能产生 embedding 成本。继续吗？");
+        if (!confirmed) { gbrainToggle.checked = false; return; }
+        gbrainToggle.disabled = true;
+        try {
+          await App.api(`/api/v1/projects/${App.state.projectId}/gbrain-search/enable`, {
+            method: "POST", body: { confirm: true },
+          });
+          gbrainStatus.textContent = "本地搜索（同步中）";
+          startGBrainPolling();
+        } catch (e) {
+          gbrainToggle.checked = false;
+          App.setBanner("GBrain 开启失败: " + e.message, "err");
+        } finally {
+          gbrainToggle.disabled = false;
+        }
+        return;
+      }
+      gbrainToggle.disabled = true;
+      try {
+        await App.api(`/api/v1/projects/${App.state.projectId}/gbrain-search/disable`, { method: "POST" });
+        stopGBrainPolling();
+        gbrainStatus.textContent = "本地搜索";
+      } catch (e) {
+        gbrainToggle.checked = true;
+        App.setBanner("GBrain 关闭失败: " + e.message, "err");
+      } finally {
+        gbrainToggle.disabled = false;
+      }
+    }
 
     // Type radio styling
     document.querySelectorAll("#typeFilter .type-radio").forEach(label => {
@@ -84,7 +162,9 @@
       }
       out.innerHTML = results.map((r, i) => {
         const typeBadge = r.type ? `<span class="badge badge-type badge-type-${r.type}">${App.escapeHtml(r.type)}</span>` : "";
-        const sourceBadge = r.source === "semantic"
+        const sourceBadge = r.source === "gbrain"
+          ? `<span class="badge badge-semantic">GBrain</span>`
+          : r.source === "semantic"
           ? `<span class="badge badge-semantic">semantic</span>`
           : `<span class="badge badge-keyword">keyword</span>`;
         const displayPath = App.normalizeWikiPath(r.path);

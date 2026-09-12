@@ -1,6 +1,6 @@
 # GBrain MCP 项目级 Hybrid 搜索试点：统一实施方案
 
-状态：执行中；Task 1 控制面与显式运行时引导已落地，搜索/导入仍未接通
+状态：执行中；运行时引导、项目导入 worker、MCP 搜索路由和 WebUI 开关已落地，真实项目验收与增量同步仍待完成
 目标：实现“GBrain MCP 可选 hybrid 搜索试点”，同时解决 GBrain 不在固定路径、换电脑或未安装时的运行时发现与受控安装问题。
 
 本方案合并以下两份文档，后续以本文为唯一实施入口：
@@ -298,10 +298,12 @@ WebUI 搜索页：
 - 已完成 Task 2：项目搜索配置默认关闭且使用稳定 source ID；search state/job 原子持久化、项目锁、source ownership 和同 epoch job 去重已落地。
 - 已完成 Task 3 的 snapshot/manifest 小片：Wiki 页面扫描、SHA-256 hash、slug/path 映射和增量差异计算已落地；尚未执行 GBrain 导入或 MCP 同步。
 - 已完成 Task 3 的受控执行小片：固定 CLI argv、MCP intent、重试和 manifest 成功提交已落地；真实导入仍需由后续项目级 API/job 显式触发。
-- 已完成项目级 HTTP 生命周期小片：状态、确认开启/重建、立即关闭回本地和 job 查询接口已接入；当前 job 只排队，真实 worker 仍待接入。
-- 已完成 Task 4 的 Adapter 小片：严格 payload/source/path 校验、chunk 去重、stdio source scope 和 GBrain 优先、本地回退已接入；完整后台 worker 与质量门仍待完成。
-- 已完成后台 worker 小片：确认开启后执行 runtime preflight、CLI 初次导入、manifest 提交和 coverage/epoch 门禁；失败保持 local，尚未做真实项目导入和 WebUI。
-- 未完成：项目级 `knowledge/` 导入、snapshot 增量同步、`/search` shadow 对比和 WebUI 接入仍受门禁限制。
+- 已完成项目级 HTTP 生命周期小片：状态、确认开启/重建、立即关闭回本地和 job 查询接口已接入；queued job 已连接真实后台 worker。
+- 已完成 Task 4 的 Adapter 小片：严格 payload/source/path 校验、chunk 去重、stdio source scope 和 GBrain 优先、本地回退已接入；worker 已加入 runtime、coverage、path mapping 和 epoch 门禁。
+- 已完成后台 worker 小片：确认开启后执行 runtime preflight、CLI 初次导入、manifest 提交和 coverage/epoch 门禁；运行时 ready/failed 状态会落盘，失败保持 local。
+- 已完成 WebUI 搜索控制小片：GBrain 开关、确认、状态徽标、轮询和关闭回本地已接入，并同步 `docs/webui-buttons.md`；尚未执行真实项目导入。
+- 未完成：真实项目级 `knowledge/` 导入、周期/事件驱动的 snapshot 增量同步、`/search` shadow 对比、跨机器验收和安装引导 WebUI。
+- 已补齐 P0 全局 kill switch：`RUFLO_SEARCH_BACKEND=local` 时搜索层不调用 GBrain。
 - 验证：GBrain 控制面针对性测试 `12 passed`；真实 GBrain P0 记录见 `docs/reports/2026-09-12-gbrain-p0-capability-validation.md`。
 
 ### Task 0：冻结契约与 P0 前置条件

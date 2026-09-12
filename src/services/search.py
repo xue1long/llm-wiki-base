@@ -16,6 +16,8 @@ from __future__ import annotations
 import logging
 import re
 import asyncio
+import os
+from pathlib import Path
 
 from ..lib.project import resolve_project
 from ..integrations.gbrain.api import load_manifest, load_search_config, load_search_state
@@ -144,6 +146,8 @@ async def search(
 
 
 def _gbrain_readiness(root) -> dict[str, object]:
+    if os.environ.get("RUFLO_SEARCH_BACKEND", "").lower() == "local":
+        return {"ready": False, "source_id": "", "runtime_path": None}
     try:
         config = load_search_config(root)
         state = load_search_state(root)
@@ -153,6 +157,7 @@ def _gbrain_readiness(root) -> dict[str, object]:
             and state.status.value == "ready"
             and runtime.get("status") == "ready"
             and runtime.get("path")
+            and Path(str(runtime["path"])).is_dir()
             and state.embedding_coverage >= 1.0
             and state.path_mapping_coverage >= 1.0
         )

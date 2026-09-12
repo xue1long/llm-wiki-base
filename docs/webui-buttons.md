@@ -84,6 +84,8 @@
 |------|----------|------|----------|------|
 | **搜索** | 行 26 | 执行混合搜索（语义+关键词） | `POST /api/v1/projects/{id}/search` | 输入框按 Enter 也可触发 |
 | **搜索模式切换** | 行 31 | 切换搜索模式（语义/关键词/混合） | — | 纯前端逻辑 |
+| **GBrain MCP 开关** | 搜索栏 | 用户确认后开启项目级 GBrain 索引；未 ready 时仍显示本地搜索 | `GET/POST /api/v1/projects/{id}/gbrain-search*` | 开启/重建返回 202 并轮询；关闭立即回到 local，不删除远程 source |
+| **GBrain 状态徽标** | 搜索栏开关右侧 | 显示本地搜索、同步中、同步失败或 GBrain hybrid | `GET /api/v1/projects/{id}/gbrain-search` | 只有 `ready=true` 才显示 GBrain hybrid |
 
 ---
 

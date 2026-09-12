@@ -19,6 +19,7 @@ from .api import (
 )
 from .runtime import load_runtime_config, resolve_runtime, validate_runtime
 from .service import resolve_project_root
+from .state import save_runtime_state
 from .sync import run_initial_import
 from .types import JobStatus, SearchState, SearchStatus
 
@@ -85,7 +86,26 @@ def run_search_job(
     try:
         validate = (runtime_validator or _default_runtime_validator)(root)
         if not validate.get("ready") or not validate.get("path"):
+            save_runtime_state(
+                root,
+                {
+                    "status": "failed",
+                    "path": validate.get("path"),
+                    "error_code": str(validate.get("error_code") or "runtime_not_ready"),
+                },
+            )
             raise RuntimeError("runtime_not_ready")
+        save_runtime_state(
+            root,
+            {
+                "status": "ready",
+                "path": str(validate["path"]),
+                "origin": str(validate.get("origin") or "worker_preflight"),
+                "version": str(validate.get("version") or ""),
+                "checks": validate.get("checks") or {},
+                "error_code": "",
+            },
+        )
         (importer or _default_importer)(root, config, str(validate["path"]))
         snapshot = build_wiki_snapshot(root)
         save_manifest(root, snapshot)
