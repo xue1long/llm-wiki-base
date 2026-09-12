@@ -32,7 +32,7 @@ def build_import_command(
 ) -> list[str]:
     """Build the only allowed initial-import command for this project."""
     del runtime_path  # The caller supplies it as the subprocess cwd.
-    return [
+    command = [
         "bun",
         "run",
         "src/cli.ts",
@@ -41,6 +41,9 @@ def build_import_command(
         "--source-id",
         config.source_id,
     ]
+    if import_root is not None:
+        command.append("--allow-noncanonical-root")
+    return command
 
 
 def build_source_add_command(project_root: Path, config: SearchConfig) -> list[str]:

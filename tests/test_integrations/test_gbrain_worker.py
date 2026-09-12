@@ -51,6 +51,35 @@ def test_default_status_probe_fails_closed_for_invalid_coverage(tmp_path, monkey
     assert result["embedding_coverage"] == 0.0
 
 
+def test_default_status_probe_rejects_empty_source_even_with_full_ratio(tmp_path, monkeypatch):
+    monkeypatch.setattr("src.integrations.gbrain.worker.load_runtime_config", lambda root: object())
+    monkeypatch.setattr(
+        "src.integrations.gbrain.worker.resolve_runtime",
+        lambda root, config: SimpleNamespace(path=tmp_path / "gbrain"),
+    )
+    monkeypatch.setattr(
+        "src.integrations.gbrain.worker.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(
+            stdout=json.dumps(
+                {
+                    "sources": [
+                        {
+                            "source_id": "source-a",
+                            "total_pages": 0,
+                            "total_chunks": 0,
+                            "embed_coverage_pct": 100,
+                        }
+                    ]
+                }
+            )
+        ),
+    )
+
+    result = _default_status_probe(tmp_path, SimpleNamespace(source_id="source-a"))
+
+    assert result["embedding_coverage"] == 0.0
+
+
 def _project(root):
     metadata = root / ".llm-wiki"
     metadata.mkdir(parents=True)

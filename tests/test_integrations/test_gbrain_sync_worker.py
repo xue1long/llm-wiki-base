@@ -76,7 +76,9 @@ def test_import_command_is_fixed_to_project_wiki_and_source(tmp_path):
     assert calls[0][0][3:5] == ["sources", "status"]
     assert calls[1][0] == build_source_add_command(tmp_path, config)
     assert calls[2][0][0:4] == command[0:4]
-    assert calls[2][0][5:] == command[5:]
+    assert calls[2][0][4] != str(tmp_path / "wiki")
+    assert calls[2][0][5:-1] == command[5:]
+    assert calls[2][0][-1] == "--allow-noncanonical-root"
     assert all(cwd == tmp_path / "external" / "gbrain" for _, cwd in calls)
 
 

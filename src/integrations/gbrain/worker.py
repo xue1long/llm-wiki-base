@@ -63,6 +63,13 @@ def _default_status_probe(root: Path, config) -> dict[str, float]:
     row = next((item for item in rows if item.get("source_id") == config.source_id), None)
     if not row:
         return {"embedding_coverage": 0.0, "path_mapping_coverage": 0.0}
+    for key in ("total_pages", "total_chunks"):
+        if key in row:
+            try:
+                if int(row[key]) <= 0:
+                    return {"embedding_coverage": 0.0, "path_mapping_coverage": 0.0}
+            except (TypeError, ValueError):
+                return {"embedding_coverage": 0.0, "path_mapping_coverage": 0.0}
     try:
         coverage_pct = float(row.get("embed_coverage_pct", 0.0))
     except (TypeError, ValueError):
