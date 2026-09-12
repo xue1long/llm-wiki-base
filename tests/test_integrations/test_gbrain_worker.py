@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 from src.integrations.gbrain.api import (
     ensure_search_config,
@@ -10,8 +11,44 @@ from src.integrations.gbrain.api import (
 from src.integrations.gbrain.service import enable_search
 from src.integrations.gbrain.state import load_runtime_state
 from src.integrations.gbrain.types import JobStatus, SearchStatus
-from src.integrations.gbrain.worker import run_search_job
+from src.integrations.gbrain.worker import _default_status_probe, run_search_job
 from src.integrations.gbrain.worker import run_runtime_setup_job
+
+
+def test_default_status_probe_reads_real_embed_coverage_field(tmp_path, monkeypatch):
+    monkeypatch.setattr("src.integrations.gbrain.worker.load_runtime_config", lambda root: object())
+    monkeypatch.setattr(
+        "src.integrations.gbrain.worker.resolve_runtime",
+        lambda root, config: SimpleNamespace(path=tmp_path / "gbrain"),
+    )
+    monkeypatch.setattr(
+        "src.integrations.gbrain.worker.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(
+            stdout=json.dumps({"sources": [{"source_id": "source-a", "embed_coverage_pct": 75}]})
+        ),
+    )
+
+    result = _default_status_probe(tmp_path, SimpleNamespace(source_id="source-a"))
+
+    assert result["embedding_coverage"] == 0.75
+
+
+def test_default_status_probe_fails_closed_for_invalid_coverage(tmp_path, monkeypatch):
+    monkeypatch.setattr("src.integrations.gbrain.worker.load_runtime_config", lambda root: object())
+    monkeypatch.setattr(
+        "src.integrations.gbrain.worker.resolve_runtime",
+        lambda root, config: SimpleNamespace(path=tmp_path / "gbrain"),
+    )
+    monkeypatch.setattr(
+        "src.integrations.gbrain.worker.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(
+            stdout=json.dumps({"sources": [{"source_id": "source-a", "embed_coverage_pct": "invalid"}]})
+        ),
+    )
+
+    result = _default_status_probe(tmp_path, SimpleNamespace(source_id="source-a"))
+
+    assert result["embedding_coverage"] == 0.0
 
 
 def _project(root):

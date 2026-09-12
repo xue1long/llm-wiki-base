@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import subprocess
 from dataclasses import replace
@@ -60,7 +61,13 @@ def _default_status_probe(root: Path, config) -> dict[str, float]:
     row = next((item for item in rows if item.get("source_id") == config.source_id), None)
     if not row:
         return {"embedding_coverage": 0.0, "path_mapping_coverage": 0.0}
-    coverage = float(row.get("embedding_coverage_pct", 0.0)) / 100.0
+    try:
+        coverage_pct = float(row.get("embed_coverage_pct", 0.0))
+    except (TypeError, ValueError):
+        coverage_pct = 0.0
+    if not math.isfinite(coverage_pct) or not 0.0 <= coverage_pct <= 100.0:
+        coverage_pct = 0.0
+    coverage = coverage_pct / 100.0
     return {"embedding_coverage": coverage, "path_mapping_coverage": 1.0}
 
 
