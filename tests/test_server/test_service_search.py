@@ -1,7 +1,11 @@
 """Tests for src.services.search — search dispatch."""
 import asyncio
+from dataclasses import replace
 
 from src.services import search as search_service
+from src.integrations.gbrain.api import ensure_search_config, save_search_config, save_search_state
+from src.integrations.gbrain.state import save_runtime_state
+from src.integrations.gbrain.types import SearchState, SearchStatus
 
 
 def test_search_returns_results(monkeypatch, tmp_path):
@@ -126,6 +130,47 @@ def test_search_abstains_on_unsupported_writing_request(monkeypatch, tmp_path):
     result = asyncio.run(search_service.search("u", "根据这套知识库判断我的新书一定能签约，并给出成功率。"))
     assert result["results"] == []
     assert result["diagnostics"]["reason"] == "unsupported_query"
+
+
+def test_search_uses_ready_gbrain_before_local_vector(monkeypatch, tmp_path):
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text(
+        '{"id": "u", "name": "p", "created_at": 1000}', encoding="utf-8"
+    )
+    (project_dir / "wiki" / "sources").mkdir(parents=True)
+    ensure_search_config(project_dir)
+    config = ensure_search_config(project_dir)
+    save_search_config(project_dir, replace(config, enabled=True))
+    save_search_state(
+        project_dir,
+        replace(
+            SearchState(),
+            status=SearchStatus.READY,
+            embedding_coverage=1.0,
+            path_mapping_coverage=1.0,
+        ),
+    )
+    save_runtime_state(project_dir, {"status": "ready", "path": str(tmp_path / "gbrain")})
+    (project_dir / ".index" / "gbrain" / "manifest.json").write_text(
+        '{"wiki/sources/a": {"path": "wiki/sources/a.md"}}', encoding="utf-8"
+    )
+
+    monkeypatch.setattr(search_service, "resolve_project", lambda project_id, by_id_only=True: _fake_resolve(project_dir))
+    monkeypatch.setattr(search_service, "vector_readiness", lambda *args, **kwargs: {"ready": False, "reason": "local_pending"})
+    monkeypatch.setattr(search_service, "_filter_actionable", lambda paths, results: results)
+    monkeypatch.setattr(
+        search_service,
+        "run_mcp_search",
+        lambda *args, **kwargs: [{"slug": "wiki/sources/a", "page_id": "1", "title": "A", "type": "source", "chunk_text": "remote", "score": 0.9, "source_id": config.source_id}],
+    )
+
+    result = asyncio.run(search_service.search("u", "query", mode="hybrid"))
+
+    assert result["results"][0]["source"] == "gbrain"
+    assert result["diagnostics"]["backend"] == "gbrain"
+    assert result["ready"] is True
 
 
 def _fake_resolve(project_dir):

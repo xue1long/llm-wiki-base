@@ -15,8 +15,12 @@ from __future__ import annotations
 
 import logging
 import re
+import asyncio
 
 from ..lib.project import resolve_project
+from ..integrations.gbrain.api import load_manifest, load_search_config, load_search_state
+from ..integrations.gbrain.state import load_runtime_state
+from ..searcher.gbrain_mcp import GBrainSearchError, adapt_results, run_mcp_search
 from ..llm.embedding_runtime import get_embedding_provider
 from ..searcher.hybrid_search import hybrid_search
 from ..vector.pending import readiness as vector_readiness
@@ -50,6 +54,45 @@ async def search(
 
     if mode not in {"hybrid", "keyword", "vector"}:
         raise ValueError(f"unsupported search mode: {mode}")
+    gbrain = _gbrain_readiness(paths.root)
+    gbrain_fallback_reason = ""
+    if mode == "hybrid" and page_type is None and gbrain["ready"] and not _should_abstain(query):
+        try:
+            remote = await asyncio.to_thread(
+                run_mcp_search,
+                gbrain["runtime_path"],
+                gbrain["source_id"],
+                query,
+                top_k,
+            )
+            results = adapt_results(
+                remote,
+                source_id=gbrain["source_id"],
+                manifest=load_manifest(paths.root),
+                top_k=top_k,
+            )
+            filtered_remote = _filter_actionable(paths, results)
+            if filtered_remote:
+                return {
+                    "query": query,
+                    "mode": mode,
+                    "topK": top_k,
+                    "tokenHits": 0,
+                    "vectorHits": 0,
+                    "ready": True,
+                    "diagnostics": {
+                        "ready": True,
+                        "backend": "gbrain",
+                        "gbrain_ready": True,
+                        "local_vector_ready": None,
+                    },
+                    "results": filtered_remote,
+                }
+            gbrain_fallback_reason = "remote_filtered_empty"
+        except GBrainSearchError as exc:
+            gbrain_fallback_reason = str(exc)
+        except Exception:
+            gbrain_fallback_reason = "remote_error"
     if mode == "keyword":
         status = {"ready": True, "reason": "keyword"}
     else:
@@ -66,6 +109,13 @@ async def search(
         except Exception:
             logger.warning("Vector table init failed for project %s", project_id, exc_info=True)
             status = {**status, "ready": False, "reason": "unavailable"}
+    if gbrain_fallback_reason:
+        status = {
+            **status,
+            "backend": "local",
+            "gbrain_ready": True,
+            "fallback_reason": str(gbrain_fallback_reason),
+        }
 
     if mode != "keyword" and status["ready"] and _should_abstain(query):
         results = []
@@ -91,6 +141,28 @@ async def search(
         "diagnostics": status if mode != "keyword" else {"ready": True, "reason": "keyword"},
         "results": results,
     }
+
+
+def _gbrain_readiness(root) -> dict[str, object]:
+    try:
+        config = load_search_config(root)
+        state = load_search_state(root)
+        runtime = load_runtime_state(root)
+        ready = bool(
+            config.enabled
+            and state.status.value == "ready"
+            and runtime.get("status") == "ready"
+            and runtime.get("path")
+            and state.embedding_coverage >= 1.0
+            and state.path_mapping_coverage >= 1.0
+        )
+        return {
+            "ready": ready,
+            "source_id": config.source_id,
+            "runtime_path": runtime.get("path"),
+        }
+    except Exception:
+        return {"ready": False, "source_id": "", "runtime_path": None}
 
 
 _UNSUPPORTED_WRITING_QUERY = re.compile(
