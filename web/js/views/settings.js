@@ -1,10 +1,10 @@
-// ruflo-kb — LLM provider settings view (2.5: card grid, star toggle, modal form, test banner).
+// ruflo-kb — settings modal (model providers + search controls).
 (() => {
   "use strict";
 
   window.App = window.App || {};
 
-  App.renderSettings = function renderSettings(root) {
+  App.renderModelSettings = function renderModelSettings(root) {
     root.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
         <h2 style="margin:0;">LLM 提供商设置</h2>
@@ -412,4 +412,191 @@
       });
     }
   };
+
+  App.openSettingsModal = function openSettingsModal() {
+    const existing = document.getElementById("settingsModal");
+    if (existing) existing.remove();
+
+    const opener = document.activeElement;
+    const modal = document.createElement("div");
+    modal.id = "settingsModal";
+    modal.className = "settings-modal-overlay";
+    modal.innerHTML = `
+      <div class="settings-modal-card" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+        <div class="settings-modal-header">
+          <div>
+            <div class="settings-modal-kicker">ruflo-kb</div>
+            <h2 id="settingsModalTitle">设置</h2>
+          </div>
+          <button class="modal-close" id="settingsModalClose" type="button" aria-label="关闭设置">&times;</button>
+        </div>
+        <div class="settings-modal-body">
+          <nav class="settings-modal-nav" aria-label="设置分类">
+            <button class="settings-nav-btn active" data-settings-page="model" type="button">模型</button>
+            <button class="settings-nav-btn" data-settings-page="search" type="button">搜索</button>
+          </nav>
+          <section class="settings-modal-panel" id="settingsModalPanel" aria-live="polite"></section>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    let panelCleanup = null;
+    const panel = modal.querySelector("#settingsModalPanel");
+
+    function close() {
+      if (panelCleanup) panelCleanup();
+      modal.remove();
+      if (opener && typeof opener.focus === "function") opener.focus();
+      document.removeEventListener("keydown", onKeyDown);
+      App.closeSettingsModal = null;
+    }
+
+    function onKeyDown(e) {
+      if (e.key === "Escape") close();
+    }
+
+    function renderPage(page) {
+      if (panelCleanup) panelCleanup();
+      panelCleanup = null;
+      modal.querySelectorAll(".settings-nav-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.settingsPage === page);
+      });
+      if (page === "search") {
+        panelCleanup = renderSearchSettings(panel);
+      } else {
+        App.renderModelSettings(panel);
+      }
+    }
+
+    App.closeSettingsModal = close;
+    modal.querySelector("#settingsModalClose").addEventListener("click", close);
+    modal.addEventListener("click", e => { if (e.target === modal) close(); });
+    modal.querySelectorAll(".settings-nav-btn").forEach(btn => {
+      btn.addEventListener("click", () => renderPage(btn.dataset.settingsPage));
+    });
+    document.addEventListener("keydown", onKeyDown);
+    renderPage("model");
+    modal.querySelector(".settings-nav-btn").focus();
+  };
+
+  App.closeSettingsModal = null;
+
+  function renderSearchSettings(root) {
+    root.innerHTML = `
+      <div class="settings-panel-heading">
+        <div>
+          <div class="settings-panel-eyebrow">SEARCH</div>
+          <h3>搜索设置</h3>
+          <p>管理本地搜索与 GBrain hybrid 的切换和索引状态。</p>
+        </div>
+      </div>
+      <div class="search-settings-card">
+        <div class="search-settings-row">
+          <div>
+            <strong>GBrain MCP</strong>
+            <div class="settings-help">开启后，搜索会优先使用项目级 GBrain 索引。</div>
+          </div>
+          <label class="gbrain-toggle" title="仅在 GBrain 索引 ready 后切换 hybrid">
+            <input type="checkbox" id="settingsGbrainToggle" /> 开启
+          </label>
+        </div>
+        <div class="search-settings-status" id="settingsGbrainStatus">读取状态中...</div>
+        <div class="search-settings-actions">
+          <button class="btn-sm" id="settingsGbrainSetup" type="button" style="display:none;">安装 GBrain</button>
+          <button class="btn-sm" id="settingsGbrainRebuild" type="button" style="display:none;">重建索引</button>
+        </div>
+      </div>
+    `;
+
+    const toggle = root.querySelector("#settingsGbrainToggle");
+    const setup = root.querySelector("#settingsGbrainSetup");
+    const rebuild = root.querySelector("#settingsGbrainRebuild");
+    const statusEl = root.querySelector("#settingsGbrainStatus");
+    let poll = null;
+
+    function stopPolling() {
+      if (poll) clearInterval(poll);
+      poll = null;
+    }
+
+    function startPolling() {
+      if (!poll) poll = setInterval(loadStatus, 3000);
+    }
+
+    function applyStatus(status, runtime) {
+      const ready = status?.ready === true && status.backend === "gbrain";
+      const runtimeMissing = !runtime || ["missing", "failed", "invalid_configured_runtime", "not_requested"].includes(runtime.status);
+      const syncing = ["queued", "syncing"].includes(status?.status) || runtime?.status === "installing";
+      toggle.checked = !!status?.enabled;
+      toggle.disabled = syncing;
+      setup.style.display = !ready && !status?.enabled && runtimeMissing ? "inline-block" : "none";
+      setup.textContent = runtime?.status === "missing" || runtime?.status === "not_requested" ? "安装 GBrain" : "修复 GBrain";
+      rebuild.style.display = ready && !syncing ? "inline-block" : "none";
+      statusEl.textContent = ready ? "当前引擎：GBrain hybrid" : syncing ? "当前引擎：本地搜索（处理中）" : status?.status === "failed" ? "当前引擎：本地搜索（同步失败）" : runtimeMissing ? "当前引擎：本地搜索（GBrain 不可用）" : "当前引擎：本地搜索";
+      if (syncing) startPolling(); else stopPolling();
+    }
+
+    async function loadStatus() {
+      if (!App.state.projectId) return;
+      try {
+        const [status, runtime] = await Promise.all([
+          App.api(`/api/v1/projects/${App.state.projectId}/gbrain-search`),
+          App.api(`/api/v1/projects/${App.state.projectId}/gbrain`),
+        ]);
+        applyStatus(status, runtime);
+      } catch (e) {
+        statusEl.textContent = "状态读取失败：" + e.message;
+      }
+    }
+
+    toggle.addEventListener("change", async () => {
+      const enabling = toggle.checked;
+      if (enabling && !window.confirm("开启后会复制当前项目 Wiki 到 GBrain，并可能产生 embedding 成本。继续吗？")) {
+        toggle.checked = false;
+        return;
+      }
+      toggle.disabled = true;
+      try {
+        await App.api(`/api/v1/projects/${App.state.projectId}/gbrain-search/${enabling ? "enable" : "disable"}`, {
+          method: "POST",
+          body: enabling ? { confirm: true } : undefined,
+        });
+        await loadStatus();
+      } catch (e) {
+        toggle.checked = !enabling;
+        App.toast("GBrain 设置失败: " + e.message, "error");
+        toggle.disabled = false;
+      }
+    });
+
+    setup.addEventListener("click", async () => {
+      if (!window.confirm("将从项目配置指定的 reviewed ref 下载并安装 GBrain。继续吗？")) return;
+      setup.disabled = true;
+      try {
+        await App.api(`/api/v1/projects/${App.state.projectId}/gbrain/setup`, { method: "POST", body: { confirm: true } });
+        await loadStatus();
+      } catch (e) {
+        App.toast("GBrain 安装失败: " + e.message, "error");
+      } finally {
+        setup.disabled = false;
+      }
+    });
+
+    rebuild.addEventListener("click", async () => {
+      if (!window.confirm("将重新同步当前项目 Wiki 到 GBrain。继续吗？")) return;
+      rebuild.disabled = true;
+      try {
+        await App.api(`/api/v1/projects/${App.state.projectId}/gbrain-search/rebuild`, { method: "POST", body: { confirm: true } });
+        await loadStatus();
+      } catch (e) {
+        App.toast("GBrain 重建失败: " + e.message, "error");
+      } finally {
+        rebuild.disabled = false;
+      }
+    });
+
+    loadStatus();
+    return stopPolling;
+  }
 })();

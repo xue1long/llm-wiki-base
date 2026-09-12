@@ -84,9 +84,7 @@
 |------|----------|------|----------|------|
 | **搜索** | 行 26 | 执行混合搜索（语义+关键词） | `POST /api/v1/projects/{id}/search` | 输入框按 Enter 也可触发 |
 | **搜索模式切换** | 行 31 | 切换搜索模式（语义/关键词/混合） | — | 纯前端逻辑 |
-| **GBrain MCP 开关** | 搜索栏 | 用户确认后开启项目级 GBrain 索引；未 ready 时仍显示本地搜索 | `GET/POST /api/v1/projects/{id}/gbrain-search*` | 开启/重建返回 202 并轮询；关闭立即回到 local，不删除远程 source |
-| **安装/修复 GBrain** | 搜索栏 | 用户确认后按 reviewed ref 下载、安装并校验外部运行时 | `GET/POST /api/v1/projects/{id}/gbrain*` | 仅 runtime 缺失/失败时显示；普通搜索不会触发安装 |
-| **GBrain 状态徽标** | 搜索栏开关右侧 | 显示本地搜索、同步中、同步失败或 GBrain hybrid | `GET /api/v1/projects/{id}/gbrain-search` | 只有 `ready=true` 才显示 GBrain hybrid |
+| **GBrain 状态徽标** | 搜索栏右侧 | 显示本地搜索、同步中、同步失败或 GBrain hybrid | `GET /api/v1/projects/{id}/gbrain-search` + `GET /api/v1/projects/{id}/gbrain` | 操作入口已集中到“设置 → 搜索” |
 
 ---
 
@@ -137,7 +135,17 @@ Book 阅读页读取 `CURRENT.json` 指向的完整性校验 release：
 
 **文件：** [web/js/views/settings.js](../web/js/views/settings.js)
 
-### 5.1 Provider 卡片
+设置不再占用左侧导航栏，入口位于顶部 `ruflo-kb` 同行右侧的“⚙ 设置”按钮。点击后打开左右栏弹窗：左侧切换“模型”和“搜索”，右侧显示对应设置内容；支持关闭按钮、遮罩点击和 `Esc` 关闭。
+
+### 6.1 设置弹窗入口
+
+| 按钮 | 位置 | 功能 | 后端 API |
+|------|------|------|----------|
+| **⚙ 设置** | 顶部栏，`ruflo-kb` 右侧 | 打开设置弹窗 | — |
+| **模型** | 设置弹窗左侧导航 | 显示 LLM Provider 管理 | 复用 Provider API |
+| **搜索** | 设置弹窗左侧导航 | 显示 GBrain MCP、安装、重建和搜索后端状态 | 复用 GBrain API |
+
+### 6.2 Provider 卡片
 
 | 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
 |------|----------|------|----------|------|
@@ -146,7 +154,7 @@ Book 阅读页读取 `CURRENT.json` 指向的完整性校验 release：
 | **编辑** | 行 140 | 编辑 provider 配置 | `GET /api/v1/providers/{name}` | 打开编辑模态框 |
 | **删除** | 行 154 | 删除 provider | `DELETE /api/v1/providers/{name}` | |
 
-### 5.2 添加 Provider
+### 6.3 添加 Provider
 
 | 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
 |------|----------|------|----------|------|

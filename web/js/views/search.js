@@ -17,26 +17,18 @@
           <label class="type-radio"><input type="radio" name="stype" value="synthesis" />综合</label>
         </div>
         <button id="qBtn">搜索</button>
-        <label class="gbrain-toggle" title="仅在 GBrain 索引 ready 后切换 hybrid">
-          <input type="checkbox" id="gbrainToggle" /> GBrain MCP
-        </label>
-        <button id="gbrainSetup" type="button" style="display:none;">安装 GBrain</button>
-        <span id="gbrainStatus" style="color:var(--text-muted);">本地搜索</span>
+        <span id="gbrainStatus" class="search-engine-status">本地搜索</span>
       </div>
       <div id="searchStats" style="display:none;"></div>
       <div id="results"></div>
     `;
     const input = document.getElementById("qInput");
     const btn = document.getElementById("qBtn");
-    const gbrainToggle = document.getElementById("gbrainToggle");
-    const gbrainSetup = document.getElementById("gbrainSetup");
     const gbrainStatus = document.getElementById("gbrainStatus");
     let gbrainPoll = null;
     const trigger = () => doSearch();
     btn.addEventListener("click", trigger);
     input.addEventListener("keydown", e => { if (e.key === "Enter") trigger(); });
-    gbrainToggle.addEventListener("change", onGBrainToggle);
-    gbrainSetup.addEventListener("click", onGBrainSetup);
     root._gbrainCleanup = () => { if (gbrainPoll) clearInterval(gbrainPoll); };
     loadGBrainStatus();
 
@@ -55,10 +47,7 @@
 
     function applyGBrainStatus(status, runtime) {
       const ready = status && status.ready === true && status.backend === "gbrain";
-      gbrainToggle.checked = !!status?.enabled;
       const runtimeMissing = !runtime || ["missing", "failed", "invalid_configured_runtime", "not_requested"].includes(runtime.status);
-      gbrainSetup.style.display = !ready && !status?.enabled && runtimeMissing ? "inline-block" : "none";
-      gbrainSetup.textContent = runtime?.status === "missing" || runtime?.status === "not_requested" ? "安装 GBrain" : "修复 GBrain";
       if (ready) {
         gbrainStatus.textContent = "GBrain hybrid";
         stopGBrainPolling();
@@ -79,55 +68,6 @@
       if (!gbrainPoll) return;
       clearInterval(gbrainPoll);
       gbrainPoll = null;
-    }
-
-    async function onGBrainToggle() {
-      const enabling = gbrainToggle.checked;
-      if (enabling) {
-        const confirmed = window.confirm("开启后会复制当前项目 Wiki 到 GBrain，并可能产生 embedding 成本。继续吗？");
-        if (!confirmed) { gbrainToggle.checked = false; return; }
-        gbrainToggle.disabled = true;
-        try {
-          await App.api(`/api/v1/projects/${App.state.projectId}/gbrain-search/enable`, {
-            method: "POST", body: { confirm: true },
-          });
-          gbrainStatus.textContent = "本地搜索（同步中）";
-          startGBrainPolling();
-        } catch (e) {
-          gbrainToggle.checked = false;
-          App.setBanner("GBrain 开启失败: " + e.message, "err");
-        } finally {
-          gbrainToggle.disabled = false;
-        }
-        return;
-      }
-      gbrainToggle.disabled = true;
-      try {
-        await App.api(`/api/v1/projects/${App.state.projectId}/gbrain-search/disable`, { method: "POST" });
-        stopGBrainPolling();
-        gbrainStatus.textContent = "本地搜索";
-      } catch (e) {
-        gbrainToggle.checked = true;
-        App.setBanner("GBrain 关闭失败: " + e.message, "err");
-      } finally {
-        gbrainToggle.disabled = false;
-      }
-    }
-
-    async function onGBrainSetup() {
-      if (!window.confirm("将从项目配置指定的 reviewed ref 下载并安装 GBrain。继续吗？")) return;
-      gbrainSetup.disabled = true;
-      try {
-        await App.api(`/api/v1/projects/${App.state.projectId}/gbrain/setup`, {
-          method: "POST", body: { confirm: true },
-        });
-        gbrainStatus.textContent = "本地搜索（安装中）";
-        startGBrainPolling();
-      } catch (e) {
-        App.setBanner("GBrain 安装失败: " + e.message, "err");
-      } finally {
-        gbrainSetup.disabled = false;
-      }
     }
 
     // Type radio styling

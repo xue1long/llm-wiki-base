@@ -9,6 +9,10 @@
     App.showView(btn.dataset.view);
   });
 
+  document.getElementById("settingsOpenBtn").addEventListener("click", () => {
+    App.openSettingsModal();
+  });
+
   // ---------- Intercept wiki-internal links ----------
   document.addEventListener("click", e => {
     const a = e.target.closest && e.target.closest("a[href]");
