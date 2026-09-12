@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import subprocess
 import shutil
+import time
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -17,6 +19,7 @@ from .runtime import (
     managed_runtime_path,
     resolve_runtime,
     validate_runtime,
+    RuntimeConfigError,
 )
 
 
@@ -64,7 +67,8 @@ def setup_runtime(
             runner=version_runner,
             mcp_probe=mcp_probe,
         )
-        return SetupResult(validation.status, validation.path, validation=validation)
+        if validation.status == "ready" or not install or existing.origin != "user:managed":
+            return SetupResult(validation.status, validation.path, validation=validation)
 
     if not install:
         return SetupResult("not_requested", error_code="install_not_requested")
@@ -75,35 +79,81 @@ def setup_runtime(
     if config.install_mode != "managed":
         return SetupResult("failed", error_code="unsupported_install_mode")
 
-    target = managed_runtime_path(config)
-    if target.exists():
-        return SetupResult("failed", target, "target_exists")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = target.with_name(f".{target.name}.install-{uuid.uuid4().hex}")
-    run = command_runner or _run_command
     try:
-        run(["git", "clone", "--no-checkout", config.repository, str(temporary)], project_root, timeout)
-        run(["git", "-C", str(temporary), "fetch", "--depth", "1", "origin", config.ref], project_root, timeout)
-        run(["git", "-C", str(temporary), "checkout", "--detach", "FETCH_HEAD"], project_root, timeout)
-        run(["bun", "install", "--frozen-lockfile", "--ignore-scripts"], temporary, timeout)
-        validation = validate_runtime(
-            resolve_runtime(temporary, RuntimeConfig(path=str(temporary))),
-            config=config,
-            expected_version=config.version,
-            timeout=timeout,
-            runner=version_runner,
-            mcp_probe=mcp_probe,
-        )
-        if validation.status != "ready":
-            return SetupResult(validation.status, validation=validation)
-        temporary.replace(target)
-        return SetupResult("ready", target, validation=validation)
-    except (FileNotFoundError, OSError, subprocess.SubprocessError, TimeoutError):
-        return SetupResult("failed", error_code="install_failed")
+        target = managed_runtime_path(config)
+    except RuntimeConfigError:
+        return SetupResult("failed", error_code="unsafe_managed_ref")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    run = command_runner or _run_command
+    with _managed_install_lock(target, timeout) as acquired:
+        if not acquired:
+            return SetupResult("failed", target, "install_lock_timeout")
+        current = resolve_runtime(project_root, config)
+        if current.path is not None:
+            current_validation = validate_runtime(
+                current,
+                config=config,
+                expected_version=config.version,
+                timeout=timeout,
+                runner=version_runner,
+                mcp_probe=mcp_probe,
+            )
+            if current_validation.status == "ready":
+                return SetupResult("ready", current.path, validation=current_validation)
+        temporary = target.with_name(f".{target.name}.install-{uuid.uuid4().hex}")
+        try:
+            run(["git", "clone", "--no-checkout", config.repository, str(temporary)], project_root, timeout)
+            run(["git", "-C", str(temporary), "fetch", "--depth", "1", "origin", config.ref], project_root, timeout)
+            run(["git", "-C", str(temporary), "checkout", "--detach", "FETCH_HEAD"], project_root, timeout)
+            run(["bun", "install", "--frozen-lockfile", "--ignore-scripts"], temporary, timeout)
+            validation = validate_runtime(
+                resolve_runtime(temporary, RuntimeConfig(path=str(temporary))),
+                config=config,
+                expected_version=config.version,
+                timeout=timeout,
+                runner=version_runner,
+                mcp_probe=mcp_probe,
+            )
+            if validation.status != "ready":
+                return SetupResult(validation.status, validation=validation)
+            backup = target.with_name(f".{target.name}.old-{uuid.uuid4().hex}")
+            if target.exists():
+                target.replace(backup)
+            try:
+                temporary.replace(target)
+            except Exception:
+                if backup.exists():
+                    backup.replace(target)
+                raise
+            if backup.exists():
+                shutil.rmtree(backup, ignore_errors=True)
+            return SetupResult("ready", target, validation=validation)
+        except (FileNotFoundError, OSError, subprocess.SubprocessError, TimeoutError):
+            return SetupResult("failed", error_code="install_failed")
+        finally:
+            if temporary.exists():
+                shutil.rmtree(temporary, ignore_errors=True)
+
+
+@contextmanager
+def _managed_install_lock(target: Path, timeout: float):
+    lock = target.with_name(f".{target.name}.install.lock")
+    deadline = time.monotonic() + timeout
+    acquired = False
+    try:
+        while True:
+            try:
+                lock.mkdir()
+                acquired = True
+                break
+            except FileExistsError:
+                if time.monotonic() >= deadline:
+                    break
+                time.sleep(0.05)
+        yield acquired
     finally:
-        if temporary.exists():
-            # Best-effort cleanup of the isolated failed install.
-            shutil.rmtree(temporary, ignore_errors=True)
+        if acquired:
+            lock.rmdir()
 
 
 def _run_command(command: list[str], cwd: Path, timeout: float) -> Any:

@@ -5,8 +5,10 @@ from pathlib import Path
 
 from src.integrations.gbrain.runtime import (
     RuntimeConfig,
+    RuntimeConfigError,
     RuntimeStatus,
     load_runtime_config,
+    managed_runtime_path,
     resolve_runtime,
     validate_runtime,
 )
@@ -118,6 +120,27 @@ def test_runtime_state_is_written_atomically_and_readable(tmp_path):
 
     assert load_runtime_state(tmp_path) == payload
     assert not list((tmp_path / ".index" / "gbrain").glob("*.tmp"))
+
+
+def test_managed_runtime_path_rejects_ref_escape(tmp_path):
+    config = RuntimeConfig(managed_root=str(tmp_path / "managed"), ref="../escape")
+
+    try:
+        managed_runtime_path(config)
+    except RuntimeConfigError as exc:
+        assert str(exc) == "unsafe managed runtime ref"
+    else:
+        raise AssertionError("path traversal ref must be rejected")
+
+
+def test_resolve_runtime_fails_closed_before_search_for_unsafe_ref(tmp_path):
+    _make_runtime(tmp_path)
+
+    result = resolve_runtime(tmp_path, RuntimeConfig(ref="../../escape"))
+
+    assert result.status is RuntimeStatus.INVALID_CONFIGURED_RUNTIME
+    assert result.error_code == "unsafe_managed_ref"
+    assert result.path is None
 
 
 def _make_runtime_at(runtime: Path) -> Path:

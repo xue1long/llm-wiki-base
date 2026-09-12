@@ -113,6 +113,15 @@ def resolve_runtime(
     config = config or load_runtime_config(root)
     env = environ or os.environ
 
+    try:
+        _managed_runtime_root(config, env)
+    except RuntimeConfigError:
+        return RuntimeResolution(
+            RuntimeStatus.INVALID_CONFIGURED_RUNTIME,
+            origin="user:managed",
+            error_code="unsafe_managed_ref",
+        )
+
     if config.path is not None:
         return _resolve_explicit(Path(config.path), root, "config:path")
 
@@ -236,15 +245,21 @@ def _resolve_explicit(path: Path, root: Path, origin: str) -> RuntimeResolution:
 
 def _managed_runtime_root(config: RuntimeConfig, env: Mapping[str, str]) -> Path:
     if config.managed_root:
-        return Path(config.managed_root).expanduser()
-    if os.name == "nt":
+        base = Path(config.managed_root).expanduser()
+    elif os.name == "nt":
         base = Path(env.get("LOCALAPPDATA") or (Path.home() / "AppData" / "Local"))
     elif os.sys.platform == "darwin":
         base = Path.home() / "Library" / "Application Support"
     else:
         base = Path(env.get("XDG_DATA_HOME") or (Path.home() / ".local" / "share"))
-    root = base / "ruflo-kb" / "external" / "gbrain"
-    return root / (config.ref or "current")
+    base = base / "ruflo-kb" / "external" / "gbrain" if not config.managed_root else base
+    ref = config.ref or "current"
+    candidate = (base / ref).resolve()
+    try:
+        candidate.relative_to(base.resolve())
+    except ValueError as exc:
+        raise RuntimeConfigError("unsafe managed runtime ref") from exc
+    return candidate
 
 
 def managed_runtime_path(

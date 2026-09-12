@@ -243,6 +243,31 @@ _EXCLUDED_WIKI_DIRS = {"_archive", "_stubs"}
 _EXCLUDED_WIKI_FILES = {"index.md", "log.md"}
 
 
+def searchable_wiki_files(project_root: Path) -> list[Path]:
+    """Return only schema-declared Markdown page files."""
+    from ...wiki.core.paths import WikiPaths
+    from ...wiki.schema_registry import SchemaRegistry
+
+    root = Path(project_root)
+    paths = WikiPaths(root)
+    files: list[Path] = []
+    seen: set[Path] = set()
+    for page_dir in SchemaRegistry.from_project(root).iter_page_dirs(paths):
+        page_dir = page_dir.resolve()
+        if page_dir in seen or not page_dir.is_dir():
+            continue
+        seen.add(page_dir)
+        for path in sorted(page_dir.rglob("*.md")):
+            relative = path.relative_to(paths.wiki)
+            if relative.name in _EXCLUDED_WIKI_FILES or any(
+                part in _EXCLUDED_WIKI_DIRS or part.startswith(".")
+                for part in relative.parts
+            ):
+                continue
+            files.append(path)
+    return files
+
+
 def _wiki_page_type(path: Path) -> str:
     parent = path.parent.name
     return {
@@ -260,12 +285,8 @@ def build_wiki_snapshot(project_root: Path) -> list[WikiSnapshotEntry]:
     if not wiki.is_dir():
         return []
     entries: list[WikiSnapshotEntry] = []
-    for path in sorted(wiki.rglob("*.md")):
+    for path in searchable_wiki_files(root):
         relative = path.relative_to(wiki)
-        if relative.name in _EXCLUDED_WIKI_FILES or any(
-            part in _EXCLUDED_WIKI_DIRS for part in relative.parts
-        ):
-            continue
         content = path.read_bytes()
         rel_path = path.relative_to(root).as_posix()
         slug = "wiki/" + relative.with_suffix("").as_posix()
@@ -324,6 +345,7 @@ __all__ = [
     "update_job",
     "validate_source_ownership",
     "build_wiki_snapshot",
+    "searchable_wiki_files",
     "load_manifest",
     "reconcile_manifest",
     "save_manifest",

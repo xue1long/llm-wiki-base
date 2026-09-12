@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Callable, Any
 
@@ -11,6 +14,7 @@ from .api import (
     ensure_search_config,
     reconcile_manifest,
     save_manifest,
+    searchable_wiki_files,
     validate_source_ownership,
 )
 from .types import SearchConfig, WikiSnapshotEntry
@@ -24,7 +28,7 @@ class SyncResult:
 
 
 def build_import_command(
-    project_root: Path, config: SearchConfig, runtime_path: Path
+    project_root: Path, config: SearchConfig, runtime_path: Path, import_root: Path | None = None
 ) -> list[str]:
     """Build the only allowed initial-import command for this project."""
     del runtime_path  # The caller supplies it as the subprocess cwd.
@@ -33,7 +37,7 @@ def build_import_command(
         "run",
         "src/cli.ts",
         "import",
-        str(Path(project_root) / "wiki"),
+        str(import_root or (Path(project_root) / "wiki")),
         "--source-id",
         config.source_id,
     ]
@@ -53,6 +57,36 @@ def build_source_add_command(project_root: Path, config: SearchConfig) -> list[s
         config.source_name,
         "--no-federated",
     ]
+
+
+def build_source_status_command() -> list[str]:
+    return ["bun", "run", "src/cli.ts", "sources", "status", "--json"]
+
+
+def _source_is_registered(result: Any, project_root: Path, source_id: str) -> bool:
+    payload = json.loads(getattr(result, "stdout", "") or "{}")
+    rows = payload.get("sources", []) if isinstance(payload, dict) else []
+    row = next((item for item in rows if item.get("source_id") == source_id), None)
+    if row is None:
+        return False
+    local_path = row.get("local_path")
+    expected = (Path(project_root) / "wiki").resolve()
+    if not local_path or Path(str(local_path)).resolve() != expected:
+        raise ValueError("source_ownership_conflict")
+    return True
+
+
+def _prepare_import_root(project_root: Path) -> Path:
+    root = Path(project_root)
+    staging_parent = root / ".index" / "gbrain"
+    staging_parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix="gbrain-import-", dir=staging_parent))
+    for source in searchable_wiki_files(root):
+        relative = source.relative_to(root)
+        target = staging / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+    return staging
 
 
 def build_mcp_intent(
@@ -82,10 +116,21 @@ def run_initial_import(
             command, cwd=cwd, capture_output=True, text=True, check=True, shell=False
         )
     )
-    return [
-        command_runner(build_source_add_command(project_root, config), Path(runtime_path)),
-        command_runner(build_import_command(project_root, config, runtime_path), Path(runtime_path)),
-    ]
+    staging = _prepare_import_root(Path(project_root))
+    try:
+        status = command_runner(build_source_status_command(), Path(runtime_path))
+        commands = []
+        if not _source_is_registered(status, Path(project_root), config.source_id):
+            commands.append(command_runner(build_source_add_command(project_root, config), Path(runtime_path)))
+        commands.append(
+            command_runner(
+                build_import_command(project_root, config, runtime_path, staging),
+                Path(runtime_path),
+            )
+        )
+        return commands
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
 
 
 def reconcile_and_sync(
@@ -137,6 +182,7 @@ __all__ = [
     "build_import_command",
     "build_mcp_intent",
     "build_source_add_command",
+    "build_source_status_command",
     "reconcile_and_sync",
     "run_initial_import",
 ]
