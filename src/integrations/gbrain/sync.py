@@ -157,7 +157,11 @@ def reconcile_and_sync(
 
     def apply(operation: str, slug: str) -> bool:
         entry: WikiSnapshotEntry | None = current.get(slug)
-        content = None if entry is None else (root / entry.path).read_text(encoding="utf-8")
+        content = (
+            None
+            if operation != "upsert" or entry is None
+            else (root / entry.path).read_text(encoding="utf-8")
+        )
         for attempt in range(max_attempts):
             try:
                 build_mcp_intent(operation, config.source_id, slug, content)

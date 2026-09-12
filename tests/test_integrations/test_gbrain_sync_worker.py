@@ -147,6 +147,7 @@ def test_run_incremental_sync_updates_remote_and_keeps_ready_state(tmp_path):
 
 def test_reconcile_restores_tombstone_before_upsert(tmp_path):
     _project(tmp_path)
+    config = ensure_search_config(tmp_path)
     page = tmp_path / "wiki" / "sources" / "old.md"
     page.parent.mkdir(parents=True)
     page.write_text("old", encoding="utf-8")
@@ -159,7 +160,7 @@ def test_reconcile_restores_tombstone_before_upsert(tmp_path):
     result = reconcile_and_sync(tmp_path, lambda *args: calls.append(args))
 
     assert result.success is True
-    assert [(call[0], call[2]) for call in calls] == [
-        ("restore", "wiki/sources/old"),
-        ("upsert", "wiki/sources/old"),
+    assert calls == [
+        ("restore", config.source_id, "wiki/sources/old", None),
+        ("upsert", config.source_id, "wiki/sources/old", "restored"),
     ]
