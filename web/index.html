@@ -9,7 +9,10 @@
 <body>
   <aside id="sidebar">
     <div class="brand">
-      <div class="brand-title">ruflo-kb</div>
+      <div class="brand-header">
+        <div class="brand-title">ruflo-kb</div>
+        <button id="settingsOpenBtn" class="sidebar-settings-btn" type="button" title="打开设置" aria-label="打开设置">⚙</button>
+      </div>
       <div class="health"><span id="healthDot" class="dot"></span><span id="healthText">未连接</span></div>
       <button id="newProjectBtn" title="新建项目" style="display:none;">+ 新建项目</button>
     </div>
@@ -31,7 +34,6 @@
   <main id="main">
     <div class="topbar">
       <div id="breadcrumb" class="breadcrumb"></div>
-      <button id="settingsOpenBtn" class="topbar-settings" type="button" title="打开设置">⚙ 设置</button>
     </div>
     <div id="banner"></div>
     <div id="content"></div>
