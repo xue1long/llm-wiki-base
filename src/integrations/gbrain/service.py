@@ -45,6 +45,8 @@ def get_search_status(project_id: str) -> dict:
         "failed_pages": state.failed_pages,
         "embedding_coverage": state.embedding_coverage,
         "path_mapping_coverage": state.path_mapping_coverage,
+        "manifest_hash": state.manifest_hash,
+        "last_success_at": state.last_success_at,
         "last_error_code": state.last_error_code,
     }
 

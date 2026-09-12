@@ -85,7 +85,10 @@ def test_worker_marks_ready_only_after_import_and_full_coverage(tmp_path, monkey
     assert result["status"] == "ready"
     assert calls[0][1] == config.source_id
     assert get_job(tmp_path, job["jobId"]).status is JobStatus.SUCCEEDED
-    assert load_search_state(tmp_path).status is SearchStatus.READY
+    state = load_search_state(tmp_path)
+    assert state.status is SearchStatus.READY
+    assert len(state.manifest_hash) == 64
+    assert state.last_success_at > 0
     assert load_runtime_state(tmp_path)["status"] == "ready"
 
 

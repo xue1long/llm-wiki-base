@@ -301,6 +301,16 @@ def build_wiki_snapshot(project_root: Path) -> list[WikiSnapshotEntry]:
     return entries
 
 
+def snapshot_manifest_hash(snapshot: list[WikiSnapshotEntry]) -> str:
+    payload = json.dumps(
+        [entry.to_dict() for entry in snapshot],
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def load_manifest(project_root: Path) -> dict[str, dict[str, Any]]:
     raw = _read_json(_manifest_path(Path(project_root)), {})
     if not isinstance(raw, dict):
@@ -345,6 +355,7 @@ __all__ = [
     "update_job",
     "validate_source_ownership",
     "build_wiki_snapshot",
+    "snapshot_manifest_hash",
     "searchable_wiki_files",
     "load_manifest",
     "reconcile_manifest",

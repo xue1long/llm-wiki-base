@@ -16,8 +16,10 @@ from .api import (
     load_search_state,
     save_manifest,
     save_search_state,
+    snapshot_manifest_hash,
     update_job,
 )
+from ...lib.time import now_ms
 from .runtime import load_runtime_config, resolve_runtime, validate_runtime
 from .service import resolve_project_root
 from .setup import setup_runtime
@@ -140,6 +142,8 @@ def run_search_job(
                 failed_pages=0,
                 embedding_coverage=coverage,
                 path_mapping_coverage=mapping,
+                manifest_hash=snapshot_manifest_hash(snapshot),
+                last_success_at=now_ms(),
                 last_error_code="",
             ),
         )
@@ -187,6 +191,8 @@ def run_incremental_sync(
                 total_pages=len(snapshot),
                 synced_pages=len(snapshot),
                 failed_pages=0,
+                manifest_hash=snapshot_manifest_hash(snapshot),
+                last_success_at=now_ms(),
                 last_error_code="",
             ),
         )
