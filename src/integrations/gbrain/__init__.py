@@ -23,6 +23,14 @@ from .types import (
     SearchStatus,
     WikiSnapshotEntry,
 )
+from .sync import (
+    SyncResult,
+    build_import_command,
+    build_mcp_intent,
+    build_source_add_command,
+    reconcile_and_sync,
+    run_initial_import,
+)
 
 from .runtime import (
     RuntimeConfig,
@@ -74,4 +82,10 @@ __all__ = [
     "load_manifest",
     "reconcile_manifest",
     "save_manifest",
+    "SyncResult",
+    "build_import_command",
+    "reconcile_and_sync",
+    "build_mcp_intent",
+    "build_source_add_command",
+    "run_initial_import",
 ]
