@@ -31,7 +31,7 @@ from .sync import (
     reconcile_and_sync,
     run_initial_import,
 )
-from .worker import run_search_job, run_search_job_for_project
+from .worker import run_incremental_sync, run_search_job, run_search_job_for_project
 
 from .runtime import (
     RuntimeConfig,
@@ -91,4 +91,5 @@ __all__ = [
     "run_initial_import",
     "run_search_job",
     "run_search_job_for_project",
+    "run_incremental_sync",
 ]

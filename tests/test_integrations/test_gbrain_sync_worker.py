@@ -14,6 +14,7 @@ from src.integrations.gbrain.sync import (
     reconcile_and_sync,
     run_initial_import,
 )
+from src.integrations.gbrain.worker import run_incremental_sync
 
 
 def _project(root):
@@ -122,3 +123,23 @@ def test_reconcile_retries_and_keeps_manifest_on_failure(tmp_path):
     assert result.success is False
     assert result.failed == ["wiki/sources/new"]
     assert len(calls) == 2
+
+
+def test_run_incremental_sync_updates_remote_and_keeps_ready_state(tmp_path):
+    _project(tmp_path)
+    page_dir = tmp_path / "wiki" / "sources"
+    page_dir.mkdir(parents=True)
+    page = page_dir / "new.md"
+    page.write_text("new", encoding="utf-8")
+    config = ensure_search_config(tmp_path)
+    save_manifest(tmp_path, [])
+    calls = []
+
+    result = run_incremental_sync(
+        tmp_path,
+        tmp_path / "runtime",
+        apply_intent=lambda *args: calls.append(args),
+    )
+
+    assert result.success is True
+    assert calls == [("upsert", config.source_id, "wiki/sources/new", "new")]

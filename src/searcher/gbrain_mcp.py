@@ -33,6 +33,18 @@ def build_search_request(query: str, top_k: int) -> dict[str, Any]:
     }
 
 
+def build_mutation_request(tool: str, slug: str, content: str | None = None) -> dict[str, Any]:
+    arguments: dict[str, Any] = {"slug": slug}
+    if content is not None:
+        arguments["content"] = content
+    return {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {"name": tool, "arguments": arguments},
+    }
+
+
 def run_mcp_search(
     runtime_path: str,
     source_id: str,
@@ -101,6 +113,79 @@ def run_mcp_search(
             result = result.get("results", [])
         if not isinstance(result, list):
             raise GBrainSearchError("invalid_payload")
+        return result
+    finally:
+        if process.poll() is None:
+            process.kill()
+        process.wait(timeout=timeout)
+
+
+def run_mcp_mutation(
+    runtime_path: str,
+    source_id: str,
+    operation: str,
+    slug: str,
+    content: str | None = None,
+    *,
+    timeout: float = 10.0,
+) -> Any:
+    """Apply one source-scoped GBrain page mutation over stdio MCP."""
+    if operation not in {"upsert", "delete", "restore"}:
+        raise ValueError(f"unsupported GBrain sync operation: {operation}")
+    tool = {"upsert": "put_page", "delete": "delete_page", "restore": "restore_page"}[operation]
+    env = os.environ.copy()
+    env["GBRAIN_SOURCE"] = source_id
+    process = subprocess.Popen(
+        ["bun", "run", "src/cli.ts", "serve"],
+        cwd=runtime_path,
+        env=env,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        shell=False,
+    )
+
+    def request(payload: dict[str, Any]) -> dict[str, Any]:
+        assert process.stdin is not None and process.stdout is not None
+        process.stdin.write(json.dumps(payload) + "\n")
+        process.stdin.flush()
+        lines: Queue[str] = Queue()
+        threading.Thread(target=lambda: lines.put(process.stdout.readline()), daemon=True).start()
+        try:
+            line = lines.get(timeout=timeout)
+        except Empty as exc:
+            raise TimeoutError("gbrain mcp response timeout") from exc
+        if not line:
+            raise RuntimeError("gbrain mcp closed stdout")
+        response = json.loads(line)
+        if response.get("error"):
+            raise RuntimeError("gbrain mcp tool error")
+        result = response.get("result", {})
+        if isinstance(result, dict) and result.get("isError"):
+            raise RuntimeError("gbrain mcp tool error")
+        return response
+
+    try:
+        request({
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-06-18", "capabilities": {},
+                "clientInfo": {"name": "ruflo-kb", "version": "1"},
+            },
+        })
+        assert process.stdin is not None
+        process.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n")
+        process.stdin.flush()
+        response = request(build_mutation_request(tool, slug, content))
+        result = response.get("result", {})
+        if isinstance(result, dict) and result.get("content"):
+            first = result["content"][0]
+            if isinstance(first, dict) and isinstance(first.get("text"), str):
+                try:
+                    return json.loads(first["text"])
+                except json.JSONDecodeError:
+                    return first["text"]
         return result
     finally:
         if process.poll() is None:
@@ -196,6 +281,8 @@ __all__ = [
     "SearchAdapterResult",
     "adapt_results",
     "build_search_request",
+    "build_mutation_request",
     "run_mcp_search",
+    "run_mcp_mutation",
     "search_with_fallback",
 ]

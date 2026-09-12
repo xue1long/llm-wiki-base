@@ -161,6 +161,7 @@ def test_search_uses_ready_gbrain_before_local_vector(monkeypatch, tmp_path):
     monkeypatch.setattr(search_service, "resolve_project", lambda project_id, by_id_only=True: _fake_resolve(project_dir))
     monkeypatch.setattr(search_service, "vector_readiness", lambda *args, **kwargs: {"ready": False, "reason": "local_pending"})
     monkeypatch.setattr(search_service, "_filter_actionable", lambda paths, results: results)
+    monkeypatch.setattr(search_service, "run_incremental_sync", lambda *args, **kwargs: type("Result", (), {"success": True})())
     monkeypatch.setattr(
         search_service,
         "run_mcp_search",
@@ -172,6 +173,33 @@ def test_search_uses_ready_gbrain_before_local_vector(monkeypatch, tmp_path):
     assert result["results"][0]["source"] == "gbrain"
     assert result["diagnostics"]["backend"] == "gbrain"
     assert result["ready"] is True
+
+
+def test_search_reconciles_wiki_before_using_gbrain(monkeypatch, tmp_path):
+    project_dir = tmp_path / "kb"
+    project_dir.mkdir()
+    (project_dir / ".llm-wiki").mkdir()
+    (project_dir / ".llm-wiki" / "project.json").write_text('{"id": "u", "name": "p"}', encoding="utf-8")
+    (project_dir / "wiki" / "sources").mkdir(parents=True)
+    (project_dir / "wiki" / "sources" / "a.md").write_text("---\nid: a\ntitle: A\ntype: source\n---\nbody", encoding="utf-8")
+    config = ensure_search_config(project_dir)
+    save_search_config(project_dir, replace(config, enabled=True))
+    save_search_state(project_dir, replace(SearchState(), status=SearchStatus.READY, embedding_coverage=1.0, path_mapping_coverage=1.0))
+    runtime = tmp_path / "gbrain"
+    runtime.mkdir()
+    save_runtime_state(project_dir, {"status": "ready", "path": str(runtime)})
+    calls = []
+
+    monkeypatch.setattr(search_service, "resolve_project", lambda *args, **kwargs: _fake_resolve(project_dir))
+    monkeypatch.setattr(search_service, "run_incremental_sync", lambda *args, **kwargs: calls.append(args) or type("Result", (), {"success": True})())
+    monkeypatch.setattr(search_service, "vector_readiness", lambda *args, **kwargs: {"ready": False, "reason": "local_pending"})
+    monkeypatch.setattr(search_service, "_filter_actionable", lambda paths, results: results)
+    monkeypatch.setattr(search_service, "run_mcp_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(search_service, "hybrid_search", lambda *args, **kwargs: [])
+
+    asyncio.run(search_service.search("u", "query", mode="hybrid"))
+
+    assert calls == [(project_dir, str(runtime))]
 
 
 def test_search_rejects_stale_missing_runtime_path(monkeypatch, tmp_path):

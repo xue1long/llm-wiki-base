@@ -5,6 +5,7 @@ import pytest
 from src.searcher.gbrain_mcp import (
     GBrainSearchError,
     adapt_results,
+    build_mutation_request,
     build_search_request,
     search_with_fallback,
 )
@@ -70,4 +71,15 @@ def test_search_request_never_carries_source_in_user_arguments():
     assert request["params"] == {
         "name": "search",
         "arguments": {"query": "how to deploy", "limit": 5},
+    }
+
+
+def test_mutation_request_keeps_source_scope_out_of_user_arguments():
+    request = build_mutation_request("put_page", "wiki/sources/a", "body")
+
+    assert request == {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {"name": "put_page", "arguments": {"slug": "wiki/sources/a", "content": "body"}},
     }

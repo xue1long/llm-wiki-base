@@ -22,6 +22,7 @@ from pathlib import Path
 from ..lib.project import resolve_project
 from ..integrations.gbrain.api import load_manifest, load_search_config, load_search_state
 from ..integrations.gbrain.state import load_runtime_state
+from ..integrations.gbrain.worker import run_incremental_sync
 from ..searcher.gbrain_mcp import GBrainSearchError, adapt_results, run_mcp_search
 from ..llm.embedding_runtime import get_embedding_provider
 from ..searcher.hybrid_search import hybrid_search
@@ -60,6 +61,12 @@ async def search(
     gbrain_fallback_reason = ""
     if mode == "hybrid" and page_type is None and gbrain["ready"] and not _should_abstain(query):
         try:
+            sync_result = await asyncio.to_thread(
+                run_incremental_sync, paths.root, gbrain["runtime_path"]
+            )
+            if not sync_result.success:
+                gbrain_fallback_reason = "incremental_sync_failed"
+                raise RuntimeError("incremental_sync_failed")
             remote = await asyncio.to_thread(
                 run_mcp_search,
                 gbrain["runtime_path"],

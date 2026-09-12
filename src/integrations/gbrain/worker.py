@@ -22,7 +22,7 @@ from .runtime import load_runtime_config, resolve_runtime, validate_runtime
 from .service import resolve_project_root
 from .setup import setup_runtime
 from .state import save_runtime_state
-from .sync import run_initial_import
+from .sync import reconcile_and_sync, run_initial_import
 from .types import JobStatus, SearchState, SearchStatus
 
 
@@ -157,6 +157,47 @@ def run_search_job(
     return {"status": "failed", "jobId": job_id, "error_code": error_code}
 
 
+def run_incremental_sync(
+    project_root: Path,
+    runtime_path: str | Path | None = None,
+    *,
+    apply_intent: Callable[[str, str, str, str | None], Any] | None = None,
+):
+    """Reconcile local Wiki changes before a GBrain search."""
+    root = Path(project_root)
+    config = load_search_config(root)
+    runtime = Path(runtime_path) if runtime_path else resolve_runtime(root, load_runtime_config(root)).path
+    if runtime is None:
+        raise RuntimeError("runtime_not_ready")
+    if apply_intent is None:
+        from ..searcher.gbrain_mcp import run_mcp_mutation
+
+        def apply_intent(operation, source_id, slug, content):
+            return run_mcp_mutation(str(runtime), source_id, operation, slug, content)
+
+    result = reconcile_and_sync(root, apply_intent)
+    current = load_search_state(root)
+    if result.success:
+        snapshot = build_wiki_snapshot(root)
+        save_search_state(
+            root,
+            replace(
+                current,
+                status=SearchStatus.READY,
+                total_pages=len(snapshot),
+                synced_pages=len(snapshot),
+                failed_pages=0,
+                last_error_code="",
+            ),
+        )
+    else:
+        save_search_state(
+            root,
+            replace(current, status=SearchStatus.STALE, failed_pages=len(result.failed), last_error_code="incremental_sync_failed"),
+        )
+    return result
+
+
 def run_search_job_for_project(project_id: str, job_id: str) -> dict[str, Any]:
     return run_search_job(resolve_project_root(project_id), job_id)
 
@@ -188,6 +229,7 @@ def run_runtime_setup_job_for_project(project_id: str, job_id: str) -> dict[str,
 __all__ = [
     "run_runtime_setup_job",
     "run_runtime_setup_job_for_project",
+    "run_incremental_sync",
     "run_search_job",
     "run_search_job_for_project",
 ]
