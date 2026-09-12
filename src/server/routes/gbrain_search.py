@@ -28,6 +28,24 @@ async def status(project_id: str):
     return _call(gbrain_service.get_search_status, project_id)
 
 
+@router.get("/projects/{project_id}/gbrain")
+async def runtime_status(project_id: str):
+    return _call(gbrain_service.get_runtime_status, project_id)
+
+
+@router.post("/projects/{project_id}/gbrain/setup", status_code=202)
+async def setup(
+    project_id: str,
+    body: ConfirmRequest,
+    background_tasks: BackgroundTasks = None,
+):
+    result = _call(gbrain_service.setup_runtime_job, project_id, confirm=body.confirm)
+    if background_tasks is not None and result.get("status") == "queued":
+        from ...integrations.gbrain.worker import run_runtime_setup_job_for_project
+        background_tasks.add_task(run_runtime_setup_job_for_project, project_id, result["jobId"])
+    return result
+
+
 @router.post("/projects/{project_id}/gbrain-search/enable", status_code=202)
 async def enable(
     project_id: str,

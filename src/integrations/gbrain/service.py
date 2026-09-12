@@ -15,6 +15,8 @@ from .api import (
     save_search_config,
     save_search_state,
 )
+from .runtime import load_runtime_config, resolve_runtime, validate_runtime
+from .state import load_runtime_state, save_runtime_state
 from .types import SearchStatus
 
 
@@ -45,6 +47,28 @@ def get_search_status(project_id: str) -> dict:
         "path_mapping_coverage": state.path_mapping_coverage,
         "last_error_code": state.last_error_code,
     }
+
+
+def get_runtime_status(project_id: str) -> dict:
+    root = resolve_project_root(project_id)
+    stored = load_runtime_state(root)
+    if stored.get("status") == "installing":
+        return stored
+    config = load_runtime_config(root)
+    resolution = resolve_runtime(root, config)
+    validation = validate_runtime(resolution, config=config, expected_version=config.version or None)
+    report = validation.to_dict()
+    save_runtime_state(root, report)
+    return report
+
+
+def setup_runtime_job(project_id: str, *, confirm: bool) -> dict:
+    if not confirm:
+        raise ValueError("confirmation_required")
+    root = resolve_project_root(project_id)
+    ensure_search_config(root)
+    job = enqueue_job(root, "setup")
+    return {"status": "queued", "jobId": job.id}
 
 
 def enable_search(project_id: str, *, confirm: bool) -> dict:
@@ -102,6 +126,8 @@ __all__ = [
     "enable_search",
     "get_search_job",
     "get_search_status",
+    "get_runtime_status",
     "rebuild_search",
     "resolve_project_root",
+    "setup_runtime_job",
 ]

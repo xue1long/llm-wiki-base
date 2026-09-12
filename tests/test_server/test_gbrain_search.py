@@ -6,6 +6,7 @@ from src.server.routes.gbrain_search import (
     ConfirmRequest,
     disable,
     enable,
+    runtime_status,
 )
 
 
@@ -45,3 +46,12 @@ def test_enable_route_schedules_only_queued_job(monkeypatch):
     asyncio.run(enable("project-1", ConfirmRequest(confirm=True), Tasks()))
 
     assert scheduled and scheduled[0][1:] == ("project-1", "gbj-2")
+
+
+def test_runtime_status_route_delegates(monkeypatch):
+    monkeypatch.setattr(
+        "src.server.routes.gbrain_search.gbrain_service.get_runtime_status",
+        lambda project_id: {"status": "missing"},
+    )
+
+    assert asyncio.run(runtime_status("project-1")) == {"status": "missing"}

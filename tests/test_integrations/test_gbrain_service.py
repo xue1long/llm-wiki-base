@@ -8,11 +8,14 @@ from dataclasses import replace
 
 from src.integrations.gbrain.api import load_search_config, load_search_state, save_search_state
 from src.integrations.gbrain.types import SearchStatus
+from src.integrations.gbrain.runtime import RuntimeConfig, RuntimeResolution, RuntimeStatus, RuntimeValidation
+from src.integrations.gbrain.state import load_runtime_state
 from src.integrations.gbrain.service import (
     disable_search,
     enable_search,
     get_search_status,
     rebuild_search,
+    get_runtime_status,
 )
 
 
@@ -85,3 +88,26 @@ def test_enable_is_idempotent_when_already_ready(tmp_path, monkeypatch):
         "status": "ready",
         "jobId": first["jobId"],
     }
+
+
+def test_runtime_status_persists_sanitized_validation(tmp_path, monkeypatch):
+    _project(tmp_path)
+    monkeypatch.setattr(
+        "src.integrations.gbrain.service.resolve_project_root", lambda project_id: tmp_path
+    )
+    monkeypatch.setattr("src.integrations.gbrain.service.load_runtime_config", lambda root: RuntimeConfig())
+    monkeypatch.setattr(
+        "src.integrations.gbrain.service.resolve_runtime",
+        lambda root, config: RuntimeResolution(RuntimeStatus.FOUND, tmp_path / "gbrain", "env"),
+    )
+    monkeypatch.setattr(
+        "src.integrations.gbrain.service.validate_runtime",
+        lambda resolution, **kwargs: RuntimeValidation(
+            "ready", resolution.path, resolution.origin, "0.42.58.0", {"mcp": True}
+        ),
+    )
+
+    result = get_runtime_status("demo")
+
+    assert result["status"] == "ready"
+    assert load_runtime_state(tmp_path)["path"].endswith("gbrain")

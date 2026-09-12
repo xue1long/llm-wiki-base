@@ -20,6 +20,7 @@
         <label class="gbrain-toggle" title="仅在 GBrain 索引 ready 后切换 hybrid">
           <input type="checkbox" id="gbrainToggle" /> GBrain MCP
         </label>
+        <button id="gbrainSetup" type="button" style="display:none;">安装 GBrain</button>
         <span id="gbrainStatus" style="color:var(--text-muted);">本地搜索</span>
       </div>
       <div id="searchStats" style="display:none;"></div>
@@ -28,36 +29,45 @@
     const input = document.getElementById("qInput");
     const btn = document.getElementById("qBtn");
     const gbrainToggle = document.getElementById("gbrainToggle");
+    const gbrainSetup = document.getElementById("gbrainSetup");
     const gbrainStatus = document.getElementById("gbrainStatus");
     let gbrainPoll = null;
     const trigger = () => doSearch();
     btn.addEventListener("click", trigger);
     input.addEventListener("keydown", e => { if (e.key === "Enter") trigger(); });
     gbrainToggle.addEventListener("change", onGBrainToggle);
+    gbrainSetup.addEventListener("click", onGBrainSetup);
     root._gbrainCleanup = () => { if (gbrainPoll) clearInterval(gbrainPoll); };
     loadGBrainStatus();
 
     async function loadGBrainStatus() {
       if (!App.state.projectId) return;
       try {
-        applyGBrainStatus(await App.api(`/api/v1/projects/${App.state.projectId}/gbrain-search`));
+        const [searchStatus, runtimeStatus] = await Promise.all([
+          App.api(`/api/v1/projects/${App.state.projectId}/gbrain-search`),
+          App.api(`/api/v1/projects/${App.state.projectId}/gbrain`),
+        ]);
+        applyGBrainStatus(searchStatus, runtimeStatus);
       } catch (e) {
         gbrainStatus.textContent = "本地搜索（状态不可用）";
       }
     }
 
-    function applyGBrainStatus(status) {
+    function applyGBrainStatus(status, runtime) {
       const ready = status && status.ready === true && status.backend === "gbrain";
       gbrainToggle.checked = !!status?.enabled;
+      const runtimeMissing = !runtime || ["missing", "failed", "invalid_configured_runtime", "not_requested"].includes(runtime.status);
+      gbrainSetup.style.display = !ready && !status?.enabled && runtimeMissing ? "inline-block" : "none";
+      gbrainSetup.textContent = runtime?.status === "missing" || runtime?.status === "not_requested" ? "安装 GBrain" : "修复 GBrain";
       if (ready) {
         gbrainStatus.textContent = "GBrain hybrid";
         stopGBrainPolling();
         return;
       }
-      const syncing = ["queued", "syncing"].includes(status?.status);
+      const syncing = ["queued", "syncing"].includes(status?.status) || runtime?.status === "installing";
       gbrainStatus.textContent = syncing ? "本地搜索（同步中）" : status?.status === "failed"
-        ? "本地搜索（同步失败）" : "本地搜索";
-      if (syncing && status.job_id) startGBrainPolling();
+        ? "本地搜索（同步失败）" : runtimeMissing ? "本地搜索（GBrain 不可用）" : "本地搜索";
+      if (syncing && (status.job_id || runtime?.status === "installing")) startGBrainPolling();
     }
 
     function startGBrainPolling() {
@@ -101,6 +111,22 @@
         App.setBanner("GBrain 关闭失败: " + e.message, "err");
       } finally {
         gbrainToggle.disabled = false;
+      }
+    }
+
+    async function onGBrainSetup() {
+      if (!window.confirm("将从项目配置指定的 reviewed ref 下载并安装 GBrain。继续吗？")) return;
+      gbrainSetup.disabled = true;
+      try {
+        await App.api(`/api/v1/projects/${App.state.projectId}/gbrain/setup`, {
+          method: "POST", body: { confirm: true },
+        });
+        gbrainStatus.textContent = "本地搜索（安装中）";
+        startGBrainPolling();
+      } catch (e) {
+        App.setBanner("GBrain 安装失败: " + e.message, "err");
+      } finally {
+        gbrainSetup.disabled = false;
       }
     }
 

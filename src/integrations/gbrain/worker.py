@@ -19,6 +19,7 @@ from .api import (
 )
 from .runtime import load_runtime_config, resolve_runtime, validate_runtime
 from .service import resolve_project_root
+from .setup import setup_runtime
 from .state import save_runtime_state
 from .sync import run_initial_import
 from .types import JobStatus, SearchState, SearchStatus
@@ -153,4 +154,33 @@ def run_search_job_for_project(project_id: str, job_id: str) -> dict[str, Any]:
     return run_search_job(resolve_project_root(project_id), job_id)
 
 
-__all__ = ["run_search_job", "run_search_job_for_project"]
+def run_runtime_setup_job(project_root: Path, job_id: str) -> dict[str, Any]:
+    root = Path(project_root)
+    job = get_job(root, job_id)
+    update_job(root, job_id, status=JobStatus.RUNNING)
+    save_runtime_state(root, {"status": "installing", "path": None, "error_code": ""})
+    try:
+        result = setup_runtime(root, load_runtime_config(root), install=True)
+        report = result.to_dict()
+        save_runtime_state(root, report)
+        if result.status != "ready":
+            update_job(root, job_id, status=JobStatus.FAILED, error_code=result.error_code or result.status)
+            return {"status": "failed", "jobId": job_id, "error_code": result.error_code or result.status}
+        update_job(root, job_id, status=JobStatus.SUCCEEDED)
+        return {"status": "ready", "jobId": job_id}
+    except Exception:
+        save_runtime_state(root, {"status": "failed", "path": None, "error_code": "install_failed"})
+        update_job(root, job_id, status=JobStatus.FAILED, error_code="install_failed")
+        return {"status": "failed", "jobId": job_id, "error_code": "install_failed"}
+
+
+def run_runtime_setup_job_for_project(project_id: str, job_id: str) -> dict[str, Any]:
+    return run_runtime_setup_job(resolve_project_root(project_id), job_id)
+
+
+__all__ = [
+    "run_runtime_setup_job",
+    "run_runtime_setup_job_for_project",
+    "run_search_job",
+    "run_search_job_for_project",
+]

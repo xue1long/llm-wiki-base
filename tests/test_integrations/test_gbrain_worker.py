@@ -11,6 +11,7 @@ from src.integrations.gbrain.service import enable_search
 from src.integrations.gbrain.state import load_runtime_state
 from src.integrations.gbrain.types import JobStatus, SearchStatus
 from src.integrations.gbrain.worker import run_search_job
+from src.integrations.gbrain.worker import run_runtime_setup_job
 
 
 def _project(root):
@@ -94,3 +95,26 @@ def test_worker_fails_closed_when_embedding_is_incomplete(tmp_path, monkeypatch)
     assert result["error_code"] == "embedding_incomplete"
     assert get_job(tmp_path, job["jobId"]).status is JobStatus.FAILED
     assert load_search_state(tmp_path).status is SearchStatus.FAILED
+
+
+def test_runtime_setup_job_persists_result(tmp_path, monkeypatch):
+    _project(tmp_path)
+    monkeypatch.setattr(
+        "src.integrations.gbrain.service.resolve_project_root", lambda project_id: tmp_path
+    )
+    config = ensure_search_config(tmp_path)
+    from src.integrations.gbrain.api import enqueue_job
+
+    job = enqueue_job(tmp_path, "setup")
+    monkeypatch.setattr(
+        "src.integrations.gbrain.worker.setup_runtime",
+        lambda root, runtime_config, install: type(
+            "Result", (), {"status": "ready", "error_code": "", "to_dict": lambda self: {"status": self.status, "path": str(tmp_path / "gbrain")}}
+        )(),
+    )
+
+    result = run_runtime_setup_job(tmp_path, job.id)
+
+    assert result["status"] == "ready"
+    assert load_runtime_state(tmp_path)["status"] == "ready"
+    assert get_job(tmp_path, job.id).status is JobStatus.SUCCEEDED
