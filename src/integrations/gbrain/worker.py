@@ -181,7 +181,7 @@ def run_incremental_sync(
     if runtime is None:
         raise RuntimeError("runtime_not_ready")
     if apply_intent is None:
-        from ..searcher.gbrain_mcp import run_mcp_mutation
+        from ...searcher.gbrain_mcp import run_mcp_mutation
 
         def apply_intent(operation, source_id, slug, content):
             return run_mcp_mutation(str(runtime), source_id, operation, slug, content)

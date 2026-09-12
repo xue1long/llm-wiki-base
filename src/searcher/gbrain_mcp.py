@@ -64,6 +64,7 @@ def run_mcp_search(
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         text=True,
+        encoding="utf-8",
         shell=False,
     )
 
@@ -143,6 +144,7 @@ def run_mcp_mutation(
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         text=True,
+        encoding="utf-8",
         shell=False,
     )
 
@@ -228,9 +230,12 @@ def adapt_results(
         if item["source_id"] != source_id:
             raise _error("source_scope_mismatch")
         slug = item["slug"]
-        if not isinstance(slug, str) or slug not in manifest:
+        if not isinstance(slug, str):
             raise _error("path_mapping_failed")
-        path = _safe_manifest_path(manifest[slug].get("path"))
+        manifest_key = slug if slug in manifest else f"wiki/{slug}"
+        if manifest_key not in manifest:
+            raise _error("path_mapping_failed")
+        path = _safe_manifest_path(manifest[manifest_key].get("path"))
         try:
             score = float(item["score"])
         except (TypeError, ValueError) as exc:

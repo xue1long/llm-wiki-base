@@ -49,6 +49,22 @@ def test_adapter_fails_closed_on_wrong_source_or_unmapped_slug():
         adapt_results([base], source_id="ruflo-demo", manifest=_manifest(), top_k=3)
 
 
+def test_adapter_maps_gbrain_slug_without_wiki_prefix():
+    remote = [{
+        "slug": "sources/a",
+        "page_id": "1",
+        "title": "A",
+        "type": "source",
+        "chunk_text": "a",
+        "score": 0.9,
+        "source_id": "ruflo-demo",
+    }]
+
+    result = adapt_results(remote, source_id="ruflo-demo", manifest=_manifest(), top_k=3)
+
+    assert result[0]["path"] == "wiki/sources/a.md"
+
+
 def test_search_falls_back_to_local_on_remote_error():
     local = [{"path": "wiki/sources/a.md", "title": "A", "score": 0.5, "source": "local"}]
 
@@ -83,3 +99,47 @@ def test_mutation_request_keeps_source_scope_out_of_user_arguments():
         "method": "tools/call",
         "params": {"name": "put_page", "arguments": {"slug": "wiki/sources/a", "content": "body"}},
     }
+
+
+def test_run_mcp_search_reads_gbrain_utf8(monkeypatch):
+    import json
+
+    class _Stdin:
+        def write(self, value):
+            return len(value)
+
+        def flush(self):
+            return None
+
+    class _Stdout:
+        def __init__(self):
+            self._lines = iter([
+                json.dumps({"result": {"protocolVersion": "2025-06-18"}}) + "\n",
+                json.dumps({"result": {"content": [{"type": "text", "text": "[]"}]}}) + "\n",
+            ])
+
+        def readline(self):
+            return next(self._lines)
+
+    class _Process:
+        stdin = _Stdin()
+        stdout = _Stdout()
+
+        def poll(self):
+            return 0
+
+        def wait(self, timeout=None):
+            return None
+
+    captured = {}
+
+    def _popen(*args, **kwargs):
+        captured.update(kwargs)
+        return _Process()
+
+    monkeypatch.setattr("src.searcher.gbrain_mcp.subprocess.Popen", _popen)
+
+    from src.searcher.gbrain_mcp import run_mcp_search
+
+    assert run_mcp_search("runtime", "source", "人物关系", 3) == []
+    assert captured["encoding"] == "utf-8"
