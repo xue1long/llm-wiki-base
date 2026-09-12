@@ -111,3 +111,28 @@ def test_runtime_status_persists_sanitized_validation(tmp_path, monkeypatch):
 
     assert result["status"] == "ready"
     assert load_runtime_state(tmp_path)["path"].endswith("gbrain")
+
+
+def test_runtime_status_reuses_recent_ready_validation(tmp_path, monkeypatch):
+    _project(tmp_path)
+    (tmp_path / "gbrain").mkdir()
+    monkeypatch.setattr(
+        "src.integrations.gbrain.service.resolve_project_root", lambda project_id: tmp_path
+    )
+    monkeypatch.setattr("src.integrations.gbrain.service.load_runtime_config", lambda root: RuntimeConfig())
+    monkeypatch.setattr(
+        "src.integrations.gbrain.service.resolve_runtime",
+        lambda root, config: RuntimeResolution(RuntimeStatus.FOUND, tmp_path / "gbrain", "env"),
+    )
+    calls = []
+
+    def validate(*args, **kwargs):
+        calls.append(1)
+        return RuntimeValidation("ready", tmp_path / "gbrain", "env", "0.42.58.0", {"mcp": True})
+
+    monkeypatch.setattr("src.integrations.gbrain.service.validate_runtime", validate)
+
+    get_runtime_status("demo")
+    get_runtime_status("demo")
+
+    assert len(calls) == 1

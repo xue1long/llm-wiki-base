@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
+import time
 
 from ...lib.project import resolve_project
 from ...lib.time import now_ms
@@ -18,6 +19,10 @@ from .api import (
 from .runtime import load_runtime_config, resolve_runtime, validate_runtime
 from .state import load_runtime_state, save_runtime_state
 from .types import SearchStatus
+
+
+_RUNTIME_STATUS_CACHE_TTL = 30.0
+_runtime_status_cache: dict[str, tuple[float, dict]] = {}
 
 
 def resolve_project_root(project_id: str) -> Path:
@@ -56,11 +61,19 @@ def get_runtime_status(project_id: str) -> dict:
     stored = load_runtime_state(root)
     if stored.get("status") == "installing":
         return stored
+    cache_key = str(root.resolve())
+    cached = _runtime_status_cache.get(cache_key)
+    if cached and time.monotonic() - cached[0] < _RUNTIME_STATUS_CACHE_TTL:
+        cached_report = cached[1]
+        if cached_report.get("status") == "ready" and Path(str(cached_report.get("path"))).is_dir():
+            return dict(cached_report)
     config = load_runtime_config(root)
     resolution = resolve_runtime(root, config)
     validation = validate_runtime(resolution, config=config, expected_version=config.version or None)
     report = validation.to_dict()
     save_runtime_state(root, report)
+    if report.get("status") == "ready":
+        _runtime_status_cache[cache_key] = (time.monotonic(), report)
     return report
 
 
