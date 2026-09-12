@@ -1,5 +1,21 @@
 """GBrain runtime discovery and validation."""
 
+from .api import (
+    GBrainProjectError,
+    enqueue_job,
+    ensure_search_config,
+    get_job,
+    load_jobs,
+    load_search_config,
+    load_search_state,
+    project_lock,
+    save_search_config,
+    save_search_state,
+    update_job,
+    validate_source_ownership,
+)
+from .types import GBrainJob, JobStatus, SearchConfig, SearchState, SearchStatus
+
 from .runtime import (
     RuntimeConfig,
     RuntimeResolution,
@@ -27,4 +43,21 @@ __all__ = [
     "save_runtime_state",
     "runtime_state_path",
     "setup_runtime",
+    "GBrainProjectError",
+    "GBrainJob",
+    "JobStatus",
+    "SearchConfig",
+    "SearchState",
+    "SearchStatus",
+    "enqueue_job",
+    "ensure_search_config",
+    "get_job",
+    "load_jobs",
+    "load_search_config",
+    "load_search_state",
+    "project_lock",
+    "save_search_config",
+    "save_search_state",
+    "update_job",
+    "validate_source_ownership",
 ]

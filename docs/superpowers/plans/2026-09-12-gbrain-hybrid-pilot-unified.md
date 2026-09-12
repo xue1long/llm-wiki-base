@@ -295,7 +295,8 @@ WebUI 搜索页：
 - 已增加 `gbrain runtime-status` 与显式 `gbrain setup --install`；普通搜索不会触发下载或安装。
 - 安装必须提供 reviewed `ref`，并通过隔离 clone、Bun 依赖安装、版本和 MCP 校验后才提升为 `ready`。
 - 已完成：真实 Ollama + GBrain embedding canary 通过（768 维、100% coverage），真实 stdio MCP 长页面写入与 delete/restore 生命周期通过。
-- 未完成：项目级 `knowledge/` 导入、source ownership/snapshot 增量同步、`/search` shadow 对比和 WebUI 接入仍受门禁限制。
+- 已完成 Task 2：项目搜索配置默认关闭且使用稳定 source ID；search state/job 原子持久化、项目锁、source ownership 和同 epoch job 去重已落地。
+- 未完成：项目级 `knowledge/` 导入、snapshot 增量同步、`/search` shadow 对比和 WebUI 接入仍受门禁限制。
 - 验证：GBrain 控制面针对性测试 `12 passed`；真实 GBrain P0 记录见 `docs/reports/2026-09-12-gbrain-p0-capability-validation.md`。
 
 ### Task 0：冻结契约与 P0 前置条件
