@@ -303,7 +303,7 @@ WebUI 搜索页：
 - 已完成后台 worker 小片：确认开启后执行 runtime preflight、CLI 初次导入、manifest 提交和 coverage/epoch 门禁；运行时 ready/failed 状态会落盘，失败保持 local。
 - 已完成 WebUI 搜索控制小片：GBrain 开关、确认、状态徽标、轮询和关闭回本地已接入，并同步 `docs/webui-buttons.md`；尚未执行真实项目导入。
 - 已完成运行时引导小片：`GET /gbrain` 状态接口、确认安装 job 和 WebUI“安装/修复 GBrain”入口已接入；普通搜索不会触发安装。
-- 未完成：真实项目级 `knowledge/` 导入、周期/事件驱动的 snapshot 增量同步、`/search` shadow 对比、跨机器验收和安装引导 WebUI。
+- 未完成：真实项目级 `knowledge/` 导入、周期/事件驱动的 snapshot 增量同步、`/search` shadow 对比和跨机器验收。
 - 已补齐 P0 全局 kill switch：`RUFLO_SEARCH_BACKEND=local` 时搜索层不调用 GBrain。
 - 验证：当前 GBrain 目标集 `45 passed`，应用 OpenAPI smoke 通过；真实 GBrain P0 记录见 `docs/reports/2026-09-12-gbrain-p0-capability-validation.md`。
 

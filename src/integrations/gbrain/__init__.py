@@ -31,6 +31,7 @@ from .sync import (
     reconcile_and_sync,
     run_initial_import,
 )
+from .worker import run_search_job, run_search_job_for_project
 
 from .runtime import (
     RuntimeConfig,
@@ -88,4 +89,6 @@ __all__ = [
     "build_mcp_intent",
     "build_source_add_command",
     "run_initial_import",
+    "run_search_job",
+    "run_search_job_for_project",
 ]
