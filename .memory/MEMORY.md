@@ -1,5 +1,17 @@
 # Project Memory Index
 
+- [2026-09-12 GBrain 增强项修复](feedback-gbrain-enhancements-repair-2026-09-12.md) — 逐项完成 job 路径兼容、manifest 新鲜度、删除墓碑恢复、运行时检查缓存；GBrain restore 只传 slug，专项回归 61 passed
+
+- [2026-09-12 GBrain 控制面实现记录](feedback-gbrain-control-plane-implementation-2026-09-12.md) — 运行时发现/校验、显式 setup、原子状态落盘已实现；搜索与导入等待 embedding 门禁
+
+- [2026-09-12 GBrain Hybrid 统一方案](../docs/superpowers/plans/2026-09-12-gbrain-hybrid-pilot-unified.md) — 合并外部运行时发现/安装与项目级索引/hybrid 搜索；runtime ready → index ready → hybrid，缺失/失败始终 local fallback
+- [2026-09-12 GBrain 外部运行时引导安装方案](feedback-gbrain-external-runtime-bootstrap-plan-2026-09-12.md) — 不采用 Git submodule 作为唯一方案；项目/用户级目录发现 + 显式确认 clone/install + reviewed ref + 原子切换 + 本地搜索回退；两轮审计通过设计门禁
+- [2026-09-12 GBrain P0 真实能力验证](feedback-gbrain-p0-capability-validation-2026-09-12.md) — CLI/stdio MCP/批量导入/基础源隔离通过；嵌入覆盖率 0%，MCP put_page 被 Ollama 连接失败阻断，P0 未通过；测试源已清理
+- [2026-09-12 GBrain MCP 可选 hybrid 搜索试点](feedback-gbrain-mcp-search-plan-2026-09-12.md) — 目标已从全量替代收敛为默认本地、显式开启、失败回退的 hybrid 试点；显式 project→source 映射；实施计划见 docs/superpowers/plans/2026-09-12-gbrain-mcp-search-adapter.md
+- [2026-09-12 GBrain 项目级索引管理试点方案](feedback-gbrain-managed-index-pilot-plan-2026-09-12.md) — 每项目独立 source；CLI 初次导入 + MCP 增量/搜索；异步 durable job、snapshot reconcile、ready gate、关闭回退 local；方案已完成两轮审计和整改后复审
+- [2026-09-12 GBrain 项目级 hybrid 试点多角度审计](feedback-gbrain-managed-index-pilot-multi-angle-audit-2026-09-12.md) — 六角度综合 6/10；CLI/MCP 双路径一致性、reconcile 状态机、MCP 写权限/会话模型、绝对质量和成本门槛仍是 P0/P1；建议先做最小 MVP
+- [2026-09-12 GBrain MCP 搜索替代方案审计](feedback-gbrain-mcp-search-audit-2026-09-12.md) — 四角度审计结论不通过；缺同步闭环、真实结果契约、chunk→Wiki path 映射和 readiness 顺序，当前只能作为可选 hybrid 试点
+
 - [2026-09-10 novel-wiki Book 4 项收益全部落地](feedback-novel-wiki-book-readability-shipped-2026-09-10.md) — A 目录分桶 / B 章名 / C preface / D 写作技法 77→7 主题章 均已 WebUI 实测 PASS；含 3 条落地路径、8 个坑（中文码点陷阱、write_text 换行符、outline sha 同步、--apply 默认 pilot 覆盖 baseline）
 - [2026-09-11 novel-wiki 写作知识库整改方案 v3](feedback-novel-wiki-remediation-v3-2026-09-11.md) — 按 Ponytail 必须整改项将方案从 656 行压缩为 218 行，保留 6 个必要任务，延后完整治理、synthesis/Book 联动和多级 rollout
 - [2026-09-11 novel-wiki Task 5 canary 与恢复](feedback-novel-wiki-task5-2026-09-11.md) — 3 个真实 raw canary 通过；写入失败可见、raw 不变、续跑恢复；修复 LanceDB 删除返回值和相对 root lineage reservation；全库 pending=1206，限写作索引受控放行
