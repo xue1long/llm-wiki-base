@@ -66,7 +66,7 @@ def cmd_completions_show(args: argparse.Namespace) -> None:
 def cmd_completions_print_words(_args: argparse.Namespace) -> None:
     """Print all subcommand + project names (for completion scripts)."""
     subcommands = [
-        "atomic", "budget", "completions", "dedup", "fields", "health", "heat",
+        "atomic", "budget", "completions", "dedup", "fields", "gbrain", "health", "heat",
         "llm-providers", "lint", "lint-cache-clear", "mcp", "metrics", "project",
         "quality", "relations", "research", "schema", "serve", "serve-status",
         "serve-stop", "stubs", "tags", "templates", "vision",

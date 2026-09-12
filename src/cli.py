@@ -78,6 +78,7 @@ from .cli_ext.auth_token_cmd import add_auth_token_parser
 from .cli_ext.vector_cmd import add_vector_parser
 from .cli_ext import capture_cmd
 from .cli_ext.migrate_v2_cmd import add_migrate_v2_parser
+from .cli_ext.gbrain_cmd import add_gbrain_parser
 
 logging.basicConfig(
     level=logging.INFO,
@@ -405,6 +406,9 @@ def build_parser() -> "argparse.ArgumentParser":
     # MCP (stdio Model Context Protocol server)
     p_mcp = subparsers.add_parser("mcp", help="Start stdio MCP server")
     p_mcp.set_defaults(func=lambda args: asyncio.run(_run_mcp()))
+
+    # Optional GBrain runtime control plane
+    add_gbrain_parser(subparsers)
 
     # Deep Research (research {run,list,show})
     add_research_subcommands(subparsers)
