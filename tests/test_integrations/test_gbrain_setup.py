@@ -59,6 +59,15 @@ def test_setup_uses_isolated_clone_and_promotes_only_when_ready(tmp_path, monkey
     assert result.status == "ready", result
     assert result.path is not None and result.path.exists()
     assert commands[0][:3] == ["git", "clone", "--no-checkout"]
+    assert commands[0][3:10] == [
+        "--filter=blob:none",
+        "--depth",
+        "1",
+        "--no-tags",
+        "--branch",
+        config.ref,
+        config.repository,
+    ]
     assert commands[1][0:4] == ["git", "-C", commands[1][2], "fetch"]
     assert commands[3][:2] == ["bun", "install"]
 

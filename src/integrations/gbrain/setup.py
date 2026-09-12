@@ -102,7 +102,23 @@ def setup_runtime(
                 return SetupResult("ready", current.path, validation=current_validation)
         temporary = target.with_name(f".{target.name}.install-{uuid.uuid4().hex}")
         try:
-            run(["git", "clone", "--no-checkout", config.repository, str(temporary)], project_root, timeout)
+            run(
+                [
+                    "git",
+                    "clone",
+                    "--no-checkout",
+                    "--filter=blob:none",
+                    "--depth",
+                    "1",
+                    "--no-tags",
+                    "--branch",
+                    config.ref,
+                    config.repository,
+                    str(temporary),
+                ],
+                project_root,
+                timeout,
+            )
             run(["git", "-C", str(temporary), "fetch", "--depth", "1", "origin", config.ref], project_root, timeout)
             run(["git", "-C", str(temporary), "checkout", "--detach", "FETCH_HEAD"], project_root, timeout)
             run(["bun", "install", "--frozen-lockfile", "--ignore-scripts"], temporary, timeout)
