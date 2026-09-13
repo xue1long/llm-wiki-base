@@ -91,14 +91,19 @@ def test_wiki_search_returns_results(ctx):
 
     async def fake_project_search(project_id, query, top_k=10, mode="hybrid"):
         calls.append((project_id, query, top_k, mode))
-        return {"query": query, "results": fake_results}
+        return {
+            "query": query,
+            "results": fake_results,
+            "diagnostics": {"backend": "gbrain"},
+        }
 
     with patch("src.agent.tools.project_search", new=fake_project_search):
         from src.agent.tools import WikiSearchTool
         result = _run(WikiSearchTool().execute(ctx, query="hello", top_k=3))
     assert result["query"] == "hello"
     assert result["results"] == fake_results
-    assert calls == [("project-id", "hello", 3, "hybrid")]
+    assert result["diagnostics"]["backend"] == "gbrain"
+    assert calls == [(str(ctx.path), "hello", 3, "hybrid")]
 
 
 def test_wiki_read_page(tmp_path):

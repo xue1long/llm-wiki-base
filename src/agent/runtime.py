@@ -18,17 +18,67 @@ User message: {message}
 Previous tool observations:
 {observations}
 
-Output strict JSON (no markdown fence):
-{{
-  "action": "tool" | "final" | "user_input",
-  "tool": "<tool_name>",
-  "query": "...",        // for wiki.search / source.search / graph.search / web.search
-  "path": "...",         // for wiki.read_page
-  "topK": 5,
-  "fields": [...],       // for user_input
-  "answer": "..."        // for final
-}}
+Local wiki search guidance:
+- For wiki questions, search using the user's exact distinctive terms first; do not translate or paraphrase them.
+- If a search returns result_count 0, stop reformulating searches and finalize with the limitation.
+- If a search returns results, read the best page when needed, then finalize. After wiki.read_page, never read the same path again.
+
+Return exactly one JSON object. Do not return markdown, prose, or a second JSON object.
+Allowed fields are action, tool, query, path, topK, fields, and answer.
+Examples of valid output:
+{{"action":"final","answer":"..."}}
+{{"action":"tool","tool":"wiki.search","query":"...","topK":5}}
 """
+
+
+def _planner_observation(tool_name: str, result: dict) -> str:
+    """Keep planner context small while retaining the full event result."""
+    if not isinstance(result, dict):
+        return str(result)[:1000]
+    if tool_name in {"wiki.search", "source.search", "graph.search"}:
+        results = result.get("results")
+        if isinstance(results, list):
+            compact_results = []
+            for item in results[:5]:
+                if not isinstance(item, dict):
+                    continue
+                compact = {
+                    key: item[key]
+                    for key in ("id", "path", "title", "type", "source", "source_id", "score")
+                    if key in item
+                }
+                snippet = item.get("snippet") or item.get("chunk_text") or item.get("content")
+                if snippet:
+                    compact["snippet"] = str(snippet)[:240]
+                compact_results.append(compact)
+            diagnostics = result.get("diagnostics")
+            backend = result.get("backend")
+            if not backend and isinstance(diagnostics, dict):
+                backend = diagnostics.get("backend")
+            return json.dumps({
+                "query": result.get("query"),
+                "backend": backend,
+                "result_count": len(results),
+                "results": compact_results,
+            }, ensure_ascii=False)
+    if tool_name == "wiki.read_page":
+        observation = {"next_step": "finalize"}
+        observation.update({
+            key: result[key]
+            for key in ("id", "title", "type", "body", "error")
+            if key in result
+        })
+        return json.dumps(observation, ensure_ascii=False)[:4000]
+    return json.dumps(result, ensure_ascii=False)[:1000]
+
+
+def _action_fingerprint(action: AgentLoopAction) -> str:
+    return json.dumps({
+        "tool": action.tool,
+        "query": action.query,
+        "path": action.path,
+        "top_k": action.top_k,
+    }, ensure_ascii=False, sort_keys=True)
 
 
 class AgentRuntime:
@@ -58,6 +108,10 @@ class AgentRuntime:
         events: list[AgentEvent] = []
         events.append(AgentEvent.run_started("s-mvp", self.config.model))
         observations: list[str] = []
+        parse_failures = 0
+        previous_tool_fingerprint: str | None = None
+        duplicate_tool_seen = False
+        last_tool_result: dict | None = None
 
         tool_descs = "\n".join(f"- {n}: {t.description}" for n, t in self.tools.items())
 
@@ -88,14 +142,37 @@ class AgentRuntime:
                 raw_json = response.content if isinstance(response.content, str) else str(response.content)
             except Exception as e:
                 _logger.warning(f"[agent] could not extract JSON body: {e}")
-                observations.append(f"[parse error: {e}]")
+                parse_failures += 1
+                if parse_failures > 1:
+                    events.append(AgentEvent(
+                        type="agent_planner_protocol_error",
+                        iteration=iteration,
+                        timestamp=0,
+                        payload={"error": str(e), "attempts": parse_failures},
+                    ))
+                    return events
+                observations.append(
+                    "[planner protocol error: return exactly one JSON object and no prose or second object]"
+                )
                 continue
             try:
                 action = AgentLoopAction.from_json(raw_json)
             except Exception as e:
                 _logger.warning(f"[agent] parse error: {e}")
-                observations.append(f"[parse error: {e}]")
+                parse_failures += 1
+                if parse_failures > 1:
+                    events.append(AgentEvent(
+                        type="agent_planner_protocol_error",
+                        iteration=iteration,
+                        timestamp=0,
+                        payload={"error": str(e), "attempts": parse_failures},
+                    ))
+                    return events
+                observations.append(
+                    "[planner protocol error: return exactly one JSON object and no prose or second object]"
+                )
                 continue
+            parse_failures = 0
 
             if action.action == "final":
                 events.append(AgentEvent.final_answer(iteration, action.answer or "Done.", []))
@@ -105,6 +182,28 @@ class AgentRuntime:
                 if not tool:
                     observations.append(f"[unknown tool: {action.tool}]")
                     continue
+                fingerprint = _action_fingerprint(action)
+                if fingerprint == previous_tool_fingerprint:
+                    if action.tool == "wiki.read_page" and last_tool_result and last_tool_result.get("body"):
+                        events.append(AgentEvent.final_answer(
+                            iteration, str(last_tool_result["body"]), []
+                        ))
+                        return events
+                    if duplicate_tool_seen:
+                        events.append(AgentEvent(
+                            type="agent_planner_stalled",
+                            iteration=iteration,
+                            timestamp=0,
+                            payload={"tool": action.tool, "reason": "repeated_identical_tool_call"},
+                        ))
+                        return events
+                    duplicate_tool_seen = True
+                    observations.append(
+                        "[identical tool call already completed; use its result, choose another tool, or finalize]"
+                    )
+                    continue
+                previous_tool_fingerprint = fingerprint
+                duplicate_tool_seen = False
                 events.append(AgentEvent.tool_started(iteration, action.tool, {"query": action.query}))
                 try:
                     # Filter out None-valued kwargs so tools with narrower signatures
@@ -121,7 +220,15 @@ class AgentRuntime:
                 except Exception as e:
                     result = {"error": str(e)}
                 events.append(AgentEvent.tool_completed(iteration, action.tool, result))
-                observations.append(json.dumps(result, ensure_ascii=False)[:1000])
+                last_tool_result = result
+                _logger.info(
+                    "[agent] tool completed tool=%s keys=%s result_count=%s body_length=%s",
+                    action.tool,
+                    sorted(result) if isinstance(result, dict) else [],
+                    len(result.get("results", [])) if isinstance(result, dict) and isinstance(result.get("results"), list) else None,
+                    len(result.get("body", "")) if isinstance(result, dict) else None,
+                )
+                observations.append(_planner_observation(action.tool, result))
             else:
                 # user_input: MVP not supported
                 observations.append("[user_input not supported in MVP]")

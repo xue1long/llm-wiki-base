@@ -129,6 +129,26 @@ def test_agent_run_returns_final(ctx, provider_cfg, fake_provider):
     assert final_events[0].payload["answer"] == "Hello world!"
 
 
+def test_agent_planner_prompt_preserves_exact_local_search_terms(ctx, provider_cfg, fake_provider):
+    fake_provider.complete.return_value = LLMResponse(
+        content=json.dumps({"action": "final", "answer": "done"}),
+        model="test",
+    )
+
+    with patch("src.agent.runtime.ProviderRegistry") as MockRegistry, \
+         patch("src.agent.runtime.create_llm_provider", return_value=fake_provider):
+        MockRegistry.get.return_value = provider_cfg
+        from src.agent.runtime import AgentRuntime
+
+        _run(AgentRuntime(ctx).run("大纲的重要性"))
+
+    prompt = fake_provider.complete.await_args.kwargs["messages"][0]["content"]
+    assert "exact distinctive terms" in prompt
+    assert "result_count 0" in prompt
+    assert "//" not in prompt
+    assert '{"action":"final","answer":"..."}' in prompt
+
+
 def test_agent_run_uses_settings_fallback_chain(ctx, provider_cfg, fake_provider):
     """AgentRuntime.__init__ must not crash when ctx.settings is absent (real ProjectContext).
 
@@ -201,15 +221,18 @@ def test_agent_run_max_iterations(ctx, provider_cfg, fake_provider):
     # recording "unknown tool" and continuing silently.
     # Note: keys match AgentLoopAction dataclass field names (snake_case) so
     # AgentLoopAction.from_json() can parse them.
-    fake_provider.complete.return_value = LLMResponse(
-        content=json.dumps({
-            "action": "tool",
-            "tool": "wiki.search",
-            "query": "x",
-            "top_k": 5,
-        }),
-        model="test",
-    )
+    fake_provider.complete.side_effect = [
+        LLMResponse(
+            content=json.dumps({
+                "action": "tool",
+                "tool": "wiki.search",
+                "query": f"x-{i}",
+                "top_k": 5,
+            }),
+            model="test",
+        )
+        for i in range(3)
+    ]
 
     # Patch all tool execute() methods so they don't reach real I/O
     for tool in TOOLS.values():
@@ -237,3 +260,160 @@ def test_agent_run_max_iterations(ctx, provider_cfg, fake_provider):
         # replaced their execute. Subsequent tests in this module shouldn't use
         # TOOLS directly, but restore anyway for safety.
         pass
+
+
+def test_planner_observation_is_compact_without_changing_full_result():
+    from src.agent.runtime import _planner_observation
+
+    result = {
+        "query": "outline",
+        "diagnostics": {"backend": "gbrain"},
+        "results": [
+            {
+                "path": f"wiki/concepts/page-{i}.md",
+                "title": f"Page {i}",
+                "snippet": "x" * 1000,
+                "source": "gbrain",
+            }
+            for i in range(10)
+        ],
+    }
+
+    observation = json.loads(_planner_observation("wiki.search", result))
+
+    assert observation["backend"] == "gbrain"
+    assert observation["result_count"] == 10
+    assert len(observation["results"]) == 5
+    assert len(observation["results"][0]["snippet"]) <= 240
+    assert result["results"][0]["snippet"] == "x" * 1000
+
+
+def test_planner_observation_keeps_gbrain_content_excerpt():
+    from src.agent.runtime import _planner_observation
+
+    observation = json.loads(_planner_observation("wiki.search", {
+        "query": "outline",
+        "results": [{"path": "wiki/concepts/outline.md", "content": "evidence" * 100}],
+    }))
+
+    assert observation["results"][0]["snippet"].startswith("evidence")
+
+
+def test_planner_observation_tells_agent_to_finalize_after_read():
+    from src.agent.runtime import _planner_observation
+
+    observation = json.loads(_planner_observation("wiki.read_page", {
+        "id": "outline",
+        "title": "Outline",
+        "body": "evidence",
+    }))
+
+    assert observation["next_step"] == "finalize"
+
+
+def test_agent_run_repairs_one_malformed_planner_response(ctx, provider_cfg, fake_provider):
+    fake_provider.complete.side_effect = [
+        LLMResponse(content='{"action":"final"}{"action":"final"}', model="test"),
+        LLMResponse(content=json.dumps({"action": "final", "answer": "recovered"}), model="test"),
+    ]
+
+    with patch("src.agent.runtime.ProviderRegistry") as MockRegistry, \
+         patch("src.agent.runtime.create_llm_provider", return_value=fake_provider):
+        MockRegistry.get.return_value = provider_cfg
+        from src.agent.runtime import AgentRuntime
+
+        events = _run(AgentRuntime(ctx).run("answer"))
+
+    assert [e.type for e in events].count("tool_completed") == 0
+    assert events[-1].type == "final_answer"
+    assert "exactly one JSON object" in fake_provider.complete.await_args_list[1].kwargs["messages"][0]["content"]
+
+
+def test_agent_run_reports_repeated_malformed_planner_response(ctx, provider_cfg, fake_provider):
+    fake_provider.complete.side_effect = [
+        LLMResponse(content="not json", model="test"),
+        LLMResponse(content="still not json", model="test"),
+    ]
+
+    with patch("src.agent.runtime.ProviderRegistry") as MockRegistry, \
+         patch("src.agent.runtime.create_llm_provider", return_value=fake_provider):
+        MockRegistry.get.return_value = provider_cfg
+        from src.agent.runtime import AgentRuntime
+
+        events = _run(AgentRuntime(ctx, AgentConfig(max_iterations=4)).run("answer"))
+
+    assert events[-1].type == "agent_planner_protocol_error"
+    assert events[-1].payload["attempts"] == 2
+
+
+def test_agent_run_does_not_repeat_consecutive_identical_tool_call(ctx, provider_cfg, fake_provider):
+    fake_provider.complete.side_effect = [
+        LLMResponse(content=json.dumps({"action": "tool", "tool": "wiki.search", "query": "x"}), model="test"),
+        LLMResponse(content=json.dumps({"action": "tool", "tool": "wiki.search", "query": "x"}), model="test"),
+        LLMResponse(content=json.dumps({"action": "final", "answer": "done"}), model="test"),
+    ]
+    search = AsyncMock(return_value={"query": "x", "results": []})
+
+    with patch("src.agent.runtime.ProviderRegistry") as MockRegistry, \
+         patch("src.agent.runtime.create_llm_provider", return_value=fake_provider):
+        MockRegistry.get.return_value = provider_cfg
+        from src.agent.runtime import AgentRuntime
+
+        runtime = AgentRuntime(ctx)
+        runtime.tools["wiki.search"].execute = search
+        events = _run(runtime.run("search"))
+
+    assert search.await_count == 1
+    assert events[-1].type == "final_answer"
+    assert "already completed" in fake_provider.complete.await_args_list[2].kwargs["messages"][0]["content"]
+
+
+def test_agent_run_reports_persistent_identical_tool_call(ctx, provider_cfg, fake_provider):
+    fake_provider.complete.side_effect = [
+        LLMResponse(content=json.dumps({"action": "tool", "tool": "wiki.search", "query": "x"}), model="test"),
+        LLMResponse(content=json.dumps({"action": "tool", "tool": "wiki.search", "query": "x"}), model="test"),
+        LLMResponse(content=json.dumps({"action": "tool", "tool": "wiki.search", "query": "x"}), model="test"),
+    ]
+    search = AsyncMock(return_value={"query": "x", "results": []})
+
+    with patch("src.agent.runtime.ProviderRegistry") as MockRegistry, \
+         patch("src.agent.runtime.create_llm_provider", return_value=fake_provider):
+        MockRegistry.get.return_value = provider_cfg
+        from src.agent.runtime import AgentRuntime
+
+        runtime = AgentRuntime(ctx, AgentConfig(max_iterations=6))
+        runtime.tools["wiki.search"].execute = search
+        events = _run(runtime.run("search"))
+
+    assert search.await_count == 1
+    assert events[-1].type == "agent_planner_stalled"
+
+
+def test_agent_run_returns_read_page_body_when_planner_repeats_read(ctx, provider_cfg, fake_provider):
+    read_action = json.dumps({
+        "action": "tool",
+        "tool": "wiki.read_page",
+        "path": "wiki/concepts/outline.md",
+    })
+    fake_provider.complete.side_effect = [
+        LLMResponse(content=read_action, model="test"),
+        LLMResponse(content=read_action, model="test"),
+    ]
+    read_page = AsyncMock(return_value={
+        "id": "outline",
+        "title": "Outline",
+        "body": "Grounded page answer.",
+    })
+
+    with patch("src.agent.runtime.ProviderRegistry") as MockRegistry, \
+         patch("src.agent.runtime.create_llm_provider", return_value=fake_provider):
+        MockRegistry.get.return_value = provider_cfg
+        from src.agent.runtime import AgentRuntime
+
+        runtime = AgentRuntime(ctx)
+        runtime.tools["wiki.read_page"].execute = read_page
+        events = _run(runtime.run("read outline"))
+
+    assert read_page.await_count == 1
+    assert events[-1].type == "final_answer"
+    assert events[-1].payload["answer"] == "Grounded page answer."

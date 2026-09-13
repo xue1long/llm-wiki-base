@@ -26,8 +26,14 @@ class WikiSearchTool:
         if ctx is None:
             results = await hybrid_search(query, top_k=top_k, paths=None)
             return {"query": query, "results": results}
-        response = await project_search(ctx.id, query, top_k=top_k, mode="hybrid")
-        return {"query": query, "results": response.get("results", [])}
+        # Resolve through the canonical root already held by the Agent.
+        # Registry IDs and on-disk identity IDs can differ after project moves.
+        response = await project_search(str(ctx.path), query, top_k=top_k, mode="hybrid")
+        return {
+            "query": query,
+            "results": response.get("results", []),
+            "diagnostics": response.get("diagnostics", {}),
+        }
 
 
 class WikiReadPageTool:
