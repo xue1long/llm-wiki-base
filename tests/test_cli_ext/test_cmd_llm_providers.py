@@ -44,18 +44,10 @@ def test_remove_unknown_exits_2(capsys, monkeypatch, tmp_path):
     assert exc.value.code == 2
 
 
-def test_set_default_writes_env_file(capsys, monkeypatch, tmp_path):
+def test_set_default_uses_registry_slot_only(capsys, monkeypatch, tmp_path):
     _isolated_registry(monkeypatch, tmp_path)
-    # Point env file path to tmp
-    fake_home = tmp_path / "home"
-    fake_home.mkdir()
-    monkeypatch.setenv("HOME", str(fake_home))  # POSIX
-    monkeypatch.setenv("USERPROFILE", str(fake_home))  # Windows
-    monkeypatch.setattr("os.path.expanduser", lambda p: p.replace("~", str(fake_home)))
-
     args = type("A", (), {"name": "ollama"})()
     cmd_llm_providers_set_default(args)
-    env_file = fake_home / ".config" / "ruflo-kb" / "env"
-    assert env_file.exists()
-    text = env_file.read_text(encoding="utf-8")
-    assert "RUFLO_LLM_PROVIDER=ollama" in text
+    from src.llm.registry import ProviderRegistry
+    assert ProviderRegistry.get_default_name() == "ollama"
+    assert "shell rc" not in capsys.readouterr().out

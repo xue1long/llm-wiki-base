@@ -1,15 +1,12 @@
 # src/server/routes/providers.py
 """HTTP routes for LLM provider management."""
-import os
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ...llm.registry import ProviderRegistry, ProviderNotFoundError
-from ...llm.types import ModelInfo, ProviderConfig
-from ...project.paths import config_dir
+from ...llm.types import ProviderConfig
 
 router = APIRouter(prefix="/api/v1", tags=["providers"])
 
@@ -30,40 +27,53 @@ def _config_to_dict(cfg: ProviderConfig, redact_keys: bool = True) -> dict[str, 
 
 class AddProviderRequest(BaseModel):
     name: str
-    type: str  # openai | anthropic | ollama
-    api_key: str = ""
-    base_url: str = ""
-    chat_model: str = ""
-    embedding_model: str = ""
+    type: str | None = None  # openai | anthropic | ollama | openai-compatible
+    api_key: str | None = None
+    base_url: str | None = None
+    chat_model: str | None = None
+    embedding_model: str | None = None
 
 
 class SetDefaultRequest(BaseModel):
     name: str
 
 
-def _default_provider_name() -> str | None:
-    env_file = config_dir() / "env"
-    try:
-        text = env_file.read_text(encoding="utf-8")
-    except OSError:
-        return None
-    for line in text.splitlines():
-        if line.startswith("RUFLO_LLM_PROVIDER="):
-            return line.split("=", 1)[1].strip()
-    return None
+def _fields_set(body: BaseModel) -> set[str]:
+    """Return fields explicitly sent by the client across Pydantic versions."""
+    fields = getattr(body, "model_fields_set", None)
+    if fields is None:
+        fields = getattr(body, "__fields_set__", set())
+    return set(fields)
+
+
+def _validate_name(name: str) -> str:
+    name = name.strip()
+    if not name or any(ch in name for ch in "/\\") or any(
+        ord(ch) < 32 for ch in name
+    ):
+        raise HTTPException(400, "Provider name must be non-empty and path-safe")
+    return name
 
 
 @router.get("/providers")
 def list_providers() -> dict:
     """List all configured providers."""
     providers = ProviderRegistry.load()
-    default_name = _default_provider_name()
-    return {
+    default_name = None
+    default_error = None
+    try:
+        default_name = ProviderRegistry.get_default().name
+    except (ProviderNotFoundError, ValueError) as exc:
+        default_error = str(exc)
+    result = {
         "providers": [
             {**_config_to_dict(p), "is_default": p.name == default_name}
             for p in providers.values()
         ]
     }
+    if default_error:
+        result["default_error"] = default_error
+    return result
 
 
 @router.get("/providers/{name}")
@@ -71,7 +81,7 @@ def get_provider(name: str) -> dict:
     """Get a single provider config (API key always redacted — R1)."""
     try:
         config = ProviderRegistry.require(name)
-    except ProviderNotFoundError:
+    except (ProviderNotFoundError, ValueError):
         raise HTTPException(404, f"Provider not found: {name}")
     return {"ok": True, "provider": _config_to_dict(config)}
 
@@ -79,34 +89,55 @@ def get_provider(name: str) -> dict:
 @router.post("/providers")
 def add_provider(body: AddProviderRequest) -> dict:
     """Add or update a provider."""
-    if body.type not in ("openai", "anthropic", "ollama", "openai-compatible"):
-        raise HTTPException(400, f"Unknown provider type: {body.type}")
+    name = _validate_name(body.name)
+    fields = _fields_set(body)
+    try:
+        existing = ProviderRegistry.require(name)
+    except ProviderNotFoundError:
+        existing = None
 
-    base_url = body.base_url
-    if body.type == "ollama" and not base_url:
+    if "api_key" in fields and body.api_key is None:
+        raise HTTPException(400, "api_key cannot be null")
+    if body.api_key == "***":
+        raise HTTPException(400, "api_key must be omitted when unchanged")
+
+    if "type" in fields and body.type is None:
+        raise HTTPException(400, "type cannot be null")
+    provider_type = body.type if body.type is not None else (
+        existing.type if existing else None
+    )
+    if provider_type not in ("openai", "anthropic", "ollama", "openai-compatible"):
+        raise HTTPException(400, f"Unknown provider type: {provider_type}")
+
+    def value(field: str, default: str = "") -> str:
+        raw = getattr(body, field)
+        if field in fields:
+            if raw is None:
+                raise HTTPException(400, f"{field} cannot be null")
+            return raw
+        return getattr(existing, field, default)
+
+    base_url = value("base_url")
+    if provider_type == "ollama" and not base_url:
         base_url = "http://127.0.0.1:11434"
 
-    # Preserve existing API key when updating and no new key provided
-    api_key = body.api_key
-    if not api_key:
-        try:
-            existing = ProviderRegistry.require(body.name)
-            api_key = existing.api_key
-        except ProviderNotFoundError:
-            pass  # new provider, keep empty
-
-    models: dict[str, ModelInfo] = {}
-    if body.chat_model:
-        models[body.chat_model] = ModelInfo(name=body.chat_model)
+    # An omitted or empty key preserves an existing key. There is no HTTP
+    # clear-key operation in this phase.
+    api_key = body.api_key or getattr(existing, "api_key", "")
 
     config = ProviderConfig(
-        name=body.name,
-        type=body.type,
+        name=name,
+        type=provider_type,
         base_url=base_url,
         api_key=api_key,
-        models=models,
-        default_chat_model=body.chat_model,
-        default_embedding_model=body.embedding_model or body.chat_model,
+        models=dict(getattr(existing, "models", {})),
+        default_chat_model=value("chat_model"),
+        default_embedding_model=value("embedding_model"),
+        timeout_seconds=getattr(existing, "timeout_seconds", 120),
+        extra_headers=dict(getattr(existing, "extra_headers", {})),
+        extra_body=dict(getattr(existing, "extra_body", {})),
+        sourced_from_env=bool(getattr(existing, "sourced_from_env", False))
+        and not body.api_key,
     )
     ProviderRegistry.upsert(config)
     return {"ok": True, "provider": _config_to_dict(config)}
@@ -115,27 +146,27 @@ def add_provider(body: AddProviderRequest) -> dict:
 @router.delete("/providers/{name}")
 def remove_provider(name: str) -> dict:
     try:
-        ProviderRegistry.remove(name)
-    except ProviderNotFoundError:
+        current_default = ProviderRegistry.get_default()
+    except (ProviderNotFoundError, ValueError) as exc:
+        raise HTTPException(409, f"Cannot resolve default provider: {exc}")
+    if current_default.name == name:
+        raise HTTPException(409, "Switch the default provider before deleting it")
+    try:
+        removed = ProviderRegistry.remove(name)
+    except (ProviderNotFoundError, ValueError):
+        raise HTTPException(404, f"Provider not found: {name}")
+    if not removed:
         raise HTTPException(404, f"Provider not found: {name}")
     return {"ok": True}
 
 
 @router.post("/providers/set-default")
 def set_default_provider(body: SetDefaultRequest) -> dict:
-    """Set the default provider by writing to ~/.config/ruflo-kb/env."""
+    """Set the explicit default provider in the registry."""
     try:
-        ProviderRegistry.require(body.name)
+        ProviderRegistry.set_default(body.name)
     except ProviderNotFoundError:
         raise HTTPException(404, f"Provider not found: {body.name}")
-
-    config_dir = Path(os.path.expanduser("~/.config/ruflo-kb"))
-    config_dir.mkdir(parents=True, exist_ok=True)
-    env_file = config_dir / "env"
-    existing = env_file.read_text(encoding="utf-8") if env_file.exists() else ""
-    lines = [l for l in existing.splitlines() if not l.startswith("RUFLO_LLM_PROVIDER=")]
-    lines.append(f"RUFLO_LLM_PROVIDER={body.name}")
-    env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return {"ok": True}
 
 

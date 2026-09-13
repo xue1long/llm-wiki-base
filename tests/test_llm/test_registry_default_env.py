@@ -24,8 +24,8 @@ def _isolated_registry(monkeypatch, tmp_path, content=None, register_path=None):
     return target
 
 
-def test_env_var_overrides_named_default(monkeypatch, tmp_path):
-    """RUFLO_LLM_PROVIDER env var must override the named 'default' provider."""
+def test_explicit_default_overrides_env_var(monkeypatch, tmp_path):
+    """An explicit registry default must override the legacy env var."""
     _isolated_registry(monkeypatch, tmp_path, content=json.dumps({
         "providers": {
             "openai": {"name": "openai", "type": "openai", "api_key": "x"},
@@ -35,7 +35,7 @@ def test_env_var_overrides_named_default(monkeypatch, tmp_path):
     }))
     monkeypatch.setenv("RUFLO_LLM_PROVIDER", "ollama")
     cfg = ProviderRegistry.get_default()
-    assert cfg.name == "ollama"
+    assert cfg.name == "openai"
 
 
 def test_env_var_missing_falls_back_to_named_default(monkeypatch, tmp_path):

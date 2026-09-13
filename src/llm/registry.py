@@ -219,7 +219,11 @@ class ProviderRegistry:
     def upsert(config: ProviderConfig) -> None:
         providers = ProviderRegistry.load()
         providers[config.name] = config
-        ProviderRegistry.save(providers)
+        # Updating one provider must not clear an explicit default selected
+        # in the settings page.
+        ProviderRegistry.save(
+            providers, default_name=ProviderRegistry.get_default_name()
+        )
 
     @staticmethod
     def remove(name: str) -> bool:
@@ -236,8 +240,14 @@ class ProviderRegistry:
         providers = ProviderRegistry.load()
         if name not in providers:
             return False
+        if ProviderRegistry.get_default_name() == name:
+            raise ValueError(
+                "Cannot remove the current default provider; set another default first"
+            )
         providers.pop(name)
-        ProviderRegistry.save(providers)
+        ProviderRegistry.save(
+            providers, default_name=ProviderRegistry.get_default_name()
+        )
         return True
 
     @staticmethod
@@ -262,17 +272,19 @@ class ProviderRegistry:
         """Return the resolved default provider.
 
         Resolution order (highest precedence first):
-          1. ``$RUFLO_LLM_PROVIDER`` env var (if non-empty AND matches a
+          1. Provider explicitly named by the registry ``"default"`` slot.
+             A dangling slot is an error and never falls back.
+          2. ``$RUFLO_LLM_PROVIDER`` env var (if non-empty AND matches a
              registered provider name — otherwise we raise).
-          2. Provider explicitly named ``"default"`` in the registry
+          3. Provider explicitly named ``"default"`` in the registry
              (back-compat alias — kept because some installs saved their
              preferred provider under the literal name "default").
-          3. First persisted (non-env-sourced) provider in insertion order.
+          4. First persisted (non-env-sourced) provider in insertion order.
              This honours ``llm-providers add ... --default`` — the user
              added this provider explicitly, so it should win over the
              env-sourced OpenAI/Anthropic entries that auto-register from
              environment variables.
-          4. First provider in insertion order (legacy fallback when no
+          5. First provider in insertion order (legacy fallback when no
              persisted entry exists).
 
         Raises:
@@ -282,6 +294,19 @@ class ProviderRegistry:
         """
         providers = ProviderRegistry.load()
 
+        # #1: explicit default set via ProviderRegistry.set_default().
+        explicit = ProviderRegistry.get_default_name()
+        if explicit is not None:
+            if explicit not in providers:
+                raise ProviderNotFoundError(
+                    f"explicit default {explicit!r} is set but not in the "
+                    f"registry (was it removed?). Available: "
+                    f"{sorted(providers.keys())}"
+                )
+            return providers[explicit]
+
+        # #2: legacy environment override, retained only as a fallback for
+        # installations that have not selected an explicit registry default.
         from src.config import settings
         env_name = settings().llm_provider.strip()
         if env_name:
@@ -292,19 +317,6 @@ class ProviderRegistry:
                     f"{sorted(providers.keys())}"
                 )
             return providers[env_name]
-
-        # #2: explicit default set via ProviderRegistry.set_default()
-        # (NEW in Task 4 P2 — sits between env override and legacy
-        # named-default so env vars still win for testing/overriding)
-        explicit = ProviderRegistry.get_default_name()
-        if explicit is not None:
-            if explicit not in providers:
-                raise ProviderNotFoundError(
-                    f"explicit default {explicit!r} is set but not in the "
-                    f"registry (was it removed?). Available: "
-                    f"{sorted(providers.keys())}"
-                )
-            return providers[explicit]
 
         if not providers:
             raise ProviderNotFoundError(
