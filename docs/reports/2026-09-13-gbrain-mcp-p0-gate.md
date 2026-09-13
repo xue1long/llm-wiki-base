@@ -2,7 +2,7 @@
 
 日期：2026-09-13
 
-结论：**GBrain MCP 服务能力通过；路线 B（Claude Code 外部 Agent Host）真实门禁通过；本项目尚未接入桥接层。**
+结论：**GBrain MCP 服务能力通过；路线 B（Claude Code 外部 Agent Host）真实门禁通过；跨会话 recall/remember 闭环已接入。**
 
 ## 已验证通过
 
@@ -28,6 +28,7 @@
 9. Claude Code `2.1.270` 使用临时 `--mcp-config` 成功连接 GBrain stdio，完成真实 `search → get_page`，返回正确的标题、slug、source_id 和正文。
 10. Claude Code 的 `--allowed-tools mcp__gbrain__search,mcp__gbrain__get_page` 配合 `--permission-mode dontAsk --permission-prompts none` 成功拒绝 `mcp__gbrain__put_page`，未发生写入。
 11. 新增 Python bridge 使用临时 MCP 配置文件（运行结束删除），真实调用当前 `knowledge/novel-wiki` 成功返回 Markdown 回答、`source_id=ruflo-5b626bbb6f2f` 和可映射的 Wiki 引用。
+12. 真实跨会话闭环通过：请求 A 由 `remember` 写入唯一测试事实；请求 B 在全新 Claude/GBrain 进程中由 `recall` 找回；测试 fact 随后按 `fact_id` 清理。
 
 ## 未通过项
 
@@ -101,12 +102,13 @@ MCP tools/list：通过
 MCP search：通过
 MCP get_page：通过
 source scope：通过（单 source fixture）
-Claude Code MCP read-only allowlist：通过（写工具拒绝）
+Claude Code 页面只读 + 记忆事实 allowlist：通过（put_page 被拒绝）
 provider native tool calling：未通过
 Claude Code 单轮 MCP 会话：通过
 ruflo-kb Agent 单请求桥接：通过
-跨请求 MCP 会话复用：后置
+GBrain 跨 Claude 会话记忆：通过（recall/remember）
+Claude/MCP 跨请求常驻会话：后置
 WebUI 接入：通过（默认 local，可选 auto/gbrain）
 ```
 
-最终决定：**路线 A 不放行；路线 B P0 最小只读桥接已放行。暂不做跨请求常驻会话、自动安装、同步、写入工具和独立搜索切换。**
+最终决定：**路线 A 不放行；路线 B P0 受限记忆桥接已放行。允许 GBrain 事实 remember，禁止 Wiki 页面写入；暂不做 Claude/MCP 常驻会话、自动安装、同步和独立搜索切换。**

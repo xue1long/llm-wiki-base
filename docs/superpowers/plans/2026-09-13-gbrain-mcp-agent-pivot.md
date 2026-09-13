@@ -4,7 +4,7 @@
 
 **Goal:** 先验证 WebUI 对话 Agent 能否通过一个真实、可复用、只读的 GBrain MCP stdio 会话检索当前项目知识并回答问题，失败时可靠回退本地 Agent。
 
-**Architecture:** GBrain 是 Agent 的 MCP 工具层，不再是 `services.search` 内部的单次搜索后端。WebUI 只选择 `auto`、`gbrain` 或 `local` 后端；P0 的 GBrain Agent 持有一个 chat session 级 MCP 会话，直接发现和调用 GBrain 只读工具。运行时自动安装、Wiki 导入/同步、独立搜索 hybrid 和 Claude Code 接入延后到 P1/P2。
+**Architecture:** GBrain 是 Agent 的 MCP 工具层，不再是 `services.search` 内部的单次搜索后端。WebUI 只选择 `auto`、`gbrain` 或 `local` 后端；P0 的 GBrain Agent 通过受限 Claude Code Host 调用 `recall/search/get_page/remember`，其中 Wiki 页面只读，长期事实允许写入 GBrain。运行时自动安装、Wiki 导入/同步和独立搜索 hybrid 延后到 P1/P2。
 
 **Tech Stack:** Python 3.11+, FastAPI, 现有 AgentRuntime/LLM provider, GBrain MCP stdio, 项目 Wiki Markdown。
 
@@ -12,10 +12,10 @@
 
 ## Global Constraints
 
-- P0 只读：禁止 GBrain 写入、删除、恢复 Wiki 或调用任意写工具。
+- P0 页面只读：禁止 GBrain 写入、删除、恢复 Wiki；仅允许 `remember` 写入长期事实。
 - Wiki Markdown 是当前项目事实源；GBrain 只提供检索和读取能力。
 - 搜索请求不得触发 clone、安装、升级、全量同步或 Wiki 修改。
-- 一个 `conversation_id` 对应一个 MCP session；HTTP 请求不得每次重新启动 GBrain。
+- 每次请求先 `recall`；有长期价值时 `remember`。P0 允许每次请求启动独立 GBrain 进程，跨会话记忆由 GBrain 持久化，不依赖 Claude transcript。
 - GBrain 缺失、MCP 不可用、工具能力不满足或项目作用域不明时，`auto` 必须回退 local。
 - `gbrain` 显式模式失败时必须明确报错，不能伪装成本地成功。
 - 所有项目根目录和 source scope 由服务端根据 `project_id` 解析，前端不能传入任意路径。
@@ -319,8 +319,8 @@ git diff --check
 
 用户选择路线 B 后，Task 0 已用真实环境完成：Claude Code 2.1.270 通过临时 MCP 配置连接 GBrain 0.50.0.0，完成只读 `search → get_page`，并验证 `put_page` 被权限拒绝。由于当前 Python provider 没有原生 tool calling，路线 A 保持关闭。
 
-P0 实施采用最小桥接：`src/agent/claude_host.py` 启动一次无持久化 Claude Code 进程，固定只读 allowlist，复用现有 `.llm-wiki/gbrain-search.json` 和 `.index/gbrain/runtime-state.json`，校验 `source_id` 后仅返回可映射到当前 Wiki 的引用。`local` 为默认后端，`auto` 失败回退 local，显式 `gbrain` 失败返回真实错误；WebUI 已增加后端选择器。
+P0 实施采用最小桥接：`src/agent/claude_host.py` 启动一次无持久化 Claude Code 进程，固定受限 allowlist（`recall/search/get_page/remember`），复用现有 `.llm-wiki/gbrain-search.json` 和 `.index/gbrain/runtime-state.json`，校验 `source_id` 后仅返回可映射到当前 Wiki 的引用。`local` 为默认后端，`auto` 失败回退 local，显式 `gbrain` 失败返回真实错误；WebUI 已增加后端选择器。
 
-已知边界：当前不做跨请求 Claude/MCP 常驻会话，不做自动安装、同步、写入或独立搜索切换；这些分别留到后续 P1/P2。Windows 路径含空格的 Claude stdio 启动兼容性也需单独验证，当前已验证路径无空格链路可用。
+已知边界：当前不做跨请求 Claude/MCP 常驻会话；Claude 每次退出后，GBrain 事实仍可被新会话 recall。也不做自动安装、同步、Wiki 页面写入或独立搜索切换；这些分别留到后续 P1/P2。Windows 路径含空格的 Claude stdio 启动兼容性也需单独验证，当前已验证路径无空格链路可用。
 
 **最终状态：** 路线 B 的 P0 最小只读试点已落地并通过定向测试及真实项目验收；后续只在需要跨请求会话、运行时安装或索引同步时扩展。

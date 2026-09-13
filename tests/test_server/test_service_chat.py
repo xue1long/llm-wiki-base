@@ -115,7 +115,7 @@ def test_run_chat_gbrain_host_returns_validated_references(monkeypatch, tmp_path
         lambda project_id, by_id_only=True: _fake_resolve(project_dir),
     )
 
-    async def fake_host(root, message):
+    async def fake_host(root, message, **kwargs):
         return {
             "answer": "来自 GBrain",
             "source_id": "ruflo-demo",
@@ -147,7 +147,7 @@ def test_run_chat_auto_falls_back_to_local(monkeypatch, tmp_path):
         lambda project_id, by_id_only=True: _fake_resolve(project_dir),
     )
 
-    async def unavailable(root, message):
+    async def unavailable(root, message, **kwargs):
         raise chat_service.ClaudeHostError("gbrain_runtime_unready")
 
     monkeypatch.setattr(chat_service, "run_gbrain_claude", unavailable)

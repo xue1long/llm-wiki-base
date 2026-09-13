@@ -11,6 +11,7 @@ into a 502/504 so the caller learns the agent failed to converge.
 """
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 
 from ..agent.claude_host import ClaudeHostError, run_gbrain_claude
@@ -81,8 +82,11 @@ async def run_chat(
     degraded = False
     degrade_reason = ""
     if agent_backend in {"auto", "gbrain"}:
+        conversation_id = session_id or f"chat-{uuid.uuid4().hex[:12]}"
         try:
-            hosted = await run_gbrain_claude(paths.root, message)
+            hosted = await run_gbrain_claude(
+                paths.root, message, conversation_id=conversation_id
+            )
             expected_source = load_search_config(paths.root).source_id
             if hosted.get("source_id") != expected_source:
                 raise ClaudeHostError("gbrain_source_mismatch")
@@ -91,7 +95,7 @@ async def run_chat(
             )
             turns = int(hosted.get("num_turns") or 1)
             return {
-                "sessionId": session_id or hosted.get("session_id") or f"gbrain:{project_id}",
+                "sessionId": conversation_id,
                 "projectId": project_id,
                 "message": {"role": "assistant", "content": hosted.get("answer", "")},
                 "references": references[:10],

@@ -1,4 +1,4 @@
-"""Contract tests for the read-only Claude Code/GBrain host."""
+"""Contract tests for the constrained Claude Code/GBrain host."""
 import json
 
 
@@ -43,11 +43,16 @@ def test_parse_nested_json_answer_payload():
     assert parsed["references"] == [{"slug": "concepts/a"}]
 
 
-def test_read_only_tool_names_are_fixed():
-    from src.agent.claude_host import READ_ONLY_TOOLS
+def test_allowed_gbrain_tools_are_constrained():
+    from src.agent.claude_host import ALLOWED_TOOLS
 
-    assert READ_ONLY_TOOLS == ("mcp__gbrain__search", "mcp__gbrain__get_page")
-    assert not any("put" in name or "delete" in name for name in READ_ONLY_TOOLS)
+    assert ALLOWED_TOOLS == (
+        "mcp__gbrain__recall",
+        "mcp__gbrain__search",
+        "mcp__gbrain__get_page",
+        "mcp__gbrain__remember",
+    )
+    assert not any("put" in name or "delete" in name for name in ALLOWED_TOOLS)
 
 
 def test_prompt_requests_markdown_answer():
@@ -55,3 +60,13 @@ def test_prompt_requests_markdown_answer():
 
     assert "answer 必须使用" in _prompt("问题", "ruflo-demo")
     assert "Markdown" in _prompt("问题", "ruflo-demo")
+
+
+def test_prompt_requires_cross_session_recall_and_durable_remember():
+    from src.agent.claude_host import _prompt
+
+    prompt = _prompt("继续处理上次决定", "ruflo-demo", "conversation-1")
+
+    assert "recall" in prompt
+    assert "remember" in prompt
+    assert "conversation-1" in prompt
