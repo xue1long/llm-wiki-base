@@ -1,5 +1,6 @@
 """Domain types and safe inspection for managed agent Skills."""
 
+from .api import apply_deployment, import_artifact, plan_deployment
 from .manager import (
     DEFAULT_PACKAGE_LIMITS,
     build_artifact,
@@ -14,6 +15,9 @@ from .types import (
     PackageValidationError,
     SourceSpec,
     SourceInspection,
+    DeploymentPlan,
+    DeploymentTargetPlan,
+    Operation,
 )
 
 __all__ = [
@@ -24,8 +28,14 @@ __all__ = [
     "PackageValidationError",
     "SourceInspection",
     "SourceSpec",
+    "DeploymentPlan",
+    "DeploymentTargetPlan",
+    "Operation",
     "DEFAULT_PACKAGE_LIMITS",
     "build_artifact",
     "inspect_package",
     "inspect_source",
+    "apply_deployment",
+    "import_artifact",
+    "plan_deployment",
 ]

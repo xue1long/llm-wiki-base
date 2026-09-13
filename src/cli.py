@@ -79,6 +79,7 @@ from .cli_ext.vector_cmd import add_vector_parser
 from .cli_ext import capture_cmd
 from .cli_ext.migrate_v2_cmd import add_migrate_v2_parser
 from .cli_ext.gbrain_cmd import add_gbrain_parser
+from .cli_ext.skill_manager_cmd import add_skill_manager_parser
 
 logging.basicConfig(
     level=logging.INFO,
@@ -120,6 +121,7 @@ def build_parser() -> "argparse.ArgumentParser":
     """
     parser = argparse.ArgumentParser(description="ruflo-kb 多Agent知识库")
     subparsers = parser.add_subparsers(dest="command", help="子命令")
+    add_skill_manager_parser(subparsers)
 
     # Project subcommand
     p_project = subparsers.add_parser("project", help="Manage projects")

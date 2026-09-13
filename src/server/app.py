@@ -297,6 +297,16 @@ def create_app() -> FastAPI:
         except Exception:
             _logger.warning("[startup] queue recovery failed", exc_info=True)
 
+        # Skill Manager operations are deliberately not auto-resumed after a
+        # process restart; expose the fact as a durable failed state.
+        try:
+            from ..skill_manager.storage import SkillManagerStorage
+            recovered = SkillManagerStorage().recover_inflight_operations()
+            if recovered:
+                _logger.warning("[startup] Skill Manager operations failed after restart: %s", len(recovered))
+        except Exception:
+            _logger.warning("[startup] Skill Manager recovery failed", exc_info=True)
+
         # Start background cache cleanup task (runs every hour).
         cleanup_task = asyncio.create_task(_periodic_cache_cleanup())
 
@@ -350,10 +360,10 @@ def create_app() -> FastAPI:
         finally:
             clear_correlation()
 
-    from .routes import health, projects, files, search, ingest, reviews, chat, schema, agent_cli, analysis, providers, tags, quality, heat, templates, scenario_templates, capture, collect, kc, status_summary, gbrain_search
+    from .routes import health, projects, files, search, ingest, reviews, chat, schema, agent_cli, analysis, providers, tags, quality, heat, templates, scenario_templates, capture, collect, kc, status_summary, gbrain_search, skill_manager
     for router in [health.router, projects.router, files.router, search.router,
                    ingest.router, reviews.router, chat.router, schema.router, agent_cli.router,
-                   analysis.router, providers.router, tags.router, quality.router, heat.router, templates.router, scenario_templates.router, capture.router, collect.router, kc.router, status_summary.router]:
+                   analysis.router, providers.router, tags.router, quality.router, heat.router, templates.router, scenario_templates.router, capture.router, collect.router, kc.router, status_summary.router, skill_manager.router]:
         app.include_router(router)
     app.include_router(gbrain_search.router)
 
