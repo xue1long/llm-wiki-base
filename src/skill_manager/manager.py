@@ -276,6 +276,8 @@ def apply_deployment(
 
 
 def _target_state(skill_path: Path, artifact: Artifact) -> tuple[str, str]:
+    if skill_path.parent.is_symlink():
+        return "conflict", "target root is a symlink"
     if not skill_path.exists():
         return "ready", ""
     if not skill_path.is_dir():

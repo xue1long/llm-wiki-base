@@ -114,6 +114,28 @@ def test_conflicts_are_reported_before_any_target_change(tmp_path: Path, monkeyp
     assert (conflict / "SKILL.md").read_text(encoding="utf-8") == "unmanaged"
 
 
+def test_managed_content_conflict_is_not_overwritten(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    source = _source(tmp_path)
+    storage = SkillManagerStorage(tmp_path / "library")
+    inspection = inspect_source(SourceSpec(source))
+    artifact = import_artifact(
+        SourceSpec(source), plan_hash=inspection.content_hash, confirmation="confirm", storage=storage
+    )
+    target_root = tmp_path / "codex-skills"
+    target_root.mkdir()
+    _targets(monkeypatch, target_root)
+    first_plan = plan_deployment(artifact.artifact_id, ["agent-1"], storage=storage)
+    apply_deployment(first_plan, plan_hash=first_plan.plan_hash, confirmation="confirm", storage=storage)
+    installed = target_root / artifact.name
+    (installed / "SKILL.md").write_text("changed", encoding="utf-8")
+
+    plan = plan_deployment(artifact.artifact_id, ["agent-1"], storage=storage)
+    assert plan.targets[0].status == "conflict"
+    result = apply_deployment(plan, plan_hash=plan.plan_hash, confirmation="confirm", storage=storage)
+    assert result.status == "conflict"
+    assert (installed / "SKILL.md").read_text(encoding="utf-8") == "changed"
+
+
 def test_partial_failure_reports_compensation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     source = _source(tmp_path)
     storage = SkillManagerStorage(tmp_path / "library")
