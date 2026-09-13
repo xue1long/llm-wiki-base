@@ -79,6 +79,18 @@ def test_default_library_snapshot_can_be_revalidated(tmp_path: Path, monkeypatch
     assert plan_deployment(artifact.artifact_id, [], storage=SkillManagerStorage()).targets == ()
 
 
+def test_source_inside_custom_library_is_rejected(tmp_path: Path):
+    storage = SkillManagerStorage(tmp_path / "library")
+    source = storage.root / "input"
+    source.mkdir(parents=True)
+    (source / "SKILL.md").write_text("# Demo\n", encoding="utf-8")
+    inspection = inspect_source(SourceSpec(source))
+
+    with pytest.raises(ValueError):
+        import_artifact(SourceSpec(source), plan_hash=inspection.content_hash,
+                        confirmation="confirm", storage=storage)
+
+
 def test_tampered_artifact_name_is_rejected_before_target_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     source = _source(tmp_path)
     storage = SkillManagerStorage(tmp_path / "library")
@@ -212,6 +224,35 @@ def test_rollback_keeps_a_target_changed_after_install(tmp_path: Path, monkeypat
 
     assert result.status == "partial_failure"
     assert (first / artifact.name / "SKILL.md").read_text(encoding="utf-8") == "user change"
+
+
+def test_deployment_record_failure_removes_records_and_reports_rollback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    source = _source(tmp_path)
+    storage = SkillManagerStorage(tmp_path / "library")
+    inspection = inspect_source(SourceSpec(source))
+    artifact = import_artifact(SourceSpec(source), plan_hash=inspection.content_hash,
+                               confirmation="confirm", storage=storage)
+    first, second = tmp_path / "first", tmp_path / "second"
+    first.mkdir(); second.mkdir()
+    _targets(monkeypatch, first, second)
+    plan = plan_deployment(artifact.artifact_id, ["agent-1", "agent-2"], storage=storage)
+    original = storage.save_deployment
+    calls = 0
+
+    def fail_second_record(deployment):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("simulated record failure")
+        original(deployment)
+
+    monkeypatch.setattr(storage, "save_deployment", fail_second_record)
+    result = apply_deployment(plan, plan_hash=plan.plan_hash, confirmation="confirm", storage=storage)
+
+    assert result.status == "partial_failure"
+    assert not list((storage.root / "deployments").glob("*.json"))
+    persisted = storage.load_operation(result.operation_id)
+    assert any(item["status"] == "rolled_back" for item in persisted["results"])
 
 
 def test_partial_failure_reports_compensation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

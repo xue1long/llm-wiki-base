@@ -178,6 +178,10 @@ class SkillManagerStorage:
             raise StorageError("NOT_FOUND", "Deployment was not found")
         return _deployment_from_dict(_read_json(path))
 
+    def delete_deployment(self, deployment_id: str) -> None:
+        with manager_lock(self.root):
+            (self.root / "deployments" / f"{deployment_id}.json").unlink(missing_ok=True)
+
     def write_manifest(self, payload: dict[str, Any]) -> None:
         with manager_lock(self.root):
             _atomic_write_json(self.root / "manifest.json", payload)

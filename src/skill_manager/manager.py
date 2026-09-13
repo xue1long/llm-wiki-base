@@ -115,7 +115,11 @@ def import_artifact(
 
     if confirmation != "confirm":
         raise ValueError("explicit confirmation is required")
-    forbidden = [config_dir() / "skill-manager"]
+    if storage is None:
+        from .storage import SkillManagerStorage
+
+        storage = SkillManagerStorage()
+    forbidden = [config_dir() / "skill-manager", storage.root]
     forbidden.extend(target.path for target in discover_targets())
     inspection = inspect_source(source, limits=limits, forbidden_roots=forbidden)
     if plan_hash != inspection.content_hash:
@@ -128,10 +132,6 @@ def import_artifact(
         total_bytes=inspection.total_bytes,
         source=inspection.source,
     )
-    if storage is None:
-        from .storage import SkillManagerStorage
-
-        storage = SkillManagerStorage()
     artifact_root = storage.root / "artifacts" / artifact.artifact_id
     content = artifact_root / "content"
     if content.exists():
@@ -277,26 +277,35 @@ def _apply_deployment_locked(plan: DeploymentPlan, storage) -> Operation:
                 results.append({"target_id": target.id, "status": "rollback_failed"})
         status = "partial_failure" if rollback_failed or len(fresh.targets) > 1 else "failed"
         return _finish_operation(storage, Operation(operation_id, status, plan.artifact_id, tuple(results), failure))
+    saved_deployments: list[Deployment] = []
     try:
         for target_plan, result in zip(fresh.targets, results):
             if result.get("action") != "installed":
                 continue
-            storage.save_deployment(
-                Deployment(
-                    deployment_id=f"deployment-{uuid.uuid4().hex}",
-                    artifact_id=plan.artifact_id,
-                    target_id=target_plan.target_id,
-                    target_path=target_plan.skill_path,
-                    content_hash=plan.artifact_hash,
-                )
+            deployment = Deployment(
+                deployment_id=f"deployment-{uuid.uuid4().hex}",
+                artifact_id=plan.artifact_id,
+                target_id=target_plan.target_id,
+                target_path=target_plan.skill_path,
+                content_hash=plan.artifact_hash,
             )
+            storage.save_deployment(deployment)
+            saved_deployments.append(deployment)
     except Exception:
         rollback_failed = False
+        for deployment in reversed(saved_deployments):
+            try:
+                storage.delete_deployment(deployment.deployment_id)
+            except Exception:
+                rollback_failed = True
+                results.append({"target_id": deployment.target_id, "status": "record_rollback_failed"})
         for _, skill_path in reversed(installed):
             try:
                 _remove_installed(skill_path, artifact)
+                results.append({"target_id": skill_path.parent.name, "status": "rolled_back"})
             except Exception:
                 rollback_failed = True
+                results.append({"target_id": skill_path.parent.name, "status": "rollback_failed"})
         status = "partial_failure" if rollback_failed or len(installed) > 1 else "failed"
         return _finish_operation(storage, Operation(operation_id, status, plan.artifact_id, tuple(results), "deployment_record_failed"))
     return _finish_operation(storage, Operation(operation_id, "succeeded", plan.artifact_id, tuple(results)))
