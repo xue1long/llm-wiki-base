@@ -84,17 +84,21 @@ def ctx(tmp_path):
 
 
 def test_wiki_search_returns_results(ctx):
-    """wiki.search dispatches to hybrid_search and returns its results."""
+    """wiki.search delegates to the project search service."""
     fake_results = [{"path": "a.md", "title": "A", "score": 0.9}]
+    ctx.id = "project-id"
+    calls = []
 
-    async def fake_hybrid_search(query, top_k=10, paths=None):
-        return fake_results
+    async def fake_project_search(project_id, query, top_k=10, mode="hybrid"):
+        calls.append((project_id, query, top_k, mode))
+        return {"query": query, "results": fake_results}
 
-    with patch("src.agent.tools.hybrid_search", new=fake_hybrid_search):
+    with patch("src.agent.tools.project_search", new=fake_project_search):
         from src.agent.tools import WikiSearchTool
         result = _run(WikiSearchTool().execute(ctx, query="hello", top_k=3))
     assert result["query"] == "hello"
     assert result["results"] == fake_results
+    assert calls == [("project-id", "hello", 3, "hybrid")]
 
 
 def test_wiki_read_page(tmp_path):

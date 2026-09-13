@@ -2,6 +2,7 @@
 import logging
 from typing import Protocol
 
+from ..services.search import search as project_search
 from ..searcher.hybrid_search import hybrid_search
 from ..wiki import read_page
 from ..wiki.core.paths import WikiPaths
@@ -22,13 +23,11 @@ class WikiSearchTool:
     description = "Hybrid search wiki/ pages"
 
     async def execute(self, ctx, query: str, top_k: int = 5) -> dict:
-        # NOTE: hybrid_search signature is (query, top_k, paths=None) —
-        # no ctx/mode kwargs. We thread WikiPaths(ctx.path) when ctx is
-        # provided so keyword search scans the v2 wiki tree, falling
-        # back to the (deprecated) CWD-relative Knowledge/ if not.
-        paths = WikiPaths(ctx.path) if ctx is not None else None
-        results = await hybrid_search(query, top_k=top_k, paths=paths)
-        return {"query": query, "results": results}
+        if ctx is None:
+            results = await hybrid_search(query, top_k=top_k, paths=None)
+            return {"query": query, "results": results}
+        response = await project_search(ctx.id, query, top_k=top_k, mode="hybrid")
+        return {"query": query, "results": response.get("results", [])}
 
 
 class WikiReadPageTool:
