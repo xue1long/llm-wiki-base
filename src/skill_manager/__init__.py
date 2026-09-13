@@ -1,6 +1,6 @@
 """Domain types and safe inspection for managed agent Skills."""
 
-from .api import apply_deployment, import_artifact, plan_deployment
+from .api import apply_deployment, get_operation, import_artifact, list_artifacts, list_targets, plan_deployment
 from .manager import (
     DEFAULT_PACKAGE_LIMITS,
     build_artifact,
@@ -36,6 +36,9 @@ __all__ = [
     "inspect_package",
     "inspect_source",
     "apply_deployment",
+    "get_operation",
     "import_artifact",
+    "list_artifacts",
+    "list_targets",
     "plan_deployment",
 ]
