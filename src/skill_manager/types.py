@@ -81,6 +81,7 @@ class DeploymentTargetPlan:
     skill_path: str
     status: str
     reason: str = ""
+    fingerprint: str = ""
 
 
 @dataclass(frozen=True)

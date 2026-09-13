@@ -19,6 +19,7 @@ INFLIGHT_OPERATION_STATUSES = frozenset(
     {"queued", "downloading", "validating", "installing"}
 )
 _PROCESS_LOCK = threading.RLock()
+_LOCK_DEPTH = threading.local()
 
 
 class StorageError(ValueError):
@@ -35,8 +36,19 @@ def manager_lock(root: Path) -> Iterator[None]:
 
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
+    key = str(root.resolve())
+    depths = getattr(_LOCK_DEPTH, "values", {})
+    if depths.get(key, 0):
+        depths[key] += 1
+        try:
+            yield
+        finally:
+            depths[key] -= 1
+        return
     lock_path = root / "manager.lock"
     with _PROCESS_LOCK:
+        depths[key] = 1
+        _LOCK_DEPTH.values = depths
         with lock_path.open("a+b") as stream:
             stream.seek(0)
             stream.write(b"0")
@@ -58,6 +70,7 @@ def manager_lock(root: Path) -> Iterator[None]:
                     msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
                 else:
                     fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+                depths.pop(key, None)
 
 
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
