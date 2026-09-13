@@ -9,6 +9,13 @@
       <div class="chat-wrap">
         <div class="chat-list" id="chatList"></div>
         <div class="chat-input">
+          <label class="chat-backend">Agent
+            <select id="chatBackend" aria-label="Agent 后端">
+              <option value="local">本地 Agent</option>
+              <option value="auto">自动（优先 GBrain MCP）</option>
+              <option value="gbrain">GBrain MCP</option>
+            </select>
+          </label>
           <textarea id="chatInput" placeholder="说点什么… (Enter 发送，Shift+Enter 换行)"></textarea>
           <button id="chatBtn">发送</button>
         </div>
@@ -17,6 +24,7 @@
     const list = document.getElementById("chatList");
     const input = document.getElementById("chatInput");
     const btn = document.getElementById("chatBtn");
+    const backend = document.getElementById("chatBackend");
     let inflight = null;
 
     input.addEventListener("keydown", e => {
@@ -45,7 +53,7 @@
       try {
         const r = await App.api(`/api/v1/projects/${App.state.projectId}/chat`, {
           method: "POST",
-          body: { message: msg, sessionId: App.state.sessionId },
+          body: { message: msg, sessionId: App.state.sessionId, agentBackend: backend.value },
           signal: controller.signal,
         });
         inflight = null;
@@ -81,7 +89,7 @@
         }
         if (r.usage) {
           bubble.insertAdjacentHTML("beforeend",
-            `<div class="chat-meta">iterations=${r.usage.iterations ?? "?"} · toolCalls=${r.usage.toolCalls ?? "?"}</div>`);
+            `<div class="chat-meta">backend=${App.escapeHtml(r.backend || "local")} · ${r.degraded ? "已回退: " + App.escapeHtml(r.degrade_reason || "unknown") + " · " : ""}iterations=${r.usage.iterations ?? "?"} · toolCalls=${r.usage.toolCalls ?? "?"}</div>`);
         }
       } catch (e) {
         if (!placeholder.isConnected) return;

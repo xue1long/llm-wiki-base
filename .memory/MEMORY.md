@@ -64,3 +64,4 @@
 - [2026-09-09 Book preview → promotion 实施](feedback-book-preview-promotion-2026-09-09.md) — `--apply-from` 复用同一 preview release、人工审批非阻塞、预算前置估算、vector 状态拆分；完整 KC/CLI 回归 836 passed
 - [2026-09-09 Book 章节响应契约修复](feedback-book-response-contract-repair-2026-09-09.md) — MiniMax `list[str]` 响应触发形状感知重试反馈；仍保持 fail-closed provenance 校验
 - [2026-09-09 Book 发布完成](feedback-book-release-2026-09-09.md) — preview release `5aa755f...` 自动验收通过并经 `--apply-from` 发布；LanceDB 独立未更新
+- [2026-09-13 GBrain Claude Code 外部 Host 试点](feedback-gbrain-claude-host-pilot-2026-09-13.md) — 路线 B 真实 MCP 门禁通过；最小只读桥接、项目 scope、来源校验和 local/auto/gbrain 后端已落地；当前每请求独立进程，跨请求 session 复用后置

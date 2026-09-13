@@ -116,6 +116,7 @@ Book 阅读页读取 `CURRENT.json` 指向的完整性校验 release：
 | 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
 |------|----------|------|----------|------|
 | **发送** | 行 25 | 发送聊天消息 | `POST /api/v1/projects/{id}/chat` | 输入框按 Enter 也可触发 |
+| **Agent 后端** | 行 12 | 选择本地 Agent、自动优先 GBrain MCP 或显式 GBrain MCP | 同一聊天 API 的 `agentBackend` 字段 | 默认本地；`auto` 失败时回退本地，显式 GBrain 失败返回错误 |
 
 ---
 

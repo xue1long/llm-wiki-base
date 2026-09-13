@@ -21,16 +21,22 @@ class ChatRequest(BaseModel):
     wiki: bool = True
     web: bool = False
     anytxt: bool = False
+    agentBackend: Literal["local", "auto", "gbrain"] = "local"
 
 
 @router.post("/projects/{project_id}/chat")
 async def chat(project_id: str, body: ChatRequest):
     """Non-streaming agent chat (MVP)."""
     try:
+        kwargs = {
+            "project_id": project_id,
+            "message": body.message,
+            "session_id": body.sessionId,
+        }
+        if body.agentBackend != "local":
+            kwargs["agent_backend"] = body.agentBackend
         return await chat_service.run_chat(
-            project_id=project_id,
-            message=body.message,
-            session_id=body.sessionId,
+            **kwargs,
         )
     except ProjectNotFoundError as e:
         raise HTTPException(404, str(e))
@@ -52,3 +58,17 @@ async def chat(project_id: str, body: ChatRequest):
                 "budget": e.budget,
             },
         )
+    except chat_service.GBrainAgentFailed as e:
+        _logger.warning(
+            "[chat] gbrain agent failed for project=%s: %s",
+            project_id, e,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": e.error_code,
+                "message": str(e),
+            },
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

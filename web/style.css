@@ -977,6 +977,8 @@ body {
   overflow: hidden;
 }
 .chat-input { display: flex; gap: 8px; padding: 12px 0; border-top: 1px solid var(--border); }
+.chat-backend { display: flex; flex-direction: column; justify-content: center; gap: 3px; color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.chat-backend select { padding: 8px 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: 12px; }
 .chat-input textarea {
   flex: 1; min-height: 44px; max-height: 120px; resize: vertical;
   padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius);

@@ -61,3 +61,23 @@ def test_chat_endpoint_uses_agent(monkeypatch, tmp_path):
     # usage should count iterations + tool calls
     assert body["usage"]["toolCalls"] == 1
     assert body["usage"]["iterations"] == 2  # 1 tool_started + 1 final_answer
+
+
+def test_chat_endpoint_forwards_gbrain_backend(monkeypatch):
+    from src.services import chat as chat_service_module
+
+    seen = {}
+
+    async def fake_run_chat(**kwargs):
+        seen.update(kwargs)
+        return {"projectId": kwargs["project_id"], "message": {"content": "ok"}}
+
+    monkeypatch.setattr(chat_service_module, "run_chat", fake_run_chat)
+
+    r = client.post(
+        "/api/v1/projects/proj-1/chat",
+        json={"message": "hi", "agentBackend": "gbrain"},
+    )
+
+    assert r.status_code == 200
+    assert seen["agent_backend"] == "gbrain"

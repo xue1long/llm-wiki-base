@@ -11,8 +11,12 @@ into a 502/504 so the caller learns the agent failed to converge.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
+from ..agent.claude_host import ClaudeHostError, run_gbrain_claude
 from ..agent.runtime import AgentRuntime
 from ..agent.types import AgentConfig
+from ..integrations.gbrain.api import load_search_config
 from ..lib.project import resolve_project
 
 
@@ -38,12 +42,21 @@ class AgentRunFailed(Exception):
             )
 
 
+class GBrainAgentFailed(Exception):
+    """Raised when explicit GBrain Agent mode cannot complete."""
+
+    def __init__(self, error: ClaudeHostError):
+        self.error_code = error.code
+        super().__init__(str(error))
+
+
 async def run_chat(
     project_id: str,
     message: str,
     session_id: str | None = None,
     model: str = "",
     max_iterations: int = 8,
+    agent_backend: str = "local",
 ) -> dict:
     """Run a non-streaming agent chat on the project's wiki tree.
 
@@ -61,7 +74,38 @@ async def run_chat(
             emitting a `final_answer` event. The HTTP layer translates this
             into a non-200 response so the caller learns the agent failed.
     """
-    ctx, _paths = resolve_project(project_id, by_id_only=True)
+    ctx, paths = resolve_project(project_id, by_id_only=True)
+    if agent_backend not in {"local", "auto", "gbrain"}:
+        raise ValueError(f"unsupported agent backend: {agent_backend}")
+
+    degraded = False
+    degrade_reason = ""
+    if agent_backend in {"auto", "gbrain"}:
+        try:
+            hosted = await run_gbrain_claude(paths.root, message)
+            expected_source = load_search_config(paths.root).source_id
+            if hosted.get("source_id") != expected_source:
+                raise ClaudeHostError("gbrain_source_mismatch")
+            references = _validate_gbrain_references(
+                paths.root, expected_source, hosted.get("references", [])
+            )
+            turns = int(hosted.get("num_turns") or 1)
+            return {
+                "sessionId": session_id or hosted.get("session_id") or f"gbrain:{project_id}",
+                "projectId": project_id,
+                "message": {"role": "assistant", "content": hosted.get("answer", "")},
+                "references": references[:10],
+                "backend": "gbrain",
+                "degraded": False,
+                "degrade_reason": "",
+                "usage": {"iterations": turns, "toolCalls": max(0, turns - 1)},
+            }
+        except ClaudeHostError as exc:
+            if agent_backend == "gbrain":
+                raise GBrainAgentFailed(exc) from exc
+            degraded = True
+            degrade_reason = exc.code
+
     runtime = AgentRuntime(ctx, AgentConfig(model=model, max_iterations=max_iterations))
     events = await runtime.run(message)
 
@@ -94,8 +138,43 @@ async def run_chat(
         "projectId": project_id,
         "message": {"role": "assistant", "content": final_answer},
         "references": references[:10],
+        "backend": "local",
+        "degraded": degraded,
+        "degrade_reason": degrade_reason,
         "usage": {
             "iterations": sum(1 for e in events if e.type in ("tool_started", "final_answer")),
             "toolCalls": sum(1 for e in events if e.type == "tool_completed"),
         },
     }
+
+
+def _validate_gbrain_references(root: Path, source_id: str, raw: object) -> list[dict]:
+    """Keep only source-scoped references that map back into this Wiki."""
+    if not isinstance(raw, list):
+        return []
+    wiki_root = (Path(root) / "wiki").resolve()
+    references: list[dict] = []
+    for item in raw:
+        if not isinstance(item, dict) or item.get("source_id") != source_id:
+            continue
+        slug = str(item.get("slug") or "").replace("\\", "/").lstrip("/")
+        if slug.startswith("wiki/"):
+            slug = slug[5:]
+        relative = Path(slug + ("" if slug.endswith(".md") else ".md"))
+        if relative.is_absolute() or ".." in relative.parts:
+            continue
+        candidate = (wiki_root / relative).resolve()
+        try:
+            candidate.relative_to(wiki_root)
+        except ValueError:
+            continue
+        if not candidate.is_file():
+            continue
+        references.append({
+            "title": item.get("title", ""),
+            "slug": slug.removesuffix(".md"),
+            "source_id": source_id,
+            "path": "wiki/" + relative.as_posix(),
+            "snippet": item.get("snippet", ""),
+        })
+    return references
