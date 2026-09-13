@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from pathlib import Path
 
+from src.integrations.gbrain import runtime as runtime_module
 from src.integrations.gbrain.runtime import (
     RuntimeConfig,
     RuntimeConfigError,
@@ -111,6 +113,22 @@ def test_validate_rejects_wrong_version(tmp_path):
     assert result.status == "failed"
     assert result.error_code == "version_mismatch"
     assert result.checks == {"layout": True, "version": False}
+
+
+def test_run_version_decodes_utf8_output(monkeypatch, tmp_path):
+    calls = {}
+    monkeypatch.setattr(runtime_module.shutil, "which", lambda _: "bun")
+
+    def runner(*args, **kwargs):
+        calls.update(kwargs)
+        return SimpleNamespace(returncode=0, stdout="gbrain 0.50.0.0\n中文", stderr="")
+
+    monkeypatch.setattr(runtime_module.subprocess, "run", runner)
+
+    output = runtime_module._run_version(["bun", "--version"], tmp_path, 5)
+
+    assert "中文" in output
+    assert calls["encoding"] == "utf-8"
 
 
 def test_runtime_state_is_written_atomically_and_readable(tmp_path):

@@ -277,6 +277,7 @@ def _run_version(command: list[str], cwd: Path, timeout: float) -> str:
         cwd=cwd,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=timeout,
         check=False,
         shell=False,
@@ -296,6 +297,7 @@ def _probe_mcp_initialize(path: Path, timeout: float) -> Mapping[str, Any]:
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         text=True,
+        encoding="utf-8",
         shell=False,
     )
     try:
