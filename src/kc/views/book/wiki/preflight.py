@@ -372,24 +372,6 @@ def _resolve_provider(provider_name: str | None) -> tuple[str | None, str | None
     a tokenizer, which is fine for the pure-rule path).
     """
     errors: list[ValidationError] = []
-    if not provider_name:
-        env_name = os.environ.get(DEFAULT_PROVIDER_ENV, "").strip()
-        provider_name = env_name or None
-
-    if not provider_name:
-        errors.append(
-            ValidationError(
-                code="E_PROVIDER_REQUIRED",
-                stage="preflight",
-                message=(
-                    "use_llm=True requires a provider name (pass provider_name= "
-                    "or set $RUFLO_LLM_PROVIDER)."
-                ),
-                context={},
-            )
-        )
-        return None, None, None, tuple(errors)
-
     # Lazy import: ProviderRegistry reads from the user's config dir; in
     # unit tests we may not have one. Catch ImportError defensively.
     try:
@@ -404,6 +386,24 @@ def _resolve_provider(provider_name: str | None) -> tuple[str | None, str | None
             )
         )
         return None, None, None, tuple(errors)
+
+    if not provider_name:
+        try:
+            provider_name = ProviderRegistry.get_default().name
+        except (ProviderNotFoundError, ValueError) as exc:
+            errors.append(
+                ValidationError(
+                    code="E_PROVIDER_REQUIRED",
+                    stage="preflight",
+                    message=(
+                        "use_llm=True requires a provider name (pass provider_name= "
+                        f"or configure a default provider; legacy ${DEFAULT_PROVIDER_ENV} "
+                        f"is also supported): {exc}"
+                    ),
+                    context={},
+                )
+            )
+            return None, None, None, tuple(errors)
 
     try:
         config = ProviderRegistry.require(provider_name)

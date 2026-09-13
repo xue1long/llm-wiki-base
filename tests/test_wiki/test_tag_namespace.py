@@ -25,8 +25,13 @@ def test_valid():
     # Phase 1.4 additions
     assert is_valid("读者群/男频")
     assert is_valid("平台/起点")
-    # All 12 prefixes registered
-    assert len(TAG_PREFIXES) == 12
+    assert is_valid("tool/python")
+    assert is_valid("scene/视频笔记")
+    assert is_valid("status/Agent核心记忆")
+    assert is_valid("media/转录")
+    assert is_valid("author/Nico")
+    # Existing 12 prefixes plus the 5 migration-compatible prefixes and 用途.
+    assert len(TAG_PREFIXES) == 18
 
 
 def test_new_prefix_values():
@@ -202,12 +207,29 @@ def test_validate_tag_compliance_empty_passes():
     validate_tag_compliance([])
 
 
-def test_validate_tag_compliance_nonempty_missing_mandatory():
-    """Non-empty tag list fails when mandatory pairs are missing."""
+def test_validate_tag_compliance_non_video_page_does_not_need_mandatory():
+    """Only video source pages enforce the UGC mandatory pair."""
+    validate_tag_compliance(["题材/现言"], page_type="concept")
+
+
+def test_validate_tag_compliance_video_source_needs_mandatory():
+    """Source cards from video platforms still require the UGC pair."""
     with pytest.raises(TagValidationError) as exc:
-        validate_tag_compliance(["题材/现言"])
+        validate_tag_compliance(["题材/现言"], page_type="source", platform="B站")
     assert "素材/ugc" in exc.value.missing_pairs
     assert "可信度/ugc" in exc.value.missing_pairs
+
+
+def test_v2_freeform_tags_are_accepted():
+    validate_tag_compliance(["网文创作", "读者视角", "自审方法", "写作技巧"], page_type="concept")
+
+
+def test_article_source_does_not_need_video_mandatory():
+    validate_tag_compliance(["文章摘录"], page_type="source", platform="公众号")
+
+
+def test_v2_namespace_prefixes_are_accepted():
+    validate_tag_compliance(["tool/python", "scene/视频笔记", "status/Agent核心记忆"])
 
 
 def test_validate_tag_compliance_raises_on_invalid_value():

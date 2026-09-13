@@ -19,11 +19,13 @@ BODY_RULES = {
 }
 
 WIKI_RULES_SUMMARY = '''
-# Wiki 规范（V4 · 2026-08-31）
+# Wiki 规范（V6 · 2026-09-11）
 
 ## 0. 概述
 
-本规范定义 Wiki 页面的**磁盘 frontmatter**（写入 `wiki/<type>/<id>.md` 的 YAML 部分）的字段集与行为。V4 收紧了 frontmatter：磁盘上**只允许 8 个键**，其他字段保留在内存 `WikiPage` 对象上供业务使用，但**不写入磁盘**。
+本规范定义 Wiki 页面的**磁盘 frontmatter**（写入 `wiki/<type>/<id>.md` 的 YAML 部分）的字段集与行为。当前运行时按 V6 写入 18 个键；V4/V5 存量页面可以只有基础 8 个键，并由读取侧补默认值。未知顶层键仍然拒绝写入和通过校验。
+
+当前 V6 写盘字段为基础字段 `id`、`title`、`type`、`relations`、`tags`、`sources`、`created_at`、`updated_at`，以及 `processing_depth`、`source_grade`、`platform`、`category`、`taxonomy_sub`、`use_context`、`workflow_state`、`capture_type`、`v2_origin`、`_ko_extra`。本文中保留的 V4 段落描述历史迁移规则，不覆盖当前写盘合同。
 
 ### 0.1 V4 与 v2.2 的差异
 
@@ -38,15 +40,15 @@ WIKI_RULES_SUMMARY = '''
 | `_ko_extra` 镜像通道 | 写入 | **不写入** |
 | `confidence` / `provenance` / `versions` / `lifecycle` / `lock_until`（V3 提议）| 提议从未实现 | **根本不接受** |
 
-### 0.2 V4 不变性
+### 0.2 当前不变性
 
-- **frontmatter = 8 键严格白名单**：CI 拒绝任何非白名单字段
+- **frontmatter = V6 严格白名单**：CI 拒绝任何非白名单字段；V4/V5 的 8 键存量页继续通过兼容校验
 - **slug 永不存 frontmatter**：从 `<type_dir>/<id>` 派生
-- **KO 写入层是终极守门人**：即使 LLM 输出 dead fields，写盘时也丢弃
+- **写入层是终极守门人**：即使 LLM 输出未知字段，写盘时也丢弃
 
 ---
 
-## 1. 字段集（V4 · 8 键）
+## 1. 字段集（V6 当前写盘 + V4/V5 兼容读取）
 
 ### 1.1 必填字段（6 项）
 
@@ -66,19 +68,19 @@ WIKI_RULES_SUMMARY = '''
 | `relations` | list[dict] | 知识图谱边。21 个内置类型 + `x-*` 自定义 |
 | `tags` | list[str] | 业务轻量标签 |
 
-### 1.3 不写入 frontmatter 的字段（内存模型保留）
+### 1.3 仅保留在内存或运行目录的字段
 
-`WikiPage` dataclass 仍保留以下字段供业务逻辑使用，但**绝不写入磁盘**：
+以下字段不属于当前 V6 frontmatter 合同；其中 V4/V5 页面缺失的迁移字段由读取侧补默认值：
 
 - `body` (str) —— Markdown body（页面正文，不算 frontmatter 字段）
-- `grade` (str) —— A/B/C 评级（来自 KO confidence，但 V4 不持久化）
-- `processing_depth` (str) —— concept/memory/operation（仅用于 stub 页面识别）
+- `grade` (str) —— A/B/C 评级的内存别名；V6 写盘使用 `source_grade`
+- `processing_depth` (str) —— concept/memory/operation
 - `is_immutable` (bool) —— 保留字段定义但未启用守卫
 - `heat` / `last_used_at` / `zombie_since` —— 热度衰减（未启用）
-- `workflow_state` / `verified_at` —— 治理状态（未启用）
-- `category` / `taxonomy_sub` —— 用 `relations[taxonomy_of]` 替代
+- `verified_at` —— 治理状态的运行时字段，V6 不写入
+- `category` / `taxonomy_sub` —— V6 直接写入，旧页可继续通过关系表达
 - `custom_type` / `related_entities` —— schema.md 子类型机制未启用
-- `_ko_extra` / `evidence_` / `decision_record` —— KO 镜像通道废弃
+- `evidence_` / `decision_record` —— 运行时字段；V6 之外的扩展仍放入 `_ko_extra`
 - `valid_from` / `valid_to` —— 时间窗口（未启用）
 - `slug` —— 路径派生
 
@@ -170,9 +172,9 @@ write_page(paths, WikiPage(
 ))
 ```
 
-**V4 行为**：
-- `WikiPage.to_frontmatter_dict()` 仅输出 8 键
-- 内存模型上的 dead fields 不会出现在写入文件
+**当前行为**：
+- `WikiPage.to_frontmatter_dict()` 输出 V6 18 键
+- V4/V5 8 键页面读取时补齐 V6 默认值，重新写入后升级为 V6 格式
 - stub 页面（`processing_depth="stub"`）写入 `_stubs/` 目录
 - 写入路径无 `is_immutable` 检查（覆盖允许）
 
@@ -180,12 +182,12 @@ write_page(paths, WikiPage(
 
 ## 5. 验证
 
-### 5.1 V4 frontmatter 验证脚本
+### 5.1 V4/V5/V6 frontmatter 验证脚本
 
 ```
 $ python scripts/validate_novel_wiki_frontmatter.py
-[validate-v4] scanned=4892
-[validate-v4] P0=0  ← 全部通过 V4 严格白名单
+[validate-v4/v6] scanned=1747
+[validate-v4/v6] P0=0  ← 旧 8 键和当前 V6 白名单均通过
 ```
 
 脚本：`scripts/validate_novel_wiki_frontmatter.py`
@@ -196,7 +198,7 @@ $ python scripts/validate_novel_wiki_frontmatter.py
 2. 必填字段齐全：`id` / `title` / `type` / `sources` / `created_at` / `updated_at`
 3. `type` ∈ `{source, entity, concept, synthesis}`
 4. `id` 必须等于文件名 stem
-5. 不含 V4 禁字段（`confidence` / `provenance` / `versions` / `lifecycle` / `lock_until`）
+5. 不含合同外字段（`confidence` / `provenance` / `versions` / `lifecycle` / `lock_until`）
 6. `relations` 中 `taxonomy_of` / `belongs_to_audience` / `hosted_on_platform` / `has_credibility` 的 target 必须带命名空间前缀
 
 ---

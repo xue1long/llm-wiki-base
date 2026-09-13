@@ -126,6 +126,33 @@ def test_write_page_allows_valid_tags(tmp_path):
     assert page_path_for(p, PageType.ENTITY, "foo").exists()
 
 
+def test_write_page_round_trips_v6_fields_and_ko_extra(tmp_path):
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    page = WikiPage(
+        id="v6",
+        title="V6",
+        type=PageType.CONCEPT,
+        tags=["网文创作", "tool/python"],
+        source_grade="A",
+        platform="B站",
+        processing_depth="memory",
+        capture_type="video-transcript",
+        v2_origin=True,
+    )
+    page._ko_extra = {"version": "v2.1", "url": "https://example.test"}
+
+    write_page(paths, page)
+    loaded = read_page(page_path_for(paths, PageType.CONCEPT, "v6"))
+
+    assert loaded.tags == page.tags
+    assert loaded.source_grade == "A"
+    assert loaded.platform == "B站"
+    assert loaded.capture_type == "video-transcript"
+    assert loaded.v2_origin is True
+    assert loaded._ko_extra == page._ko_extra
+
+
 def test_write_page_v4_no_taxonomy_validation(tmp_path, monkeypatch):
     """V4 (ADR-002): category/taxonomy_sub are GONE from frontmatter.
 

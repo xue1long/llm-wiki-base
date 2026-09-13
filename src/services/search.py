@@ -102,8 +102,15 @@ async def search(
             gbrain_fallback_reason = "remote_filtered_empty"
         except GBrainSearchError as exc:
             gbrain_fallback_reason = str(exc)
-        except Exception:
+            logger.warning("GBrain search rejected for project %s: %s", project_id, exc)
+        except Exception as exc:
             gbrain_fallback_reason = "remote_error"
+            logger.warning(
+                "GBrain search failed for project %s: %s: %s",
+                project_id,
+                type(exc).__name__,
+                exc,
+            )
     if mode == "keyword":
         status = {"ready": True, "reason": "keyword"}
     else:

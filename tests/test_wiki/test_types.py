@@ -238,3 +238,65 @@ def test_from_dict_accepts_datetime_object():
     page = WikiPage.from_dict(d, body="")
     assert page.created_at == int(dt.timestamp() * 1000)
     assert page.updated_at == int(dt.timestamp() * 1000)
+
+
+def test_v6_frontmatter_has_migration_fields_and_extra():
+    page = WikiPage(
+        id="v6-card",
+        title="V6 Card",
+        type=PageType.CONCEPT,
+        processing_depth="memory",
+        source_grade="A",
+        platform="B站",
+        category="AI技术",
+        taxonomy_sub="AI编程",
+        use_context="build",
+        workflow_state="ready",
+        capture_type="video-transcript",
+        v2_origin=True,
+    )
+    page._ko_extra = {"version": "v2.1", "url": "https://example.test/v"}
+
+    frontmatter = page.to_frontmatter_dict()
+
+    assert set(frontmatter) == {
+        "id", "title", "type", "sources", "created_at", "updated_at",
+        "relations", "tags", "processing_depth", "source_grade", "platform",
+        "category", "taxonomy_sub", "use_context", "workflow_state",
+        "capture_type", "v2_origin", "_ko_extra",
+    }
+    assert frontmatter["source_grade"] == "A"
+    assert frontmatter["_ko_extra"] == page._ko_extra
+
+    restored = WikiPage.from_dict(frontmatter, body="body")
+    assert restored.source_grade == "A"
+    assert restored.grade == "A"
+    assert restored.platform == "B站"
+    assert restored.capture_type == "video-transcript"
+    assert restored.v2_origin is True
+    assert restored._ko_extra == page._ko_extra
+
+
+def test_v6_defaults_keep_v5_frontmatter_readable():
+    page = WikiPage.from_dict({
+        "id": "v5-card",
+        "title": "V5 Card",
+        "type": "concept",
+        "sources": ["a"],
+        "created_at": 1,
+        "updated_at": 2,
+        "relations": [],
+        "tags": ["网文创作"],
+    })
+
+    frontmatter = page.to_frontmatter_dict()
+
+    assert frontmatter["processing_depth"] == "concept"
+    assert frontmatter["source_grade"] == "B"
+    assert frontmatter["platform"] == ""
+    assert frontmatter["category"] == ""
+    assert frontmatter["taxonomy_sub"] == ""
+    assert frontmatter["use_context"] == ""
+    assert frontmatter["workflow_state"] == "draft"
+    assert frontmatter["capture_type"] == ""
+    assert frontmatter["v2_origin"] is False
