@@ -6,6 +6,12 @@
 >
 > **新计划（2026-08-26）：** 模块规范性与统一化改造 — `docs/superpowers/plans/2026-08-26-module-standardization-unification.md`
 
+### Book LLM 重新发布加固方案（2026-09-09）
+
+- ✅ 完成根因方案：历史响应结构违约是触发因素；预算/重试计数与错误折叠是发布失败的主架构问题。
+- ✅ 方案已保存：`docs/superpowers/plans/2026-09-09-book-llm-republish-hardening.md`。
+- ✅ 通过两轮方案审查：保留严格结构校验、限制重试为可纠正契约错误、从实际调用点推导预算；未进入编码。
+
 ### Plan A Phase 0：UGC auto-tag helper（2026-09-01）
 
 - ✅ 从 `batch_runner.py` 与 `scripts/phase4_batch.py` 抽取共享 `auto_tag_ugc`；保留 batch facade 的 `_auto_tag_ugc` 别名与原调用点。
@@ -882,3 +888,116 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ 根目录 `.env` 模板就绪：CLI 自动加载仓库/当前目录环境文件，常见远程 Provider 的 API key 映射已补齐；示例文件中的疑似明文 MiniMax key 已替换为占位符。
 - ✅ 已使用 `.env` 中的 MiniMax 配置执行 `knowledge/novel-wiki` 真实 `--apply`；CURRENT 指针、release 文件和 manifest 哈希校验通过。
 - ✅ Web Book demo：Book 页面改为左目录/中正文/右章节信息三栏；新增正式 release manifest 与章节读取 API，并用 `novel-wiki` 真实 release 验证 179 章读取成功。
+
+### Unified Knowledge Book remediation pass 3（2026-09-06）
+
+- ✅ 统一出版级 LLM 请求预算：提纲、正文、可选索引和重试共享 `max_llm_calls`，每次请求先占额并受运行时上限约束。
+- ✅ 外部 LLM 需要 `content_export_authorized=true` 与 `external_llm_allowed=true`；敏感级别和来源 allowlist 在首个 provider 请求前 fail-closed。
+- ✅ 补充 budget/provider/late-manifest failure drills；partial/failed release 不更新 `CURRENT`。
+- ✅ 验证：`tests/test_kc` 762 passed；Book API/service 39 passed；触及文件 py_compile + Ruff passed。
+- ⏳ 未完成：真实 provider 人工试读、正式人工验收、全量构建放行；未创建 commit，未 push。
+
+### Unified Knowledge Book remediation pass 4（2026-09-06）
+
+- ✅ 新增确定性 `release-acceptance.json`：校验 manifest、来源闭包、预算/授权、CURRENT 和 Wiki freshness，并记录失败原因。
+- ✅ Book API 与报告共用 `derive_book_freshness`；`build_outcome`、`freshness`、`approval` 三态分离，人工门固定为 pending。
+- ✅ 验证：`tests/test_kc` 765 passed；Book API/service 39 passed；py_compile + Ruff passed。
+- ⏳ 未完成：真实 Provider 人工试读、正式人工验收、全量构建放行；未创建 commit，未 push。
+
+### Unified Knowledge Book 真实 Provider 试读（2026-09-07）
+
+- ✅ 本机默认 Provider `minimax / MiniMax-M3` 连通性与响应格式检查通过。
+- ✅ 试读前发现并修复策展快照过期：12 个已选页面内容哈希未变化，仅同步当前 Wiki 快照绑定。
+- ✅ 修复 Book 编译器将 `None` 错误包成 `_BudgetedProvider`，以及验收/active release 校验误拒绝 `editorial/*.json` 嵌套 sidecar；新增回归测试。
+- ❌ 真实章节 Dry-run 未通过：MiniMax-M3 返回 HTTP 200，但完整章节响应出现 `JSONDecodeError`，两章回退规则版并标记 `llm_partial`；未更新 `CURRENT.json`。
+- ✅ 验证：`tests/test_kc` 767 passed；Ruff、py_compile 通过。
+- ⏳ 真实 Provider 可读性、正式人工验收和全量构建放行仍阻塞；未创建 commit，未 push。
+
+### Unified Knowledge Book 可读性修复续跑（2026-09-07）
+
+- ✅ 章节正文不再直接 `json.loads`，改复用公共 `parse_llm_json`；新增 fenced JSON 回归。
+- ✅ 强化正文提示词：`content_status` 必须为 `complete`，section `status` 必须使用项目英文枚举；未知值仍拒绝。
+- ✅ 结构化失败增加安全诊断：只记录顶层 JSON 类型或键名，不记录正文内容。
+- ✅ 验证：Book/提纲/公共 JSON 解析回归 `26 passed`；Ruff、py_compile 通过。
+- ❌ 修复后单章 MiniMax-M3 真实试读仍未达标：JSON 可解析但缺少 `sections`，返回 `response_not_structured_chapter`；未发布、未更新 `CURRENT`。
+- ⏸️ 真实调用按三次失败规则停止；可读性验收、人工批准和全量放行仍未完成。
+
+### Unified Knowledge Book 顶层章节契约整改（2026-09-07）
+
+- ✅ 章节正文提示词明确要求唯一顶层 JSON 对象、`sections` 数组、完整字段示例，并禁止返回裸数组。
+- ✅ 保持严格结构/来源校验，不引入 Provider 适配器或宽松猜字段逻辑。
+- ✅ 验证：Book/提纲/公共 JSON 解析回归 `27 passed`；Ruff、py_compile、diff-check 通过。
+- ⏳ 尚未重新调用真实 Provider；下一步仅需一次受控单章试读，先验证结构化契约，再单独做人类可读性验收。
+- ⚠️ `graphify update .` 仍受主机 uv trampoline 启动失败阻塞，未改变代码图文件。
+
+### Unified Knowledge Book 受控单章结构与可读性验收（2026-09-07）
+
+- ✅ 受控调用 `chapter-structure`：MiniMax-M3，零重试，只生成不发布。
+- ✅ 结构化契约通过：7/7 sections，`content_status=complete`，section 状态合法，来源页 ID 全部闭合。
+- ❌ 人类可读性不通过：正文虽可独立阅读，但存在明显近义重复，章节缺少跨节递进/过渡，未达到“整理去重后的知识书正文”标准。
+- ✅ 安全结果：未写 release，未更新 `CURRENT.json`；未发生正式发布。
+- ⏳ 下一步：先修复按页面逐节生成造成的重复与层级编排问题，再重新做人读验收；不直接进入全书构建。
+
+### Unified Book 主题分组安全整改（2026-09-07）
+
+- ✅ 修复 `sections=[]` 的一页一节隐式退化：持久化编辑版缺少主题 section 时 Provider 调用前阻断；非持久大纲兼容为整章单生成单元。
+- ✅ 主题 section 契约支持 `section_id/title/page_ids`，并校验唯一 section ID、页面归属唯一、页面全覆盖、来源页不得越过主题组。
+- ✅ 章节级提示词明确跨页面合并、跨 section 去重、唯一主解释和不重复编造。
+- ✅ 真实 pilot 大纲完成主题分组；只读校验 1255 页、2 章、主题 section 3+1，无编辑状态错误。
+- ✅ 验证：主题相关 33 passed；完整 `tests/test_kc` 773 passed；Ruff、py_compile 通过；`CURRENT.json` 哈希未变化。
+- ⏳ 未完成：使用新主题分组进行 MiniMax-M3 受控真实试读及正式人读验收；未发布、未创建 commit、未 push。
+
+### Unified Book 主题分组 MiniMax-M3 复验（2026-09-07）
+
+- ✅ 受控单章 `chapter-structure` 真实试读：MiniMax-M3，零重试，仅内存生成，未写 release。
+- ✅ 结构契约：`content_status=complete`，3/3 主题 section，状态合法，来源页引用闭合。
+- ✅ 人读验收：主题内多页面已合并；章节按“结构设计方法 → 主线与大纲设计 → 篇章结构”递进；未发现逐页摘要式重复，剩余为必要的层级展开。
+- ✅ `CURRENT.json` 未变化；该结果只证明单章达到人读标准，不代表全书已批准发布。
+
+### Unified Book 个人阅读发布标准收敛（2026-09-07）
+
+- ✅ 按个人阅读范围整改验收人工门：保留真实 Provider 试读、人读验收；移除不适用的全库审批门。
+- ✅ 真实项目本地规则 dry-run：2 章/12 页，自动质量门、来源闭环和快照绑定通过。
+- ✅ 验证：Book 相关 423 passed，Ruff、compileall 通过。
+- ⏳ `chapter-technique` 的真实 Provider 人读验收仍未完成；当前不能发布 LLM 完整个人阅读版。`graphify update .` 仍受宿主 uv trampoline 启动失败影响。
+
+### Unified Book chapter-technique 真实试读完成（2026-09-07）
+
+- ✅ 显式使用 `minimax / MiniMax-M3` 完成受控单章生成；此前默认 Provider 误解析为 `glm-5.2`，已确认根因。
+- ✅ 结构契约通过：`content_status=complete`，1/1 主题 section，5/5 来源页闭合；标题字符串数组继续 fail-closed，避免假通过。
+- ✅ 人读验收通过：正文按“内容结构 → 语言表现 → 综合示例”递进，主题内已合并页面知识，无明显逐页摘要重复。
+- ⏳ 两章全书 dry-run 未执行，因扩大到整本内容的外部发送需单独授权；未写 release、未更新 `CURRENT`。
+- ✅ 最终回归：Book 相关 425 passed，Ruff、compileall 通过；`CURRENT.json` 仍保持原值。
+
+### Unified Book 全书 MiniMax-M3 试读与人读复验（2026-09-07）
+
+- ✅ 在 owner 授权下，显式使用 `minimax / MiniMax-M3` 完成 2 章/12 页全书 dry-run；生成模式为 LLM，4 次调用预算内完成。
+- ✅ 自动发布门全部通过：来源闭环、manifest 完整性、快照绑定、内容新鲜度、敏感源白名单和 LLM 预算均通过。
+- ✅ 人读复验通过：`chapter-structure` 的 3 个主题和 `chapter-technique` 的 1 个主题均为跨页合并正文，未发现标题数组、逐页拼接或明显重复。
+- ✅ 回归：Book 相关测试 426 passed；`CURRENT.json` 未变化，未执行 `--apply`，正式版本仍为原 release。
+- ⏳ 该版本已达到“可发布”条件，但尚未切换为正式版本；实际发布仍需显式执行 `book build --apply`。
+
+### Unified Book 正式切换完成（2026-09-07）
+
+- ✅ 发布前复核发现并修正一处成稿数量表述矛盾：同一概念不得前后使用不同数量。
+- ✅ 使用 MiniMax-M3 重新生成并复核 release `62ceecfb5aa74ab9aaf6dc16b269d93c`；2 章/12 页，自动门全部通过，正文人读复核通过。
+- ✅ 通过公共 `publish_book(..., apply=True)` 发布已检查的 staging 原件；`CURRENT.json` 已原子切换到该 release。
+- ✅ 发布后终检：Book 相关测试 426 passed；`resolve_active_version` 成功回读，manifest 哈希与 CURRENT 一致，章节文件齐全。
+- ⚠️ `graphify update .` 仍因宿主 uv trampoline 拒绝启动而未同步；不影响本次 Book 发布和回读校验。
+
+### Agent Skill Manager — Task 1（2026-09-13）
+
+- ✅ 新增独立 `src/skill_manager` 深模块：Source / immutable Artifact / Deployment 类型、静态本地 Skill 只读检查、确定性内容 hash 和稳定拒绝错误码。
+- ✅ v1 明确拒绝根目录及嵌套 `plugin.json`、符号链接、路径穿越、manager marker、单文件/总大小/文件数超限；默认保护 `config_dir()/skill-manager`，不执行包内脚本。
+- ✅ TDD 聚焦验证：`tests/test_skill_manager/test_package.py` `12 passed`；`python -m compileall -q src/skill_manager` 通过；本环境 ruff 不可用。
+- ✅ Task 1 两次任务级评审完成：初轮 3 Important + 2 Minor 已整改；复审 5/5 `ADDRESSED`，无新的 Critical/Important。
+- ✅ 提交：`183d9996`（基础实现）、`18bd9c49`（评审修复）；Task 2 尚未开始。
+
+### Agent Skill Manager v1 实施（2026-09-13）
+
+- ✅ Task 2：JSON Library 持久化、原子写入、manager lock、默认 Agent 发现、marker 和重启遗留 operation 恢复；提交 `b8881fea`。
+- ✅ Task 3：本地 Skill 导入、Artifact 快照、部署预检、幂等、冲突保护、staging hash 校验和补偿式失败处理；提交 `4fa021d0`..`17230ce2`。
+- ✅ Task 4：公共 `api.py`、service adapter、`/api/v1/skill-manager/*` 路由、JSON CLI、启动恢复；提交 `0dc6cf67`。
+- ✅ Task 5：Settings → Skills 页面，完成来源检查、Library 导入、Agent 选择、部署计划、确认门和 operation 轮询；提交 `20b434cf`；`docs/webui-buttons.md` 已同步。
+- ✅ Task 6：ADR、CONTEXT、计划与本 ledger 已同步；定向测试 36 passed，compileall 和 Node syntax check 通过。
+- ⚠️ 发布门：尚未在真实用户 Codex 目标目录执行浏览器手工冒烟；GitHub 来源、SkillBundle、真正 Plugin Installer、更新/删除仍后置。

@@ -1,0 +1,612 @@
+# Review package: b8881fea..9ce30bb2
+
+## Commits
+9ce30bb2 fix(skill-manager): reject symlinked deployment roots
+4fa021d0 feat(skill-manager): import and deploy validated artifacts
+
+## Files changed
+ src/skill_manager/manager.py             | 274 +++++++++++++++++++++++++++++++
+ src/skill_manager/sources.py             |  21 +++
+ src/skill_manager/types.py               |  33 ++++
+ tests/test_skill_manager/test_install.py | 164 ++++++++++++++++++
+ 4 files changed, 492 insertions(+)
+
+## Diff
+diff --git a/src/skill_manager/manager.py b/src/skill_manager/manager.py
+index 13519699..88171f77 100644
+--- a/src/skill_manager/manager.py
++++ b/src/skill_manager/manager.py
+@@ -1,26 +1,35 @@
+ """Safe, read-only inspection of local static Skill packages."""
+ 
+ from __future__ import annotations
+ 
+ import hashlib
++import json
+ import os
+ import re
++import shutil
++import uuid
+ from pathlib import Path
+ from typing import Iterable, Sequence
+ 
+ from ..project.paths import config_dir
++from .agents import AgentTarget, DeploymentMarker, MANAGER_MARKER_NAME, discover_targets
++from .sources import copy_local_skill
+ from .types import (
+     Artifact,
++    Deployment,
++    DeploymentPlan,
++    DeploymentTargetPlan,
+     FileEntry,
+     PackageLimits,
+     PackageValidationError,
++    Operation,
+     SourceInspection,
+     SourceSpec,
+ )
+ 
+ 
+ DEFAULT_PACKAGE_LIMITS = PackageLimits()
+ _MARKER_NAME = ".ruflo-skill-manager.json"
+ _PLUGIN_NAME = "plugin.json"
+ _SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+ 
+@@ -85,20 +94,285 @@ def build_artifact(
+         content_hash=inspection.content_hash,
+         files=inspection.files,
+         total_bytes=inspection.total_bytes,
+         source=inspection.source,
+     )
+ 
+ 
+ inspect_package = inspect_source
+ 
+ 
++def import_artifact(
++    source: SourceSpec,
++    *,
++    plan_hash: str,
++    confirmation: str,
++    storage=None,
++    limits: PackageLimits = DEFAULT_PACKAGE_LIMITS,
++) -> Artifact:
++    """Import a confirmed local source into an immutable Library snapshot."""
++
++    if confirmation != "confirm":
++        raise ValueError("explicit confirmation is required")
++    inspection = inspect_source(source, limits=limits)
++    if plan_hash != inspection.content_hash:
++        raise ValueError("plan hash does not match source")
++    artifact = Artifact(
++        artifact_id=inspection.artifact_id,
++        name=inspection.name,
++        content_hash=inspection.content_hash,
++        files=inspection.files,
++        total_bytes=inspection.total_bytes,
++        source=inspection.source,
++    )
++    if storage is None:
++        from .storage import SkillManagerStorage
++
++        storage = SkillManagerStorage()
++    artifact_root = storage.root / "artifacts" / artifact.artifact_id
++    content = artifact_root / "content"
++    if content.exists():
++        current = inspect_source(SourceSpec(content), limits=limits)
++        if current.content_hash != artifact.content_hash:
++            raise ValueError("stored Artifact content changed")
++    else:
++        staging = storage.root / "artifacts" / f".staging-{uuid.uuid4().hex}"
++        try:
++            copy_local_skill(source.path, staging / "content", inspection.files)
++            copied = inspect_source(SourceSpec(staging / "content"), limits=limits)
++            if copied.content_hash != inspection.content_hash:
++                raise ValueError("source changed during import")
++            artifact_root.mkdir(parents=True, exist_ok=True)
++            os.replace(staging / "content", content)
++        finally:
++            shutil.rmtree(staging, ignore_errors=True)
++    storage.save_artifact(artifact)
++    return artifact
++
++
++def plan_deployment(
++    artifact_id: str,
++    target_ids: Sequence[str],
++    *,
++    storage=None,
++) -> DeploymentPlan:
++    """Preflight deployment and bind it to current target state."""
++
++    if len(set(target_ids)) != len(target_ids):
++        raise ValueError("duplicate deployment target")
++    if storage is None:
++        from .storage import SkillManagerStorage
++
++        storage = SkillManagerStorage()
++    artifact = storage.load_artifact(artifact_id)
++    content = storage.root / "artifacts" / artifact.artifact_id / "content"
++    current = inspect_source(SourceSpec(content))
++    if current.content_hash != artifact.content_hash or current.files != artifact.files:
++        raise ValueError("stored Artifact content changed")
++    targets = {target.id: target for target in discover_targets()}
++    plans: list[DeploymentTargetPlan] = []
++    for target_id in target_ids:
++        target = targets.get(target_id)
++        if target is None:
++            raise ValueError(f"unknown deployment target: {target_id}")
++        skill_path = target.path / artifact.name
++        status, reason = _target_state(skill_path, artifact)
++        plans.append(
++            DeploymentTargetPlan(
++                target_id=target.id,
++                target_path=str(target.path),
++                skill_path=str(skill_path),
++                status=status,
++                reason=reason,
++            )
++        )
++    payload = {
++        "artifact_id": artifact.artifact_id,
++        "artifact_hash": artifact.content_hash,
++        "targets": [vars(item) for item in plans],
++    }
++    plan_hash = hashlib.sha256(
++        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
++    ).hexdigest()
++    return DeploymentPlan(plan_hash, artifact.artifact_id, artifact.content_hash, tuple(plans))
++
++
++def apply_deployment(
++    plan: DeploymentPlan,
++    *,
++    plan_hash: str,
++    confirmation: str,
++    storage=None,
++) -> Operation:
++    """Apply a current, confirmed plan with compensation on later failures."""
++
++    if plan_hash != plan.plan_hash:
++        raise ValueError("plan hash does not match deployment plan")
++    if confirmation != "confirm":
++        raise ValueError("explicit confirmation is required")
++    if storage is None:
++        from .storage import SkillManagerStorage
++
++        storage = SkillManagerStorage()
++    fresh = plan_deployment(
++        plan.artifact_id, [target.target_id for target in plan.targets], storage=storage
++    )
++    operation_id = f"op-{uuid.uuid4().hex}"
++    if fresh.plan_hash != plan.plan_hash:
++        return _finish_operation(
++            storage,
++            Operation(operation_id, "conflict", plan.artifact_id, ({"reason": "plan_changed"},), "plan_changed"),
++        )
++    if any(target.status == "conflict" for target in fresh.targets):
++        return _finish_operation(
++            storage,
++            Operation(
++                operation_id,
++                "conflict",
++                plan.artifact_id,
++                tuple({"target_id": target.target_id, "status": target.status, "reason": target.reason} for target in fresh.targets),
++                "target_conflict",
++            ),
++        )
++    artifact = storage.load_artifact(plan.artifact_id)
++    _save_operation(storage, operation_id, "installing", plan.artifact_id)
++    installed: list[tuple[AgentTarget, Path]] = []
++    results: list[dict[str, str]] = []
++    failure: str | None = None
++    for target_plan in fresh.targets:
++        target = AgentTarget(target_plan.target_id, Path(target_plan.target_path), exists=True)
++        if target_plan.status == "no_op":
++            results.append({"target_id": target.id, "status": "succeeded", "action": "no_op"})
++            continue
++        try:
++            _install_one(artifact, target=target, storage=storage)
++            installed.append((target, target.path / artifact.name))
++            results.append({"target_id": target.id, "status": "succeeded", "action": "installed"})
++        except Exception:
++            failure = "install_failed"
++            results.append({"target_id": target.id, "status": "failed", "error_code": failure})
++            break
++    if failure:
++        rollback_failed = False
++        for target, skill_path in reversed(installed):
++            try:
++                _remove_installed(skill_path, artifact)
++                results.append({"target_id": target.id, "status": "rolled_back"})
++            except Exception:
++                rollback_failed = True
++                results.append({"target_id": target.id, "status": "rollback_failed"})
++        status = "partial_failure" if rollback_failed else "failed"
++        return _finish_operation(storage, Operation(operation_id, status, plan.artifact_id, tuple(results), failure))
++    for target_plan in fresh.targets:
++        storage.save_deployment(
++            Deployment(
++                deployment_id=f"deployment-{uuid.uuid4().hex}",
++                artifact_id=plan.artifact_id,
++                target_id=target_plan.target_id,
++                target_path=target_plan.skill_path,
++                content_hash=plan.artifact_hash,
++            )
++        )
++    return _finish_operation(storage, Operation(operation_id, "succeeded", plan.artifact_id, tuple(results)))
++
++
++def _target_state(skill_path: Path, artifact: Artifact) -> tuple[str, str]:
++    if skill_path.parent.is_symlink():
++        return "conflict", "target root is a symlink"
++    if not skill_path.exists():
++        return "ready", ""
++    if not skill_path.is_dir():
++        return "conflict", "target is not a directory"
++    marker_path = skill_path / MANAGER_MARKER_NAME
++    if not marker_path.is_file():
++        return "conflict", "target is unmanaged"
++    try:
++        marker = DeploymentMarker.from_dict(json.loads(marker_path.read_text(encoding="utf-8")))
++    except Exception:
++        return "conflict", "deployment marker is invalid"
++    if marker.artifact_id != artifact.artifact_id or marker.content_hash != artifact.content_hash:
++        return "conflict", "target is managed by another Artifact"
++    files, content_hash = _fingerprint(skill_path)
++    if files != tuple(entry.path for entry in artifact.files) or content_hash != artifact.content_hash:
++        return "conflict", "managed target content changed"
++    if marker.files != files:
++        return "conflict", "deployment marker file list changed"
++    return "no_op", "already installed"
++
++
++def _fingerprint(root: Path) -> tuple[tuple[str, ...], str]:
++    entries: list[tuple[str, Path]] = []
++    for current, _, filenames in os.walk(root, followlinks=False):
++        for filename in filenames:
++            path = Path(current) / filename
++            relative = path.relative_to(root).as_posix()
++            if relative == MANAGER_MARKER_NAME:
++                continue
++            entries.append((relative, path))
++    digest = hashlib.sha256()
++    names: list[str] = []
++    for relative, path in sorted(entries):
++        names.append(relative)
++        digest.update(relative.encode("utf-8"))
++        digest.update(b"\0")
++        digest.update(str(path.stat().st_size).encode("ascii"))
++        digest.update(b"\0")
++        with path.open("rb") as stream:
++            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
++                digest.update(chunk)
++    return tuple(names), digest.hexdigest()
++
++
++def _install_one(artifact: Artifact, *, target: AgentTarget, storage) -> None:
++    target.path.mkdir(parents=True, exist_ok=True)
++    skill_path = target.path / artifact.name
++    staging = target.path / f".skill-manager-staging-{uuid.uuid4().hex}"
++    try:
++        copy_local_skill(storage.root / "artifacts" / artifact.artifact_id / "content", staging, artifact.files)
++        marker = DeploymentMarker(
++            artifact.artifact_id, artifact.content_hash, 0, "1", tuple(entry.path for entry in artifact.files)
++        )
++        (staging / MANAGER_MARKER_NAME).write_text(
++            json.dumps(marker.to_dict(), ensure_ascii=False, sort_keys=True), encoding="utf-8"
++        )
++        if skill_path.exists():
++            raise RuntimeError("target appeared during deployment")
++        os.replace(staging, skill_path)
++    finally:
++        shutil.rmtree(staging, ignore_errors=True)
++
++
++def _remove_installed(skill_path: Path, artifact: Artifact) -> None:
++    marker_path = skill_path / MANAGER_MARKER_NAME
++    marker = DeploymentMarker.from_dict(json.loads(marker_path.read_text(encoding="utf-8")))
++    if marker.artifact_id != artifact.artifact_id or marker.content_hash != artifact.content_hash:
++        raise RuntimeError("installed target ownership changed")
++    shutil.rmtree(skill_path)
++
++
++def _save_operation(storage, operation_id: str, status: str, artifact_id: str) -> None:
++    storage.save_operation({"id": operation_id, "status": status, "artifact_id": artifact_id})
++
++
++def _finish_operation(storage, operation: Operation) -> Operation:
++    payload = {
++        "id": operation.operation_id,
++        "status": operation.status,
++        "artifact_id": operation.artifact_id,
++        "results": list(operation.results),
++    }
++    if operation.error_code:
++        payload["error_code"] = operation.error_code
++    storage.save_operation(payload)
++    return operation
++
++
+ def _resolve_source(path: Path) -> Path:
+     raw = Path(path)
+     if raw.is_symlink():
+         raise PackageValidationError("SYMLINK_NOT_ALLOWED", "source directory cannot be a symlink")
+     try:
+         root = raw.resolve(strict=True)
+     except FileNotFoundError as exc:
+         raise PackageValidationError("SOURCE_NOT_FOUND", "Skill source does not exist") from exc
+     if not root.is_dir():
+         raise PackageValidationError("SOURCE_NOT_DIRECTORY", "Skill source must be a directory")
+diff --git a/src/skill_manager/sources.py b/src/skill_manager/sources.py
+new file mode 100644
+index 00000000..30a1c05e
+--- /dev/null
++++ b/src/skill_manager/sources.py
+@@ -0,0 +1,21 @@
++"""Copy-only adapters for supported Skill sources."""
++
++from __future__ import annotations
++
++import shutil
++from pathlib import Path
++from typing import Iterable
++
++from .types import FileEntry
++
++
++def copy_local_skill(source: Path, destination: Path, files: Iterable[FileEntry]) -> None:
++    """Copy the already-inspected file list without executing package content."""
++
++    source = Path(source)
++    destination = Path(destination)
++    destination.mkdir(parents=True, exist_ok=True)
++    for entry in files:
++        target = destination / Path(entry.path)
++        target.parent.mkdir(parents=True, exist_ok=True)
++        shutil.copyfile(source / Path(entry.path), target)
+diff --git a/src/skill_manager/types.py b/src/skill_manager/types.py
+index 72e29dc0..bf4f0a66 100644
+--- a/src/skill_manager/types.py
++++ b/src/skill_manager/types.py
+@@ -1,16 +1,17 @@
+ """Small, immutable domain vocabulary for the Skill manager."""
+ 
+ from __future__ import annotations
+ 
+ from dataclasses import dataclass
+ from pathlib import Path
++from typing import Any
+ 
+ 
+ @dataclass(frozen=True)
+ class SourceSpec:
+     """A source locator; Task 1 supports local directories only."""
+ 
+     path: Path
+     kind: str = "local"
+ 
+     def __post_init__(self) -> None:
+@@ -64,20 +65,52 @@ class Artifact:
+ class Deployment:
+     """A record assigning one Artifact to one concrete Agent target."""
+ 
+     deployment_id: str
+     artifact_id: str
+     target_id: str
+     target_path: str
+     content_hash: str
+ 
+ 
++@dataclass(frozen=True)
++class DeploymentTargetPlan:
++    """Preflight result for one Agent target."""
++
++    target_id: str
++    target_path: str
++    skill_path: str
++    status: str
++    reason: str = ""
++
++
++@dataclass(frozen=True)
++class DeploymentPlan:
++    """Hash-bound deployment preview."""
++
++    plan_hash: str
++    artifact_id: str
++    artifact_hash: str
++    targets: tuple[DeploymentTargetPlan, ...]
++
++
++@dataclass(frozen=True)
++class Operation:
++    """Synchronous operation result persisted for later polling."""
++
++    operation_id: str
++    status: str
++    artifact_id: str
++    results: tuple[dict[str, Any], ...] = ()
++    error_code: str | None = None
++
++
+ class PackageValidationError(ValueError):
+     """Stable, caller-visible rejection for an unsafe or unsupported package."""
+ 
+     def __init__(self, code: str, message: str) -> None:
+         self.code = code
+         super().__init__(message)
+ 
+     @property
+     def error_code(self) -> str:
+         return self.code
+diff --git a/tests/test_skill_manager/test_install.py b/tests/test_skill_manager/test_install.py
+new file mode 100644
+index 00000000..8840869a
+--- /dev/null
++++ b/tests/test_skill_manager/test_install.py
+@@ -0,0 +1,164 @@
++from __future__ import annotations
++
++import json
++from pathlib import Path
++
++import pytest
++
++from src.skill_manager import manager
++from src.skill_manager.agents import AgentTarget, MANAGER_MARKER_NAME
++from src.skill_manager.manager import (
++    apply_deployment,
++    import_artifact,
++    inspect_source,
++    plan_deployment,
++)
++from src.skill_manager.storage import SkillManagerStorage
++from src.skill_manager.types import SourceSpec
++
++
++def _source(tmp_path: Path, text: str = "# Demo\n") -> Path:
++    source = tmp_path / "demo"
++    source.mkdir()
++    (source / "SKILL.md").write_text(text, encoding="utf-8")
++    return source
++
++
++def _targets(monkeypatch: pytest.MonkeyPatch, *roots: Path) -> None:
++    monkeypatch.setattr(
++        manager,
++        "discover_targets",
++        lambda: tuple(
++            AgentTarget(f"agent-{index}", root, exists=True)
++            for index, root in enumerate(roots, 1)
++        ),
++    )
++
++
++def test_import_writes_library_snapshot_but_not_agent(tmp_path: Path):
++    source = _source(tmp_path)
++    storage = SkillManagerStorage(tmp_path / "library")
++    inspection = inspect_source(SourceSpec(source))
++
++    artifact = import_artifact(
++        SourceSpec(source),
++        plan_hash=inspection.content_hash,
++        confirmation="confirm",
++        storage=storage,
++    )
++
++    assert artifact.artifact_id == inspection.artifact_id
++    assert not (tmp_path / "agent").exists()
++    assert (storage.root / "artifacts" / artifact.artifact_id / "content" / "SKILL.md").read_text(
++        encoding="utf-8"
++    ) == "# Demo\n"
++
++
++def test_import_plan_hash_detects_changed_source(tmp_path: Path):
++    source = _source(tmp_path)
++    spec = SourceSpec(source)
++    before = inspect_source(spec)
++    (source / "SKILL.md").write_text("# Changed\n", encoding="utf-8")
++
++    with pytest.raises(ValueError, match="plan hash"):
++        import_artifact(spec, plan_hash=before.content_hash, confirmation="confirm", storage=SkillManagerStorage(tmp_path / "library"))
++
++
++def test_deploy_is_separate_and_idempotent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
++    source = _source(tmp_path)
++    storage = SkillManagerStorage(tmp_path / "library")
++    inspection = inspect_source(SourceSpec(source))
++    artifact = import_artifact(
++        SourceSpec(source), plan_hash=inspection.content_hash, confirmation="confirm", storage=storage
++    )
++    target_root = tmp_path / "codex-skills"
++    target_root.mkdir()
++    _targets(monkeypatch, target_root)
++
++    plan = plan_deployment(artifact.artifact_id, ["agent-1"], storage=storage)
++    assert plan.targets[0].status == "ready"
++    result = apply_deployment(plan, plan_hash=plan.plan_hash, confirmation="confirm", storage=storage)
++    assert result.status == "succeeded"
++    installed = target_root / artifact.name
++    assert (installed / "SKILL.md").is_file()
++    assert json.loads((installed / MANAGER_MARKER_NAME).read_text(encoding="utf-8"))["artifact_id"] == artifact.artifact_id
++
++    repeat = apply_deployment(
++        plan_deployment(artifact.artifact_id, ["agent-1"], storage=storage),
++        plan_hash=plan_deployment(artifact.artifact_id, ["agent-1"], storage=storage).plan_hash,
++        confirmation="confirm",
++        storage=storage,
++    )
++    assert repeat.status == "succeeded"
++    assert repeat.results[0]["action"] == "no_op"
++
++
++def test_conflicts_are_reported_before_any_target_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
++    source = _source(tmp_path)
++    storage = SkillManagerStorage(tmp_path / "library")
++    inspection = inspect_source(SourceSpec(source))
++    artifact = import_artifact(
++        SourceSpec(source), plan_hash=inspection.content_hash, confirmation="confirm", storage=storage
++    )
++    target_root = tmp_path / "codex-skills"
++    target_root.mkdir()
++    conflict = target_root / artifact.name
++    conflict.mkdir()
++    (conflict / "SKILL.md").write_text("unmanaged", encoding="utf-8")
++    _targets(monkeypatch, target_root)
++
++    plan = plan_deployment(artifact.artifact_id, ["agent-1"], storage=storage)
++    assert plan.targets[0].status == "conflict"
++    result = apply_deployment(plan, plan_hash=plan.plan_hash, confirmation="confirm", storage=storage)
++    assert result.status == "conflict"
++    assert (conflict / "SKILL.md").read_text(encoding="utf-8") == "unmanaged"
++
++
++def test_managed_content_conflict_is_not_overwritten(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
++    source = _source(tmp_path)
++    storage = SkillManagerStorage(tmp_path / "library")
++    inspection = inspect_source(SourceSpec(source))
++    artifact = import_artifact(
++        SourceSpec(source), plan_hash=inspection.content_hash, confirmation="confirm", storage=storage
++    )
++    target_root = tmp_path / "codex-skills"
++    target_root.mkdir()
++    _targets(monkeypatch, target_root)
++    first_plan = plan_deployment(artifact.artifact_id, ["agent-1"], storage=storage)
++    apply_deployment(first_plan, plan_hash=first_plan.plan_hash, confirmation="confirm", storage=storage)
++    installed = target_root / artifact.name
++    (installed / "SKILL.md").write_text("changed", encoding="utf-8")
++
++    plan = plan_deployment(artifact.artifact_id, ["agent-1"], storage=storage)
++    assert plan.targets[0].status == "conflict"
++    result = apply_deployment(plan, plan_hash=plan.plan_hash, confirmation="confirm", storage=storage)
++    assert result.status == "conflict"
++    assert (installed / "SKILL.md").read_text(encoding="utf-8") == "changed"
++
++
++def test_partial_failure_reports_compensation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
++    source = _source(tmp_path)
++    storage = SkillManagerStorage(tmp_path / "library")
++    inspection = inspect_source(SourceSpec(source))
++    artifact = import_artifact(
++        SourceSpec(source), plan_hash=inspection.content_hash, confirmation="confirm", storage=storage
++    )
++    first, second = tmp_path / "first", tmp_path / "second"
++    first.mkdir()
++    second.mkdir()
++    _targets(monkeypatch, first, second)
++    plan = plan_deployment(artifact.artifact_id, ["agent-1", "agent-2"], storage=storage)
++
++    original = manager._install_one
++
++    def fail_second(*args, **kwargs):
++        if kwargs["target"].id == "agent-2":
++            raise OSError("simulated install failure")
++        return original(*args, **kwargs)
++
++    monkeypatch.setattr(manager, "_install_one", fail_second)
++    result = apply_deployment(plan, plan_hash=plan.plan_hash, confirmation="confirm", storage=storage)
++
++    assert result.status == "failed"
++    assert not (first / artifact.name).exists()
++    assert not list(tmp_path.rglob(".skill-manager-staging-*"))

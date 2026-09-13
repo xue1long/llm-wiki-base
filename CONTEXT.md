@@ -44,6 +44,46 @@
 | `IntegrityGate` | Pipeline of 11 Gate checks (spec §11.3). | `src/kc/integrity/orchestrator.py` |
 | `check_default_closure` | 8-condition AND validation (spec §11.3). | `src/kc/integrity/closure.py` |
 
+## Book domain concepts
+
+| Term | Canonical meaning | Owner |
+|---|---|---|
+| `BookEditorialState` | 持久化的 Book 编辑输入：页面裁决、章节归属、canonical outline 和稳定章节 ID；不是一次构建的临时产物。 | `src/kc/views/book/wiki` |
+| `Canonical Book` | 一个知识域面向人阅读的正文权威容器；包含卷、章、节和章节来源范围。 | `src/kc/views/book/wiki` |
+| `BookRelease` | 绑定 Wiki snapshot 和 BookEditorialState revision 的不可变阅读版本。 | `src/kc/views/book/wiki` |
+| `TutorialPath` | Book 之上的引用式阅读路径；保存章节/小节顺序、任务和检查点，不拥有章节正文。 | `src/kc/views/book/wiki` |
+| `PageDisposition` | 页面进入 Book 的裁决：`include`、`duplicate`、`conflict`、`exclude` 或 `unresolved`。 | `src/kc/views/book/wiki` |
+| `BookFreshness` | Book 相对于最新 Wiki snapshot 的状态：`fresh`、`stale`、`building` 或 `failed`；不等同于 release 状态。 | `src/kc/views/book/wiki` |
+| `SectionStatus` | 章节小节状态：`normal`、`disputed`、`blocked` 或 `editorial`。 | `src/kc/views/book/wiki` |
+
+## LLM provider concepts
+
+| Term | Canonical meaning | Owner |
+|---|---|---|
+| `Provider` | 一个可被知识库流水线调用的模型服务配置，包含服务身份、协议类型、连接地址、凭据和默认模型。 | `src.llm` |
+| `Provider type` | Provider 使用的连接/兼容协议分类；它不是供应商名称，多个供应商可以共享同一类型。 | `src.llm.types.ProviderConfig` |
+| `Provider preset` | 设置页用于快速填充 Provider 类型、地址和模型默认值的品牌/场景快捷方式；它不是 Provider 身份，也不落入 Provider 配置。 | `web/js/views/settings.js` |
+| `Default Provider` | 当前用户级配置中，供未显式指定 Provider 的 LLM 调用解析使用的 Provider；显式选择优先于旧环境兼容值。 | `src.llm.registry.ProviderRegistry` |
+| `Default model` | Provider 上保存的默认聊天模型或默认嵌入模型；它不是远端实时模型目录。 | `src.llm.types.ModelInfo` |
+| `Connection test` | 针对已保存 Provider 的可达性与最小响应兼容性检查，不等同于一次知识库摄取。 | `src.server.routes.providers` |
+| `Model discovery` | 从 Provider 端点读取可用模型目录的独立能力；首期设置页不依赖它。 | `src.server.routes.providers` |
+
+## Skill management concepts
+
+| Term | Canonical meaning | Owner |
+|---|---|---|
+| `Skill` | A self-contained agent capability package whose entry document is `SKILL.md`, with optional supporting files. | Skill manager domain |
+| `Plugin` | Reserved future artifact type. In v1, `plugin.json` is rejected as `UNSUPPORTED_PLUGIN_TYPE`; executable plugins are unsupported. | Skill manager domain |
+| `Source` | A mutable locator used to acquire content, such as a local directory or a future pinned public GitHub source. | Skill manager domain |
+| `Artifact` | An immutable, validated Skill snapshot identified by normalized content hash and, for remote sources, resolved commit SHA. | Skill manager domain |
+| `Skill Library` | The user-owned collection of validated immutable Artifacts before they are assigned to an Agent. | Skill manager domain |
+| `Agent` | A local AI coding tool that consumes skills from a configured skills directory, such as Codex or Claude Code. | Skill manager domain |
+| `Deployment` | An explicit assignment of one Artifact into one concrete Agent skill directory, with ownership and verification state. | Skill manager domain |
+| `Managed Target` | An Agent skill directory whose ownership and installed-file manifest are known to the Skill Library. | Skill manager domain |
+| `Operation` | A durable record of an import/deployment attempt; terminal states are `succeeded`, `failed`, `conflict`, or `partial_failure`. | `src.skill_manager.types` |
+
+_Avoid_: executable plugin, installer script, implicit direct copy, marketplace (when referring to the v1 managed deployment flow).
+
 ## Acronyms
 
 | Acronym | Meaning |
@@ -61,5 +101,7 @@
 - Wiki spec: `docs/guides/wiki-spec.md`
 - Audit reports: `docs/codebase-graph-stats-2026-09-01.md`, `docs/codebase-dup-analysis-2026-09-01.md`
 - Refactor plans: `docs/superpowers/plans/2026-09-01-batch-runner-decompose.md`, `docs/superpowers/plans/2026-09-01-kc-knowledge-boundary.md`
+- Provider settings portability decision: `docs/adr/2026-09-13-provider-settings-portability.md`
+- Skill Library and Agent deployment decision: `docs/adr/0010-skill-library-and-agent-deployment.md`
 - Graph subgraph report: `docs/architecture/2026-09-01-graph-subgraph-report.md`
 - ADRs: `docs/adr/0007-knowledge-candidate-ownership.md`

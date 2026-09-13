@@ -1,0 +1,1021 @@
+# Review package: 17230ce2..84d2017b
+
+## Commits
+84d2017b fix(skill-manager): close Library and record rollback gaps
+20b434cf feat(webui): add Settings Skills management page
+
+## Files changed
+ docs/webui-buttons.md                    |  39 ++++-
+ src/skill_manager/manager.py             |  35 +++--
+ src/skill_manager/storage.py             |   4 +
+ tests/test_skill_manager/test_install.py |  41 +++++
+ web/index.html                           |   4 +-
+ web/js/views/settings.js                 | 255 ++++++++++++++++++++++++++-----
+ web/style.css                            |  21 +++
+ 7 files changed, 340 insertions(+), 59 deletions(-)
+
+## Diff
+diff --git a/docs/webui-buttons.md b/docs/webui-buttons.md
+index 36d424d4..e915f5a8 100644
+--- a/docs/webui-buttons.md
++++ b/docs/webui-buttons.md
+@@ -151,34 +151,36 @@ Book 阅读页读取 `CURRENT.json` 指向的完整性校验 release：
+ | 控件 | 位置 | 功能 | 后端 API |
+ |------|------|------|----------|
+ | **GBrain 搜索模式** | 设置 → 搜索 → 必要配置 | 选择 conservative / balanced / tokenmax，并确认 GBrain 实际生效值 | `GET/PUT /api/v1/projects/{id}/gbrain-search/config` |
+ | **项目结果上限** | 设置 → 搜索 → 必要配置 | 限制本项目本地及 GBrain 搜索最多返回的结果数（1–50） | `GET/PUT /api/v1/projects/{id}/gbrain-search/config` |
+ | **保存配置** | 设置 → 搜索 → 必要配置 | 需要确认；模式变更提示 GBrain 实例级影响 | `PUT /api/v1/projects/{id}/gbrain-search/config` |
+ 
+ ### 6.2 Provider 卡片
+ 
+ | 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
+ |------|----------|------|----------|------|
+-| **★ 设为默认** | 行 102 | 将该 provider 设为默认 | `POST /api/v1/providers/set-default` | |
+-| **测试** | 行 115 | 测试 provider 连接 | `POST /api/v1/providers/test?name=...` | |
+-| **编辑** | 行 140 | 编辑 provider 配置 | `GET /api/v1/providers/{name}` | 打开编辑模态框 |
+-| **删除** | 行 154 | 删除 provider | `DELETE /api/v1/providers/{name}` | |
++| **★ 设为默认** | Provider 卡片 | 将该 provider 写入全局显式默认槽位 | `POST /api/v1/providers/set-default` | 显式默认优先于旧环境变量；失败时保留当前配置 |
++| **测试** | Provider 卡片 / 测试连接区 | 按 provider 名称加载已保存配置并测试连接 | `POST /api/v1/providers/test?name=...` | 必须先保存；不会提交临时表单配置 |
++| **编辑** | Provider 卡片 | 编辑已保存 provider 配置 | `GET /api/v1/providers/{name}` + `POST /api/v1/providers` | 名称只读；API Key 只显示掩码，留空保持原值 |
++| **删除** | Provider 卡片 | 删除 provider | `DELETE /api/v1/providers/{name}` | 当前默认 provider 不可直接删除；默认解析异常也会阻止删除 |
++
++Provider 卡片同时展示默认 Chat 模型和默认 Embedding 模型。列表接口若无法解析默认 provider，会显示明确警告且不猜测默认项。
+ 
+ ### 6.3 添加 Provider
+ 
+ | 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
+ |------|----------|------|----------|------|
+ | **+ 添加** | 行 28 | 打开添加 provider 模态框 | — | |
+-| **测试**（模态框内） | 行 167 | 添加前测试连接 | `POST /api/v1/providers/test?name=...` | |
+-| **保存** | 行 275 | 保存新 provider | `POST /api/v1/providers` | |
+-| **取消** | 行 272 | 关闭模态框 | — | |
+-| **× 关闭** | 行 271 | 关闭模态框 | — | |
++| **保存 / 添加** | Provider 模态框 | 保存 provider；编辑时执行 upsert | `POST /api/v1/providers` | 字段：名称、类型、Base URL、API Key、默认 Chat 模型、默认 Embedding 模型 |
++| **测试** | 卡片或测试连接区 | 保存后按名称测试 provider 连接 | `POST /api/v1/providers/test?name=...` | 第一阶段不提供未保存配置的预检 |
++| **取消** | Provider 模态框 | 关闭模态框 | — | |
++| **× 关闭** | Provider 模态框 | 关闭模态框 | — | |
+ 
+ ---
+ 
+ ## 7. 状态页（Status）
+ 
+ **文件：** [web/js/views/status.js](../web/js/views/status.js)
+ 
+ ### 6.1 工具栏
+ 
+ | 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
+@@ -291,20 +293,41 @@ Book 阅读页读取 `CURRENT.json` 指向的完整性校验 release：
+ | **采集 URL** | URL 区 | 抓取 URL 并转换为 Markdown | `POST /api/v1/projects/{id}/collect-url` | |
+ | **采集文本** | 文本区 | 将粘贴文本转换并写入 raw | `POST /api/v1/projects/{id}/collect` | 通过文本文件上传 |
+ | **立即摄取** | 预览面板 | 将已采集 raw 文件送入 LLM Pipeline | `POST /api/v1/projects/{id}/ingest` | 异步任务 |
+ | **浏览 raw 文件** | 预览面板 | 跳转 Browse 查看 raw 文件 | — | 纯前端导航 |
+ | **预览** | 采集历史 | 重新打开本次会话的采集结果 | — | 纯前端行为 |
+ 
+ ---
+ 
+ ## 新增按钮流程
+ 
++## 设置 → Skills
++
++**文件：** [web/js/views/settings.js](../web/js/views/settings.js)
++
++| 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
++|------|----------|------|----------|------|
++| **Skills** | 452 | 切换设置内 Skills 页面 | — | 设置模态内部页签 |
++| **检查来源** | 518 | 校验本地目录、计算 Artifact hash | `POST /api/v1/skill-manager/artifacts/inspect` | 只读；Plugin 显示不支持 |
++| **刷新** | 530 | 刷新 Library 中的 Artifact | `GET /api/v1/skill-manager/library` | |
++| **确认导入 Artifact** | 536 | 经二次确认后写入 Library | `POST /api/v1/skill-manager/artifacts/import` | 不写 Agent；body 带 `plan_hash` 和 `confirm` |
++| **Agent 复选框** | 602 | 选择部署目标 | `GET /api/v1/skill-manager/agents` | 目录不存在的目标禁用 |
++| **生成部署计划** | 542 | 预检目标状态和冲突 | `POST /api/v1/skill-manager/deployments/plan` | 冲突时禁用部署 |
++| **确认部署** | 544 | 经二次确认后提交部署 | `POST /api/v1/skill-manager/deployments/apply` | 返回 operationId，轮询状态接口 |
++
++### Skills 页面流程
++
++来源 → 检查 → 确认导入 Artifact → 选择 Agent → 生成计划 → 确认部署 → 轮询 operation。
++Plugin v1 仅展示不支持提示，不提供安装按钮。
++
++---
++
+ 在 WebUI 新增功能按钮时：
+ 
+ 1. 在对应视图文件（`web/js/views/*.js`）中添加按钮 DOM
+ 2. 绑定事件监听器，调用 `App.api()` 或 `fetch()`
+ 3. 在 `web/style.css` 中添加按钮样式
+ 4. **同步更新本文档**，添加按钮行
+ 
+ ---
+ 
+ ## 快速定位对照表
+diff --git a/src/skill_manager/manager.py b/src/skill_manager/manager.py
+index 47ac3f2d..96da7b0b 100644
+--- a/src/skill_manager/manager.py
++++ b/src/skill_manager/manager.py
+@@ -108,37 +108,37 @@ def import_artifact(
+     *,
+     plan_hash: str,
+     confirmation: str,
+     storage=None,
+     limits: PackageLimits = DEFAULT_PACKAGE_LIMITS,
+ ) -> Artifact:
+     """Import a confirmed local source into an immutable Library snapshot."""
+ 
+     if confirmation != "confirm":
+         raise ValueError("explicit confirmation is required")
+-    forbidden = [config_dir() / "skill-manager"]
++    if storage is None:
++        from .storage import SkillManagerStorage
++
++        storage = SkillManagerStorage()
++    forbidden = [config_dir() / "skill-manager", storage.root]
+     forbidden.extend(target.path for target in discover_targets())
+     inspection = inspect_source(source, limits=limits, forbidden_roots=forbidden)
+     if plan_hash != inspection.content_hash:
+         raise ValueError("plan hash does not match source")
+     artifact = Artifact(
+         artifact_id=inspection.artifact_id,
+         name=inspection.name,
+         content_hash=inspection.content_hash,
+         files=inspection.files,
+         total_bytes=inspection.total_bytes,
+         source=inspection.source,
+     )
+-    if storage is None:
+-        from .storage import SkillManagerStorage
+-
+-        storage = SkillManagerStorage()
+     artifact_root = storage.root / "artifacts" / artifact.artifact_id
+     content = artifact_root / "content"
+     if content.exists():
+         current = inspect_source(SourceSpec(content), limits=limits, forbidden_roots=())
+         if current.content_hash != artifact.content_hash:
+             raise ValueError("stored Artifact content changed")
+     else:
+         staging = storage.root / "artifacts" / f".staging-{uuid.uuid4().hex}"
+         try:
+             copy_local_skill(source.path, staging / "content", inspection.files)
+@@ -270,40 +270,49 @@ def _apply_deployment_locked(plan: DeploymentPlan, storage) -> Operation:
+         rollback_failed = False
+         for target, skill_path in reversed(installed):
+             try:
+                 _remove_installed(skill_path, artifact)
+                 results.append({"target_id": target.id, "status": "rolled_back"})
+             except Exception:
+                 rollback_failed = True
+                 results.append({"target_id": target.id, "status": "rollback_failed"})
+         status = "partial_failure" if rollback_failed or len(fresh.targets) > 1 else "failed"
+         return _finish_operation(storage, Operation(operation_id, status, plan.artifact_id, tuple(results), failure))
++    saved_deployments: list[Deployment] = []
+     try:
+         for target_plan, result in zip(fresh.targets, results):
+             if result.get("action") != "installed":
+                 continue
+-            storage.save_deployment(
+-                Deployment(
+-                    deployment_id=f"deployment-{uuid.uuid4().hex}",
+-                    artifact_id=plan.artifact_id,
+-                    target_id=target_plan.target_id,
+-                    target_path=target_plan.skill_path,
+-                    content_hash=plan.artifact_hash,
+-                )
++            deployment = Deployment(
++                deployment_id=f"deployment-{uuid.uuid4().hex}",
++                artifact_id=plan.artifact_id,
++                target_id=target_plan.target_id,
++                target_path=target_plan.skill_path,
++                content_hash=plan.artifact_hash,
+             )
++            storage.save_deployment(deployment)
++            saved_deployments.append(deployment)
+     except Exception:
+         rollback_failed = False
++        for deployment in reversed(saved_deployments):
++            try:
++                storage.delete_deployment(deployment.deployment_id)
++            except Exception:
++                rollback_failed = True
++                results.append({"target_id": deployment.target_id, "status": "record_rollback_failed"})
+         for _, skill_path in reversed(installed):
+             try:
+                 _remove_installed(skill_path, artifact)
++                results.append({"target_id": skill_path.parent.name, "status": "rolled_back"})
+             except Exception:
+                 rollback_failed = True
++                results.append({"target_id": skill_path.parent.name, "status": "rollback_failed"})
+         status = "partial_failure" if rollback_failed or len(installed) > 1 else "failed"
+         return _finish_operation(storage, Operation(operation_id, status, plan.artifact_id, tuple(results), "deployment_record_failed"))
+     return _finish_operation(storage, Operation(operation_id, "succeeded", plan.artifact_id, tuple(results)))
+ 
+ 
+ def _target_state(skill_path: Path, artifact: Artifact) -> tuple[str, str, str]:
+     if skill_path.parent.is_symlink():
+         return "conflict", "target root is a symlink", "symlink"
+     if not skill_path.exists():
+         return "ready", "", "missing"
+diff --git a/src/skill_manager/storage.py b/src/skill_manager/storage.py
+index 5d0ddfa6..c8665ae0 100644
+--- a/src/skill_manager/storage.py
++++ b/src/skill_manager/storage.py
+@@ -171,20 +171,24 @@ class SkillManagerStorage:
+                 self.root / "deployments" / f"{deployment.deployment_id}.json",
+                 _deployment_to_dict(deployment),
+             )
+ 
+     def load_deployment(self, deployment_id: str) -> Deployment:
+         path = self.root / "deployments" / f"{deployment_id}.json"
+         if not path.is_file():
+             raise StorageError("NOT_FOUND", "Deployment was not found")
+         return _deployment_from_dict(_read_json(path))
+ 
++    def delete_deployment(self, deployment_id: str) -> None:
++        with manager_lock(self.root):
++            (self.root / "deployments" / f"{deployment_id}.json").unlink(missing_ok=True)
++
+     def write_manifest(self, payload: dict[str, Any]) -> None:
+         with manager_lock(self.root):
+             _atomic_write_json(self.root / "manifest.json", payload)
+ 
+     def read_manifest(self) -> dict[str, Any]:
+         path = self.root / "manifest.json"
+         if not path.is_file():
+             raise StorageError("NOT_FOUND", "manager manifest was not found")
+         return _read_json(path)
+ 
+diff --git a/tests/test_skill_manager/test_install.py b/tests/test_skill_manager/test_install.py
+index a61ae813..5e580407 100644
+--- a/tests/test_skill_manager/test_install.py
++++ b/tests/test_skill_manager/test_install.py
+@@ -72,20 +72,32 @@ def test_default_library_snapshot_can_be_revalidated(tmp_path: Path, monkeypatch
+     monkeypatch.setattr("src.skill_manager.storage.config_dir", lambda: config)
+     inspection = inspect_source(SourceSpec(source))
+ 
+     artifact = import_artifact(SourceSpec(source), plan_hash=inspection.content_hash,
+                                confirmation="confirm")
+ 
+     assert artifact.artifact_id.startswith("skill-")
+     assert plan_deployment(artifact.artifact_id, [], storage=SkillManagerStorage()).targets == ()
+ 
+ 
++def test_source_inside_custom_library_is_rejected(tmp_path: Path):
++    storage = SkillManagerStorage(tmp_path / "library")
++    source = storage.root / "input"
++    source.mkdir(parents=True)
++    (source / "SKILL.md").write_text("# Demo\n", encoding="utf-8")
++    inspection = inspect_source(SourceSpec(source))
++
++    with pytest.raises(ValueError):
++        import_artifact(SourceSpec(source), plan_hash=inspection.content_hash,
++                        confirmation="confirm", storage=storage)
++
++
+ def test_tampered_artifact_name_is_rejected_before_target_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+     source = _source(tmp_path)
+     storage = SkillManagerStorage(tmp_path / "library")
+     inspection = inspect_source(SourceSpec(source))
+     artifact = import_artifact(SourceSpec(source), plan_hash=inspection.content_hash,
+                                confirmation="confirm", storage=storage)
+     storage.save_artifact(replace(artifact, name="..\\escape"))
+     target_root = tmp_path / "codex-skills"
+     target_root.mkdir()
+     _targets(monkeypatch, target_root)
+@@ -207,20 +219,49 @@ def test_rollback_keeps_a_target_changed_after_install(tmp_path: Path, monkeypat
+         original(*args, **kwargs)
+         (first / artifact.name / "SKILL.md").write_text("user change", encoding="utf-8")
+ 
+     monkeypatch.setattr(manager, "_install_one", fail_after_first)
+     result = apply_deployment(plan, plan_hash=plan.plan_hash, confirmation="confirm", storage=storage)
+ 
+     assert result.status == "partial_failure"
+     assert (first / artifact.name / "SKILL.md").read_text(encoding="utf-8") == "user change"
+ 
+ 
++def test_deployment_record_failure_removes_records_and_reports_rollback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
++    source = _source(tmp_path)
++    storage = SkillManagerStorage(tmp_path / "library")
++    inspection = inspect_source(SourceSpec(source))
++    artifact = import_artifact(SourceSpec(source), plan_hash=inspection.content_hash,
++                               confirmation="confirm", storage=storage)
++    first, second = tmp_path / "first", tmp_path / "second"
++    first.mkdir(); second.mkdir()
++    _targets(monkeypatch, first, second)
++    plan = plan_deployment(artifact.artifact_id, ["agent-1", "agent-2"], storage=storage)
++    original = storage.save_deployment
++    calls = 0
++
++    def fail_second_record(deployment):
++        nonlocal calls
++        calls += 1
++        if calls == 2:
++            raise OSError("simulated record failure")
++        original(deployment)
++
++    monkeypatch.setattr(storage, "save_deployment", fail_second_record)
++    result = apply_deployment(plan, plan_hash=plan.plan_hash, confirmation="confirm", storage=storage)
++
++    assert result.status == "partial_failure"
++    assert not list((storage.root / "deployments").glob("*.json"))
++    persisted = storage.load_operation(result.operation_id)
++    assert any(item["status"] == "rolled_back" for item in persisted["results"])
++
++
+ def test_partial_failure_reports_compensation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+     source = _source(tmp_path)
+     storage = SkillManagerStorage(tmp_path / "library")
+     inspection = inspect_source(SourceSpec(source))
+     artifact = import_artifact(
+         SourceSpec(source), plan_hash=inspection.content_hash, confirmation="confirm", storage=storage
+     )
+     first, second = tmp_path / "first", tmp_path / "second"
+     first.mkdir()
+     second.mkdir()
+diff --git a/web/index.html b/web/index.html
+index 97ab09cf..9ed49cd6 100644
+--- a/web/index.html
++++ b/web/index.html
+@@ -1,17 +1,17 @@
+ <!doctype html>
+ <html lang="zh-CN">
+ <head>
+   <meta charset="utf-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1" />
+   <title>ruflo-kb</title>
+-  <link rel="stylesheet" href="/style.css?v=20260912-settings" />
++  <link rel="stylesheet" href="/style.css?v=20260913-skills" />
+ </head>
+ <body>
+   <aside id="sidebar">
+     <div class="brand">
+       <div class="brand-header">
+         <div class="brand-title">ruflo-kb</div>
+         <button id="settingsOpenBtn" class="sidebar-settings-btn" type="button" title="打开设置" aria-label="打开设置">⚙</button>
+       </div>
+       <div class="health"><span id="healthDot" class="dot"></span><span id="healthText">未连接</span></div>
+       <button id="newProjectBtn" title="新建项目" style="display:none;">+ 新建项目</button>
+@@ -65,15 +65,15 @@
+   <script src="/js/views/search.js?v=20260912-settings"></script>
+     <script src="/js/views/book.js?v=20260905-book4"></script>
+   <script src="/js/views/browse.js"></script>
+   <script src="/js/views/ingest.js"></script>
+   <script src="/js/views/collect.js"></script>
+   <script src="/js/views/chat.js"></script>
+   <script src="/js/views/graph.js"></script>
+   <script src="/js/views/heat.js"></script>
+   <script src="/js/views/templates.js"></script>
+   <script src="/js/views/status.js"></script>
+-  <script src="/js/views/settings.js?v=20260912-settings"></script>
++  <script src="/js/views/settings.js?v=20260913-skills"></script>
+   <script src="/js/agent-panel.js"></script>
+   <script src="/js/app.js?v=20260912-settings"></script>
+ </body>
+ </html>
+diff --git a/web/js/views/settings.js b/web/js/views/settings.js
+index 72093486..bcda6712 100644
+--- a/web/js/views/settings.js
++++ b/web/js/views/settings.js
+@@ -1,53 +1,72 @@
+ // ruflo-kb — settings modal (model providers + search controls).
+ (() => {
+   "use strict";
+ 
+   window.App = window.App || {};
+ 
+   App.renderModelSettings = function renderModelSettings(root) {
++    const PROVIDER_PRESETS = {
++      "minimax": { base_url: "https://api.minimax.chat/v1", model: "MiniMax-Text-01", label: "MiniMax" },
++      "kimi": { base_url: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k", label: "Kimi / Moonshot" },
++      "deepseek": { base_url: "https://api.deepseek.com/v1", model: "deepseek-chat", label: "DeepSeek" },
++      "glm": { base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-plus", label: "GLM / 智谱" },
++      "openai": { base_url: "https://api.openai.com/v1", model: "gpt-4o", label: "OpenAI（官方）" },
++      "anthropic": { base_url: "", model: "", label: "Anthropic" },
++      "ollama": { base_url: "http://127.0.0.1:11434", model: "", label: "Ollama（本地）" },
++    };
++
+     root.innerHTML = `
+       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+         <h2 style="margin:0;">LLM 提供商设置</h2>
+         <button class="btn-primary" id="openAddModalBtn">+ 添加</button>
+       </div>
+       <div class="provider-grid" id="providerGrid">
+         <div class="provider-card"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>
+       </div>
++      <div id="providerConfigWarning" class="banner-warn" style="display:none;margin-top:12px;"></div>
+       <div class="settings-section" style="margin-top:24px;">
+         <h3 style="font-size:14px;margin:0 0 8px;">测试连接</h3>
+         <div style="display:flex;gap:8px;align-items:center;">
+           <select id="testProvName" style="padding:5px 8px;border:1px solid var(--border-hover);border-radius:var(--radius-md);font-size:13px;background:var(--bg-surface);">
+             <option value="">选择提供商...</option>
+           </select>
+           <button class="btn-sm" id="testProvBtn">测试</button>
+           <span id="testProvResult" style="margin-left:8px;font-size:13px;"></span>
+         </div>
+       </div>
+     `;
+ 
+     document.getElementById("openAddModalBtn").addEventListener("click", () => showAddModal());
+     loadSettings();
+ 
+     async function loadSettings() {
+       const grid = document.getElementById("providerGrid");
+       try {
+         const data = await App.api("/api/v1/providers");
+-        renderProviderCards(data.providers || []);
++        renderProviderCards(data.providers || [], data.default_error || "");
+       } catch (e) {
+         grid.innerHTML = `<div class="banner-err">加载失败: ${App.escapeHtml(e.message)}</div>`;
+       }
+     }
+ 
+-    function renderProviderCards(providers) {
++    function renderProviderCards(providers, defaultError) {
+       const grid = document.getElementById("providerGrid");
+       const testSelect = document.getElementById("testProvName");
++      const warning = document.getElementById("providerConfigWarning");
++      if (defaultError) {
++        warning.style.display = "block";
++        warning.textContent = "默认提供商解析失败：" + defaultError + "。请先修正配置，再删除提供商。";
++      } else {
++        warning.style.display = "none";
++        warning.textContent = "";
++      }
+ 
+       if (!providers.length) {
+         grid.innerHTML = `<div class="empty-state">
+           <div class="empty-state-icon">⚙️</div>
+           <div class="empty-state-title">暂无提供商</div>
+           <div class="empty-state-desc">点击"+ 添加"配置 LLM 提供商</div>
+         </div>`;
+         testSelect.innerHTML = '<option value="">选择提供商...</option>';
+         return;
+       }
+@@ -55,36 +74,41 @@
+       testSelect.innerHTML = '<option value="">选择提供商...</option>' +
+         providers.map(p => `<option value="${App.escapeHtml(p.name)}">${App.escapeHtml(p.name)}</option>`).join("");
+ 
+       const typeLabels = { openai: "OpenAI", "openai-compatible": "OpenAI 兼容", anthropic: "Anthropic", ollama: "Ollama" };
+ 
+       grid.innerHTML = providers.map(p => {
+         const typeLabel = typeLabels[p.type] || p.type;
+         const starIcon = p.is_default ? "★" : "☆";
+         const starTitle = p.is_default ? "当前默认" : "设为默认";
+         const starClass = p.is_default ? "star-active" : "";
+-        const model = p.default_chat_model || p.default_embedding_model || "—";
++        const chatModel = p.default_chat_model || "—";
++        const embeddingModel = p.default_embedding_model || "—";
+         const baseUrl = p.base_url || "—";
+         const keyDisplay = p.api_key || "—";
+ 
+         return `<div class="provider-card${p.is_default ? " default" : ""}">
+           <div class="provider-card-header">
+             <div class="provider-card-title">
+               <span class="provider-card-name">${App.escapeHtml(p.name)}</span>
+               <span class="provider-card-type">${App.escapeHtml(typeLabel)}</span>
+             </div>
+             <button class="star-btn ${starClass}" data-action="toggle-default" data-name="${App.escapeHtml(p.name)}" title="${starTitle}">${starIcon}</button>
+           </div>
+           <div class="provider-card-body">
+             <div class="provider-card-field">
+-              <span class="provider-card-label">Model</span>
+-              <span class="provider-card-value">${App.escapeHtml(model)}</span>
++              <span class="provider-card-label">Chat Model</span>
++              <span class="provider-card-value">${App.escapeHtml(chatModel)}</span>
++            </div>
++            <div class="provider-card-field">
++              <span class="provider-card-label">Embedding Model</span>
++              <span class="provider-card-value">${App.escapeHtml(embeddingModel)}</span>
+             </div>
+             <div class="provider-card-field">
+               <span class="provider-card-label">Base URL</span>
+               <span class="provider-card-value" style="font-size:11px;">${App.escapeHtml(baseUrl)}</span>
+             </div>
+             <div class="provider-card-field">
+               <span class="provider-card-label">API Key</span>
+               <span class="provider-card-value">${App.escapeHtml(keyDisplay)}</span>
+             </div>
+           </div>
+@@ -178,42 +202,33 @@
+           result.textContent = "✗ " + e.message;
+           result.style.color = "var(--danger)";
+         }
+       });
+     }
+ 
+     function showEditModal(provider) {
+       const existing = document.getElementById("addProviderModal");
+       if (existing) existing.remove();
+ 
+-      const PROVIDER_PRESETS = {
+-        "minimax": { base_url: "https://api.minimax.chat/v1", model: "MiniMax-Text-01", label: "MiniMax" },
+-        "kimi": { base_url: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k", label: "Kimi / Moonshot" },
+-        "deepseek": { base_url: "https://api.deepseek.com/v1", model: "deepseek-chat", label: "DeepSeek" },
+-        "glm": { base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-plus", label: "GLM / 智谱" },
+-        "openai": { base_url: "https://api.openai.com/v1", model: "gpt-4o", label: "OpenAI（官方）" },
+-        "anthropic": { base_url: "", model: "", label: "Anthropic" },
+-        "ollama": { base_url: "http://127.0.0.1:11434", model: "", label: "Ollama（本地）" },
+-      };
+-
+       const modal = document.createElement("div");
+       modal.id = "addProviderModal";
+       modal.className = "modal-overlay";
+       modal.innerHTML = `<div class="modal-card">
+         <div class="modal-header">
+           <h3>编辑提供商</h3>
+           <button class="modal-close" id="closeAddModal">&times;</button>
+         </div>
+         <div class="modal-body">
+           <div class="modal-field">
+             <label>名称</label>
+-            <input id="modalProvName" value="${App.escapeHtml(provider.name)}" />
++            <input id="modalProvName" value="${App.escapeHtml(provider.name)}" readonly />
++            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">名称不可修改；如需新名称请添加新的提供商</div>
+           </div>
+           <div class="modal-field">
+             <label>预设</label>
+             <select id="modalProvPreset">
+               <option value="">（自定义）</option>
+               ${Object.entries(PROVIDER_PRESETS).map(([k, v]) =>
+                 `<option value="${k}">${v.label}</option>`
+               ).join("")}
+             </select>
+           </div>
+@@ -229,40 +244,44 @@
+           <div class="modal-field">
+             <label>Base URL</label>
+             <input id="modalProvBaseUrl" value="${App.escapeHtml(provider.base_url || "")}" />
+           </div>
+           <div class="modal-field">
+             <label>API Key</label>
+             <input id="modalProvKey" type="password" placeholder="留空不修改" value="${provider.api_key ? "***" : ""}" />
+             <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">留空保持原有值不变</div>
+           </div>
+           <div class="modal-field">
+-            <label>默认模型</label>
+-            <input id="modalProvModel" value="${App.escapeHtml(provider.default_chat_model || "")}" />
++            <label>默认 Chat 模型</label>
++            <input id="modalProvChatModel" value="${App.escapeHtml(provider.default_chat_model || "")}" />
++          </div>
++          <div class="modal-field">
++            <label>默认 Embedding 模型</label>
++            <input id="modalProvEmbeddingModel" value="${App.escapeHtml(provider.default_embedding_model || "")}" />
+           </div>
+           <div id="modalAddResult" style="margin-top:8px;"></div>
+         </div>
+         <div class="modal-footer">
+           <button class="btn-sm" id="cancelAddModal">取消</button>
+           <button class="btn-primary" id="confirmAddModal">保存</button>
+         </div>
+       </div>`;
+       document.body.appendChild(modal);
+ 
+       // Preset auto-fill
+       modal.querySelector("#modalProvPreset").addEventListener("change", () => {
+         const preset = PROVIDER_PRESETS[modal.querySelector("#modalProvPreset").value];
+         if (!preset) return;
+         const nameEl = document.getElementById("modalProvName");
+         if (!nameEl.value.trim() || nameEl.value === provider.name) nameEl.value = modal.querySelector("#modalProvPreset").value;
+         document.getElementById("modalProvBaseUrl").value = preset.base_url || "";
+-        document.getElementById("modalProvModel").value = preset.model || "";
++        document.getElementById("modalProvChatModel").value = preset.model || "";
+         if (preset.label.includes("Anthropic")) {
+           document.getElementById("modalProvType").value = "anthropic";
+         } else if (preset.label.includes("Ollama")) {
+           document.getElementById("modalProvType").value = "ollama";
+         } else if (preset.label === "OpenAI（官方）") {
+           document.getElementById("modalProvType").value = "openai";
+         } else {
+           document.getElementById("modalProvType").value = "openai-compatible";
+         }
+       });
+@@ -270,56 +289,47 @@
+       function closeModal() { modal.remove(); }
+       modal.querySelector("#closeAddModal").addEventListener("click", closeModal);
+       modal.querySelector("#cancelAddModal").addEventListener("click", closeModal);
+       modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+ 
+       modal.querySelector("#confirmAddModal").addEventListener("click", async () => {
+         const name = document.getElementById("modalProvName").value.trim();
+         const type = document.getElementById("modalProvType").value;
+         const api_key = document.getElementById("modalProvKey").value;
+         const base_url = document.getElementById("modalProvBaseUrl").value.trim();
+-        const model = document.getElementById("modalProvModel").value.trim();
++        const chat_model = document.getElementById("modalProvChatModel").value.trim();
++        const embedding_model = document.getElementById("modalProvEmbeddingModel").value.trim();
+         const result = document.getElementById("modalAddResult");
+         if (!name) { result.innerHTML = '<span class="banner-warn">请输入名称</span>'; return; }
+         result.innerHTML = "保存中...";
+         try {
+           // POST /providers 是 upsert 语义，直接覆盖
+-          const body = { name, type, base_url, chat_model: model, embedding_model: model };
++          const body = { name, type, base_url, chat_model, embedding_model };
+           // 只有用户手动输入了新 key 才传，否则后端保持原有值
+           if (api_key && api_key !== "***") body.api_key = api_key;
+           await App.api("/api/v1/providers", {
+             method: "POST",
+             body: body,
+           });
+           closeModal();
+           loadSettings();
+           App.toast("提供商「" + name + "」已更新", "success");
+         } catch (e) {
+           result.innerHTML = '<span class="banner-err">失败: ' + App.escapeHtml(e.message) + '</span>';
+         }
+       });
+     }
+ 
+     function showAddModal() {
+       const existing = document.getElementById("addProviderModal");
+       if (existing) existing.remove();
+ 
+-      const PROVIDER_PRESETS = {
+-        "minimax": { base_url: "https://api.minimax.chat/v1", model: "MiniMax-Text-01", label: "MiniMax" },
+-        "kimi": { base_url: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k", label: "Kimi / Moonshot" },
+-        "deepseek": { base_url: "https://api.deepseek.com/v1", model: "deepseek-chat", label: "DeepSeek" },
+-        "glm": { base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-plus", label: "GLM / 智谱" },
+-        "openai": { base_url: "https://api.openai.com/v1", model: "gpt-4o", label: "OpenAI（官方）" },
+-        "anthropic": { base_url: "", model: "", label: "Anthropic" },
+-        "ollama": { base_url: "http://127.0.0.1:11434", model: "", label: "Ollama（本地）" },
+-      };
+-
+       const modal = document.createElement("div");
+       modal.id = "addProviderModal";
+       modal.className = "modal-overlay";
+       modal.innerHTML = `<div class="modal-card">
+         <div class="modal-header">
+           <h3>添加提供商</h3>
+           <button class="modal-close" id="closeAddModal">&times;</button>
+         </div>
+         <div class="modal-body">
+           <div class="modal-field">
+@@ -346,40 +356,44 @@
+           </div>
+           <div class="modal-field">
+             <label>Base URL</label>
+             <input id="modalProvBaseUrl" placeholder="https://api.example.com/v1" />
+           </div>
+           <div class="modal-field">
+             <label>API Key</label>
+             <input id="modalProvKey" type="password" placeholder="留空从环境变量读取" />
+           </div>
+           <div class="modal-field">
+-            <label>默认模型</label>
+-            <input id="modalProvModel" placeholder="如 gpt-4o" />
++            <label>默认 Chat 模型</label>
++            <input id="modalProvChatModel" placeholder="如 gpt-4o" />
++          </div>
++          <div class="modal-field">
++            <label>默认 Embedding 模型</label>
++            <input id="modalProvEmbeddingModel" placeholder="如 text-embedding-3-small" />
+           </div>
+           <div id="modalAddResult" style="margin-top:8px;"></div>
+         </div>
+         <div class="modal-footer">
+           <button class="btn-sm" id="cancelAddModal">取消</button>
+           <button class="btn-primary" id="confirmAddModal">添加</button>
+         </div>
+       </div>`;
+       document.body.appendChild(modal);
+ 
+       // Preset auto-fill
+       modal.querySelector("#modalProvPreset").addEventListener("change", () => {
+         const preset = PROVIDER_PRESETS[modal.querySelector("#modalProvPreset").value];
+         if (!preset) return;
+         const nameEl = document.getElementById("modalProvName");
+         if (!nameEl.value.trim()) nameEl.value = modal.querySelector("#modalProvPreset").value;
+         document.getElementById("modalProvBaseUrl").value = preset.base_url || "";
+-        document.getElementById("modalProvModel").value = preset.model || "";
++        document.getElementById("modalProvChatModel").value = preset.model || "";
+         if (preset.label.includes("Anthropic")) {
+           document.getElementById("modalProvType").value = "anthropic";
+         } else if (preset.label.includes("Ollama")) {
+           document.getElementById("modalProvType").value = "ollama";
+         } else if (preset.label === "OpenAI（官方）") {
+           document.getElementById("modalProvType").value = "openai";
+         } else {
+           document.getElementById("modalProvType").value = "openai-compatible";
+         }
+       });
+@@ -387,28 +401,29 @@
+       function closeModal() { modal.remove(); }
+       modal.querySelector("#closeAddModal").addEventListener("click", closeModal);
+       modal.querySelector("#cancelAddModal").addEventListener("click", closeModal);
+       modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+ 
+       modal.querySelector("#confirmAddModal").addEventListener("click", async () => {
+         const name = document.getElementById("modalProvName").value.trim();
+         const type = document.getElementById("modalProvType").value;
+         const api_key = document.getElementById("modalProvKey").value;
+         const base_url = document.getElementById("modalProvBaseUrl").value.trim();
+-        const model = document.getElementById("modalProvModel").value.trim();
++        const chat_model = document.getElementById("modalProvChatModel").value.trim();
++        const embedding_model = document.getElementById("modalProvEmbeddingModel").value.trim();
+         const result = document.getElementById("modalAddResult");
+         if (!name) { result.innerHTML = '<span class="banner-warn">请输入名称</span>'; return; }
+         result.innerHTML = "添加中...";
+         try {
+           await App.api("/api/v1/providers", {
+             method: "POST",
+-            body: { name, type, api_key, base_url, chat_model: model, embedding_model: model },
++            body: { name, type, api_key, base_url, chat_model, embedding_model },
+           });
+           closeModal();
+           loadSettings();
+           App.toast("提供商「" + name + "」已添加", "success");
+         } catch (e) {
+           result.innerHTML = '<span class="banner-err">失败: ' + App.escapeHtml(e.message) + '</span>';
+         }
+       });
+     }
+   };
+@@ -427,20 +442,21 @@
+           <div>
+             <div class="settings-modal-kicker">ruflo-kb</div>
+             <h2 id="settingsModalTitle">设置</h2>
+           </div>
+           <button class="modal-close" id="settingsModalClose" type="button" aria-label="关闭设置">&times;</button>
+         </div>
+         <div class="settings-modal-body">
+           <nav class="settings-modal-nav" aria-label="设置分类">
+             <button class="settings-nav-btn active" data-settings-page="model" type="button">模型</button>
+             <button class="settings-nav-btn" data-settings-page="search" type="button">搜索</button>
++            <button class="settings-nav-btn" data-settings-page="skills" type="button">Skills</button>
+           </nav>
+           <section class="settings-modal-panel" id="settingsModalPanel" aria-live="polite"></section>
+         </div>
+       </div>
+     `;
+     document.body.appendChild(modal);
+ 
+     let panelCleanup = null;
+     const panel = modal.querySelector("#settingsModalPanel");
+ 
+@@ -457,38 +473,205 @@
+     }
+ 
+     function renderPage(page) {
+       if (panelCleanup) panelCleanup();
+       panelCleanup = null;
+       modal.querySelectorAll(".settings-nav-btn").forEach(btn => {
+         btn.classList.toggle("active", btn.dataset.settingsPage === page);
+       });
+       if (page === "search") {
+         panelCleanup = renderSearchSettings(panel);
++      } else if (page === "skills") {
++        panelCleanup = renderSkillSettings(panel);
+       } else {
+         App.renderModelSettings(panel);
+       }
+     }
+ 
+     App.closeSettingsModal = close;
+     modal.querySelector("#settingsModalClose").addEventListener("click", close);
+     modal.addEventListener("click", e => { if (e.target === modal) close(); });
+     modal.querySelectorAll(".settings-nav-btn").forEach(btn => {
+       btn.addEventListener("click", () => renderPage(btn.dataset.settingsPage));
+     });
+     document.addEventListener("keydown", onKeyDown);
+     renderPage("model");
+     modal.querySelector(".settings-nav-btn").focus();
+   };
+ 
+   App.closeSettingsModal = null;
+ 
++  function renderSkillSettings(root) {
++    root.innerHTML = `
++      <div class="settings-panel-heading">
++        <div>
++          <div class="settings-panel-eyebrow">SKILL LIBRARY</div>
++          <h3>Agent Skills</h3>
++          <p>把静态 Skill 导入独立 Library，再明确部署到 Agent。v1 不执行 Plugin、MCP、hook 或安装脚本。</p>
++        </div>
++      </div>
++      <div class="skill-settings-flow">
++        <section class="skill-settings-card">
++          <div class="skill-settings-step">01 · SOURCE</div>
++          <label class="skill-settings-label" for="skillSourcePath">本地 Skill 目录</label>
++          <div class="skill-settings-input-row">
++            <input id="skillSourcePath" type="text" placeholder="例如：E:\\skills\\my-skill" autocomplete="off" />
++            <button class="btn-primary" id="skillInspectBtn" type="button">检查来源</button>
++          </div>
++          <div class="settings-help">目录根部必须包含 SKILL.md；出现 plugin.json 会明确拒绝。</div>
++          <div id="skillInspectResult" class="skill-settings-result" aria-live="polite">等待检查来源...</div>
++        </section>
++        <section class="skill-settings-card">
++          <div class="skill-settings-step">02 · LIBRARY</div>
++          <div class="skill-settings-row">
++            <div>
++              <strong>已验证 Artifact</strong>
++              <div class="settings-help">导入只写 Library，不会修改 Agent 目录。</div>
++            </div>
++            <button class="btn-sm" id="skillRefreshBtn" type="button">刷新</button>
++          </div>
++          <select id="skillArtifactSelect" class="skill-settings-select" aria-label="选择 Artifact">
++            <option value="">暂无 Artifact</option>
++          </select>
++          <div id="skillImportResult" class="skill-settings-result" aria-live="polite"></div>
++          <button class="btn-primary" id="skillImportBtn" type="button" disabled>确认导入 Artifact</button>
++        </section>
++        <section class="skill-settings-card">
++          <div class="skill-settings-step">03 · DEPLOY</div>
++          <div class="settings-help">先预览目标状态，再确认部署。冲突会停止整个计划，不覆盖已有内容。</div>
++          <div id="skillAgents" class="skill-settings-agents">读取 Agent...</div>
++          <button class="btn-sm" id="skillPlanBtn" type="button" disabled>生成部署计划</button>
++          <div id="skillPlanResult" class="skill-settings-result" aria-live="polite"></div>
++          <button class="btn-primary" id="skillDeployBtn" type="button" disabled>确认部署</button>
++        </section>
++      </div>
++      <div class="skill-settings-card skill-settings-plugin-note">
++        <span class="skill-settings-plugin-badge">PLUGIN · UNSUPPORTED</span>
++        <span>Plugin 暂不支持安装。当前版本只处理不执行代码的静态 Skill。</span>
++      </div>
++    `;
++
++    const sourceEl = root.querySelector("#skillSourcePath");
++    const inspectBtn = root.querySelector("#skillInspectBtn");
++    const inspectResult = root.querySelector("#skillInspectResult");
++    const artifactSelect = root.querySelector("#skillArtifactSelect");
++    const importBtn = root.querySelector("#skillImportBtn");
++    const importResult = root.querySelector("#skillImportResult");
++    const agentsEl = root.querySelector("#skillAgents");
++    const planBtn = root.querySelector("#skillPlanBtn");
++    const planResult = root.querySelector("#skillPlanResult");
++    const deployBtn = root.querySelector("#skillDeployBtn");
++    let inspection = null;
++    let plan = null;
++    let pollTimer = null;
++
++    function setBusy(button, busy) {
++      button.disabled = busy;
++      if (busy) button.dataset.previousText = button.textContent;
++      button.textContent = busy ? "处理中..." : (button.dataset.previousText || button.textContent);
++    }
++
++    function selectedAgents() {
++      return [...root.querySelectorAll("input[name=skill-agent]:checked")].map(input => input.value);
++    }
++
++    function renderArtifacts(artifacts) {
++      artifactSelect.innerHTML = artifacts.length
++        ? artifacts.map(item => `<option value="${App.escapeHtml(item.artifact_id)}">${App.escapeHtml(item.name)} · ${App.escapeHtml(item.content_hash.slice(0, 12))}</option>`).join("")
++        : '<option value="">暂无 Artifact</option>';
++      const matching = inspection && artifacts.find(item => item.artifact_id === inspection.artifact_id);
++      if (matching) artifactSelect.value = matching.artifact_id;
++      updateActions();
++    }
++
++    function updateActions() {
++      const hasArtifact = !!artifactSelect.value;
++      importBtn.disabled = !inspection;
++      planBtn.disabled = !hasArtifact || !selectedAgents().length;
++      deployBtn.disabled = !plan || plan.targets.some(item => item.status === "conflict");
++    }
++
++    async function loadLibrary() {
++      const data = await App.api("/api/v1/skill-manager/library");
++      renderArtifacts(data.artifacts || []);
++    }
++
++    async function loadAgents() {
++      const data = await App.api("/api/v1/skill-manager/agents");
++      agentsEl.innerHTML = (data.agents || []).map(agent => `
++        <label class="skill-settings-agent">
++          <input type="checkbox" name="skill-agent" value="${App.escapeHtml(agent.id)}" ${agent.exists ? "" : "disabled"} />
++          <span>${App.escapeHtml(agent.id)}</span>
++          <small>${agent.exists ? "可用" : "目录不存在"}</small>
++        </label>`).join("") || '<span class="settings-help">没有可用 Agent 目标</span>';
++      root.querySelectorAll("input[name=skill-agent]").forEach(input => input.addEventListener("change", updateActions));
++      updateActions();
++    }
++
++    inspectBtn.addEventListener("click", async () => {
++      const source = sourceEl.value.trim();
++      if (!source) { inspectResult.textContent = "请输入本地目录"; return; }
++      setBusy(inspectBtn, true);
++      try {
++        inspection = await App.api("/api/v1/skill-manager/artifacts/inspect", { method: "POST", body: { source } });
++        inspectResult.innerHTML = `<strong>${App.escapeHtml(inspection.name)}</strong> · ${inspection.file_count} 个文件 · ${inspection.total_bytes} bytes<br><code>${App.escapeHtml(inspection.content_hash)}</code>`;
++        importResult.textContent = "检查通过；点击“确认导入 Artifact”写入 Library。";
++        await loadLibrary();
++      } catch (e) {
++        inspection = null;
++        inspectResult.textContent = e.message.includes("UNSUPPORTED_PLUGIN_TYPE") ? "Plugin 暂不支持" : "检查失败：" + e.message;
++        updateActions();
++      } finally { setBusy(inspectBtn, false); }
++    });
++
++    importBtn.addEventListener("click", async () => {
++      if (!inspection || !window.confirm("确认把这个已检查的 Skill 导入 Library？不会写入 Agent。")) return;
++      setBusy(importBtn, true);
++      try {
++        const result = await App.api("/api/v1/skill-manager/artifacts/import", { method: "POST", body: { source: sourceEl.value.trim(), plan_hash: inspection.content_hash, confirm: true } });
++        importResult.textContent = "已导入 Artifact：" + result.artifact_id;
++        await loadLibrary();
++      } catch (e) { importResult.textContent = "导入失败：" + e.message; }
++      finally { setBusy(importBtn, false); }
++    });
++
++    root.querySelector("#skillRefreshBtn").addEventListener("click", () => loadLibrary().catch(e => { importResult.textContent = "刷新失败：" + e.message; }));
++    planBtn.addEventListener("click", async () => {
++      setBusy(planBtn, true);
++      try {
++        plan = await App.api("/api/v1/skill-manager/deployments/plan", { method: "POST", body: { artifact_id: artifactSelect.value, target_ids: selectedAgents() } });
++        planResult.innerHTML = plan.targets.map(item => `<div><span class="skill-status-${item.status}">${App.escapeHtml(item.status)}</span> ${App.escapeHtml(item.id)}${item.reason ? " · " + App.escapeHtml(item.reason) : ""}</div>`).join("");
++      } catch (e) { plan = null; planResult.textContent = "计划失败：" + e.message; }
++      finally { setBusy(planBtn, false); updateActions(); }
++    });
++
++    deployBtn.addEventListener("click", async () => {
++      if (!plan || !window.confirm("确认部署到选中的 Agent？冲突目标不会被覆盖。")) return;
++      setBusy(deployBtn, true);
++      try {
++        const result = await App.api("/api/v1/skill-manager/deployments/apply", { method: "POST", body: { artifact_id: plan.artifact_id, target_ids: selectedAgents(), plan_hash: plan.plan_hash, confirm: true } });
++        planResult.textContent = "Operation " + result.operation_id + "：" + result.status;
++        const operationId = result.operation_id;
++        pollTimer = setInterval(async () => {
++          try {
++            const status = await App.api("/api/v1/skill-manager/operations/" + encodeURIComponent(operationId));
++            planResult.textContent = "Operation " + operationId + "：" + status.status;
++            if (["succeeded", "failed", "conflict", "partial_failure"].includes(status.status)) { clearInterval(pollTimer); pollTimer = null; setBusy(deployBtn, false); }
++          } catch (e) { clearInterval(pollTimer); pollTimer = null; planResult.textContent = "状态读取失败：" + e.message; setBusy(deployBtn, false); }
++        }, 1000);
++      } catch (e) { planResult.textContent = "部署失败：" + e.message; setBusy(deployBtn, false); }
++    });
++
++    Promise.all([loadLibrary(), loadAgents()]).catch(e => { agentsEl.textContent = "加载失败：" + e.message; });
++    return () => { if (pollTimer) clearInterval(pollTimer); };
++  }
++
+   function renderSearchSettings(root) {
+     root.innerHTML = `
+       <div class="settings-panel-heading">
+         <div>
+           <div class="settings-panel-eyebrow">SEARCH</div>
+           <h3>搜索设置</h3>
+           <p>管理本地搜索与 GBrain hybrid 的切换和索引状态。</p>
+         </div>
+       </div>
+       <div class="search-settings-card">
+diff --git a/web/style.css b/web/style.css
+index 0db0f1ec..40e039b3 100644
+--- a/web/style.css
++++ b/web/style.css
+@@ -1375,20 +1375,40 @@ body {
+ .settings-panel-heading p, .settings-help { margin: 0; color: var(--text-secondary); font-size: 12px; }
+ .search-settings-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+ .search-settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+ .search-settings-status { margin-top: 14px; padding: 10px; border-radius: var(--radius-md); background: var(--bg-subtle); color: var(--text-secondary); font-size: 13px; }
+ .search-settings-actions { display: flex; gap: 8px; margin-top: 12px; }
+ .search-settings-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+ .search-settings-form label { display: grid; gap: 6px; color: var(--text-secondary); font-size: 12px; }
+ .search-settings-form select, .search-settings-form input { min-height: 32px; padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-primary); font: inherit; }
+ .search-settings-config-status { margin-top: 12px; color: var(--text-secondary); font-size: 12px; }
+ 
++.skill-settings-flow { display: grid; gap: 12px; }
++.skill-settings-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--bg-surface); }
++.skill-settings-step { color: var(--accent); font-size: 10px; letter-spacing: .12em; font-weight: 700; margin-bottom: 9px; }
++.skill-settings-label { display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px; }
++.skill-settings-input-row { display: flex; gap: 8px; }
++.skill-settings-input-row input, .skill-settings-select { min-height: 34px; box-sizing: border-box; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-primary); padding: 6px 9px; font: inherit; }
++.skill-settings-input-row input { flex: 1; min-width: 0; }
++.skill-settings-select { width: 100%; margin: 14px 0 10px; }
++.skill-settings-result { margin-top: 10px; color: var(--text-secondary); font-size: 12px; line-height: 1.6; min-height: 20px; overflow-wrap: anywhere; }
++.skill-settings-result code { color: var(--accent); font-size: 11px; }
++.skill-settings-agents { display: grid; gap: 6px; margin: 14px 0; }
++.skill-settings-agent { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border-light); border-radius: var(--radius-md); font-size: 13px; }
++.skill-settings-agent small { margin-left: auto; color: var(--text-muted); }
++.skill-settings-agent input:checked + span { color: var(--accent); font-weight: 600; }
++.skill-settings-plugin-note { display: flex; align-items: center; gap: 10px; margin-top: 14px; color: var(--text-secondary); font-size: 12px; }
++.skill-settings-plugin-badge { flex: 0 0 auto; color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px; padding: 3px 7px; font-size: 10px; letter-spacing: .06em; }
++.skill-status-ready { color: var(--success); }
++.skill-status-no_op { color: var(--accent); }
++.skill-status-conflict { color: var(--danger); font-weight: 600; }
++
+ .settings-section { margin-bottom: 28px; }
+ .settings-section h3 { font-size: 14px; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+ .btn-sm { padding: 4px 10px; font-size: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-hover); background: var(--bg-surface); cursor: pointer; font-family: inherit; color: var(--text-primary); }
+ .btn-sm:hover { background: var(--bg-hover); }
+ .btn-danger { color: var(--danger-text); border-color: var(--danger-border); background: var(--danger-light); }
+ .btn-danger:hover { background: var(--danger-light); opacity: 0.8; }
+ 
+ /* Provider card grid */
+ .provider-grid {
+   display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px;
+@@ -1672,20 +1692,21 @@ body {
+   /* mobile: single-column, hamburger sidebar, agent bottom drawer */
+   .status-metrics { grid-template-columns: 1fr; }
+   .status-stage-grid { grid-template-columns: 1fr; }
+   .provider-grid { grid-template-columns: 1fr; }
+   .settings-modal-overlay { padding: 10px; }
+   .settings-modal-card { height: min(720px, 92vh); }
+   .settings-modal-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+   .settings-modal-nav { display: flex; gap: 6px; padding: 8px; border-right: 0; border-bottom: 1px solid var(--border); }
+   .settings-nav-btn { flex: 1; text-align: center; }
+   .settings-modal-panel { padding: 16px; }
++  .skill-settings-input-row { flex-direction: column; }
+ }
+ 
+ /* ========================================================= */
+ /* Page-level project selector (ingest / browse / collect)    */
+ /* ========================================================= */
+ 
+ .page-project-selector {
+   display: flex; align-items: center; gap: 8px;
+   padding: 8px 0; margin-bottom: 8px;
+ }

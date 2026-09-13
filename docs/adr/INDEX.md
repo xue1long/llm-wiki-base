@@ -9,6 +9,8 @@
 | [2026-09-06-unified-book-editorial-state](2026-09-06-unified-book-editorial-state.md) | Book 编辑状态为权威、TutorialPath 为阅读覆盖层 | Proposed | 2026-09-06 | [plan](../superpowers/plans/2026-09-06-unified-knowledge-book-remediation.md) |
 | [2026-09-07-book-lineage-publication](2026-09-07-book-lineage-publication.md) | Book 发布结果登记到 SQLite lineage | Accepted | 2026-09-07 | — |
 | [2026-09-08-unified-book-llm-pipeline](2026-09-08-unified-book-llm-pipeline.md) | 统一 Wiki-to-Book LLM 编译管线与项目级编辑规则 | Accepted | 2026-09-08 | [plan](../superpowers/plans/2026-09-08-unified-book-llm-pipeline.md) |
+| [2026-09-13-provider-settings-portability](2026-09-13-provider-settings-portability.md) | Provider 设置页按目标架构移植 | Proposed | 2026-09-13 | — |
+| [0010-skill-library-and-agent-deployment](0010-skill-library-and-agent-deployment.md) | Skill Artifact Library 与 Agent 部署隔离 | Accepted — v1 静态 Skill | 2026-09-13 | [plan](../superpowers/plans/2026-09-13-skill-plugin-manager.md) |
 
 ## 命名规范
 

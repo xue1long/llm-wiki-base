@@ -1,5 +1,8 @@
 # Project Memory Index
 
+- [2026-09-13 Agent Skill Manager 方案整改](feedback-skill-plugin-manager-plan-2026-09-13.md) — `Source→Artifact→Deployment→Agent`；v1 仅本地静态 Skill、Codex 首发、JSON CLI/HTTP/WebUI 共用核心；plugin.json 拒绝、显式确认、loopback/token、补偿回滚与 partial_failure
+- [2026-09-13 Skill Manager Task 1 实施](feedback-skill-manager-task1-2026-09-13.md) — 本地静态 Skill 只读检查、稳定 hash、plugin.json/marker/路径穿越/符号链接/大小和文件数门禁；9 个聚焦测试通过
+
 - [2026-09-12 GBrain 增强项修复](feedback-gbrain-enhancements-repair-2026-09-12.md) — 逐项完成 job 路径兼容、manifest 新鲜度、删除墓碑恢复、运行时检查缓存；GBrain restore 只传 slug，专项回归 61 passed
 
 - [2026-09-12 GBrain 控制面实现记录](feedback-gbrain-control-plane-implementation-2026-09-12.md) — 运行时发现/校验、显式 setup、原子状态落盘已实现；搜索与导入等待 embedding 门禁
@@ -65,3 +68,5 @@
 - [2026-09-09 Book 章节响应契约修复](feedback-book-response-contract-repair-2026-09-09.md) — MiniMax `list[str]` 响应触发形状感知重试反馈；仍保持 fail-closed provenance 校验
 - [2026-09-09 Book 发布完成](feedback-book-release-2026-09-09.md) — preview release `5aa755f...` 自动验收通过并经 `--apply-from` 发布；LanceDB 独立未更新
 - [2026-09-13 GBrain Claude Code 外部 Host 试点](feedback-gbrain-claude-host-pilot-2026-09-13.md) — 路线 B 真实 MCP 门禁通过；受限 recall/search/get_page/remember 桥接、项目 scope、来源校验和 local/auto/gbrain 后端已落地；GBrain 跨 Claude 会话记忆闭环通过，Claude/MCP 常驻 session 仍后置
+- [2026-09-13 Provider 设置页移植边界](feedback-provider-settings-portability-2026-09-13.md) — open-design 设置页不可直接复制；本项目首期保留原生 JS + FastAPI + 全局 ProviderRegistry，模型发现后置
+- [2026-09-13 Agent Skill Manager v1 实施](feedback-skill-plugin-manager-plan-2026-09-13.md) — 静态 Skill Library、Artifact/Deployment 分离、HTTP/JSON CLI、Settings Skills 页已落地；插件/GitHub/更新删除后置，真实 Codex 目标仍需冒烟

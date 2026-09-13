@@ -1,0 +1,465 @@
+# Review package: 18bd9c49..b8881fea
+
+## Commits
+b8881fea feat(skill-manager): add Library storage and Agent discovery
+
+## Files changed
+ src/skill_manager/agents.py              |  83 +++++++++++++
+ src/skill_manager/storage.py             | 205 +++++++++++++++++++++++++++++++
+ tests/test_skill_manager/test_agents.py  |  48 ++++++++
+ tests/test_skill_manager/test_storage.py |  92 ++++++++++++++
+ 4 files changed, 428 insertions(+)
+
+## Diff
+diff --git a/src/skill_manager/agents.py b/src/skill_manager/agents.py
+new file mode 100644
+index 00000000..1e8e5638
+--- /dev/null
++++ b/src/skill_manager/agents.py
+@@ -0,0 +1,83 @@
++"""Agent target discovery and manager-owned deployment markers."""
++
++from __future__ import annotations
++
++from dataclasses import dataclass
++from pathlib import Path
++from typing import Any
++
++
++MANAGER_MARKER_NAME = ".ruflo-skill-manager.json"
++
++
++class AgentTargetError(ValueError):
++    """Stable error for an unsafe or unavailable Agent target."""
++
++    def __init__(self, code: str, message: str) -> None:
++        self.code = code
++        super().__init__(message)
++
++
++@dataclass(frozen=True)
++class AgentTarget:
++    id: str
++    path: Path
++    scope: str = "user"
++    exists: bool = False
++
++
++@dataclass(frozen=True)
++class DeploymentMarker:
++    artifact_id: str
++    content_hash: str
++    installed_at: int
++    manager_version: str
++    files: tuple[str, ...]
++
++    def to_dict(self) -> dict[str, Any]:
++        return {
++            "artifact_id": self.artifact_id,
++            "content_hash": self.content_hash,
++            "installed_at": self.installed_at,
++            "manager_version": self.manager_version,
++            "files": list(self.files),
++        }
++
++    @classmethod
++    def from_dict(cls, payload: dict[str, Any]) -> "DeploymentMarker":
++        try:
++            files = tuple(str(item) for item in payload["files"])
++            return cls(
++                artifact_id=str(payload["artifact_id"]),
++                content_hash=str(payload["content_hash"]),
++                installed_at=int(payload["installed_at"]),
++                manager_version=str(payload["manager_version"]),
++                files=files,
++            )
++        except (KeyError, TypeError, ValueError) as exc:
++            raise AgentTargetError("MARKER_CORRUPT", "invalid deployment marker") from exc
++
++
++def discover_targets() -> tuple[AgentTarget, ...]:
++    home = Path.home()
++    return (
++        AgentTarget("codex", home / ".codex" / "skills", exists=(home / ".codex" / "skills").is_dir()),
++        AgentTarget(
++            "claude_code",
++            home / ".claude" / "skills",
++            exists=(home / ".claude" / "skills").is_dir(),
++        ),
++    )
++
++
++def resolve_custom_target(target_id: str, path: Path, *, allowed_root: Path) -> AgentTarget:
++    raw = Path(path)
++    if raw.is_symlink():
++        raise AgentTargetError("TARGET_SYMLINK", "custom target cannot be a symlink")
++    allowed = Path(allowed_root).resolve(strict=False)
++    resolved = raw.resolve(strict=False)
++    if resolved != allowed and allowed not in resolved.parents:
++        raise AgentTargetError("TARGET_OUTSIDE_ALLOWED_ROOT", "custom target escapes allowed root")
++    if not resolved.is_dir():
++        raise AgentTargetError("TARGET_NOT_FOUND", "custom target must already exist")
++    return AgentTarget(target_id, resolved, scope="custom", exists=True)
+diff --git a/src/skill_manager/storage.py b/src/skill_manager/storage.py
+new file mode 100644
+index 00000000..cfd2959c
+--- /dev/null
++++ b/src/skill_manager/storage.py
+@@ -0,0 +1,205 @@
++"""Small JSON-backed persistence for the Skill Manager control plane."""
++
++from __future__ import annotations
++
++import json
++import os
++import tempfile
++import threading
++from contextlib import contextmanager
++from dataclasses import asdict
++from pathlib import Path
++from typing import Any, Iterator
++
++from ..project.paths import config_dir
++from .types import Artifact, Deployment, FileEntry, SourceSpec
++
++
++INFLIGHT_OPERATION_STATUSES = frozenset(
++    {"queued", "downloading", "validating", "installing"}
++)
++_PROCESS_LOCK = threading.RLock()
++
++
++class StorageError(ValueError):
++    """Stable fail-closed error for Skill Manager state."""
++
++    def __init__(self, code: str, message: str) -> None:
++        self.code = code
++        super().__init__(message)
++
++
++@contextmanager
++def manager_lock(root: Path) -> Iterator[None]:
++    """Serialize manager writes in-process and across processes."""
++
++    root = Path(root)
++    root.mkdir(parents=True, exist_ok=True)
++    lock_path = root / "manager.lock"
++    with _PROCESS_LOCK:
++        with lock_path.open("a+b") as stream:
++            stream.seek(0)
++            stream.write(b"0")
++            stream.flush()
++            if os.name == "nt":
++                import msvcrt
++
++                stream.seek(0)
++                msvcrt.locking(stream.fileno(), msvcrt.LK_LOCK, 1)
++            else:
++                import fcntl
++
++                fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
++            try:
++                yield
++            finally:
++                if os.name == "nt":
++                    stream.seek(0)
++                    msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
++                else:
++                    fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
++
++
++def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
++    path.parent.mkdir(parents=True, exist_ok=True)
++    temporary: str | None = None
++    try:
++        fd, temporary = tempfile.mkstemp(
++            prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
++        )
++        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
++            json.dump(payload, stream, ensure_ascii=False, indent=2, sort_keys=True)
++            stream.write("\n")
++            stream.flush()
++            os.fsync(stream.fileno())
++        os.replace(temporary, path)
++        temporary = None
++    finally:
++        if temporary:
++            Path(temporary).unlink(missing_ok=True)
++
++
++def _read_json(path: Path) -> dict[str, Any]:
++    try:
++        payload = json.loads(path.read_text(encoding="utf-8"))
++    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
++        raise StorageError("STATE_CORRUPT", f"invalid manager state: {path.name}") from exc
++    if not isinstance(payload, dict):
++        raise StorageError("STATE_CORRUPT", f"manager state must be an object: {path.name}")
++    return payload
++
++
++def _artifact_to_dict(artifact: Artifact) -> dict[str, Any]:
++    return {
++        "artifact_id": artifact.artifact_id,
++        "name": artifact.name,
++        "content_hash": artifact.content_hash,
++        "files": [asdict(entry) for entry in artifact.files],
++        "total_bytes": artifact.total_bytes,
++        "source": {"path": str(artifact.source.path), "kind": artifact.source.kind},
++    }
++
++
++def _artifact_from_dict(payload: dict[str, Any]) -> Artifact:
++    try:
++        source = payload["source"]
++        files = tuple(FileEntry(**entry) for entry in payload["files"])
++        return Artifact(
++            artifact_id=str(payload["artifact_id"]),
++            name=str(payload["name"]),
++            content_hash=str(payload["content_hash"]),
++            files=files,
++            total_bytes=int(payload["total_bytes"]),
++            source=SourceSpec(path=source["path"], kind=str(source["kind"])),
++        )
++    except (KeyError, TypeError, ValueError) as exc:
++        raise StorageError("STATE_CORRUPT", "invalid Artifact state") from exc
++
++
++def _deployment_to_dict(deployment: Deployment) -> dict[str, str]:
++    return asdict(deployment)
++
++
++def _deployment_from_dict(payload: dict[str, Any]) -> Deployment:
++    try:
++        return Deployment(
++            deployment_id=str(payload["deployment_id"]),
++            artifact_id=str(payload["artifact_id"]),
++            target_id=str(payload["target_id"]),
++            target_path=str(payload["target_path"]),
++            content_hash=str(payload["content_hash"]),
++        )
++    except (KeyError, TypeError, ValueError) as exc:
++        raise StorageError("STATE_CORRUPT", "invalid Deployment state") from exc
++
++
++class SkillManagerStorage:
++    """Persist manager metadata without introducing a database."""
++
++    def __init__(self, root: Path | None = None) -> None:
++        self.root = Path(root) if root is not None else config_dir() / "skill-manager"
++
++    def save_artifact(self, artifact: Artifact) -> None:
++        with manager_lock(self.root):
++            _atomic_write_json(
++                self.root / "artifacts" / artifact.artifact_id / "artifact.json",
++                _artifact_to_dict(artifact),
++            )
++
++    def load_artifact(self, artifact_id: str) -> Artifact:
++        path = self.root / "artifacts" / artifact_id / "artifact.json"
++        if not path.is_file():
++            raise StorageError("NOT_FOUND", "Artifact was not found")
++        return _artifact_from_dict(_read_json(path))
++
++    def save_deployment(self, deployment: Deployment) -> None:
++        with manager_lock(self.root):
++            _atomic_write_json(
++                self.root / "deployments" / f"{deployment.deployment_id}.json",
++                _deployment_to_dict(deployment),
++            )
++
++    def load_deployment(self, deployment_id: str) -> Deployment:
++        path = self.root / "deployments" / f"{deployment_id}.json"
++        if not path.is_file():
++            raise StorageError("NOT_FOUND", "Deployment was not found")
++        return _deployment_from_dict(_read_json(path))
++
++    def write_manifest(self, payload: dict[str, Any]) -> None:
++        with manager_lock(self.root):
++            _atomic_write_json(self.root / "manifest.json", payload)
++
++    def read_manifest(self) -> dict[str, Any]:
++        path = self.root / "manifest.json"
++        if not path.is_file():
++            raise StorageError("NOT_FOUND", "manager manifest was not found")
++        return _read_json(path)
++
++    def save_operation(self, payload: dict[str, Any]) -> None:
++        operation_id = payload.get("id")
++        if not isinstance(operation_id, str) or not operation_id:
++            raise StorageError("INVALID_OPERATION", "operation id is required")
++        with manager_lock(self.root):
++            _atomic_write_json(self.root / "operations" / f"{operation_id}.json", payload)
++
++    def load_operation(self, operation_id: str) -> dict[str, Any]:
++        path = self.root / "operations" / f"{operation_id}.json"
++        if not path.is_file():
++            raise StorageError("NOT_FOUND", "operation was not found")
++        return _read_json(path)
++
++    def recover_inflight_operations(self) -> list[str]:
++        operations = self.root / "operations"
++        if not operations.is_dir():
++            return []
++        recovered: list[str] = []
++        with manager_lock(self.root):
++            for path in sorted(operations.glob("*.json")):
++                payload = _read_json(path)
++                if payload.get("status") not in INFLIGHT_OPERATION_STATUSES:
++                    continue
++                payload["status"] = "failed"
++                payload["error_code"] = "server_restarted"
++                _atomic_write_json(path, payload)
++                recovered.append(str(payload.get("id") or path.stem))
++        return recovered
+diff --git a/tests/test_skill_manager/test_agents.py b/tests/test_skill_manager/test_agents.py
+new file mode 100644
+index 00000000..4862bbb5
+--- /dev/null
++++ b/tests/test_skill_manager/test_agents.py
+@@ -0,0 +1,48 @@
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++
++from src.skill_manager.agents import (
++    AgentTargetError,
++    DeploymentMarker,
++    discover_targets,
++    resolve_custom_target,
++)
++
++
++def test_default_agent_discovery_uses_user_skill_roots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
++    monkeypatch.setattr("src.skill_manager.agents.Path.home", lambda: tmp_path)
++
++    targets = {target.id: target for target in discover_targets()}
++
++    assert targets["codex"].path == tmp_path / ".codex" / "skills"
++    assert targets["claude_code"].path == tmp_path / ".claude" / "skills"
++
++
++def test_custom_target_must_stay_inside_allowed_root_and_exist(tmp_path: Path):
++    allowed = tmp_path / "agents"
++    custom = allowed / "skills"
++    custom.mkdir(parents=True)
++
++    target = resolve_custom_target("project", custom, allowed_root=allowed)
++
++    assert target.id == "project"
++    assert target.path == custom.resolve()
++
++    with pytest.raises(AgentTargetError) as exc_info:
++        resolve_custom_target("escape", allowed / ".." / "outside", allowed_root=allowed)
++    assert exc_info.value.code == "TARGET_OUTSIDE_ALLOWED_ROOT"
++
++
++def test_deployment_marker_round_trips():
++    marker = DeploymentMarker(
++        artifact_id="skill-a",
++        content_hash="b" * 64,
++        installed_at=123,
++        manager_version="1",
++        files=("SKILL.md", "references/guide.md"),
++    )
++
++    assert DeploymentMarker.from_dict(marker.to_dict()) == marker
+diff --git a/tests/test_skill_manager/test_storage.py b/tests/test_skill_manager/test_storage.py
+new file mode 100644
+index 00000000..c034c295
+--- /dev/null
++++ b/tests/test_skill_manager/test_storage.py
+@@ -0,0 +1,92 @@
++from __future__ import annotations
++
++import threading
++import time
++from pathlib import Path
++
++import pytest
++
++from src.skill_manager.storage import SkillManagerStorage, StorageError, manager_lock
++from src.skill_manager.types import Artifact, Deployment, SourceSpec
++
++
++def _artifact(tmp_path: Path) -> Artifact:
++    return Artifact(
++        artifact_id="skill-a" * 8,
++        name="demo",
++        content_hash="b" * 64,
++        files=(),
++        total_bytes=0,
++        source=SourceSpec(tmp_path / "source"),
++    )
++
++
++def test_storage_uses_user_config_dir_and_round_trips_artifact_and_deployment(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
++):
++    config = tmp_path / "config"
++    monkeypatch.setattr("src.skill_manager.storage.config_dir", lambda: config)
++    storage = SkillManagerStorage()
++    artifact = _artifact(tmp_path)
++    deployment = Deployment("deployment-1", artifact.artifact_id, "codex", "target", artifact.content_hash)
++
++    storage.save_artifact(artifact)
++    storage.save_deployment(deployment)
++    storage.write_manifest({"artifact_ids": [artifact.artifact_id]})
++
++    assert storage.root == config / "skill-manager"
++    assert storage.load_artifact(artifact.artifact_id) == artifact
++    assert storage.load_deployment(deployment.deployment_id) == deployment
++    assert storage.read_manifest() == {"artifact_ids": [artifact.artifact_id]}
++    assert (storage.root / "artifacts" / artifact.artifact_id / "artifact.json").is_file()
++    assert (storage.root / "deployments" / "deployment-1.json").is_file()
++    assert not list(storage.root.rglob("*.tmp"))
++
++
++def test_corrupt_json_fails_closed(tmp_path: Path):
++    storage = SkillManagerStorage(tmp_path / "skill-manager")
++    storage.root.mkdir(parents=True)
++    (storage.root / "manifest.json").write_text("{broken", encoding="utf-8")
++
++    with pytest.raises(StorageError) as exc_info:
++        storage.read_manifest()
++
++    assert exc_info.value.code == "STATE_CORRUPT"
++
++
++def test_inflight_operations_are_failed_after_restart(tmp_path: Path):
++    storage = SkillManagerStorage(tmp_path / "skill-manager")
++    storage.save_operation({"id": "op-1", "status": "installing"})
++    storage.save_operation({"id": "op-2", "status": "succeeded"})
++
++    recovered = storage.recover_inflight_operations()
++
++    assert recovered == ["op-1"]
++    assert storage.load_operation("op-1")["status"] == "failed"
++    assert storage.load_operation("op-1")["error_code"] == "server_restarted"
++    assert storage.load_operation("op-2")["status"] == "succeeded"
++
++
++def test_manager_lock_serializes_threads(tmp_path: Path):
++    lock_root = tmp_path / "skill-manager"
++    active = 0
++    maximum = 0
++    guard = threading.Lock()
++
++    def worker() -> None:
++        nonlocal active, maximum
++        with manager_lock(lock_root):
++            with guard:
++                active += 1
++                maximum = max(maximum, active)
++            time.sleep(0.01)
++            with guard:
++                active -= 1
++
++    threads = [threading.Thread(target=worker) for _ in range(4)]
++    for thread in threads:
++        thread.start()
++    for thread in threads:
++        thread.join()
++
++    assert maximum == 1

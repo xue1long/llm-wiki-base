@@ -1,0 +1,483 @@
+# Review package: f210c66599eb8be43aca5f1d705d62a69eb6be5f..183d9996
+
+## Commits
+183d9996 feat(skill-manager): add safe Skill package inspection
+
+## Files changed
+ src/skill_manager/__init__.py            |  31 +++++
+ src/skill_manager/manager.py             | 192 +++++++++++++++++++++++++++++++
+ src/skill_manager/types.py               |  83 +++++++++++++
+ tests/test_skill_manager/test_package.py | 140 ++++++++++++++++++++++
+ 4 files changed, 446 insertions(+)
+
+## Diff
+diff --git a/src/skill_manager/__init__.py b/src/skill_manager/__init__.py
+new file mode 100644
+index 00000000..d2ca6743
+--- /dev/null
++++ b/src/skill_manager/__init__.py
+@@ -0,0 +1,31 @@
++"""Domain types and safe inspection for managed agent Skills."""
++
++from .manager import (
++    DEFAULT_PACKAGE_LIMITS,
++    build_artifact,
++    inspect_package,
++    inspect_source,
++)
++from .types import (
++    Artifact,
++    Deployment,
++    FileEntry,
++    PackageLimits,
++    PackageValidationError,
++    SourceSpec,
++    SourceInspection,
++)
++
++__all__ = [
++    "Artifact",
++    "Deployment",
++    "FileEntry",
++    "PackageLimits",
++    "PackageValidationError",
++    "SourceInspection",
++    "SourceSpec",
++    "DEFAULT_PACKAGE_LIMITS",
++    "build_artifact",
++    "inspect_package",
++    "inspect_source",
++]
+diff --git a/src/skill_manager/manager.py b/src/skill_manager/manager.py
+new file mode 100644
+index 00000000..96dbff5c
+--- /dev/null
++++ b/src/skill_manager/manager.py
+@@ -0,0 +1,192 @@
++"""Safe, read-only inspection of local static Skill packages."""
++
++from __future__ import annotations
++
++import hashlib
++import os
++import re
++from pathlib import Path
++from typing import Iterable, Sequence
++
++from .types import (
++    Artifact,
++    FileEntry,
++    PackageLimits,
++    PackageValidationError,
++    SourceInspection,
++    SourceSpec,
++)
++
++
++DEFAULT_PACKAGE_LIMITS = PackageLimits()
++_MARKER_NAME = ".ruflo-skill-manager.json"
++_PLUGIN_NAME = "plugin.json"
++_SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
++
++
++def inspect_source(
++    source: SourceSpec,
++    *,
++    limits: PackageLimits = DEFAULT_PACKAGE_LIMITS,
++    forbidden_roots: Sequence[Path] = (),
++    extra_paths: Iterable[Path] = (),
++) -> SourceInspection:
++    """Validate and hash a local static Skill without executing or copying it."""
++
++    if source.kind != "local":
++        raise PackageValidationError("UNSUPPORTED_SOURCE", "only local Skill sources are supported")
++    root = _resolve_source(source.path)
++    _reject_overlap(root, forbidden_roots)
++    for candidate in extra_paths:
++        _relative_path(root, Path(candidate))
++
++    entries = _collect_files(root, limits)
++    names = {entry.path.casefold() for entry in entries}
++    if _PLUGIN_NAME in names:
++        raise PackageValidationError(
++            "UNSUPPORTED_PLUGIN_TYPE", "plugin.json packages are not supported"
++        )
++    if _MARKER_NAME.casefold() in names:
++        raise PackageValidationError(
++            "MANAGER_MARKER_NOT_ALLOWED", "managed marker is owned by the manager"
++        )
++    if "skill.md" not in names:
++        raise PackageValidationError("MISSING_SKILL_FILE", "package root must contain SKILL.md")
++
++    content_hash = _content_hash(root, entries)
++    name = _skill_name(root / "SKILL.md", root.name)
++    artifact_id = f"skill-{content_hash}"
++    return SourceInspection(
++        source=source,
++        package_type="skill",
++        name=name,
++        artifact_id=artifact_id,
++        content_hash=content_hash,
++        files=tuple(entries),
++        total_bytes=sum(entry.size for entry in entries),
++    )
++
++
++def build_artifact(
++    source: SourceSpec,
++    *,
++    limits: PackageLimits = DEFAULT_PACKAGE_LIMITS,
++    forbidden_roots: Sequence[Path] = (),
++) -> Artifact:
++    """Turn a validated inspection into the immutable Task 1 domain value."""
++
++    inspection = inspect_source(source, limits=limits, forbidden_roots=forbidden_roots)
++    return Artifact(
++        artifact_id=inspection.artifact_id,
++        name=inspection.name,
++        content_hash=inspection.content_hash,
++        files=inspection.files,
++        total_bytes=inspection.total_bytes,
++        source=inspection.source,
++    )
++
++
++inspect_package = inspect_source
++
++
++def _resolve_source(path: Path) -> Path:
++    raw = Path(path)
++    if raw.is_symlink():
++        raise PackageValidationError("SYMLINK_NOT_ALLOWED", "source directory cannot be a symlink")
++    try:
++        root = raw.resolve(strict=True)
++    except FileNotFoundError as exc:
++        raise PackageValidationError("SOURCE_NOT_FOUND", "Skill source does not exist") from exc
++    if not root.is_dir():
++        raise PackageValidationError("SOURCE_NOT_DIRECTORY", "Skill source must be a directory")
++    return root
++
++
++def _reject_overlap(root: Path, forbidden_roots: Sequence[Path]) -> None:
++    for forbidden in forbidden_roots:
++        candidate = Path(forbidden).resolve()
++        if root == candidate or root in candidate.parents or candidate in root.parents:
++            raise PackageValidationError(
++                "SOURCE_SELF_CONTAINED", "Skill source overlaps a manager-owned directory"
++            )
++
++
++def _relative_path(root: Path, path: Path) -> str:
++    raw = Path(path)
++    try:
++        relative = raw.resolve(strict=False).relative_to(root)
++    except ValueError as exc:
++        raise PackageValidationError("PATH_TRAVERSAL", "package path escapes source root") from exc
++    if any(part in {"", ".", ".."} for part in raw.parts):
++        raise PackageValidationError("PATH_TRAVERSAL", "package path contains traversal")
++    return relative.as_posix()
++
++
++def _collect_files(root: Path, limits: PackageLimits) -> list[FileEntry]:
++    paths: list[tuple[str, Path]] = []
++    for current, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
++        current_path = Path(current)
++        for dirname in list(dirnames):
++            directory = current_path / dirname
++            if directory.is_symlink():
++                raise PackageValidationError("SYMLINK_NOT_ALLOWED", "package cannot contain symlinks")
++        dirnames.sort()
++        for filename in sorted(filenames):
++            path = current_path / filename
++            if path.is_symlink():
++                raise PackageValidationError("SYMLINK_NOT_ALLOWED", "package cannot contain symlinks")
++            relative = _relative_path(root, path)
++            if not path.is_file():
++                raise PackageValidationError("UNSUPPORTED_ENTRY", "package contains a non-file entry")
++            size = path.stat().st_size
++            if size > limits.max_file_bytes:
++                raise PackageValidationError("FILE_TOO_LARGE", "package file exceeds size limit")
++            paths.append((relative, path))
++            if len(paths) > limits.max_files:
++                raise PackageValidationError("TOO_MANY_FILES", "package contains too many files")
++
++    entries: list[FileEntry] = []
++    total = 0
++    for relative, path in sorted(paths):
++        size = path.stat().st_size
++        total += size
++        if total > limits.max_total_bytes:
++            raise PackageValidationError("PACKAGE_TOO_LARGE", "package exceeds total size limit")
++        entries.append(FileEntry(relative, size, _file_hash(path)))
++    return entries
++
++
++def _file_hash(path: Path) -> str:
++    digest = hashlib.sha256()
++    with path.open("rb") as stream:
++        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
++            digest.update(chunk)
++    return digest.hexdigest()
++
++
++def _content_hash(root: Path, entries: Sequence[FileEntry]) -> str:
++    digest = hashlib.sha256()
++    for entry in entries:
++        digest.update(entry.path.encode("utf-8"))
++        digest.update(b"\0")
++        digest.update(str(entry.size).encode("ascii"))
++        digest.update(b"\0")
++        with (root / Path(entry.path)).open("rb") as stream:
++            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
++                digest.update(chunk)
++    return digest.hexdigest()
++
++
++def _skill_name(skill_file: Path, fallback: str) -> str:
++    try:
++        first_lines = skill_file.read_text(encoding="utf-8").splitlines()[:20]
++    except UnicodeDecodeError as exc:
++        raise PackageValidationError("INVALID_SKILL_FILE", "SKILL.md must be UTF-8 text") from exc
++    for line in first_lines:
++        if line.startswith("name:"):
++            candidate = line.partition(":")[2].strip().strip("\"'")
++            if candidate and _SAFE_NAME.fullmatch(candidate):
++                return candidate
++    if not _SAFE_NAME.fullmatch(fallback):
++        raise PackageValidationError("INVALID_SKILL_NAME", "Skill directory name is not safe")
++    return fallback
+diff --git a/src/skill_manager/types.py b/src/skill_manager/types.py
+new file mode 100644
+index 00000000..72e29dc0
+--- /dev/null
++++ b/src/skill_manager/types.py
+@@ -0,0 +1,83 @@
++"""Small, immutable domain vocabulary for the Skill manager."""
++
++from __future__ import annotations
++
++from dataclasses import dataclass
++from pathlib import Path
++
++
++@dataclass(frozen=True)
++class SourceSpec:
++    """A source locator; Task 1 supports local directories only."""
++
++    path: Path
++    kind: str = "local"
++
++    def __post_init__(self) -> None:
++        object.__setattr__(self, "path", Path(self.path))
++
++
++@dataclass(frozen=True)
++class PackageLimits:
++    """Safety limits applied while inspecting a package."""
++
++    max_file_bytes: int = 1024 * 1024
++    max_total_bytes: int = 5 * 1024 * 1024
++    max_files: int = 256
++
++
++@dataclass(frozen=True)
++class FileEntry:
++    """Deterministic metadata for one package file."""
++
++    path: str
++    size: int
++    content_hash: str
++
++
++@dataclass(frozen=True)
++class SourceInspection:
++    """Validated package metadata, without writing to the Library."""
++
++    source: SourceSpec
++    package_type: str
++    name: str
++    artifact_id: str
++    content_hash: str
++    files: tuple[FileEntry, ...]
++    total_bytes: int
++
++
++@dataclass(frozen=True)
++class Artifact:
++    """An immutable validated Skill snapshot identity."""
++
++    artifact_id: str
++    name: str
++    content_hash: str
++    files: tuple[FileEntry, ...]
++    total_bytes: int
++    source: SourceSpec
++
++
++@dataclass(frozen=True)
++class Deployment:
++    """A record assigning one Artifact to one concrete Agent target."""
++
++    deployment_id: str
++    artifact_id: str
++    target_id: str
++    target_path: str
++    content_hash: str
++
++
++class PackageValidationError(ValueError):
++    """Stable, caller-visible rejection for an unsafe or unsupported package."""
++
++    def __init__(self, code: str, message: str) -> None:
++        self.code = code
++        super().__init__(message)
++
++    @property
++    def error_code(self) -> str:
++        return self.code
+diff --git a/tests/test_skill_manager/test_package.py b/tests/test_skill_manager/test_package.py
+new file mode 100644
+index 00000000..6d47adc2
+--- /dev/null
++++ b/tests/test_skill_manager/test_package.py
+@@ -0,0 +1,140 @@
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++
++from src.skill_manager.manager import build_artifact, inspect_source
++from src.skill_manager.types import (
++    Artifact,
++    Deployment,
++    PackageLimits,
++    PackageValidationError,
++    SourceSpec,
++)
++
++
++def _source(path: Path) -> SourceSpec:
++    return SourceSpec(path=path)
++
++
++def test_inspection_produces_distinct_domain_types_and_stable_artifact_hash(tmp_path: Path):
++    root = tmp_path / "demo"
++    root.mkdir()
++    (root / "SKILL.md").write_text("---\nname: demo\n---\n\nUse it.\n", encoding="utf-8")
++    (root / "references").mkdir()
++    (root / "references" / "guide.md").write_text("guide", encoding="utf-8")
++
++    source = _source(root)
++    inspection = inspect_source(source)
++    artifact = build_artifact(source)
++    deployment = Deployment(
++        deployment_id="deployment-1",
++        artifact_id=artifact.artifact_id,
++        target_id="codex",
++        target_path="C:/Users/test/.codex/skills/demo",
++        content_hash=artifact.content_hash,
++    )
++
++    assert inspection.package_type == "skill"
++    assert inspection.name == "demo"
++    assert inspection.content_hash == inspect_source(source).content_hash
++    assert artifact.source == source
++    assert artifact.content_hash == inspection.content_hash
++    assert deployment.artifact_id == artifact.artifact_id
++    assert deployment.target_id == "codex"
++
++
++def test_plugin_manifest_is_rejected_before_any_package_is_accepted(tmp_path: Path):
++    root = tmp_path / "plugin"
++    root.mkdir()
++    (root / "SKILL.md").write_text("# not a plugin", encoding="utf-8")
++    (root / "plugin.json").write_text('{"entrypoint":"run.py"}', encoding="utf-8")
++
++    with pytest.raises(PackageValidationError) as exc_info:
++        inspect_source(_source(root))
++
++    assert exc_info.value.code == "UNSUPPORTED_PLUGIN_TYPE"
++
++
++def test_package_scripts_are_never_executed(tmp_path: Path):
++    root = tmp_path / "skill"
++    root.mkdir()
++    (root / "SKILL.md").write_text("# demo", encoding="utf-8")
++    sentinel = tmp_path / "executed.txt"
++    (root / "run.py").write_text(
++        f"from pathlib import Path\nPath({str(sentinel)!r}).write_text('executed')\n",
++        encoding="utf-8",
++    )
++
++    inspect_source(_source(root))
++
++    assert not sentinel.exists()
++
++
++def test_source_path_validation_rejects_parent_escape(tmp_path: Path):
++    root = tmp_path / "skill"
++    root.mkdir()
++    (root / "SKILL.md").write_text("# demo", encoding="utf-8")
++
++    with pytest.raises(PackageValidationError) as exc_info:
++        inspect_source(_source(root), extra_paths=[root / ".." / "escape.txt"])
++
++    assert exc_info.value.code == "PATH_TRAVERSAL"
++
++
++def test_symlink_is_rejected_before_reading_the_target(tmp_path: Path):
++    root = tmp_path / "skill"
++    root.mkdir()
++    (root / "SKILL.md").write_text("# demo", encoding="utf-8")
++    outside = tmp_path / "outside.txt"
++    outside.write_text("outside", encoding="utf-8")
++    link = root / "link.txt"
++    try:
++        link.symlink_to(outside)
++    except OSError:
++        pytest.skip("symlink creation is unavailable on this Windows host")
++
++    with pytest.raises(PackageValidationError) as exc_info:
++        inspect_source(_source(root))
++
++    assert exc_info.value.code == "SYMLINK_NOT_ALLOWED"
++
++
++def test_file_size_and_count_limits_are_enforced(tmp_path: Path):
++    root = tmp_path / "skill"
++    root.mkdir()
++    (root / "SKILL.md").write_text("# demo", encoding="utf-8")
++    with pytest.raises(PackageValidationError) as size_error:
++        inspect_source(_source(root), limits=PackageLimits(max_file_bytes=4))
++    assert size_error.value.code == "FILE_TOO_LARGE"
++
++    (root / "SKILL.md").write_text("ok", encoding="utf-8")
++    (root / "one.txt").write_text("1", encoding="utf-8")
++    (root / "two.txt").write_text("2", encoding="utf-8")
++    with pytest.raises(PackageValidationError) as count_error:
++        inspect_source(_source(root), limits=PackageLimits(max_files=2))
++    assert count_error.value.code == "TOO_MANY_FILES"
++
++
++def test_manager_marker_is_reserved(tmp_path: Path):
++    root = tmp_path / "skill"
++    root.mkdir()
++    (root / "SKILL.md").write_text("# demo", encoding="utf-8")
++    (root / ".ruflo-skill-manager.json").write_text("{}", encoding="utf-8")
++
++    with pytest.raises(PackageValidationError) as exc_info:
++        inspect_source(_source(root))
++
++    assert exc_info.value.code == "MANAGER_MARKER_NOT_ALLOWED"
++
++
++def test_source_overlapping_manager_root_is_rejected(tmp_path: Path):
++    root = tmp_path / "manager" / "skill"
++    root.mkdir(parents=True)
++    (root / "SKILL.md").write_text("# demo", encoding="utf-8")
++
++    with pytest.raises(PackageValidationError) as exc_info:
++        inspect_source(_source(root), forbidden_roots=[tmp_path / "manager"])
++
++    assert exc_info.value.code == "SOURCE_SELF_CONTAINED"

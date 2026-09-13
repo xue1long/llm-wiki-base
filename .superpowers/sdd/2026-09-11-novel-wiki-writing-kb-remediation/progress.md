@@ -44,3 +44,10 @@
 - Task 3: complete — pending ledger records page/vector hashes, model and failed state; ready is conservative; search mode is propagated and semantic search fails closed; commit 3f4a1077; ready/search regressions + py_compile PASS.
 - Task 4: resolved — initial full-scope run was blocked by pending vectors; after narrowing the explicitly approved actionable scope, the final evidence passed with 15/15, 5/5 and 4/4 results.
 - Task 5: complete — final report: `docs/reports/2026-09-11-novel-wiki-remediation-final.md`; Task 5 fixes cover empty-vector deletion, failed-batch status, and relative-path lineage cleanup. No automatic scale-up.
+
+## Production rollout (user-authorized 2026-09-11)
+
+- Scope expanded by explicit user authorization to full rollout. This supersedes the earlier Task 5 boundary of restricted canary only.
+- Provider authorization: `minimax` / `MiniMax-M3`; fake generation remains disabled.
+- Vector rebuild run `prod-vector-20260911` is running from checkpoint with local `thenlper/gte-small-zh` 512-dim embeddings; raw batch runner waits for its completion.
+- User clarification: raw has already been ingested; re-ingestion is unnecessary. The raw batch watcher was stopped before batch 0, so no raw content was sent to MiniMax. Vector rebuild/reconciliation is complete: 1718/1718 main pages, 3829/3829 rows, pending=0, actionable readiness=true. The 22 `wiki/_stubs/` pages remain intentionally unpublished. See `docs/reports/2026-09-11-novel-wiki-production-rollout.md`.
