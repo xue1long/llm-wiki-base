@@ -5,6 +5,16 @@
   window.App = window.App || {};
 
   App.renderModelSettings = function renderModelSettings(root) {
+    const PROVIDER_PRESETS = {
+      "minimax": { base_url: "https://api.minimax.chat/v1", model: "MiniMax-Text-01", label: "MiniMax" },
+      "kimi": { base_url: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k", label: "Kimi / Moonshot" },
+      "deepseek": { base_url: "https://api.deepseek.com/v1", model: "deepseek-chat", label: "DeepSeek" },
+      "glm": { base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-plus", label: "GLM / 智谱" },
+      "openai": { base_url: "https://api.openai.com/v1", model: "gpt-4o", label: "OpenAI（官方）" },
+      "anthropic": { base_url: "", model: "", label: "Anthropic" },
+      "ollama": { base_url: "http://127.0.0.1:11434", model: "", label: "Ollama（本地）" },
+    };
+
     root.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
         <h2 style="margin:0;">LLM 提供商设置</h2>
@@ -13,6 +23,7 @@
       <div class="provider-grid" id="providerGrid">
         <div class="provider-card"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>
       </div>
+      <div id="providerConfigWarning" class="banner-warn" style="display:none;margin-top:12px;"></div>
       <div class="settings-section" style="margin-top:24px;">
         <h3 style="font-size:14px;margin:0 0 8px;">测试连接</h3>
         <div style="display:flex;gap:8px;align-items:center;">
@@ -32,15 +43,23 @@
       const grid = document.getElementById("providerGrid");
       try {
         const data = await App.api("/api/v1/providers");
-        renderProviderCards(data.providers || []);
+        renderProviderCards(data.providers || [], data.default_error || "");
       } catch (e) {
         grid.innerHTML = `<div class="banner-err">加载失败: ${App.escapeHtml(e.message)}</div>`;
       }
     }
 
-    function renderProviderCards(providers) {
+    function renderProviderCards(providers, defaultError) {
       const grid = document.getElementById("providerGrid");
       const testSelect = document.getElementById("testProvName");
+      const warning = document.getElementById("providerConfigWarning");
+      if (defaultError) {
+        warning.style.display = "block";
+        warning.textContent = "默认提供商解析失败：" + defaultError + "。请先修正配置，再删除提供商。";
+      } else {
+        warning.style.display = "none";
+        warning.textContent = "";
+      }
 
       if (!providers.length) {
         grid.innerHTML = `<div class="empty-state">
@@ -62,7 +81,8 @@
         const starIcon = p.is_default ? "★" : "☆";
         const starTitle = p.is_default ? "当前默认" : "设为默认";
         const starClass = p.is_default ? "star-active" : "";
-        const model = p.default_chat_model || p.default_embedding_model || "—";
+        const chatModel = p.default_chat_model || "—";
+        const embeddingModel = p.default_embedding_model || "—";
         const baseUrl = p.base_url || "—";
         const keyDisplay = p.api_key || "—";
 
@@ -76,8 +96,12 @@
           </div>
           <div class="provider-card-body">
             <div class="provider-card-field">
-              <span class="provider-card-label">Model</span>
-              <span class="provider-card-value">${App.escapeHtml(model)}</span>
+              <span class="provider-card-label">Chat Model</span>
+              <span class="provider-card-value">${App.escapeHtml(chatModel)}</span>
+            </div>
+            <div class="provider-card-field">
+              <span class="provider-card-label">Embedding Model</span>
+              <span class="provider-card-value">${App.escapeHtml(embeddingModel)}</span>
             </div>
             <div class="provider-card-field">
               <span class="provider-card-label">Base URL</span>
@@ -185,16 +209,6 @@
       const existing = document.getElementById("addProviderModal");
       if (existing) existing.remove();
 
-      const PROVIDER_PRESETS = {
-        "minimax": { base_url: "https://api.minimax.chat/v1", model: "MiniMax-Text-01", label: "MiniMax" },
-        "kimi": { base_url: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k", label: "Kimi / Moonshot" },
-        "deepseek": { base_url: "https://api.deepseek.com/v1", model: "deepseek-chat", label: "DeepSeek" },
-        "glm": { base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-plus", label: "GLM / 智谱" },
-        "openai": { base_url: "https://api.openai.com/v1", model: "gpt-4o", label: "OpenAI（官方）" },
-        "anthropic": { base_url: "", model: "", label: "Anthropic" },
-        "ollama": { base_url: "http://127.0.0.1:11434", model: "", label: "Ollama（本地）" },
-      };
-
       const modal = document.createElement("div");
       modal.id = "addProviderModal";
       modal.className = "modal-overlay";
@@ -206,7 +220,8 @@
         <div class="modal-body">
           <div class="modal-field">
             <label>名称</label>
-            <input id="modalProvName" value="${App.escapeHtml(provider.name)}" />
+            <input id="modalProvName" value="${App.escapeHtml(provider.name)}" readonly />
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">名称不可修改；如需新名称请添加新的提供商</div>
           </div>
           <div class="modal-field">
             <label>预设</label>
@@ -236,8 +251,12 @@
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">留空保持原有值不变</div>
           </div>
           <div class="modal-field">
-            <label>默认模型</label>
-            <input id="modalProvModel" value="${App.escapeHtml(provider.default_chat_model || "")}" />
+            <label>默认 Chat 模型</label>
+            <input id="modalProvChatModel" value="${App.escapeHtml(provider.default_chat_model || "")}" />
+          </div>
+          <div class="modal-field">
+            <label>默认 Embedding 模型</label>
+            <input id="modalProvEmbeddingModel" value="${App.escapeHtml(provider.default_embedding_model || "")}" />
           </div>
           <div id="modalAddResult" style="margin-top:8px;"></div>
         </div>
@@ -255,7 +274,7 @@
         const nameEl = document.getElementById("modalProvName");
         if (!nameEl.value.trim() || nameEl.value === provider.name) nameEl.value = modal.querySelector("#modalProvPreset").value;
         document.getElementById("modalProvBaseUrl").value = preset.base_url || "";
-        document.getElementById("modalProvModel").value = preset.model || "";
+        document.getElementById("modalProvChatModel").value = preset.model || "";
         if (preset.label.includes("Anthropic")) {
           document.getElementById("modalProvType").value = "anthropic";
         } else if (preset.label.includes("Ollama")) {
@@ -277,13 +296,14 @@
         const type = document.getElementById("modalProvType").value;
         const api_key = document.getElementById("modalProvKey").value;
         const base_url = document.getElementById("modalProvBaseUrl").value.trim();
-        const model = document.getElementById("modalProvModel").value.trim();
+        const chat_model = document.getElementById("modalProvChatModel").value.trim();
+        const embedding_model = document.getElementById("modalProvEmbeddingModel").value.trim();
         const result = document.getElementById("modalAddResult");
         if (!name) { result.innerHTML = '<span class="banner-warn">请输入名称</span>'; return; }
         result.innerHTML = "保存中...";
         try {
           // POST /providers 是 upsert 语义，直接覆盖
-          const body = { name, type, base_url, chat_model: model, embedding_model: model };
+          const body = { name, type, base_url, chat_model, embedding_model };
           // 只有用户手动输入了新 key 才传，否则后端保持原有值
           if (api_key && api_key !== "***") body.api_key = api_key;
           await App.api("/api/v1/providers", {
@@ -302,16 +322,6 @@
     function showAddModal() {
       const existing = document.getElementById("addProviderModal");
       if (existing) existing.remove();
-
-      const PROVIDER_PRESETS = {
-        "minimax": { base_url: "https://api.minimax.chat/v1", model: "MiniMax-Text-01", label: "MiniMax" },
-        "kimi": { base_url: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k", label: "Kimi / Moonshot" },
-        "deepseek": { base_url: "https://api.deepseek.com/v1", model: "deepseek-chat", label: "DeepSeek" },
-        "glm": { base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-plus", label: "GLM / 智谱" },
-        "openai": { base_url: "https://api.openai.com/v1", model: "gpt-4o", label: "OpenAI（官方）" },
-        "anthropic": { base_url: "", model: "", label: "Anthropic" },
-        "ollama": { base_url: "http://127.0.0.1:11434", model: "", label: "Ollama（本地）" },
-      };
 
       const modal = document.createElement("div");
       modal.id = "addProviderModal";
@@ -353,8 +363,12 @@
             <input id="modalProvKey" type="password" placeholder="留空从环境变量读取" />
           </div>
           <div class="modal-field">
-            <label>默认模型</label>
-            <input id="modalProvModel" placeholder="如 gpt-4o" />
+            <label>默认 Chat 模型</label>
+            <input id="modalProvChatModel" placeholder="如 gpt-4o" />
+          </div>
+          <div class="modal-field">
+            <label>默认 Embedding 模型</label>
+            <input id="modalProvEmbeddingModel" placeholder="如 text-embedding-3-small" />
           </div>
           <div id="modalAddResult" style="margin-top:8px;"></div>
         </div>
@@ -372,7 +386,7 @@
         const nameEl = document.getElementById("modalProvName");
         if (!nameEl.value.trim()) nameEl.value = modal.querySelector("#modalProvPreset").value;
         document.getElementById("modalProvBaseUrl").value = preset.base_url || "";
-        document.getElementById("modalProvModel").value = preset.model || "";
+        document.getElementById("modalProvChatModel").value = preset.model || "";
         if (preset.label.includes("Anthropic")) {
           document.getElementById("modalProvType").value = "anthropic";
         } else if (preset.label.includes("Ollama")) {
@@ -394,14 +408,15 @@
         const type = document.getElementById("modalProvType").value;
         const api_key = document.getElementById("modalProvKey").value;
         const base_url = document.getElementById("modalProvBaseUrl").value.trim();
-        const model = document.getElementById("modalProvModel").value.trim();
+        const chat_model = document.getElementById("modalProvChatModel").value.trim();
+        const embedding_model = document.getElementById("modalProvEmbeddingModel").value.trim();
         const result = document.getElementById("modalAddResult");
         if (!name) { result.innerHTML = '<span class="banner-warn">请输入名称</span>'; return; }
         result.innerHTML = "添加中...";
         try {
           await App.api("/api/v1/providers", {
             method: "POST",
-            body: { name, type, api_key, base_url, chat_model: model, embedding_model: model },
+            body: { name, type, api_key, base_url, chat_model, embedding_model },
           });
           closeModal();
           loadSettings();
@@ -434,6 +449,7 @@
           <nav class="settings-modal-nav" aria-label="设置分类">
             <button class="settings-nav-btn active" data-settings-page="model" type="button">模型</button>
             <button class="settings-nav-btn" data-settings-page="search" type="button">搜索</button>
+            <button class="settings-nav-btn" data-settings-page="skills" type="button">Skills</button>
           </nav>
           <section class="settings-modal-panel" id="settingsModalPanel" aria-live="polite"></section>
         </div>
@@ -464,6 +480,8 @@
       });
       if (page === "search") {
         panelCleanup = renderSearchSettings(panel);
+      } else if (page === "skills") {
+        panelCleanup = renderSkillSettings(panel);
       } else {
         App.renderModelSettings(panel);
       }
@@ -481,6 +499,171 @@
   };
 
   App.closeSettingsModal = null;
+
+  function renderSkillSettings(root) {
+    root.innerHTML = `
+      <div class="settings-panel-heading">
+        <div>
+          <div class="settings-panel-eyebrow">SKILL LIBRARY</div>
+          <h3>Agent Skills</h3>
+          <p>把静态 Skill 导入独立 Library，再明确部署到 Agent。v1 不执行 Plugin、MCP、hook 或安装脚本。</p>
+        </div>
+      </div>
+      <div class="skill-settings-flow">
+        <section class="skill-settings-card">
+          <div class="skill-settings-step">01 · SOURCE</div>
+          <label class="skill-settings-label" for="skillSourcePath">本地 Skill 目录</label>
+          <div class="skill-settings-input-row">
+            <input id="skillSourcePath" type="text" placeholder="例如：E:\\skills\\my-skill" autocomplete="off" />
+            <button class="btn-primary" id="skillInspectBtn" type="button">检查来源</button>
+          </div>
+          <div class="settings-help">目录根部必须包含 SKILL.md；出现 plugin.json 会明确拒绝。</div>
+          <div id="skillInspectResult" class="skill-settings-result" aria-live="polite">等待检查来源...</div>
+        </section>
+        <section class="skill-settings-card">
+          <div class="skill-settings-step">02 · LIBRARY</div>
+          <div class="skill-settings-row">
+            <div>
+              <strong>已验证 Artifact</strong>
+              <div class="settings-help">导入只写 Library，不会修改 Agent 目录。</div>
+            </div>
+            <button class="btn-sm" id="skillRefreshBtn" type="button">刷新</button>
+          </div>
+          <select id="skillArtifactSelect" class="skill-settings-select" aria-label="选择 Artifact">
+            <option value="">暂无 Artifact</option>
+          </select>
+          <div id="skillImportResult" class="skill-settings-result" aria-live="polite"></div>
+          <button class="btn-primary" id="skillImportBtn" type="button" disabled>确认导入 Artifact</button>
+        </section>
+        <section class="skill-settings-card">
+          <div class="skill-settings-step">03 · DEPLOY</div>
+          <div class="settings-help">先预览目标状态，再确认部署。冲突会停止整个计划，不覆盖已有内容。</div>
+          <div id="skillAgents" class="skill-settings-agents">读取 Agent...</div>
+          <button class="btn-sm" id="skillPlanBtn" type="button" disabled>生成部署计划</button>
+          <div id="skillPlanResult" class="skill-settings-result" aria-live="polite"></div>
+          <button class="btn-primary" id="skillDeployBtn" type="button" disabled>确认部署</button>
+        </section>
+      </div>
+      <div class="skill-settings-card skill-settings-plugin-note">
+        <span class="skill-settings-plugin-badge">PLUGIN · UNSUPPORTED</span>
+        <span>Plugin 暂不支持安装。当前版本只处理不执行代码的静态 Skill。</span>
+      </div>
+    `;
+
+    const sourceEl = root.querySelector("#skillSourcePath");
+    const inspectBtn = root.querySelector("#skillInspectBtn");
+    const inspectResult = root.querySelector("#skillInspectResult");
+    const artifactSelect = root.querySelector("#skillArtifactSelect");
+    const importBtn = root.querySelector("#skillImportBtn");
+    const importResult = root.querySelector("#skillImportResult");
+    const agentsEl = root.querySelector("#skillAgents");
+    const planBtn = root.querySelector("#skillPlanBtn");
+    const planResult = root.querySelector("#skillPlanResult");
+    const deployBtn = root.querySelector("#skillDeployBtn");
+    let inspection = null;
+    let plan = null;
+    let pollTimer = null;
+
+    function setBusy(button, busy) {
+      button.disabled = busy;
+      if (busy) button.dataset.previousText = button.textContent;
+      button.textContent = busy ? "处理中..." : (button.dataset.previousText || button.textContent);
+    }
+
+    function selectedAgents() {
+      return [...root.querySelectorAll("input[name=skill-agent]:checked")].map(input => input.value);
+    }
+
+    function renderArtifacts(artifacts) {
+      artifactSelect.innerHTML = artifacts.length
+        ? artifacts.map(item => `<option value="${App.escapeHtml(item.artifact_id)}">${App.escapeHtml(item.name)} · ${App.escapeHtml(item.content_hash.slice(0, 12))}</option>`).join("")
+        : '<option value="">暂无 Artifact</option>';
+      const matching = inspection && artifacts.find(item => item.artifact_id === inspection.artifact_id);
+      if (matching) artifactSelect.value = matching.artifact_id;
+      updateActions();
+    }
+
+    function updateActions() {
+      const hasArtifact = !!artifactSelect.value;
+      importBtn.disabled = !inspection;
+      planBtn.disabled = !hasArtifact || !selectedAgents().length;
+      deployBtn.disabled = !plan || plan.targets.some(item => item.status === "conflict");
+    }
+
+    async function loadLibrary() {
+      const data = await App.api("/api/v1/skill-manager/library");
+      renderArtifacts(data.artifacts || []);
+    }
+
+    async function loadAgents() {
+      const data = await App.api("/api/v1/skill-manager/agents");
+      agentsEl.innerHTML = (data.agents || []).map(agent => `
+        <label class="skill-settings-agent">
+          <input type="checkbox" name="skill-agent" value="${App.escapeHtml(agent.id)}" ${agent.exists ? "" : "disabled"} />
+          <span>${App.escapeHtml(agent.id)}</span>
+          <small>${agent.exists ? "可用" : "目录不存在"}</small>
+        </label>`).join("") || '<span class="settings-help">没有可用 Agent 目标</span>';
+      root.querySelectorAll("input[name=skill-agent]").forEach(input => input.addEventListener("change", updateActions));
+      updateActions();
+    }
+
+    inspectBtn.addEventListener("click", async () => {
+      const source = sourceEl.value.trim();
+      if (!source) { inspectResult.textContent = "请输入本地目录"; return; }
+      setBusy(inspectBtn, true);
+      try {
+        inspection = await App.api("/api/v1/skill-manager/artifacts/inspect", { method: "POST", body: { source } });
+        inspectResult.innerHTML = `<strong>${App.escapeHtml(inspection.name)}</strong> · ${inspection.file_count} 个文件 · ${inspection.total_bytes} bytes<br><code>${App.escapeHtml(inspection.content_hash)}</code>`;
+        importResult.textContent = "检查通过；点击“确认导入 Artifact”写入 Library。";
+        await loadLibrary();
+      } catch (e) {
+        inspection = null;
+        inspectResult.textContent = e.message.includes("UNSUPPORTED_PLUGIN_TYPE") ? "Plugin 暂不支持" : "检查失败：" + e.message;
+        updateActions();
+      } finally { setBusy(inspectBtn, false); }
+    });
+
+    importBtn.addEventListener("click", async () => {
+      if (!inspection || !window.confirm("确认把这个已检查的 Skill 导入 Library？不会写入 Agent。")) return;
+      setBusy(importBtn, true);
+      try {
+        const result = await App.api("/api/v1/skill-manager/artifacts/import", { method: "POST", body: { source: sourceEl.value.trim(), plan_hash: inspection.content_hash, confirm: true } });
+        importResult.textContent = "已导入 Artifact：" + result.artifact_id;
+        await loadLibrary();
+      } catch (e) { importResult.textContent = "导入失败：" + e.message; }
+      finally { setBusy(importBtn, false); }
+    });
+
+    root.querySelector("#skillRefreshBtn").addEventListener("click", () => loadLibrary().catch(e => { importResult.textContent = "刷新失败：" + e.message; }));
+    planBtn.addEventListener("click", async () => {
+      setBusy(planBtn, true);
+      try {
+        plan = await App.api("/api/v1/skill-manager/deployments/plan", { method: "POST", body: { artifact_id: artifactSelect.value, target_ids: selectedAgents() } });
+        planResult.innerHTML = plan.targets.map(item => `<div><span class="skill-status-${item.status}">${App.escapeHtml(item.status)}</span> ${App.escapeHtml(item.id)}${item.reason ? " · " + App.escapeHtml(item.reason) : ""}</div>`).join("");
+      } catch (e) { plan = null; planResult.textContent = "计划失败：" + e.message; }
+      finally { setBusy(planBtn, false); updateActions(); }
+    });
+
+    deployBtn.addEventListener("click", async () => {
+      if (!plan || !window.confirm("确认部署到选中的 Agent？冲突目标不会被覆盖。")) return;
+      setBusy(deployBtn, true);
+      try {
+        const result = await App.api("/api/v1/skill-manager/deployments/apply", { method: "POST", body: { artifact_id: plan.artifact_id, target_ids: selectedAgents(), plan_hash: plan.plan_hash, confirm: true } });
+        planResult.textContent = "Operation " + result.operation_id + "：" + result.status;
+        const operationId = result.operation_id;
+        pollTimer = setInterval(async () => {
+          try {
+            const status = await App.api("/api/v1/skill-manager/operations/" + encodeURIComponent(operationId));
+            planResult.textContent = "Operation " + operationId + "：" + status.status;
+            if (["succeeded", "failed", "conflict", "partial_failure"].includes(status.status)) { clearInterval(pollTimer); pollTimer = null; setBusy(deployBtn, false); }
+          } catch (e) { clearInterval(pollTimer); pollTimer = null; planResult.textContent = "状态读取失败：" + e.message; setBusy(deployBtn, false); }
+        }, 1000);
+      } catch (e) { planResult.textContent = "部署失败：" + e.message; setBusy(deployBtn, false); }
+    });
+
+    Promise.all([loadLibrary(), loadAgents()]).catch(e => { agentsEl.textContent = "加载失败：" + e.message; });
+    return () => { if (pollTimer) clearInterval(pollTimer); };
+  }
 
   function renderSearchSettings(root) {
     root.innerHTML = `

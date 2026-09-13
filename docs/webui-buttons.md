@@ -158,20 +158,22 @@ Book 阅读页读取 `CURRENT.json` 指向的完整性校验 release：
 
 | 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
 |------|----------|------|----------|------|
-| **★ 设为默认** | 行 102 | 将该 provider 设为默认 | `POST /api/v1/providers/set-default` | |
-| **测试** | 行 115 | 测试 provider 连接 | `POST /api/v1/providers/test?name=...` | |
-| **编辑** | 行 140 | 编辑 provider 配置 | `GET /api/v1/providers/{name}` | 打开编辑模态框 |
-| **删除** | 行 154 | 删除 provider | `DELETE /api/v1/providers/{name}` | |
+| **★ 设为默认** | Provider 卡片 | 将该 provider 写入全局显式默认槽位 | `POST /api/v1/providers/set-default` | 显式默认优先于旧环境变量；失败时保留当前配置 |
+| **测试** | Provider 卡片 / 测试连接区 | 按 provider 名称加载已保存配置并测试连接 | `POST /api/v1/providers/test?name=...` | 必须先保存；不会提交临时表单配置 |
+| **编辑** | Provider 卡片 | 编辑已保存 provider 配置 | `GET /api/v1/providers/{name}` + `POST /api/v1/providers` | 名称只读；API Key 只显示掩码，留空保持原值 |
+| **删除** | Provider 卡片 | 删除 provider | `DELETE /api/v1/providers/{name}` | 当前默认 provider 不可直接删除；默认解析异常也会阻止删除 |
+
+Provider 卡片同时展示默认 Chat 模型和默认 Embedding 模型。列表接口若无法解析默认 provider，会显示明确警告且不猜测默认项。
 
 ### 6.3 添加 Provider
 
 | 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
 |------|----------|------|----------|------|
 | **+ 添加** | 行 28 | 打开添加 provider 模态框 | — | |
-| **测试**（模态框内） | 行 167 | 添加前测试连接 | `POST /api/v1/providers/test?name=...` | |
-| **保存** | 行 275 | 保存新 provider | `POST /api/v1/providers` | |
-| **取消** | 行 272 | 关闭模态框 | — | |
-| **× 关闭** | 行 271 | 关闭模态框 | — | |
+| **保存 / 添加** | Provider 模态框 | 保存 provider；编辑时执行 upsert | `POST /api/v1/providers` | 字段：名称、类型、Base URL、API Key、默认 Chat 模型、默认 Embedding 模型 |
+| **测试** | 卡片或测试连接区 | 保存后按名称测试 provider 连接 | `POST /api/v1/providers/test?name=...` | 第一阶段不提供未保存配置的预检 |
+| **取消** | Provider 模态框 | 关闭模态框 | — | |
+| **× 关闭** | Provider 模态框 | 关闭模态框 | — | |
 
 ---
 
@@ -297,6 +299,27 @@ Book 阅读页读取 `CURRENT.json` 指向的完整性校验 release：
 ---
 
 ## 新增按钮流程
+
+## 设置 → Skills
+
+**文件：** [web/js/views/settings.js](../web/js/views/settings.js)
+
+| 按钮 | 位置行号 | 功能 | 后端 API | 说明 |
+|------|----------|------|----------|------|
+| **Skills** | 452 | 切换设置内 Skills 页面 | — | 设置模态内部页签 |
+| **检查来源** | 518 | 校验本地目录、计算 Artifact hash | `POST /api/v1/skill-manager/artifacts/inspect` | 只读；Plugin 显示不支持 |
+| **刷新** | 530 | 刷新 Library 中的 Artifact | `GET /api/v1/skill-manager/library` | |
+| **确认导入 Artifact** | 536 | 经二次确认后写入 Library | `POST /api/v1/skill-manager/artifacts/import` | 不写 Agent；body 带 `plan_hash` 和 `confirm` |
+| **Agent 复选框** | 602 | 选择部署目标 | `GET /api/v1/skill-manager/agents` | 目录不存在的目标禁用 |
+| **生成部署计划** | 542 | 预检目标状态和冲突 | `POST /api/v1/skill-manager/deployments/plan` | 冲突时禁用部署 |
+| **确认部署** | 544 | 经二次确认后提交部署 | `POST /api/v1/skill-manager/deployments/apply` | 返回 operationId，轮询状态接口 |
+
+### Skills 页面流程
+
+来源 → 检查 → 确认导入 Artifact → 选择 Agent → 生成计划 → 确认部署 → 轮询 operation。
+Plugin v1 仅展示不支持提示，不提供安装按钮。
+
+---
 
 在 WebUI 新增功能按钮时：
 
