@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,38 @@ class Deployment:
     target_id: str
     target_path: str
     content_hash: str
+
+
+@dataclass(frozen=True)
+class DeploymentTargetPlan:
+    """Preflight result for one Agent target."""
+
+    target_id: str
+    target_path: str
+    skill_path: str
+    status: str
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class DeploymentPlan:
+    """Hash-bound deployment preview."""
+
+    plan_hash: str
+    artifact_id: str
+    artifact_hash: str
+    targets: tuple[DeploymentTargetPlan, ...]
+
+
+@dataclass(frozen=True)
+class Operation:
+    """Synchronous operation result persisted for later polling."""
+
+    operation_id: str
+    status: str
+    artifact_id: str
+    results: tuple[dict[str, Any], ...] = ()
+    error_code: str | None = None
 
 
 class PackageValidationError(ValueError):

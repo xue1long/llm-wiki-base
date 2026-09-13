@@ -3,17 +3,26 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
+import shutil
+import uuid
 from pathlib import Path
 from typing import Iterable, Sequence
 
 from ..project.paths import config_dir
+from .agents import AgentTarget, DeploymentMarker, MANAGER_MARKER_NAME, discover_targets
+from .sources import copy_local_skill
 from .types import (
     Artifact,
+    Deployment,
+    DeploymentPlan,
+    DeploymentTargetPlan,
     FileEntry,
     PackageLimits,
     PackageValidationError,
+    Operation,
     SourceInspection,
     SourceSpec,
 )
@@ -90,6 +99,269 @@ def build_artifact(
 
 
 inspect_package = inspect_source
+
+
+def import_artifact(
+    source: SourceSpec,
+    *,
+    plan_hash: str,
+    confirmation: str,
+    storage=None,
+    limits: PackageLimits = DEFAULT_PACKAGE_LIMITS,
+) -> Artifact:
+    """Import a confirmed local source into an immutable Library snapshot."""
+
+    if confirmation != "confirm":
+        raise ValueError("explicit confirmation is required")
+    inspection = inspect_source(source, limits=limits)
+    if plan_hash != inspection.content_hash:
+        raise ValueError("plan hash does not match source")
+    artifact = Artifact(
+        artifact_id=inspection.artifact_id,
+        name=inspection.name,
+        content_hash=inspection.content_hash,
+        files=inspection.files,
+        total_bytes=inspection.total_bytes,
+        source=inspection.source,
+    )
+    if storage is None:
+        from .storage import SkillManagerStorage
+
+        storage = SkillManagerStorage()
+    artifact_root = storage.root / "artifacts" / artifact.artifact_id
+    content = artifact_root / "content"
+    if content.exists():
+        current = inspect_source(SourceSpec(content), limits=limits)
+        if current.content_hash != artifact.content_hash:
+            raise ValueError("stored Artifact content changed")
+    else:
+        staging = storage.root / "artifacts" / f".staging-{uuid.uuid4().hex}"
+        try:
+            copy_local_skill(source.path, staging / "content", inspection.files)
+            copied = inspect_source(SourceSpec(staging / "content"), limits=limits)
+            if copied.content_hash != inspection.content_hash:
+                raise ValueError("source changed during import")
+            artifact_root.mkdir(parents=True, exist_ok=True)
+            os.replace(staging / "content", content)
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
+    storage.save_artifact(artifact)
+    return artifact
+
+
+def plan_deployment(
+    artifact_id: str,
+    target_ids: Sequence[str],
+    *,
+    storage=None,
+) -> DeploymentPlan:
+    """Preflight deployment and bind it to current target state."""
+
+    if len(set(target_ids)) != len(target_ids):
+        raise ValueError("duplicate deployment target")
+    if storage is None:
+        from .storage import SkillManagerStorage
+
+        storage = SkillManagerStorage()
+    artifact = storage.load_artifact(artifact_id)
+    content = storage.root / "artifacts" / artifact.artifact_id / "content"
+    current = inspect_source(SourceSpec(content))
+    if current.content_hash != artifact.content_hash or current.files != artifact.files:
+        raise ValueError("stored Artifact content changed")
+    targets = {target.id: target for target in discover_targets()}
+    plans: list[DeploymentTargetPlan] = []
+    for target_id in target_ids:
+        target = targets.get(target_id)
+        if target is None:
+            raise ValueError(f"unknown deployment target: {target_id}")
+        skill_path = target.path / artifact.name
+        status, reason = _target_state(skill_path, artifact)
+        plans.append(
+            DeploymentTargetPlan(
+                target_id=target.id,
+                target_path=str(target.path),
+                skill_path=str(skill_path),
+                status=status,
+                reason=reason,
+            )
+        )
+    payload = {
+        "artifact_id": artifact.artifact_id,
+        "artifact_hash": artifact.content_hash,
+        "targets": [vars(item) for item in plans],
+    }
+    plan_hash = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return DeploymentPlan(plan_hash, artifact.artifact_id, artifact.content_hash, tuple(plans))
+
+
+def apply_deployment(
+    plan: DeploymentPlan,
+    *,
+    plan_hash: str,
+    confirmation: str,
+    storage=None,
+) -> Operation:
+    """Apply a current, confirmed plan with compensation on later failures."""
+
+    if plan_hash != plan.plan_hash:
+        raise ValueError("plan hash does not match deployment plan")
+    if confirmation != "confirm":
+        raise ValueError("explicit confirmation is required")
+    if storage is None:
+        from .storage import SkillManagerStorage
+
+        storage = SkillManagerStorage()
+    fresh = plan_deployment(
+        plan.artifact_id, [target.target_id for target in plan.targets], storage=storage
+    )
+    operation_id = f"op-{uuid.uuid4().hex}"
+    if fresh.plan_hash != plan.plan_hash:
+        return _finish_operation(
+            storage,
+            Operation(operation_id, "conflict", plan.artifact_id, ({"reason": "plan_changed"},), "plan_changed"),
+        )
+    if any(target.status == "conflict" for target in fresh.targets):
+        return _finish_operation(
+            storage,
+            Operation(
+                operation_id,
+                "conflict",
+                plan.artifact_id,
+                tuple({"target_id": target.target_id, "status": target.status, "reason": target.reason} for target in fresh.targets),
+                "target_conflict",
+            ),
+        )
+    artifact = storage.load_artifact(plan.artifact_id)
+    _save_operation(storage, operation_id, "installing", plan.artifact_id)
+    installed: list[tuple[AgentTarget, Path]] = []
+    results: list[dict[str, str]] = []
+    failure: str | None = None
+    for target_plan in fresh.targets:
+        target = AgentTarget(target_plan.target_id, Path(target_plan.target_path), exists=True)
+        if target_plan.status == "no_op":
+            results.append({"target_id": target.id, "status": "succeeded", "action": "no_op"})
+            continue
+        try:
+            _install_one(artifact, target=target, storage=storage)
+            installed.append((target, target.path / artifact.name))
+            results.append({"target_id": target.id, "status": "succeeded", "action": "installed"})
+        except Exception:
+            failure = "install_failed"
+            results.append({"target_id": target.id, "status": "failed", "error_code": failure})
+            break
+    if failure:
+        rollback_failed = False
+        for target, skill_path in reversed(installed):
+            try:
+                _remove_installed(skill_path, artifact)
+                results.append({"target_id": target.id, "status": "rolled_back"})
+            except Exception:
+                rollback_failed = True
+                results.append({"target_id": target.id, "status": "rollback_failed"})
+        status = "partial_failure" if rollback_failed else "failed"
+        return _finish_operation(storage, Operation(operation_id, status, plan.artifact_id, tuple(results), failure))
+    for target_plan in fresh.targets:
+        storage.save_deployment(
+            Deployment(
+                deployment_id=f"deployment-{uuid.uuid4().hex}",
+                artifact_id=plan.artifact_id,
+                target_id=target_plan.target_id,
+                target_path=target_plan.skill_path,
+                content_hash=plan.artifact_hash,
+            )
+        )
+    return _finish_operation(storage, Operation(operation_id, "succeeded", plan.artifact_id, tuple(results)))
+
+
+def _target_state(skill_path: Path, artifact: Artifact) -> tuple[str, str]:
+    if not skill_path.exists():
+        return "ready", ""
+    if not skill_path.is_dir():
+        return "conflict", "target is not a directory"
+    marker_path = skill_path / MANAGER_MARKER_NAME
+    if not marker_path.is_file():
+        return "conflict", "target is unmanaged"
+    try:
+        marker = DeploymentMarker.from_dict(json.loads(marker_path.read_text(encoding="utf-8")))
+    except Exception:
+        return "conflict", "deployment marker is invalid"
+    if marker.artifact_id != artifact.artifact_id or marker.content_hash != artifact.content_hash:
+        return "conflict", "target is managed by another Artifact"
+    files, content_hash = _fingerprint(skill_path)
+    if files != tuple(entry.path for entry in artifact.files) or content_hash != artifact.content_hash:
+        return "conflict", "managed target content changed"
+    if marker.files != files:
+        return "conflict", "deployment marker file list changed"
+    return "no_op", "already installed"
+
+
+def _fingerprint(root: Path) -> tuple[tuple[str, ...], str]:
+    entries: list[tuple[str, Path]] = []
+    for current, _, filenames in os.walk(root, followlinks=False):
+        for filename in filenames:
+            path = Path(current) / filename
+            relative = path.relative_to(root).as_posix()
+            if relative == MANAGER_MARKER_NAME:
+                continue
+            entries.append((relative, path))
+    digest = hashlib.sha256()
+    names: list[str] = []
+    for relative, path in sorted(entries):
+        names.append(relative)
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(str(path.stat().st_size).encode("ascii"))
+        digest.update(b"\0")
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+    return tuple(names), digest.hexdigest()
+
+
+def _install_one(artifact: Artifact, *, target: AgentTarget, storage) -> None:
+    target.path.mkdir(parents=True, exist_ok=True)
+    skill_path = target.path / artifact.name
+    staging = target.path / f".skill-manager-staging-{uuid.uuid4().hex}"
+    try:
+        copy_local_skill(storage.root / "artifacts" / artifact.artifact_id / "content", staging, artifact.files)
+        marker = DeploymentMarker(
+            artifact.artifact_id, artifact.content_hash, 0, "1", tuple(entry.path for entry in artifact.files)
+        )
+        (staging / MANAGER_MARKER_NAME).write_text(
+            json.dumps(marker.to_dict(), ensure_ascii=False, sort_keys=True), encoding="utf-8"
+        )
+        if skill_path.exists():
+            raise RuntimeError("target appeared during deployment")
+        os.replace(staging, skill_path)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+
+def _remove_installed(skill_path: Path, artifact: Artifact) -> None:
+    marker_path = skill_path / MANAGER_MARKER_NAME
+    marker = DeploymentMarker.from_dict(json.loads(marker_path.read_text(encoding="utf-8")))
+    if marker.artifact_id != artifact.artifact_id or marker.content_hash != artifact.content_hash:
+        raise RuntimeError("installed target ownership changed")
+    shutil.rmtree(skill_path)
+
+
+def _save_operation(storage, operation_id: str, status: str, artifact_id: str) -> None:
+    storage.save_operation({"id": operation_id, "status": status, "artifact_id": artifact_id})
+
+
+def _finish_operation(storage, operation: Operation) -> Operation:
+    payload = {
+        "id": operation.operation_id,
+        "status": operation.status,
+        "artifact_id": operation.artifact_id,
+        "results": list(operation.results),
+    }
+    if operation.error_code:
+        payload["error_code"] = operation.error_code
+    storage.save_operation(payload)
+    return operation
 
 
 def _resolve_source(path: Path) -> Path:
