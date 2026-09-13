@@ -22,8 +22,11 @@ def test_run_chat_extracts_final_answer(monkeypatch, tmp_path):
         lambda project_id, by_id_only=True: _fake_resolve(project_dir),
     )
 
+    config_values = {}
+
     class FakeAgentConfig:
         def __init__(self, **kwargs):
+            config_values.update(kwargs)
             for k, v in kwargs.items():
                 setattr(self, k, v)
 
@@ -53,6 +56,7 @@ def test_run_chat_extracts_final_answer(monkeypatch, tmp_path):
     assert result["references"][0]["path"] == "wiki/a.md"
     assert result["usage"]["iterations"] == 2  # 1 tool_started + 1 final_answer
     assert result["usage"]["toolCalls"] == 1
+    assert config_values["model"] == ""
 
 
 def test_run_chat_no_final_answer(monkeypatch, tmp_path):

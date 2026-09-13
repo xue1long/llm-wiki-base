@@ -42,7 +42,7 @@ async def run_chat(
     project_id: str,
     message: str,
     session_id: str | None = None,
-    model: str = "gpt-4o-mini",
+    model: str = "",
     max_iterations: int = 8,
 ) -> dict:
     """Run a non-streaming agent chat on the project's wiki tree.
