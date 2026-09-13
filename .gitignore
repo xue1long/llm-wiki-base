@@ -96,3 +96,25 @@ _fix_*.py
 _revert_*.py
 _test_output.txt
 _revert_files.txt
+
+# ad-hoc scratch directories and one-off shell output files
+.tmp*/
+.tmp
+*.tmp/
+apply_out.txt
+preview_out.txt
+preview_full_out.txt
+preview_full_stderr.txt
+preview_full_stdout.txt
+
+# recovered virtualenv & provider secrets (machine-local)
+.venv-recovered/
+llm-providers.json
+
+# Codex CLI scratch files: literal `!['complete'` (0-byte sentinel) is rare
+# but handled by the global "*.tmp/" and explicit cleanup below.
+
+# Codex CLI local config (machine-level sandbox settings)
+.codex/
+# Local knowledge workspace copies (not part of the ruflo-kb project)
+knowledge/video-notes-wiki/
