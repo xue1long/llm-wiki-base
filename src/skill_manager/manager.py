@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from typing import Iterable, Sequence
 
+from ..project.paths import config_dir
 from .types import (
     Artifact,
     FileEntry,
@@ -28,7 +29,7 @@ def inspect_source(
     source: SourceSpec,
     *,
     limits: PackageLimits = DEFAULT_PACKAGE_LIMITS,
-    forbidden_roots: Sequence[Path] = (),
+    forbidden_roots: Sequence[Path] | None = None,
     extra_paths: Iterable[Path] = (),
 ) -> SourceInspection:
     """Validate and hash a local static Skill without executing or copying it."""
@@ -36,13 +37,15 @@ def inspect_source(
     if source.kind != "local":
         raise PackageValidationError("UNSUPPORTED_SOURCE", "only local Skill sources are supported")
     root = _resolve_source(source.path)
+    if forbidden_roots is None:
+        forbidden_roots = (config_dir() / "skill-manager",)
     _reject_overlap(root, forbidden_roots)
     for candidate in extra_paths:
         _relative_path(root, Path(candidate))
 
     entries = _collect_files(root, limits)
     names = {entry.path.casefold() for entry in entries}
-    if _PLUGIN_NAME in names:
+    if any(Path(entry.path).name.casefold() == _PLUGIN_NAME for entry in entries):
         raise PackageValidationError(
             "UNSUPPORTED_PLUGIN_TYPE", "plugin.json packages are not supported"
         )
@@ -71,7 +74,7 @@ def build_artifact(
     source: SourceSpec,
     *,
     limits: PackageLimits = DEFAULT_PACKAGE_LIMITS,
-    forbidden_roots: Sequence[Path] = (),
+    forbidden_roots: Sequence[Path] | None = None,
 ) -> Artifact:
     """Turn a validated inspection into the immutable Task 1 domain value."""
 
@@ -119,7 +122,23 @@ def _relative_path(root: Path, path: Path) -> str:
         raise PackageValidationError("PATH_TRAVERSAL", "package path escapes source root") from exc
     if any(part in {"", ".", ".."} for part in raw.parts):
         raise PackageValidationError("PATH_TRAVERSAL", "package path contains traversal")
-    return relative.as_posix()
+    return validate_package_path(relative.as_posix())
+
+
+def validate_package_path(value: str) -> str:
+    """Return a normalized relative package path or reject traversal."""
+
+    if not isinstance(value, str) or not value or "\\" in value:
+        raise PackageValidationError("PATH_TRAVERSAL", "package path is not a safe POSIX path")
+    candidate = Path(value)
+    if value.startswith("/") or candidate.is_absolute() or candidate.drive:
+        raise PackageValidationError("PATH_TRAVERSAL", "package path must be relative")
+    if any(part in {"", ".", ".."} for part in candidate.parts):
+        raise PackageValidationError("PATH_TRAVERSAL", "package path contains traversal")
+    normalized = candidate.as_posix()
+    if normalized != value:
+        raise PackageValidationError("PATH_TRAVERSAL", "package path is not normalized")
+    return normalized
 
 
 def _collect_files(root: Path, limits: PackageLimits) -> list[FileEntry]:

@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from src.skill_manager.manager import build_artifact, inspect_source
+from src.skill_manager.manager import (
+    build_artifact,
+    inspect_source,
+    validate_package_path,
+)
 from src.skill_manager.types import (
     Artifact,
     Deployment,
@@ -43,6 +47,12 @@ def test_inspection_produces_distinct_domain_types_and_stable_artifact_hash(tmp_
     assert artifact.content_hash == inspection.content_hash
     assert deployment.artifact_id == artifact.artifact_id
     assert deployment.target_id == "codex"
+    with pytest.raises(AttributeError):
+        source.path = tmp_path / "changed"  # type: ignore[misc]
+    with pytest.raises(AttributeError):
+        artifact.name = "changed"  # type: ignore[misc]
+    with pytest.raises(AttributeError):
+        deployment.target_id = "claude"  # type: ignore[misc]
 
 
 def test_plugin_manifest_is_rejected_before_any_package_is_accepted(tmp_path: Path):
@@ -50,6 +60,19 @@ def test_plugin_manifest_is_rejected_before_any_package_is_accepted(tmp_path: Pa
     root.mkdir()
     (root / "SKILL.md").write_text("# not a plugin", encoding="utf-8")
     (root / "plugin.json").write_text('{"entrypoint":"run.py"}', encoding="utf-8")
+
+    with pytest.raises(PackageValidationError) as exc_info:
+        inspect_source(_source(root))
+
+    assert exc_info.value.code == "UNSUPPORTED_PLUGIN_TYPE"
+
+
+def test_nested_plugin_manifest_is_rejected(tmp_path: Path):
+    root = tmp_path / "skill"
+    root.mkdir()
+    (root / "SKILL.md").write_text("# demo", encoding="utf-8")
+    (root / "nested").mkdir()
+    (root / "nested" / "plugin.json").write_text("{}", encoding="utf-8")
 
     with pytest.raises(PackageValidationError) as exc_info:
         inspect_source(_source(root))
@@ -81,6 +104,14 @@ def test_source_path_validation_rejects_parent_escape(tmp_path: Path):
         inspect_source(_source(root), extra_paths=[root / ".." / "escape.txt"])
 
     assert exc_info.value.code == "PATH_TRAVERSAL"
+
+
+def test_public_package_path_validator_rejects_traversal_members():
+    assert validate_package_path("references/guide.md") == "references/guide.md"
+    for candidate in ("../escape.md", "references/../escape.md", "/absolute.md"):
+        with pytest.raises(PackageValidationError) as exc_info:
+            validate_package_path(candidate)
+        assert exc_info.value.code == "PATH_TRAVERSAL"
 
 
 def test_symlink_is_rejected_before_reading_the_target(tmp_path: Path):
@@ -117,6 +148,21 @@ def test_file_size_and_count_limits_are_enforced(tmp_path: Path):
     assert count_error.value.code == "TOO_MANY_FILES"
 
 
+def test_total_size_limit_is_enforced(tmp_path: Path):
+    root = tmp_path / "skill"
+    root.mkdir()
+    (root / "SKILL.md").write_text("12345", encoding="utf-8")
+    (root / "reference.md").write_text("67890", encoding="utf-8")
+
+    with pytest.raises(PackageValidationError) as exc_info:
+        inspect_source(
+            _source(root),
+            limits=PackageLimits(max_file_bytes=100, max_total_bytes=9, max_files=10),
+        )
+
+    assert exc_info.value.code == "PACKAGE_TOO_LARGE"
+
+
 def test_manager_marker_is_reserved(tmp_path: Path):
     root = tmp_path / "skill"
     root.mkdir()
@@ -136,5 +182,18 @@ def test_source_overlapping_manager_root_is_rejected(tmp_path: Path):
 
     with pytest.raises(PackageValidationError) as exc_info:
         inspect_source(_source(root), forbidden_roots=[tmp_path / "manager"])
+
+    assert exc_info.value.code == "SOURCE_SELF_CONTAINED"
+
+
+def test_default_manager_library_root_is_forbidden(monkeypatch, tmp_path: Path):
+    config = tmp_path / "config"
+    library_source = config / "skill-manager" / "artifacts" / "demo"
+    library_source.mkdir(parents=True)
+    (library_source / "SKILL.md").write_text("# demo", encoding="utf-8")
+    monkeypatch.setattr("src.skill_manager.manager.config_dir", lambda: config)
+
+    with pytest.raises(PackageValidationError) as exc_info:
+        inspect_source(_source(library_source))
 
     assert exc_info.value.code == "SOURCE_SELF_CONTAINED"
