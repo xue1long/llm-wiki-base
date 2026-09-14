@@ -12,6 +12,7 @@ from src.pipeline.v7_extract.doc_classifier import (
     classify_doc,
     classify_doc_heuristic,
 )
+from src.pipeline.v7_extract.llm_client import FakeLLMClient
 
 
 # ---------------------------------------------------------------------------
@@ -476,3 +477,90 @@ def test_classify_doc_low_confidence_passes_through_heuristic_when_no_llm():
     c = classify_doc(SINGLE_METHOD, confidence_threshold=0.90)
     assert c.confidence == 0.70  # heuristic value, not raised
     assert c.doc_type == DocType.SINGLE_METHOD
+
+
+@pytest.mark.parametrize("separator", ["、", ".", ")", ","])
+def test_eight_contiguous_numbered_items_are_list(separator):
+    """Common Chinese/Arabic numbering punctuation signals a list."""
+    text = "\n".join(
+        f"{number}{separator}第{number}条签约条件及其说明。"
+        for number in range(1, 9)
+    )
+
+    c = classify_doc_heuristic(text)
+
+    assert c.doc_type == DocType.LIST
+
+
+def test_repeated_speaker_lines_are_qa_chat_without_timestamps():
+    """Repeated speaker labels identify dialogue even without QQ timestamps."""
+    text = "\n".join([
+        "主持人：今天讨论新书的大纲。",
+        "嘉宾：先确定主角的目标。",
+        "主持人：冲突应该怎样安排？",
+        "嘉宾：让每一章都推进一次冲突。",
+        "主持人：这样读者会更有期待。",
+        "嘉宾：对，还要回收前面的伏笔。",
+    ])
+
+    c = classify_doc_heuristic(text)
+
+    assert c.doc_type == DocType.QA_CHAT
+
+
+@pytest.mark.parametrize("marker", ["讲课记录", "聊天记录", "问答实录", "访谈记录", "对话记录"])
+def test_explicit_dialogue_marker_is_qa_chat(marker):
+    """Explicit record labels identify dialogue in short documents."""
+    c = classify_doc_heuristic(f"# {marker}\n\n甲：先说结论。\n乙：请继续说明。")
+
+    assert c.doc_type == DocType.QA_CHAT
+
+
+def test_short_substantive_article_is_not_incomplete():
+    """A short article with several substantive paragraphs is complete."""
+    text = """# 设计有效的故事冲突
+
+冲突不是单纯让人物争吵，而是让彼此的目标无法同时实现。作者应先写清楚双方想得到什么，再安排资源和时间限制。
+
+当人物做出选择时，冲突才会推动情节。每次选择都应带来新的代价，让下一步行动建立在前一步的结果上。
+"""
+
+    c = classify_doc_heuristic(text)
+
+    assert c.doc_type == DocType.SINGLE_METHOD
+
+
+def test_low_confidence_async_llm_fallback_is_used():
+    """Low-confidence classification invokes the async client and accepts valid JSON."""
+    llm = FakeLLMClient()
+    llm.script(
+        "classify",
+        '{"doc_type": "qa_chat", "confidence": 0.93, "rationale": "dialogue turns"}',
+    )
+
+    c = classify_doc(SINGLE_METHOD, llm=llm, confidence_threshold=0.90)
+
+    assert c == Classification(DocType.QA_CHAT, 0.93, "dialogue turns")
+    assert llm.calls[0]["prompt_kind"] == "classify"
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        "not json",
+        '{"doc_type": "unknown", "confidence": 0.9, "rationale": "bad type"}',
+        '{"doc_type": "qa_chat", "confidence": 1.1, "rationale": "bad confidence"}',
+    ],
+)
+def test_invalid_llm_fallback_response_returns_heuristic(response):
+    """Malformed or invalid LLM output never escapes the heuristic fallback."""
+    llm = FakeLLMClient()
+    llm.script("classify", response)
+
+    c = classify_doc(SINGLE_METHOD, llm=llm, confidence_threshold=0.90)
+
+    assert c == Classification(
+        DocType.SINGLE_METHOD,
+        0.70,
+        "no multi-section / list / chat structure; assume single method article",
+    )
