@@ -1,5 +1,7 @@
 # Project Memory Index
 
+- [2026-09-14 V7 extract Stage 4–7 实施](feedback-v7-extract-stages4-7-2026-09-14.md) — 主题聚类/概念去重、五槽位填充、关系抽取、checkpoint+retry 写盘和 source→concept 审计均已落地；V7 `46 passed, 2 skipped`，pipeline `658 passed, 2 skipped`
+
 - [2026-09-14 V7 extract Stage 1/3 收尾](feedback-v7-extract-completeness-2026-09-14.md) — 修复 doc_classifier fixture/filename hint 回归；新增 completeness checker 与测试；V7 `32 passed, 2 skipped`，pipeline `644 passed, 2 skipped`
 
 - [2026-09-13 Agent Skill Manager 方案整改](feedback-skill-plugin-manager-plan-2026-09-13.md) — `Source→Artifact→Deployment→Agent`；v1 仅本地静态 Skill、Codex 首发、JSON CLI/HTTP/WebUI 共用核心；plugin.json 拒绝、显式确认、loopback/token、补偿回滚与 partial_failure
