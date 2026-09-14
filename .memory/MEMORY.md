@@ -1,5 +1,7 @@
 # Project Memory Index
 
+- [2026-09-14 V7 extract Stage 1/3 收尾](feedback-v7-extract-completeness-2026-09-14.md) — 修复 doc_classifier fixture/filename hint 回归；新增 completeness checker 与测试；V7 `32 passed, 2 skipped`，pipeline `644 passed, 2 skipped`
+
 - [2026-09-13 Agent Skill Manager 方案整改](feedback-skill-plugin-manager-plan-2026-09-13.md) — `Source→Artifact→Deployment→Agent`；v1 仅本地静态 Skill、Codex 首发、JSON CLI/HTTP/WebUI 共用核心；plugin.json 拒绝、显式确认、loopback/token、补偿回滚与 partial_failure
 - [2026-09-13 Skill Manager Task 1 实施](feedback-skill-manager-task1-2026-09-13.md) — 本地静态 Skill 只读检查、稳定 hash、plugin.json/marker/路径穿越/符号链接/大小和文件数门禁；9 个聚焦测试通过
 
