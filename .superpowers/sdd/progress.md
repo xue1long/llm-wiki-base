@@ -21,6 +21,14 @@
 - ✅ 测试：Task 9 与 Stage 7 集成 `9 passed`。
 - ⏳ Task 8 全量抽取仍需 Task 7 人工 spot-check 结论，当前只允许 dry-run。
 
+### novel-wiki V7.1.1 抽取流水线 Task 8 dry-run（2026-09-14）
+
+- ✅ 新增 `scripts/extract_full.py`：按 batch 分批处理全部 raw，checkpoint 持久化，单素材最多 3 次重试。
+- ✅ 真实 dry-run：`selected=1362`、`batches=3`、`processed=1362`、`errors=0`、候选 pages=`1480`。
+- ✅ 正式 checkpoint 续跑：`processed=0`、`batches_skipped=3`、结果明细复用，确认幂等。
+- ✅ `--apply` fail-closed：Task 7 人工 spot-check 未批准前直接拒绝，不写 Wiki。
+- ✅ 测试：Task 8 专项 `3 passed`。
+
 ### Book LLM 重新发布加固方案（2026-09-09）
 
 - ✅ 完成根因方案：历史响应结构违约是触发因素；预算/重试计数与错误折叠是发布失败的主架构问题。

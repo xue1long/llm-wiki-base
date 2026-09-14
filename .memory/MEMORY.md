@@ -1,5 +1,7 @@
 # Project Memory Index
 
+- [2026-09-14 V7 extract Task 8 全量 dry-run](feedback-v7-extract-full-dryrun-2026-09-14.md) — 1362 raw/3 批/1480 候选 pages/0 errors；正式 checkpoint 续跑 3 批跳过并保留明细，apply 仍由 spot-check 门禁阻断
+
 - [2026-09-14 V7 extract Task 7 试点](feedback-v7-extract-pilot-2026-09-14.md) — 50 篇真实素材 dry-run 无错误，43 complete/7 incomplete，60 topics/pages；人工 spot-check pending，未进入全量抽取
 
 - [2026-09-14 V7 extract Stage 4–7 实施](feedback-v7-extract-stages4-7-2026-09-14.md) — 主题聚类/概念去重、五槽位填充、关系抽取、checkpoint+retry 写盘和 source→concept 审计均已落地；V7 `46 passed, 2 skipped`，pipeline `658 passed, 2 skipped`
