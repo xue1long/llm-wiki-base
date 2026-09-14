@@ -12,7 +12,7 @@ import re
 import sys
 from collections import Counter
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 # Make direct ``python scripts/extract_pilot.py`` execution behave like a
 # module invocation from the repository root.
@@ -40,6 +40,7 @@ def run_pilot(
     json_output: str | Path | None = None,
     markdown_output: str | Path | None = None,
     llm: Any = None,
+    sources: Iterable[str | Path] | None = None,
 ) -> dict[str, Any]:
     """Run the pilot and optionally write JSON/Markdown reports.
 
@@ -50,12 +51,19 @@ def run_pilot(
     fallback, Stage 4 topic clustering, and Stage 5 slot filling. When
     ``llm`` is ``None`` the pipeline runs offline-heuristic only — useful
     for tests / CI. The report records whether LLM was enabled.
+
+    ``sources`` is an explicit list of source paths to run. When provided
+    it overrides the random selection — used by spot-check pilots that
+    need to cover known-failure cases.
     """
     if count < 1:
         raise ValueError("count must be positive")
     root = Path(root)
-    candidates = _source_files(root)
-    selected = _select_sources(candidates, count, seed)
+    if sources is not None:
+        selected = _resolve_sources(root, sources)
+    else:
+        candidates = _source_files(root)
+        selected = _select_sources(candidates, count, seed)
     results: list[dict[str, Any]] = []
     for path in selected:
         relative = path.relative_to(root).as_posix()
@@ -80,6 +88,22 @@ def run_pilot(
     if markdown_output is not None:
         _write_report(Path(markdown_output), _markdown_text(report))
     return report
+
+
+def _resolve_sources(root: Path, sources: Iterable[str | Path]) -> list[Path]:
+    """Resolve the explicit source list to Path objects under ``root``.
+
+    Sources that don't exist under ``root`` are silently dropped so the
+    pilot still runs on the remaining files.
+    """
+    selected: list[Path] = []
+    for raw in sources:
+        path = Path(raw)
+        if not path.is_absolute():
+            path = root / path
+        if path.is_file():
+            selected.append(path)
+    return selected
 
 
 def _source_files(root: Path) -> list[Path]:
@@ -166,6 +190,11 @@ def _extract_one(
             )
         return result
     except Exception as exc:  # one bad raw file must not abort the pilot
+        import traceback as _tb
+        # Log full traceback to stderr so pilot failures are diagnosable
+        # without re-running. The JSON report carries only the summary.
+        print(f"\n--- _extract_one failed for {relative!r} ---", flush=True)
+        _tb.print_exc()
         return {
             "source": relative,
             "characters": 0,
@@ -277,8 +306,17 @@ def main(argv: list[str] | None = None) -> int:
             "runs offline-heuristic only and never hits the network."
         ),
     )
+    parser.add_argument(
+        "--sources",
+        default=None,
+        help=(
+            "Path to a JSON file holding an explicit list of source paths "
+            "(relative to --root) to run. Overrides random selection."
+        ),
+    )
     args = parser.parse_args(argv)
     llm = _build_llm(args.provider)
+    sources = _load_sources(args.sources)
     report = run_pilot(
         args.root,
         count=args.count,
@@ -286,9 +324,18 @@ def main(argv: list[str] | None = None) -> int:
         json_output=args.json_out,
         markdown_output=args.markdown_out,
         llm=llm,
+        sources=sources,
     )
     print(_json_text(report), end="")
     return 0 if report["summary"]["errors"] == 0 else 2
+
+
+def _load_sources(path: str | None) -> list[str] | None:
+    if not path:
+        return None
+    import json
+
+    return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
 def _build_llm(provider_name: str | None):

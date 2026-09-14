@@ -344,21 +344,37 @@ def _excerpt_in_source(excerpt: str, source_text: str) -> bool:
     return excerpt[:120] in source_text
 
 
-def _find_item_for_body(body: str, item_texts: Mapping[str, str]) -> str | None:
+def _find_item_for_body(body: str, item_texts: Mapping[str, Any]) -> str | None:
     """Return an item_id whose text appears inside the slot body, or None.
 
     A short overlap (>= 12 chars) is enough — long-form slots paraphrase
     the source, so we don't demand byte-for-byte equality.
+
+    ``item_texts`` may map ``item_id -> str`` or ``item_id -> Mapping``
+    (with a ``text`` key). The Mapping form matches what
+    ``scripts.extract_pilot._extract_one`` builds.
     """
     if not body or not item_texts:
         return None
-    for item_id, text in item_texts.items():
+    for item_id, raw in item_texts.items():
+        text = _extract_text_from_item(raw)
         if not text:
             continue
         snippet = text.strip()[:120]
         if len(snippet) >= 12 and snippet in body:
             return item_id
     return None
+
+
+def _extract_text_from_item(value: Any) -> str:
+    """Pull a string ``text`` from either a str or a Mapping-like item."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, Mapping):
+        for key in ("text", "content", "body"):
+            if key in value:
+                return str(value[key] or "")
+    return str(value or "")
 
 
 def _assemble_page(
