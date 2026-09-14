@@ -13,6 +13,14 @@
 - ⚠️ 人工 spot-check 尚未执行，报告准确率保持 `pending`；Task 8 全量抽取需待人工确认后开始。
 - ✅ 测试：Task 7 专项 `4 passed`；入口问题修复为直接执行脚本时自动引导仓库根目录导入。
 
+### novel-wiki V7.1.1 抽取流水线 Task 9（2026-09-14）
+
+- ✅ 新增 `ContentFilter`：政治/色情/抄袭三类命中标记，命中进入审核队列。
+- ✅ 新增 `ReviewQueue`：原子 JSON 持久化，`open → accepted/rejected` 状态机，source/content hash 幂等。
+- ✅ 接入 `WikiWriter` 写盘前闸门：未审核或 rejected 不写盘；同一内容 accepted 后可继续写盘，内容变化重新审核。
+- ✅ 测试：Task 9 与 Stage 7 集成 `9 passed`。
+- ⏳ Task 8 全量抽取仍需 Task 7 人工 spot-check 结论，当前只允许 dry-run。
+
 ### Book LLM 重新发布加固方案（2026-09-09）
 
 - ✅ 完成根因方案：历史响应结构违约是触发因素；预算/重试计数与错误折叠是发布失败的主架构问题。

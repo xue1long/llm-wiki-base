@@ -20,6 +20,7 @@ PageWriter = Callable[[ConceptPage, Path], None]
 class WriteReport:
     written: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
+    blocked: list[str] = field(default_factory=list)
     failed: dict[str, str] = field(default_factory=dict)
 
 
@@ -31,6 +32,7 @@ class WikiWriter:
         root: str | Path,
         *,
         page_writer: PageWriter | None = None,
+        content_filter: Any = None,
         max_retries: int = 3,
     ) -> None:
         if max_retries < 1:
@@ -41,6 +43,7 @@ class WikiWriter:
         self.checkpoint_path = self.root / ".index" / "v7_checkpoint.json"
         self.audit = AuditLogger(self.root / ".index" / "extract_report.json")
         self.page_writer = page_writer or self._write_page_atomically
+        self.content_filter = content_filter
         self.max_retries = max_retries
 
     def commit_and_index(
@@ -57,6 +60,15 @@ class WikiWriter:
 
         for page in pages:
             path = self._page_path(page.id)
+            if self.content_filter is not None:
+                filter_result = self.content_filter.check(
+                    page.body,
+                    source_id=page.sources[0] if page.sources else page.id,
+                    title=page.title,
+                )
+                if getattr(filter_result.status, "value", filter_result.status) == "needs_review":
+                    report.blocked.append(page.id)
+                    continue
             if page.id in completed and path.exists():
                 report.skipped.append(page.id)
                 self._audit_page(page)
