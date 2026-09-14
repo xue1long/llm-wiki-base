@@ -6,6 +6,13 @@
 >
 > **新计划（2026-08-26）：** 模块规范性与统一化改造 — `docs/superpowers/plans/2026-08-26-module-standardization-unification.md`
 
+### novel-wiki V7.1.1 抽取流水线 Task 7（2026-09-14）
+
+- ✅ `scripts/extract_pilot.py` 已落地：确定性选取 50 篇 raw，调用 Stage 1/3/4/5，严格 dry-run，不写 `wiki/`。
+- ✅ 真实试点：`selected=50`、`complete=43`、`incomplete=7`、`errors=0`、候选 topics/pages=`60/60`；报告见 `docs/superpowers/reports/2026-09-13-extract-pilot-report.md`。
+- ⚠️ 人工 spot-check 尚未执行，报告准确率保持 `pending`；Task 8 全量抽取需待人工确认后开始。
+- ✅ 测试：Task 7 专项 `4 passed`；入口问题修复为直接执行脚本时自动引导仓库根目录导入。
+
 ### Book LLM 重新发布加固方案（2026-09-09）
 
 - ✅ 完成根因方案：历史响应结构违约是触发因素；预算/重试计数与错误折叠是发布失败的主架构问题。

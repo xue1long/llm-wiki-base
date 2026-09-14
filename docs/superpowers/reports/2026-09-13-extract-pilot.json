@@ -1,0 +1,2145 @@
+{
+  "mode": "dry-run",
+  "root": "knowledge\\novel-wiki",
+  "seed": 42,
+  "sources": [
+    "raw/sources/01_新手入门/借鉴素材小说写作.md",
+    "raw/sources/01_新手入门/入门教程一个新手的五个阶段.md",
+    "raw/sources/01_新手入门/入门教程三江.md",
+    "raw/sources/01_新手入门/入门教程人物代入感方面的刻画.md",
+    "raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看.md",
+    "raw/sources/01_新手入门/入门教程基础篇语言规范.md",
+    "raw/sources/01_新手入门/入门教程网络小说写作宝典.md",
+    "raw/sources/01_新手入门/入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏.md",
+    "raw/sources/01_新手入门/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md",
+    "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md",
+    "raw/sources/01_新手入门/必备资料37修真仙侠小说的元素和写法.md",
+    "raw/sources/01_新手入门/必备资料作者五个阶段.md",
+    "raw/sources/01_新手入门/必备资料如何构架写作悬念.md",
+    "raw/sources/01_新手入门/必备资料新手写小说忌讳的十点1.md",
+    "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md",
+    "raw/sources/01_新手入门/新人须知2给你的作品换件衣服你会发现你什么题材都可以写.md",
+    "raw/sources/01_新手入门/新人须知36架空历史的创作要点.md",
+    "raw/sources/02_进阶技巧/方法论打斗七公式重要.md",
+    "raw/sources/02_进阶技巧/方法论耽美写作.md",
+    "raw/sources/02_进阶技巧/方法论语言规范.md",
+    "raw/sources/02_进阶技巧/方法论骨刀总结写作资料.md",
+    "raw/sources/02_进阶技巧/补充教程写作经验侦探小说创作指南与写法.md",
+    "raw/sources/02_进阶技巧/计谋格斗跑酷体能训练教程.md",
+    "raw/sources/02_进阶技巧/进阶教程34承转启合文章的衔接和转折.md",
+    "raw/sources/02_进阶技巧/进阶教程写作相关写手成神之路起点编辑部的教材下篇.md",
+    "raw/sources/02_进阶技巧/进阶教程后宫文写作的一个中心和两个基本点.md",
+    "raw/sources/02_进阶技巧/进阶教程大神说法第一讲如何抓住读者的心1.md",
+    "raw/sources/02_进阶技巧/进阶教程小说的定义与分类.md",
+    "raw/sources/02_进阶技巧/进阶教程玄武门.md",
+    "raw/sources/02_进阶技巧/进阶教程红书.md",
+    "raw/sources/02_进阶技巧/进阶教程网络文学的源流.md",
+    "raw/sources/03_大纲创作/大纲模板大纲完整模板.md",
+    "raw/sources/03_大纲创作/大纲示例技术篇小说速成大纲传统文学版长篇.md",
+    "raw/sources/03_大纲创作/大纲示例教你如何写小说大纲附大纲范例.md",
+    "raw/sources/04_题材专题/东方玄幻佛教养生概论.md",
+    "raw/sources/04_题材专题/东方玄幻修真九要.md",
+    "raw/sources/04_题材专题/东方玄幻修真功法.md",
+    "raw/sources/04_题材专题/东方玄幻夜叉.md",
+    "raw/sources/04_题材专题/东方玄幻星曜星座关于七杀.md",
+    "raw/sources/04_题材专题/女频男频3纵横编辑引导你成为专业写手的关键.md",
+    "raw/sources/04_题材专题/武侠洪荒武林秘籍2.md",
+    "raw/sources/04_题材专题/武侠洪荒鉴赏名刀.md",
+    "raw/sources/04_题材专题/穿越修真修真境界的划分.md",
+    "raw/sources/04_题材专题/穿越修真方术.md",
+    "raw/sources/04_题材专题/都市言情清朝的选妃制度.md",
+    "raw/sources/05_运营出版/信息库1签约篇.md",
+    "raw/sources/05_运营出版/审核上架1起点培训之人物设定.md",
+    "raw/sources/05_运营出版/审核上架2对话技巧详谈引号开头对话流.md",
+    "raw/sources/07_看电影学写作/3写作选材之想象力非凡第3段.md",
+    "raw/sources/08_音频教程/大神写作经验分享4.md"
+  ],
+  "summary": {
+    "selected": 50,
+    "complete": 43,
+    "incomplete": 7,
+    "errors": 0,
+    "topics": 60,
+    "pages": 60,
+    "doc_types": {
+      "incomplete": 7,
+      "multi_section": 4,
+      "single_method": 39
+    }
+  },
+  "spot_check": {
+    "status": "pending",
+    "accuracy": null,
+    "reviewed_sources": []
+  },
+  "results": [
+    {
+      "source": "raw/sources/01_新手入门/借鉴素材小说写作.md",
+      "characters": 1143,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材小说写作.md#item-1"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材小说写作.md#item-3"
+          ]
+        },
+        {
+          "id": "topic-3",
+          "title": "综合主题（补充）",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材小说写作.md#item-2"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-b4cfd260-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材小说写作.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "source-b4cfd260-topic-2",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材小说写作.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "source-b4cfd260-topic-3",
+          "title": "综合主题（补充）",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材小说写作.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/入门教程一个新手的五个阶段.md",
+      "characters": 1609,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/01_新手入门/入门教程一个新手的五个阶段.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-23add04c-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/入门教程一个新手的五个阶段.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/入门教程三江.md",
+      "characters": 263,
+      "doc_type": "incomplete",
+      "confidence": 0.95,
+      "rationale": "text len 263 < 800, no sections, no timestamps; appears to be title + intro only",
+      "complete": false,
+      "completeness_reason": "doc_type=incomplete",
+      "topics": [],
+      "pages": [],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/入门教程人物代入感方面的刻画.md",
+      "characters": 773,
+      "doc_type": "incomplete",
+      "confidence": 0.95,
+      "rationale": "text len 773 < 800, no sections, no timestamps; appears to be title + intro only",
+      "complete": false,
+      "completeness_reason": "doc_type=incomplete",
+      "topics": [],
+      "pages": [],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看.md",
+      "characters": 9378,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-3bccac4a-topic-1",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/入门教程基础篇语言规范.md",
+      "characters": 1225,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "世界观设定",
+          "item_ids": [
+            "raw/sources/01_新手入门/入门教程基础篇语言规范.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-b8eb977c-topic-1",
+          "title": "世界观设定",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/入门教程基础篇语言规范.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/入门教程网络小说写作宝典.md",
+      "characters": 2478,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "冲突升级",
+          "item_ids": [
+            "raw/sources/01_新手入门/入门教程网络小说写作宝典.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-f0d9ecfe-topic-1",
+          "title": "冲突升级",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/入门教程网络小说写作宝典.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏.md",
+      "characters": 2929,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "冲突升级",
+          "item_ids": [
+            "raw/sources/01_新手入门/入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-1cc75966-topic-1",
+          "title": "冲突升级",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md",
+      "characters": 1082,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/01_新手入门/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "11-28-8c363e-3fbce3fe-topic-1",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md",
+      "characters": 3880,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-1",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-3",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-6",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-8",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-9",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-10",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-11",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-12",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-13",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-14",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-15",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-16",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-17",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-18",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-20"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "冲突升级",
+          "item_ids": [
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-2",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-4",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-5",
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-7"
+          ]
+        },
+        {
+          "id": "topic-3",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md#item-19"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "20-2-3a64dc33-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "20-2-3a64dc33-topic-2",
+          "title": "冲突升级",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "20-2-3a64dc33-topic-3",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/必备资料37修真仙侠小说的元素和写法.md",
+      "characters": 884,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/01_新手入门/必备资料37修真仙侠小说的元素和写法.md#item-1"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "综合主题（补充）",
+          "item_ids": [
+            "raw/sources/01_新手入门/必备资料37修真仙侠小说的元素和写法.md#item-2"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "37-8f0d7a53-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/必备资料37修真仙侠小说的元素和写法.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "37-8f0d7a53-topic-2",
+          "title": "综合主题（补充）",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/必备资料37修真仙侠小说的元素和写法.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/必备资料作者五个阶段.md",
+      "characters": 1746,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/01_新手入门/必备资料作者五个阶段.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-ffb671a7-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/必备资料作者五个阶段.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/必备资料如何构架写作悬念.md",
+      "characters": 881,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/01_新手入门/必备资料如何构架写作悬念.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-a4a97a5f-topic-1",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/必备资料如何构架写作悬念.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/必备资料新手写小说忌讳的十点1.md",
+      "characters": 1195,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/01_新手入门/必备资料新手写小说忌讳的十点1.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "1-5945e5f8-topic-1",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/必备资料新手写小说忌讳的十点1.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md",
+      "characters": 10503,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-1",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-2",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-3",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-4",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-5",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-6",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-7",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-8",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-9"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-12"
+          ]
+        },
+        {
+          "id": "topic-3",
+          "title": "综合主题（补充）",
+          "item_ids": [
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-10",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-11",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-13",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-14",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-15",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-16",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-17",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-18",
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md#item-19"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-1134a9a7-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "source-1134a9a7-topic-2",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "source-1134a9a7-topic-3",
+          "title": "综合主题（补充）",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/新人须知2给你的作品换件衣服你会发现你什么题材都可以写.md",
+      "characters": 1175,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/01_新手入门/新人须知2给你的作品换件衣服你会发现你什么题材都可以写.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "2-cb054899-topic-1",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/新人须知2给你的作品换件衣服你会发现你什么题材都可以写.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/新人须知36架空历史的创作要点.md",
+      "characters": 2896,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/01_新手入门/新人须知36架空历史的创作要点.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "36-0b97c6c8-topic-1",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/新人须知36架空历史的创作要点.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/方法论打斗七公式重要.md",
+      "characters": 948,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "冲突升级",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/方法论打斗七公式重要.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-afc171dc-topic-1",
+          "title": "冲突升级",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/方法论打斗七公式重要.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/方法论耽美写作.md",
+      "characters": 1414,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/方法论耽美写作.md#item-1"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "冲突升级",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/方法论耽美写作.md#item-2"
+          ]
+        },
+        {
+          "id": "topic-3",
+          "title": "综合主题（补充）",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/方法论耽美写作.md#item-3"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-650a5973-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/方法论耽美写作.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "source-650a5973-topic-2",
+          "title": "冲突升级",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/方法论耽美写作.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "source-650a5973-topic-3",
+          "title": "综合主题（补充）",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/方法论耽美写作.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/方法论语言规范.md",
+      "characters": 1223,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "世界观设定",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/方法论语言规范.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-2c6ff9ff-topic-1",
+          "title": "世界观设定",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/方法论语言规范.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/方法论骨刀总结写作资料.md",
+      "characters": 345,
+      "doc_type": "incomplete",
+      "confidence": 0.95,
+      "rationale": "text len 345 < 800, no sections, no timestamps; appears to be title + intro only",
+      "complete": false,
+      "completeness_reason": "doc_type=incomplete",
+      "topics": [],
+      "pages": [],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/补充教程写作经验侦探小说创作指南与写法.md",
+      "characters": 3998,
+      "doc_type": "multi_section",
+      "confidence": 0.88,
+      "rationale": "10 numbered sections (>= 5)",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "冲突升级",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/补充教程写作经验侦探小说创作指南与写法.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-c7b7cdf1-topic-1",
+          "title": "冲突升级",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/补充教程写作经验侦探小说创作指南与写法.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/计谋格斗跑酷体能训练教程.md",
+      "characters": 4672,
+      "doc_type": "multi_section",
+      "confidence": 0.88,
+      "rationale": "10 numbered sections (>= 5)",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/计谋格斗跑酷体能训练教程.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-a2fc58e3-topic-1",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/计谋格斗跑酷体能训练教程.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/进阶教程34承转启合文章的衔接和转折.md",
+      "characters": 2300,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/进阶教程34承转启合文章的衔接和转折.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "34-17eed4d3-topic-1",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/进阶教程34承转启合文章的衔接和转折.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/进阶教程写作相关写手成神之路起点编辑部的教材下篇.md",
+      "characters": 21438,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "冲突升级",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/进阶教程写作相关写手成神之路起点编辑部的教材下篇.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-9ed0cd5e-topic-1",
+          "title": "冲突升级",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/进阶教程写作相关写手成神之路起点编辑部的教材下篇.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/进阶教程后宫文写作的一个中心和两个基本点.md",
+      "characters": 1740,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/进阶教程后宫文写作的一个中心和两个基本点.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-4d4263ad-topic-1",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/进阶教程后宫文写作的一个中心和两个基本点.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/进阶教程大神说法第一讲如何抓住读者的心1.md",
+      "characters": 998,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/进阶教程大神说法第一讲如何抓住读者的心1.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "1-1890d0f0-topic-1",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/进阶教程大神说法第一讲如何抓住读者的心1.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/进阶教程小说的定义与分类.md",
+      "characters": 964,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/进阶教程小说的定义与分类.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-ee6d9246-topic-1",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/进阶教程小说的定义与分类.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/进阶教程玄武门.md",
+      "characters": 578082,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/进阶教程玄武门.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-76217f86-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/进阶教程玄武门.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/进阶教程红书.md",
+      "characters": 775,
+      "doc_type": "incomplete",
+      "confidence": 0.95,
+      "rationale": "text len 775 < 800, no sections, no timestamps; appears to be title + intro only",
+      "complete": false,
+      "completeness_reason": "doc_type=incomplete",
+      "topics": [],
+      "pages": [],
+      "error": null
+    },
+    {
+      "source": "raw/sources/02_进阶技巧/进阶教程网络文学的源流.md",
+      "characters": 900,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/02_进阶技巧/进阶教程网络文学的源流.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-5b5e06ac-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/02_进阶技巧/进阶教程网络文学的源流.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/03_大纲创作/大纲模板大纲完整模板.md",
+      "characters": 459,
+      "doc_type": "multi_section",
+      "confidence": 0.88,
+      "rationale": "6 numbered sections (>= 5)",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/03_大纲创作/大纲模板大纲完整模板.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-10196df2-topic-1",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/03_大纲创作/大纲模板大纲完整模板.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/03_大纲创作/大纲示例技术篇小说速成大纲传统文学版长篇.md",
+      "characters": 686,
+      "doc_type": "incomplete",
+      "confidence": 0.95,
+      "rationale": "text len 686 < 800, no sections, no timestamps; appears to be title + intro only",
+      "complete": false,
+      "completeness_reason": "doc_type=incomplete",
+      "topics": [],
+      "pages": [],
+      "error": null
+    },
+    {
+      "source": "raw/sources/03_大纲创作/大纲示例教你如何写小说大纲附大纲范例.md",
+      "characters": 659,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "冲突升级",
+          "item_ids": [
+            "raw/sources/03_大纲创作/大纲示例教你如何写小说大纲附大纲范例.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-65db9eeb-topic-1",
+          "title": "冲突升级",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/03_大纲创作/大纲示例教你如何写小说大纲附大纲范例.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/04_题材专题/东方玄幻佛教养生概论.md",
+      "characters": 1665,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/04_题材专题/东方玄幻佛教养生概论.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-2cec0ca2-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/04_题材专题/东方玄幻佛教养生概论.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/04_题材专题/东方玄幻修真九要.md",
+      "characters": 2075,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/04_题材专题/东方玄幻修真九要.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-0d2546ce-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/04_题材专题/东方玄幻修真九要.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/04_题材专题/东方玄幻修真功法.md",
+      "characters": 53125,
+      "doc_type": "multi_section",
+      "confidence": 0.88,
+      "rationale": "19 numbered sections (>= 5)",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-1",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-2",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-3",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-4",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-5",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-6",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-7",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-8",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-9",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-10",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-11",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-12",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-13"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-22"
+          ]
+        },
+        {
+          "id": "topic-3",
+          "title": "综合主题（补充）",
+          "item_ids": [
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-14",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-15",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-16",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-17",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-18",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-19",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-20",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-21",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-23",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-24",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-25",
+            "raw/sources/04_题材专题/东方玄幻修真功法.md#item-26"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-d4fecf5d-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/04_题材专题/东方玄幻修真功法.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "source-d4fecf5d-topic-2",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/04_题材专题/东方玄幻修真功法.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "source-d4fecf5d-topic-3",
+          "title": "综合主题（补充）",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/04_题材专题/东方玄幻修真功法.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/04_题材专题/东方玄幻夜叉.md",
+      "characters": 217,
+      "doc_type": "incomplete",
+      "confidence": 0.95,
+      "rationale": "text len 217 < 800, no sections, no timestamps; appears to be title + intro only",
+      "complete": false,
+      "completeness_reason": "doc_type=incomplete",
+      "topics": [],
+      "pages": [],
+      "error": null
+    },
+    {
+      "source": "raw/sources/04_题材专题/东方玄幻星曜星座关于七杀.md",
+      "characters": 843,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "冲突升级",
+          "item_ids": [
+            "raw/sources/04_题材专题/东方玄幻星曜星座关于七杀.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-97b74204-topic-1",
+          "title": "冲突升级",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/04_题材专题/东方玄幻星曜星座关于七杀.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/04_题材专题/女频男频3纵横编辑引导你成为专业写手的关键.md",
+      "characters": 1465,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/04_题材专题/女频男频3纵横编辑引导你成为专业写手的关键.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "3-11e43e77-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/04_题材专题/女频男频3纵横编辑引导你成为专业写手的关键.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/04_题材专题/武侠洪荒武林秘籍2.md",
+      "characters": 1690,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/04_题材专题/武侠洪荒武林秘籍2.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "2-506d9649-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/04_题材专题/武侠洪荒武林秘籍2.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/04_题材专题/武侠洪荒鉴赏名刀.md",
+      "characters": 1644,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/04_题材专题/武侠洪荒鉴赏名刀.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-b77d49e4-topic-1",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/04_题材专题/武侠洪荒鉴赏名刀.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/04_题材专题/穿越修真修真境界的划分.md",
+      "characters": 1529,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "世界观设定",
+          "item_ids": [
+            "raw/sources/04_题材专题/穿越修真修真境界的划分.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-32e85fd8-topic-1",
+          "title": "世界观设定",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/04_题材专题/穿越修真修真境界的划分.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/04_题材专题/穿越修真方术.md",
+      "characters": 572,
+      "doc_type": "incomplete",
+      "confidence": 0.95,
+      "rationale": "text len 572 < 800, no sections, no timestamps; appears to be title + intro only",
+      "complete": false,
+      "completeness_reason": "doc_type=incomplete",
+      "topics": [],
+      "pages": [],
+      "error": null
+    },
+    {
+      "source": "raw/sources/04_题材专题/都市言情清朝的选妃制度.md",
+      "characters": 3347,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "世界观设定",
+          "item_ids": [
+            "raw/sources/04_题材专题/都市言情清朝的选妃制度.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-bfa04ab3-topic-1",
+          "title": "世界观设定",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/04_题材专题/都市言情清朝的选妃制度.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/05_运营出版/信息库1签约篇.md",
+      "characters": 1673,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/05_运营出版/信息库1签约篇.md#item-1",
+            "raw/sources/05_运营出版/信息库1签约篇.md#item-4",
+            "raw/sources/05_运营出版/信息库1签约篇.md#item-5",
+            "raw/sources/05_运营出版/信息库1签约篇.md#item-7"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/05_运营出版/信息库1签约篇.md#item-2",
+            "raw/sources/05_运营出版/信息库1签约篇.md#item-6"
+          ]
+        },
+        {
+          "id": "topic-3",
+          "title": "冲突升级",
+          "item_ids": [
+            "raw/sources/05_运营出版/信息库1签约篇.md#item-3",
+            "raw/sources/05_运营出版/信息库1签约篇.md#item-8"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "1-001cc7a3-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/05_运营出版/信息库1签约篇.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "1-001cc7a3-topic-2",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/05_运营出版/信息库1签约篇.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "1-001cc7a3-topic-3",
+          "title": "冲突升级",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/05_运营出版/信息库1签约篇.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/05_运营出版/审核上架1起点培训之人物设定.md",
+      "characters": 2470,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "冲突升级",
+          "item_ids": [
+            "raw/sources/05_运营出版/审核上架1起点培训之人物设定.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "1-6c3d6d50-topic-1",
+          "title": "冲突升级",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/05_运营出版/审核上架1起点培训之人物设定.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/05_运营出版/审核上架2对话技巧详谈引号开头对话流.md",
+      "characters": 1297,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/05_运营出版/审核上架2对话技巧详谈引号开头对话流.md#item-1",
+            "raw/sources/05_运营出版/审核上架2对话技巧详谈引号开头对话流.md#item-3"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/05_运营出版/审核上架2对话技巧详谈引号开头对话流.md#item-2"
+          ]
+        },
+        {
+          "id": "topic-3",
+          "title": "综合主题（补充）",
+          "item_ids": [
+            "raw/sources/05_运营出版/审核上架2对话技巧详谈引号开头对话流.md#item-4"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "2-1799b5a4-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/05_运营出版/审核上架2对话技巧详谈引号开头对话流.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "2-1799b5a4-topic-2",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/05_运营出版/审核上架2对话技巧详谈引号开头对话流.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "2-1799b5a4-topic-3",
+          "title": "综合主题（补充）",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/05_运营出版/审核上架2对话技巧详谈引号开头对话流.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/07_看电影学写作/3写作选材之想象力非凡第3段.md",
+      "characters": 1709,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/07_看电影学写作/3写作选材之想象力非凡第3段.md#section-1"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "角色动机",
+          "item_ids": [
+            "raw/sources/07_看电影学写作/3写作选材之想象力非凡第3段.md#section-2"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "3-3-b1d2be31-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/07_看电影学写作/3写作选材之想象力非凡第3段.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "3-3-b1d2be31-topic-2",
+          "title": "角色动机",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/07_看电影学写作/3写作选材之想象力非凡第3段.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/08_音频教程/大神写作经验分享4.md",
+      "characters": 11514,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/08_音频教程/大神写作经验分享4.md#section-1"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "冲突升级",
+          "item_ids": [
+            "raw/sources/08_音频教程/大神写作经验分享4.md#section-2"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "4-3f0ed504-topic-1",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/08_音频教程/大神写作经验分享4.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        },
+        {
+          "id": "4-3f0ed504-topic-2",
+          "title": "冲突升级",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/08_音频教程/大神写作经验分享4.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ]
+        }
+      ],
+      "error": null
+    }
+  ]
+}
