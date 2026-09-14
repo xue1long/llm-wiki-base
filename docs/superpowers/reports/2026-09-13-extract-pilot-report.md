@@ -6,7 +6,25 @@
 - complete: 43
 - incomplete: 7
 - pages (dry-run): 60
-- spot-check: pending
+- spot-check: completed by Codex; strict accepted `1/10` (`10%`), threshold `80%`
+- full apply: blocked; rules-only topics and fallback slots are not production-safe
+
+## Spot-check
+
+Strict acceptance requires classification, completeness, topic semantics/quantity, and usable non-placeholder slot content to pass for one source.
+
+| # | Source | Accepted | Finding |
+|---:|---|:---:|---|
+| 1 | `借鉴素材小说写作.md` | no | 泛主题过度拆分，含综合主题 |
+| 2 | `入门教程一个新手的五个阶段.md` | no | 五阶段被输出为综合主题 |
+| 3 | `入门教程三江.md` | yes | 标题+简介正确拦截 |
+| 4 | `入门教程人物代入感方面的刻画.md` | no | 有实质内容却被 800 字阈值拦截 |
+| 5 | `入门教程作家是怎么炼成的新手必看.md` | no | 作家职业生涯被误标为角色动机 |
+| 6 | `入门教程基础篇语言规范.md` | no | 语言规范被误标为世界观设定 |
+| 7 | `入门教程网络小说写作宝典.md` | no | 多主题被压成冲突升级 |
+| 8 | `入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏.md` | no | 遗漏高潮、悬念、节奏，槽位为回退文本 |
+| 9 | `必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md` | no | 讲课记录误判为单方法 |
+| 10 | `必备资料20个签约条件新人必看2.md` | no | 20 条清单误判为单方法 |
 
 ## Sources
 

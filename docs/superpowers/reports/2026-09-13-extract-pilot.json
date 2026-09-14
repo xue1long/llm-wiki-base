@@ -68,9 +68,36 @@
     }
   },
   "spot_check": {
-    "status": "pending",
-    "accuracy": null,
-    "reviewed_sources": []
+    "status": "completed",
+    "reviewer": "Codex（代审）",
+    "criteria": "逐篇核对分类、完整性、主题语义/数量和槽位是否为可用来源内容；全部通过才计为 accepted",
+    "accuracy": 0.1,
+    "threshold": 0.8,
+    "approved_for_full_apply": false,
+    "reviewed_sources": [
+      "raw/sources/01_新手入门/借鉴素材小说写作.md",
+      "raw/sources/01_新手入门/入门教程一个新手的五个阶段.md",
+      "raw/sources/01_新手入门/入门教程三江.md",
+      "raw/sources/01_新手入门/入门教程人物代入感方面的刻画.md",
+      "raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看.md",
+      "raw/sources/01_新手入门/入门教程基础篇语言规范.md",
+      "raw/sources/01_新手入门/入门教程网络小说写作宝典.md",
+      "raw/sources/01_新手入门/入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏.md",
+      "raw/sources/01_新手入门/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md",
+      "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md"
+    ],
+    "reviews": [
+      {"source": "raw/sources/01_新手入门/借鉴素材小说写作.md", "accepted": false, "classification_ok": true, "completeness_ok": true, "topic_ok": false, "note": "泛主题素材被拆成三个主题，含两个综合主题；主题名不可直接作为 concept。"},
+      {"source": "raw/sources/01_新手入门/入门教程一个新手的五个阶段.md", "accepted": false, "classification_ok": true, "completeness_ok": true, "topic_ok": false, "note": "正文明确是作者成长五阶段，但输出仅为“综合主题”，丢失核心语义。"},
+      {"source": "raw/sources/01_新手入门/入门教程三江.md", "accepted": true, "classification_ok": true, "completeness_ok": true, "topic_ok": true, "note": "263 字标题+简介，正确拦截且不生成页面。"},
+      {"source": "raw/sources/01_新手入门/入门教程人物代入感方面的刻画.md", "accepted": false, "classification_ok": false, "completeness_ok": false, "topic_ok": false, "note": "773 字已有定义、三国人物例子和写作建议，被 800 字阈值误判为 incomplete。"},
+      {"source": "raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看.md", "accepted": false, "classification_ok": true, "completeness_ok": true, "topic_ok": false, "note": "正文主题是作家职业生涯与出版路径，输出“角色动机”明显偏题。"},
+      {"source": "raw/sources/01_新手入门/入门教程基础篇语言规范.md", "accepted": false, "classification_ok": true, "completeness_ok": true, "topic_ok": false, "note": "正文是语言规范，输出“世界观设定”错误。"},
+      {"source": "raw/sources/01_新手入门/入门教程网络小说写作宝典.md", "accepted": false, "classification_ok": true, "completeness_ok": true, "topic_ok": false, "note": "标题/正文聚焦大纲、商业写作、情节和更新，单一“冲突升级”不足且语义不稳。"},
+      {"source": "raw/sources/01_新手入门/入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏.md", "accepted": false, "classification_ok": true, "completeness_ok": true, "topic_ok": false, "note": "“冲突升级”只覆盖冲突子项，遗漏高潮、悬念和节奏；无 LLM 槽位内容也只是回退文本。"},
+      {"source": "raw/sources/01_新手入门/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md", "accepted": false, "classification_ok": false, "completeness_ok": true, "topic_ok": false, "note": "讲课记录含多个女频类型/平台主题，不应作为单方法且输出“角色动机”偏题。"},
+      {"source": "raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md", "accepted": false, "classification_ok": false, "completeness_ok": true, "topic_ok": false, "note": "正文是 20 条编号清单，却被判为 single_method，并拆出三个泛主题。"}
+    ]
   },
   "results": [
     {

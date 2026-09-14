@@ -10,7 +10,7 @@
 
 - ✅ `scripts/extract_pilot.py` 已落地：确定性选取 50 篇 raw，调用 Stage 1/3/4/5，严格 dry-run，不写 `wiki/`。
 - ✅ 真实试点：`selected=50`、`complete=43`、`incomplete=7`、`errors=0`、候选 topics/pages=`60/60`；报告见 `docs/superpowers/reports/2026-09-13-extract-pilot-report.md`。
-- ⚠️ 人工 spot-check 尚未执行，报告准确率保持 `pending`；Task 8 全量抽取需待人工确认后开始。
+- ⚠️ 已代审 10 篇：严格 accepted `1/10 = 10%`，低于 `80%` 门槛；Task 8 全量 `--apply` 继续阻断。
 - ✅ 测试：Task 7 专项 `4 passed`；入口问题修复为直接执行脚本时自动引导仓库根目录导入。
 
 ### novel-wiki V7.1.1 抽取流水线 Task 9（2026-09-14）
