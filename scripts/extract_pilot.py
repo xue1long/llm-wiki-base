@@ -39,11 +39,17 @@ def run_pilot(
     seed: int = 42,
     json_output: str | Path | None = None,
     markdown_output: str | Path | None = None,
+    llm: Any = None,
 ) -> dict[str, Any]:
     """Run the pilot and optionally write JSON/Markdown reports.
 
     Selection is deterministic for a given ``seed``.  The returned report is
     fully JSON-serializable so callers can add human spot-check annotations.
+
+    ``llm`` is the optional ``LLMClient`` injected for Stage 1 classification
+    fallback, Stage 4 topic clustering, and Stage 5 slot filling. When
+    ``llm`` is ``None`` the pipeline runs offline-heuristic only — useful
+    for tests / CI. The report records whether LLM was enabled.
     """
     if count < 1:
         raise ValueError("count must be positive")
@@ -53,12 +59,13 @@ def run_pilot(
     results: list[dict[str, Any]] = []
     for path in selected:
         relative = path.relative_to(root).as_posix()
-        results.append(_extract_one(root, path, relative))
+        results.append(_extract_one(root, path, relative, llm=llm))
 
     report = {
         "mode": "dry-run",
         "root": str(root),
         "seed": seed,
+        "llm_enabled": llm is not None,
         "sources": [item["source"] for item in results],
         "summary": _summarize(results),
         "spot_check": {
@@ -97,10 +104,16 @@ def _select_sources(candidates: list[Path], count: int, seed: int) -> list[Path]
     return sorted(rng.sample(candidates, count))
 
 
-def _extract_one(root: Path, path: Path, relative: str) -> dict[str, Any]:
+def _extract_one(
+    root: Path,
+    path: Path,
+    relative: str,
+    *,
+    llm: Any = None,
+) -> dict[str, Any]:
     try:
         content = path.read_text(encoding="utf-8", errors="replace")
-        classification = classify_doc(content, filename_hint=path.name)
+        classification = classify_doc(content, filename_hint=path.name, llm=llm)
         complete, completeness_reason = check_completeness(content, classification.doc_type)
         result: dict[str, Any] = {
             "source": relative,
@@ -119,14 +132,19 @@ def _extract_one(root: Path, path: Path, relative: str) -> dict[str, Any]:
 
         items = _extract_items(content, relative)
         item_map = {item["id"]: item for item in items}
-        topics = cluster_topics(items)
+        topics = cluster_topics(items, llm=llm)
         for topic in topics:
             topic_text = "\n\n".join(
                 item_map[item_id]["text"]
                 for item_id in topic.item_ids
                 if item_id in item_map
             )
-            page = fill_slots(topic, source_text=topic_text)
+            page = fill_slots(
+                topic,
+                source_text=topic_text,
+                llm=llm,
+                item_texts=item_map,
+            )
             page.id = _stable_page_id(relative, topic.id)
             result["topics"].append(
                 {
@@ -142,6 +160,8 @@ def _extract_one(root: Path, path: Path, relative: str) -> dict[str, Any]:
                     "type": page.type,
                     "source_ids": [relative],
                     "filled_slots": list(page.slots),
+                    "needs_review_slots": list(page.needs_review_slots),
+                    "has_evidence": page.has_evidence,
                 }
             )
         return result
@@ -248,16 +268,38 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--json-out", default=str(DEFAULT_JSON))
     parser.add_argument("--markdown-out", default=str(DEFAULT_MARKDOWN))
+    parser.add_argument(
+        "--provider",
+        default=None,
+        help=(
+            "Optional name of a configured LLM provider (from "
+            "src.llm.registry.ProviderRegistry). When omitted, the pilot "
+            "runs offline-heuristic only and never hits the network."
+        ),
+    )
     args = parser.parse_args(argv)
+    llm = _build_llm(args.provider)
     report = run_pilot(
         args.root,
         count=args.count,
         seed=args.seed,
         json_output=args.json_out,
         markdown_output=args.markdown_out,
+        llm=llm,
     )
     print(_json_text(report), end="")
     return 0 if report["summary"]["errors"] == 0 else 2
+
+
+def _build_llm(provider_name: str | None):
+    """Resolve an injected LLMClient. Returns None when no provider was
+    requested — keeps the pilot offline-by-default."""
+    if not provider_name:
+        return None
+    # Lazy import keeps the offline path free of llm provider deps.
+    from src.pipeline.v7_extract.llm_client import AnthropicLLMClient
+
+    return AnthropicLLMClient(default_provider_name=provider_name)
 
 
 if __name__ == "__main__":

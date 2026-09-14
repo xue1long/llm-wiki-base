@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from scripts.extract_full import run_full
+from src.pipeline.v7_extract.llm_client import FakeLLMClient
 
 
 def _write_source(root: Path, name: str, content: str = "# 标题\n\n" + "正文。" * 300) -> None:
@@ -56,3 +57,21 @@ def test_full_apply_is_fail_closed_before_pilot_approval(tmp_path: Path) -> None
 
     with pytest.raises(RuntimeError, match="spot-check"):
         run_full(tmp_path, dry_run=False)
+
+
+def test_full_dry_run_records_llm_enabled_when_injected(tmp_path: Path) -> None:
+    """`llm_enabled` reflects injection and the run stays dry-run-only."""
+    _write_source(tmp_path, "one.md")
+    fake = FakeLLMClient()
+    fake.script("fill_slots", '{"slots": {"definition": "ok"}}')
+
+    report = run_full(
+        tmp_path,
+        batch_size=1,
+        checkpoint_path=tmp_path / ".index" / "full.json",
+        llm=fake,
+    )
+
+    assert report["mode"] == "dry-run"
+    assert report["llm_enabled"] is True
+    assert fake.calls, "injected LLM should have been invoked"

@@ -38,6 +38,7 @@ def run_full(
     dry_run: bool = True,
     json_output: str | Path | None = None,
     markdown_output: str | Path | None = None,
+    llm: Any = None,
 ) -> dict[str, Any]:
     """Process every supported raw source in resumable dry-run batches."""
     if not dry_run:
@@ -60,7 +61,7 @@ def run_full(
         if batch_number in completed:
             batches_skipped += 1
             continue
-        batch_results = [_with_retries(root, path, max_retries) for path in batch]
+        batch_results = [_with_retries(root, path, max_retries, llm=llm) for path in batch]
         results.extend(batch_results)
         if not any(item["error"] for item in batch_results):
             completed.add(batch_number)
@@ -84,6 +85,7 @@ def run_full(
         "batch_size": batch_size,
         "max_retries": max_retries,
         "checkpoint": str(checkpoint),
+        "llm_enabled": llm is not None,
         "summary": summary,
         "results": report_results,
     }
@@ -94,10 +96,12 @@ def run_full(
     return report
 
 
-def _with_retries(root: Path, path: Path, max_retries: int) -> dict[str, Any]:
+def _with_retries(
+    root: Path, path: Path, max_retries: int, *, llm: Any = None
+) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for attempt in range(1, max_retries + 1):
-        result = _extract_one(root, path, path.relative_to(root).as_posix())
+        result = _extract_one(root, path, path.relative_to(root).as_posix(), llm=llm)
         result["attempts"] = attempt
         if not result["error"]:
             return result
@@ -175,8 +179,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--checkpoint", default=None)
     parser.add_argument("--json-out", default=str(DEFAULT_JSON))
     parser.add_argument("--markdown-out", default=str(DEFAULT_MARKDOWN))
+    parser.add_argument(
+        "--provider",
+        default=None,
+        help=(
+            "Optional name of a configured LLM provider (from "
+            "src.llm.registry.ProviderRegistry). When omitted, the run is "
+            "offline-heuristic only and never hits the network."
+        ),
+    )
     parser.add_argument("--apply", action="store_true", help="blocked until pilot approval")
     args = parser.parse_args(argv)
+    llm = _build_llm(args.provider)
     try:
         report = run_full(
             args.root,
@@ -186,11 +200,20 @@ def main(argv: list[str] | None = None) -> int:
             dry_run=not args.apply,
             json_output=args.json_out,
             markdown_output=args.markdown_out,
+            llm=llm,
         )
     except (RuntimeError, ValueError) as exc:
         parser.error(str(exc))
     print(_json_text(report), end="")
     return 0 if report["summary"]["errors"] == 0 else 2
+
+
+def _build_llm(provider_name: str | None):
+    if not provider_name:
+        return None
+    from src.pipeline.v7_extract.llm_client import AnthropicLLMClient
+
+    return AnthropicLLMClient(default_provider_name=provider_name)
 
 
 if __name__ == "__main__":

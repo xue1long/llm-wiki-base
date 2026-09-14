@@ -7,6 +7,7 @@ import subprocess
 import sys
 
 from scripts.extract_pilot import run_pilot
+from src.pipeline.v7_extract.llm_client import FakeLLMClient
 
 
 def _write_source(root: Path, name: str, content: str) -> None:
@@ -101,3 +102,47 @@ def test_direct_script_entrypoint_bootstraps_repo_imports(tmp_path: Path) -> Non
 
     assert completed.returncode == 0, completed.stderr
     assert json_path.exists()
+
+
+def test_run_pilot_records_llm_enabled_when_injected(tmp_path: Path) -> None:
+    """The report's `llm_enabled` flag reflects whether an LLM was injected."""
+    _write_source(tmp_path, "one.md", "# 标题\n\n" + "正文。" * 300)
+
+    without_llm = run_pilot(tmp_path, count=1, seed=1)
+    assert without_llm["llm_enabled"] is False
+
+    fake = FakeLLMClient()
+    fake.script("fill_slots", '{"slots": {"definition": "ok"}}')
+    with_llm = run_pilot(tmp_path, count=1, seed=1, llm=fake)
+    assert with_llm["llm_enabled"] is True
+    # The injected LLM was actually consulted — its calls log is non-empty.
+    assert fake.calls, "FakeLLMClient should have been invoked for at least one prompt_kind"
+
+
+def test_run_pilot_injected_llm_failure_falls_back_to_heuristic(tmp_path: Path) -> None:
+    """A broken LLM (returns invalid JSON / empty) does NOT corrupt the
+    report — classification falls back to heuristic and pages are still
+    produced with empty slots flagged needs_review."""
+    _write_source(
+        tmp_path,
+        "complete.md",
+        "# 扩句法\n\n定义：通过增加动作、环境和感官细节让句子更具体。\n\n"
+        + "正文内容。" * 200,
+    )
+    fake = FakeLLMClient()
+    # queue garbage for every prompt kind the pilot may invoke
+    for kind in ("classify", "cluster", "fill_slots"):
+        for _ in range(5):
+            fake.script(kind, "this is not json")
+
+    report = run_pilot(tmp_path, count=1, seed=1, llm=fake)
+    assert report["llm_enabled"] is True
+    by_name = {item["source"]: item for item in report["results"]}
+    page = by_name["raw/sources/complete.md"]
+    # Heuristic path still produced at least one page.
+    assert page["pages"], "heuristic fallback must still produce pages"
+    # And every page was flagged needs_review because LLM JSON was broken.
+    assert all(
+        p["needs_review_slots"] for p in page["pages"]
+    ), "broken-LLM pages must be flagged needs_review, not marked validated"
+    assert not any(p["has_evidence"] for p in page["pages"])
