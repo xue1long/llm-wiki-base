@@ -132,6 +132,7 @@ def rebuild_index(paths: WikiPaths) -> int:
         (PageType.ENTITY, "wiki_entities"),
         (PageType.CONCEPT, "wiki_concepts"),
         (PageType.SYNTHESIS, "wiki_synthesis"),
+        (PageType.TOOL, "wiki_tools"),
     ]:
         for f in getattr(paths, dir_prop).glob("*.md"):
             page = read_page(f)

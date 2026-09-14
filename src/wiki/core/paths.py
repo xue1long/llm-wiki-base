@@ -64,6 +64,15 @@ class WikiPaths:
         return self.root / "wiki" / "synthesis"
 
     @property
+    def wiki_tools(self) -> Path:
+        """V7.1.1 (RFC v6): tool pages directory — reference tables such as
+        百家姓 or 修真等级表. These pages are not method/technique
+        knowledge but rather lookup data; they use the 3-slot minimal
+        template (tool_meta / usage / examples).
+        """
+        return self.root / "wiki" / "tools"
+
+    @property
     def wiki_claims(self) -> Path:
         return self.root / "wiki" / "claims"
 

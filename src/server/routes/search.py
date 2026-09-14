@@ -13,7 +13,9 @@ class SearchRequest(BaseModel):
     topK: int = 10
     includeContent: bool = False
     mode: Literal["hybrid", "keyword", "vector"] = "hybrid"
-    type: Literal["concept", "entity", "source", "synthesis"] | None = None
+    # V7.1.1 (RFC v6): added "tool" for reference-table pages (e.g. 百家姓).
+    # Stage / multi-stage routing is left for the V7.2 retrieval-API RFC.
+    type: Literal["concept", "entity", "source", "synthesis", "tool"] | None = None
 
 
 @router.post("/projects/{project_id}/search")

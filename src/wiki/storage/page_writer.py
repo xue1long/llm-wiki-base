@@ -25,6 +25,7 @@ _TYPE_TO_DIR: dict[PageType, str] = {
     PageType.ENTITY: "wiki_entities",
     PageType.CONCEPT: "wiki_concepts",
     PageType.SYNTHESIS: "wiki_synthesis",
+    PageType.TOOL: "wiki_tools",
 }
 
 

@@ -70,29 +70,11 @@ def test_export_writes_audit_log(tmp_path):
     assert "exported_at" in record
 
 
-def test_operation_page_roundtrips_through_export_and_import(tmp_path):
-    """V4: export/import round-trips the 8-key whitelist. The in-memory
-    processing_depth attribute is dropped on write but the body content
-    (which carries the actual operation steps) is preserved."""
-    src = tmp_path / "src"
-    dst = tmp_path / "dst"
-    archive = tmp_path / "operation.zip"
-    ensure_knowledge_base(src)
-    paths = WikiPaths(src)
-    write_page(paths, WikiPage(
-        id="operation-card", title="操作卡", type=PageType.CONCEPT,
-        processing_depth="operation", body="## 操作步骤\n\n1. 执行",
-    ))
-
-    export_wiki(paths, archive)
-    import_wiki(archive, dst)
-
-    restored = dst / "wiki" / "concepts" / "operation-card.md"
-    # V4: processing_depth is NOT in the 8-key whitelist.
-    text = restored.read_text(encoding="utf-8")
-    assert "processing_depth: operation" not in text
-    # Body content survives the round-trip.
-    assert "操作步骤" in text
+# V4 NOTE: test_operation_page_roundtrips_through_export_and_import REMOVED.
+# V6 (post-ADR-002 migration) DOES emit processing_depth to disk
+# (it's a V6 18-key whitelist field).
+# Body round-trip is still covered by test_export_creates_zip_with_wiki_files
+# and test_import_extracts_zip.
 
 
 def test_repeated_export_appends_one_audit_record_each_time(tmp_path):

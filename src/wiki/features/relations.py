@@ -22,6 +22,10 @@ class RelationType(str, Enum):
     OPPOSITE_OF = "opposite_of"     # symmetric
     DERIVED_FROM = "derived_from"
     DERIVES = "derives"
+    # V7.1.1 (RFC v6): refines = "A is a refinement / elaboration of B".
+    # Used for parent→child method relationships (e.g. 百炼法 refines 扩句法).
+    REFINES = "refines"
+    REFINED_BY = "refined_by"
 
 
 # Inverse relation table
@@ -43,6 +47,8 @@ INVERSE_RELATIONS = {
     "opposite_of": "opposite_of",       # symmetric
     "derived_from": "derives",
     "derives": "derived_from",
+    "refines": "refined_by",            # V7.1.1
+    "refined_by": "refines",            # V7.1.1
 }
 
 USER_TYPE_PREFIX = "x-"

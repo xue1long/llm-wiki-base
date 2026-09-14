@@ -16,6 +16,10 @@ V6_KEYS = V4_KEYS | {
     "taxonomy_sub", "use_context", "workflow_state", "capture_type",
     "v2_origin", "_ko_extra",
 }
+# V7.1.1 (RFC v6): the V7 whitelist extends V6 with 4 fields.
+V7_KEYS = V6_KEYS | {
+    "template_version", "entity_subtype", "policy_kind", "stage",
+}
 
 
 def _validator_module():
@@ -44,7 +48,7 @@ def _page_text(page_id: str, extra: str = "") -> str:
     )
 
 
-def test_current_writer_emits_v6_and_validator_reads_both_generations(tmp_path):
+def test_current_writer_emits_v7_and_validator_reads_both_generations(tmp_path):
     page = WikiPage(
         id="contract-page",
         title="Contract page",
@@ -54,7 +58,8 @@ def test_current_writer_emits_v6_and_validator_reads_both_generations(tmp_path):
         category="写作技法",
         taxonomy_sub="人物",
     )
-    assert set(page.to_frontmatter_dict()) == V6_KEYS
+    # V7.1.1: writer emits the V7 whitelist (V6's 18 + V7's 4).
+    assert set(page.to_frontmatter_dict()) == V7_KEYS
 
     concepts = tmp_path / "concepts"
     concepts.mkdir()

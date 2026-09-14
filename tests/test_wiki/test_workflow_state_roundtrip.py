@@ -18,11 +18,9 @@ def test_default_verified_at():
     assert p.verified_at == 0
 
 
-def test_workflow_state_v4_not_in_frontmatter():
-    """V4: workflow_state is in-memory only — never in to_frontmatter_dict."""
-    p = WikiPage(id="x", title="X", type=PageType.CONCEPT, workflow_state="verified")
-    d = p.to_frontmatter_dict()
-    assert "workflow_state" not in d
+# V4 NOTE: test_workflow_state_v4_not_in_frontmatter REMOVED.
+# V6 (post-ADR-002 migration) DOES emit workflow_state to disk
+# (it's a V6 18-key whitelist field, not V4 8-key in-memory only).
 
 
 def test_workflow_state_legacy_read_back():

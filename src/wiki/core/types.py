@@ -127,11 +127,18 @@ def _to_iso_dt(value):
 
 
 class PageType(str, Enum):
-    """V4 strict whitelist — only 4 page types."""
+    """V7.1.1 strict whitelist — 5 page types (source/entity/concept/synthesis + tool).
+
+    `tool` is the new V7.1.1 type for reference tables (e.g. 百家姓, 修真等级)
+    that are not methods/techniques but rather lookup data with their own
+    minimal 3-slot template. It writes to ``wiki/tools/`` and is excluded
+    from the knowledge graph view (tool pages are not semantic edges).
+    """
     SOURCE = "source"
     ENTITY = "entity"
     CONCEPT = "concept"
     SYNTHESIS = "synthesis"
+    TOOL = "tool"
 
 
 _TYPE_TO_DIR: dict[PageType, str] = {
@@ -139,6 +146,7 @@ _TYPE_TO_DIR: dict[PageType, str] = {
     PageType.ENTITY: "wiki_entities",
     PageType.CONCEPT: "wiki_concepts",
     PageType.SYNTHESIS: "wiki_synthesis",
+    PageType.TOOL: "wiki_tools",
 }
 
 
@@ -199,6 +207,24 @@ class WikiPage:
     v2_origin: bool = False
     _ko_extra: dict = field(default_factory=dict, repr=False)
 
+    # V7.1.1 fields (RFC v6, 2026-09-11). Additive — V6 pages remain readable.
+    # - template_version: defaults to "4.0.0" for the V7.1.1 bundled
+    #   templates. Legacy V6 pages without this field fall back to "4.0.0"
+    #   so they validate against the new whitelist without manual migration.
+    # - entity_subtype: only meaningful when type == ENTITY. Allowed values
+    #   are person / work / platform / site / policy / misc. Empty string
+    #   is the legacy / unspecified default.
+    # - policy_kind: only meaningful when type == ENTITY and
+    #   entity_subtype == "policy". Allowed values are platform_rule /
+    #   club_announcement / industry_guideline. Empty string otherwise.
+    # - stage: list of writing phases the concept applies to. Allowed
+    #   values are 开篇 / 前期 / 中期 / 高潮 / 收尾 / 通用. Empty list is
+    #   the legacy default — V6 pages never carried this.
+    template_version: str = "4.0.0"
+    entity_subtype: str = ""
+    policy_kind: str = ""
+    stage: list[str] = field(default_factory=list)
+
     def to_frontmatter_dict(self) -> dict:
         """Serialize the page to the current V6 frontmatter dict.
 
@@ -235,6 +261,12 @@ class WikiPage:
             "capture_type": self.capture_type,
             "v2_origin": self.v2_origin,
             "_ko_extra": dict(self._ko_extra),
+            # V7.1.1 fields (RFC v6). All default-constructed so V6 pages
+            # that lack them still serialize cleanly.
+            "template_version": self.template_version,
+            "entity_subtype": self.entity_subtype,
+            "policy_kind": self.policy_kind,
+            "stage": list(self.stage),
         }
 
     @classmethod
@@ -277,6 +309,13 @@ class WikiPage:
             use_context=str(d.get("use_context", "")),
             capture_type=str(d.get("capture_type", "")),
             v2_origin=bool(d.get("v2_origin", False)),
+            # V7.1.1 fields. Defaults preserve legacy V6 page semantics
+            # (template_version defaults to 4.0.0; entity_subtype /
+            # policy_kind default to empty string; stage defaults to []).
+            template_version=str(d.get("template_version", "4.0.0")),
+            entity_subtype=str(d.get("entity_subtype", "")),
+            policy_kind=str(d.get("policy_kind", "")),
+            stage=list(d.get("stage") or []),
         )
         # S1: restore _ko_extra for round-trip (capture source_status, etc.)
         ko_extra = d.get("_ko_extra")

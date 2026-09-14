@@ -10,6 +10,7 @@ _TYPE_TO_DIR = {
     PageType.ENTITY: "wiki_entities",
     PageType.CONCEPT: "wiki_concepts",
     PageType.SYNTHESIS: "wiki_synthesis",
+    PageType.TOOL: "wiki_tools",
 }
 
 

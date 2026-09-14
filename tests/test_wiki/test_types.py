@@ -259,19 +259,26 @@ def test_v6_frontmatter_has_migration_fields_and_extra():
 
     frontmatter = page.to_frontmatter_dict()
 
+    # V7.1.1 schema: 22 keys (V6's 18 + V7's 4: template_version /
+    # entity_subtype / policy_kind / stage).
     assert set(frontmatter) == {
         "id", "title", "type", "sources", "created_at", "updated_at",
         "relations", "tags", "processing_depth", "source_grade", "platform",
         "category", "taxonomy_sub", "use_context", "workflow_state",
         "capture_type", "v2_origin", "_ko_extra",
+        "template_version", "entity_subtype", "policy_kind", "stage",
     }
     assert frontmatter["source_grade"] == "A"
     assert frontmatter["_ko_extra"] == page._ko_extra
+    assert frontmatter["template_version"] == "4.0.0"  # V7 default
+    assert frontmatter["stage"] == []  # V6 pages default to empty list
 
     restored = WikiPage.from_dict(frontmatter, body="body")
     assert restored.source_grade == "A"
     assert restored.grade == "A"
     assert restored.platform == "B站"
+    assert restored.template_version == "4.0.0"
+    assert restored.stage == []
     assert restored.capture_type == "video-transcript"
     assert restored.v2_origin is True
     assert restored._ko_extra == page._ko_extra

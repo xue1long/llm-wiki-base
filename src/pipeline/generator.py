@@ -105,6 +105,11 @@ RELATION_TYPES = [
     "superseded_by", "depends_on", "required_by", "analogous_to",
     "opposite_of", "derived_from", "derives",
     "taxonomy_of", "belongs_to_audience", "hosted_on_platform", "has_credibility",
+    # V7.1.1 (RFC v6): "refines" / "refined_by" for parent→child method
+    # relationships (e.g. 百炼法 refines 扩句法). Inverse pair; the
+    # generator emits one of them at a time and the runtime computes
+    # the inverse.
+    "refines", "refined_by",
 ]
 
 # Placeholder substrings that lint flags as ERROR (M4). Phase 3 实测：

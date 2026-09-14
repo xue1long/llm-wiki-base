@@ -31,11 +31,29 @@ V6_FIELDS = REQUIRED_FIELDS | frozenset({
     "taxonomy_sub", "use_context", "workflow_state", "capture_type",
     "v2_origin", "_ko_extra",
 })
-ALLOWED_FIELDS = V6_FIELDS
-ALLOWED_TYPES = frozenset({"source", "entity", "concept", "synthesis"})
+# V7.1.1 (RFC v6, 2026-09-11): the V7 whitelist extends V6 with 4 fields.
+# - template_version: defaults to "4.0.0" — emitted by WikiPage.to_frontmatter_dict
+# - entity_subtype: only meaningful when type == ENTITY
+# - policy_kind: only meaningful when entity_subtype == "policy"
+# - stage: list of writing phases (开篇/前期/中期/高潮/收尾/通用); empty list is valid
+V7_FIELDS = V6_FIELDS | frozenset({
+    "template_version", "entity_subtype", "policy_kind", "stage",
+})
+ALLOWED_FIELDS = V7_FIELDS
+ALLOWED_TYPES = frozenset({"source", "entity", "concept", "synthesis", "tool"})
 
-TYPE_DIRS = {"concepts", "sources", "entities", "synthesis", "_stubs"}
+TYPE_DIRS = {"concepts", "sources", "entities", "synthesis", "tools", "_stubs"}
 RESERVED_FILES = {"index.md", "log.md"}
+
+# V7.1.1 cross-field validation: policy_kind only valid when entity_subtype=policy
+# entity_subtype only valid when type=entity
+# (Both default to "" so legacy V6 pages pass.)
+_VALID_ENTITY_SUBTYPES = frozenset({
+    "", "person", "work", "platform", "site", "policy", "misc",
+})
+_VALID_POLICY_KINDS = frozenset({
+    "", "platform_rule", "club_announcement", "industry_guideline",
+})
 
 
 # ---------------------------------------------------------------------------
@@ -150,15 +168,51 @@ def validate_page(md_path: Path, wiki_root: Path) -> PageReport:
             message=f"type '{ptype}' not in {sorted(ALLOWED_TYPES)}"
         ))
 
-    # P0: strict whitelist — legacy eight-key and current V6 fields are valid
+    # P0: strict whitelist — V4/V5 legacy, V6, and V7.1.1 fields are valid
     for k in fields:
         if k not in ALLOWED_FIELDS:
             report.findings.append(Finding(
                 path=str(rel), severity="P0", code="V4020",
-                message=f"unknown field '{k}' — allowed V4/V5 legacy or V6 fields: "
+                message=f"unknown field '{k}' — allowed V4/V5/V6/V7.1.1 fields: "
                         f"{sorted(ALLOWED_FIELDS)}"
             ))
             report.unknown_fields.append(k)
+
+    # P1: V7.1.1 cross-field validation
+    entity_subtype = fields.get("entity_subtype", "")
+    policy_kind = fields.get("policy_kind", "")
+
+    if entity_subtype and entity_subtype not in _VALID_ENTITY_SUBTYPES:
+        report.findings.append(Finding(
+            path=str(rel), severity="P1", code="V4030",
+            message=f"entity_subtype '{entity_subtype}' not in "
+                    f"{sorted(_VALID_ENTITY_SUBTYPES - {''})}; "
+                    f"valid values: person/work/platform/site/policy/misc"
+        ))
+
+    if policy_kind and policy_kind not in _VALID_POLICY_KINDS:
+        report.findings.append(Finding(
+            path=str(rel), severity="P1", code="V4031",
+            message=f"policy_kind '{policy_kind}' not in "
+                    f"{sorted(_VALID_POLICY_KINDS - {''})}; "
+                    f"valid values: platform_rule/club_announcement/industry_guideline"
+        ))
+
+    # cross-field: entity_subtype only valid when type=entity
+    if entity_subtype and ptype and ptype != "entity":
+        report.findings.append(Finding(
+            path=str(rel), severity="P0", code="V4032",
+            message=f"entity_subtype '{entity_subtype}' requires type='entity', "
+                    f"got '{ptype}'"
+        ))
+
+    # cross-field: policy_kind only valid when entity_subtype=policy
+    if policy_kind and entity_subtype != "policy":
+        report.findings.append(Finding(
+            path=str(rel), severity="P0", code="V4033",
+            message=f"policy_kind '{policy_kind}' requires entity_subtype='policy', "
+                    f"got entity_subtype='{entity_subtype}'"
+        ))
 
     return report
 

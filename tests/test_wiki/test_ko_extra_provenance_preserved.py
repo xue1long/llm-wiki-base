@@ -16,8 +16,12 @@ from src.wiki.core.types import PageType, WikiPage
 # Test 1: provenance-only payload round-trips (read-side)
 # ---------------------------------------------------------------------------
 def test_ko_extra_provenance_only_round_trips():
-    """A page with _ko_extra carrying provenance must keep it in memory
-    through from_dict (read-side round-trip)."""
+    """A page with _ko_extra carrying provenance must round-trip cleanly.
+
+    V6 (post-ADR-002 migration): _ko_extra IS emitted to disk. The
+    round-trip is full: page → frontmatter → page, with provenance
+    preserved across the boundary.
+    """
     payload = {"sources": ["a.pdf"], "parser_version": "1.0"}
     page = WikiPage(
         id="prov-only",
@@ -26,13 +30,13 @@ def test_ko_extra_provenance_only_round_trips():
     )
     page._ko_extra = {"provenance": payload}
 
-    # V4: to_frontmatter_dict() drops _ko_extra entirely.
+    # V6: to_frontmatter_dict() emits _ko_extra to disk.
     d = page.to_frontmatter_dict()
-    assert "_ko_extra" not in d
+    assert "_ko_extra" in d
+    assert d["_ko_extra"]["provenance"] == payload
 
-    # But from_dict restores it from legacy frontmatter input.
-    legacy_d = {**d, "_ko_extra": {"provenance": payload}}
-    page2 = WikiPage.from_dict(legacy_d)
+    # Round-trip back: from_dict restores _ko_extra from frontmatter.
+    page2 = WikiPage.from_dict(d)
     assert hasattr(page2, "_ko_extra")
     assert isinstance(page2._ko_extra, dict)
     assert "provenance" in page2._ko_extra
@@ -132,25 +136,7 @@ def test_no_provenance_no_phantom_ko_extra_provenance():
 
 
 # ---------------------------------------------------------------------------
-# Test 6 (V4 rewrite): to_frontmatter_dict() does NOT emit _ko_extra
+# NOTE: Test 6 (to_frontmatter_dict_does_not_emit_ko_extra_v4) was REMOVED.
+# V6 (post-ADR-002 migration) DOES emit _ko_extra.provenance to disk.
+# The V4 contract (8-key whitelist) is no longer in force.
 # ---------------------------------------------------------------------------
-def test_to_frontmatter_dict_does_not_emit_ko_extra_v4():
-    """V4 contract: to_frontmatter_dict() drops _ko_extra entirely.
-
-    Documents that the V4 8-key whitelist excludes _ko_extra.provenance
-    (and any other KO mirror fields). The provenance payload remains in
-    memory on the WikiPage for code that reads it, but new writes do
-    not serialize it. See ADR-002.
-    """
-    payload = {"source_path": "x.pdf", "page": 1, "quote": "q"}
-    page = WikiPage(
-        id="verbatim",
-        title="Verbatim",
-        type=PageType.SOURCE,
-    )
-    page._ko_extra = {"provenance": payload}
-
-    d = page.to_frontmatter_dict()
-    assert "_ko_extra" not in d, (
-        "V4: to_frontmatter_dict() never emits _ko_extra"
-    )

@@ -65,6 +65,7 @@ class HeatTracker:
         for page_type, dir_prop in [
             (PageType.SOURCE, "wiki_sources"), (PageType.ENTITY, "wiki_entities"),
             (PageType.CONCEPT, "wiki_concepts"), (PageType.SYNTHESIS, "wiki_synthesis"),
+            (PageType.TOOL, "wiki_tools"),
         ]:
             for f in getattr(self.paths, dir_prop).glob("*.md"):
                 page = read_page(f)
@@ -113,7 +114,8 @@ def decay(page: "WikiPage", now: int | None = None) -> "WikiPage":
 def _infer_type(paths, slug):
     from ..core.types import PageType
     for t, dp in [(PageType.ENTITY, "wiki_entities"), (PageType.CONCEPT, "wiki_concepts"),
-                  (PageType.SOURCE, "wiki_sources"), (PageType.SYNTHESIS, "wiki_synthesis")]:
+                  (PageType.SOURCE, "wiki_sources"), (PageType.SYNTHESIS, "wiki_synthesis"),
+                  (PageType.TOOL, "wiki_tools")]:
         if (getattr(paths, dp) / f"{slug}.md").exists():
             return t
     return PageType.SOURCE

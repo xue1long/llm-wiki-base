@@ -94,42 +94,12 @@ def test_is_valid_id_cjk_basic_block():
     # Uppercase CJK is non-existent in Unicode — no need to test.
 
 
-def test_wiki_page_v22_in_memory_fields():
-    """V4 (ADR-002): grade/processing_depth/is_immutable remain on the
-    in-memory WikiPage (for code that needs them) but are NOT serialized.
-
-    The 8-key V4 whitelist means these fields live only in memory.
-    """
-    page = WikiPage(id="foo", title="F", type=PageType.ENTITY)
-    assert page.grade == "B"
-    assert page.processing_depth == "concept"
-    assert page.is_immutable is False
-
-    fm = page.to_frontmatter_dict()
-    assert "grade" not in fm
-    assert "processing_depth" not in fm
-    assert "is_immutable" not in fm
-
-    # V4: round-tripping in-memory state needs the legacy fields re-injected.
-    legacy_fm = {**fm, "grade": "A", "processing_depth": "memory", "is_immutable": True}
-    restored = WikiPage.from_dict(legacy_fm, body="")
-    assert restored.grade == "A"
-    assert restored.processing_depth == "memory"
-    assert restored.is_immutable is True
+# V4 NOTE: test_wiki_page_v22_in_memory_fields and
+# test_wiki_page_v22_in_memory_fields_custom_values were REMOVED.
+# V6 (post-ADR-002 migration) DOES emit grade / processing_depth /
+# is_immutable to disk (they are V6 18-key whitelist fields).
+# The in-memory semantics are now covered by test_workflow_state_roundtrip
+# and the page_writer round-trip tests.
 
 
-def test_wiki_page_v22_in_memory_fields_custom_values():
-    """V4: custom v2.2 field values kept in memory, never serialized."""
-    page = WikiPage(
-        id="foo", title="F", type=PageType.CONCEPT,
-        grade="A", processing_depth="memory", is_immutable=True,
-    )
-    fm = page.to_frontmatter_dict()
-    # None of these fields appear in the V4 8-key whitelist.
-    assert "grade" not in fm
-    assert "processing_depth" not in fm
-    assert "is_immutable" not in fm
-    # In-memory values are still set.
-    assert page.grade == "A"
-    assert page.processing_depth == "memory"
-    assert page.is_immutable is True
+

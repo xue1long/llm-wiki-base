@@ -19,6 +19,8 @@ def test_page_path_for(tmp_path):
     assert page_path_for(p, PageType.SOURCE, "src") == p.wiki_sources / "src.md"
     assert page_path_for(p, PageType.CONCEPT, "c") == p.wiki_concepts / "c.md"
     assert page_path_for(p, PageType.SYNTHESIS, "s") == p.wiki_synthesis / "s.md"
+    # V7.1.1: TOOL → wiki_tools
+    assert page_path_for(p, PageType.TOOL, "bai-jia-xing") == p.wiki_tools / "bai-jia-xing.md"
 
 
 @pytest.mark.parametrize("slug", [
@@ -61,6 +63,53 @@ def test_write_page_overwrites_existing(tmp_path):
     loaded = read_page(page_path_for(p, PageType.ENTITY, "foo"))
     assert loaded.title == "v2"
     assert loaded.body == "v2"
+
+
+def test_tool_page_round_trip(tmp_path):
+    """V7.1.1: TOOL type round-trips through write_page / read_page."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    page = WikiPage(
+        id="bai-jia-xing", title="百家姓", type=PageType.TOOL,
+        body="赵钱孙李...",
+    )
+    write_page(p, page)
+    path = page_path_for(p, PageType.TOOL, "bai-jia-xing")
+    assert path == p.wiki_tools / "bai-jia-xing.md"
+    loaded = read_page(path)
+    assert loaded.id == "bai-jia-xing"
+    assert loaded.type == PageType.TOOL
+    assert loaded.title == "百家姓"
+
+
+def test_v7_frontmatter_round_trip(tmp_path):
+    """V7.1.1: template_version / entity_subtype / policy_kind / stage round-trip."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    page = WikiPage(
+        id="kai-pian-xie-fa", title="开篇写法", type=PageType.CONCEPT,
+        stage=["开篇", "前期"],
+        template_version="4.0.0",
+    )
+    write_page(p, page)
+    loaded = read_page(page_path_for(p, PageType.CONCEPT, "kai-pian-xie-fa"))
+    assert loaded.stage == ["开篇", "前期"]
+    assert loaded.template_version == "4.0.0"
+
+
+def test_v7_entity_subtype_policy_kind_round_trip(tmp_path):
+    """V7.1.1: entity_subtype + policy_kind on policy entity round-trip."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    page = WikiPage(
+        id="san-jiang-ge", title="三江阁", type=PageType.ENTITY,
+        entity_subtype="policy",
+        policy_kind="club_announcement",
+    )
+    write_page(p, page)
+    loaded = read_page(page_path_for(p, PageType.ENTITY, "san-jiang-ge"))
+    assert loaded.entity_subtype == "policy"
+    assert loaded.policy_kind == "club_announcement"
 
 
 def test_write_page_expected_hash_mismatch_raises_write_conflict(tmp_path):
