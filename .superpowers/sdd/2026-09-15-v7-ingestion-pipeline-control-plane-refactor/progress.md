@@ -104,11 +104,32 @@ git tag -a v7-control-plane-wave1 -m "..."
 | Luna-B | 无 | ✅ |
 | Luna-C | 3 项(stage4/5 schema 升级到 v3.1 item_indexes;stage7 fixture evidence 升级) | ✅ 全部接受 |
 
-### Pre-existing failure(与 Wave 1 无关)
+### Pre-existing failure(与 Wave 1 无关,已独立验证)
 
-`tests/test_pipeline/test_content_filter.py::test_writer_blocks_flagged_page_until_review_is_accepted`
-在 Luna-C 改动前就 fail(Luna-C 在干净 HEAD 上 stash 验证过)。**不是 Wave 1 引入**,
-记录备查,留给后续 plan 处理。
+**测试**:`tests/test_pipeline/test_content_filter.py::test_writer_blocks_flagged_page_until_review_is_accepted`
+
+**fail mode**(Wave 0 HEAD `9e641367` + Wave 1 HEAD `eb1a4a7d` 复现一致):
+```
+AttributeError: 'ConceptPage' object has no attribute 'topic_id'
+src/pipeline/v7_extract/wiki_writer.py:88
+```
+
+**根因**:v3 实施 T2.5(Stage 7 P4 闸门)的遗留问题。`WikiWriter.commit_and_index` Guard A
+直接访问 `page.topic_id`,但 `tests/test_pipeline/test_content_filter.py:72-77` 直接构造
+`ConceptPage("sensitive", "待审概念", ...)` 时没有 `topic_id` 字段(因为 v3 Wave 0
+`_extract_one()` 用 `__dict__` 注入,而测试 fixture 绕过了 `_extract_one()`)。
+
+**Wave 0 复现**(主会话 `git stash + git checkout 9e641367 -- + pytest`)fail mode 与
+Wave 1 完全相同,确认是 **v3 实施 T2.5 引入的 pre-existing bug**,不是 Wave 1 回归。
+
+**修复候选**(留给后续 plan 处理,不修):
+- 方案 A:让 `ConceptPage.topic_id` 默认 `""`(Wave 1 Luna-A 已默认 None,需改为 `""`)
+- 方案 B:让 Guard A 用 `getattr(page, "topic_id", "")` 兼容(与 v3 `failures.filter_failed_topics`
+  的 `getattr(p, "topic_id", None)` 模式一致,最优雅)
+- 方案 C:修测试 fixture 显式构造带 `topic_id=""` 的 page
+
+**本计划范围外**:plan §1.5 / §6 明确"不动 v3 实施的 _legacy.py / __init__.py",
+"不重写 Stage 1/3/4/5 的语义"。修这个 bug 属于 v3 后续 task,**Wave 2 不动**。
 
 ### Wave 2(待 Wave 1 完成)
 
