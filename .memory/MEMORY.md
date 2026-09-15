@@ -1,5 +1,7 @@
 # Project Memory Index
 
+- [2026-09-15 V7 ingestion control-plane refactor](feedback-v7-control-plane-refactor-2026-09-15.md) — source-level checkpoint v2, required root, per-root queue lock, Writer reconciliation, terminal report counts, and 298-pass focused verification; production-provider apply remains intentionally unrun
+
 - [2026-09-15 V7 Plan 2 apply 门槛与最小 smoke](feedback-v7-plan2-apply-2026-09-15.md) — `V7_ALLOW_APPLY` 保持 fail-closed；修复 extract_full apply 未接 WikiWriter 的根因；单 source 真实 smoke 0 errors 但被 evidence/review gate 正确阻断，FakeLLM 写盘回归通过
 
 - [2026-09-14 V7 extract Task 8 全量 dry-run](feedback-v7-extract-full-dryrun-2026-09-14.md) — 1362 raw/3 批/1480 候选 pages/0 errors；正式 checkpoint 续跑 3 批跳过并保留明细，apply 仍由 spot-check 门禁阻断

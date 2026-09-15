@@ -725,14 +725,17 @@ Wave 3 clean 后并行进行两个只读/文档 lane：
 
 **内容：**
 
-- [ ] 将“Stage 6 默认在主链路执行”改成准确描述：关系抽取是可选的 best-effort
+- [x] 将“Stage 6 默认在主链路执行”改成准确描述：关系抽取是可选的 best-effort
    后处理，不是首轮 source→concept 写盘的成功条件；后续接入时必须复用同一
    page ID、queue、checkpoint 和 outcome 契约。
-- [ ] 将 Stage 5 的摘录精确匹配从硬验收改为可选人工参考；保留 item provenance
+- [x] 将 Stage 5 的摘录精确匹配从硬验收改为可选人工参考；保留 item provenance
    和页面级 source 闭环。
-- [ ] 增加 source outcome 状态机、checkpoint 顺序和报告字段定义。
-- [ ] 记录明确不做的工作：不引入事件总线重写、不引入数据库、不做并发 worker、
+- [x] 增加 source outcome 状态机、checkpoint 顺序和报告字段定义。
+   (§2.2 ExtractionResult 五态 + §2.2.1 五态 ↔ v3 三态映射表 +
+    §3 持久化顺序 + §4 Task 4/5 checkpoint v2 schema)
+- [x] 记录明确不做的工作：不引入事件总线重写、不引入数据库、不做并发 worker、
    不做全量 prompt 热加载重构、不在本计划内追求 80% spot-check。
+   (§6 不做的重构)
 
 **提交：**`docs(v7-extract): document outcome control plane`
 

@@ -231,6 +231,46 @@ fixture `item_id` 字符串改为 `item_index` 整数,符合 plan §4 Task 1 契
 3. 完成 Task 6 文档/ADR/ledger 提交，执行 R2 review 与最终 whole-branch review。
 4. 仅在 Task 7 全部通过后打 `v7-control-plane-final`；在此前保持全量 apply 禁止状态。
 
+## Wave 4 收尾更新 — 2026-09-15（主会话）
+
+### 已完成
+
+| 范围 | 状态 | 提交/证据 |
+|---|---|---|
+| Task 3/4/5 运行时硬化 | ✅ | `34976b6a`; `--root` required、per-root queue lock、source checkpoint v2 加固、corrupt backup、attempts/max_attempts、provider warning、dry-run/apply 恢复、Writer reconciliation、summary 直出字段 |
+| Task 6 文档/ADR | ✅ | `6a02ef62` + 后续文档一致性修复；架构/实施计划与 `docs/adr/0011-v7-ingestion-outcome-control-plane.md` 已统一 Stage 5/6 边界 |
+| Task 6 reviewer findings | ✅ | 修正 checkpoint 图示、保留 `WikiWriter.commit_and_index(..., relations=())` 兼容签名、C4 降为后续 Stage 6 计划、ADR smoke 证据改为可追溯表述 |
+| R2 复审 artifact | ✅ | `audit/r2-review.md`; F1/F2/F3、H2/H3/H4/H5/H6、O1、P1/P5/P6/P7/P8/P10 已逐项记录证据或代码检查结论 |
+| Wave 3/4 ledger artifact | ✅ | `wave3/runtime-hardening.md`、`wave4/final-acceptance.md` |
+| memory | ✅ | `.memory/feedback-v7-control-plane-refactor-2026-09-15.md` 及 `MEMORY.md` 索引 |
+
+### 主会话独立验证
+
+```text
+V7 focused pytest: 298 passed, 1 skipped in 8.34s
+single-source temporary-root apply smoke: 1 passed in 3.03s
+compileall: exit 0
+git diff --check: exit 0（仅 Git 的 LF/CRLF 规范化提示）
+extract_full.py without --root: exit 2
+extract_pilot.py without --root: exit 2
+```
+
+Smoke 使用临时 root + `FakeLLMClient`，没有触碰正式 raw/Wiki；第二次 apply
+报告 `skipped=1`，未重复 queue，第一次生成的 page 与 checkpoint 仍在。
+
+### 仍明确不做/不宣称
+
+- 未对正式生产 raw 调用外部 Provider，不能据此宣称生产全量 apply 已验证。
+- `_legacy.py` placeholder 按 Wave 0 用户决策留在范围外。
+- Stage 6 C4（后处理失败隔离）交给未来独立 Stage 6 接入计划；当前计划仅验收
+  首轮 outcome 不依赖 Stage 6。
+
+### Task 7 状态
+
+代码、聚焦测试、编译、差异检查、R2 artifact、文档/ADR/memory 已完成；待最后
+验收提交后创建 `v7-control-plane-final` 标签。正式 4918/1362 source 全量 apply
+仍保持禁止，直到该 final tag 建立。
+
 ## 计划文件
 
 - 计划:`docs/superpowers/plans/2026-09-15-v7-ingestion-pipeline-control-plane-refactor.md`(749 行,plan-audit 整改后)

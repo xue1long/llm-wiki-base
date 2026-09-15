@@ -154,19 +154,22 @@ LLM 只负责语义判断和内容,不再回填 `item_id` 或 `page_id`:
 - Wave 1 聚焦套件记录为 `123 passed / 0 failed`；Writer 与 source checkpoint
   提交分别记录 `169 passed / 0 failed`、`172 passed / 0 failed`。
 - commit `7c565c9b` 增加单 source 自动化 apply smoke，覆盖 raw md5 不变、实际
-  写盘、source checkpoint、二次 skip 与 queue 去重。上述数字和 smoke 结果来自
-  对应提交/专属 ledger，不冒充本 ADR 编辑时重新执行的测试。
+  写盘、source checkpoint、二次 skip 与 queue 去重。主会话随后实际重跑该 smoke：
+  `1 passed in 3.03s`；完整 V7 聚焦套件为 `298 passed, 1 skipped in 8.34s`，
+  `compileall` 与 `git diff --check` 均 exit 0。第二次 apply 的精确 summary 为
+  `skipped=1, written=0, blocked=0, failed=0, incomplete=0, generated_pages=0,
+  pages=1`；产物位于临时 root，未修改正式 raw/Wiki。
 - 本轮只读调用关系检查确认：V7 `extract_relations()` 只有实现和 Stage 6 测试，
   `scripts/` 没有调用方；因此“Stage 6 不在首轮主链路”与当前接线一致。
 - `v7-control-plane-wave1`、`v7-control-plane-wave2`、
   `v7-control-plane-wave3` 标签存在；专属 ledger 还记录了当前 `compileall` exit 0。
-- 完成声明仍被专属 ledger 中的 Task 3/4/5/7 缺口阻断，包括 `--root` 强制、
-  queue lock 接入、checkpoint 加固、完整 summary、真实 provider smoke、pytest
-  复跑和最终 review/tag。关闭这些缺口前只能称为“控制面重构已部分实现”，
-  不得启动 4918/1362 source 全量 apply。
+- 外部 provider 未对正式生产 raw 执行；因此本 ADR 只证明控制面与确定性临时
+  root smoke 已验证，不把它扩大解释为 4918/1362 source 全量 apply 的生产证明。
+  `v7-control-plane-final` 由主会话在验收提交后建立；在此之前仍不得启动全量 apply。
 
 Task 6 文档验收要求：两份计划与本 ADR 对 Stage 5/6 边界表述一致；报告记录
-本轮判断和待验证项；提交前 `git diff --check` 通过且提交范围仅含指定文档。
+本轮判断和待验证项；文档提交只包含计划与 ADR，进度账本由控制面收尾提交单独
+记录实际验证证据。
 
 ## 回滚决策
 

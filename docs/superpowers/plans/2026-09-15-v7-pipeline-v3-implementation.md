@@ -1061,7 +1061,7 @@ Stage 5 excerpt、provenance 和 Stage 6 best-effort 边界的表述一致。
 | C1 | paraphrase excerpt 不构成硬门 | Stage 5 回归：canonical item provenance 合法时，非 literal excerpt 可通过 |
 | C2 | provenance/source 闭环保留 | Stage 5 回归：缺失、越界或跨 topic item 引用仍 review；页面记录 canonical item 与 source |
 | C3 | Stage 6 不在首轮成功条件内 | 调用方检查 + source outcome 回归：无 relations 仍完成 Stage 7 与 checkpoint |
-| C4 | Stage 6 失败不污染首轮终局 | 后续接入测试：失败不删除 page、不回退 checkpoint、不改既有 outcome |
+| C4 | Stage 6 失败不污染首轮终局 | **后续 Stage 6 独立接入计划**验证：失败不删除 page、不回退 checkpoint、不改既有 outcome；不作为本计划完成前置条件 |
 
 ---
 
@@ -1172,8 +1172,10 @@ Phase 4:
 - ✅ 无 v2 async/sync 桥接残留(`grep "asyncio.run" src/pipeline/v7_extract/` 无结果)
 - ✅ 所有启发式已删除(`grep "heuristic" src/pipeline/v7_extract/` 仅剩注释)
 - ✅ `V7_USE_V3=false` fallback 可用(R10 验证)
-- ✅ C1-C4 控制面补充验收成立：Stage 5 excerpt 为人工参考但 provenance 保留，
-  Stage 6 不参与首轮成功判定且后处理失败不改变 durable outcome
+- ✅ C1-C3 控制面补充验收成立：Stage 5 excerpt 为人工参考但 provenance 保留，
+  Stage 6 不参与首轮成功判定
+- ⏳ C4 留给后续 Stage 6 独立接入计划：当前计划只保证首轮 outcome 不依赖
+  Stage 6，不把尚未接入的后处理失败场景冒充为本计划已验证能力
 
 ---
 

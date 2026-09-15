@@ -215,7 +215,11 @@ tests/fixtures/v7_spot_check/
         │ 失败: retry 3 次 → review_queue    │
         └─────────────────────────────────────┘
                          ↓
-        .index/v7_checkpoint.json(幂等)
+        Writer page outcome → queue / recoverable result
+                         ↓
+        .index/v7_checkpoint.json(page-level 幂等)
+                         ↓
+        .index/v7_full_checkpoint.json(source-level v2)
         .index/extract_report.json(追溯 + failure 记录)
         reviews_queue.json(失败队列)
 
@@ -552,7 +556,7 @@ checkpoint，或把 `written` 改成 `blocked` / `failed`。
 
 ```python
 class WikiWriter:
-    def commit_and_index(self, pages) -> WriteReport:
+    def commit_and_index(self, pages, relations=()) -> WriteReport:
         for page in pages:
             # 闸门 A: P4 "其他主题" 桶
             if page.topic_id == "__other__":
