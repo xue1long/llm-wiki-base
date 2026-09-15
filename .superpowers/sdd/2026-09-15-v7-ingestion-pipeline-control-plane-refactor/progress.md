@@ -267,9 +267,10 @@ Smoke 使用临时 root + `FakeLLMClient`，没有触碰正式 raw/Wiki；第二
 
 ### Task 7 状态
 
-代码、聚焦测试、编译、差异检查、R2 artifact、文档/ADR/memory 已完成；待最后
-验收提交后创建 `v7-control-plane-final` 标签。正式 4918/1362 source 全量 apply
-仍保持禁止，直到该 final tag 建立。
+代码、聚焦测试、编译、差异检查、R2 artifact、文档/ADR/memory 已完成；验收提交
+`17bfc54e` 已创建，本地 final 回滚标签 `v7-control-plane-final` 已建立。
+正式 4918/1362 source 全量 apply 仍未执行；外部 Provider 生产验证仍需单独授权和
+独立 smoke，不能由本次确定性 FakeLLM smoke 代替。
 
 ## 计划文件
 
