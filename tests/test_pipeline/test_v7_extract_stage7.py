@@ -4,17 +4,46 @@ import json
 from pathlib import Path
 
 from src.pipeline.v7_extract.relation_extractor import PageRelation
-from src.pipeline.v7_extract.slot_filler import ConceptPage, CONCEPT_SLOTS
+from src.pipeline.v7_extract.slot_filler import (
+    CONCEPT_SLOTS,
+    ConceptPage,
+    Slot,
+    SlotEvidence,
+)
 from src.pipeline.v7_extract.audit_logger import AuditLogger
 from src.pipeline.v7_extract.wiki_writer import WriteReport, WikiWriter
 
 
 def _page(page_id: str, source: str) -> ConceptPage:
+    """Construct a ConceptPage that survives v3 WikiWriter's three guards:
+
+    - ``topic_id`` is NOT ``__other__`` (so Guard A passes).
+    - All slots carry evidence and none are flagged needs_review
+      (so Guard B / C pass).
+    """
+    slots = {name: f"{name} 内容" for name in CONCEPT_SLOTS}
+    slot_evidence = {
+        name: Slot(
+            name=name,
+            body=slots[name],
+            evidence=SlotEvidence(
+                item_id=source,
+                source_text_excerpt="...",
+                has_evidence=True,
+                needs_review=False,
+            ),
+            needs_review=False,
+        )
+        for name in CONCEPT_SLOTS
+    }
     return ConceptPage(
-        page_id,
-        f"标题-{page_id}",
-        {name: f"{name} 内容" for name in CONCEPT_SLOTS},
-        [source],
+        id=page_id,
+        title=f"标题-{page_id}",
+        slots=slots,
+        sources=[source],
+        slot_evidence=slot_evidence,
+        needs_review_slots=(),
+        topic_id=page_id,
     )
 
 
@@ -70,6 +99,22 @@ def test_writer_checkpoint_does_not_hide_a_missing_page(tmp_path: Path) -> None:
 
     assert report.written == ["recover"]
     assert (tmp_path / "wiki" / "concepts" / "recover.md").exists()
+
+
+def test_writer_blocks_pages_with_other_topic_id(tmp_path: Path) -> None:
+    """P4 (Guard A): ``__other__`` is the Stage 4 sentinel bucket for items
+    the LLM forgot to assign. WikiWriter refuses to write those pages —
+    they go to ``report.blocked`` instead and never touch disk."""
+    writer = WikiWriter(tmp_path)
+    page = _page("orphan", "raw-d")
+    # Force the sentinel: ``__other__`` topic id triggers Guard A.
+    page.topic_id = "__other__"
+
+    report = writer.commit_and_index([page])
+
+    assert report.written == []
+    assert report.blocked == ["orphan"]
+    assert not (tmp_path / "wiki" / "concepts" / "orphan.md").exists()
 
 
 def test_audit_logger_merges_source_mappings_idempotently(tmp_path: Path) -> None:
