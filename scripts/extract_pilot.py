@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import logging
 import re
@@ -35,6 +36,7 @@ if str(_REPO_ROOT) not in sys.path:
 from src.pipeline.v7_extract._page_id import _stable_page_id, validate_page_id
 from src.pipeline.v7_extract.completeness_checker import check_completeness
 from src.pipeline.v7_extract.doc_classifier import classify_doc
+from src.pipeline.v7_extract.failures import ExtractionResult, ExtractionStatus
 from src.pipeline.v7_extract.slot_filler import fill_slots
 from src.pipeline.v7_extract.topic_clusterer import cluster_topics
 
@@ -85,24 +87,27 @@ async def run_pilot(
     else:
         candidates = _source_files(root)
         selected = _select_sources(candidates, count, seed)
-    results: list[dict[str, Any]] = []
+    results: list[ExtractionResult] = []
     for path in selected:
         relative = path.relative_to(root).as_posix()
         results.append(await _extract_one(root, path, relative, llm=llm))
 
+    # Serialize ExtractionResult → dict so the JSON / Markdown reports
+    # keep the same shape callers (and the existing tests) rely on.
+    serialized = [r.to_dict() for r in results]
     report = {
         "mode": "dry-run",
         "root": str(root),
         "seed": seed,
         "llm_enabled": llm is not None,
-        "sources": [item["source"] for item in results],
-        "summary": _summarize(results),
+        "sources": [item["source"] for item in serialized],
+        "summary": _summarize(serialized),
         "spot_check": {
             "status": "pending",
             "accuracy": None,
             "reviewed_sources": [],
         },
-        "results": results,
+        "results": serialized,
     }
     if json_output is not None:
         _write_report(Path(json_output), _json_text(report))
@@ -156,8 +161,24 @@ async def _extract_one(
     *,
     llm: Any = None,
     page_sink: Callable[[Any], None] | None = None,
-) -> dict[str, Any]:
+) -> ExtractionResult:
+    """v3 + Wave 1 + Task 2: 统一返回 ExtractionResult 五态对象.
+
+    The canonical return type is now ``ExtractionResult`` (plan §2.2.1).
+    The pre-refactor dict contract — ``source`` / ``doc_type`` /
+    ``complete`` / ``topics`` / ``pages`` / ``error`` — round-trips
+    through ``ExtractionResult.metadata`` so callers and the JSON
+    report keep working unchanged. Stage failures roll up to
+    ``ExtractionStatus.FAILED`` with a truncated reason and
+    ``failure_stage="extract_one"``.
+    """
+    source_md5 = ""  # populated below; safe default for the FAILED branch
     try:
+        # source_md5 lives in the try block so any IO failure (broken
+        # symlink, permission denied on a directory) still falls through to
+        # the ExtractionStatus.FAILED branch instead of crashing the
+        # pipeline (P2: never raise).
+        source_md5 = hashlib.md5(path.read_bytes()).hexdigest()
         content = path.read_text(encoding="utf-8", errors="replace")
         classification = await classify_doc(
             content, filename_hint=path.name, llm=llm,
@@ -170,7 +191,10 @@ async def _extract_one(
             llm=llm,
             project_root=root,
         )
-        result: dict[str, Any] = {
+
+        # Legacy dict fields carried through ``metadata`` so the JSON
+        # contract stays identical to the pre-refactor shape.
+        metadata: dict[str, Any] = {
             "source": relative,
             "characters": len(content),
             # v3: classification.doc_type is a plain string (was DocType.value in v2)
@@ -180,9 +204,16 @@ async def _extract_one(
             "complete": complete,
             "completeness_reason": completeness_reason,
             "topics": [],
-            "pages": [],
             "error": None,
         }
+        result = ExtractionResult(
+            status=ExtractionStatus.INCOMPLETE if not complete
+            else ExtractionStatus.WRITTEN,
+            source_id=relative,
+            source_md5=source_md5,
+            pages=[],
+            metadata=metadata,
+        )
         if not complete:
             return result
 
@@ -192,6 +223,12 @@ async def _extract_one(
         topics = await cluster_topics(
             items, llm=llm, project_root=root,
         )
+        # Track topics + page summaries for the legacy JSON contract.
+        topic_dicts: list[dict[str, Any]] = []
+        page_dicts: list[dict[str, Any]] = []
+        # Five-state counters — drive ``status`` below.
+        failed_topic_ids: list[str] = []
+        written_page_ids: list[str] = []
         for topic in topics:
             topic_text = "\n\n".join(
                 item_map[item_id]["text"]
@@ -205,12 +242,13 @@ async def _extract_one(
             )
             if page is None:
                 # D7: skip failed topic — record only that it failed
-                result["topics"].append({
+                topic_dicts.append({
                     "id": topic.id,
                     "title": topic.title,
                     "item_ids": topic.item_ids,
                     "failed": True,
                 })
+                failed_topic_ids.append(topic.id)
                 continue
             # T1 / H2 加固: page ID is script-owned. Build a stable
             # page ID from the relative source path + topic slug; never
@@ -222,12 +260,12 @@ async def _extract_one(
             page_id = _stable_page_id(relative, topic.id)
             validate_page_id(page_id)
             page.topic_id = topic.id  # formal field (see ConceptPage)
-            result["topics"].append({
+            topic_dicts.append({
                 "id": topic.id,
                 "title": topic.title,
                 "item_ids": topic.item_ids,
             })
-            result["pages"].append({
+            page_dicts.append({
                 "id": page_id,
                 "title": page.title,
                 "type": page.type,
@@ -236,8 +274,30 @@ async def _extract_one(
                 "needs_review_slots": list(page.needs_review_slots),
                 "has_evidence": page.has_evidence,
             })
+            written_page_ids.append(page_id)
+            result.pages.append(page)
             if page_sink is not None:
                 page_sink(page)
+
+        # Decide the five-state verdict. Topics that survived Stage 5
+        # become WRITTEN; if every topic failed but the source itself
+        # was complete, escalate to BLOCKED (so the report doesn't
+        # mistake silent Stage-5 failures for success).
+        if failed_topic_ids and not written_page_ids:
+            result.status = ExtractionStatus.BLOCKED
+            result.review_reasons.append(
+                f"all_topics_failed:{len(failed_topic_ids)}"
+            )
+        elif failed_topic_ids:
+            # Mixed outcome: partial write + some blocked topics.
+            result.status = ExtractionStatus.WRITTEN
+            result.review_reasons.append(
+                f"partial_blocked:{len(failed_topic_ids)}"
+            )
+        result.written_page_ids.extend(written_page_ids)
+        result.blocked_topic_ids.extend(failed_topic_ids)
+        metadata["topics"] = topic_dicts
+        metadata["pages"] = page_dicts
         return result
     except Exception as exc:
         # T1 / H2 加固: don't dump the full traceback to the operator's
@@ -248,19 +308,27 @@ async def _extract_one(
         log.warning(
             "_extract_one failed for %r: %s", relative, reason,
         )
-        return {
-            "source": relative,
-            "characters": 0,
-            "doc_type": None,
-            "confidence": 0.0,
-            "rationale": "",
-            "complete": False,
-            "completeness_reason": "",
-            "topics": [],
-            "pages": [],
-            "error": reason,
-            "failure_stage": "extract_one",
-        }
+        # source_md5 was assigned an empty string at function entry; if
+        # the try block ran past ``read_bytes`` we already have the real
+        # md5, otherwise it stays empty.
+        return ExtractionResult(
+            status=ExtractionStatus.FAILED,
+            source_id=relative,
+            source_md5=source_md5,
+            failure_stage="extract_one",
+            review_reasons=[reason],
+            metadata={
+                "source": relative,
+                "characters": 0,
+                "doc_type": None,
+                "confidence": 0.0,
+                "rationale": "",
+                "complete": False,
+                "completeness_reason": "",
+                "topics": [],
+                "error": reason,
+            },
+        )
 
 
 def _extract_items(content: str, relative: str) -> list[dict[str, str]]:

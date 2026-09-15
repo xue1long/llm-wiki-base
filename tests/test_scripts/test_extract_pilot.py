@@ -10,7 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from scripts.extract_pilot import run_pilot
+from scripts.extract_pilot import _extract_one, run_pilot
+from src.pipeline.v7_extract.failures import ExtractionResult, ExtractionStatus
 from src.pipeline.v7_extract.llm_client import FakeLLMClient
 
 
@@ -317,3 +318,122 @@ def test_run_pilot_page_id_matches_expected_ids_json(tmp_path: Path) -> None:
     id_b = _stable_page_id("v7_control_plane/source_b.md", "x")
     assert id_a.startswith(prefix_a + "-")
     assert id_b.startswith(prefix_b + "-")
+
+
+# ---------------------------------------------------------------------------
+# Wave 2 / Task 2: _extract_one() returns ExtractionResult (plan §2.2.1).
+# ---------------------------------------------------------------------------
+
+
+def test_extract_one_returns_extraction_result(tmp_path: Path) -> None:
+    """_extract_one now returns an ExtractionResult dataclass, not a raw dict."""
+    path = tmp_path / "raw" / "sources" / "short.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("# 只有标题\n\n简介", encoding="utf-8")
+
+    result = asyncio.run(_extract_one(tmp_path, path, "raw/sources/short.md"))
+    assert isinstance(result, ExtractionResult)
+    assert result.source_id == "raw/sources/short.md"
+    # source_md5 is the file-content md5, not the relative path.
+    assert len(result.source_md5) == 32 and all(
+        ch in "0123456789abcdef" for ch in result.source_md5
+    )
+
+
+def test_extract_one_to_dict_exposes_five_state_legacy_fields(tmp_path: Path) -> None:
+    """ExtractionResult.to_dict() merges legacy dict fields so the
+    JSON contract survives unchanged (source / doc_type / complete /
+    topics / pages / error)."""
+    path = tmp_path / "raw" / "sources" / "short.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("# 只有标题\n\n简介", encoding="utf-8")
+
+    result = asyncio.run(_extract_one(tmp_path, path, "raw/sources/short.md"))
+    d = result.to_dict()
+    # Five-state fields (plan §2.2.1).
+    assert d["status"] in {
+        ExtractionStatus.WRITTEN.value,
+        ExtractionStatus.INCOMPLETE.value,
+        ExtractionStatus.BLOCKED.value,
+        ExtractionStatus.FAILED.value,
+        ExtractionStatus.SKIPPED.value,
+    }
+    assert d["legacy_status"] in {
+        ExtractionStatus.OK.value,
+        ExtractionStatus.NEEDS_REVIEW.value,
+        ExtractionStatus.INCOMPLETE.value,
+    }
+    assert d["source_md5"] == result.source_md5
+    assert d["written_page_ids"] == []
+    # Legacy contract: source / doc_type / complete / topics / pages.
+    assert d["source"] == "raw/sources/short.md"
+    assert "doc_type" in d
+    assert "complete" in d
+    assert "topics" in d
+    assert "pages" in d
+
+
+def test_extract_one_exception_returns_failed(tmp_path: Path) -> None:
+    """An unexpected exception inside the pipeline yields
+    ExtractionStatus.FAILED with failure_stage='extract_one'."""
+    # Trigger the path's read to raise: a directory as a file path.
+    bad_path = tmp_path / "raw" / "sources" / "broken.md"
+    bad_path.parent.mkdir(parents=True, exist_ok=True)
+    bad_path.mkdir()  # directory, not a file → read_text raises
+
+    result = asyncio.run(_extract_one(tmp_path, bad_path, "raw/sources/broken.md"))
+    assert isinstance(result, ExtractionResult)
+    assert result.status == ExtractionStatus.FAILED
+    assert result.failure_stage == "extract_one"
+    assert result.review_reasons, "expected at least one review reason"
+    # Legacy compat: error string is non-empty.
+    assert result.metadata.get("error")
+    # source_md5 may be empty (read_bytes failed before md5 could be
+    # computed) or a real md5 (failure happened later); either is fine,
+    # the contract is just "FAILED result is well-formed".
+
+
+def test_extract_one_page_sink_receives_concept_page(tmp_path: Path) -> None:
+    """page_sink signature is unchanged: it's still called with the
+    ConceptPage object (not an ExtractionResult)."""
+    long = "# 扩句法\n\n定义：通过增加动作、环境和感官细节让句子更具体。\n\n" + "正文。" * 200
+    path = tmp_path / "raw" / "sources" / "complete.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(long, encoding="utf-8")
+
+    fake = FakeLLMClient()
+    fake.script(
+        "classify", '{"doc_type": "single_method", "confidence": 0.9, "rationale": "r"}'
+    )
+    fake.script("completeness", '{"complete": true, "reason": "ok"}')
+    fake.script(
+        "cluster",
+        '{"topics": [{"id": "t1", "title": "T1", "item_indexes": [0]}]}',
+    )
+    fake.script("fill_slots", (
+        '{"slots": '
+        '{"definition": "def", "characteristics": "c", '
+        '"examples": "e", "related_concepts": "rc", "references": "ref"}, '
+        '"evidence": '
+        '{"definition": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
+        '"characteristics": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
+        '"examples": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
+        '"related_concepts": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
+        '"references": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}}}'
+    ))
+
+    seen: list = []
+    result = asyncio.run(_extract_one(
+        tmp_path, path, "raw/sources/complete.md",
+        llm=fake, page_sink=seen.append,
+    ))
+    assert isinstance(result, ExtractionResult)
+    assert seen, "page_sink should have received the ConceptPage"
+    # The page object has an .id attribute (ConceptPage), not a string.
+    assert hasattr(seen[0], "id")
+    # The ExtractionResult's written_page_ids carry the script-owned
+    # stable page id (different from the LLM-supplied topic id).
+    expected_stable_id = _stable_page_id(
+        "raw/sources/complete.md", seen[0].id,
+    )
+    assert expected_stable_id in result.written_page_ids

@@ -36,11 +36,24 @@ V7_SOURCE_TAG = "v7_extract"
 
 
 class ExtractionStatus(str, Enum):
-    """Per-document processing status (P2: never raises)."""
+    """Per-document processing status (P2: never raises).
 
+    Wave 2 (plan §2.2.1): three legacy values kept for backward
+    compatibility with v3 callers; four new values give the pipeline
+    a five-state vocabulary that distinguishes technical failures
+    (FAILED) from quality blocks (BLOCKED) and skip-hit caches
+    (SKIPPED).
+    """
+
+    # v3 legacy (backward compatible).
     OK = "ok"
     NEEDS_REVIEW = "needs_review"
     INCOMPLETE = "incomplete"
+    # Wave 2 new values (plan §2.2.1).
+    WRITTEN = "written"
+    BLOCKED = "blocked"
+    FAILED = "failed"
+    SKIPPED = "skipped"
 
 
 @dataclass
@@ -52,14 +65,148 @@ class ExtractionResult:
       - ``status`` is always set
       - ``blocked_topic_ids`` lets the caller filter Stage-5 failures
         without re-running Stage 5
+
+    Wave 2 (plan §2.2.1): the five-state status + ``legacy_status``
+    pair lets callers tell technical failures (FAILED) apart from
+    quality blocks (BLOCKED) while keeping a single v3-shaped
+    ``legacy_status`` for older consumers (``run_full`` summary,
+    Markdown report rows).
     """
 
     status: ExtractionStatus
     source_id: str
+    source_md5: str = ""
     pages: list[Any] = field(default_factory=list)
     review_reasons: list[str] = field(default_factory=list)
     blocked_topic_ids: list[str] = field(default_factory=list)  # D7
     failure_stage: str | None = None
+    attempts: int = 1
+
+    # Five-state sub-fields (plan §2.2): page IDs bucketed by outcome.
+    written_page_ids: list[str] = field(default_factory=list)
+    blocked_page_ids: list[str] = field(default_factory=list)
+    failed_page_ids: list[str] = field(default_factory=list)
+
+    # Legacy compat field (plan §2.2.1): v3 callers read ``legacy_status``
+    # when they want the old three-state verdict.
+    legacy_status: ExtractionStatus | None = None
+
+    # Wave 2 / Task 2: extra legacy fields stored on the dataclass so the
+    # old ``extract_pilot`` / ``extract_full`` JSON contract (with keys
+    # ``source`` / ``doc_type`` / ``complete`` / ``topics`` / ``error``)
+    # round-trips through ``to_dict()``. Each ``_extract_one`` invocation
+    # fills this with whatever the pre-refactor dict used to carry; the
+    # default keeps new direct constructions clean.
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    # ------------------------------------------------------------------
+    # Serialization & mapping helpers
+    # ------------------------------------------------------------------
+
+    def to_dict(self) -> dict[str, Any]:
+        """Single serialization entry point (plan §4 Task 2, checkbox 1).
+
+        ``legacy_status`` is derived from ``status`` via
+        ``_legacy_from_status`` unless an explicit value was set on the
+        instance — that lets callers carry both views without manual
+        bookkeeping.
+        """
+        legacy = self.legacy_status or self._legacy_from_status()
+        base = {
+            "status": self.status.value,
+            "legacy_status": legacy.value,
+            "source_id": self.source_id,
+            "source_md5": self.source_md5,
+            "pages": [p.id if hasattr(p, "id") else p for p in self.pages],
+            "written_page_ids": list(self.written_page_ids),
+            "blocked_page_ids": list(self.blocked_page_ids),
+            "failed_page_ids": list(self.failed_page_ids),
+            "review_reasons": list(self.review_reasons),
+            "blocked_topic_ids": list(self.blocked_topic_ids),
+            "failure_stage": self.failure_stage,
+            "attempts": self.attempts,
+        }
+        # Legacy dict fields (``source`` / ``doc_type`` / ``complete`` /
+        # ``topics`` / ``error`` / ``failure_stage`` / ``attempts`` etc.)
+        # come through ``metadata``. They override the defaults on
+        # collision so callers can set ``failure_stage`` or ``attempts``
+        # via metadata without changing the dataclass shape.
+        if self.metadata:
+            base.update(self.metadata)
+        return base
+
+    def _legacy_from_status(self) -> ExtractionStatus:
+        """Five-state → v3 three-state mapping (plan §2.2.1 table)."""
+        mapping: dict[ExtractionStatus, ExtractionStatus] = {
+            ExtractionStatus.WRITTEN: ExtractionStatus.OK,
+            ExtractionStatus.SKIPPED: ExtractionStatus.OK,
+            ExtractionStatus.BLOCKED: ExtractionStatus.NEEDS_REVIEW,
+            ExtractionStatus.FAILED: ExtractionStatus.NEEDS_REVIEW,
+            ExtractionStatus.INCOMPLETE: ExtractionStatus.INCOMPLETE,
+            # Legacy pass-through — callers that still emit the v3 enum
+            # get an identity map (no info loss).
+            ExtractionStatus.OK: ExtractionStatus.OK,
+            ExtractionStatus.NEEDS_REVIEW: ExtractionStatus.NEEDS_REVIEW,
+        }
+        return mapping.get(self.status, ExtractionStatus.NEEDS_REVIEW)
+
+    @classmethod
+    def from_v3_status(
+        cls,
+        status: ExtractionStatus,
+        source_id: str,
+        *,
+        pages: list[Any] | None = None,
+        **kwargs: Any,
+    ) -> "ExtractionResult":
+        """Build an ``ExtractionResult`` from a v3 ``ExtractionStatus``.
+
+        Three-state → five-state derivation (plan §2.2.1):
+
+        ======================  ====================================
+        v3 ``status``           Five-state ``status``
+        ======================  ====================================
+        ``OK``                  ``WRITTEN`` (legacy ``OK`` carried in
+                                ``legacy_status``)
+        ``NEEDS_REVIEW``        ``BLOCKED``
+        ``INCOMPLETE``          ``INCOMPLETE``
+        ======================  ====================================
+
+        Unknown inputs default to ``BLOCKED`` (safest: signal for
+        review rather than pretending success).
+        """
+        new_status = {
+            ExtractionStatus.OK: ExtractionStatus.WRITTEN,
+            ExtractionStatus.NEEDS_REVIEW: ExtractionStatus.BLOCKED,
+            ExtractionStatus.INCOMPLETE: ExtractionStatus.INCOMPLETE,
+        }.get(status, ExtractionStatus.BLOCKED)
+        return cls(
+            status=new_status,
+            source_id=source_id,
+            legacy_status=status,
+            pages=pages or [],
+            **kwargs,
+        )
+
+    # ------------------------------------------------------------------
+    # Dict-like compat layer (plan §4 Task 2, checkbox 3)
+    #
+    # Lets legacy callers continue to read ``result["error"]`` /
+    # ``result["complete"]`` / ``result["pages"]`` without crashing
+    # while the rest of the migration moves to attribute access.
+    # ``error`` is a synthesized boolean: True when ``review_reasons``
+    # is non-empty (matches the old dict semantic in extract_pilot /
+    # extract_full).
+    # ------------------------------------------------------------------
+
+    def __getitem__(self, key: str) -> Any:
+        return self.to_dict().__getitem__(key)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self.to_dict().get(key, default)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.to_dict()
 
 
 # D11: sensitive-field whitelist + payload size cap

@@ -354,3 +354,164 @@ def test_filter_with_empty_pages_returns_empty():
 
 def test_v7_source_tag_value():
     assert V7_SOURCE_TAG == "v7_extract"
+
+
+# ---------------------------------------------------------------------------
+# Wave 2 / Task 2: ExtractionStatus five-state + ExtractionResult five-state
+# + legacy_status mapping (plan §2.2.1).
+# ---------------------------------------------------------------------------
+
+import hashlib  # noqa: E402
+
+
+def test_extraction_status_seven_values():
+    """plan §2.2.1: v3 three values + four new Wave 2 values = 7 total."""
+    values = {member.value for member in ExtractionStatus}
+    assert values == {
+        # v3 legacy (kept for backward compat).
+        "ok",
+        "needs_review",
+        "incomplete",
+        # Wave 2 new.
+        "written",
+        "blocked",
+        "failed",
+        "skipped",
+    }
+
+
+def test_extraction_result_to_dict_full_keys():
+    """to_dict() exposes both five-state status and v3 legacy_status."""
+    r = ExtractionResult(
+        status=ExtractionStatus.WRITTEN,
+        source_id="raw/a.md",
+        source_md5=hashlib.md5(b"hello").hexdigest(),
+        pages=["p1", "p2"],
+        written_page_ids=["p1"],
+        blocked_page_ids=[],
+        failed_page_ids=[],
+        review_reasons=["stale_review"],
+        blocked_topic_ids=["topic-x"],
+        failure_stage="stage5",
+        attempts=2,
+    )
+    d = r.to_dict()
+    assert d["status"] == "written"
+    assert d["legacy_status"] == "ok"          # WRITTEN → legacy OK
+    assert d["source_id"] == "raw/a.md"
+    assert d["source_md5"] == hashlib.md5(b"hello").hexdigest()
+    assert d["written_page_ids"] == ["p1"]
+    assert d["blocked_page_ids"] == []
+    assert d["failed_page_ids"] == []
+    assert d["review_reasons"] == ["stale_review"]
+    assert d["blocked_topic_ids"] == ["topic-x"]
+    assert d["failure_stage"] == "stage5"
+    assert d["attempts"] == 2
+
+
+def test_extraction_result_legacy_mapping_written():
+    r = ExtractionResult(status=ExtractionStatus.WRITTEN, source_id="x")
+    assert r._legacy_from_status() == ExtractionStatus.OK
+
+
+def test_extraction_result_legacy_mapping_blocked():
+    r = ExtractionResult(status=ExtractionStatus.BLOCKED, source_id="x")
+    assert r._legacy_from_status() == ExtractionStatus.NEEDS_REVIEW
+
+
+def test_extraction_result_legacy_mapping_failed():
+    """plan §2.2.1: FAILED (technical error) maps to legacy NEEDS_REVIEW."""
+    r = ExtractionResult(status=ExtractionStatus.FAILED, source_id="x")
+    assert r._legacy_from_status() == ExtractionStatus.NEEDS_REVIEW
+
+
+def test_extraction_result_legacy_mapping_incomplete():
+    r = ExtractionResult(status=ExtractionStatus.INCOMPLETE, source_id="x")
+    assert r._legacy_from_status() == ExtractionStatus.INCOMPLETE
+
+
+def test_extraction_result_legacy_mapping_skipped():
+    """plan §2.2.1: SKIPPED maps to legacy OK (skip-hit cache counts as
+    a successful no-op for the v3 verdict)."""
+    r = ExtractionResult(status=ExtractionStatus.SKIPPED, source_id="x")
+    assert r._legacy_from_status() == ExtractionStatus.OK
+
+
+def test_from_v3_status_ok_maps_to_written():
+    r = ExtractionResult.from_v3_status(ExtractionStatus.OK, "x")
+    assert r.status == ExtractionStatus.WRITTEN
+    assert r.legacy_status == ExtractionStatus.OK
+
+
+def test_from_v3_status_needs_review_maps_to_blocked():
+    r = ExtractionResult.from_v3_status(ExtractionStatus.NEEDS_REVIEW, "x")
+    assert r.status == ExtractionStatus.BLOCKED
+    assert r.legacy_status == ExtractionStatus.NEEDS_REVIEW
+
+
+def test_from_v3_status_incomplete_maps_to_incomplete():
+    r = ExtractionResult.from_v3_status(ExtractionStatus.INCOMPLETE, "x")
+    assert r.status == ExtractionStatus.INCOMPLETE
+    assert r.legacy_status == ExtractionStatus.INCOMPLETE
+
+
+def test_extraction_result_getitem_returns_to_dict_values():
+    """__getitem__ exposes the serialized view for legacy callers."""
+    r = ExtractionResult(
+        status=ExtractionStatus.FAILED,
+        source_id="x.md",
+        review_reasons=["boom"],
+    )
+    assert r["status"] == "failed"
+    assert r["legacy_status"] == "needs_review"
+    assert r["source_id"] == "x.md"
+    # Unknown keys raise KeyError (true dict semantics).
+    with pytest.raises(KeyError):
+        _ = r["not_a_key"]
+
+
+def test_extraction_result_get_returns_default():
+    r = ExtractionResult(status=ExtractionStatus.WRITTEN, source_id="x")
+    assert r.get("missing", "fallback") == "fallback"
+    assert r.get("source_id") == "x"
+
+
+def test_extraction_result_default_fields():
+    """New fields default to empty / falsy so old constructions still work."""
+    r = ExtractionResult(status=ExtractionStatus.OK, source_id="x")
+    assert r.source_md5 == ""
+    assert r.attempts == 1
+    assert r.written_page_ids == []
+    assert r.blocked_page_ids == []
+    assert r.failed_page_ids == []
+    assert r.legacy_status is None
+
+
+def test_extraction_result_metadata_merges_into_to_dict():
+    """Legacy fields carried in ``metadata`` surface through ``to_dict()``
+    so the pre-refactor JSON contract keeps working."""
+    r = ExtractionResult(
+        status=ExtractionStatus.WRITTEN,
+        source_id="raw/a.md",
+        metadata={
+            "source": "raw/a.md",
+            "characters": 1200,
+            "doc_type": "single_method",
+            "confidence": 0.9,
+            "rationale": "ok",
+            "complete": True,
+            "completeness_reason": "ok",
+            "topics": [{"id": "t1", "title": "Topic 1", "item_ids": ["a#section-1"]}],
+            "error": None,
+        },
+    )
+    d = r.to_dict()
+    assert d["source"] == "raw/a.md"
+    assert d["characters"] == 1200
+    assert d["doc_type"] == "single_method"
+    assert d["confidence"] == 0.9
+    assert d["complete"] is True
+    assert d["error"] is None
+    assert d["topics"] == [
+        {"id": "t1", "title": "Topic 1", "item_ids": ["a#section-1"]}
+    ]

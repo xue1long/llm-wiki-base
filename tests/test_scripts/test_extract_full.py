@@ -154,3 +154,101 @@ def test_full_dry_run_records_llm_enabled_when_injected(tmp_path: Path) -> None:
     assert report["mode"] == "dry-run"
     assert report["llm_enabled"] is True
     assert fake.calls, "injected LLM should have been invoked"
+
+
+# ---------------------------------------------------------------------------
+# Wave 2 / Task 2: run_full summary now carries five-state counters
+# (plan §4 Task 5 partial) and separates ``errors`` from blocked outcomes.
+# ---------------------------------------------------------------------------
+
+
+def test_full_summary_has_by_status_counters(tmp_path: Path) -> None:
+    """``summary['by_status']`` carries all five ExtractionStatus values
+    as int counters."""
+    for index in range(3):
+        _write_source(tmp_path, f"source-{index}.md")
+
+    report = asyncio.run(run_full(
+        tmp_path,
+        batch_size=1,
+        checkpoint_path=tmp_path / ".index" / "full.json",
+    ))
+    by_status = report["summary"]["by_status"]
+    assert set(by_status.keys()) == {
+        "written", "blocked", "failed", "incomplete", "skipped",
+    }
+    for value in by_status.values():
+        assert isinstance(value, int)
+    # selected + processed still surface for backwards compat.
+    assert report["summary"]["selected"] == 3
+    assert report["summary"]["processed"] >= 0
+
+
+def test_full_summary_errors_strictly_equal_failed_count(tmp_path: Path) -> None:
+    """``summary['errors']`` is now strictly the count of FAILED results
+    (plan §4 Task 5: blocked outcomes no longer inflate ``errors``)."""
+    _write_source(tmp_path, "one.md")
+
+    report = asyncio.run(run_full(
+        tmp_path,
+        batch_size=1,
+        checkpoint_path=tmp_path / ".index" / "full.json",
+    ))
+    summary = report["summary"]
+    assert summary["errors"] == summary["by_status"]["failed"]
+    # Sanity: legacy_status aggregate is also present.
+    assert set(summary["by_legacy_status"].keys()) == {
+        "ok", "needs_review", "incomplete",
+    }
+
+
+def test_full_summary_pages_counts_written_only(tmp_path: Path) -> None:
+    """``summary['pages']`` only counts ``written_page_ids`` —
+    blocked / failed pages must NOT contribute."""
+    _write_source(
+        tmp_path,
+        "complete.md",
+        "# 扩句法\n\n定义：通过增加动作、环境和感官细节让句子更具体。\n\n"
+        + "正文内容。" * 200,
+    )
+    fake = FakeLLMClient()
+    fake.script(
+        "classify",
+        '{"doc_type": "single_method", "confidence": 0.9, "rationale": "r"}',
+    )
+    fake.script("completeness", '{"complete": true, "reason": "ok"}')
+    fake.script(
+        "cluster",
+        '{"topics": [{"id": "t1", "title": "扩句法", '
+        '"item_indexes": [0]}]}',
+    )
+    fake.script("fill_slots", (
+        '{"slots": {"definition": "def", "characteristics": "c", '
+        '"examples": "e", "related_concepts": "rc", "references": "ref"}, '
+        '"evidence": {"definition": {"item_id": "raw/sources/complete.md", '
+        '"source_text_excerpt": "定义"}, "characteristics": {"item_id": '
+        '"raw/sources/complete.md", "source_text_excerpt": "定义"}, '
+        '"examples": {"item_id": "raw/sources/complete.md", '
+        '"source_text_excerpt": "定义"}, "related_concepts": {"item_id": '
+        '"raw/sources/complete.md", "source_text_excerpt": "定义"}, '
+        '"references": {"item_id": "raw/sources/complete.md", '
+        '"source_text_excerpt": "定义"}}}'
+    ))
+
+    report = asyncio.run(run_full(
+        tmp_path,
+        batch_size=1,
+        checkpoint_path=tmp_path / ".index" / "full.json",
+        llm=fake,
+    ))
+    summary = report["summary"]
+    # ``pages`` matches the sum of written_page_ids across results.
+    by_result = {item["source"]: item for item in report["results"]}
+    expected_pages = sum(
+        len(item.get("written_page_ids", []))
+        for item in by_result.values()
+    )
+    assert summary["pages"] == expected_pages
+    # And it must equal ``by_status["written"]`` times 1 for the single
+    # source case (no blocked or failed pages were produced).
+    assert summary["pages"] == summary["by_status"]["written"]
