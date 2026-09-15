@@ -1,0 +1,867 @@
+{
+  "mode": "dry-run",
+  "root": "knowledge\\novel-wiki",
+  "seed": 42,
+  "llm_enabled": false,
+  "sources": [
+    "raw/sources/01_基础教程/帮助新手网文创作3.md",
+    "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md",
+    "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
+    "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md",
+    "raw/sources/01_新手入门/借鉴素材人物描写必读.md",
+    "raw/sources/01_新手入门/借鉴素材写作大纲经典都市写作大纲二十二条主线.md",
+    "raw/sources/01_新手入门/入门教程基础篇语言规范.md",
+    "raw/sources/01_新手入门/入门教程尺度篇关于认定淫秽及色情出版物的规定.md",
+    "raw/sources/01_新手入门/入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏.md",
+    "raw/sources/01_新手入门/必备资料11月28号创酷中文网女频现言讲课记录.md"
+  ],
+  "summary": {
+    "selected": 10,
+    "complete": 10,
+    "incomplete": 0,
+    "errors": 0,
+    "topics": 22,
+    "pages": 22,
+    "doc_types": {
+      "list": 1,
+      "qa_chat": 4,
+      "single_method": 5
+    }
+  },
+  "spot_check": {
+    "status": "pending",
+    "accuracy": null,
+    "reviewed_sources": []
+  },
+  "results": [
+    {
+      "source": "raw/sources/01_基础教程/帮助新手网文创作3.md",
+      "characters": 12411,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "帮助新手网文创作3",
+          "item_ids": [
+            "raw/sources/01_基础教程/帮助新手网文创作3.md#section-1"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "转录内容",
+          "item_ids": [
+            "raw/sources/01_基础教程/帮助新手网文创作3.md#section-2"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "3-749615d5-topic-1",
+          "title": "帮助新手网文创作3",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_基础教程/帮助新手网文创作3.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        },
+        {
+          "id": "3-749615d5-topic-2",
+          "title": "转录内容",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_基础教程/帮助新手网文创作3.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md",
+      "characters": 3980,
+      "doc_type": "list",
+      "confidence": 0.92,
+      "rationale": "20 numbered list items (>= 8)",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "10、主角身边的异性，至少3个，但不一定全部推倒。　　　　​",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-10"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "11、七分铺垫，三分打斗。　　　　​",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-11"
+          ]
+        },
+        {
+          "id": "topic-3",
+          "title": "12、类似的桥段，全书不能出现3次以上。　　　　​",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-12"
+          ]
+        },
+        {
+          "id": "topic-4",
+          "title": "13、每一章里边，不要超过3个场景。　　　　​",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-13"
+          ]
+        },
+        {
+          "id": "topic-5",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-14",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-15",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-16",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-17",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-18",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-19",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-1",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-20",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-2",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-3",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-4",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-5",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-6",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-7",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-8",
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md#item-9"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "20-66a97fa1-topic-1",
+          "title": "10、主角身边的异性，至少3个，但不一定全部推倒。　　　　​",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        },
+        {
+          "id": "20-66a97fa1-topic-2",
+          "title": "11、七分铺垫，三分打斗。　　　　​",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        },
+        {
+          "id": "20-66a97fa1-topic-3",
+          "title": "12、类似的桥段，全书不能出现3次以上。　　　　​",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        },
+        {
+          "id": "20-66a97fa1-topic-4",
+          "title": "13、每一章里边，不要超过3个场景。　　　　​",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        },
+        {
+          "id": "20-66a97fa1-topic-5",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材20个签约条件新人必看.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md",
+      "characters": 5344,
+      "doc_type": "qa_chat",
+      "confidence": 0.88,
+      "rationale": "9 speaker lines / 9 distinct speakers",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "10、主角身边的异性，至少3个，但不一定全部推倒。",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-9"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "11、七分铺垫，三分打斗。",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-10"
+          ]
+        },
+        {
+          "id": "topic-3",
+          "title": "12、类似的桥段，全书不能出现3次以上。",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-11"
+          ]
+        },
+        {
+          "id": "topic-4",
+          "title": "13、每一章里边，不要超过3个场景。",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-12"
+          ]
+        },
+        {
+          "id": "topic-5",
+          "title": "综合主题",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-13",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-14",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-15",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-16",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-17",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-18",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-1",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-19",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-2",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-5",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-3",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-6",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-4",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-7",
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md#item-8"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-8ddd9503-topic-1",
+          "title": "10、主角身边的异性，至少3个，但不一定全部推倒。",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        },
+        {
+          "id": "source-8ddd9503-topic-2",
+          "title": "11、七分铺垫，三分打斗。",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        },
+        {
+          "id": "source-8ddd9503-topic-3",
+          "title": "12、类似的桥段，全书不能出现3次以上。",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        },
+        {
+          "id": "source-8ddd9503-topic-4",
+          "title": "13、每一章里边，不要超过3个场景。",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        },
+        {
+          "id": "source-8ddd9503-topic-5",
+          "title": "综合主题",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md",
+      "characters": 980,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "1，啰嗦了一，两章，没看见主角，莫名其妙的开头​",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md#item-1"
+          ]
+        },
+        {
+          "id": "topic-2",
+          "title": "2，主角很牛逼，但因为XX原因沉睡，苏醒过来追寻生命的意义​",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md#item-2"
+          ]
+        },
+        {
+          "id": "topic-3",
+          "title": "3，以第一人称视角来描写，除非功力深厚，否则必死​",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md#item-3"
+          ]
+        },
+        {
+          "id": "topic-4",
+          "title": "4，剧情平淡，写了10多章，没有交代出故事主线，没有出现敌人或者装逼情节​",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md#item-4"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "8111d1-ca530625-topic-1",
+          "title": "1，啰嗦了一，两章，没看见主角，莫名其妙的开头​",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        },
+        {
+          "id": "8111d1-ca530625-topic-2",
+          "title": "2，主角很牛逼，但因为XX原因沉睡，苏醒过来追寻生命的意义​",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        },
+        {
+          "id": "8111d1-ca530625-topic-3",
+          "title": "3，以第一人称视角来描写，除非功力深厚，否则必死​",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        },
+        {
+          "id": "8111d1-ca530625-topic-4",
+          "title": "4，剧情平淡，写了10多章，没有交代出故事主线，没有出现敌人或者装逼情节​",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材书籍如何商业化_8111d1.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/借鉴素材人物描写必读.md",
+      "characters": 893,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "[借鉴素材]人物描写（必读） -",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材人物描写必读.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-20104291-topic-1",
+          "title": "[借鉴素材]人物描写（必读） -",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材人物描写必读.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/借鉴素材写作大纲经典都市写作大纲二十二条主线.md",
+      "characters": 1371,
+      "doc_type": "qa_chat",
+      "confidence": 0.88,
+      "rationale": "14 speaker lines / 14 distinct speakers",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "[借鉴素材]【写作大纲】经典都市写作大纲二十二条主线 -",
+          "item_ids": [
+            "raw/sources/01_新手入门/借鉴素材写作大纲经典都市写作大纲二十二条主线.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-c0e7a800-topic-1",
+          "title": "[借鉴素材]【写作大纲】经典都市写作大纲二十二条主线 -",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/借鉴素材写作大纲经典都市写作大纲二十二条主线.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/入门教程基础篇语言规范.md",
+      "characters": 1225,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "[入门教程]【基础篇】语言规范 -",
+          "item_ids": [
+            "raw/sources/01_新手入门/入门教程基础篇语言规范.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-b8eb977c-topic-1",
+          "title": "[入门教程]【基础篇】语言规范 -",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/入门教程基础篇语言规范.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/入门教程尺度篇关于认定淫秽及色情出版物的规定.md",
+      "characters": 1556,
+      "doc_type": "single_method",
+      "confidence": 0.7,
+      "rationale": "no multi-section / list / chat structure; assume single method article",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "[入门教程]【尺度篇】关于认定淫秽及色情出版物的规定 -",
+          "item_ids": [
+            "raw/sources/01_新手入门/入门教程尺度篇关于认定淫秽及色情出版物的规定.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-e0d1424b-topic-1",
+          "title": "[入门教程]【尺度篇】关于认定淫秽及色情出版物的规定 -",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/入门教程尺度篇关于认定淫秽及色情出版物的规定.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏.md",
+      "characters": 2929,
+      "doc_type": "qa_chat",
+      "confidence": 0.88,
+      "rationale": "11 speaker lines / 11 distinct speakers",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "这个帖子主要是结合我写《官途》过程中的一些理论和实践积累，从小说矛盾冲突的四个主要矛盾冲突类型——情感冲突、利益冲突、性",
+          "item_ids": [
+            "raw/sources/01_新手入门/入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "source-1cc75966-topic-1",
+          "title": "这个帖子主要是结合我写《官途》过程中的一些理论和实践积累，从小说矛盾冲突的四个主要矛盾冲突类型——情感冲突、利益冲突、性",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        }
+      ],
+      "error": null
+    },
+    {
+      "source": "raw/sources/01_新手入门/必备资料11月28号创酷中文网女频现言讲课记录.md",
+      "characters": 16933,
+      "doc_type": "qa_chat",
+      "confidence": 0.88,
+      "rationale": "21 speaker lines / 18 distinct speakers",
+      "complete": true,
+      "completeness_reason": "",
+      "topics": [
+        {
+          "id": "topic-1",
+          "title": "第三章 女主逃跑的过程中，发现前男友和秘书有染，同时女主被男主抓到。",
+          "item_ids": [
+            "raw/sources/01_新手入门/必备资料11月28号创酷中文网女频现言讲课记录.md"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "id": "11-28-2216ab7e-topic-1",
+          "title": "第三章 女主逃跑的过程中，发现前男友和秘书有染，同时女主被男主抓到。",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/01_新手入门/必备资料11月28号创酷中文网女频现言讲课记录.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "has_evidence": false
+        }
+      ],
+      "error": null
+    }
+  ]
+}
