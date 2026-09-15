@@ -121,14 +121,22 @@ class AnthropicLLMClient(LLMClient):
         from ...llm.registry import ProviderRegistry
 
         if default_provider_name is None:
-            default_provider_name = ProviderRegistry.get_default_name()
-            if default_provider_name is None:
-                # No default configured; caller must supply one.
+            # T1: fall back to ProviderRegistry.get_default() (which honours
+            # the registry default slot AND the $RUFLO_LLM_PROVIDER env
+            # var). The previous implementation only checked the registry
+            # default slot via get_default_name(), which is None when only
+            # the env var is configured — that left callers with a working
+            # env-var override unable to construct a default client.
+            try:
+                cfg = ProviderRegistry.get_default()
+            except Exception as exc:  # pragma: no cover - defensive
                 raise RuntimeError(
                     "No default LLM provider configured. Either set one via "
                     "src.llm.registry.ProviderRegistry.set_default() or pass "
-                    "default_provider_name explicitly."
-                )
+                    "default_provider_name explicitly. (Underlying error: "
+                    f"{exc!r})"
+                ) from exc
+            default_provider_name = cfg.name
         self._provider_name = default_provider_name
         self._provider = create_llm_provider(default_provider_name)
 

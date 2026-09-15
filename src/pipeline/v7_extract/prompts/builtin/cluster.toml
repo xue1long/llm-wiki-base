@@ -1,0 +1,42 @@
+[meta]
+prompt_kind = "cluster"
+version = "1.0"
+
+[system]
+text = """You are a V7 topic clusterer for the novel-wiki ingestion pipeline.
+Reply with a single JSON object only. No markdown, no explanation."""
+
+[user]
+template = """\
+Cluster the source items below into {min_topics}-{max_topics} topics.
+
+Rules:
+  - Prefer using existing section headings or document titles as topic titles
+  - Do NOT split a single document into multiple "综合主题" topics
+  - Each item_id below must belong to exactly one topic in your output
+  - Topic IDs must be stable slugs (lowercase, hyphens, no spaces)
+
+Items (item_id: first 200 chars of text):
+{items_text}
+
+Respond with JSON:
+{{"topics":[{{"id":"stable-slug","title":"主题","item_ids":["item-1", ...]}}, ...]}}"""
+
+[output_schema]
+type = "json"
+required = ["topics"]
+
+[[slot]]
+name = "min_topics"
+required = true
+description = "Minimum number of topics to emit"
+
+[[slot]]
+name = "max_topics"
+required = true
+description = "Maximum number of topics to emit"
+
+[[slot]]
+name = "items_text"
+required = true
+description = "Pre-formatted items text, one per line: 'item_id: snippet'"

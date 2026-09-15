@@ -1,0 +1,51 @@
+[meta]
+prompt_kind = "classify"
+version = "1.0"
+
+[system]
+text = """You are a V7 document classifier for the novel-wiki ingestion pipeline.
+Reply with a single JSON object and nothing else. No markdown, no explanation."""
+
+[user]
+template = """\
+Classify this document into exactly one of the following types:
+  - single_method: one author, one topic, complete method article
+  - multi_section: one author, many numbered sections (master-class)
+  - collection: multiple distinct articles from multiple authors
+  - qa_chat: chat-record / Q&A interview between authors
+  - list: enumerated numbered items (e.g. 20 个签约条件)
+  - tool: reference table / lookup data
+  - incomplete: title + intro only — body is empty or truncated
+
+Filename hint: {filename_hint}
+
+Document body (first {content_limit} chars):
+```
+{content}
+```
+
+Respond with a single JSON object:
+{{"doc_type": "<one of the 7>", "confidence": <float 0..1>, "rationale": "<short reason>"}}"""
+
+[output_schema]
+type = "json"
+required = ["doc_type", "confidence", "rationale"]
+enum = { doc_type = ["single_method", "multi_section", "collection", "qa_chat", "list", "tool", "incomplete"] }
+range = { confidence = [0.0, 1.0] }
+
+[[slot]]
+name = "content"
+required = true
+description = "Full or truncated document body"
+
+[[slot]]
+name = "filename_hint"
+required = false
+default = ""
+description = "Filename to help disambiguate ambiguous docs"
+
+[[slot]]
+name = "content_limit"
+required = false
+default = "4000"
+description = "Max chars of content to feed to the classifier"

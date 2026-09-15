@@ -1,0 +1,74 @@
+[meta]
+prompt_kind = "fill_slots"
+version = "1.0"
+
+[system]
+text = """You are a V7 concept-page slot filler for the novel-wiki ingestion
+pipeline. For each slot you fill, you MUST also supply evidence pointing
+back to the source material — either:
+  1. An item_id (must be one of the source IDs provided), OR
+  2. A source_text_excerpt (a literal substring from the source).
+
+Do not fabricate. If you cannot find evidence, set the slot body to
+the placeholder "需结合原文核对" — the pipeline will mark it as
+needs_review and route it to a human.
+
+Reply with a single JSON object only. No markdown, no explanation."""
+
+[user]
+template = """\
+Fill the 5 required slots of a concept page for this topic.
+
+Topic title: {title}
+Source material IDs: {sources}
+Source content (first {content_limit} chars):
+```
+{source_text}
+```
+
+Required slots:
+{slot_list}
+
+For each slot, return body text + evidence. Example output shape:
+{{
+  "slots": {{
+    "definition": "<definition text>",
+    "characteristics": "<characteristics text>",
+    ...
+  }},
+  "evidence": {{
+    "definition": {{"item_id": "<source-id>", "source_text_excerpt": "<exact substring>"}},
+    "characteristics": {{"item_id": "<source-id>", "source_text_excerpt": "<exact substring>"}},
+    ...
+  }}
+}}"""
+
+[output_schema]
+type = "json"
+required = ["slots", "evidence"]
+
+[[slot]]
+name = "title"
+required = true
+description = "Topic title (becomes the concept-page title)"
+
+[[slot]]
+name = "sources"
+required = true
+description = "Comma-separated list of valid item_ids the LLM may cite"
+
+[[slot]]
+name = "source_text"
+required = true
+description = "Raw source content the LLM draws from"
+
+[[slot]]
+name = "content_limit"
+required = false
+default = "12000"
+description = "Max chars of source_text to feed"
+
+[[slot]]
+name = "slot_list"
+required = true
+description = "Comma-separated list of slot names (definition, characteristics, ...)"
