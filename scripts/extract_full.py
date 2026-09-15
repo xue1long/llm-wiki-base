@@ -1,7 +1,6 @@
-"""Batch V7 extraction dry-run with resumable checkpoints.
+"""Batch V7 extraction with resumable checkpoints.
 
-This is the safe Phase 2 preparation step. Applying pages is deliberately
-fail-closed until the Task 7 human spot-check has been approved.
+Dry-run is the default. Apply remains fail-closed unless explicitly unlocked.
 
 v3 (plan 2026-09-15): run_full / _with_retries are now async (Stage
 1/3/4/5 are async). The CLI entry point calls ``asyncio.run(main())``.
@@ -12,6 +11,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -26,6 +26,7 @@ from scripts.extract_pilot import (  # noqa: E402
     _source_files,
     _write_report,
 )
+from src.pipeline.v7_extract.wiki_writer import WikiWriter  # noqa: E402
 
 
 DEFAULT_ROOT = Path("knowledge/novel-wiki")
@@ -45,19 +46,30 @@ async def run_full(
     markdown_output: str | Path | None = None,
     llm: Any = None,
 ) -> dict[str, Any]:
-    """Process every supported raw source in resumable dry-run batches.
+    """Process every supported raw source in resumable batches.
 
     Async version (v3): awaits ``_extract_one`` for each source. The
     CLI stays sync (main() wraps ``asyncio.run(run_full(...))``).
+
+    Plan 2026-09-15 Plan 2: --apply is gated by the V7_ALLOW_APPLY env
+    var instead of an 80% spot-check threshold. LLM mis-categorizations
+    land in review_queue (D4) for human triage. Default behaviour is
+    still dry-run only; the env var is an explicit acknowledgement that
+    the operator has reviewed the spot-check report.
     """
     if not dry_run:
-        raise RuntimeError(
-            "full apply is blocked until Task 7 spot-check accuracy is approved"
-        )
+        if not os.environ.get("V7_ALLOW_APPLY"):
+            raise RuntimeError(
+                "full apply is blocked by default. Either run --dry-run first, "
+                "or set V7_ALLOW_APPLY=1 to acknowledge that LLM errors may "
+                "occur and any low-confidence page will be flagged for "
+                "human review via .index/reviews_queue.json."
+            )
     if batch_size < 1 or max_retries < 1:
         raise ValueError("batch_size and max_retries must be positive")
     root = Path(root)
     checkpoint = Path(checkpoint_path) if checkpoint_path else root / DEFAULT_CHECKPOINT
+    writer = WikiWriter(root) if not dry_run else None
     source_files = _source_files(root)
     batches = [
         source_files[start : start + batch_size]
@@ -72,9 +84,14 @@ async def run_full(
             continue
         # v3: each source is processed via async _extract_one
         batch_results = []
+        batch_pages = []
         for path in batch:
-            result = await _with_retries(root, path, max_retries, llm=llm)
+            result = await _with_retries(
+                root, path, max_retries, llm=llm, page_sink=batch_pages.append
+            )
             batch_results.append(result)
+        if writer is not None and not any(item["error"] for item in batch_results):
+            writer.commit_and_index(batch_pages)
         results.extend(batch_results)
         if not any(item["error"] for item in batch_results):
             completed.add(batch_number)
@@ -93,7 +110,7 @@ async def run_full(
         "results_reused": bool(previous_results),
     }
     report = {
-        "mode": "dry-run",
+        "mode": "apply" if not dry_run else "dry-run",
         "root": str(root),
         "batch_size": batch_size,
         "max_retries": max_retries,
@@ -110,14 +127,29 @@ async def run_full(
 
 
 async def _with_retries(
-    root: Path, path: Path, max_retries: int, *, llm: Any = None
+    root: Path,
+    path: Path,
+    max_retries: int,
+    *,
+    llm: Any = None,
+    page_sink: Any = None,
 ) -> dict[str, Any]:
     """v3: awaits _extract_one (which is now async). Retries on error."""
     result: dict[str, Any] = {}
     for attempt in range(1, max_retries + 1):
-        result = await _extract_one(root, path, path.relative_to(root).as_posix(), llm=llm)
+        pages = []
+        result = await _extract_one(
+            root,
+            path,
+            path.relative_to(root).as_posix(),
+            llm=llm,
+            page_sink=pages.append,
+        )
         result["attempts"] = attempt
         if not result["error"]:
+            if page_sink is not None:
+                for page in pages:
+                    page_sink(page)
             return result
     return result
 
@@ -202,7 +234,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--apply",
         action="store_true",
-        help="Currently blocked until spot-check accuracy is approved",
+        help="Write accepted concept pages (requires V7_ALLOW_APPLY=1)",
     )
     parser.add_argument(
         "--provider",

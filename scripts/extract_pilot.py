@@ -24,7 +24,7 @@ import re
 import sys
 from collections import Counter
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 # Make direct ``python scripts/extract_pilot.py`` execution behave like a
 # module invocation from the repository root.
@@ -147,6 +147,7 @@ async def _extract_one(
     relative: str,
     *,
     llm: Any = None,
+    page_sink: Callable[[Any], None] | None = None,
 ) -> dict[str, Any]:
     try:
         content = path.read_text(encoding="utf-8", errors="replace")
@@ -219,6 +220,8 @@ async def _extract_one(
                 "needs_review_slots": list(page.needs_review_slots),
                 "has_evidence": page.has_evidence,
             })
+            if page_sink is not None:
+                page_sink(page)
         return result
     except Exception as exc:
         import traceback as _tb

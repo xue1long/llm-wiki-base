@@ -13,6 +13,7 @@ from src.pipeline.v7_extract.topic_clusterer import (
     cluster_topics,
 )
 from src.pipeline.v7_extract.llm_client import FakeLLMClient
+from src.pipeline.v7_extract.prompts.renderer import LLMResponseError
 
 
 # ---------------------------------------------------------------------------
@@ -32,11 +33,11 @@ def test_topic_basic():
 def test_payload_to_topics_happy_path():
     payload = {
         "topics": [
-            {"id": "t1", "title": "Topic 1", "item_ids": ["a", "b"]},
-            {"id": "t2", "title": "Topic 2", "item_ids": ["c"]},
+            {"id": "t1", "title": "Topic 1", "item_indexes": [0, 1]},
+            {"id": "t2", "title": "Topic 2", "item_indexes": [2]},
         ]
     }
-    topics = _payload_to_topics(payload)
+    topics = _payload_to_topics(payload, ["a", "b", "c"])
     assert len(topics) == 2
     assert topics[0].id == "t1"
     assert topics[0].item_ids == ["a", "b"]
@@ -44,31 +45,47 @@ def test_payload_to_topics_happy_path():
 
 
 def test_payload_to_topics_skips_non_dict_entries():
-    payload = {"topics": ["garbage", {"id": "t1", "title": "T1", "item_ids": []}]}
-    topics = _payload_to_topics(payload)
+    payload = {"topics": ["garbage", {"id": "t1", "title": "T1", "item_indexes": []}]}
+    topics = _payload_to_topics(payload, ["a"])
     assert len(topics) == 1
     assert topics[0].id == "t1"
 
 
 def test_payload_to_topics_renames_duplicate_ids():
     payload = {"topics": [
-        {"id": "dup", "title": "A", "item_ids": ["a"]},
-        {"id": "dup", "title": "B", "item_ids": ["b"]},
+        {"id": "dup", "title": "A", "item_indexes": [0]},
+        {"id": "dup", "title": "B", "item_indexes": [1]},
     ]}
-    topics = _payload_to_topics(payload)
+    topics = _payload_to_topics(payload, ["a", "b"])
     assert topics[0].id == "dup"
     assert topics[1].id == "dup-1"
 
 
 def test_payload_to_topics_handles_missing_topics_key():
-    assert _payload_to_topics({}) == []
-    assert _payload_to_topics({"topics": None}) == []
+    assert _payload_to_topics({}, []) == []
+    assert _payload_to_topics({"topics": None}, []) == []
 
 
-def test_payload_to_topics_coerces_item_ids_to_strings():
-    payload = {"topics": [{"id": "t1", "title": "T1", "item_ids": [1, 2, "x"]}]}
-    topics = _payload_to_topics(payload)
-    assert topics[0].item_ids == ["1", "2", "x"]
+def test_payload_to_topics_maps_indexes_to_canonical_item_ids():
+    payload = {"topics": [{"id": "t1", "title": "T1", "item_indexes": [1, 0]}]}
+    topics = _payload_to_topics(payload, ["raw/a#item-1", "raw/a#item-2"])
+    assert topics[0].item_ids == ["raw/a#item-2", "raw/a#item-1"]
+
+
+def test_payload_to_topics_rejects_invalid_or_duplicate_indexes():
+    with pytest.raises(LLMResponseError, match="item_indexes"):
+        _payload_to_topics(
+            {"topics": [{"id": "t1", "item_indexes": [2]}]},
+            ["a", "b"],
+        )
+    with pytest.raises(LLMResponseError, match="duplicate"):
+        _payload_to_topics(
+            {"topics": [
+                {"id": "t1", "item_indexes": [0]},
+                {"id": "t2", "item_indexes": [0]},
+            ]},
+            ["a"],
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -100,15 +117,15 @@ def test_enforce_full_coverage_merges_into_existing_other_bucket():
     """If LLM already created __other__, merge leftover into it."""
     topics = [
         Topic(id="t1", title="T1", item_ids=["a"]),
-        Topic(id=OTHER_TOPIC_ID, title=OTHER_TOPIC_TITLE, item_ids=["x"]),
+        Topic(id=OTHER_TOPIC_ID, title=OTHER_TOPIC_TITLE, item_ids=["d"]),
     ]
-    items = _items("a", "b", "c", "x")
+    items = _items("a", "b", "c", "d")
     out = _enforce_full_coverage(topics, items)
 
     # No duplicate __other__ created; existing one absorbed b, c
     other_topics = [t for t in out if t.id == OTHER_TOPIC_ID]
     assert len(other_topics) == 1
-    assert set(other_topics[0].item_ids) == {"b", "c", "x"}
+    assert set(other_topics[0].item_ids) == {"b", "c", "d"}
 
 
 def test_enforce_full_coverage_with_no_llm_topics_at_all():
@@ -139,8 +156,8 @@ async def test_cluster_topics_returns_topics():
     fake.script(
         "cluster",
         '{"topics": ['
-        '{"id": "t1", "title": "Topic 1", "item_ids": ["a", "b"]},'
-        '{"id": "t2", "title": "Topic 2", "item_ids": ["c"]}'
+        '{"id": "t1", "title": "Topic 1", "item_indexes": [0, 1]},'
+        '{"id": "t2", "title": "Topic 2", "item_indexes": [2]}'
         ']}',
     )
     items = _items("a", "b", "c")
@@ -159,7 +176,7 @@ async def test_cluster_topics_p4_other_bucket_for_missing():
     """P4: if LLM forgets an item, it lands in __other__."""
     fake = FakeLLMClient()
     # LLM only assigns a, b — forgets c
-    fake.script("cluster", '{"topics": [{"id": "t1", "title": "T1", "item_ids": ["a", "b"]}]}')
+    fake.script("cluster", '{"topics": [{"id": "t1", "title": "T1", "item_indexes": [0, 1]}]}')
 
     items = _items("a", "b", "c")
     topics = await cluster_topics(items, llm=fake, project_root=None)

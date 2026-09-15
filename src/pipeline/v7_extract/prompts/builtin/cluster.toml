@@ -13,14 +13,16 @@ Cluster the source items below into {min_topics}-{max_topics} topics.
 Rules:
   - Prefer using existing section headings or document titles as topic titles
   - Do NOT split a single document into multiple "综合主题" topics
-  - Each item_id below must belong to exactly one topic in your output
+  - Use only the zero-based integer indexes shown below
+  - Each item index must belong to exactly one topic in your output
+  - Do not output item_id values or rewrite source paths; the script fills canonical IDs
   - Topic IDs must be stable slugs (lowercase, hyphens, no spaces)
 
-Items (item_id: first 200 chars of text):
+Items (zero-based index: first 200 chars of text):
 {items_text}
 
 Respond with JSON:
-{{"topics":[{{"id":"stable-slug","title":"主题","item_ids":["item-1", ...]}}, ...]}}"""
+{{"topics":[{{"id":"stable-slug","title":"主题","item_indexes":[0, 2]}}, ...]}}"""
 
 [output_schema]
 type = "json"
@@ -39,4 +41,4 @@ description = "Maximum number of topics to emit"
 [[slot]]
 name = "items_text"
 required = true
-description = "Pre-formatted items text, one per line: 'item_id: snippet'"
+description = "Pre-formatted items text, one per line: 'zero-based index: snippet'"

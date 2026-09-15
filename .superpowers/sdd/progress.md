@@ -1037,3 +1037,12 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ Task 5：Settings → Skills 页面，完成来源检查、Library 导入、Agent 选择、部署计划、确认门和 operation 轮询；提交 `20b434cf`；`docs/webui-buttons.md` 已同步。
 - ✅ Task 6：ADR、CONTEXT、计划与本 ledger 已同步；定向测试 36 passed，compileall 和 Node syntax check 通过。
 - ⚠️ 发布门：尚未在真实用户 Codex 目标目录执行浏览器手工冒烟；GitHub 来源、SkillBundle、真正 Plugin Installer、更新/删除仍后置。
+### V7 v3.0 Plan 2 — Lower apply threshold (2026-09-15)
+
+- ✅ `V7_ALLOW_APPLY=1` unlocks `--apply`; without it the CLI remains fail-closed.
+- ✅ `extract_full --apply` now passes generated pages to `WikiWriter`; accepted pages are persisted, while evidence / `needs_review` gates remain fail-closed.
+- ✅ Regression suite: `tests/test_scripts/test_extract_full.py` — 6 passed.
+- ✅ Minimal real smoke: one source, `selected=1`, `processed=1`, `errors=0`, `mode=apply`, report and checkpoint written; sampled pages were correctly blocked by the review/evidence gate.
+- ✅ Stage 4 item provenance fixed: LLM returns zero-based `item_indexes`; the script maps and validates them into canonical `item_ids` before Stage 5.
+- ✅ Regression + real smoke: 38 targeted tests passed; one real source produced only canonical `raw/sources/...#item-N` IDs.
+- ⏭️ Full 4918-source apply remains a separate controlled run; blocked pages continue to review queue for human triage.

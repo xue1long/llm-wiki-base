@@ -70,8 +70,66 @@ def test_full_dry_run_writes_report_only_when_requested(tmp_path: Path) -> None:
 def test_full_apply_is_fail_closed_before_pilot_approval(tmp_path: Path) -> None:
     _write_source(tmp_path, "one.md")
 
-    with pytest.raises(RuntimeError, match="spot-check"):
+    # Default: dry_run=False raises unless V7_ALLOW_APPLY is set.
+    with pytest.raises(RuntimeError, match="V7_ALLOW_APPLY"):
         asyncio.run(run_full(tmp_path, dry_run=False))
+
+
+def test_full_apply_succeeds_with_V7_ALLOW_APPLY_env(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """Plan 2: setting V7_ALLOW_APPLY=1 unlocks --apply. The pipeline runs
+    to completion and low-confidence pages are recorded for review_queue
+    triage (handled separately by Stage 7)."""
+    _write_source(tmp_path, "one.md")
+    monkeypatch.setenv("V7_ALLOW_APPLY", "1")
+
+    report = asyncio.run(run_full(tmp_path, dry_run=False))
+    assert report["mode"] == "apply"
+    assert report["summary"]["errors"] == 0
+
+
+def test_full_apply_writes_concepts(tmp_path: Path, monkeypatch) -> None:
+    _write_source(
+        tmp_path,
+        "complete.md",
+        "# 扩句法\n\n定义：通过增加动作、环境和感官细节让句子更具体。\n\n"
+        + "正文内容。" * 200,
+    )
+    fake = FakeLLMClient()
+    fake.script(
+        "classify", '{"doc_type": "single_method", "confidence": 0.9, "rationale": "r"}'
+    )
+    fake.script("completeness", '{"complete": true, "reason": "ok"}')
+    fake.script(
+        "cluster",
+        '{"topics": [{"id": "t1", "title": "扩句法", '
+        '"item_indexes": [0]}]}',
+    )
+    fake.script("fill_slots", (
+        '{"slots": {"definition": "def", "characteristics": "c", '
+        '"examples": "e", "related_concepts": "rc", "references": "ref"}, '
+        '"evidence": {"definition": {"item_id": "raw/sources/complete.md", '
+        '"source_text_excerpt": "定义"}, "characteristics": {"item_id": '
+        '"raw/sources/complete.md", "source_text_excerpt": "定义"}, '
+        '"examples": {"item_id": "raw/sources/complete.md", '
+        '"source_text_excerpt": "定义"}, "related_concepts": {"item_id": '
+        '"raw/sources/complete.md", "source_text_excerpt": "定义"}, '
+        '"references": {"item_id": "raw/sources/complete.md", '
+        '"source_text_excerpt": "定义"}}}'
+    ))
+    monkeypatch.setenv("V7_ALLOW_APPLY", "1")
+
+    report = asyncio.run(run_full(
+        tmp_path,
+        batch_size=1,
+        checkpoint_path=tmp_path / ".index" / "full.json",
+        dry_run=False,
+        llm=fake,
+    ))
+
+    assert report["mode"] == "apply"
+    assert list((tmp_path / "wiki" / "concepts").glob("*.md"))
 
 
 def test_full_dry_run_records_llm_enabled_when_injected(tmp_path: Path) -> None:

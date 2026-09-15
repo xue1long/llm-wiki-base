@@ -70,7 +70,7 @@ def test_run_pilot_reports_classification_and_pages(tmp_path: Path) -> None:
     fake.script("completeness", '{"complete": true, "reason": "ok"}')
     fake.script(
         "cluster",
-        '{"topics": [{"id": "t1", "title": "Topic 1", "item_ids": ["raw/sources/complete.md"]}]}',
+        '{"topics": [{"id": "t1", "title": "Topic 1", "item_indexes": [0]}]}',
     )
     fake.script("fill_slots", (
         '{"slots": '

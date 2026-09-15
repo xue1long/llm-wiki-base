@@ -77,9 +77,10 @@ async def cluster_topics(
         return []
 
     template = _resolve_cluster_template(project_root)
+    item_ids = [str(item["id"]) for item in items]
     items_text = "\n".join(
-        f"{item['id']}: {str(item.get('text', ''))[:200]}"
-        for item in items
+        f"{index}: {str(item.get('text', ''))[:200]}"
+        for index, item in enumerate(items)
     )
     system_prompt, user_prompt = render_prompt(template, {
         "min_topics": min_topics,
@@ -98,7 +99,7 @@ async def cluster_topics(
                 temperature=0.0,
             )
             payload = parse_llm_response(raw, template.output_schema)
-            topics = _payload_to_topics(payload)
+            topics = _payload_to_topics(payload, item_ids)
             return _enforce_full_coverage(topics, items)  # P4
         except LLMResponseError as e:
             last_error = e
@@ -125,17 +126,17 @@ async def cluster_topics(
     return _enforce_full_coverage([], items)
 
 
-def _payload_to_topics(payload: dict) -> list[Topic]:
+def _payload_to_topics(payload: dict, item_ids: list[str]) -> list[Topic]:
     """Convert validated LLM JSON payload into Topic list.
 
-    Validates that all item_ids are strings (defensive — the schema
-    can't enforce this on free-form JSON).
+    The LLM returns positions; canonical item IDs stay script-owned.
     """
     raw = payload.get("topics", [])
     if not isinstance(raw, list):
         return []
     topics: list[Topic] = []
     seen: set[str] = set()  # avoid duplicate topic ids
+    seen_indexes: set[int] = set()
     for idx, entry in enumerate(raw):
         if not isinstance(entry, dict):
             continue
@@ -148,11 +149,26 @@ def _payload_to_topics(payload: dict) -> list[Topic]:
             suffix += 1
         seen.add(tid)
         title = str(entry.get("title") or tid)
-        ids_raw = entry.get("item_ids", [])
-        if not isinstance(ids_raw, list):
-            ids_raw = []
-        item_ids = [str(i) for i in ids_raw if i]
-        topics.append(Topic(id=tid, title=title, item_ids=item_ids))
+        indexes = entry.get("item_indexes", [])
+        if not isinstance(indexes, list):
+            raise LLMResponseError("item_indexes must be a list")
+        mapped_ids: list[str] = []
+        for item_index in indexes:
+            if (
+                isinstance(item_index, bool)
+                or not isinstance(item_index, int)
+                or not 0 <= item_index < len(item_ids)
+            ):
+                raise LLMResponseError(
+                    f"item_indexes contains invalid index: {item_index!r}"
+                )
+            if item_index in seen_indexes:
+                raise LLMResponseError(
+                    f"item_indexes contains duplicate assignment: {item_index}"
+                )
+            seen_indexes.add(item_index)
+            mapped_ids.append(item_ids[item_index])
+        topics.append(Topic(id=tid, title=title, item_ids=mapped_ids))
     return topics
 
 
