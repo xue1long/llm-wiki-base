@@ -39,8 +39,13 @@
 - [x] H4 决策落地(`--root` 改 required)
 - [x] 共享 fixture 物理创建
 - [x] `_queue_lock.py` 创建
-- [ ] **当前待办:** Wave 0 commit 落地(`git add` + `git commit`)
-- [ ] **当前待办:** v3 实施的 `_legacy.py` placeholder 问题已记录到 Wave 0 ledger(本次不修)
+- [x] **Wave 0 commit**(`9e641367`)
+- [x] **Wave 1 启动文档 commit**(`09322aac`)
+- [x] **Wave 1 三个 lane commit**(`8943f696` / `c56f08eb` / `b744293b`)
+- [x] **Wave 1 全套验证**(123 passed / 0 failed)
+- [x] **`git tag v7-control-plane-wave1` 已打**
+- [ ] **当前待办:** Wave 2 Luna-D 派发(Task 2 统一 `ExtractionResult`)
+- [ ] **当前待办:** v3 实施的 `_legacy.py` placeholder 问题记录在 Wave 0 ledger(本次不修)
 
 ## 后续 Wave 占位
 
@@ -49,6 +54,61 @@
 - Luna-A: Task 1 provenance + `_page_id.py`
 - Luna-B: Task 3 queue core + `enqueue_failure` 稳定 hash ID
 - Luna-C: Task 0 async test migration
+
+## Wave 1 — 完成(2026-09-15)
+
+### 三个 lane 全部 commit
+
+| Lane | Commit | 范围 | 主会话测试 |
+|---|---|---|---|
+| Luna-A | `8943f696` | `_page_id.py` + Stage 5 input contract + extract_pilot 接入 | 76 passed |
+| Luna-B | `c56f08eb` | `enqueue_failure` 稳定 sha1 ID + 5 项 keyword 参数 + P12/D11 | 34 passed |
+| Luna-C | `b744293b` | stage4/5/7 测试 sync → async 迁移 + fixture 升级 | 13 passed |
+
+### Wave 1 全套验证
+
+```
+$env:PYTHONPATH = "."
+python -m pytest tests/test_pipeline/test_v7_extract_page_id.py \
+                   tests/test_pipeline/test_v7_extract_slot_filler.py \
+                   tests/test_pipeline/test_v7_extract_topic_clusterer.py \
+                   tests/test_pipeline/test_v7_extract_failures.py \
+                   tests/test_pipeline/test_v7_extract_failures_idempotency.py \
+                   tests/test_pipeline/test_v7_extract_stage4.py \
+                   tests/test_pipeline/test_v7_extract_stage5.py \
+                   tests/test_pipeline/test_v7_extract_stage7.py \
+                   tests/test_scripts/test_extract_pilot.py \
+                   --import-mode=importlib -q
+→ 123 passed in 8.23s
+```
+
+### 编译与 diff check
+
+- `python -m compileall -q src/pipeline/v7_extract scripts/extract_pilot.py` → exit 0
+- `git diff --check` → exit 0
+
+### Git tag
+
+```
+git tag -a v7-control-plane-wave1 -m "..."
+→ v7-control-plane-wave1
+```
+
+作为 Wave 2 / Wave 3 失败的回滚快照点。
+
+### Deviations 摘要
+
+| Lane | 项 | 决议 |
+|---|---|---|
+| Luna-A | 6 项(包括 `ConceptPage.topic_id` 扩展、`_excerpt_in_source` 保留、5 个旧 payload 测试改名) | ✅ 全部接受 |
+| Luna-B | 无 | ✅ |
+| Luna-C | 3 项(stage4/5 schema 升级到 v3.1 item_indexes;stage7 fixture evidence 升级) | ✅ 全部接受 |
+
+### Pre-existing failure(与 Wave 1 无关)
+
+`tests/test_pipeline/test_content_filter.py::test_writer_blocks_flagged_page_until_review_is_accepted`
+在 Luna-C 改动前就 fail(Luna-C 在干净 HEAD 上 stash 验证过)。**不是 Wave 1 引入**,
+记录备查,留给后续 plan 处理。
 
 ### Wave 2(待 Wave 1 完成)
 
