@@ -4973,3 +4973,275 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 [00:21:24] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
 [00:21:24] POSTCHECK MISSING: src-gap — file not on disk
 [00:21:24] POSTCHECK: 1 error(s) — review before next batch
+[14:52:21] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:52:21]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[14:52:21] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[14:52:21] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:52:21]   FAIL raw/sources/a.md: HTTP 503
+[14:52:21] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[14:52:21] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:52:21]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[14:52:21] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[14:52:21] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[14:52:21] llm circuit breaker now half_open — resuming batch
+[14:52:21] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:52:21]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[14:52:21] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[14:52:21] POSTCHECK MISSING: src-gap — file not on disk
+[14:52:21] POSTCHECK: 1 error(s) — review before next batch
+[16:03:31] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:03:31]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[16:03:31] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:03:31] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:03:31]   FAIL raw/sources/a.md: HTTP 503
+[16:03:31] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:03:31] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:03:31]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[16:03:31] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[16:03:31] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[16:03:31] llm circuit breaker now half_open — resuming batch
+[16:03:31] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:03:31]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[16:03:31] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:03:31] POSTCHECK MISSING: src-gap — file not on disk
+[16:03:31] POSTCHECK: 1 error(s) — review before next batch
+[16:12:32] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:12:32]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[16:12:32] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:12:32] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:12:32]   FAIL raw/sources/a.md: HTTP 503
+[16:12:32] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:12:32] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:12:32]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[16:12:32] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[16:12:32] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[16:12:32] llm circuit breaker now half_open — resuming batch
+[16:12:32] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:12:32]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[16:12:32] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:12:32] POSTCHECK MISSING: src-gap — file not on disk
+[16:12:32] POSTCHECK: 1 error(s) — review before next batch
+[16:20:46] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:20:46]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[16:20:46] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:20:46] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:20:46]   FAIL raw/sources/a.md: HTTP 503
+[16:20:46] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:20:46] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:20:46]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[16:20:46] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[16:20:46] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[16:20:46] llm circuit breaker now half_open — resuming batch
+[16:20:46] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:20:46]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[16:20:46] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:20:46] POSTCHECK MISSING: src-gap — file not on disk
+[16:20:46] POSTCHECK: 1 error(s) — review before next batch
+[16:32:38] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:32:38]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[16:32:38] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:32:38] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:32:38]   FAIL raw/sources/a.md: HTTP 503
+[16:32:38] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:32:38] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:32:38]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[16:32:38] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[16:32:38] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[16:32:38] llm circuit breaker now half_open — resuming batch
+[16:32:38] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:32:38]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[16:32:38] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:32:39] POSTCHECK MISSING: src-gap — file not on disk
+[16:32:39] POSTCHECK: 1 error(s) — review before next batch
+[14:47:02] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:47:02]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[14:47:02] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[14:47:02] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:47:02]   FAIL raw/sources/a.md: HTTP 503
+[14:47:02] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[14:47:02] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:47:02]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[14:47:02] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[14:47:02] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[14:47:02] llm circuit breaker now half_open — resuming batch
+[14:47:02] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:47:02]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[14:47:02] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[14:47:02] POSTCHECK MISSING: src-gap — file not on disk
+[14:47:02] POSTCHECK: 1 error(s) — review before next batch
+[14:47:56] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:47:56]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[14:47:56] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[14:47:56] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:47:56]   FAIL raw/sources/a.md: HTTP 503
+[14:47:56] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[14:47:56] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:47:56]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[14:47:56] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[14:47:56] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[14:47:56] llm circuit breaker now half_open — resuming batch
+[14:47:56] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:47:56]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[14:47:56] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[14:47:56] POSTCHECK MISSING: src-gap — file not on disk
+[14:47:56] POSTCHECK: 1 error(s) — review before next batch
+[15:21:13] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:21:13]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[15:21:13] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[15:21:13] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:21:13]   FAIL raw/sources/a.md: HTTP 503
+[15:21:13] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[15:21:13] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:21:13]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[15:21:13] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[15:21:13] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[15:21:13] llm circuit breaker now half_open — resuming batch
+[15:21:13] generating 1 file(s) with concurrency=1 (skipped 0)
+[15:21:13]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[15:21:13] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[15:21:13] POSTCHECK MISSING: src-gap — file not on disk
+[15:21:13] POSTCHECK: 1 error(s) — review before next batch
+[16:24:39] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:24:39]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[16:24:39] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:24:39] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:24:39]   FAIL raw/sources/a.md: HTTP 503
+[16:24:39] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:24:39] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:24:39]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[16:24:39] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[16:24:39] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[16:24:39] llm circuit breaker now half_open — resuming batch
+[16:24:39] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:24:39]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[16:24:39] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:24:39] POSTCHECK MISSING: src-gap — file not on disk
+[16:24:39] POSTCHECK: 1 error(s) — review before next batch
+[16:44:15] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:44:15]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[16:44:15] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:44:15] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:44:15]   FAIL raw/sources/a.md: HTTP 503
+[16:44:15] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:44:15] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:44:15]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[16:44:15] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[16:44:15] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[16:44:15] llm circuit breaker now half_open — resuming batch
+[16:44:15] generating 1 file(s) with concurrency=1 (skipped 0)
+[16:44:15]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[16:44:15] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[16:44:16] POSTCHECK MISSING: src-gap — file not on disk
+[16:44:16] POSTCHECK: 1 error(s) — review before next batch
+[14:26:30] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:26:30]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[14:26:30] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[14:26:30] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:26:30]   FAIL raw/sources/a.md: HTTP 503
+[14:26:30] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[14:26:30] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:26:30]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[14:26:30] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[14:26:30] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[14:26:30] llm circuit breaker now half_open — resuming batch
+[14:26:30] generating 1 file(s) with concurrency=1 (skipped 0)
+[14:26:30]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[14:26:30] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[14:26:31] POSTCHECK MISSING: src-gap — file not on disk
+[14:26:31] POSTCHECK: 1 error(s) — review before next batch
+[22:02:57] generating 1 file(s) with concurrency=1 (skipped 0)
+[22:02:57]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[22:02:57] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[22:02:57] generating 1 file(s) with concurrency=1 (skipped 0)
+[22:02:57]   FAIL raw/sources/a.md: HTTP 503
+[22:02:57] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[22:02:57] generating 1 file(s) with concurrency=1 (skipped 0)
+[22:02:57]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[22:02:57] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[22:02:57] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[22:02:57] llm circuit breaker now half_open — resuming batch
+[22:02:57] generating 1 file(s) with concurrency=1 (skipped 0)
+[22:02:57]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[22:02:57] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[22:02:57] POSTCHECK MISSING: src-gap — file not on disk
+[22:02:57] POSTCHECK: 1 error(s) — review before next batch
+[22:09:50] generating 1 file(s) with concurrency=1 (skipped 0)
+[22:09:50]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[22:09:50] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[22:09:50] generating 1 file(s) with concurrency=1 (skipped 0)
+[22:09:50]   FAIL raw/sources/a.md: HTTP 503
+[22:09:50] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[22:09:50] generating 1 file(s) with concurrency=1 (skipped 0)
+[22:09:50]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[22:09:50] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[22:09:50] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[22:09:50] llm circuit breaker now half_open — resuming batch
+[22:09:50] generating 1 file(s) with concurrency=1 (skipped 0)
+[22:09:50]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[22:09:50] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[22:09:50] POSTCHECK MISSING: src-gap — file not on disk
+[22:09:50] POSTCHECK: 1 error(s) — review before next batch
+[22:22:36] generating 1 file(s) with concurrency=1 (skipped 0)
+[22:22:36]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[22:22:36] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[22:22:36] generating 1 file(s) with concurrency=1 (skipped 0)
+[22:22:36]   FAIL raw/sources/a.md: HTTP 503
+[22:22:36] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[22:22:36] generating 1 file(s) with concurrency=1 (skipped 0)
+[22:22:36]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[22:22:36] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[22:22:36] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[22:22:36] llm circuit breaker now half_open — resuming batch
+[22:22:36] generating 1 file(s) with concurrency=1 (skipped 0)
+[22:22:36]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[22:22:36] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[22:22:36] POSTCHECK MISSING: src-gap — file not on disk
+[22:22:36] POSTCHECK: 1 error(s) — review before next batch
+[23:06:03] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:06:03]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[23:06:03] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[23:06:03] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:06:03]   FAIL raw/sources/a.md: HTTP 503
+[23:06:03] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[23:06:03] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:06:03]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[23:06:03] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[23:06:03] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[23:06:03] llm circuit breaker now half_open — resuming batch
+[23:06:03] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:06:03]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[23:06:03] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[23:06:03] POSTCHECK MISSING: src-gap — file not on disk
+[23:06:03] POSTCHECK: 1 error(s) — review before next batch
+[23:24:23] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:24:23]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[23:24:23] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[23:24:23] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:24:23]   FAIL raw/sources/a.md: HTTP 503
+[23:24:23] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[23:24:23] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:24:23]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[23:24:23] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[23:24:23] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[23:24:23] llm circuit breaker now half_open — resuming batch
+[23:24:23] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:24:23]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[23:24:23] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[23:24:23] POSTCHECK MISSING: src-gap — file not on disk
+[23:24:23] POSTCHECK: 1 error(s) — review before next batch
+[23:39:53] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:39:53]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=None
+[23:39:53] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[23:39:53] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:39:53]   FAIL raw/sources/a.md: HTTP 503
+[23:39:53] generated ok=0 err=1 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[23:39:53] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:39:53]   PERM raw/sources/a.md: HTTP 422 content moderation — source cannot be processed by LLM
+[23:39:53] generated ok=0 err=0 permanent_failed=1 total_pages=0 extras=0 elapsed=0s
+[23:39:53] llm circuit breaker OPEN — pausing batch, waiting for recovery (60s cooldown) ...
+[23:39:53] llm circuit breaker now half_open — resuming batch
+[23:39:53] generating 1 file(s) with concurrency=1 (skipped 0)
+[23:39:53]   OK raw/sources/a.md: 0 pages, stubs=0, rejected=?
+[23:39:53] generated ok=1 err=0 permanent_failed=0 total_pages=0 extras=0 elapsed=0s
+[23:39:53] POSTCHECK MISSING: src-gap — file not on disk
+[23:39:53] POSTCHECK: 1 error(s) — review before next batch

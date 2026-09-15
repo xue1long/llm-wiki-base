@@ -1,11 +1,11 @@
 {
     "schema_version": 2,
-    "commit": "222ea51d4118053afca7dfd6bdd7ae806864f576",
-    "indexed_at": "2026-08-18T04:19:10Z",
+    "commit": "54a54686d6e53289b3a8a2d0e94f85a3e729de16",
+    "indexed_at": "2026-09-10T04:59:33Z",
     "project": "llm-wiki-base",
-    "nodes": 25877,
-    "edges": 71565,
-    "original_size": 32047104,
-    "compressed_size": 6045925,
+    "nodes": 65031,
+    "edges": 148780,
+    "original_size": 69271552,
+    "compressed_size": 10658997,
     "compression_level": 9
 }

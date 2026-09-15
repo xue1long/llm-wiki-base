@@ -11,11 +11,28 @@ import asyncio
 
 import pytest
 
+from src.llm.base import LLMResponse
+from src.llm.types import TruncatedResponseError
 from src.pipeline.v7_extract.llm_client import (
     AnthropicLLMClient,
     FakeLLMClient,
     LLMClient,
 )
+
+
+class _ResponseProvider:
+    def __init__(self, response):
+        self.response = response
+
+    async def complete(self, messages, **kwargs):
+        return self.response
+
+
+def _client_with_provider(response):
+    client = object.__new__(AnthropicLLMClient)
+    client._provider_name = "test-provider"
+    client._provider = _ResponseProvider(response)
+    return client
 
 
 def test_llm_client_is_abstract():
@@ -109,3 +126,39 @@ def test_anthropic_llm_client_uses_specified_provider():
         assert client.provider_name == "nonexistent_for_test"
     except (KeyError, FileNotFoundError, RuntimeError):
         pytest.skip("Provider resolution is strict in this environment")
+
+
+def test_anthropic_llm_client_returns_provider_response_content():
+    """A real-provider response is adapted to the client string contract."""
+    client = _client_with_provider(
+        LLMResponse(content='{"status": "ok"}', model="test-model")
+    )
+
+    result = asyncio.run(
+        client.complete(
+            prompt_kind="classify",
+            user_prompt="classify this",
+            system_prompt="return JSON",
+        )
+    )
+
+    assert result == '{"status": "ok"}'
+
+
+def test_anthropic_llm_client_rejects_truncated_provider_response():
+    """A truncated response must fail instead of exposing partial JSON."""
+    client = _client_with_provider(
+        LLMResponse(
+            content='{"status": "par',
+            model="test-model",
+            truncated=True,
+        )
+    )
+
+    with pytest.raises(TruncatedResponseError, match="truncated"):
+        asyncio.run(
+            client.complete(
+                prompt_kind="classify",
+                user_prompt="classify this",
+            )
+        )

@@ -37,7 +37,7 @@
     "page_ids": [
       "src-gap"
     ],
-    "ts": "2026-08-19T03:56:46"
+    "ts": "2026-09-14T23:39:53"
   },
   "batch_1": {
     "status": "committed",
@@ -194,7 +194,89 @@
       "频道责编",
       "飞书云文档"
     ],
-    "ts": "2026-08-17T20:04:56"
+    "ts": "2026-08-17T20:04:56",
+    "raw_states": {
+      "raw/sources/01_新手入门/借鉴素材写作大纲经典都市写作大纲二十二条主线.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材大纲的重要性新文开篇.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材执梦文学社.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材套路.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材必备华夏天空作家福利.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材小说速成大纲.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材浅子小四素樱贱圣对对子精选片段.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材玄幻与仙侠的区别.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材写作套路征文类别与主线设定.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材常用急救小知识.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材打斗七公式重要.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材小说写作素材之小说写作新手选题和大纲扩展的总结6.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材玄幻小说创作入门指南.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材小说写作.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材玄幻标签创作基金评定标准详解.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材玄幻小说大纲表格.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材古代刺客的暗杀手段.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材小说主题分类的内容详细_89e8d6.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材小白系列之对对子诗词精选片段第二期.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材玄幻与仙侠.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_2": {
     "status": "committed",
@@ -245,7 +327,89 @@
     ],
     "missing": [],
     "ts": "2026-08-17T13:40:23",
-    "cache_batch": 3
+    "cache_batch": 3,
+    "raw_states": {
+      "raw/sources/01_新手入门/入门教程17上架.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材详解新作者常见困难和瓶颈.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程3开篇.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程6对白.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程0网络写手新人经常犯的错误.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材编辑眼中的好文1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材网文中的九线.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程1书名.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程12爽点.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材金手指把很多不合理的事情变成合理.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程0小说开头自查辅助工具.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/借鉴素材网文中的九线_2b7fc4.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程4人称.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程0小说取名.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程0小说人物辅助设定.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程5角色.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程11情节.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程0暗黑类装备前缀.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程15书评.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程2简介.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_3": {
     "status": "committed",
@@ -296,7 +460,89 @@
     ],
     "missing": [],
     "ts": "2026-08-17T13:43:52",
-    "cache_batch": 4
+    "cache_batch": 4,
+    "raw_states": {
+      "raw/sources/01_新手入门/入门教程交流术语_a350d6.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程人物扮演的角色和身份.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程一个新手的五个阶段.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程人物代入感方面的刻画.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程三江.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程三十六种经典情节模式情节艺术.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看_de5255.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程7人物.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程75新人作者快速成神攻略.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程人物构建.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程一些精华.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程与某资深写手的对话.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程作家十二戒.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程书名和简介的构思.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程不是很简单的封面教程.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程交流术语.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程8文笔.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程9语境.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程三江杂谈.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_4": {
     "status": "committed",
@@ -347,7 +593,89 @@
     ],
     "missing": [],
     "ts": "2026-08-17T13:48:43",
-    "cache_batch": 5
+    "cache_batch": 5,
+    "raw_states": {
+      "raw/sources/01_新手入门/入门教程十大小说写作技巧.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程写作技巧与心得117条.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程作者指南海星.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程关于小说写作.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程分享给常码字的作者谨防电脑病不容忽视.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程侦探小说二十守则_ab5015.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程写作方法.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程写手境界.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程创建角色示例.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程各大小说网站人气对比方便选择参考.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程写作要点.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程关于悬念.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程写作心得.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程你是新人吗.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程唐三写作经验.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程凤头猪肚豹尾.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程关于小说写作_cde8fc.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程侦探小说二十守则.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程写书技巧.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程创造角色.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_5": {
     "status": "committed",
@@ -398,7 +726,89 @@
     ],
     "missing": [],
     "ts": "2026-08-17T15:57:04",
-    "cache_batch": 6
+    "cache_batch": 6,
+    "raw_states": {
+      "raw/sources/01_新手入门/入门教程如何写好网络小说.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程基础篇语言规范.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程如何创造故事情节的高潮.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程如何加强书的情节.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程大作家的写作秘籍.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程奇异的起点科幻小说_218b5f.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程如何签约.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程基础篇语言运用和语境.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程如何驾驭情节.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程奇异的起点科幻小说.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程如何处理主角挫折.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程如何驾驭情节_c116ec.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程女频作者一个女人授课内容.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程基础篇网络小说的类型.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程如何写好小说人物性格新人们.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程如何写一个好的开头.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程大量写作软件总有一款会对你有帮助.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程大量写作软件总有一款会对你有帮助_a3e552.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程如何快速码字.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程如何写好网络小说_8ff63e.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_6": {
     "status": "committed",
@@ -449,7 +859,89 @@
     ],
     "missing": [],
     "ts": "2026-08-17T16:06:44",
-    "cache_batch": 7
+    "cache_batch": 7,
+    "raw_states": {
+      "raw/sources/01_新手入门/入门教程执枫讲坛第二课人物描写.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程必须注意的写作.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程怎样写小说才会不枯燥.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程小说作家教程.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程小说作家教程_ed2e2e.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程小说文章掺水十六法.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程悬念的分级论升级流.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程技术篇剧情开展讲解.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程小说创作感悟转载.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程技术篇写出人物个性.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程技术篇写大众小说常犯的错.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程尾号五新人指南.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程打斗核心要素与如何扩大女性读者群体.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程技术篇大型书站上下篇.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程尺度篇关于认定淫秽及色情出版物的规定.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程我有十说转.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程小说作者应该掌握的常识大全.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程小说写作新人网络小说的成神宝典精装版.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程小说文章掺水十六法_98f235.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程小说写作的指路明灯.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_7": {
     "status": "committed",
@@ -500,7 +992,89 @@
     ],
     "missing": [],
     "ts": "2026-08-17T15:55:07",
-    "cache_batch": 8
+    "cache_batch": 8,
+    "raw_states": {
+      "raw/sources/01_新手入门/入门教程有效细节与无用拖沓的区别.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程新人写手必修课如何快速塑造吸引人的开篇抓住读者虎平阳.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程技术篇悬疑小说常用的诡计大全.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程技术篇如何防止卡文和快速的码文.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程操作篇如何运营你的作品.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程文章架构合理性分析_25af8b.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程新人成神之路.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程新人成神之路_4986be.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程技术篇类型演化大记事.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程文章架构合理性分析.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程无线风格作品写作规范.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程新人如何自审前几章常见问题.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程教你如何增加网文爽点的精彩度.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程新手必看基础篇冲突行动结局故事.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程新人写手必修课如何快速塑造吸引人的开篇抓住读者虎平阳_495b26.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程新人作者快速成神攻略.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程新写手全面的指南.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程爽文的五种归纳.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程技术篇深度分析小说中的对立面.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/入门教程新人试论如何写网文.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_8": {
     "status": "committed",
@@ -1455,7 +2029,89 @@
       "飞书云文档",
       "魔盗"
     ],
-    "ts": "2026-08-19T01:18:50"
+    "ts": "2026-08-19T01:18:50",
+    "raw_states": {
+      "raw/sources/01_新手入门/必备资料写作大纲的十个步骤_0faefe.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料天蟾子论套路的情节拓展.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料作品审核标准1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料写作大纲的十大步骤.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料如何写人物.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料如何写好大纲.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料作者写作十二大忌.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料写作大纲的十个步骤.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料典籍提取聊斋志异小说人名全纪录_d0d6a3.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料大纲范本.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料偷走的流年南若兮3342字.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料作者五个阶段.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料古风小说讲课.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料人物设置与剧情的关系.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料如何写出人物的个性.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料大神说法第三讲情理之中意料之外作者雪宁1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料剧情大纲格式.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料作者投稿模版.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料典籍提取聊斋志异小说人名全纪录.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料大纲书写格式.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_12": {
     "status": "committed",
@@ -1614,7 +2270,89 @@
       "高潮反推构思法",
       "鲁迅"
     ],
-    "ts": "2026-08-19T01:42:04"
+    "ts": "2026-08-19T01:42:04",
+    "raw_states": {
+      "raw/sources/01_新手入门/必备资料小说人物描写方法与实例浅析.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料小说人物塑造.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面2.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料技术篇小说速成大纲传统文学版长篇.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料如何构架写作悬念1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料序章三年前.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料开篇一万字三段式写法.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料技术篇如何防止卡文和快速的码文.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料打斗七公式重要1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面1_508621.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料如何构架写作悬念.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料小说作者南友.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料如何驾驭情节.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面2_d99fe8.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料如何写好简介.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料教你写作如何写出精彩的科幻小说长篇.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料打斗场面.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料技术篇悬疑小说常用的诡计大全.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料怎么渲染一场惊心动魄的战斗场面.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_13": {
     "status": "committed",
@@ -1811,7 +2549,89 @@
       "黄金三章",
       "龙武镇"
     ],
-    "ts": "2026-08-19T02:01:06"
+    "ts": "2026-08-19T02:01:06",
+    "raw_states": {
+      "raw/sources/01_新手入门/必备资料新人经验如何选择适合自己的题材.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料浏览篇各朝代兵制.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料新手写小说忌讳的十点1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料新人经验如何选择适合自己的题材_195dfd.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料环境描写_7a4f89.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料新手写小说忌讳的十点.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料玄幻修真小说升级方式大总结.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料新书_b51648.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料新人经验如何选择适合自己的题材1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料环境描写.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料武侠小说教程.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料散文的写作技巧是什么.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料教你写作如何写出精彩的科幻小说长篇1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料独家高招小说文章掺水十六法.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料空白大纲模板.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料新书.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料洪荒中国奇禽异兽总览.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料第1章大纲_50ea4b.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料第1章大纲.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料某编辑讲课感谢九月时寒的转发.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_14": {
     "status": "committed",
@@ -1871,7 +2691,89 @@
       "更新",
       "签约"
     ],
-    "ts": "2026-08-19T04:00:26"
+    "ts": "2026-08-19T04:00:26",
+    "raw_states": {
+      "raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者_9c5f45.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料第九章关于小说情节设计1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料第二课讲课资料1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料网络小说写作宝典如何做有生存能力的作者.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色_7a9e06.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料第八章关于完善小说人物的技巧1_2516a3.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料诗词格律自学教程.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿_f9c0da.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料第一节课授课内容.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料群主推荐卅无颜6月27日网文写手写作技巧指导精理稿.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1_ca1afb.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料第一章小说如何塑造角色1_d36b97.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料网络小说写作宝典如何塑造角色1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料第二课讲课资料.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料第一忌讳无论文笔多么优美都.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料踏莎行春色将阑寇准.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_15": {
     "status": "committed",
@@ -1929,7 +2831,89 @@
       "网络小说",
       "网络文学"
     ],
-    "ts": "2026-08-19T09:00:22"
+    "ts": "2026-08-19T09:00:22",
+    "raw_states": {
+      "raw/sources/01_新手入门/新人须知17文笔在网络文学创作上的作用_1dd858.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料青春校园小说相关写作技巧.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知1浅谈网络写手网络文学与网络文学创作基础_08147a.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知10网络小说大纲和细纲的作用.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知15顺眼谈文章的画面感.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知17文笔在网络文学创作上的作用.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知18创作会经常遇到的问题.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/必备资料金手指.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知13网络文学创作的几个误区_c397d6.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知14网络文学实体书出版的那些事儿_c39e43.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知12剖析网络游戏的卖点讲解网络小说创作利用网游模式写作方法_493b76.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知14网络文学实体书出版的那些事儿.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知11从标题党看网络文学创作手法中的诱惑性创作1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知1浅谈网络写手网络文学与网络文学创作基础.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知13网络文学创作的几个误区.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知12剖析网络游戏的卖点讲解网络小说创作利用网游模式写作方法.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知19从信昌出版社出版要求分析网络文学创作.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知18创作会经常遇到的问题_056c32.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知19从信昌出版社出版要求分析网络文学创作_de13c1.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知17编辑讲课记录.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_16": {
     "status": "committed",
@@ -2093,7 +3077,89 @@
       "飞库",
       "黄蓉"
     ],
-    "ts": "2026-08-19T09:26:50"
+    "ts": "2026-08-19T09:26:50",
+    "raw_states": {
+      "raw/sources/01_新手入门/新人须知29对话技巧详谈引号开头对话流.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知35学会给你的小说打补丁.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知36架空历史的创作要点.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知26如何用性格突出角色用角色吸引读者_de04db.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知33用科学的管理方法管理你的作品.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知26如何用性格突出角色用角色吸引读者.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知31如何对待评论和书评.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知2给你的作品换件衣服你会发现你什么题材都可以写.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知22期待感让你的作品能够引人入胜_ac5917.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知25都市类小说类的创作要点_c3dd5d.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知20仙侠类题材作品的创作要点及卖点.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知28从泡妞技巧看网络小说创作.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知34承转启合文章的衔接和转折.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知30第一人称小说创作优劣详解.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知32开头的具体写法.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知23网文分段技巧详谈.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知27你为什么穿越你凭什么穿越.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知25都市类小说类的创作要点.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知22期待感让你的作品能够引人入胜.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知32开头的具体写法_33702d.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_17": {
     "status": "committed",
@@ -2254,7 +3320,89 @@
       "随身流",
       "高潮制造"
     ],
-    "ts": "2026-08-19T11:04:50"
+    "ts": "2026-08-19T11:04:50",
+    "raw_states": {
+      "raw/sources/01_新手入门/新人须知43人物刻画的几点心得_b6e7dd.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知3网络小说完本的重要性和完本后如何开新书.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知39文章的开头你想让读者记住什么.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知5速度网络文学创作的唯一秘诀.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知8墨武讲课记录.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知6如何抓住读者心理_562918.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知44如何在网络小说上架前后提升作品的吸引力.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知45东方玄幻题材的创作.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知5速度网络文学创作的唯一秘诀_47c3cb.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知40网络小说的爽点是什么_00258a.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知36架空历史的创作要点_d0bb05.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知43人物刻画的几点心得.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知7上架作品更新秘诀凤头猪肚麒麟尾.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知7上架作品更新秘诀凤头猪肚麒麟尾_6e28f2.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知40网络小说的爽点是什么.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知37修真仙侠小说的元素和写法.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知4如果让你优化你的前六万字作品你打算从几个方面入手_acc3e4.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知6如何抓住读者心理.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知4如果让你优化你的前六万字作品你打算从几个方面入手.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知3网络小说完本的重要性和完本后如何开新书_f632bc.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_18": {
     "status": "committed",
@@ -2410,7 +3558,89 @@
       "集中精神",
       "魔盗"
     ],
-    "ts": "2026-08-19T11:39:38"
+    "ts": "2026-08-19T11:39:38",
+    "raw_states": {
+      "raw/sources/02_进阶技巧/方法论一个全职写手的心得体会.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知更俗写作心得访谈.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论写作技巧与心得117条.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论丰富多彩的人物形象塑造.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知新手上路基本写作教程.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知新人完美投稿计划.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论从新手到大神.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论YY点103式.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知9写作目的和心态的问题_e76e46.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论写作心得.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论写作技巧之15条小技巧.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知小说写作新手上路基本写作教程.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知关于小说写作.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论YY小说模式.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论关于写作技法原理转自奇幻世界网火沙论坛.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知小说写作新手上路基本写作教程_2f72ea.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论写书技巧.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知9写作目的和心态的问题.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/01_新手入门/新人须知尾号五新人指南.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论侦探小说二十守则.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_19": {
     "status": "committed",
@@ -2576,7 +3806,85 @@
       "飞书云文档",
       "魔法规则设计"
     ],
-    "ts": "2026-08-19T12:21:07"
+    "ts": "2026-08-19T12:21:07",
+    "raw_states": {
+      "raw/sources/02_进阶技巧/方法论写景图貌的现场展示.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论半神攻略.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论如何写一个好的开头.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论写故事的十个常用技巧.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论华夏原创写作指南.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论如何写出精彩的科幻小说.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论写作经验总结.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论好的文笔基础决定一个作者能走多远.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论创造你的角色时该考虑的20个问题.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论写作目的和心态.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论历史题材小说的写作技巧.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论写作过程论.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论如何写作科幻奇幻小说.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论如何体现小说的画面感.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论如何写仙侠.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论出卖你性格的16个小动作.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论如何写好一本小说.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论多样化的情节结构.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论写好小说抓住十三个关键.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_20": {
     "status": "committed",
@@ -2738,7 +4046,85 @@
       "高潮制造",
       "高达"
     ],
-    "ts": "2026-08-19T13:37:06"
+    "ts": "2026-08-19T13:37:06",
+    "raw_states": {
+      "raw/sources/02_进阶技巧/方法论小小说创作中的悬置紧张法ZT.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论悬疑小说常用的诡计大全.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论悬念的分级论升级流.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论如何形象地描绘场景.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论小说结构.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论必须注意的写作.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论小说写作的指路明灯.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论如何提高文笔和写作能力.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论应该具有创新意识.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论小说创作感悟转载.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论小说创作常见弊病总结.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论小说创作谈转载.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论如何驾驭情节.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论如何抓住读者心理.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论如何运营你的作品.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论小说创作技巧点睛.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论小说的写作技巧.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论悬疑小说常用的诡计合集.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论小说要给人以现实感.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_23": {
     "status": "committed",
@@ -2917,7 +4303,89 @@
       "黑色幽默",
       "龙泉与太阿剑"
     ],
-    "ts": "2026-08-19T13:57:24"
+    "ts": "2026-08-19T13:57:24",
+    "raw_states": {
+      "raw/sources/02_进阶技巧/补充教程写作指导网络小说写作指南.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/补充教程描写人物品质的成语.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/补充教程小说创作技巧点睛通用.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论黄易与古龙金庸之比较.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论骨刀总结写作资料.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/补充教程写作经验侦探小说创作指南与写法.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论语言规范.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论起点爽文经典桥段.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/补充教程写作经验如何加强书的情节.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/补充教程小说写作大纲的模版共享.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论黄易武侠小说创作论.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论转载创建角色的365个问题.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/补充教程小说大纲范例.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论黑色幽默.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论过渡篇.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/补充教程写穿越小说角色前要注意的十个问题.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/补充教程写作经验言情大总结.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/补充教程小说结局的十三种方式精.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/补充教程中国126把古名剑大全精.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/补充教程小说写作新人网络小说的成神宝典精装版.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_22": {
     "status": "committed",
@@ -3069,7 +4537,89 @@
       "黄易",
       "龙空"
     ],
-    "ts": "2026-08-19T14:01:14"
+    "ts": "2026-08-19T14:01:14",
+    "raw_states": {
+      "raw/sources/02_进阶技巧/方法论耽美写作.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论网络长篇创作自析.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论网络爆红小说写作教程.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论网络原创文学写作指南2三江小阵.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论解决卡文的办法.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论网络小说与创作ZT.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论网络原创文学写作指南1三江小阵.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论网络小说写作技巧集锦.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论认识网络文学写作的特性.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论网络创作秘籍.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论网络写手教程.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论美文语言的诗意营造.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论要素.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论言之琐碎篇情小说常用桥段.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论网络文学的特性.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论网络小说创作技巧.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论网络小说选题要求.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论要点.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论论如何写言情小说.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论网络小说3X技巧总结.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   },
   "batch_21": {
     "status": "committed",
@@ -3282,6 +4832,88 @@
       "龙的天空-2010-新年写手读者沙龙",
       "龙空"
     ],
-    "ts": "2026-08-19T14:03:52"
+    "ts": "2026-08-19T14:03:52",
+    "raw_states": {
+      "raw/sources/02_进阶技巧/方法论打斗描写辅助设定.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论无线写作技巧.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论明辉巨谈装B路子.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论打斗七公式重要.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论经典重温功夫在文外杂志新手的三十六个注意事项.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论爽文经典桥段套路.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论玄幻仙侠小说战斗描写.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论爽点.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论系统讲解小说写作要求.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论文学写作的界定.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论精彩描写身份.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论结局的十三种方式.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论时光之轮简介梗概设定.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论浅谈买断与分成内附买断开头套路.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论浪漫主义神话学原理.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论暗黑类装备前缀.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论抓住兴奋点.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论新人成神之路写手必读.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论经典重温由龙的天空原创作家发起的对玄幻作品的讨论.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      },
+      "raw/sources/02_进阶技巧/方法论教你如何开始写一本小说从项目管理漫谈小说写作.md": {
+        "status": "done",
+        "branch": "historical_committed"
+      }
+    }
   }
 }

@@ -145,15 +145,26 @@ class AnthropicLLMClient(LLMClient):
         max_tokens: int = 4096,
         temperature: float = 0.0,
     ) -> str:
-        # The concrete provider exposes its own .complete / .chat API;
-        # we only forward the text body. Provider-specific errors
+        # The provider contract accepts chat messages and returns an
+        # LLMResponse. Provider-specific errors
         # (rate limits, timeouts) propagate up — the pipeline's
         # wiki_writer stage retries up to N times before giving up
         # (see plan-audit v5 F-A-V5 / F-B-V5).
+        messages = [{"role": "user", "content": user_prompt}]
+        if system_prompt:
+            messages.insert(0, {"role": "system", "content": system_prompt})
         response = await self._provider.complete(
-            user_prompt=user_prompt,
-            system_prompt=system_prompt,
+            messages,
             max_tokens=max_tokens,
             temperature=temperature,
         )
-        return response
+        if getattr(response, "truncated", False):
+            from ...llm.types import TruncatedResponseError
+
+            content = getattr(response, "content", "")
+            raise TruncatedResponseError(
+                "LLM response was truncated by max_tokens",
+                content_length=getattr(response, "content_length", 0)
+                or (len(content) if isinstance(content, str) else 0),
+            )
+        return response.content

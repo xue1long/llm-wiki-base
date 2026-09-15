@@ -1,9 +1,11 @@
 agent
 cli_ext
+collector
 events
-graphify-out
+kc
 knowledge
 lib
+lineage
 llm
 maintenance
 mcp_server
@@ -18,7 +20,7 @@ schemas
 searcher
 server
 services
-shared
+status_summary
 sync
 templates
 utils

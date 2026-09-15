@@ -1,0 +1,22 @@
+{
+  "book_id": "novel-wiki-book",
+  "domain_id": "novel-wiki",
+  "editorial_revision": 1,
+  "pages": [
+    {"content_hash_at_review": "b25fb5c0c9c8e8c6b7754ae381d1951144c801a0ea0af5ebca05222e55477527", "disposition": "include", "page_id": "snowflake-method", "primary_chapter_id": "chapter-structure", "reason": "真实 pilot：大纲与结构", "secondary_references": []},
+    {"content_hash_at_review": "a3995e5e4d994eda4e326eac4ef28c141b11e666ba140b05a8969f45822dbadf", "disposition": "include", "page_id": "主线情节设定五要素", "primary_chapter_id": "chapter-structure", "reason": "真实 pilot：大纲与结构", "secondary_references": []},
+    {"content_hash_at_review": "975f66da85c7968bdf13a5bd7a1553057dccf97c97ee7a037c252fff9abbb026", "disposition": "include", "page_id": "先计划-再写", "primary_chapter_id": "chapter-structure", "reason": "真实 pilot：大纲与结构", "secondary_references": []},
+    {"content_hash_at_review": "c866191accafd96db8e65c037d59c75180ca238f8d735f079b35049892e417a5", "disposition": "include", "page_id": "凤头猪肚麒麟尾", "primary_chapter_id": "chapter-structure", "reason": "真实 pilot：大纲与结构", "secondary_references": []},
+    {"content_hash_at_review": "1a07d71bac62096ee9f45b8a67ad1d7f6238fb9562b9728e10866b989bfd6580", "disposition": "include", "page_id": "小说大纲模版结构", "primary_chapter_id": "chapter-structure", "reason": "真实 pilot：大纲与结构", "secondary_references": []},
+    {"content_hash_at_review": "1a77d493ed699eadffe75a9a5a159a7814c4211df4fb0196f7fad97731c6c99b", "disposition": "include", "page_id": "猪肚", "primary_chapter_id": "chapter-structure", "reason": "真实 pilot：大纲与结构", "secondary_references": []},
+    {"content_hash_at_review": "c7a4f9dfa3b3359e97d4dd387ff9f9a7a5d5edb12bd57ebd9d15d3728f5523c5", "disposition": "include", "page_id": "豹尾", "primary_chapter_id": "chapter-structure", "reason": "真实 pilot：大纲与结构", "secondary_references": []},
+    {"content_hash_at_review": "ad6a3ce0e8b5cb487c709fea2ab6e67b58521da80e42465f2383f5ae59e118a7", "disposition": "include", "page_id": "一论段", "primary_chapter_id": "chapter-technique", "reason": "真实 pilot：写作技巧", "secondary_references": []},
+    {"content_hash_at_review": "674d84de96fbe72dd1ea36ac6d8f79b710625369655ab2f8e8453ff0fde70a07", "disposition": "include", "page_id": "丰富美", "primary_chapter_id": "chapter-technique", "reason": "真实 pilot：写作技巧", "secondary_references": []},
+    {"content_hash_at_review": "8e616ec767710214001e420f82d7eb9e8217ed9e3d77f36107f00a9f4f1175a1", "disposition": "include", "page_id": "互文式对仗", "primary_chapter_id": "chapter-technique", "reason": "真实 pilot：写作技巧", "secondary_references": []},
+    {"content_hash_at_review": "d507716fa6f68963ecc18e16b5d33bef346a6240fa6bee1e0e4b73ff7b81e434", "disposition": "include", "page_id": "人物反差", "primary_chapter_id": "chapter-technique", "reason": "真实 pilot：写作技巧", "secondary_references": []},
+    {"content_hash_at_review": "780925667a1d14de8490660a4200f01cc73b2febb9f3f9fe5c6005f69757f489", "disposition": "include", "page_id": "作文选材之叙述视角转换", "primary_chapter_id": "chapter-technique", "reason": "真实 pilot：写作技巧", "secondary_references": []}
+  ],
+  "project_id": "novel-wiki",
+  "schema_version": "book-curation-v1",
+  "source_snapshot_id": "97b73e75df43b57857e95f10a557140afc89871d4b6bdcc486bcb11af06eb58c"
+}
