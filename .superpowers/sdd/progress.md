@@ -6,6 +6,19 @@
 >
 > **新计划（2026-08-26）：** 模块规范性与统一化改造 — `docs/superpowers/plans/2026-08-26-module-standardization-unification.md`
 
+### novel-wiki V7.1.1 抽取流水线 v3.0 实施完成（2026-09-15）
+
+- ✅ 架构文档：`docs/superpowers/plans/2026-09-15-v7-pipeline-architecture-v3.md`（11 个决策 D1-D11，20 项验收标准 A1-A20）。
+- ✅ 实施计划：`docs/superpowers/plans/2026-09-15-v7-pipeline-v3-implementation.md`（4.55 天，21 个任务）。
+- ✅ Phase 1 基础设施：prompts/ (PromptAST + TOML parser + 3 层覆盖 + D9 路径白名单 + D6 热加载) + failures.py (D4+D10+D11) + feature flag 灰度发布 (R10) + 4 个内置 TOML。
+- ✅ Phase 2 Stage 改造：Stage 1/3/4/5 顶层全 async，删启发式，接入 prompts；Stage 3 P5 解耦；Stage 4 P4 100% 覆盖；Stage 5 D7 单 topic 失败返回 None；Stage 7 加 P4 + needs_review + has_evidence 三道闸门。
+- ✅ Phase 3 CLI 迁移：extract_pilot.py + extract_full.py 顶层 asyncio.run；新增 review_queue_cli.py (D8)。
+- ✅ 测试：**198 passed, 0 failed**（T4.1 完整 sweep）；10 个测试文件覆盖 prompts/failures/feature flag/4 stages/wiki_writer/CLI。
+- ✅ Spot-check 准确率：**10% → 60%**（6/10 正确，4 个边缘 case 仍需 prompt 调优）。
+- ✅ 反馈记录：`.memory/feedback-v7-pipeline-v3-implementation-2026-09-15.md`。
+- ⚠️ 未达 80% 门槛：4 个 LLM 误判（多 section / 跨类型边缘 case），需要后续 prompt 调优而非架构改动。
+- ⏳ 后续 plan：模板升级 V7.1.1（plan Task 1/2）、概念去重（plan Task 5）、Stage 6 LLM 关系抽取、V7 产物与现有 8 段模板兼容。
+
 ### novel-wiki V7.1.1 抽取流水线 Task 7（2026-09-14）
 
 - ✅ `scripts/extract_pilot.py` 已落地：确定性选取 50 篇 raw，调用 Stage 1/3/4/5，严格 dry-run，不写 `wiki/`。

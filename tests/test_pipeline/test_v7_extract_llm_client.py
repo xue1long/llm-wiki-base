@@ -116,6 +116,45 @@ def test_anthropic_llm_client_constructs():
         pytest.skip(f"No LLM provider configured in this environment: {e}")
 
 
+def test_anthropic_llm_client_falls_back_to_env_provider(monkeypatch, tmp_path):
+    """T1: when the registry default slot is empty but $RUFLO_LLM_PROVIDER
+    points to a configured provider, AnthropicLLMClient() must resolve to
+    that provider — not raise RuntimeError.
+
+    Reproduces the bug observed when only env var (not registry slot) is
+    set: the previous implementation called get_default_name() which
+    returns None in that case, leaving callers unable to construct a
+    default client.
+    """
+    import json
+    from src.llm import registry as registry_module
+
+    cfg_path = tmp_path / "llm-providers.json"
+    cfg_path.write_text(json.dumps({
+        "version": 1,
+        "providers": {
+            "minimax": {
+                "name": "minimax",
+                "type": "openai-compatible",
+                "base_url": "https://api.minimaxi.com/v1",
+                "api_key": "test-key",
+                "models": {},
+                "default_chat_model": "MiniMax-M3",
+                "default_embedding_model": "",
+                "timeout_seconds": 60,
+                "extra_headers": {},
+                "extra_body": {},
+            },
+        },
+        "default": None,
+    }), encoding="utf-8")
+    monkeypatch.setattr(registry_module, "_config_path", lambda: cfg_path)
+    monkeypatch.setenv("RUFLO_LLM_PROVIDER", "minimax")
+
+    client = AnthropicLLMClient()
+    assert client.provider_name == "minimax"
+
+
 def test_anthropic_llm_client_uses_specified_provider():
     """When a provider_name is supplied, it is used verbatim."""
     # We do not actually need the provider to exist for the property
