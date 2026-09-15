@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +48,7 @@ async def run_full(
     json_output: str | Path | None = None,
     markdown_output: str | Path | None = None,
     llm: Any = None,
+    queue_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Process every supported raw source in resumable batches.
 
@@ -57,6 +60,12 @@ async def run_full(
     land in review_queue (D4) for human triage. Default behaviour is
     still dry-run only; the env var is an explicit acknowledgement that
     the operator has reviewed the spot-check report.
+
+    Wave 3 / Task 4 (plan §4 + §2.2.1): checkpoint is upgraded to
+    source-level (version 2) with ``written_page_ids`` / ``blocked_page_ids``
+    / ``failed_page_ids`` tracked per source. Old ``completed_batches``
+    checkpoints are read for backwards compatibility but NOT auto-
+    upgraded — the operator re-runs once to populate the new schema.
     """
     if not dry_run:
         if not os.environ.get("V7_ALLOW_APPLY"):
@@ -70,35 +79,88 @@ async def run_full(
         raise ValueError("batch_size and max_retries must be positive")
     root = Path(root)
     checkpoint = Path(checkpoint_path) if checkpoint_path else root / DEFAULT_CHECKPOINT
-    writer = WikiWriter(root) if not dry_run else None
+    queue_path_resolved: Path | None = (
+        Path(queue_path) if queue_path is not None else root / ".index" / "reviews_queue.json"
+    )
+    writer = (
+        WikiWriter(root, queue_path=queue_path_resolved)
+        if not dry_run
+        else None
+    )
     source_files = _source_files(root)
     batches = [
         source_files[start : start + batch_size]
         for start in range(0, len(source_files), batch_size)
     ]
-    completed = _read_checkpoint(checkpoint)
+    completed_batches, source_outcomes = _read_checkpoint_v2(checkpoint)
     results: list[ExtractionResult] = []
     batches_skipped = 0
+    pending_source_outcomes: dict[str, dict[str, Any]] = dict(source_outcomes)
     for batch_number, batch in enumerate(batches, 1):
-        if batch_number in completed:
+        if batch_number in completed_batches:
             batches_skipped += 1
             continue
         # v3: each source is processed via async _extract_one
         batch_results: list[ExtractionResult] = []
         batch_pages: list[Any] = []
         for path in batch:
+            relative = path.relative_to(root).as_posix()
+            # Wave 3 / Task 4: skip sources whose outcome is already
+            # terminal (written / blocked / incomplete) and md5 unchanged.
+            try:
+                source_md5 = hashlib.md5(path.read_bytes()).hexdigest()
+            except OSError:
+                source_md5 = ""
+            prior = pending_source_outcomes.get(relative)
+            if (
+                prior is not None
+                and prior.get("md5") == source_md5
+                and prior.get("status") in (
+                    ExtractionStatus.WRITTEN.value,
+                    ExtractionStatus.BLOCKED.value,
+                    ExtractionStatus.INCOMPLETE.value,
+                )
+                and not prior.get("dry_run", False)  # P6: dry-run is NOT terminal
+                and not dry_run  # only apply runs can skip
+            ):
+                # Replay the prior outcome without re-processing.
+                results.append(_replay_extraction_result(relative, prior))
+                continue
             result = await _with_retries(
                 root, path, max_retries, llm=llm, page_sink=batch_pages.append
             )
+            result.attempts = getattr(result, "attempts", 1)
             batch_results.append(result)
+            # Wave 3 / Task 4: write a durable source outcome per source
+            # (not per batch) so a kill-9 between Writer and checkpoint
+            # doesn't lose progress.
+            pending_source_outcomes[relative] = _source_outcome_from_result(
+                result, md5=source_md5, dry_run=dry_run,
+            )
+        report: WriteReport | None = None
         if writer is not None and not any(
             r.status == ExtractionStatus.FAILED for r in batch_results
         ):
-            writer.commit_and_index(batch_pages)
+            report = writer.commit_and_index(batch_pages)
+            # Wave 3 / Task 4: enrich each source outcome with the
+            # WriteReport.page_writes mapping (Luna-E).
+            for r in batch_results:
+                if r.status != ExtractionStatus.FAILED:
+                    _merge_write_report_into_outcome(
+                        pending_source_outcomes, r.source_id, report
+                    )
         results.extend(batch_results)
         if not any(r.status == ExtractionStatus.FAILED for r in batch_results):
-            completed.add(batch_number)
-            _write_checkpoint(checkpoint, completed)
+            # Wave 3 / Task 4 / P6: dry-run must NOT mark batches as
+            # done. Otherwise the next apply run silently skips the
+            # batch and never produces pages. Per-source ``dry_run``
+            # rows still feed the summary so the operator sees the
+            # projected outcome.
+            if not dry_run:
+                completed_batches.add(batch_number)
+            _write_checkpoint_v2(
+                checkpoint, completed_batches, pending_source_outcomes,
+            )
 
     # Wave 2 / Task 2: a "previous_results" cache hit returns the prior
     # JSON report's results as raw dicts (legacy shape). Convert them to
@@ -173,6 +235,9 @@ async def _with_retries(
 
 
 def _read_checkpoint(path: Path) -> set[int]:
+    """Legacy (v1 / Wave 0) batch-level checkpoint reader. Wave 3 keeps
+    reading it for backwards compatibility — see ``_read_checkpoint_v2``.
+    """
     if not path.exists():
         return set()
     try:
@@ -183,15 +248,152 @@ def _read_checkpoint(path: Path) -> set[int]:
         return set()
 
 
-def _write_checkpoint(path: Path, completed: set[int]) -> None:
-    _write_report(
-        path,
-        json.dumps(
-            {"completed_batches": sorted(completed)},
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
+def _read_checkpoint_v2(
+    path: Path,
+) -> tuple[set[int], dict[str, dict[str, Any]]]:
+    """Wave 3 / Task 4 source-level checkpoint reader.
+
+    Returns (completed_batches, source_outcomes). Empty containers when
+    the file is missing, corrupt, or in the legacy v1 shape.
+    """
+    if not path.exists():
+        return set(), {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, AttributeError, TypeError):
+        return set(), {}
+    if not isinstance(payload, dict):
+        return set(), {}
+    if payload.get("version") == 2 and isinstance(payload.get("sources"), dict):
+        completed = {
+            int(v) for v in payload.get("completed_batches", []) if isinstance(v, (int, str))
+        }
+        sources = {
+            str(k): dict(v)
+            for k, v in payload["sources"].items()
+            if isinstance(k, str) and isinstance(v, dict)
+        }
+        return completed, sources
+    # Legacy v1: completed_batches only. Do NOT auto-upgrade; the
+    # operator re-runs to populate v2 entries (per plan §4 Task 4).
+    legacy = _read_checkpoint(path)
+    return legacy, {}
+
+
+def _write_checkpoint_v2(
+    path: Path,
+    completed_batches: set[int],
+    sources: dict[str, dict[str, Any]],
+) -> None:
+    """Wave 3 / Task 4 source-level checkpoint writer (atomic JSON)."""
+    payload = {
+        "version": 2,
+        "schema_version": 2,
+        "created_at": int(time.time() * 1000),
+        "completed_batches": sorted(completed_batches),
+        "sources": dict(sources),
+    }
+    _atomic_write_json(path, payload)
+
+
+def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    """Atomic JSON write used by the v2 checkpoint writer.
+
+    Plan §4 Task 4 / P5 hardening: write to a .tmp sibling, then
+    rename. ``extract_full.py`` previously called ``_write_report``
+    which wrote inline — that left the checkpoint in a partial state if
+    the process was killed mid-write.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    tmp.replace(path)
+
+
+def _source_outcome_from_result(
+    result: ExtractionResult,
+    *,
+    md5: str,
+    dry_run: bool,
+) -> dict[str, Any]:
+    """Translate an ExtractionResult into the v2 checkpoint row.
+
+    Schema (plan §4 Task 4):
+      version=2, sources[<relative>] = {
+        md5, status, legacy_status, written_page_ids,
+        blocked_page_ids, failed_page_ids, attempts,
+        last_attempt_at, llm_provider, dry_run
+      }
+    """
+    d = result.to_dict()  # gives correct legacy_status via _legacy_from_status
+    return {
+        "md5": md5,
+        "status": d["status"],
+        "legacy_status": d["legacy_status"],
+        "written_page_ids": list(d.get("written_page_ids", []) or []),
+        "blocked_page_ids": list(d.get("blocked_page_ids", []) or []),
+        "failed_page_ids": list(d.get("failed_page_ids", []) or []),
+        "attempts": int(getattr(result, "attempts", 1) or 1),
+        "last_attempt_at": int(time.time() * 1000),
+        "llm_provider": "",  # filled by caller if needed
+        "dry_run": bool(dry_run),
+    }
+
+
+def _merge_write_report_into_outcome(
+    sources: dict[str, dict[str, Any]],
+    source_id: str,
+    write_report: Any,
+) -> None:
+    """Wave 3 / Task 4 (plan §4 + H3): enrich a source outcome with the
+    WriteReport.page_writes mapping produced by Luna-E. Pages that
+    landed on disk (page_writes[page_id] is a Path) go into
+    ``written_page_ids``; pages that failed (page_writes[id] is None
+    and ``id`` is in ``report.failed``) go into ``failed_page_ids``.
+    """
+    row = sources.get(source_id)
+    if row is None or write_report is None:
+        return
+    page_writes = getattr(write_report, "page_writes", {}) or {}
+    written_ids = set(row.get("written_page_ids", []) or [])
+    failed_ids = set(row.get("failed_page_ids", []) or [])
+    failed_keys = set((getattr(write_report, "failed", {}) or {}).keys())
+    for page_id, path in page_writes.items():
+        if path is not None and page_id not in failed_keys:
+            written_ids.add(page_id)
+        elif page_id in failed_keys:
+            failed_ids.add(page_id)
+    row["written_page_ids"] = sorted(written_ids)
+    row["failed_page_ids"] = sorted(failed_ids)
+
+
+def _replay_extraction_result(
+    source_id: str,
+    outcome: dict[str, Any],
+) -> ExtractionResult:
+    """Reconstruct an ExtractionResult from a prior v2 checkpoint row
+    so a skip-eligible source can still contribute to the summary."""
+    status_str = outcome.get("status") or ExtractionStatus.WRITTEN.value
+    legacy_str = outcome.get("legacy_status") or status_str
+    try:
+        status = ExtractionStatus(status_str)
+    except ValueError:
+        status = ExtractionStatus.WRITTEN
+    try:
+        legacy = ExtractionStatus(legacy_str)
+    except ValueError:
+        legacy = status
+    return ExtractionResult(
+        status=status,
+        source_id=source_id,
+        legacy_status=legacy,
+        written_page_ids=list(outcome.get("written_page_ids", []) or []),
+        blocked_page_ids=list(outcome.get("blocked_page_ids", []) or []),
+        failed_page_ids=list(outcome.get("failed_page_ids", []) or []),
+        attempts=int(outcome.get("attempts", 1) or 1),
     )
 
 

@@ -77,12 +77,14 @@ def test_run_pilot_reports_classification_and_pages(tmp_path: Path) -> None:
         '{"slots": '
         '{"definition": "def", "characteristics": "c", '
         '"examples": "e", "related_concepts": "rc", "references": "ref"}, '
+        # Wave 1 / T1 schema upgrade: evidence uses integer item_index
+        # into the canonical item list (not item_id string).
         '"evidence": '
-        '{"definition": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
-        '"characteristics": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
-        '"examples": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
-        '"related_concepts": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
-        '"references": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}}}'
+        '{"definition": {"item_index": 0, "source_text_excerpt": "定义"}, '
+        '"characteristics": {"item_index": 0, "source_text_excerpt": "定义"}, '
+        '"examples": {"item_index": 0, "source_text_excerpt": "定义"}, '
+        '"related_concepts": {"item_index": 0, "source_text_excerpt": "定义"}, '
+        '"references": {"item_index": 0, "source_text_excerpt": "定义"}}}'
     ))
 
     report = asyncio.run(run_pilot(tmp_path, count=10, seed=1, llm=fake))
@@ -414,12 +416,14 @@ def test_extract_one_page_sink_receives_concept_page(tmp_path: Path) -> None:
         '{"slots": '
         '{"definition": "def", "characteristics": "c", '
         '"examples": "e", "related_concepts": "rc", "references": "ref"}, '
+        # Wave 1 / T1 schema upgrade: evidence uses integer item_index
+        # into the canonical item list (not item_id string).
         '"evidence": '
-        '{"definition": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
-        '"characteristics": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
-        '"examples": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
-        '"related_concepts": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
-        '"references": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}}}'
+        '{"definition": {"item_index": 0, "source_text_excerpt": "定义"}, '
+        '"characteristics": {"item_index": 0, "source_text_excerpt": "定义"}, '
+        '"examples": {"item_index": 0, "source_text_excerpt": "定义"}, '
+        '"related_concepts": {"item_index": 0, "source_text_excerpt": "定义"}, '
+        '"references": {"item_index": 0, "source_text_excerpt": "定义"}}}'
     ))
 
     seen: list = []

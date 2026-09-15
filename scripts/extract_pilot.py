@@ -229,6 +229,7 @@ async def _extract_one(
         # Five-state counters — drive ``status`` below.
         failed_topic_ids: list[str] = []
         written_page_ids: list[str] = []
+        blocked_page_ids: list[str] = []
         for topic in topics:
             topic_text = "\n\n".join(
                 item_map[item_id]["text"]
@@ -274,19 +275,49 @@ async def _extract_one(
                 "needs_review_slots": list(page.needs_review_slots),
                 "has_evidence": page.has_evidence,
             })
-            written_page_ids.append(page_id)
-            result.pages.append(page)
+            # Wave 3 / Task 4 / §2.2.1: pages that the Writer will block
+            # (needs_review / no_evidence / __other__ / content_filter)
+            # MUST NOT count as written. They go into blocked_page_ids
+            # so the source outcome reflects the actual terminal state.
+            if page.needs_review_slots:
+                blocked_page_ids.append(page_id)
+                result.pages.append(page)
+            elif not page.has_evidence:
+                blocked_page_ids.append(page_id)
+                result.pages.append(page)
+            elif getattr(page, "topic_id", None) == "__other__":
+                blocked_page_ids.append(page_id)
+                result.pages.append(page)
+            else:
+                written_page_ids.append(page_id)
+                result.pages.append(page)
             if page_sink is not None:
                 page_sink(page)
 
         # Decide the five-state verdict. Topics that survived Stage 5
-        # become WRITTEN; if every topic failed but the source itself
-        # was complete, escalate to BLOCKED (so the report doesn't
-        # mistake silent Stage-5 failures for success).
+        # become WRITTEN; if every topic failed OR every page got
+        # blocked (Gate B/C), escalate to BLOCKED (so the report
+        # doesn't mistake silent Stage-5 failures for success).
         if failed_topic_ids and not written_page_ids:
             result.status = ExtractionStatus.BLOCKED
             result.review_reasons.append(
                 f"all_topics_failed:{len(failed_topic_ids)}"
+            )
+        elif written_page_ids and not blocked_page_ids:
+            # All pages written successfully.
+            result.status = ExtractionStatus.WRITTEN
+        elif written_page_ids and blocked_page_ids:
+            # Mixed: some pages written, some blocked (Gate B/C).
+            result.status = ExtractionStatus.WRITTEN
+            result.review_reasons.append(
+                f"pages_blocked:{len(blocked_page_ids)}"
+            )
+        elif blocked_page_ids and not written_page_ids:
+            # Every page went through Stage 5 but the Writer gates
+            # blocked them all — report as BLOCKED, not WRITTEN.
+            result.status = ExtractionStatus.BLOCKED
+            result.review_reasons.append(
+                f"all_pages_blocked:{len(blocked_page_ids)}"
             )
         elif failed_topic_ids:
             # Mixed outcome: partial write + some blocked topics.
@@ -295,6 +326,7 @@ async def _extract_one(
                 f"partial_blocked:{len(failed_topic_ids)}"
             )
         result.written_page_ids.extend(written_page_ids)
+        result.blocked_page_ids.extend(blocked_page_ids)
         result.blocked_topic_ids.extend(failed_topic_ids)
         metadata["topics"] = topic_dicts
         metadata["pages"] = page_dicts
