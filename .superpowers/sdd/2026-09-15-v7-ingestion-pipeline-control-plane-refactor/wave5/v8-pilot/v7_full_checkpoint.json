@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "schema_version": 2,
+  "created_at": 1789488948197,
+  "completed_batches": [
+    1
+  ],
+  "sources": {
+    "raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md": {
+      "md5": "25ab715bee91014f4f6564e1397999cc",
+      "status": "written",
+      "legacy_status": "ok",
+      "written_page_ids": [
+        "chuangku-women-romance-lecture"
+      ],
+      "blocked_page_ids": [],
+      "failed_page_ids": [],
+      "attempts": 1,
+      "last_attempt_at": 1789488947088,
+      "llm_provider": "AnthropicLLMClient",
+      "dry_run": false
+    }
+  }
+}

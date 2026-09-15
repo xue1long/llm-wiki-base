@@ -1,0 +1,90 @@
+{
+  "mode": "apply",
+  "root": "E:\\tmp-v8-smoke",
+  "batch_size": 1,
+  "max_retries": 3,
+  "max_attempts": 5,
+  "checkpoint": "E:\\tmp-v8-smoke\\.index\\v7_full_checkpoint.json",
+  "llm_enabled": true,
+  "warnings": [],
+  "summary": {
+    "selected": 1,
+    "processed": 1,
+    "batches": 1,
+    "batches_skipped": 0,
+    "results_reused": false,
+    "by_status": {
+      "written": 1,
+      "blocked": 0,
+      "failed": 0,
+      "incomplete": 0,
+      "skipped": 0
+    },
+    "by_legacy_status": {
+      "ok": 1,
+      "needs_review": 0,
+      "incomplete": 0
+    },
+    "written": 1,
+    "blocked": 0,
+    "failed": 0,
+    "incomplete": 0,
+    "skipped": 0,
+    "generated_pages": 1,
+    "errors": 0,
+    "pages": 1
+  },
+  "results": [
+    {
+      "status": "written",
+      "legacy_status": "ok",
+      "source_id": "raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md",
+      "source_md5": "25ab715bee91014f4f6564e1397999cc",
+      "pages": [
+        {
+          "id": "31d6835a-chuangku-women-romance-lecture",
+          "title": "创酷中文网女频现言讲课记录",
+          "type": "concept",
+          "source_ids": [
+            "raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md"
+          ],
+          "filled_slots": [
+            "definition",
+            "characteristics",
+            "examples",
+            "related_concepts",
+            "references"
+          ],
+          "needs_review_slots": [],
+          "has_evidence": true
+        }
+      ],
+      "written_page_ids": [
+        "chuangku-women-romance-lecture"
+      ],
+      "blocked_page_ids": [],
+      "failed_page_ids": [],
+      "review_reasons": [],
+      "blocked_topic_ids": [],
+      "failure_stage": null,
+      "attempts": 1,
+      "source": "raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md",
+      "characters": 1082,
+      "doc_type": "qa_chat",
+      "confidence": 0.92,
+      "rationale": "This is a lecture transcript ('讲课记录') with multiple speakers distinguished by platform tags (【入道】 lecturer and 【问道】 reader '白大五') and explicit timestamps (e.g. '2015-11-28 18:10:18'), matching the qa_chat pattern of a multi-speaker dialogue transcript.",
+      "complete": true,
+      "completeness_reason": "Document contains substantial body content with multiple sections discussing romance novel categories, advice for new writers, and platform recommendations. It is a complete lecture transcript, not truncated.",
+      "topics": [
+        {
+          "id": "chuangku-women-romance-lecture",
+          "title": "创酷中文网女频现言讲课记录",
+          "item_ids": [
+            "raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md"
+          ]
+        }
+      ],
+      "error": null
+    }
+  ]
+}

@@ -272,6 +272,105 @@ Smoke 使用临时 root + `FakeLLMClient`，没有触碰正式 raw/Wiki；第二
 正式 4918/1362 source 全量 apply 仍未执行；外部 Provider 生产验证仍需单独授权和
 独立 smoke，不能由本次确定性 FakeLLM smoke 代替。
 
+## Wave 5 — 真实 Provider（MiniMax-M3）单源 smoke（2026-09-15）
+
+### 目的
+
+V7 control-plane 已完成 deterministic FakeLLM smoke 与 commit 验收；
+本轮使用真实外部 Provider 验证 `--provider minimax` 路径在 v2 checkpoint /
+五态终局 / md5 skip / queue 去重 / writer reconciliation / summary 直出字段
+上的契约仍成立。**不触碰**正式 `knowledge/novel-wiki`。
+
+### 临时 root
+
+`E:\tmp-v8-smoke\`（E 盘临时目录，`.gitignore` 不需要包含：仓库不引用），
+复制 smoke 样本 raw：
+
+- src: `knowledge/novel-wiki/raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md`
+- src md5: `25ab715bee91014f4f6564e1397999cc`
+- dst md5: `25ab715bee91014f4f6564e1397999cc`（一致，文件未被修改）
+
+### Provider 注入
+
+走 dotenv 一次性 wrapper `E:\tmp-v8-smoke\runner.py`（同步归档至
+`wave5/v8-pilot/runner.py`）。`scripts/ingest_novel_wiki_d.py:37-48` 同款
+模式（先 `load_dotenv(repo/.env, override=False)`，再 `subprocess.run` 时
+把 `os.environ` 注入 `env=`）。`V7_ALLOW_APPLY=1` 设给子进程。
+
+`extract_full.py --provider minimax` 走 `registry.py:396` 的内置 env 派生
+（`"minimax": ("MINIMAX_API_KEY", "https://api.minimaxi.com/v1", "MiniMax-M3")`），
+不依赖 `~/.config/ruflo-kb/llm-providers.json`（该文件当前不存在）。
+
+### apply1 结果（apply, 37.69s）
+
+- exit code: 0
+- summary: `selected=1, processed=1, batches=1, batches_skipped=0, written=1,
+  blocked=0, failed=0, incomplete=0, skipped=0, generated_pages=1, errors=0,
+  pages=1`
+- by_status: `{written: 1}`
+- by_legacy_status: `{ok: 1}`
+- source_md5 = `25ab715bee91014f4f6564e1397999cc`
+- page_id = `chuangku-women-romance-lecture`
+- 五道闸门全通过（filled_slots = [definition, characteristics, examples,
+  related_concepts, references]；needs_review_slots = []；has_evidence = true）
+- stderr 信号：`classify_doc: LLM call failed (attempt 1/3): LLM response was
+  truncated by max_tokens` —— Stage 7 内部 retry（不计入 source attempts）。
+
+### apply2 结果（apply, 1.03s）
+
+- exit code: 0
+- summary: `selected=1, processed=0, batches=1, batches_skipped=1, written=0,
+  blocked=0, failed=0, incomplete=0, skipped=1, generated_pages=0, errors=0,
+  pages=1`
+- by_status: `{skipped: 1}`
+- 同一 source 同一 md5 → md5 skip，**未重新调 LLM、未重新写盘**；queue 不变。
+
+### 五者一致核对
+
+| 契约 | 期望 | 实测 | 结果 |
+|---|---|---|---|
+| raw MD5 不变 | `25ab715b...` | `25ab715b...` | ✅ |
+| apply1 summary written=1 | 1 | 1 | ✅ |
+| apply2 summary skipped=1 | 1 | 1 | ✅ |
+| apply2 batches_skipped=1 | 1 | 1 | ✅ |
+| checkpoint v2 (version=2, schema_version=2) | 是 | 是 | ✅ |
+| source.status=written / legacy_status=ok | ok | ok | ✅ |
+| written_page_ids=[chuangku-women-romance-lecture] | 1 | 1 | ✅ |
+| wiki/concepts/chuangku-women-romance-lecture.md | 3130B | 3130B | ✅ |
+| queue 不存在（written source 无 blocked/failed） | 不存在 | 不存在 | ✅ |
+| apply2 generated_pages=0 (skip 时不重生成) | 0 | 0 | ✅ |
+
+### 范围外保持
+
+- `knowledge/novel-wiki/` 正式 raw / wiki **未触碰**（md5 一致性是物理证明）。
+- 4918 / 1362 source 全量 apply **未启动**。
+- `_legacy.py` placeholder **未修复**（仍是 Wave 0 决策范围外）。
+- `~/.config/ruflo-kb/llm-providers.json` **未写入**（本轮用 env 派生）。
+- `.env`（已 `.gitignore`）**未提交**。
+- 不向 `extract_full.py` 等生产代码改动一字。
+
+### 归档
+
+完整 smoke 报告 + runner + checkpoint + 生成的 wiki page 已归档至
+`wave5/v8-pilot/`：
+
+- `apply1.json` / `apply1.md`（apply1 报告）
+- `apply2.json` / `apply2.md`（apply2 skip 报告）
+- `v7_full_checkpoint.json`（v2 schema，1 source）
+- `chuangku-women-romance-lecture.md`（生成的概念页）
+- `runner.py` / `runner.log`（dotenv wrapper 与执行日志；runner.py 仅在
+  临时 root 与归档目录存在，不进 scripts/）
+
+### 结论
+
+V7 control-plane 在真实外部 Provider（MiniMax-M3 / openai-compatible）下的
+五态终局、md5 skip、writer reconciliation、queue 持久化、summary 直出字段
+**全部成立**。这补足了 Wave 4 验收中"确定性 FakeLLM smoke 不能等同于
+生产 Provider 验证"的剩余风险，但仍不能等同于 4918/1362 source 全量
+apply —— 该决策仍受 plan §8 完成定义约束。
+
+---
+
 ## 计划文件
 
 - 计划:`docs/superpowers/plans/2026-09-15-v7-ingestion-pipeline-control-plane-refactor.md`(749 行,plan-audit 整改后)

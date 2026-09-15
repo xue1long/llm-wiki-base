@@ -1,0 +1,60 @@
+{
+  "mode": "apply",
+  "root": "E:\\tmp-v8-smoke",
+  "batch_size": 1,
+  "max_retries": 3,
+  "max_attempts": 5,
+  "checkpoint": "E:\\tmp-v8-smoke\\.index\\v7_full_checkpoint.json",
+  "llm_enabled": true,
+  "warnings": [],
+  "summary": {
+    "selected": 1,
+    "processed": 0,
+    "batches": 1,
+    "batches_skipped": 1,
+    "results_reused": false,
+    "by_status": {
+      "written": 0,
+      "blocked": 0,
+      "failed": 0,
+      "incomplete": 0,
+      "skipped": 1
+    },
+    "by_legacy_status": {
+      "ok": 1,
+      "needs_review": 0,
+      "incomplete": 0
+    },
+    "written": 0,
+    "blocked": 0,
+    "failed": 0,
+    "incomplete": 0,
+    "skipped": 1,
+    "generated_pages": 0,
+    "errors": 0,
+    "pages": 1
+  },
+  "results": [
+    {
+      "status": "skipped",
+      "legacy_status": "ok",
+      "source_id": "raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md",
+      "source_md5": "",
+      "pages": [],
+      "written_page_ids": [
+        "chuangku-women-romance-lecture"
+      ],
+      "blocked_page_ids": [],
+      "failed_page_ids": [],
+      "review_reasons": [],
+      "blocked_topic_ids": [],
+      "failure_stage": null,
+      "attempts": 1,
+      "source": "raw/sources/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md",
+      "doc_type": null,
+      "complete": true,
+      "topics": [],
+      "error": null
+    }
+  ]
+}

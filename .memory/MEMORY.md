@@ -1,6 +1,7 @@
 # Project Memory Index
 
 - [2026-09-15 V7 ingestion control-plane refactor](feedback-v7-control-plane-refactor-2026-09-15.md) — source-level checkpoint v2, required root, per-root queue lock, Writer reconciliation, terminal report counts, and 298-pass focused verification; production-provider apply remains intentionally unrun
+- [2026-09-15 V7 control-plane real MiniMax-M3 Provider smoke](feedback-v7-control-plane-real-provider-smoke-2026-09-15.md) — single-source apply under temp root, md5 skip on second run, five-way contract holds end-to-end against external openai-compatible provider; production raw untouched
 
 - [2026-09-15 V7 Plan 2 apply 门槛与最小 smoke](feedback-v7-plan2-apply-2026-09-15.md) — `V7_ALLOW_APPLY` 保持 fail-closed；修复 extract_full apply 未接 WikiWriter 的根因；单 source 真实 smoke 0 errors 但被 evidence/review gate 正确阻断，FakeLLM 写盘回归通过
 
