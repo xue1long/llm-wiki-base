@@ -69,11 +69,19 @@ def test_writer_blocks_flagged_page_until_review_is_accepted(tmp_path: Path) -> 
     queue = ReviewQueue(tmp_path / "reviews.json")
     content_filter = ContentFilter(queue=queue)
     writer = WikiWriter(tmp_path, content_filter=content_filter)
+    # Wave 1 / T1 schema upgrade: ConceptPage now needs slot_evidence
+    # to pass Gate C (has_evidence). Without it the page is blocked at
+    # Gate C and never reaches Guard D (content_filter).
+    from src.pipeline.v7_extract.slot_filler import Slot, SlotEvidence
     page = ConceptPage(
         "sensitive",
         "待审概念",
         {name: "这里包含抄袭风险标记" for name in CONCEPT_SLOTS},
         ["raw-sensitive"],
+        slot_evidence={
+            name: Slot(name=name, body="x", evidence=SlotEvidence(has_evidence=True))
+            for name in CONCEPT_SLOTS
+        },
     )
 
     blocked = writer.commit_and_index([page])

@@ -196,3 +196,91 @@ def test_idempotent_skip_on_second_run(tmp_path):
     assert "p1" in report1.written
     assert "p1" in report2.skipped
     assert "p1" not in report2.written
+
+
+# ---------------------------------------------------------------------------
+# Wave 3 / Task 3 (plan 2026-09-15 control plane refactor):
+# WriteReport.page_writes / dry_run + queue integration + getattr Guard A
+# ---------------------------------------------------------------------------
+
+
+def test_write_report_has_page_writes_and_dry_run(tmp_path):
+    """Wave 3 / Task 3: WriteReport extended with page_writes + dry_run."""
+    writer = WikiWriter(tmp_path)
+    page = _attach_topic_id(_make_page(page_id="p1"), "t1")
+
+    report = writer.commit_and_index([page])
+
+    assert isinstance(report.page_writes, dict)
+    assert report.page_writes["p1"] == tmp_path / "wiki" / "concepts" / "p1.md"
+    assert report.dry_run is False  # apply mode (no V7_ALLOW_APPLY check here)
+
+
+def test_blocked_pages_have_null_page_writes(tmp_path):
+    """Every blocked / failed page must have page_writes[page_id] = None
+    so Wave 4 Luna-F can distinguish written from non-written outcomes
+    without parsing the write/skipped/blocked/failed lists."""
+    writer = WikiWriter(tmp_path)
+    blocked_page = _attach_topic_id(_make_page(page_id="b1"), OTHER_TOPIC_ID)
+    review_page = _attach_topic_id(
+        _make_page(page_id="r1", needs_review_slots=("definition",)), "t1"
+    )
+
+    report = writer.commit_and_index([blocked_page, review_page])
+
+    assert report.page_writes["b1"] is None
+    assert report.page_writes["r1"] is None
+
+
+def test_guard_a_uses_getattr_for_missing_topic_id(tmp_path):
+    """H1 / Wave 3: WikiWriter Guard A must not crash when page has no
+    topic_id attribute (matches failures.filter_failed_topics pattern).
+    This is the v3 T2.5 bug fix that makes test_content_filter work."""
+    writer = WikiWriter(tmp_path)
+    page = _make_page(page_id="no_topic")  # no _attach_topic_id call
+
+    # Should NOT raise AttributeError
+    report = writer.commit_and_index([page])
+
+    assert "no_topic" in report.written
+    assert (tmp_path / "wiki" / "concepts" / "no_topic.md").exists()
+
+
+def test_blocked_page_enqueues_into_reviews_queue(tmp_path):
+    """Wave 3 / Task 3: every blocked / failed page must be recorded
+    in the v7 reviews queue so human triage can recover."""
+    from src.pipeline.v7_extract.failures import _DEFAULT_QUEUE_PATH
+
+    queue_path = tmp_path / ".index" / "reviews_queue.json"
+    writer = WikiWriter(tmp_path, queue_path=queue_path)
+    blocked_page = _attach_topic_id(
+        _make_page(page_id="__other__b"), OTHER_TOPIC_ID
+    )
+    review_page = _attach_topic_id(
+        _make_page(page_id="r1", needs_review_slots=("definition",)), "t1"
+    )
+
+    writer.commit_and_index([blocked_page, review_page])
+
+    # Queue file should exist and contain 2 entries with v7_extract tag.
+    import json
+    assert queue_path.exists()
+    items = json.loads(queue_path.read_text(encoding="utf-8"))["items"]
+    v7_items = [i for i in items if i.get("source") == "v7_extract"]
+    assert len(v7_items) >= 2
+    reasons = {i["reason"].split(":")[0] for i in v7_items}
+    assert "__other__" in reasons or "needs_review" in reasons
+
+    # Suppress unused-variable warning for _DEFAULT_QUEUE_PATH import.
+    _ = _DEFAULT_QUEUE_PATH
+
+
+def test_writer_with_no_queue_path_is_silent(tmp_path):
+    """Back-compat: when queue_path is None the writer must not crash
+    (older callers don't care about the queue side-effect)."""
+    writer = WikiWriter(tmp_path)  # no queue_path
+    page = _attach_topic_id(_make_page(page_id="p1"), "t1")
+
+    report = writer.commit_and_index([page])
+
+    assert "p1" in report.written
