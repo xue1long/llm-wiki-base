@@ -1,153 +1,123 @@
-"""Stage 3 of the V7 extract pipeline: detect incomplete source documents."""
+"""Stage 3 of the V7 extract pipeline: detect incomplete source documents.
+
+v3 (plan 2026-09-15): pure-LLM check with P5 decoupling.
+
+P5 says Stage 3 must judge the *body* independently, regardless of
+what Stage 1 decided. v2 short-circuited ``if doc_type is
+INCOMPLETE: return False`` — that meant a Stage-1 error would skip
+Stage 3 entirely. v3 keeps the doc_type as a *soft hint* in the
+prompt but the LLM re-evaluates from scratch.
+
+Heuristic-only logic was deleted (T2.2). The check is now a single
+async LLM call. P2 guarantees ``check_completeness`` never raises — a
+return value of ``(False, "stage3_failed: ...")`` indicates failure.
+"""
 from __future__ import annotations
 
-import asyncio
-import inspect
-import json
-import re
-from typing import Any
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .doc_classifier import DocType
-
-
-_MIN_LENGTH_BY_TYPE = {
-    DocType.SINGLE_METHOD: 400,
-    DocType.MULTI_SECTION: 200,
-    DocType.COLLECTION: 800,
-    DocType.QA_CHAT: 800,
-    DocType.LIST: 400,
-    DocType.TOOL: 200,
-}
-_PROMISED_COUNT_RE = re.compile(
-    r"^\s*#.*?(\d+)\s*(?:条|篇|项|个|种|章|节|招)",
-    re.MULTILINE,
+from .llm_client import LLMClient
+from .prompts.parser import PromptParseError
+from .prompts.renderer import (
+    LLMResponseError,
+    parse_llm_response,
+    render_prompt,
 )
-_NUMBERED_ITEM_RE = re.compile(r"^\s*\d+\s*[.、,，)]\s*\S", re.MULTILINE)
-_NAMED_SECTION_RE = re.compile(r"^\s*[一二三四五六七八九十百]+、", re.MULTILINE)
-_INTRO_MARKERS = (
-    "正文内容缺失",
-    "仅有引言",
-    "内容不完整",
-    "正文缺失",
-    "内容缺失",
-)
+from .prompts.resolver import PromptNotFoundError, resolve
+
+if TYPE_CHECKING:
+    from .prompts.ast import PromptTemplate
 
 
-def check_completeness(
+log = logging.getLogger(__name__)
+
+
+# v3: this module no longer defines heuristics or DocType references.
+# The doc_type argument is now a *soft hint* (str) — callers pass
+# whatever Stage 1 returned, but Stage 3 does not depend on it.
+
+
+async def check_completeness(
     content: str,
-    doc_type: DocType,
+    doc_type_hint: str = "unknown",
     *,
-    llm=None,
+    llm: LLMClient,
+    project_root: Path | str | None = None,
+    max_retries: int = 3,
 ) -> tuple[bool, str]:
-    """Return ``(is_complete, reason)`` for one classified document.
+    """Decide whether ``content`` is substantial enough to extract from.
 
-    The deterministic checks run first.  If they reject an otherwise
-    ambiguous document, an optional LLM may confirm or override that result;
-    malformed or unavailable LLM responses fall back to the heuristic result.
+    Args:
+        content: full document body (Stage 1 has already trimmed).
+        doc_type_hint: what Stage 1 thought the doc_type was. Treated as
+            a *soft hint* in the prompt — Stage 3 does its own
+            judgement (P5).
+        llm: any ``LLMClient`` implementation.
+        project_root: passed through to ``prompts_resolver.resolve``.
+
+    Returns:
+        ``(is_complete, reason)``. Always returns — never raises
+        (P2). On every failure mode the result is
+        ``(False, "stage3_failed: <reason>")``.
     """
-    text = (content or "").strip()
-    heuristic = _check_heuristic(text, doc_type)
-    if heuristic[0] or llm is None or doc_type is DocType.INCOMPLETE:
-        return heuristic
+    template = _resolve_completeness_template(project_root)
+    system_prompt, user_prompt = render_prompt(template, {
+        "text": content,
+        "doc_type_hint": doc_type_hint,
+        "content_limit": "8000",
+    })
 
-    llm_result = _check_with_llm(text, doc_type, llm)
-    return llm_result if llm_result is not None else heuristic
-
-
-def _check_heuristic(text: str, doc_type: DocType) -> tuple[bool, str]:
-    if doc_type is DocType.INCOMPLETE:
-        return False, "doc_type=incomplete"
-    if not text:
-        return False, "empty_content"
-
-    promised_count = _extract_promised_count(text)
-    if promised_count is not None:
-        actual_count = _count_actual_units(text)
-        if actual_count < promised_count:
-            return (
-                False,
-                f"promised_count={promised_count} > actual_count={actual_count}",
-            )
-
-    if _is_intro_only(text):
-        return False, "intro_only"
-
-    minimum = _MIN_LENGTH_BY_TYPE[doc_type]
-    if len(text) < minimum:
-        return False, f"below_length_threshold={minimum} (actual={len(text)})"
-
-    return True, ""
-
-
-def _extract_promised_count(text: str) -> int | None:
-    match = _PROMISED_COUNT_RE.search(text)
-    return int(match.group(1)) if match else None
-
-
-def _count_actual_units(text: str) -> int:
-    return max(
-        len(_NUMBERED_ITEM_RE.findall(text)),
-        len(_NAMED_SECTION_RE.findall(text)),
-    )
-
-
-def _is_intro_only(text: str) -> bool:
-    if any(marker in text for marker in _INTRO_MARKERS):
-        return True
-
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    headings = [line for line in lines if line.startswith("#")]
-    body_lines = [line for line in lines if not line.startswith("#")]
-    return len(text) < 800 and len(headings) == 1 and len(body_lines) <= 2
-
-
-def _check_with_llm(text: str, doc_type: DocType, llm: Any) -> tuple[bool, str] | None:
-    complete = getattr(llm, "complete", None)
-    if not callable(complete):
-        return None
-
-    try:
-        response = complete(
-            prompt_kind="completeness",
-            user_prompt=(
-                "Classify whether this source document is complete. "
-                f"Document type: {doc_type.value}. Return JSON with "
-                'boolean "complete" and string "reason".\n\n'
-                f"{text}"
-            ),
-            system_prompt="Return only a JSON object.",
-            max_tokens=256,
-            temperature=0.0,
-        )
-        if inspect.isawaitable(response):
-            try:
-                asyncio.get_running_loop()
-            except RuntimeError:
-                response = asyncio.run(response)
-            else:
-                return None
-    except Exception:
-        return None
-
-    return _parse_llm_result(response)
-
-
-def _parse_llm_result(response: Any) -> tuple[bool, str] | None:
-    if isinstance(response, dict):
-        payload = response
-    elif isinstance(response, str):
-        raw = response.strip()
-        if raw.startswith("```"):
-            raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw).strip()
+    last_error: Exception | None = None
+    for attempt in range(max_retries):
         try:
-            payload = json.loads(raw)
-        except (TypeError, ValueError):
-            return None
-    else:
-        return None
+            raw = await llm.complete(
+                prompt_kind="completeness",
+                user_prompt=user_prompt,
+                system_prompt=system_prompt,
+                max_tokens=256,
+                temperature=0.0,
+            )
+            payload = parse_llm_response(raw, template.output_schema)
+            return _payload_to_result(payload)
+        except LLMResponseError as e:
+            last_error = e
+            log.info(
+                "check_completeness: response failed validation "
+                "(attempt %d/%d): %s",
+                attempt + 1, max_retries, e,
+            )
+            continue
+        except Exception as e:
+            last_error = e
+            log.warning(
+                "check_completeness: LLM call failed (attempt %d/%d): %s",
+                attempt + 1, max_retries, e,
+            )
+            continue
 
-    value = payload.get("complete", payload.get("is_complete"))
-    if not isinstance(value, bool):
-        return None
-    reason = payload.get("reason", payload.get("rationale", ""))
-    return value, reason if isinstance(reason, str) else str(reason)
+    log.error(
+        "check_completeness: all %d retries exhausted, returning False. last_error=%r",
+        max_retries, last_error,
+    )
+    return False, f"stage3_failed_after_{max_retries}_retries: {last_error}"
+
+
+def _payload_to_result(payload: dict) -> tuple[bool, str]:
+    complete = payload["complete"]
+    reason = payload.get("reason") or ""
+    return bool(complete), str(reason)
+
+
+def _resolve_completeness_template(
+    project_root: Path | str | None,
+) -> "PromptTemplate":
+    """Resolve the completeness prompt; raise RuntimeError on config error."""
+    try:
+        return resolve("completeness", project_root=project_root)
+    except (PromptNotFoundError, PromptParseError) as e:
+        raise RuntimeError(
+            f"V7 completeness prompt is not available: {e}. "
+            f"Check that prompts/builtin/completeness.toml is installed."
+        ) from e

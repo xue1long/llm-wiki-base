@@ -1,4 +1,21 @@
-"""Stage 7: atomic, retrying, checkpointed Wiki writer."""
+"""Stage 7: atomic, retrying, checkpointed Wiki writer.
+
+v3 (plan 2026-09-15) adds three guards on top of the v2 writer:
+
+  A. P4 — pages whose ``topic_id`` is ``__other__`` (Stage 4's sentinel
+     bucket for items the LLM forgot to assign) are routed to
+     ``report.blocked``, never written.
+
+  B. needs_review — pages with any slot flagged ``needs_review`` are
+     blocked. The body is partial / unreliable; we don't auto-publish
+     such pages.
+
+  C. has_evidence — pages where no slot has evidence at all are
+     blocked. Without evidence the page is just hallucination.
+
+These three guards plus the existing content_filter are the v3 "four
+gates" (P3 + P4). WriteReport.blocked records all four categories.
+"""
 from __future__ import annotations
 
 import json
@@ -11,9 +28,17 @@ import yaml
 from .audit_logger import AuditLogger
 from .relation_extractor import PageRelation
 from .slot_filler import ConceptPage
+from .topic_clusterer import OTHER_TOPIC_ID
 
 
 PageWriter = Callable[[ConceptPage, Path], None]
+
+
+# P4: pages whose id starts with this prefix are written into the
+# review queue, NOT to disk. This is the v3 sentinel — it lets the
+# writer refuse the Stage 4 "其他主题" bucket while still letting
+# pages flow through the normal pipeline.
+_BLOCKED_TOPIC_PREFIX = "__other__"
 
 
 @dataclass
@@ -59,7 +84,22 @@ class WikiWriter:
         report = WriteReport()
 
         for page in pages:
-            path = self._page_path(page.id)
+            # Guard A: P4 — __other__ topic is a sentinel, never write.
+            if page.topic_id == OTHER_TOPIC_ID or page.id.startswith(_BLOCKED_TOPIC_PREFIX):
+                report.blocked.append(page.id)
+                continue
+
+            # Guard B: needs_review — any slot flagged for review blocks.
+            if page.needs_review_slots:
+                report.blocked.append(page.id)
+                continue
+
+            # Guard C: has_evidence — no evidence at all means hallucination.
+            if not page.has_evidence:
+                report.blocked.append(page.id)
+                continue
+
+            # Guard D: content_filter (existing v2).
             if self.content_filter is not None:
                 filter_result = self.content_filter.check(
                     page.body,
@@ -69,6 +109,8 @@ class WikiWriter:
                 if getattr(filter_result.status, "value", filter_result.status) == "needs_review":
                     report.blocked.append(page.id)
                     continue
+
+            path = self._page_path(page.id)
             if page.id in completed and path.exists():
                 report.skipped.append(page.id)
                 self._audit_page(page)
