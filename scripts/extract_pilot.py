@@ -1,13 +1,25 @@
-"""Run a deterministic, write-free V7 extraction pilot.
+"""Run a deterministic V7 extraction pilot in dry-run mode.
 
-The pilot is deliberately a dry-run tool.  It reads raw sources, runs the
-local Stage 1/3/4/5 components, and writes only its requested report files;
-it never calls the Wiki writer or mutates ``wiki/``.
+The pilot is deliberately a dry-run tool.  It reads raw sources, runs
+the local Stage 1 / Stage 3 / Stage 4 / Stage 5 components, and writes
+only its requested report files; it never calls the Wiki writer or
+mutates ``wiki/``.
+
+v3 (plan 2026-09-15) changes:
+- All Stage calls are now ``async def`` (Stage 1 / 3 / 4 / 5 are async
+  per the new architecture). ``run_pilot`` / ``_extract_one`` are
+  async; ``main`` enters via ``asyncio.run(main())``.
+- ``classification.doc_type`` is now a plain string (was
+  ``DocType.value`` in v2). Output JSON schema unchanged.
+- CLI flags unchanged: ``--count``, ``--seed``, ``--root``,
+  ``--json-out``, ``--markdown-out``, ``--provider``, ``--sources``.
 """
 from __future__ import annotations
 
 import argparse
+import asyncio
 import hashlib
+import json
 import re
 import sys
 from collections import Counter
@@ -25,14 +37,13 @@ from src.pipeline.v7_extract.doc_classifier import classify_doc
 from src.pipeline.v7_extract.slot_filler import fill_slots
 from src.pipeline.v7_extract.topic_clusterer import cluster_topics
 
-
 SUPPORTED_SUFFIXES = frozenset({".md", ".txt", ".html", ".htm"})
 DEFAULT_ROOT = Path("knowledge/novel-wiki")
 DEFAULT_JSON = Path("docs/superpowers/reports/2026-09-13-extract-pilot.json")
 DEFAULT_MARKDOWN = Path("docs/superpowers/reports/2026-09-13-extract-pilot-report.md")
 
 
-def run_pilot(
+async def run_pilot(
     root: str | Path = DEFAULT_ROOT,
     *,
     count: int = 50,
@@ -42,15 +53,17 @@ def run_pilot(
     llm: Any = None,
     sources: Iterable[str | Path] | None = None,
 ) -> dict[str, Any]:
-    """Run the pilot and optionally write JSON/Markdown reports.
+    """Run the pilot and optionally write JSON / Markdown reports.
 
-    Selection is deterministic for a given ``seed``.  The returned report is
-    fully JSON-serializable so callers can add human spot-check annotations.
+    Selection is deterministic for a given ``seed``.  The returned report
+    is fully JSON-serializable so callers can add human spot-check
+    annotations.
 
-    ``llm`` is the optional ``LLMClient`` injected for Stage 1 classification
-    fallback, Stage 4 topic clustering, and Stage 5 slot filling. When
-    ``llm`` is ``None`` the pipeline runs offline-heuristic only — useful
-    for tests / CI. The report records whether LLM was enabled.
+    ``llm`` is the optional ``LLMClient`` injected for Stage 1 / 3 / 4 / 5.
+    When ``llm`` is ``None`` the pipeline runs offline-heuristic only —
+    but Stage 1 / 3 / 4 / 5 now REQUIRE an LLM, so this branch is
+    effectively a no-op (every stage returns ``incomplete`` / empty
+    topics). We keep the parameter for backward compatibility.
 
     ``sources`` is an explicit list of source paths to run. When provided
     it overrides the random selection — used by spot-check pilots that
@@ -67,7 +80,7 @@ def run_pilot(
     results: list[dict[str, Any]] = []
     for path in selected:
         relative = path.relative_to(root).as_posix()
-        results.append(_extract_one(root, path, relative, llm=llm))
+        results.append(await _extract_one(root, path, relative, llm=llm))
 
     report = {
         "mode": "dry-run",
@@ -128,7 +141,7 @@ def _select_sources(candidates: list[Path], count: int, seed: int) -> list[Path]
     return sorted(rng.sample(candidates, count))
 
 
-def _extract_one(
+async def _extract_one(
     root: Path,
     path: Path,
     relative: str,
@@ -137,12 +150,22 @@ def _extract_one(
 ) -> dict[str, Any]:
     try:
         content = path.read_text(encoding="utf-8", errors="replace")
-        classification = classify_doc(content, filename_hint=path.name, llm=llm)
-        complete, completeness_reason = check_completeness(content, classification.doc_type)
+        classification = await classify_doc(
+            content, filename_hint=path.name, llm=llm,
+            project_root=root,
+        )
+        # v3: Stage 3 is async + P5-decoupled (doc_type is soft hint).
+        complete, completeness_reason = await check_completeness(
+            content,
+            doc_type_hint=classification.doc_type,
+            llm=llm,
+            project_root=root,
+        )
         result: dict[str, Any] = {
             "source": relative,
             "characters": len(content),
-            "doc_type": classification.doc_type.value,
+            # v3: classification.doc_type is a plain string (was DocType.value in v2)
+            "doc_type": classification.doc_type,
             "confidence": classification.confidence,
             "rationale": classification.rationale,
             "complete": complete,
@@ -156,43 +179,49 @@ def _extract_one(
 
         items = _extract_items(content, relative)
         item_map = {item["id"]: item for item in items}
-        topics = cluster_topics(items, llm=llm)
+        # v3: cluster_topics is async; returns [] if LLM missing
+        topics = await cluster_topics(
+            items, llm=llm, project_root=root,
+        )
         for topic in topics:
             topic_text = "\n\n".join(
                 item_map[item_id]["text"]
                 for item_id in topic.item_ids
                 if item_id in item_map
             )
-            page = fill_slots(
-                topic,
-                source_text=topic_text,
-                llm=llm,
-                item_texts=item_map,
+            # v3: fill_slots is async + D7 (returns None on failure)
+            page = await fill_slots(
+                topic, source_text=topic_text,
+                llm=llm, item_texts=item_map, project_root=root,
             )
-            page.id = _stable_page_id(relative, topic.id)
-            result["topics"].append(
-                {
+            if page is None:
+                # D7: skip failed topic — record only that it failed
+                result["topics"].append({
                     "id": topic.id,
                     "title": topic.title,
-                    "item_ids": list(topic.item_ids),
-                }
-            )
-            result["pages"].append(
-                {
-                    "id": page.id,
-                    "title": page.title,
-                    "type": page.type,
-                    "source_ids": [relative],
-                    "filled_slots": list(page.slots),
-                    "needs_review_slots": list(page.needs_review_slots),
-                    "has_evidence": page.has_evidence,
-                }
-            )
+                    "item_ids": topic.item_ids,
+                    "failed": True,
+                })
+                continue
+            # Attach topic_id so Stage 7 P4 gate can identify __other__
+            page.__dict__["topic_id"] = topic.id
+            result["topics"].append({
+                "id": topic.id,
+                "title": topic.title,
+                "item_ids": topic.item_ids,
+            })
+            result["pages"].append({
+                "id": page.id,
+                "title": page.title,
+                "type": page.type,
+                "source_ids": list(page.sources),
+                "filled_slots": list(page.slots),
+                "needs_review_slots": list(page.needs_review_slots),
+                "has_evidence": page.has_evidence,
+            })
         return result
-    except Exception as exc:  # one bad raw file must not abort the pilot
+    except Exception as exc:
         import traceback as _tb
-        # Log full traceback to stderr so pilot failures are diagnosable
-        # without re-running. The JSON report carries only the summary.
         print(f"\n--- _extract_one failed for {relative!r} ---", flush=True)
         _tb.print_exc()
         return {
@@ -210,6 +239,7 @@ def _extract_one(
 
 
 def _extract_items(content: str, relative: str) -> list[dict[str, str]]:
+    """Section / list-item based slicing — same algorithm as v2."""
     headings = list(re.finditer(r"(?m)^#{1,3}\s+(.+?)\s*$", content))
     if len(headings) >= 2:
         items = []
@@ -218,7 +248,6 @@ def _extract_items(content: str, relative: str) -> list[dict[str, str]]:
             text = content[match.start():end].strip()
             items.append({"id": f"{relative}#section-{index + 1}", "text": text})
         return items
-
     numbered = [line.strip() for line in content.splitlines() if re.match(r"^\d+[.、,，)]\s*\S", line)]
     if len(numbered) >= 3:
         return [
@@ -250,8 +279,6 @@ def _summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _json_text(report: dict[str, Any]) -> str:
-    import json
-
     return json.dumps(report, ensure_ascii=False, indent=2) + "\n"
 
 
@@ -303,7 +330,8 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "Optional name of a configured LLM provider (from "
             "src.llm.registry.ProviderRegistry). When omitted, the pilot "
-            "runs offline-heuristic only and never hits the network."
+            "auto-resolves the registry default and falls back to "
+            "offline-heuristic only when no provider is configured."
         ),
     )
     parser.add_argument(
@@ -317,7 +345,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     llm = _build_llm(args.provider)
     sources = _load_sources(args.sources)
-    report = run_pilot(
+    report = asyncio.run(run_pilot(
         args.root,
         count=args.count,
         seed=args.seed,
@@ -325,7 +353,7 @@ def main(argv: list[str] | None = None) -> int:
         markdown_output=args.markdown_out,
         llm=llm,
         sources=sources,
-    )
+    ))
     print(_json_text(report), end="")
     return 0 if report["summary"]["errors"] == 0 else 2
 
@@ -341,12 +369,22 @@ def _load_sources(path: str | None) -> list[str] | None:
 def _build_llm(provider_name: str | None):
     """Resolve an injected LLMClient. Returns None when no provider was
     requested — keeps the pilot offline-by-default."""
-    if not provider_name:
-        return None
-    # Lazy import keeps the offline path free of llm provider deps.
-    from src.pipeline.v7_extract.llm_client import AnthropicLLMClient
+    target = provider_name
+    if not target:
+        try:
+            from src.llm.registry import ProviderRegistry
 
-    return AnthropicLLMClient(default_provider_name=provider_name)
+            cfg = ProviderRegistry.get_default()
+            target = cfg.name
+        except Exception:
+            return None
+    try:
+        # Lazy import keeps the offline path free of llm provider deps.
+        from src.pipeline.v7_extract.llm_client import AnthropicLLMClient
+
+        return AnthropicLLMClient(default_provider_name=target)
+    except Exception:
+        return None
 
 
 if __name__ == "__main__":

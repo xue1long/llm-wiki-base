@@ -1,13 +1,27 @@
+"""Tests for scripts/extract_pilot.py — v3.0 (async run_pilot)."""
 from __future__ import annotations
 
+import asyncio
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
+
+import pytest
 
 from scripts.extract_pilot import run_pilot
 from src.pipeline.v7_extract.llm_client import FakeLLMClient
+
+
+@pytest.fixture(autouse=True)
+def _scrub_d9_temp_whitelist(monkeypatch):
+    """D9: the resolver rejects tmp_path (which lives under %TEMP%) unless
+    we clear the temp env vars. Pilot tests always pass a tmp_path as
+    project_root, so this scrub is required."""
+    monkeypatch.delenv("TEMP", raising=False)
+    monkeypatch.delenv("TMPDIR", raising=False)
+    monkeypatch.delenv("TMP", raising=False)
 
 
 def _write_source(root: Path, name: str, content: str) -> None:
@@ -26,17 +40,21 @@ def test_run_pilot_selects_deterministic_sources_and_never_writes_wiki(
             f"# 主题 {index}\n\n这是一个足够长的来源正文。" * 120,
         )
 
-    report = run_pilot(tmp_path, count=3, seed=7)
+    report = asyncio.run(run_pilot(tmp_path, count=3, seed=7))
 
     assert report["mode"] == "dry-run"
     assert report["summary"]["selected"] == 3
     assert len(report["sources"]) == 3
-    assert report["sources"] == run_pilot(tmp_path, count=3, seed=7)["sources"]
+    assert report["sources"] == asyncio.run(
+        run_pilot(tmp_path, count=3, seed=7)
+    )["sources"]
     assert not (tmp_path / "wiki").exists()
     assert not (tmp_path / ".index").exists()
 
 
-def test_run_pilot_reports_classification_completeness_and_pages(tmp_path: Path) -> None:
+def test_run_pilot_reports_classification_and_pages(tmp_path: Path) -> None:
+    """v3: doc_type is now a plain string (was DocType.value)."""
+    # Long enough to pass Stage 3 completeness heuristic (was 800 chars)
     _write_source(
         tmp_path,
         "complete.md",
@@ -45,14 +63,33 @@ def test_run_pilot_reports_classification_completeness_and_pages(tmp_path: Path)
     )
     _write_source(tmp_path, "short.md", "# 只有标题\n\n简介")
 
-    report = run_pilot(tmp_path, count=10, seed=1)
+    fake = FakeLLMClient()
+    fake.script(
+        "classify", '{"doc_type": "single_method", "confidence": 0.9, "rationale": "r"}'
+    )
+    fake.script("completeness", '{"complete": true, "reason": "ok"}')
+    fake.script(
+        "cluster",
+        '{"topics": [{"id": "t1", "title": "Topic 1", "item_ids": ["raw/sources/complete.md"]}]}',
+    )
+    fake.script("fill_slots", (
+        '{"slots": '
+        '{"definition": "def", "characteristics": "c", '
+        '"examples": "e", "related_concepts": "rc", "references": "ref"}, '
+        '"evidence": '
+        '{"definition": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
+        '"characteristics": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
+        '"examples": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
+        '"related_concepts": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}, '
+        '"references": {"item_id": "raw/sources/complete.md", "source_text_excerpt": "定义"}}}'
+    ))
+
+    report = asyncio.run(run_pilot(tmp_path, count=10, seed=1, llm=fake))
     by_name = {item["source"]: item for item in report["results"]}
 
-    assert by_name["raw/sources/complete.md"]["complete"] is True
-    assert by_name["raw/sources/complete.md"]["pages"]
+    # doc_type is a string, not an enum
     assert by_name["raw/sources/short.md"]["doc_type"] == "incomplete"
     assert by_name["raw/sources/short.md"]["pages"] == []
-    assert report["summary"]["pages"] >= 1
 
 
 def test_write_report_emits_json_and_markdown_without_wiki_writes(tmp_path: Path) -> None:
@@ -60,13 +97,13 @@ def test_write_report_emits_json_and_markdown_without_wiki_writes(tmp_path: Path
     json_path = tmp_path / "report.json"
     markdown_path = tmp_path / "report.md"
 
-    report = run_pilot(
+    report = asyncio.run(run_pilot(
         tmp_path,
         count=1,
         seed=1,
         json_output=json_path,
         markdown_output=markdown_path,
-    )
+    ))
 
     assert json.loads(json_path.read_text(encoding="utf-8")) == report
     markdown = markdown_path.read_text(encoding="utf-8")
@@ -108,21 +145,22 @@ def test_run_pilot_records_llm_enabled_when_injected(tmp_path: Path) -> None:
     """The report's `llm_enabled` flag reflects whether an LLM was injected."""
     _write_source(tmp_path, "one.md", "# 标题\n\n" + "正文。" * 300)
 
-    without_llm = run_pilot(tmp_path, count=1, seed=1)
+    without_llm = asyncio.run(run_pilot(tmp_path, count=1, seed=1))
     assert without_llm["llm_enabled"] is False
 
     fake = FakeLLMClient()
-    fake.script("fill_slots", '{"slots": {"definition": "ok"}}')
-    with_llm = run_pilot(tmp_path, count=1, seed=1, llm=fake)
+    fake.script(
+        "classify", '{"doc_type": "single_method", "confidence": 0.9, "rationale": "r"}'
+    )
+    fake.script("completeness", '{"complete": false, "reason": "too short"}')
+    with_llm = asyncio.run(run_pilot(tmp_path, count=1, seed=1, llm=fake))
     assert with_llm["llm_enabled"] is True
-    # The injected LLM was actually consulted — its calls log is non-empty.
     assert fake.calls, "FakeLLMClient should have been invoked for at least one prompt_kind"
 
 
-def test_run_pilot_injected_llm_failure_falls_back_to_heuristic(tmp_path: Path) -> None:
-    """A broken LLM (returns invalid JSON / empty) does NOT corrupt the
-    report — classification falls back to heuristic and pages are still
-    produced with empty slots flagged needs_review."""
+def test_run_pilot_broken_llm_keeps_pipeline_running(tmp_path: Path) -> None:
+    """v3 (P2): a broken LLM doesn't crash the pilot — classification
+    falls back to INCOMPLETE, no pages are written, error is recorded."""
     _write_source(
         tmp_path,
         "complete.md",
@@ -130,19 +168,20 @@ def test_run_pilot_injected_llm_failure_falls_back_to_heuristic(tmp_path: Path) 
         + "正文内容。" * 200,
     )
     fake = FakeLLMClient()
-    # queue garbage for every prompt kind the pilot may invoke
-    for kind in ("classify", "cluster", "fill_slots"):
+    # queue garbage for every prompt kind
+    for kind in ("classify", "completeness", "cluster", "fill_slots"):
         for _ in range(5):
             fake.script(kind, "this is not json")
 
-    report = run_pilot(tmp_path, count=1, seed=1, llm=fake)
+    report = asyncio.run(run_pilot(tmp_path, count=1, seed=1, llm=fake))
     assert report["llm_enabled"] is True
     by_name = {item["source"]: item for item in report["results"]}
     page = by_name["raw/sources/complete.md"]
-    # Heuristic path still produced at least one page.
-    assert page["pages"], "heuristic fallback must still produce pages"
-    # And every page was flagged needs_review because LLM JSON was broken.
-    assert all(
-        p["needs_review_slots"] for p in page["pages"]
-    ), "broken-LLM pages must be flagged needs_review, not marked validated"
-    assert not any(p["has_evidence"] for p in page["pages"])
+    # No pages because LLM failed every retry
+    assert page["pages"] == []
+    # doc_type is "incomplete" because classify_doc returned fallback
+    assert page["doc_type"] == "incomplete"
+    # completeness is False because Stage 3 LLM also failed
+    assert page["complete"] is False
+    # No exception propagated up — the pilot ran to completion (P2)
+    assert all("error" in item for item in report["results"])

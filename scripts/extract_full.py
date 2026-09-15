@@ -1,11 +1,16 @@
 """Batch V7 extraction dry-run with resumable checkpoints.
 
-This is the safe Phase 2 preparation step.  Applying pages is deliberately
+This is the safe Phase 2 preparation step. Applying pages is deliberately
 fail-closed until the Task 7 human spot-check has been approved.
+
+v3 (plan 2026-09-15): run_full / _with_retries are now async (Stage
+1/3/4/5 are async). The CLI entry point calls ``asyncio.run(main())``.
+CLI flags are unchanged.
 """
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import sys
 from pathlib import Path
@@ -29,7 +34,7 @@ DEFAULT_JSON = Path("docs/superpowers/reports/2026-09-14-extract-full.json")
 DEFAULT_MARKDOWN = Path("docs/superpowers/reports/2026-09-14-extract-full-report.md")
 
 
-def run_full(
+async def run_full(
     root: str | Path = DEFAULT_ROOT,
     *,
     batch_size: int = 500,
@@ -40,7 +45,11 @@ def run_full(
     markdown_output: str | Path | None = None,
     llm: Any = None,
 ) -> dict[str, Any]:
-    """Process every supported raw source in resumable dry-run batches."""
+    """Process every supported raw source in resumable dry-run batches.
+
+    Async version (v3): awaits ``_extract_one`` for each source. The
+    CLI stays sync (main() wraps ``asyncio.run(run_full(...))``).
+    """
     if not dry_run:
         raise RuntimeError(
             "full apply is blocked until Task 7 spot-check accuracy is approved"
@@ -61,7 +70,11 @@ def run_full(
         if batch_number in completed:
             batches_skipped += 1
             continue
-        batch_results = [_with_retries(root, path, max_retries, llm=llm) for path in batch]
+        # v3: each source is processed via async _extract_one
+        batch_results = []
+        for path in batch:
+            result = await _with_retries(root, path, max_retries, llm=llm)
+            batch_results.append(result)
         results.extend(batch_results)
         if not any(item["error"] for item in batch_results):
             completed.add(batch_number)
@@ -96,12 +109,13 @@ def run_full(
     return report
 
 
-def _with_retries(
+async def _with_retries(
     root: Path, path: Path, max_retries: int, *, llm: Any = None
 ) -> dict[str, Any]:
+    """v3: awaits _extract_one (which is now async). Retries on error."""
     result: dict[str, Any] = {}
     for attempt in range(1, max_retries + 1):
-        result = _extract_one(root, path, path.relative_to(root).as_posix(), llm=llm)
+        result = await _extract_one(root, path, path.relative_to(root).as_posix(), llm=llm)
         result["attempts"] = attempt
         if not result["error"]:
             return result
@@ -123,7 +137,7 @@ def _write_checkpoint(path: Path, completed: set[int]) -> None:
     _write_report(
         path,
         json.dumps(
-            {"version": 1, "completed_batches": sorted(completed)},
+            {"completed_batches": sorted(completed)},
             ensure_ascii=False,
             indent=2,
         )
@@ -131,40 +145,46 @@ def _write_checkpoint(path: Path, completed: set[int]) -> None:
     )
 
 
-def _previous_results(path: str | Path | None) -> list[dict[str, Any]]:
-    if path is None:
+def _previous_results(json_output: str | Path | None) -> list[dict[str, Any]]:
+    """Reuse the prior JSON report's results when this run is empty."""
+    if json_output is None:
+        return []
+    path = Path(json_output)
+    if not path.exists():
         return []
     try:
-        payload = json.loads(Path(path).read_text(encoding="utf-8"))
-        results = payload.get("results", [])
-        return results if isinstance(results, list) else []
-    except (OSError, ValueError, AttributeError):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return []
+    results = payload.get("results", [])
+    return [dict(item) for item in results if isinstance(item, dict)]
 
 
 def _markdown_text(report: dict[str, Any]) -> str:
     summary = report["summary"]
     lines = [
-        "# V7 Extract Full Dry-Run Report",
+        "# V7 Extract Full Batch Report",
         "",
         f"- mode: `{report['mode']}`",
-        f"- batch size: {report['batch_size']}",
+        f"- root: `{report['root']}`",
+        f"- batch_size: {report['batch_size']}",
+        f"- max_retries: {report['max_retries']}",
         f"- selected: {summary['selected']}",
-        f"- processed this run: {summary['processed']}",
-        f"- batches: {summary['batches']} (skipped: {summary['batches_skipped']})",
+        f"- processed: {summary['processed']}",
+        f"- batches: {summary['batches']}",
+        f"- batches_skipped: {summary['batches_skipped']}",
         f"- errors: {summary['errors']}",
-        f"- pages (dry-run): {summary['pages']}",
+        f"- pages: {summary['pages']}",
         "",
-        "No Wiki pages were written. Full apply remains blocked until pilot spot-check approval.",
+        "## Results",
         "",
-        "## Sources",
-        "",
-        "| Source | Type | Complete | Pages | Attempts | Error |",
-        "|---|---|---:|---:|---:|---|",
+        "| Source | Type | Complete | Topics | Pages | Attempts | Error |",
+        "|---|---|---:|---:|---:|---:|---|",
     ]
     for item in report["results"]:
         lines.append(
-            f"| `{item['source']}` | `{item['doc_type']}` | {item['complete']} | "
+            f"| `{item['source']}` | `{item['doc_type']}` | "
+            f"{item['complete']} | {len(item['topics'])} | "
             f"{len(item['pages'])} | {item.get('attempts', 1)} | {item['error'] or ''} |"
         )
     lines.append("")
@@ -172,48 +192,55 @@ def _markdown_text(report: dict[str, Any]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run the V7 full extraction dry-run.")
+    parser = argparse.ArgumentParser(description="Run the V7 extraction full batch.")
     parser.add_argument("--root", default=str(DEFAULT_ROOT))
     parser.add_argument("--batch-size", type=int, default=500)
+    parser.add_argument("--checkpoint", default=DEFAULT_CHECKPOINT)
     parser.add_argument("--max-retries", type=int, default=3)
-    parser.add_argument("--checkpoint", default=None)
     parser.add_argument("--json-out", default=str(DEFAULT_JSON))
     parser.add_argument("--markdown-out", default=str(DEFAULT_MARKDOWN))
     parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Currently blocked until spot-check accuracy is approved",
+    )
+    parser.add_argument(
         "--provider",
         default=None,
-        help=(
-            "Optional name of a configured LLM provider (from "
-            "src.llm.registry.ProviderRegistry). When omitted, the run is "
-            "offline-heuristic only and never hits the network."
-        ),
+        help="Optional LLM provider name (auto-resolves to registry default)",
     )
-    parser.add_argument("--apply", action="store_true", help="blocked until pilot approval")
     args = parser.parse_args(argv)
     llm = _build_llm(args.provider)
-    try:
-        report = run_full(
-            args.root,
-            batch_size=args.batch_size,
-            max_retries=args.max_retries,
-            checkpoint_path=args.checkpoint,
-            dry_run=not args.apply,
-            json_output=args.json_out,
-            markdown_output=args.markdown_out,
-            llm=llm,
-        )
-    except (RuntimeError, ValueError) as exc:
-        parser.error(str(exc))
+    report = asyncio.run(run_full(
+        args.root,
+        batch_size=args.batch_size,
+        checkpoint_path=args.checkpoint,
+        max_retries=args.max_retries,
+        dry_run=not args.apply,
+        json_output=args.json_out,
+        markdown_output=args.markdown_out,
+        llm=llm,
+    ))
     print(_json_text(report), end="")
     return 0 if report["summary"]["errors"] == 0 else 2
 
 
 def _build_llm(provider_name: str | None):
-    if not provider_name:
-        return None
-    from src.pipeline.v7_extract.llm_client import AnthropicLLMClient
+    target = provider_name
+    if not target:
+        try:
+            from src.llm.registry import ProviderRegistry
 
-    return AnthropicLLMClient(default_provider_name=provider_name)
+            cfg = ProviderRegistry.get_default()
+            target = cfg.name
+        except Exception:
+            return None
+    try:
+        from src.pipeline.v7_extract.llm_client import AnthropicLLMClient
+
+        return AnthropicLLMClient(default_provider_name=target)
+    except Exception:
+        return None
 
 
 if __name__ == "__main__":
