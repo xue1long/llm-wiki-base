@@ -22,9 +22,9 @@ next source.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import time
-import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -122,31 +122,137 @@ def _write_queue(path: Path, items: list[dict]) -> None:
     tmp.replace(path)
 
 
+_REASON_MAX_LEN: int = 500
+
+
+def _truncate_reason(reason: str) -> str:
+    """Cap ``reason`` to ``_REASON_MAX_LEN`` chars (avoid sensitive payload
+    leaks on disk; consistent with D11 string truncation).
+    """
+    if len(reason) > _REASON_MAX_LEN:
+        return reason[:_REASON_MAX_LEN] + "..."
+    return reason
+
+
+def _stable_review_id(
+    source_id: str,
+    stage: str,
+    page_id: str,
+    topic_id: str,
+    reason: str,
+    content_hash: str,
+) -> str:
+    """plan §4 Task 3: stable review ID derived from identity fields.
+
+    sha1(source + \0 + stage + \0 + page_id + \0 + topic_id + \0 +
+         reason + \0 + content_hash)[:12], prefixed with ``v7fail-``.
+    """
+    identity = (
+        f"{source_id}\0{stage}\0{page_id}\0{topic_id}\0"
+        f"{reason}\0{content_hash}"
+    )
+    suffix = hashlib.sha1(identity.encode("utf-8")).hexdigest()[:12]
+    return f"v7fail-{suffix}"
+
+
+def _format_reason(
+    reason: str,
+    prompt_kind: str = "",
+    provider: str = "",
+) -> str:
+    """P12: append ``prompt=<kind> provider=<name>`` tags when present.
+
+    Returns ``reason`` truncated to ``_REASON_MAX_LEN``.
+    """
+    base = _truncate_reason(reason)
+    tags: list[str] = []
+    if prompt_kind:
+        tags.append(f"prompt={prompt_kind}")
+    if provider:
+        tags.append(f"provider={provider}")
+    if not tags:
+        return base
+    suffix = " ".join(tags)
+    combined = f"{base} {suffix}"
+    # Re-apply cap after tag append so total stays <= _REASON_MAX_LEN
+    if len(combined) > _REASON_MAX_LEN:
+        return combined[:_REASON_MAX_LEN] + "..."
+    return combined
+
+
 def enqueue_failure(
     source_id: str,
     stage: str,
-    reason: str,
-    payload: dict | None = None,
     *,
+    page_id: str = "",
+    topic_id: str = "",
+    reason: str,
+    content_hash: str = "",
+    prompt_kind: str = "",
+    provider: str = "",
+    payload: dict | None = None,
     queue_path: Path | str = _DEFAULT_QUEUE_PATH,
 ) -> str:
     """Record a v7 failure to the shared reviews queue.
 
+    Stable review ID derived from ``(source_id, stage, page_id, topic_id,
+    reason, content_hash)``; the same identity dedupes (attempts += 1,
+    ``last_seen_at`` updated, ``last_prompt_kind`` / ``last_provider``
+    refreshed). Different identity fields produce different review IDs.
+
+    Args:
+        source_id: Logical source identifier (relative path or stable slug).
+        stage: Pipeline stage name (e.g. ``stage5``).
+        page_id: Stable page ID (from ``_page_id._stable_page_id``) when
+            the failure is page-scoped; empty for source-scoped failures.
+        topic_id: Topic cluster ID (when applicable).
+        reason: Human-readable failure reason (keyword-only, required).
+        content_hash: Content hash of the source artifact (when available);
+            differentiates re-extracts of the same source.
+        prompt_kind: Optional P12 label — which prompt produced the failure.
+        provider: Optional P12 label — which LLM provider was active.
+        payload: Optional context dict; sanitized via D11 before write.
+        queue_path: Override the default ``.index/reviews_queue.json``.
+
     Returns:
-        The generated review_id (UUID prefix).
+        The generated (or matched) review_id (stable sha1 prefix).
     """
     path = Path(queue_path)
     items = _read_queue(path)
     sanitized = sanitize_payload(payload or {})
-    review_id = f"v7-{uuid.uuid4().hex[:12]}"
+
+    review_id = _stable_review_id(
+        str(source_id), stage, page_id, topic_id, reason, content_hash,
+    )
+    formatted_reason = _format_reason(reason, prompt_kind, provider)
+
+    now = _now_ms()
+    for existing in items:
+        if existing.get("id") == review_id:
+            existing["attempts"] = int(existing.get("attempts", 0)) + 1
+            existing["last_seen_at"] = now
+            existing["reason"] = formatted_reason
+            existing["last_prompt_kind"] = prompt_kind or existing.get("last_prompt_kind", "")
+            existing["last_provider"] = provider or existing.get("last_provider", "")
+            existing["status"] = existing.get("status", "open")
+            _write_queue(path, items)
+            return review_id
+
     items.append({
         "id": review_id,
         "source": V7_SOURCE_TAG,            # D10
         "failure_stage": stage,
-        "reason": reason,
+        "reason": formatted_reason,
         "source_id": str(source_id),
+        "page_id": page_id,
+        "topic_id": topic_id,
+        "content_hash": content_hash,
         "payload": sanitized,                 # D11
-        "created_at": _now_ms(),
+        "created_at": now,
+        "last_seen_at": now,
+        "last_prompt_kind": prompt_kind,
+        "last_provider": provider,
+        "attempts": 1,
         "status": "open",
     })
     _write_queue(path, items)

@@ -127,7 +127,7 @@ def test_enqueue_writes_v7_tagged_item(tmp_path):
         payload={"raw_response": "..."},
         queue_path=path,
     )
-    assert review_id.startswith("v7-")
+    assert review_id.startswith("v7fail-")           # T3 stable prefix
 
     items = _read_queue(path)
     assert len(items) == 1
@@ -140,6 +140,8 @@ def test_enqueue_writes_v7_tagged_item(tmp_path):
     assert item["source_id"] == "raw/x.md"
     assert item["status"] == "open"
     assert "created_at" in item
+    assert "last_seen_at" in item
+    assert item["attempts"] == 1
 
 
 def test_enqueue_sanitizes_payload(tmp_path):
@@ -158,9 +160,9 @@ def test_enqueue_sanitizes_payload(tmp_path):
 
 def test_enqueue_multiple_items_accumulate(tmp_path):
     path = tmp_path / "reviews_queue.json"
-    enqueue_failure("a", "stage1", "r1", queue_path=path)
-    enqueue_failure("b", "stage5", "r2", queue_path=path)
-    enqueue_failure("c", "stage3", "r3", queue_path=path)
+    enqueue_failure("a", "stage1", reason="r1", queue_path=path)
+    enqueue_failure("b", "stage5", reason="r2", queue_path=path)
+    enqueue_failure("c", "stage3", reason="r3", queue_path=path)
     items = _read_queue(path)
     assert len(items) == 3
     assert [it["source_id"] for it in items] == ["a", "b", "c"]
@@ -206,6 +208,106 @@ def test_read_handles_corrupt_json(tmp_path):
     p = tmp_path / "corrupt.json"
     p.write_text("{not valid json", encoding="utf-8")
     assert _read_queue(p) == []
+
+
+# ---------------------------------------------------------------------------
+# T3 queue core: 新签名 + P12 加固 + R15/D11 兼容性
+# ---------------------------------------------------------------------------
+
+def test_enqueue_failure_new_signature_accepts_all_kwargs(tmp_path):
+    """T3: 新签名所有 keyword 参数(page_id / topic_id / content_hash /
+    prompt_kind / provider)都应生效,且 reason 必须 keyword-only。"""
+    path = tmp_path / "reviews_queue.json"
+    review_id = enqueue_failure(
+        source_id="raw/source_a.md",
+        stage="stage5",
+        page_id="48d50307-writing-techniques",
+        topic_id="writing-techniques",
+        reason="evidence_failed",
+        content_hash="abc123",
+        prompt_kind="fill_slots",
+        provider="ollama:qwen2.5:7b",
+        payload={"raw": "context"},
+        queue_path=path,
+    )
+    assert review_id.startswith("v7fail-")
+
+    items = _read_queue(path)
+    assert len(items) == 1
+    item = items[0]
+    assert item["page_id"] == "48d50307-writing-techniques"
+    assert item["topic_id"] == "writing-techniques"
+    assert item["content_hash"] == "abc123"
+    assert item["last_prompt_kind"] == "fill_slots"
+    assert item["last_provider"] == "ollama:qwen2.5:7b"
+    assert item["attempts"] == 1
+
+
+def test_enqueue_failure_reason_keyword_only(tmp_path):
+    """T3: ``reason`` 是 keyword-only 必填,位置形式调用应报错。"""
+    path = tmp_path / "reviews_queue.json"
+    with pytest.raises(TypeError):
+        # 位置形式传 reason 不再被允许
+        enqueue_failure("a", "stage1", "r1", queue_path=path)
+
+
+def test_enqueue_failure_p12_appends_prompt_and_provider_tags(tmp_path):
+    """P12 加固: provider + prompt_kind 非空时进入 queue item 的 reason
+    字段,便于 triage。"""
+    path = tmp_path / "reviews_queue.json"
+    enqueue_failure(
+        source_id="raw/source_a.md",
+        stage="stage5",
+        reason="stage5_llm_error",
+        prompt_kind="fill_slots",
+        provider="ollama:qwen2.5:7b",
+        queue_path=path,
+    )
+    items = _read_queue(path)
+    reason = items[0]["reason"]
+    assert "stage5_llm_error" in reason
+    assert "prompt=fill_slots" in reason
+    assert "provider=ollama:qwen2.5:7b" in reason
+
+
+def test_enqueue_failure_p12_no_tags_when_prompt_provider_empty(tmp_path):
+    """P12: 当 prompt_kind / provider 都为空时,reason 不应追加标签。"""
+    path = tmp_path / "reviews_queue.json"
+    enqueue_failure(
+        source_id="raw/source_a.md",
+        stage="stage1",
+        reason="pure_reason",
+        queue_path=path,
+    )
+    items = _read_queue(path)
+    assert items[0]["reason"] == "pure_reason"
+    assert "prompt=" not in items[0]["reason"]
+    assert "provider=" not in items[0]["reason"]
+
+
+def test_enqueue_failure_payload_sanitize_still_applies(tmp_path):
+    """R15 / D11: 新签名下,payload 中的 api_key / email / phone 仍被
+    sanitize 为 ``[REDACTED]``。"""
+    path = tmp_path / "reviews_queue.json"
+    enqueue_failure(
+        source_id="raw/source_a.md",
+        stage="stage5",
+        reason="evidence_failed",
+        page_id="48d50307-writing-techniques",
+        payload={
+            "api_key": "sk-secret",
+            "email": "x@y.com",
+            "phone": "555-1234",
+            "ok": "fine",
+        },
+        queue_path=path,
+    )
+    items = _read_queue(path)
+    payload = items[0]["payload"]
+    assert payload["api_key"] == "[REDACTED]"
+    assert payload["email"] == "[REDACTED]"
+    assert payload["phone"] == "[REDACTED]"
+    assert payload["ok"] == "fine"
 
 
 # ---------------------------------------------------------------------------
