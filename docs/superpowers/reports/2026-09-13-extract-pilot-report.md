@@ -1,82 +1,19 @@
 # V7 Extract Pilot Report
 
 - mode: `dry-run`
-- seed: `42`
-- selected: 50
-- complete: 43
-- incomplete: 7
-- pages (dry-run): 60
-- spot-check: completed by Codex; strict accepted `1/10` (`10%`), threshold `80%`
-- full apply: blocked; rules-only topics and fallback slots are not production-safe
-
-## Spot-check
-
-Strict acceptance requires classification, completeness, topic semantics/quantity, and usable non-placeholder slot content to pass for one source.
-
-| # | Source | Accepted | Finding |
-|---:|---|:---:|---|
-| 1 | `借鉴素材小说写作.md` | no | 泛主题过度拆分，含综合主题 |
-| 2 | `入门教程一个新手的五个阶段.md` | no | 五阶段被输出为综合主题 |
-| 3 | `入门教程三江.md` | yes | 标题+简介正确拦截 |
-| 4 | `入门教程人物代入感方面的刻画.md` | no | 有实质内容却被 800 字阈值拦截 |
-| 5 | `入门教程作家是怎么炼成的新手必看.md` | no | 作家职业生涯被误标为角色动机 |
-| 6 | `入门教程基础篇语言规范.md` | no | 语言规范被误标为世界观设定 |
-| 7 | `入门教程网络小说写作宝典.md` | no | 多主题被压成冲突升级 |
-| 8 | `入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏.md` | no | 遗漏高潮、悬念、节奏，槽位为回退文本 |
-| 9 | `必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md` | no | 讲课记录误判为单方法 |
-| 10 | `必备资料20个签约条件新人必看2.md` | no | 20 条清单误判为单方法 |
+- seed: `7`
+- selected: 5
+- complete: 5
+- incomplete: 0
+- pages (dry-run): 5
+- spot-check: pending
 
 ## Sources
 
 | Source | Type | Complete | Topics | Pages | Error |
 |---|---|---:|---:|---:|---|
-| `raw/sources/01_新手入门/借鉴素材小说写作.md` | `single_method` | True | 3 | 3 |  |
-| `raw/sources/01_新手入门/入门教程一个新手的五个阶段.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/01_新手入门/入门教程三江.md` | `incomplete` | False | 0 | 0 |  |
-| `raw/sources/01_新手入门/入门教程人物代入感方面的刻画.md` | `incomplete` | False | 0 | 0 |  |
-| `raw/sources/01_新手入门/入门教程作家是怎么炼成的新手必看.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/01_新手入门/入门教程基础篇语言规范.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/01_新手入门/入门教程网络小说写作宝典.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/01_新手入门/入门教程谈谈小说的矛盾冲突大高潮小高潮如何营造及小说节奏.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/01_新手入门/必备资料11月28号创酷中文网女频现言讲课记录_8c363e.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/01_新手入门/必备资料20个签约条件新人必看2.md` | `single_method` | True | 3 | 3 |  |
-| `raw/sources/01_新手入门/必备资料37修真仙侠小说的元素和写法.md` | `single_method` | True | 2 | 2 |  |
-| `raw/sources/01_新手入门/必备资料作者五个阶段.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/01_新手入门/必备资料如何构架写作悬念.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/01_新手入门/必备资料新手写小说忌讳的十点1.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/01_新手入门/必备资料详解新作者常见困难和瓶颈.md` | `single_method` | True | 3 | 3 |  |
-| `raw/sources/01_新手入门/新人须知2给你的作品换件衣服你会发现你什么题材都可以写.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/01_新手入门/新人须知36架空历史的创作要点.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/02_进阶技巧/方法论打斗七公式重要.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/02_进阶技巧/方法论耽美写作.md` | `single_method` | True | 3 | 3 |  |
-| `raw/sources/02_进阶技巧/方法论语言规范.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/02_进阶技巧/方法论骨刀总结写作资料.md` | `incomplete` | False | 0 | 0 |  |
-| `raw/sources/02_进阶技巧/补充教程写作经验侦探小说创作指南与写法.md` | `multi_section` | True | 1 | 1 |  |
-| `raw/sources/02_进阶技巧/计谋格斗跑酷体能训练教程.md` | `multi_section` | True | 1 | 1 |  |
-| `raw/sources/02_进阶技巧/进阶教程34承转启合文章的衔接和转折.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/02_进阶技巧/进阶教程写作相关写手成神之路起点编辑部的教材下篇.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/02_进阶技巧/进阶教程后宫文写作的一个中心和两个基本点.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/02_进阶技巧/进阶教程大神说法第一讲如何抓住读者的心1.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/02_进阶技巧/进阶教程小说的定义与分类.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/02_进阶技巧/进阶教程玄武门.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/02_进阶技巧/进阶教程红书.md` | `incomplete` | False | 0 | 0 |  |
-| `raw/sources/02_进阶技巧/进阶教程网络文学的源流.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/03_大纲创作/大纲模板大纲完整模板.md` | `multi_section` | True | 1 | 1 |  |
-| `raw/sources/03_大纲创作/大纲示例技术篇小说速成大纲传统文学版长篇.md` | `incomplete` | False | 0 | 0 |  |
-| `raw/sources/03_大纲创作/大纲示例教你如何写小说大纲附大纲范例.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/04_题材专题/东方玄幻佛教养生概论.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/04_题材专题/东方玄幻修真九要.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/04_题材专题/东方玄幻修真功法.md` | `multi_section` | True | 3 | 3 |  |
-| `raw/sources/04_题材专题/东方玄幻夜叉.md` | `incomplete` | False | 0 | 0 |  |
-| `raw/sources/04_题材专题/东方玄幻星曜星座关于七杀.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/04_题材专题/女频男频3纵横编辑引导你成为专业写手的关键.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/04_题材专题/武侠洪荒武林秘籍2.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/04_题材专题/武侠洪荒鉴赏名刀.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/04_题材专题/穿越修真修真境界的划分.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/04_题材专题/穿越修真方术.md` | `incomplete` | False | 0 | 0 |  |
-| `raw/sources/04_题材专题/都市言情清朝的选妃制度.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/05_运营出版/信息库1签约篇.md` | `single_method` | True | 3 | 3 |  |
-| `raw/sources/05_运营出版/审核上架1起点培训之人物设定.md` | `single_method` | True | 1 | 1 |  |
-| `raw/sources/05_运营出版/审核上架2对话技巧详谈引号开头对话流.md` | `single_method` | True | 3 | 3 |  |
-| `raw/sources/07_看电影学写作/3写作选材之想象力非凡第3段.md` | `single_method` | True | 2 | 2 |  |
-| `raw/sources/08_音频教程/大神写作经验分享4.md` | `single_method` | True | 2 | 2 |  |
+| `raw/sources/01_新手入门/入门教程如何写好网络小说.md` | `multi_section` | True | 1 | 1 |  |
+| `raw/sources/01_新手入门/新人须知22期待感让你的作品能够引人入胜.md` | `single_method` | True | 1 | 1 |  |
+| `raw/sources/02_进阶技巧/进阶教程无尽之巅第五章完成隐藏任务.md` | `single_method` | True | 1 | 1 |  |
+| `raw/sources/04_题材专题/东方玄幻上古十大神器.md` | `list` | True | 1 | 1 |  |
+| `raw/sources/08_音频教程/女强写作技巧.md` | `qa_chat` | True | 1 | 1 |  |
