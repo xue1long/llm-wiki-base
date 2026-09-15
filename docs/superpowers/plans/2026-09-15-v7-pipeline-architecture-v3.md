@@ -85,7 +85,7 @@ src/pipeline/v7_extract/
 ├── completeness_checker.py     # Stage 3:async + prompts + P5 解耦
 ├── topic_clusterer.py           # Stage 4:async + prompts + P4 兜底
 ├── slot_filler.py               # Stage 5:async + prompts + evidence 验证
-├── relation_extractor.py        # Stage 6:脚本(不变)
+├── relation_extractor.py        # Stage 6:可选 best-effort 后处理,首轮不调用
 ├── wiki_writer.py               # Stage 7:脚本 + needs_review 阻断 + P4 阻断
 ├── content_filter.py            # 敏感词闸门(沿用)
 └── audit_logger.py              # 反向索引 + failure 记录(扩展)
@@ -147,6 +147,19 @@ tests/fixtures/v7_spot_check/
 | **D10** 🆕 | failures.py 给所有 review 项加 `source="v7_extract"` 标记(R13) | 区分 Generator 与 V7 失败项,避免混淆 | `failures.py`, `scripts/review_queue_cli.py` |
 | **D11** 🆕 | payload 脱敏(白名单 + 长度截断,不删除 payload)(R15) | 保留排错信息同时防敏感数据泄露 | `failures.py` |
 
+### 4.1 控制面补充边界(2026-09-15)
+
+- Stage 5 的硬要求是脚本拥有的 item provenance 与页面级 source 闭环。
+  `source_text_excerpt` 仅供人工定位原文；非 literal paraphrase 不能单独触发
+  `needs_review`，但缺失或越界的 item 引用仍必须阻断。
+- 首轮必需链路是 Stage 1/2/3/4/5 → Stage 7 → durable source outcome。
+  Stage 6 不在这条成功路径内，也不参与首轮 checkpoint 的终局判定。
+- Stage 6 仅在首轮 outcome 已持久化后按需运行。未来接入必须复用同一
+  `page_id`、review queue、source checkpoint 和 outcome 契约；关系抽取失败
+  只能形成可重试的后处理结果，不能降级、回滚或覆盖已成立的首轮 outcome。
+- 详细决策与回滚边界见
+  `docs/adr/0011-v7-ingestion-outcome-control-plane.md`。
+
 ---
 
 ## 5. 单文档处理流水线
@@ -190,17 +203,10 @@ tests/fixtures/v7_spot_check/
         │ 输出: ConceptPage + evidence       │
         │ 单 topic 失败: 过滤 + blocked_topic_ids(D7)│
         └─────────────────────────────────────┘
-                         ↓
-        ┌─────────────────────────────────────┐
-        │ Stage 6: extract_relations (脚本)   │
-        │ 输入: pages                         │
-        │ 输出: PageRelation[]                │
-        │ 失败: 空关系(可逆)                  │
-        └─────────────────────────────────────┘
-                         ↓
+                         ↓ (首轮必需)
         ┌─────────────────────────────────────┐
         │ Stage 7: commit_and_index (脚本)    │
-        │ 输入: pages + relations             │
+        │ 输入: pages                         │
         │ 三道闸门 + 1 道 P4:                 │
         │   A. P4 "其他主题" 桶 → blocked    │
         │   B. needs_review → blocked        │
@@ -212,6 +218,14 @@ tests/fixtures/v7_spot_check/
         .index/v7_checkpoint.json(幂等)
         .index/extract_report.json(追溯 + failure 记录)
         reviews_queue.json(失败队列)
+
+                         ↓ (终局之后,按需执行)
+        ┌─────────────────────────────────────┐
+        │ Stage 6: extract_relations (可选)   │
+        │ 输入:已持久化 pages / page_id      │
+        │ 输出:PageRelation[]                 │
+        │ 失败:best-effort 失败,不改首轮终局 │
+        └─────────────────────────────────────┘
 ```
 
 ### 5.2 失败行为矩阵(P2 原则)
@@ -223,8 +237,8 @@ tests/fixtures/v7_spot_check/
 | Stage 3 LLM 失败 | 视为 incomplete,跳到末尾 | 无 |
 | Stage 4 LLM 失败 | ExtractionStatus.NEEDS_REVIEW | 无 |
 | Stage 5 单 topic LLM 失败 | 该 topic 过滤 + blocked_topic_ids | 无(D7) |
-| Stage 5 evidence 不过 | 该 slot 标 needs_review | 无 |
-| Stage 6 | 空关系列表 | 无(可逆) |
+| Stage 5 item provenance 不合法或 evidence 缺失 | 该 slot 标 needs_review；excerpt 非 literal 匹配本身不阻断 | 无 |
+| Stage 6(可选后处理) | 记录可重试的 best-effort 结果；不改变首轮 source outcome | 无(首轮结果已持久化) |
 | Stage 7 写盘失败 | retry 3 次 → failed,进 review queue | 无 |
 | Stage 7 needs_review 阻断 | blocked 列表 | 无 |
 | Stage 7 content_filter 拦截 | blocked 列表 | 无 |
@@ -489,6 +503,11 @@ def _enforce_full_coverage(topics, items):
 
 ### 8.4 Stage 5: fill_slots(D7 单 topic 失败过滤, async)
 
+Stage 5 必须保留 canonical item ID → page → source 的 provenance 闭环。
+`source_text_excerpt` 是可选人工参考，不是全文 substring 硬门：只要 item 引用
+合法、evidence 和正文满足既有约束，paraphrase excerpt 不应单独标记
+`needs_review`。
+
 ```python
 async def fill_slots(
     topic: Topic,
@@ -521,11 +540,19 @@ async def process_article(article):
     return ExtractionResult(pages=pages, blocked_topic_ids=blocked, ...)
 ```
 
-### 8.5 Stage 7: wiki_writer(P3 + P4, 不变)
+### 8.5 Stage 6: extract_relations(可选 best-effort 后处理)
+
+`relation_extractor.py` 保留现有实现，但首轮 `extract_pilot.py` / `extract_full.py`
+不以它作为 Stage 7 的前置条件。需要关系时，在 source outcome 持久化后由独立
+后处理任务调用；调用方必须使用已落盘页面的同一 `page_id`，并沿用本控制面的
+queue、checkpoint 与 outcome 语义。Stage 6 失败不得删除页面、回退首轮
+checkpoint，或把 `written` 改成 `blocked` / `failed`。
+
+### 8.6 Stage 7: wiki_writer(P3 + P4, 不变)
 
 ```python
 class WikiWriter:
-    def commit_and_index(self, pages, relations) -> WriteReport:
+    def commit_and_index(self, pages) -> WriteReport:
         for page in pages:
             # 闸门 A: P4 "其他主题" 桶
             if page.topic_id == "__other__":
@@ -733,6 +760,15 @@ tests/test_pipeline/
 | A19 🆕 | review_queue source 标记 | 所有 v7_extract 失败项带 `source="v7_extract"`(D10) |
 | A20 🆕 | payload 脱敏 | api_key / email / phone 等敏感字段在 payload 中被 [REDACTED](D11) |
 
+### 14.1 控制面补充验收(不改变 A1-A20)
+
+| ID | 验收项 | 标准 |
+|---|---|---|
+| C1 | Stage 5 excerpt 边界 | canonical item provenance 合法且正文/evidence 合格时，非 literal paraphrase excerpt 不单独阻断写盘 |
+| C2 | Stage 5 provenance | 缺失、越界或跨 topic 的 item 引用继续进入 review，页面保留 source 闭环 |
+| C3 | Stage 6 首轮隔离 | `scripts/` 首轮 source→concept 路径不要求关系抽取；没有 relations 仍可形成 durable outcome |
+| C4 | Stage 6 后处理失败 | 失败可重试且可审计，不删除页面、不回退 checkpoint、不覆盖既有 source outcome |
+
 ---
 
 ## 15. 风险评估
@@ -764,6 +800,8 @@ tests/test_pipeline/
 | 失败语义 | 不统一(异常 + 空返回) | 统一 ExtractionResult + needs_review |
 | Stage 1→3 耦合 | 强(INCOMPLETE 短路) | 弱(soft hint) |
 | Stage 4 覆盖度 | LLM 自由分配 | P4 硬约束 + 兜底 |
+| Stage 5 excerpt | literal substring 硬门 | 人工参考；item provenance 仍是硬约束 |
+| Stage 6 关系抽取 | 容易被理解为首轮必需阶段 | 终局之后的可选 best-effort 后处理 |
 | 模板架构对齐 | 平行架构 | 镜像现有 wiki/templates/ |
 | 失败队列 | 需新建 review_queue.py | 复用现有 reviews_queue(D4) |
 | CLI 工具 | 仅 JSON 文件 | 新增 review_queue_cli(D8) |

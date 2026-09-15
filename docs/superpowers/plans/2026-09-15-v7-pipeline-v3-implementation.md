@@ -21,7 +21,8 @@
 **非目标**(plan 其它 task 的事):
 - 模板升级 V7.1.1
 - 概念去重
-- Stage 6 LLM 关系增强
+- Stage 6 LLM 关系增强及其首轮自动接入；现有关系抽取只保留为 source outcome
+  持久化后的可选 best-effort 后处理
 
 ---
 
@@ -720,11 +721,17 @@ def now_ms() -> int:
    ) -> ConceptPage | None
    ```
 2. 返回 `None` 表示该 topic 失败(D7,调用方负责过滤)
-3. evidence 校验逻辑保留
+3. evidence 校验逻辑保留：LLM 返回的 item 引用必须映射到当前 topic 的
+   canonical item ID，页面必须保留 source provenance 闭环
+4. `source_text_excerpt` 仅作为可选人工参考；非 literal paraphrase 不得单独
+   触发 `needs_review`，缺失/越界 item 引用与空 evidence 仍按原安全门阻断
 
 **Tests**:
 - LLM 返回合法 slots + evidence → ConceptPage.has_evidence = true
 - LLM 返回的 evidence item_id 不在 available → slot 标 needs_review
+- canonical item provenance 合法且 excerpt 是 paraphrase → 不因 substring
+  不匹配而标 needs_review
+- excerpt 可缺省，但缺失/越界的 item 引用仍标 needs_review，页面 source 闭环保留
 - LLM 抛异常 → 返回 None
 
 **Acceptance**:A7 验证通过(`grep _FORBIDDEN_PLACEHOLDERS` 仍存在但触发 needs_review 而非阻断)。
@@ -753,6 +760,22 @@ def now_ms() -> int:
 - topic_id 正常 + has needs_review → blocked
 
 **Acceptance**:A9 验证通过(WikiWriter 阻断"其他主题"桶)。
+
+---
+
+### Stage 6 接入边界(无新增实施 Task)
+
+- 首轮必需链路是 Stage 1/2/3/4/5 → Stage 7 → durable source outcome。
+  `scripts/extract_pilot.py` 与 `scripts/extract_full.py` 不把
+  `extract_relations()` 作为写盘成功或 source checkpoint 的前置条件。
+- `src/pipeline/v7_extract/relation_extractor.py` 保留为可选 best-effort
+  后处理。未来若由独立计划接入，必须复用已落盘页面的同一 `page_id`、当前
+  review queue、source checkpoint 和 outcome 契约。
+- Stage 6 失败只能形成可重试、可审计的后处理结果；不得删除已写页面、回退
+  首轮 checkpoint，或把既有 `written` outcome 降级为 `blocked` / `failed`。
+
+**Acceptance**:首轮无 relations 仍可形成 durable source outcome；后处理失败不改变
+报告、queue、checkpoint 与已写 Wiki 文件所表达的首轮终局。
 
 ---
 
@@ -997,8 +1020,12 @@ python -m pytest tests/test_pipeline/test_v7_extract_*.py --import-mode=importli
 - 🆕 `.memory/feedback-v7-pipeline-v3-2026-09-15.md`
 - 🟡 更新 `.superpowers/sdd/progress.md` 记录本计划落地过程
 - 🟡 更新 `CONTEXT.md` 与 `knowledge/novel-wiki/CONTEXT.md`(可选)
+- 🟡 同步 `docs/superpowers/plans/2026-09-15-v7-pipeline-architecture-v3.md`
+  与本实施计划的 Stage 5/6 边界
+- 🆕/🟡 `docs/adr/0011-v7-ingestion-outcome-control-plane.md`
 
-**Acceptance**:所有 plan 任务在 progress.md 标记完成。
+**Acceptance**:所有 plan 任务在 progress.md 标记完成；两份计划与 ADR 对
+Stage 5 excerpt、provenance 和 Stage 6 best-effort 边界的表述一致。
 
 ---
 
@@ -1026,6 +1053,15 @@ python -m pytest tests/test_pipeline/test_v7_extract_*.py --import-mode=importli
 | A18 | TOML schema 校验(D9) | 1.2 |
 | A19 | review_queue source 标记(D10) | 1.6 + 3.3 |
 | A20 | payload 脱敏(D11) | 1.6 |
+
+### 控制面补充验收(C1-C4，不改变 A1-A20)
+
+| ID | 验收项 | 验证方式 |
+|---|---|---|
+| C1 | paraphrase excerpt 不构成硬门 | Stage 5 回归：canonical item provenance 合法时，非 literal excerpt 可通过 |
+| C2 | provenance/source 闭环保留 | Stage 5 回归：缺失、越界或跨 topic item 引用仍 review；页面记录 canonical item 与 source |
+| C3 | Stage 6 不在首轮成功条件内 | 调用方检查 + source outcome 回归：无 relations 仍完成 Stage 7 与 checkpoint |
+| C4 | Stage 6 失败不污染首轮终局 | 后续接入测试：失败不删除 page、不回退 checkpoint、不改既有 outcome |
 
 ---
 
@@ -1092,6 +1128,8 @@ Refs: docs/superpowers/plans/2026-09-15-v7-pipeline-architecture-v3.md"
 | **R15 payload 敏感数据** | 1.6(D11 字段白名单 + 长度截断) |
 | **R10 破坏性改动无回退** | **1.0(feature flag 灰度发布)** |
 | **R4 CLI 改动连锁** | **3.0(调用方调研)** |
+| **Stage 5 literal excerpt 误阻断** | 2.4(C1/C2：excerpt 降为人工参考，provenance 保持硬约束) |
+| **Stage 6 失败污染首轮结果** | Stage 6 接入边界(C3/C4：终局后 best-effort、复用控制面契约) |
 | TOML 解析依赖 | Phase 1(Python 3.11+ tomllib 自带) |
 | LLM 成本 | 1.3 + D2 max_retries=3 上限(§16.x 文档标注) |
 | 项目作者不懂 TOML | Phase 4 文档(可选) |
@@ -1134,6 +1172,8 @@ Phase 4:
 - ✅ 无 v2 async/sync 桥接残留(`grep "asyncio.run" src/pipeline/v7_extract/` 无结果)
 - ✅ 所有启发式已删除(`grep "heuristic" src/pipeline/v7_extract/` 仅剩注释)
 - ✅ `V7_USE_V3=false` fallback 可用(R10 验证)
+- ✅ C1-C4 控制面补充验收成立：Stage 5 excerpt 为人工参考但 provenance 保留，
+  Stage 6 不参与首轮成功判定且后处理失败不改变 durable outcome
 
 ---
 
