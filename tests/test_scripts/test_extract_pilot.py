@@ -185,3 +185,135 @@ def test_run_pilot_broken_llm_keeps_pipeline_running(tmp_path: Path) -> None:
     assert page["complete"] is False
     # No exception propagated up — the pilot ran to completion (P2)
     assert all("error" in item for item in report["results"])
+
+
+# ---------------------------------------------------------------------------
+# T1 / H2 加固 — page IDs are script-owned (H2)
+#
+# Two fixture sources that happen to share a topic slug (e.g. "writing
+# techniques" in both source_a and source_b) must produce two distinct
+# page IDs after extraction. extract_pilot is responsible for mapping
+# Topic.id (LLM output) → stable page ID via _page_id._stable_page_id.
+# ---------------------------------------------------------------------------
+
+from src.pipeline.v7_extract._page_id import _stable_page_id, validate_page_id  # noqa: E402
+
+
+FIXTURE_DIR = Path(__file__).parents[1] / "fixtures" / "v7_control_plane"
+
+
+def _stage_scripts_for_source(_source_text: str, topic_id: str) -> FakeLLMClient:
+    """Queue deterministic scripts for classify / completeness / cluster / fill_slots.
+
+    The fake LLM client pops one script per call in FIFO order; pilot runs
+    one classify + one completeness + one cluster + N fill_slots (one per
+    topic). We queue enough copies to cover any number of topics.
+    """
+    fake = FakeLLMClient()
+    fake.script(
+        "classify",
+        '{"doc_type": "single_method", "confidence": 0.9, "rationale": "r"}',
+    )
+    fake.script("completeness", '{"complete": true, "reason": "ok"}')
+    fake.script(
+        "cluster",
+        '{"topics": [{"id": "' + topic_id + '", "title": "' + topic_id + '", "item_indexes": [0]}]}',
+    )
+    # fill_slots: cite item_index 0 → maps to Topic.item_ids[0]
+    for _ in range(8):
+        fake.script(
+            "fill_slots",
+            '{"slots": '
+            '{"definition":"def","characteristics":"c",'
+            '"examples":"e","related_concepts":"rc","references":"ref"}, '
+            '"evidence": '
+            '{"definition":{"item_index":0,"source_text_excerpt":"x"},'
+            '"characteristics":{"item_index":0,"source_text_excerpt":"x"},'
+            '"examples":{"item_index":0,"source_text_excerpt":"x"},'
+            '"related_concepts":{"item_index":0,"source_text_excerpt":"x"},'
+            '"references":{"item_index":0,"source_text_excerpt":"x"}}}',
+        )
+    return fake
+
+
+def test_run_pilot_page_ids_are_unique_across_fixture_sources(tmp_path: Path) -> None:
+    """Cross-document fixture: source_a + source_b share topic slug
+    "writing-techniques-intro" but the script-owned page IDs must NOT
+    collide (different md5 prefix from relative path).
+
+    Uses tests/fixtures/v7_control_plane/ fixtures (Wave 0 shared fixture,
+    per .superpowers/sdd/.../wave0/shared-fixture.md).
+    """
+    assert FIXTURE_DIR.exists(), f"shared fixture missing at {FIXTURE_DIR}"
+
+    # Copy fixture sources into a tmp raw/sources tree so the pilot can pick
+    # them up via the normal source selector.
+    for name in ("source_a.md", "source_b.md"):
+        (tmp_path / "raw" / "sources").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "raw" / "sources" / name).write_text(
+            (FIXTURE_DIR / name).read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+
+    # Both fixtures share topic slug "writing-techniques-intro" — different
+    # sources must yield two different stable page IDs.
+    fake_a = _stage_scripts_for_source("fixture-a", "writing-techniques-intro")
+    fake_b = _stage_scripts_for_source("fixture-b", "writing-techniques-intro")
+
+    # Two pilots, one per source, to keep the fake-LLM script counts independent.
+    report_a = asyncio.run(run_pilot(
+        tmp_path, count=1, seed=1, llm=fake_a,
+        sources=["raw/sources/source_a.md"],
+    ))
+    report_b = asyncio.run(run_pilot(
+        tmp_path, count=1, seed=1, llm=fake_b,
+        sources=["raw/sources/source_b.md"],
+    ))
+
+    pages_a = report_a["results"][0]["pages"]
+    pages_b = report_b["results"][0]["pages"]
+
+    assert pages_a, "fixture A produced no pages"
+    assert pages_b, "fixture B produced no pages"
+
+    id_a = pages_a[0]["id"]
+    id_b = pages_b[0]["id"]
+
+    # IDs must not collide even though the topic slug is the same.
+    assert id_a != id_b, (
+        f"cross-document page IDs must differ; got {id_a!r} for both "
+        f"sources — extract_pilot is not script-owning page IDs"
+    )
+    # IDs must validate (no path separators / '..').
+    validate_page_id(id_a)
+    validate_page_id(id_b)
+    # IDs must equal _page_id._stable_page_id for the relative the pilot
+    # assigned — extract_pilot computes relative from root + path, so under
+    # the pilot's tmp_path layout it's 'raw/sources/source_a.md' / '_b.md'.
+    assert id_a == _stable_page_id(
+        "raw/sources/source_a.md", "writing-techniques-intro",
+    )
+    assert id_b == _stable_page_id(
+        "raw/sources/source_b.md", "writing-techniques-intro",
+    )
+
+
+def test_run_pilot_page_id_matches_expected_ids_json(tmp_path: Path) -> None:
+    """Pin the contract: the IDs we ship must equal the values recorded in
+    tests/fixtures/v7_control_plane/expected_ids.json (md5 prefixes
+    48d50307 / 5ae5acd5). If anyone renames the fixtures this test
+    fails loudly instead of silently bumping the IDs.
+    """
+    expected = json.loads(
+        (FIXTURE_DIR / "expected_ids.json").read_text(encoding="utf-8")
+    )
+    prefix_a = expected["sources"]["v7_control_plane/source_a.md"]["md5_prefix"]
+    prefix_b = expected["sources"]["v7_control_plane/source_b.md"]["md5_prefix"]
+    assert prefix_a == "48d50307"
+    assert prefix_b == "5ae5acd5"
+
+    # Verify the script computes the same prefixes directly.
+    id_a = _stable_page_id("v7_control_plane/source_a.md", "x")
+    id_b = _stable_page_id("v7_control_plane/source_b.md", "x")
+    assert id_a.startswith(prefix_a + "-")
+    assert id_b.startswith(prefix_b + "-")

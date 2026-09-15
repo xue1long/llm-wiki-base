@@ -160,17 +160,15 @@ _VALID_PAYLOAD = {
         "references": "raw source 1",
     },
     "evidence": {
-        "definition": {"item_id": "raw-1", "source_text_excerpt": "openings are important"},
-        "characteristics": {"item_id": "raw-1", "source_text_excerpt": "three techniques"},
-        "examples": {"item_id": "raw-1", "source_text_excerpt": "examples from"},
-        "related_concepts": {"item_id": "raw-1", "source_text_excerpt": "see conflict"},
-        "references": {"item_id": "raw-1", "source_text_excerpt": "raw source 1"},
+        # v3.1 (T1): LLM cites by zero-based item_index into `sources`.
+        "definition": {"item_index": 0, "source_text_excerpt": "openings are important"},
+        "characteristics": {"item_index": 0, "source_text_excerpt": "three techniques"},
+        "examples": {"item_index": 0, "source_text_excerpt": "examples from"},
+        "related_concepts": {"item_index": 0, "source_text_excerpt": "see conflict"},
+        "references": {"item_index": 0, "source_text_excerpt": "raw source 1"},
     },
 }
 
-# source_text that contains every excerpt substring above (≥20 chars each).
-# Note: "see conflict" is a 12-char excerpt → exact match required, so we
-# include "see conflict for" verbatim (no [[brackets]] around "conflict").
 _VALID_SOURCE_TEXT = (
     "Openings are important. "
     "Three techniques: 1. start in media res, 2. anchor with conflict, 3. show the genre. "
@@ -187,21 +185,24 @@ def test_payload_to_page_happy_path():
         title="How to write openings",
         sources=["raw-1"],
         item_texts={"raw-1": _VALID_SOURCE_TEXT},
-        source_text=_VALID_SOURCE_TEXT,  # must contain every excerpt substring
+        source_text=_VALID_SOURCE_TEXT,
     )
     assert page.id == "p1"
     assert page.title == "How to write openings"
     assert all(name in page.slots for name in CONCEPT_SLOTS)
     assert page.has_evidence is True
     assert page.needs_review_slots == ()
+    # item_index 0 → sources[0] == "raw-1" → SlotEvidence.item_id canonical id
+    for name in CONCEPT_SLOTS:
+        assert page.slot_evidence[name].evidence.item_id == "raw-1"
 
 
 def test_payload_to_page_marks_unknown_item_id_as_needs_review():
-    """Evidence with item_id not in sources → needs_review (D7)."""
+    """Out-of-range / missing item_index → no canonical item_id → needs_review (D7)."""
     payload = {
         "slots": _VALID_PAYLOAD["slots"],
         "evidence": {
-            "definition": {"item_id": "ghost-item", "source_text_excerpt": "..."},
+            "definition": {"item_index": 99, "source_text_excerpt": "..."},
         },
     }
     page = _payload_to_page(
@@ -216,18 +217,20 @@ def test_payload_to_page_marks_unknown_item_id_as_needs_review():
     assert "definition" in page.needs_review_slots
     # Other slots have no evidence (None) → also needs_review
     assert page.has_evidence is False
+    # Invalid index → empty canonical id, NOT a coerced bogus value
+    assert page.slot_evidence["definition"].evidence.item_id == ""
 
 
-def test_payload_to_page_marks_missing_excerpt_as_needs_review():
-    """Empty excerpt + valid item_id → still has_evidence=True (item_id check passes).
+def test_payload_to_page_marks_missing_excerpt_as_no_needs_review():
+    """Empty excerpt + valid item_index → has_evidence=True (item_index check passes).
 
-    The 'excerpt not in source' check only fires when excerpt is non-empty
-    AND doesn't appear in source_text. An empty excerpt skips the check.
+    v3.1: the excerpt is no longer substring-gated. Empty excerpt is fine;
+    the LLM may simply omit the human-reference excerpt.
     """
     payload = {
         "slots": _VALID_PAYLOAD["slots"],
         "evidence": {
-            "definition": {"item_id": "raw-1", "source_text_excerpt": ""},
+            "definition": {"item_index": 0, "source_text_excerpt": ""},
         },
     }
     page = _payload_to_page(
@@ -238,9 +241,10 @@ def test_payload_to_page_marks_missing_excerpt_as_needs_review():
         item_texts={"raw-1": "x"},
         source_text="...",
     )
-    # has_evidence is True because item_id matches; empty excerpt skips substring check
+    # has_evidence is True because item_index 0 → "raw-1" (canonical id).
     assert page.slot_evidence["definition"].evidence.has_evidence is True
     assert page.slot_evidence["definition"].needs_review is False
+    assert page.slot_evidence["definition"].evidence.item_id == "raw-1"
 
 
 def test_payload_to_page_handles_missing_evidence_keys():
@@ -258,13 +262,19 @@ def test_payload_to_page_handles_missing_evidence_keys():
     assert set(page.needs_review_slots) == set(CONCEPT_SLOTS)
 
 
-def test_payload_to_page_excerpt_not_in_source_marks_needs_review():
-    """D7: if excerpt doesn't appear in source_text, mark needs_review."""
+def test_payload_to_page_excerpt_not_in_source_does_not_mark_needs_review():
+    """v3.1 (T1): excerpt is human reference only, NOT a substring gate.
+
+    Previously this case marked the slot needs_review because the excerpt
+    wasn't found in source_text. The new contract trusts the integer
+    item_index for canonical provenance and keeps the excerpt for human
+    reviewers verbatim — it does NOT auto-flip needs_review.
+    """
     payload = {
         "slots": _VALID_PAYLOAD["slots"],
         "evidence": {
             "definition": {
-                "item_id": "raw-1",
+                "item_index": 0,
                 "source_text_excerpt": "completely fabricated quote that never appeared",
             },
         },
@@ -277,8 +287,15 @@ def test_payload_to_page_excerpt_not_in_source_marks_needs_review():
         item_texts={"raw-1": "x"},
         source_text="real source text here",
     )
-    # item_id matches, but excerpt fails substring check
-    assert page.slot_evidence["definition"].needs_review is True
+    # item_index is valid (0 → "raw-1"), so has_evidence is True.
+    assert page.slot_evidence["definition"].evidence.has_evidence is True
+    # needs_review is NOT auto-flipped just because excerpt is missing.
+    assert page.slot_evidence["definition"].needs_review is False
+    # The excerpt is preserved verbatim for human reviewers.
+    assert (
+        page.slot_evidence["definition"].evidence.source_text_excerpt
+        == "completely fabricated quote that never appeared"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -298,6 +315,7 @@ def test_resolve_fill_slots_template_uses_bundled():
 @pytest.mark.asyncio
 async def test_fill_slots_returns_concept_page_with_evidence():
     fake = FakeLLMClient()
+    # v3.1: LLM cites by item_index integer into Topic.item_ids, not by item_id string.
     fake.script(
         "fill_slots",
         '{"slots": '
@@ -307,25 +325,23 @@ async def test_fill_slots_returns_concept_page_with_evidence():
         '"related_concepts":"conflict",'
         '"references":"raw source 1"}, '
         '"evidence": '
-        '{"definition":{"item_id":"raw-1","source_text_excerpt":"openings are important"},'
-        '"characteristics":{"item_id":"raw-1","source_text_excerpt":"three techniques"},'
-        '"examples":{"item_id":"raw-1","source_text_excerpt":"examples from published"},'
-        '"related_concepts":{"item_id":"raw-1","source_text_excerpt":"see conflict"},'
-        '"references":{"item_id":"raw-1","source_text_excerpt":"raw source 1"}}}',
+        '{"definition":{"item_index":0,"source_text_excerpt":"openings are important"},'
+        '"characteristics":{"item_index":0,"source_text_excerpt":"three techniques"},'
+        '"examples":{"item_index":0,"source_text_excerpt":"examples from published"},'
+        '"related_concepts":{"item_index":0,"source_text_excerpt":"see conflict"},'
+        '"references":{"item_index":0,"source_text_excerpt":"raw source 1"}}}',
     )
 
     topic = Topic(id="p1", title="How to write openings", item_ids=["raw-1"])
-    # source_text must contain every excerpt above (≥20 chars each) for
-    # Stage 5's _excerpt_in_source check to pass.
-    source_text = _VALID_SOURCE_TEXT
-
     page = await fill_slots(
-        topic, source_text, llm=fake,
-        item_texts={"raw-1": source_text},
+        topic, _VALID_SOURCE_TEXT, llm=fake,
+        item_texts={"raw-1": _VALID_SOURCE_TEXT},
         project_root=None,
     )
     assert page is not None
     assert page.has_evidence is True
+    # Script-owned canonical item_id mapping
+    assert page.slot_evidence["definition"].evidence.item_id == "raw-1"
 
 
 @pytest.mark.asyncio
@@ -402,3 +418,222 @@ async def test_fill_slots_accepts_dict_topic():
     page = await fill_slots(topic_dict, "body", llm=fake, project_root=None)
     assert page is not None
     assert page.id == "p1"
+
+
+# ---------------------------------------------------------------------------
+# T1 / H2 加固 — Stage 5 evidence input contract:
+#   - LLM receives numbered item list
+#   - LLM returns item_index (int), NOT item_id (string)
+#   - Script maps item_index → Topic.item_ids[index] (canonical ID)
+#   - Invalid index / missing evidence / empty body → needs_review
+#   - source_text_excerpt is preserved as human reference, NOT a hard gate
+# ---------------------------------------------------------------------------
+
+
+# Two item_ids for a single topic — simulates Stage 4 assigning two items
+# to one topic. The LLM is asked to cite evidence by zero-based index.
+_TOPIC_ITEM_IDS = [
+    "raw/sources/source_a.md#section-1",
+    "raw/sources/source_a.md#section-2",
+]
+
+
+def test_payload_to_page_maps_item_index_to_canonical_item_id():
+    """Valid item_index → SlotEvidence.item_id == Topic.item_ids[index]."""
+    payload = {
+        "slots": {name: f"<{name}>" for name in CONCEPT_SLOTS},
+        "evidence": {
+            "definition": {"item_index": 0, "source_text_excerpt": "openings"},
+            "characteristics": {"item_index": 1, "source_text_excerpt": "techniques"},
+            "examples": {"item_index": 0, "source_text_excerpt": "examples"},
+            "related_concepts": {"item_index": 1, "source_text_excerpt": "related"},
+            "references": {"item_index": 0, "source_text_excerpt": "refs"},
+        },
+    }
+    page = _payload_to_page(
+        payload=payload,
+        topic_id="topic-a",
+        title="Topic A",
+        sources=list(_TOPIC_ITEM_IDS),
+        item_texts={},
+        source_text="anything",
+    )
+    # Every slot's evidence.item_id must equal Topic.item_ids[item_index].
+    for name in CONCEPT_SLOTS:
+        ev = page.slot_evidence[name].evidence
+        expected = _TOPIC_ITEM_IDS[payload["evidence"][name]["item_index"]]
+        assert ev.item_id == expected, (
+            f"slot {name}: item_index→canonical mapping failed: "
+            f"got {ev.item_id!r}, expected {expected!r}"
+        )
+        assert ev.has_evidence is True
+        assert ev.needs_review is False
+    assert page.has_evidence is True
+
+
+@pytest.mark.parametrize("bad_index", [-1, 99, 1.5, "0", None, True])
+def test_payload_to_page_marks_invalid_item_index_as_needs_review(bad_index):
+    """Out-of-range / non-integer index → needs_review, no canonical item_id."""
+    payload = {
+        "slots": {name: f"<{name}>" for name in CONCEPT_SLOTS},
+        "evidence": {
+            "definition": {"item_index": bad_index, "source_text_excerpt": "..."},
+        },
+    }
+    page = _payload_to_page(
+        payload=payload,
+        topic_id="topic-a",
+        title="Topic A",
+        sources=list(_TOPIC_ITEM_IDS),  # 2 items
+        item_texts={},
+        source_text="",
+    )
+    # Bad index → that slot has no valid evidence.
+    assert page.slot_evidence["definition"].evidence.has_evidence is False
+    assert page.slot_evidence["definition"].evidence.needs_review is True
+    # item_id must NOT be silently coerced to a bogus canonical id
+    assert page.slot_evidence["definition"].evidence.item_id == ""
+    # Page-level has_evidence is False (at least one slot is needs_review)
+    assert page.has_evidence is False
+
+
+def test_payload_to_page_empty_body_marks_needs_review():
+    """Empty body string → that slot goes to needs_review (no fabricated fill)."""
+    payload = {
+        "slots": {
+            "definition": "",
+            "characteristics": "ok",
+            "examples": "ok",
+            "related_concepts": "ok",
+            "references": "ok",
+        },
+        "evidence": {
+            "definition": {"item_index": 0, "source_text_excerpt": "..."},
+            "characteristics": {"item_index": 0, "source_text_excerpt": "..."},
+            "examples": {"item_index": 0, "source_text_excerpt": "..."},
+            "related_concepts": {"item_index": 0, "source_text_excerpt": "..."},
+            "references": {"item_index": 0, "source_text_excerpt": "..."},
+        },
+    }
+    page = _payload_to_page(
+        payload=payload,
+        topic_id="topic-a",
+        title="Topic A",
+        sources=list(_TOPIC_ITEM_IDS),
+        item_texts={},
+        source_text="",
+    )
+    assert "definition" in page.needs_review_slots
+
+
+def test_payload_to_page_keeps_excerpt_even_when_not_in_source():
+    """source_text_excerpt is now a human reference, NOT a substring gate.
+
+    The LLM may paraphrase. We still record the excerpt verbatim but do NOT
+    flip needs_review just because the literal substring isn't in source_text.
+    """
+    payload = {
+        "slots": {name: f"<{name}>" for name in CONCEPT_SLOTS},
+        "evidence": {
+            "definition": {
+                "item_index": 0,
+                "source_text_excerpt": "completely fabricated text not in source",
+            },
+            "characteristics": {"item_index": 0, "source_text_excerpt": "x"},
+            "examples": {"item_index": 0, "source_text_excerpt": "x"},
+            "related_concepts": {"item_index": 0, "source_text_excerpt": "x"},
+            "references": {"item_index": 0, "source_text_excerpt": "x"},
+        },
+    }
+    page = _payload_to_page(
+        payload=payload,
+        topic_id="topic-a",
+        title="Topic A",
+        sources=list(_TOPIC_ITEM_IDS),
+        item_texts={},
+        source_text="nothing matches here",
+    )
+    ev = page.slot_evidence["definition"].evidence
+    # has_evidence remains True (item_index maps to a valid item_id).
+    assert ev.has_evidence is True
+    # The excerpt is preserved verbatim for human reviewers.
+    assert ev.source_text_excerpt == "completely fabricated text not in source"
+    # needs_review is NOT auto-flipped just because excerpt is missing.
+    assert ev.needs_review is False
+
+
+def test_payload_to_page_missing_evidence_marks_all_needs_review():
+    """Missing evidence payload → every slot has has_evidence=False.
+
+    No canonical item_id is ever assigned. The page is "blocked" — extract_pilot
+    routes it to review_queue (D7), never to WikiWriter.
+    """
+    payload = {"slots": {name: f"<{name}>" for name in CONCEPT_SLOTS}, "evidence": {}}
+    page = _payload_to_page(
+        payload=payload,
+        topic_id="topic-a",
+        title="Topic A",
+        sources=list(_TOPIC_ITEM_IDS),
+        item_texts={},
+        source_text="",
+    )
+    for name in CONCEPT_SLOTS:
+        assert page.slot_evidence[name].evidence.has_evidence is False
+        assert page.slot_evidence[name].evidence.item_id == ""
+    assert page.has_evidence is False
+    assert set(page.needs_review_slots) == set(CONCEPT_SLOTS)
+
+
+def test_payload_to_page_stable_page_id_distinct_for_two_sources_same_topic():
+    """Cross-document uniqueness: same topic id ('writing-techniques') under
+    two different sources must produce two distinct page IDs via _page_id.
+
+    This is the H2 加固 invariant from
+    .superpowers/sdd/.../wave0/shared-fixture.md: the script owns page IDs
+    end-to-end, so two sources that happen to share a topic slug never
+    collide. extract_pilot constructs the page ID; here we simulate by
+    calling _page_id directly with the relative paths.
+    """
+    from src.pipeline.v7_extract._page_id import _stable_page_id, validate_page_id
+
+    id_a = _stable_page_id("v7_control_plane/source_a.md", "writing-techniques")
+    id_b = _stable_page_id("v7_control_plane/source_b.md", "writing-techniques")
+    assert id_a != id_b
+    # Both IDs must validate — no accidental slashes or '..' injected.
+    validate_page_id(id_a)
+    validate_page_id(id_b)
+
+
+@pytest.mark.asyncio
+async def test_fill_slots_records_numbered_item_list_in_prompt():
+    """The user prompt fed to the LLM carries the items as a numbered list,
+    NOT a comma-separated source_id string. The LLM uses these indexes to
+    cite evidence via item_index (int)."""
+    captured: list[dict] = []
+
+    class _CaptureLLM:
+        async def complete(self, *, prompt_kind, user_prompt, **_kw):
+            captured.append({"prompt_kind": prompt_kind, "user_prompt": user_prompt})
+            return '{"slots": {}, "evidence": {}}'
+
+    topic = Topic(
+        id="t1",
+        title="写作技法",
+        item_ids=[
+            "raw/sources/source_a.md#section-1",
+            "raw/sources/source_a.md#section-2",
+        ],
+    )
+    await fill_slots(topic, "source body", llm=_CaptureLLM(), project_root=None)
+
+    assert captured, "fill_slots should have called the LLM"
+    user_prompt = captured[0]["user_prompt"]
+    # Numbered list: each item_id is preceded by a zero-based index marker.
+    assert "0:" in user_prompt, f"prompt missing index 0 marker:\n{user_prompt}"
+    assert "1:" in user_prompt, f"prompt missing index 1 marker:\n{user_prompt}"
+    # Both canonical item_ids appear so the LLM can map index → id.
+    assert "raw/sources/source_a.md#section-1" in user_prompt
+    assert "raw/sources/source_a.md#section-2" in user_prompt
+    # Contract: prompt tells the LLM the citation is by integer index.
+    assert "item_index" in user_prompt
+    assert "integer" in user_prompt.lower()

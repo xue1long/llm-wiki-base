@@ -2,13 +2,16 @@
 
 v3 (plan 2026-09-15): async LLM call with prompts/ templates + D7.
 
+v3.1 (Wave 1 / T1, plan 2026-09-15 control-plane refactor): the LLM
+cites evidence by integer ``item_index`` into a script-owned numbered
+item list. The script maps each index back to the canonical item id
+(``Topic.item_ids[index]``). The LLM no longer invents item ids, and
+the source_text_excerpt substring gate was dropped — excerpts stay as
+human-review references only.
+
 D7: when this stage fails, return ``None`` — the caller is responsible
 for recording the topic as failed (see ``failures.py``) and dropping
 it from the page list before passing to WikiWriter.
-
-The slot validation logic (item_id membership, source-text-excerpt
-substring match) is preserved from v2. v3 uses prompts/builtin/fill_slots.toml
-instead of hard-coded strings.
 """
 from __future__ import annotations
 
@@ -54,6 +57,35 @@ _SLOT_HEADINGS: dict[str, str] = {
 }
 
 
+# Cap on per-item snippet length inside the numbered item list. Keeps
+# the prompt bounded while still giving the LLM enough context to cite
+# by index.
+_ITEM_SNIPPET_LIMIT = 200
+
+
+def _format_items_text(
+    item_ids: list[str],
+    item_texts: Mapping[str, Any] | None,
+) -> str:
+    """Render the numbered item list the LLM cites by zero-based index.
+
+    Each line: ``"<index>: <item_id>\\n<snippet>"``. Empty / missing
+    snippets are allowed — the LLM still has the index. ``item_texts``
+    may map to either a plain ``str`` (the slice text) or a dict with a
+    ``text`` key (Stage 2 output shape).
+    """
+    items_texts = item_texts or {}
+    lines: list[str] = []
+    for index, item_id in enumerate(item_ids):
+        raw = items_texts.get(item_id, "")
+        if isinstance(raw, Mapping):
+            snippet = str(raw.get("text", ""))[:_ITEM_SNIPPET_LIMIT]
+        else:
+            snippet = str(raw)[:_ITEM_SNIPPET_LIMIT]
+        lines.append(f"{index}: {item_id}\n{snippet}")
+    return "\n\n".join(lines)
+
+
 @dataclass(frozen=True)
 class SlotEvidence:
     """Evidence trail for a single slot."""
@@ -95,6 +127,14 @@ class ConceptPage:
     ``slots`` is the canonical 5-slot payload. ``needs_review_slots``
     records which slots lacked real evidence — Stage 7 WikiWriter
     uses this to refuse auto-publishing partial pages.
+
+    v3.1 (T1, plan 2026-09-15 control-plane refactor): ``id`` is the
+    Stage-5 internal id (= ``Topic.id`` from Stage 4). ``topic_id`` is
+    a separate field that scripts (extract_pilot) populate so downstream
+    filters (e.g. ``failures.filter_failed_topics``) can group pages by
+    source topic without poking the dataclass via ``__dict__``. Default
+    ``None`` preserves the v3 dataclass contract for callers that
+    never set it.
     """
 
     id: str
@@ -104,6 +144,7 @@ class ConceptPage:
     type: str = "concept"
     slot_evidence: dict[str, Slot] = field(default_factory=dict)
     needs_review_slots: tuple[str, ...] = ()
+    topic_id: str | None = None
 
     @property
     def body(self) -> str:
@@ -151,7 +192,7 @@ async def fill_slots(
     system_prompt, user_prompt = render_prompt(template, {
         "title": title,
         "slot_list": ", ".join(CONCEPT_SLOTS),
-        "sources": ", ".join(sources),
+        "items_text": _format_items_text(sources, item_texts),
         "source_text": source_text[:12000],
         "content_limit": "12000",
     })
@@ -208,8 +249,16 @@ def _payload_to_page(
 ) -> ConceptPage:
     """Convert a validated LLM JSON payload into a ConceptPage.
 
-    The output_schema (fill_slots.toml) guarantees `slots` and
-    `evidence` are present. We still defensively coerce to strings.
+    The output_schema (fill_slots.toml) guarantees ``slots`` and
+    ``evidence`` are present. The LLM now cites evidence by zero-based
+    ``item_index`` integer into ``sources`` (= Topic.item_ids); the
+    script maps ``item_index`` → ``sources[item_index]`` and stores the
+    canonical id on ``SlotEvidence.item_id``. Invalid / out-of-range
+    indexes fall back to ``needs_review`` with an empty ``item_id``.
+
+    The ``source_text_excerpt`` is preserved as a human-review reference
+    but no longer substring-gates the slot (the LLM is allowed to
+    paraphrase). Empty body strings also mark the slot ``needs_review``.
     """
     raw_slots = payload.get("slots") or {}
     raw_evidence = payload.get("evidence") or {}
@@ -219,18 +268,27 @@ def _payload_to_page(
         raw_evidence = {}
 
     slot_map: dict[str, Slot] = {}
+    n_sources = len(sources)
     for name in CONCEPT_SLOTS:
         body_raw = raw_slots.get(name, "")
         body = str(body_raw).strip() if body_raw else ""
         ev_dict = raw_evidence.get(name, {})
         if not isinstance(ev_dict, dict):
             ev_dict = {}
-        item_id = str(ev_dict.get("item_id", "") or "")
+        item_id = ""
+        index_raw = ev_dict.get("item_index")
+        if (
+            isinstance(index_raw, bool)
+            or not isinstance(index_raw, int)
+            or not 0 <= index_raw < n_sources
+        ):
+            # Invalid / missing index → no canonical evidence.
+            pass
+        else:
+            item_id = str(sources[index_raw])
         excerpt = str(ev_dict.get("source_text_excerpt", "") or "")
-        has_evidence = bool(item_id and item_id in sources)
-        needs_review = not has_evidence
-        if not needs_review and excerpt and not _excerpt_in_source(excerpt, source_text):
-            needs_review = True  # v2 defensive: excerpt must appear in source
+        has_evidence = bool(item_id)
+        needs_review = (not has_evidence) or (not body)
         ev = SlotEvidence(
             item_id=item_id,
             source_text_excerpt=excerpt[:500],

@@ -1,13 +1,14 @@
 [meta]
 prompt_kind = "fill_slots"
-version = "1.0"
+version = "2.0"
 
 [system]
 text = """You are a V7 concept-page slot filler for the novel-wiki ingestion
 pipeline. For each slot you fill, you MUST also supply evidence pointing
-back to the source material — either:
-  1. An item_id (must be one of the source IDs provided), OR
-  2. A source_text_excerpt (a literal substring from the source).
+back to the source material — cite by ZERO-BASED INTEGER INDEX into the
+numbered item list (see user prompt). You may also include a
+source_text_excerpt (literal substring from the source) as a human-review
+reference, but the excerpt is NOT validated — only the integer index is.
 
 Do not fabricate. If you cannot find evidence, set the slot body to
 the placeholder "需结合原文核对" — the pipeline will mark it as
@@ -20,16 +21,20 @@ template = """\
 Fill the 5 required slots of a concept page for this topic.
 
 Topic title: {title}
-Source material IDs: {sources}
+Source material (numbered item list — cite by zero-based integer index):
+{items_text}
+
 Source content (first {content_limit} chars):
 ```
 {source_text}
 ```
-
 Required slots:
 {slot_list}
 
-For each slot, return body text + evidence. Example output shape:
+For each slot, return body text + evidence. item_index MUST be an integer
+in the range [0, N-1] where N is the number of items in the list above.
+
+Example output shape:
 {{
   "slots": {{
     "definition": "<definition text>",
@@ -37,8 +42,8 @@ For each slot, return body text + evidence. Example output shape:
     ...
   }},
   "evidence": {{
-    "definition": {{"item_id": "<source-id>", "source_text_excerpt": "<exact substring>"}},
-    "characteristics": {{"item_id": "<source-id>", "source_text_excerpt": "<exact substring>"}},
+    "definition": {{"item_index": 0, "source_text_excerpt": "<literal substring>"}},
+    "characteristics": {{"item_index": 1, "source_text_excerpt": "<literal substring>"}},
     ...
   }}
 }}"""
@@ -53,9 +58,9 @@ required = true
 description = "Topic title (becomes the concept-page title)"
 
 [[slot]]
-name = "sources"
+name = "items_text"
 required = true
-description = "Comma-separated list of valid item_ids the LLM may cite"
+description = "Numbered item list: '<index>: <item_id>\\n<text snippet>'"
 
 [[slot]]
 name = "source_text"

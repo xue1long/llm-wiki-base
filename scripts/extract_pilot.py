@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import hashlib
 import json
+import logging
 import re
 import sys
 from collections import Counter
@@ -32,15 +32,23 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from src.pipeline.v7_extract._page_id import _stable_page_id, validate_page_id
 from src.pipeline.v7_extract.completeness_checker import check_completeness
 from src.pipeline.v7_extract.doc_classifier import classify_doc
 from src.pipeline.v7_extract.slot_filler import fill_slots
 from src.pipeline.v7_extract.topic_clusterer import cluster_topics
 
+log = logging.getLogger(__name__)
+
+
 SUPPORTED_SUFFIXES = frozenset({".md", ".txt", ".html", ".htm"})
 DEFAULT_ROOT = Path("knowledge/novel-wiki")
 DEFAULT_JSON = Path("docs/superpowers/reports/2026-09-13-extract-pilot.json")
 DEFAULT_MARKDOWN = Path("docs/superpowers/reports/2026-09-13-extract-pilot-report.md")
+
+# T1 / H2 加固: cap the per-failure reason string so a noisy LLM trace
+# doesn't dominate the pilot's report.
+_EXC_REASON_LIMIT = 500
 
 
 async def run_pilot(
@@ -204,15 +212,23 @@ async def _extract_one(
                     "failed": True,
                 })
                 continue
-            # Attach topic_id so Stage 7 P4 gate can identify __other__
-            page.__dict__["topic_id"] = topic.id
+            # T1 / H2 加固: page ID is script-owned. Build a stable
+            # page ID from the relative source path + topic slug; never
+            # trust the LLM-supplied topic id as the page id (cross-document
+            # collisions otherwise). The legacy __dict__ injection of
+            # topic_id is replaced below via the dedicated ConceptPage
+            # attribute, so failures.filter_failed_topics keeps working
+            # without poking the dataclass.
+            page_id = _stable_page_id(relative, topic.id)
+            validate_page_id(page_id)
+            page.topic_id = topic.id  # formal field (see ConceptPage)
             result["topics"].append({
                 "id": topic.id,
                 "title": topic.title,
                 "item_ids": topic.item_ids,
             })
             result["pages"].append({
-                "id": page.id,
+                "id": page_id,
                 "title": page.title,
                 "type": page.type,
                 "source_ids": list(page.sources),
@@ -224,9 +240,14 @@ async def _extract_one(
                 page_sink(page)
         return result
     except Exception as exc:
-        import traceback as _tb
-        print(f"\n--- _extract_one failed for {relative!r} ---", flush=True)
-        _tb.print_exc()
+        # T1 / H2 加固: don't dump the full traceback to the operator's
+        # console (P2). Record `failure_stage` + truncated reason in the
+        # report so spot-check pilots can correlate failures without
+        # drowning in stack noise.
+        reason = f"{type(exc).__name__}: {exc}"[:_EXC_REASON_LIMIT]
+        log.warning(
+            "_extract_one failed for %r: %s", relative, reason,
+        )
         return {
             "source": relative,
             "characters": 0,
@@ -237,7 +258,8 @@ async def _extract_one(
             "completeness_reason": "",
             "topics": [],
             "pages": [],
-            "error": f"{type(exc).__name__}: {exc}",
+            "error": reason,
+            "failure_stage": "extract_one",
         }
 
 
@@ -258,14 +280,6 @@ def _extract_items(content: str, relative: str) -> list[dict[str, str]]:
             for index, text in enumerate(numbered)
         ]
     return [{"id": relative, "text": content.strip()}]
-
-
-def _stable_page_id(relative: str, topic_id: str) -> str:
-    stem = Path(relative).stem.lower()
-    stem = re.sub(r"[^a-z0-9]+", "-", stem).strip("-") or "source"
-    digest = hashlib.sha1(relative.encode("utf-8")).hexdigest()[:8]
-    topic_slug = re.sub(r"[^a-z0-9]+", "-", topic_id.lower()).strip("-") or "topic"
-    return f"{stem}-{digest}-{topic_slug}"
 
 
 def _summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
