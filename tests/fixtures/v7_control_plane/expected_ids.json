@@ -1,0 +1,33 @@
+{
+  "_comment": "Expected page IDs for tests/fixtures/v7_control_plane/. Computed via _page_id._stable_page_id(relative, topic_title) using hashlib.md5(relative.encode()).hexdigest()[:8] + slug(topic_title)[:32]. Update if source filenames change.",
+
+  "fixtures_dir": "tests/fixtures/v7_control_plane/",
+
+  "sources": {
+    "v7_control_plane/source_a.md": {
+      "md5_prefix": "48d50307",
+      "expected_topic_slugs": [
+        "writing-techniques-intro",
+        "opening-hooks",
+        "pacing-control",
+        "character-arc"
+      ]
+    },
+    "v7_control_plane/source_b.md": {
+      "md5_prefix": "5ae5acd5",
+      "expected_topic_slugs": [
+        "writing-techniques-advanced",
+        "foreshadowing-payoff",
+        "multi-thread-narrative",
+        "pov-switching"
+      ]
+    }
+  },
+
+  "test_invariants": [
+    "source_a.md topic 'writing-techniques' and source_b.md topic 'writing-techniques' produce different page_ids (different md5 prefix)",
+    "page_id format: <8-hex-md5>-<lowercase-slug-with-dashes>",
+    "page_id never contains path separators or '..'",
+    "page_id stable across Windows (raw\\sources\\x) and POSIX (raw/sources/x) given the same logical relative path"
+  ]
+}
