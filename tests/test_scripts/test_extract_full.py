@@ -5,10 +5,14 @@ import asyncio
 import json
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from scripts.extract_full import run_full
+import scripts.extract_full as extract_full
+from scripts.extract_full import main, run_full
+from src.pipeline.v7_extract.failures import ExtractionResult, ExtractionStatus
+from src.pipeline.v7_extract.wiki_writer import WriteReport
 from src.pipeline.v7_extract.llm_client import FakeLLMClient
 
 
@@ -25,6 +29,329 @@ def _write_source(root: Path, name: str, content: str = "# 标题\n\n" + "正文
     path = root / "raw" / "sources" / name
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def test_full_cli_requires_explicit_root(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main([])
+
+    assert exc_info.value.code == 2
+    assert "usage:" in capsys.readouterr().err.lower()
+
+
+def test_run_full_releases_queue_lock_after_success_and_exception(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asyncio.run(run_full(tmp_path))
+    lock_path = tmp_path / ".index" / ".queue-lock"
+    assert not lock_path.exists()
+
+    def broken_source_scan(_root: Path):
+        assert lock_path.exists()
+        raise RuntimeError("scan failed")
+
+    monkeypatch.setattr(extract_full, "_source_files", broken_source_scan)
+    with pytest.raises(RuntimeError, match="scan failed"):
+        asyncio.run(run_full(tmp_path))
+    assert not lock_path.exists()
+
+    monkeypatch.undo()
+    lock_path.write_text("other-pid", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="另一进程正在写 queue"):
+        asyncio.run(run_full(tmp_path))
+    assert lock_path.read_text(encoding="utf-8") == "other-pid"
+
+
+def test_corrupt_checkpoint_is_backed_up_and_rebuilt(tmp_path: Path) -> None:
+    checkpoint = tmp_path / ".index" / "full.json"
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_text("{broken", encoding="utf-8")
+
+    asyncio.run(run_full(tmp_path, checkpoint_path=checkpoint))
+
+    assert checkpoint.with_suffix(".json.corrupt").read_text(encoding="utf-8") == "{broken"
+    assert json.loads(checkpoint.read_text(encoding="utf-8"))["version"] == 2
+
+
+def test_legacy_completed_batches_never_hide_sources(tmp_path: Path) -> None:
+    _write_source(tmp_path, "one.md")
+    checkpoint = tmp_path / ".index" / "full.json"
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_text('{"completed_batches": [1]}', encoding="utf-8")
+
+    report = asyncio.run(run_full(tmp_path, checkpoint_path=checkpoint))
+
+    assert report["summary"]["processed"] == 1
+    assert "raw/sources/one.md" in json.loads(
+        checkpoint.read_text(encoding="utf-8")
+    )["sources"]
+
+
+def test_source_attempts_increment_once_per_run_and_stop_at_max_attempts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_source(tmp_path, "one.md")
+    checkpoint = tmp_path / ".index" / "full.json"
+    calls = 0
+
+    async def fail_once(_root, _path, relative, **_kwargs):
+        nonlocal calls
+        calls += 1
+        return ExtractionResult(
+            status=ExtractionStatus.FAILED,
+            source_id=relative,
+            failure_stage="stage5",
+            metadata={"source": relative, "doc_type": None, "complete": False,
+                      "topics": [], "pages": [], "error": "failed"},
+        )
+
+    monkeypatch.setattr(extract_full, "_extract_one", fail_once)
+    for _ in range(3):
+        asyncio.run(run_full(
+            tmp_path, checkpoint_path=checkpoint, max_attempts=2,
+        ))
+
+    row = json.loads(checkpoint.read_text(encoding="utf-8"))["sources"][
+        "raw/sources/one.md"
+    ]
+    assert calls == 2
+    assert row["attempts"] == 2
+    assert row["status"] == "failed_max_attempts"
+
+
+def test_stage5_internal_retries_count_as_one_source_attempt_and_blocked_resumes_skip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_source(tmp_path, "one.md")
+    fake = FakeLLMClient()
+    fake.script(
+        "classify",
+        '{"doc_type": "single_method", "confidence": 0.9, "rationale": "r"}',
+    )
+    fake.script("completeness", '{"complete": true, "reason": "ok"}')
+    fake.script(
+        "cluster",
+        '{"topics": [{"id": "t1", "title": "T1", "item_indexes": [0]}]}',
+    )
+    for _ in range(3):
+        fake.script("fill_slots", "not json")
+    monkeypatch.setenv("V7_ALLOW_APPLY", "1")
+    checkpoint = tmp_path / ".index" / "full.json"
+
+    first = asyncio.run(run_full(
+        tmp_path, checkpoint_path=checkpoint, dry_run=False, llm=fake,
+    ))
+    first_call_count = len(fake.calls)
+    second = asyncio.run(run_full(
+        tmp_path, checkpoint_path=checkpoint, dry_run=False, llm=fake,
+    ))
+
+    row = json.loads(checkpoint.read_text(encoding="utf-8"))["sources"][
+        "raw/sources/one.md"
+    ]
+    assert first["summary"]["blocked"] == 1
+    assert first_call_count >= 6  # classify + completeness + cluster + 3 Stage 5 retries
+    assert row["attempts"] == 1
+    assert len(fake.calls) == first_call_count
+    assert second["summary"]["skipped"] == 1
+
+
+@pytest.mark.parametrize(
+    ("write_report", "expected_status", "written", "blocked", "failed"),
+    [
+        (WriteReport(written=["p1"], page_writes={"p1": Path("p1.md")}),
+         "written", ["p1"], [], []),
+        (WriteReport(blocked=["p1"], page_writes={"p1": None}),
+         "blocked", [], ["p1"], []),
+        (WriteReport(failed={"p1": "disk"}, page_writes={"p1": None}),
+         "failed", [], [], ["p1"]),
+    ],
+)
+def test_source_outcome_matches_writer_page_writes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    write_report: WriteReport,
+    expected_status: str,
+    written: list[str],
+    blocked: list[str],
+    failed: list[str],
+) -> None:
+    _write_source(tmp_path, "one.md")
+    page = SimpleNamespace(id="p1", sources=["raw/sources/one.md"])
+
+    async def extracted(_root, _path, relative, **kwargs):
+        kwargs["page_sink"](page)
+        return ExtractionResult(
+            status=ExtractionStatus.WRITTEN,
+            source_id=relative,
+            pages=[page],
+            written_page_ids=["p1"],
+            metadata={"source": relative, "doc_type": "single_method",
+                      "complete": True, "topics": [], "pages": [], "error": None},
+        )
+
+    class FakeWriter:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def commit_and_index(self, _pages):
+            return write_report
+
+    monkeypatch.setattr(extract_full, "_extract_one", extracted)
+    monkeypatch.setattr(extract_full, "WikiWriter", FakeWriter)
+    monkeypatch.setenv("V7_ALLOW_APPLY", "1")
+    checkpoint = tmp_path / ".index" / "full.json"
+
+    report = asyncio.run(run_full(
+        tmp_path, checkpoint_path=checkpoint, dry_run=False,
+    ))
+
+    row = json.loads(checkpoint.read_text(encoding="utf-8"))["sources"][
+        "raw/sources/one.md"
+    ]
+    result = report["results"][0]
+    assert row["status"] == result["status"] == expected_status
+    assert row["written_page_ids"] == result["written_page_ids"] == written
+    assert row["blocked_page_ids"] == result["blocked_page_ids"] == blocked
+    assert row["failed_page_ids"] == result["failed_page_ids"] == failed
+
+
+def test_resume_retries_only_failed_source_in_partially_failed_batch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_source(tmp_path, "a.md")
+    _write_source(tmp_path, "b.md")
+    calls = {"raw/sources/a.md": 0, "raw/sources/b.md": 0}
+
+    async def extracted(_root, _path, relative, **kwargs):
+        calls[relative] += 1
+        if relative.endswith("b.md"):
+            return ExtractionResult(
+                status=ExtractionStatus.FAILED,
+                source_id=relative,
+                metadata={"source": relative, "doc_type": None, "complete": False,
+                          "topics": [], "pages": [], "error": "failed"},
+            )
+        page = SimpleNamespace(id="page-a", sources=[relative])
+        kwargs["page_sink"](page)
+        return ExtractionResult(
+            status=ExtractionStatus.WRITTEN,
+            source_id=relative,
+            pages=[page],
+            written_page_ids=[page.id],
+            metadata={"source": relative, "doc_type": "single_method",
+                      "complete": True, "topics": [], "pages": [], "error": None},
+        )
+
+    class FakeWriter:
+        def __init__(self, root, **_kwargs):
+            self.root = Path(root)
+
+        def commit_and_index(self, pages):
+            page = pages[0]
+            path = self.root / "wiki" / "concepts" / f"{page.id}.md"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("page", encoding="utf-8")
+            return WriteReport(written=[page.id], page_writes={page.id: path})
+
+    monkeypatch.setattr(extract_full, "_extract_one", extracted)
+    monkeypatch.setattr(extract_full, "WikiWriter", FakeWriter)
+    monkeypatch.setenv("V7_ALLOW_APPLY", "1")
+    checkpoint = tmp_path / ".index" / "full.json"
+
+    asyncio.run(run_full(
+        tmp_path, batch_size=2, checkpoint_path=checkpoint, dry_run=False,
+    ))
+    asyncio.run(run_full(
+        tmp_path, batch_size=2, checkpoint_path=checkpoint, dry_run=False,
+    ))
+
+    assert calls == {"raw/sources/a.md": 1, "raw/sources/b.md": 2}
+
+
+def test_changed_source_md5_is_not_skipped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_source(tmp_path, "one.md")
+    calls = 0
+
+    async def extracted(_root, _path, relative, **kwargs):
+        nonlocal calls
+        calls += 1
+        page = SimpleNamespace(id="p1", sources=[relative])
+        kwargs["page_sink"](page)
+        return ExtractionResult(
+            status=ExtractionStatus.WRITTEN, source_id=relative, pages=[page],
+            written_page_ids=[page.id],
+            metadata={"source": relative, "doc_type": "single_method",
+                      "complete": True, "topics": [], "pages": [], "error": None},
+        )
+
+    class FakeWriter:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def commit_and_index(self, pages):
+            return WriteReport(
+                written=[pages[0].id], page_writes={pages[0].id: Path("p1.md")},
+            )
+
+    monkeypatch.setattr(extract_full, "_extract_one", extracted)
+    monkeypatch.setattr(extract_full, "WikiWriter", FakeWriter)
+    monkeypatch.setenv("V7_ALLOW_APPLY", "1")
+    checkpoint = tmp_path / ".index" / "full.json"
+    asyncio.run(run_full(tmp_path, checkpoint_path=checkpoint, dry_run=False))
+    _write_source(tmp_path, "one.md", content="# changed\n\n" + "new" * 300)
+    asyncio.run(run_full(tmp_path, checkpoint_path=checkpoint, dry_run=False))
+
+    assert calls == 2
+
+
+def test_mixed_written_and_blocked_pages_are_reprocessed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_source(tmp_path, "one.md")
+    calls = 0
+
+    async def extracted(_root, _path, relative, **kwargs):
+        nonlocal calls
+        calls += 1
+        pages = [
+            SimpleNamespace(id="p1", sources=[relative]),
+            SimpleNamespace(id="p2", sources=[relative]),
+        ]
+        for page in pages:
+            kwargs["page_sink"](page)
+        return ExtractionResult(
+            status=ExtractionStatus.WRITTEN, source_id=relative, pages=pages,
+            written_page_ids=["p1", "p2"],
+            metadata={"source": relative, "doc_type": "multi_topic",
+                      "complete": True, "topics": [], "pages": [], "error": None},
+        )
+
+    class FakeWriter:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def commit_and_index(self, _pages):
+            return WriteReport(
+                written=["p1"], blocked=["p2"],
+                page_writes={"p1": Path("p1.md"), "p2": None},
+            )
+
+    monkeypatch.setattr(extract_full, "_extract_one", extracted)
+    monkeypatch.setattr(extract_full, "WikiWriter", FakeWriter)
+    monkeypatch.setenv("V7_ALLOW_APPLY", "1")
+    checkpoint = tmp_path / ".index" / "full.json"
+    asyncio.run(run_full(tmp_path, checkpoint_path=checkpoint, dry_run=False))
+    asyncio.run(run_full(tmp_path, checkpoint_path=checkpoint, dry_run=False))
+
+    row = json.loads(checkpoint.read_text(encoding="utf-8"))["sources"][
+        "raw/sources/one.md"
+    ]
+    assert calls == 2
+    assert row["written_page_ids"] == ["p1"]
+    assert row["blocked_page_ids"] == ["p2"]
 
 
 def test_full_dry_run_batches_sources_and_resumes_from_checkpoint(tmp_path: Path) -> None:
@@ -204,6 +531,10 @@ def test_full_summary_has_by_status_counters(tmp_path: Path) -> None:
     # selected + processed still surface for backwards compat.
     assert report["summary"]["selected"] == 3
     assert report["summary"]["processed"] >= 0
+    assert {
+        "written", "blocked", "failed", "incomplete", "skipped",
+        "generated_pages",
+    } <= report["summary"].keys()
 
 
 def test_full_summary_errors_strictly_equal_failed_count(tmp_path: Path) -> None:

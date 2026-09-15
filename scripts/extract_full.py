@@ -9,10 +9,12 @@ CLI flags are unchanged.
 from __future__ import annotations
 
 import argparse
+import atexit
 import asyncio
 import hashlib
 import json
 import os
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -29,6 +31,10 @@ from scripts.extract_pilot import (  # noqa: E402
     _write_report,
 )
 from src.pipeline.v7_extract.failures import ExtractionResult, ExtractionStatus  # noqa: E402
+from src.pipeline.v7_extract._queue_lock import (  # noqa: E402
+    acquire_queue_lock,
+    release_queue_lock,
+)
 from src.pipeline.v7_extract.wiki_writer import WikiWriter  # noqa: E402
 
 
@@ -44,11 +50,52 @@ async def run_full(
     batch_size: int = 500,
     checkpoint_path: str | Path | None = None,
     max_retries: int = 3,
+    max_attempts: int = 5,
     dry_run: bool = True,
     json_output: str | Path | None = None,
     markdown_output: str | Path | None = None,
     llm: Any = None,
     queue_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Run the source-level control plane under the per-root queue lock."""
+    root_path = Path(root)
+    if not acquire_queue_lock(root_path):
+        raise RuntimeError("另一进程正在写 queue")
+
+    def release() -> None:
+        release_queue_lock(root_path)
+
+    atexit.register(release)
+    try:
+        return await _run_full_unlocked(
+            root_path,
+            batch_size=batch_size,
+            checkpoint_path=checkpoint_path,
+            max_retries=max_retries,
+            max_attempts=max_attempts,
+            dry_run=dry_run,
+            json_output=json_output,
+            markdown_output=markdown_output,
+            llm=llm,
+            queue_path=queue_path,
+        )
+    finally:
+        atexit.unregister(release)
+        release()
+
+
+async def _run_full_unlocked(
+    root: Path,
+    *,
+    batch_size: int,
+    checkpoint_path: str | Path | None,
+    max_retries: int,
+    max_attempts: int,
+    dry_run: bool,
+    json_output: str | Path | None,
+    markdown_output: str | Path | None,
+    llm: Any,
+    queue_path: str | Path | None,
 ) -> dict[str, Any]:
     """Process every supported raw source in resumable batches.
 
@@ -75,15 +122,19 @@ async def run_full(
                 "occur and any low-confidence page will be flagged for "
                 "human review via .index/reviews_queue.json."
             )
-    if batch_size < 1 or max_retries < 1:
-        raise ValueError("batch_size and max_retries must be positive")
-    root = Path(root)
+    if batch_size < 1 or max_retries < 1 or max_attempts < 1:
+        raise ValueError("batch_size, max_retries, and max_attempts must be positive")
     checkpoint = Path(checkpoint_path) if checkpoint_path else root / DEFAULT_CHECKPOINT
     queue_path_resolved: Path | None = (
         Path(queue_path) if queue_path is not None else root / ".index" / "reviews_queue.json"
     )
     writer = (
-        WikiWriter(root, queue_path=queue_path_resolved)
+        WikiWriter(
+            root,
+            queue_path=queue_path_resolved,
+            max_retries=max_retries,
+            provider=_provider_identity(llm),
+        )
         if not dry_run
         else None
     )
@@ -95,72 +146,102 @@ async def run_full(
     completed_batches, source_outcomes = _read_checkpoint_v2(checkpoint)
     results: list[ExtractionResult] = []
     batches_skipped = 0
+    processed = 0
+    warnings: list[str] = []
     pending_source_outcomes: dict[str, dict[str, Any]] = dict(source_outcomes)
-    for batch_number, batch in enumerate(batches, 1):
-        if batch_number in completed_batches:
-            batches_skipped += 1
-            continue
-        # v3: each source is processed via async _extract_one
-        batch_results: list[ExtractionResult] = []
-        batch_pages: list[Any] = []
-        for path in batch:
-            relative = path.relative_to(root).as_posix()
-            # Wave 3 / Task 4: skip sources whose outcome is already
-            # terminal (written / blocked / incomplete) and md5 unchanged.
-            try:
-                source_md5 = hashlib.md5(path.read_bytes()).hexdigest()
-            except OSError:
-                source_md5 = ""
-            prior = pending_source_outcomes.get(relative)
-            if (
-                prior is not None
-                and prior.get("md5") == source_md5
-                and prior.get("status") in (
-                    ExtractionStatus.WRITTEN.value,
-                    ExtractionStatus.BLOCKED.value,
-                    ExtractionStatus.INCOMPLETE.value,
+    provider_identity = _provider_identity(llm)
+    pending_dirty = False
+
+    def flush_pending() -> None:
+        nonlocal pending_dirty
+        if pending_dirty:
+            _write_checkpoint_v2(checkpoint, completed_batches, pending_source_outcomes)
+            pending_dirty = False
+
+    atexit.register(flush_pending)
+    try:
+        for batch_number, batch in enumerate(batches, 1):
+            batch_processed = False
+            batch_failed = False
+            for path in batch:
+                relative = path.relative_to(root).as_posix()
+                try:
+                    source_md5 = hashlib.md5(path.read_bytes()).hexdigest()
+                except OSError:
+                    source_md5 = ""
+                prior = pending_source_outcomes.get(relative)
+                if prior and prior.get("llm_provider") and (
+                    prior["llm_provider"] != provider_identity
+                ):
+                    warnings.append(f"provider_changed_since_last_run:{relative}")
+                if _source_can_skip(prior, source_md5, dry_run=dry_run):
+                    results.append(_replay_extraction_result(relative, prior, skipped=True))
+                    continue
+                prior_attempts = int((prior or {}).get("attempts", 0) or 0)
+                if (
+                    prior
+                    and prior.get("md5") == source_md5
+                    and prior.get("status") in {"failed", "failed_max_attempts"}
+                    and prior_attempts >= max_attempts
+                ):
+                    results.append(_replay_extraction_result(relative, prior))
+                    batch_failed = True
+                    continue
+
+                pages: list[Any] = []
+                result = await _extract_one(
+                    root,
+                    path,
+                    relative,
+                    llm=llm,
+                    page_sink=pages.append,
                 )
-                and not prior.get("dry_run", False)  # P6: dry-run is NOT terminal
-                and not dry_run  # only apply runs can skip
-            ):
-                # Replay the prior outcome without re-processing.
-                results.append(_replay_extraction_result(relative, prior))
-                continue
-            result = await _with_retries(
-                root, path, max_retries, llm=llm, page_sink=batch_pages.append
-            )
-            result.attempts = getattr(result, "attempts", 1)
-            batch_results.append(result)
-            # Wave 3 / Task 4: write a durable source outcome per source
-            # (not per batch) so a kill-9 between Writer and checkpoint
-            # doesn't lose progress.
-            pending_source_outcomes[relative] = _source_outcome_from_result(
-                result, md5=source_md5, dry_run=dry_run,
-            )
-        report: WriteReport | None = None
-        if writer is not None and not any(
-            r.status == ExtractionStatus.FAILED for r in batch_results
-        ):
-            report = writer.commit_and_index(batch_pages)
-            # Wave 3 / Task 4: enrich each source outcome with the
-            # WriteReport.page_writes mapping (Luna-E).
-            for r in batch_results:
-                if r.status != ExtractionStatus.FAILED:
-                    _merge_write_report_into_outcome(
-                        pending_source_outcomes, r.source_id, report
+                processed += 1
+                batch_processed = True
+                result.attempts = prior_attempts + 1
+
+                if writer is not None and result.status != ExtractionStatus.FAILED:
+                    write_report = writer.commit_and_index(pages)
+                    _reconcile_result_with_write_report(result, write_report)
+
+                if dry_run and prior is not None:
+                    row = dict(prior)
+                    row.update({
+                        "md5": source_md5,
+                        "attempts": result.attempts,
+                        "last_attempt_at": int(time.time() * 1000),
+                        "llm_provider": provider_identity,
+                        "dry_run": True,
+                    })
+                else:
+                    row = _source_outcome_from_result(
+                        result,
+                        md5=source_md5,
+                        dry_run=dry_run,
+                        llm_provider=provider_identity,
                     )
-        results.extend(batch_results)
-        if not any(r.status == ExtractionStatus.FAILED for r in batch_results):
-            # Wave 3 / Task 4 / P6: dry-run must NOT mark batches as
-            # done. Otherwise the next apply run silently skips the
-            # batch and never produces pages. Per-source ``dry_run``
-            # rows still feed the summary so the operator sees the
-            # projected outcome.
-            if not dry_run:
+                if result.status == ExtractionStatus.FAILED:
+                    batch_failed = True
+                    if result.attempts >= max_attempts:
+                        row["status"] = "failed_max_attempts"
+                pending_source_outcomes[relative] = row
+                pending_dirty = True
+                flush_pending()
+                results.append(result)
+
+            if not batch_processed:
+                batches_skipped += 1
+            if not dry_run and not batch_failed:
                 completed_batches.add(batch_number)
-            _write_checkpoint_v2(
-                checkpoint, completed_batches, pending_source_outcomes,
-            )
+                pending_dirty = True
+                flush_pending()
+        pending_dirty = True
+        flush_pending()
+    finally:
+        try:
+            flush_pending()
+        finally:
+            atexit.unregister(flush_pending)
 
     # Wave 2 / Task 2: a "previous_results" cache hit returns the prior
     # JSON report's results as raw dicts (legacy shape). Convert them to
@@ -177,7 +258,7 @@ async def run_full(
     summary = _summarize_results(
         effective_results,
         selected=len(source_files),
-        processed=len(results),
+        processed=processed,
         batches=len(batches),
         batches_skipped=batches_skipped,
         results_reused=bool(raw_previous),
@@ -187,8 +268,10 @@ async def run_full(
         "root": str(root),
         "batch_size": batch_size,
         "max_retries": max_retries,
+        "max_attempts": max_attempts,
         "checkpoint": str(checkpoint),
         "llm_enabled": llm is not None,
+        "warnings": warnings,
         "summary": summary,
         "results": raw_dicts,
     }
@@ -261,6 +344,10 @@ def _read_checkpoint_v2(
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError, AttributeError, TypeError):
+        try:
+            shutil.copy2(path, path.with_suffix(path.suffix + ".corrupt"))
+        except OSError:
+            pass
         return set(), {}
     if not isinstance(payload, dict):
         return set(), {}
@@ -276,8 +363,7 @@ def _read_checkpoint_v2(
         return completed, sources
     # Legacy v1: completed_batches only. Do NOT auto-upgrade; the
     # operator re-runs to populate v2 entries (per plan §4 Task 4).
-    legacy = _read_checkpoint(path)
-    return legacy, {}
+    return set(), {}
 
 
 def _write_checkpoint_v2(
@@ -318,6 +404,7 @@ def _source_outcome_from_result(
     *,
     md5: str,
     dry_run: bool,
+    llm_provider: str = "",
 ) -> dict[str, Any]:
     """Translate an ExtractionResult into the v2 checkpoint row.
 
@@ -338,7 +425,7 @@ def _source_outcome_from_result(
         "failed_page_ids": list(d.get("failed_page_ids", []) or []),
         "attempts": int(getattr(result, "attempts", 1) or 1),
         "last_attempt_at": int(time.time() * 1000),
-        "llm_provider": "",  # filled by caller if needed
+        "llm_provider": llm_provider,
         "dry_run": bool(dry_run),
     }
 
@@ -370,18 +457,85 @@ def _merge_write_report_into_outcome(
     row["failed_page_ids"] = sorted(failed_ids)
 
 
+def _reconcile_result_with_write_report(
+    result: ExtractionResult,
+    write_report: Any,
+) -> None:
+    """Replace projected page outcomes with the Writer's durable truth."""
+    page_ids = {str(getattr(page, "id", "")) for page in result.pages}
+    page_writes = getattr(write_report, "page_writes", {}) or {}
+    failed = set((getattr(write_report, "failed", {}) or {}).keys()) & page_ids
+    blocked = set(getattr(write_report, "blocked", []) or []) & page_ids
+    written = {
+        page_id
+        for page_id, path in page_writes.items()
+        if page_id in page_ids and path is not None and page_id not in failed
+    }
+    result.written_page_ids = sorted(written)
+    result.blocked_page_ids = sorted(blocked)
+    result.failed_page_ids = sorted(failed)
+    if failed:
+        result.status = ExtractionStatus.FAILED
+        result.failure_stage = result.failure_stage or "stage7_write"
+        reasons = [str(write_report.failed[page_id]) for page_id in sorted(failed)]
+        result.review_reasons.extend(reasons)
+        result.metadata["error"] = "; ".join(reasons)
+    elif written:
+        result.status = ExtractionStatus.WRITTEN
+    elif blocked:
+        result.status = ExtractionStatus.BLOCKED
+
+
+def _source_can_skip(
+    prior: dict[str, Any] | None,
+    source_md5: str,
+    *,
+    dry_run: bool,
+) -> bool:
+    if dry_run or not prior or prior.get("dry_run", False):
+        return False
+    if prior.get("md5") != source_md5:
+        return False
+    status = prior.get("status")
+    if status in {ExtractionStatus.BLOCKED.value, ExtractionStatus.INCOMPLETE.value}:
+        return True
+    return (
+        status == ExtractionStatus.WRITTEN.value
+        and bool(prior.get("written_page_ids"))
+        and not prior.get("blocked_page_ids")
+        and not prior.get("failed_page_ids")
+    )
+
+
+def _provider_identity(llm: Any) -> str:
+    if llm is None:
+        return "offline"
+    parts = [
+        str(value)
+        for value in (
+            getattr(llm, "default_provider_name", ""),
+            getattr(llm, "model", ""),
+            getattr(llm, "adapter_version", ""),
+        )
+        if value
+    ]
+    return ":".join(parts) or type(llm).__name__
+
+
 def _replay_extraction_result(
     source_id: str,
     outcome: dict[str, Any],
+    *,
+    skipped: bool = False,
 ) -> ExtractionResult:
     """Reconstruct an ExtractionResult from a prior v2 checkpoint row
     so a skip-eligible source can still contribute to the summary."""
     status_str = outcome.get("status") or ExtractionStatus.WRITTEN.value
     legacy_str = outcome.get("legacy_status") or status_str
     try:
-        status = ExtractionStatus(status_str)
+        status = ExtractionStatus.SKIPPED if skipped else ExtractionStatus(status_str)
     except ValueError:
-        status = ExtractionStatus.WRITTEN
+        status = ExtractionStatus.FAILED
     try:
         legacy = ExtractionStatus(legacy_str)
     except ValueError:
@@ -394,6 +548,14 @@ def _replay_extraction_result(
         blocked_page_ids=list(outcome.get("blocked_page_ids", []) or []),
         failed_page_ids=list(outcome.get("failed_page_ids", []) or []),
         attempts=int(outcome.get("attempts", 1) or 1),
+        metadata={
+            "source": source_id,
+            "doc_type": outcome.get("doc_type"),
+            "complete": status != ExtractionStatus.INCOMPLETE,
+            "topics": [],
+            "pages": [],
+            "error": None if status != ExtractionStatus.FAILED else "failed_max_attempts",
+        },
     )
 
 
@@ -497,6 +659,12 @@ def _summarize_results(
         "results_reused": results_reused,
         "by_status": by_status,
         "by_legacy_status": by_legacy_status,
+        "written": by_status[ExtractionStatus.WRITTEN.value],
+        "blocked": by_status[ExtractionStatus.BLOCKED.value],
+        "failed": by_status[ExtractionStatus.FAILED.value],
+        "incomplete": by_status[ExtractionStatus.INCOMPLETE.value],
+        "skipped": by_status[ExtractionStatus.SKIPPED.value],
+        "generated_pages": sum(len(r.pages) for r in results),
         "errors": by_status[ExtractionStatus.FAILED.value],
         "pages": sum(len(r.written_page_ids) for r in results),
     }
@@ -511,10 +679,17 @@ def _markdown_text(report: dict[str, Any]) -> str:
         f"- root: `{report['root']}`",
         f"- batch_size: {report['batch_size']}",
         f"- max_retries: {report['max_retries']}",
+        f"- max_attempts: {report['max_attempts']}",
         f"- selected: {summary['selected']}",
         f"- processed: {summary['processed']}",
         f"- batches: {summary['batches']}",
         f"- batches_skipped: {summary['batches_skipped']}",
+        f"- written: {summary['written']}",
+        f"- blocked: {summary['blocked']}",
+        f"- failed: {summary['failed']}",
+        f"- incomplete: {summary['incomplete']}",
+        f"- skipped: {summary['skipped']}",
+        f"- generated_pages: {summary['generated_pages']}",
         f"- errors: {summary['errors']}",
         f"- pages: {summary['pages']}",
         "",
@@ -525,9 +700,10 @@ def _markdown_text(report: dict[str, Any]) -> str:
     ]
     for item in report["results"]:
         lines.append(
-            f"| `{item['source']}` | `{item['doc_type']}` | "
-            f"{item['complete']} | {len(item['topics'])} | "
-            f"{len(item['pages'])} | {item.get('attempts', 1)} | {item['error'] or ''} |"
+            f"| `{item.get('source', item.get('source_id', ''))}` | "
+            f"`{item.get('doc_type')}` | {item.get('complete', False)} | "
+            f"{len(item.get('topics', []))} | {len(item.get('pages', []))} | "
+            f"{item.get('attempts', 1)} | {item.get('error') or ''} |"
         )
     lines.append("")
     return "\n".join(lines)
@@ -535,10 +711,11 @@ def _markdown_text(report: dict[str, Any]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the V7 extraction full batch.")
-    parser.add_argument("--root", default=str(DEFAULT_ROOT))
+    parser.add_argument("--root", required=True, help="project root directory (required)")
     parser.add_argument("--batch-size", type=int, default=500)
-    parser.add_argument("--checkpoint", default=DEFAULT_CHECKPOINT)
+    parser.add_argument("--checkpoint", default=None)
     parser.add_argument("--max-retries", type=int, default=3)
+    parser.add_argument("--max-attempts", type=int, default=5)
     parser.add_argument("--json-out", default=str(DEFAULT_JSON))
     parser.add_argument("--markdown-out", default=str(DEFAULT_MARKDOWN))
     parser.add_argument(
@@ -552,12 +729,15 @@ def main(argv: list[str] | None = None) -> int:
         help="Optional LLM provider name (auto-resolves to registry default)",
     )
     args = parser.parse_args(argv)
+    if not getattr(args, "root", None):
+        parser.error("--root is required (use --root <project_root>)")
     llm = _build_llm(args.provider)
     report = asyncio.run(run_full(
         args.root,
         batch_size=args.batch_size,
         checkpoint_path=args.checkpoint,
         max_retries=args.max_retries,
+        max_attempts=args.max_attempts,
         dry_run=not args.apply,
         json_output=args.json_out,
         markdown_output=args.markdown_out,

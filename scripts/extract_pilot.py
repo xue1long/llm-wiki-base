@@ -2,8 +2,8 @@
 
 The pilot is deliberately a dry-run tool.  It reads raw sources, runs
 the local Stage 1 / Stage 3 / Stage 4 / Stage 5 components, and writes
-only its requested report files; it never calls the Wiki writer or
-mutates ``wiki/``.
+reports plus idempotent failure records; it never calls the Wiki writer
+or mutates ``wiki/``.
 
 v3 (plan 2026-09-15) changes:
 - All Stage calls are now ``async def`` (Stage 1 / 3 / 4 / 5 are async
@@ -36,7 +36,11 @@ if str(_REPO_ROOT) not in sys.path:
 from src.pipeline.v7_extract._page_id import _stable_page_id, validate_page_id
 from src.pipeline.v7_extract.completeness_checker import check_completeness
 from src.pipeline.v7_extract.doc_classifier import classify_doc
-from src.pipeline.v7_extract.failures import ExtractionResult, ExtractionStatus
+from src.pipeline.v7_extract.failures import (
+    ExtractionResult,
+    ExtractionStatus,
+    enqueue_failure,
+)
 from src.pipeline.v7_extract.slot_filler import fill_slots
 from src.pipeline.v7_extract.topic_clusterer import cluster_topics
 
@@ -250,6 +254,17 @@ async def _extract_one(
                     "failed": True,
                 })
                 failed_topic_ids.append(topic.id)
+                _record_failure(
+                    relative,
+                    "stage5",
+                    page_id=_stable_page_id(relative, topic.id),
+                    topic_id=topic.id,
+                    reason="stage5_llm_error",
+                    content_hash=source_md5,
+                    prompt_kind="fill_slots",
+                    provider=_llm_provider_label(llm),
+                    queue_path=root / ".index" / "reviews_queue.json",
+                )
                 continue
             # T1 / H2 加固: page ID is script-owned. Build a stable
             # page ID from the relative source path + topic slug; never
@@ -340,6 +355,14 @@ async def _extract_one(
         log.warning(
             "_extract_one failed for %r: %s", relative, reason,
         )
+        _record_failure(
+            relative,
+            "extract_one",
+            reason=reason,
+            content_hash=source_md5,
+            provider=_llm_provider_label(llm),
+            queue_path=root / ".index" / "reviews_queue.json",
+        )
         # source_md5 was assigned an empty string at function entry; if
         # the try block ran past ``read_bytes`` we already have the real
         # md5, otherwise it stays empty.
@@ -382,15 +405,38 @@ def _extract_items(content: str, relative: str) -> list[dict[str, str]]:
     return [{"id": relative, "text": content.strip()}]
 
 
+def _llm_provider_label(llm: Any) -> str:
+    if llm is None:
+        return "offline"
+    return str(getattr(llm, "default_provider_name", "") or type(llm).__name__)
+
+
+def _record_failure(*args: Any, **kwargs: Any) -> None:
+    try:
+        enqueue_failure(*args, **kwargs)
+    except Exception as exc:  # queue I/O must not abort the source loop
+        log.warning("failed to enqueue v7 review item: %s", exc)
+
+
 def _summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
     types = Counter(item["doc_type"] for item in results if item["doc_type"])
+    statuses = Counter(item.get("status") for item in results)
     return {
         "selected": len(results),
+        "processed": len(results),
+        "skipped": statuses[ExtractionStatus.SKIPPED.value],
+        "written": statuses[ExtractionStatus.WRITTEN.value],
+        "blocked": statuses[ExtractionStatus.BLOCKED.value],
+        "failed": statuses[ExtractionStatus.FAILED.value],
         "complete": sum(1 for item in results if item["complete"]),
-        "incomplete": sum(1 for item in results if item["doc_type"] == "incomplete"),
-        "errors": sum(1 for item in results if item["error"]),
+        "incomplete": statuses[ExtractionStatus.INCOMPLETE.value],
+        "errors": statuses[ExtractionStatus.FAILED.value],
         "topics": sum(len(item["topics"]) for item in results),
         "pages": sum(len(item["pages"]) for item in results),
+        "generated_pages": sum(len(item["pages"]) for item in results),
+        "batches": 1 if results else 0,
+        "batches_skipped": 0,
+        "results_reused": False,
         "doc_types": dict(sorted(types.items())),
     }
 
@@ -407,8 +453,14 @@ def _markdown_text(report: dict[str, Any]) -> str:
         f"- mode: `{report['mode']}`",
         f"- seed: `{report['seed']}`",
         f"- selected: {summary['selected']}",
+        f"- processed: {summary['processed']}",
+        f"- written: {summary['written']}",
+        f"- blocked: {summary['blocked']}",
+        f"- failed: {summary['failed']}",
         f"- complete: {summary['complete']}",
         f"- incomplete: {summary['incomplete']}",
+        f"- skipped: {summary['skipped']}",
+        f"- generated_pages: {summary['generated_pages']}",
         f"- pages (dry-run): {summary['pages']}",
         "- spot-check: pending",
         "",
@@ -436,7 +488,7 @@ def _write_report(path: Path, content: str) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the V7 extraction pilot in dry-run mode.")
-    parser.add_argument("--root", default=str(DEFAULT_ROOT))
+    parser.add_argument("--root", required=True, help="project root directory (required)")
     parser.add_argument("--count", type=int, default=50)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--json-out", default=str(DEFAULT_JSON))
@@ -460,6 +512,8 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     args = parser.parse_args(argv)
+    if not getattr(args, "root", None):
+        parser.error("--root is required (use --root <project_root>)")
     llm = _build_llm(args.provider)
     sources = _load_sources(args.sources)
     report = asyncio.run(run_pilot(

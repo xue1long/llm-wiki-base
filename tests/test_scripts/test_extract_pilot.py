@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.extract_pilot import _extract_one, run_pilot
+from scripts.extract_pilot import _extract_one, main, run_pilot
 from src.pipeline.v7_extract.failures import ExtractionResult, ExtractionStatus
 from src.pipeline.v7_extract.llm_client import FakeLLMClient
 
@@ -45,6 +45,10 @@ def test_run_pilot_selects_deterministic_sources_and_never_writes_wiki(
 
     assert report["mode"] == "dry-run"
     assert report["summary"]["selected"] == 3
+    assert {
+        "written", "blocked", "failed", "incomplete", "skipped",
+        "generated_pages",
+    } <= report["summary"].keys()
     assert len(report["sources"]) == 3
     assert report["sources"] == asyncio.run(
         run_pilot(tmp_path, count=3, seed=7)
@@ -118,8 +122,12 @@ def test_write_report_emits_json_and_markdown_without_wiki_writes(tmp_path: Path
 def test_direct_script_entrypoint_bootstraps_repo_imports(tmp_path: Path) -> None:
     _write_source(tmp_path, "one.md", "# 标题\n\n" + "正文。" * 300)
     json_path = tmp_path / "direct.json"
+    sources_path = tmp_path / "sources.json"
+    sources_path.write_text("[]", encoding="utf-8")
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
+    env["APPDATA"] = str(tmp_path / "config")
+    env["LOCALAPPDATA"] = str(tmp_path / "config")
 
     completed = subprocess.run(
         [
@@ -129,6 +137,8 @@ def test_direct_script_entrypoint_bootstraps_repo_imports(tmp_path: Path) -> Non
             str(tmp_path),
             "--count",
             "1",
+            "--sources",
+            str(sources_path),
             "--json-out",
             str(json_path),
             "--markdown-out",
@@ -203,6 +213,14 @@ from src.pipeline.v7_extract._page_id import _stable_page_id, validate_page_id  
 
 
 FIXTURE_DIR = Path(__file__).parents[1] / "fixtures" / "v7_control_plane"
+
+
+def test_pilot_cli_requires_explicit_root(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main([])
+
+    assert exc_info.value.code == 2
+    assert "usage:" in capsys.readouterr().err.lower()
 
 
 def _stage_scripts_for_source(_source_text: str, topic_id: str) -> FakeLLMClient:
@@ -390,6 +408,15 @@ def test_extract_one_exception_returns_failed(tmp_path: Path) -> None:
     assert result.review_reasons, "expected at least one review reason"
     # Legacy compat: error string is non-empty.
     assert result.metadata.get("error")
+    queue_path = tmp_path / ".index" / "reviews_queue.json"
+    first_items = json.loads(queue_path.read_text(encoding="utf-8"))["items"]
+    second = asyncio.run(_extract_one(
+        tmp_path, bad_path, "raw/sources/broken.md",
+    ))
+    second_items = json.loads(queue_path.read_text(encoding="utf-8"))["items"]
+    assert second.status == ExtractionStatus.FAILED
+    assert len(first_items) == len(second_items) == 1
+    assert second_items[0]["attempts"] == 2
     # source_md5 may be empty (read_bytes failed before md5 could be
     # computed) or a real md5 (failure happened later); either is fine,
     # the contract is just "FAILED result is well-formed".

@@ -82,7 +82,8 @@ def _script_full_page(fake: FakeLLMClient) -> None:
     fake.script("completeness", '{"complete": true, "reason": "ok"}')
     fake.script(
         "cluster",
-        '{"topics": [{"id": "t1", "title": "扩句法", "item_indexes": [0]}]}',
+        '{"topics": [{"id": "t1", "title": "扩句法", '
+        '"item_indexes": [0, 1, 2, 3, 4, 5]}]}',
     )
     fake.script("fill_slots", (
         '{"slots": {"definition": "def", "characteristics": "c", '
@@ -140,6 +141,10 @@ def test_v7_one_source_apply_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPat
 
         # Report / filesystem consistency.
         assert report1["mode"] == "apply"
+        assert {
+            "written", "blocked", "failed", "incomplete", "skipped",
+            "generated_pages",
+        } <= report1["summary"].keys()
         written_count = report1["summary"]["by_status"]["written"]
         assert written_count >= 1, "expected at least one written source"
         assert list((tmp_path / "wiki" / "concepts").glob("*.md")), (
@@ -160,12 +165,13 @@ def test_v7_one_source_apply_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPat
 
         # Queue file lives under the project root, NOT the CWD.
         queue_path = tmp_path / ".index" / "reviews_queue.json"
-        assert queue_path.exists()
-
-        # Capture queue item count for the no-duplicate check.
-        queue_items_before = json.loads(
-            queue_path.read_text(encoding="utf-8")
-        )["items"]
+        # A pure-written run need not create an empty queue. If a gate did
+        # enqueue anything, it must be rooted under this project.
+        queue_items_before = (
+            json.loads(queue_path.read_text(encoding="utf-8"))["items"]
+            if queue_path.exists()
+            else []
+        )
         v7_items_before = [
             i for i in queue_items_before if i.get("source") == "v7_extract"
         ]
@@ -193,11 +199,14 @@ def test_v7_one_source_apply_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPat
         assert len(fake.calls) == first_calls, (
             "second run must skip the source via md5 (no new LLM work)"
         )
+        assert report2["summary"]["skipped"] == 1
 
         # No duplicate v7_extract queue items.
-        queue_items_after = json.loads(
-            queue_path.read_text(encoding="utf-8")
-        )["items"]
+        queue_items_after = (
+            json.loads(queue_path.read_text(encoding="utf-8"))["items"]
+            if queue_path.exists()
+            else []
+        )
         v7_items_after = [
             i for i in queue_items_after if i.get("source") == "v7_extract"
         ]
@@ -206,7 +215,7 @@ def test_v7_one_source_apply_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPat
         )
 
         # Report state matches filesystem state.
-        assert report2["summary"]["by_status"]["written"] >= 1
+        assert report2["summary"]["skipped"] == 1
         assert list((tmp_path / "wiki" / "concepts").glob("*.md"))
     finally:
         os.environ.pop("V7_ALLOW_APPLY", None)
