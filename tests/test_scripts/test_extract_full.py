@@ -107,15 +107,18 @@ def test_full_apply_writes_concepts(tmp_path: Path, monkeypatch) -> None:
         '"item_indexes": [0]}]}',
     )
     fake.script("fill_slots", (
+        # T1 / Wave 1 schema upgrade: evidence uses integer item_index
+        # into the canonical item list (not item_id string). Luna-A
+        # updated slot_filler.py to consume item_index, but these test
+        # fixtures were missed in that round — fixed in Wave 1.1
+        # follow-up.
         '{"slots": {"definition": "def", "characteristics": "c", '
         '"examples": "e", "related_concepts": "rc", "references": "ref"}, '
-        '"evidence": {"definition": {"item_id": "raw/sources/complete.md", '
-        '"source_text_excerpt": "定义"}, "characteristics": {"item_id": '
-        '"raw/sources/complete.md", "source_text_excerpt": "定义"}, '
-        '"examples": {"item_id": "raw/sources/complete.md", '
-        '"source_text_excerpt": "定义"}, "related_concepts": {"item_id": '
-        '"raw/sources/complete.md", "source_text_excerpt": "定义"}, '
-        '"references": {"item_id": "raw/sources/complete.md", '
+        '"evidence": {"definition": {"item_index": 0, '
+        '"source_text_excerpt": "定义"}, "characteristics": {"item_index": 0, '
+        '"source_text_excerpt": "定义"}, "examples": {"item_index": 0, '
+        '"source_text_excerpt": "定义"}, "related_concepts": {"item_index": 0, '
+        '"source_text_excerpt": "定义"}, "references": {"item_index": 0, '
         '"source_text_excerpt": "定义"}}}'
     ))
     monkeypatch.setenv("V7_ALLOW_APPLY", "1")
@@ -223,15 +226,18 @@ def test_full_summary_pages_counts_written_only(tmp_path: Path) -> None:
         '"item_indexes": [0]}]}',
     )
     fake.script("fill_slots", (
+        # T1 / Wave 1 schema upgrade: evidence uses integer item_index
+        # into the canonical item list (not item_id string). Luna-A
+        # updated slot_filler.py to consume item_index, but these test
+        # fixtures were missed in that round — fixed in Wave 1.1
+        # follow-up.
         '{"slots": {"definition": "def", "characteristics": "c", '
         '"examples": "e", "related_concepts": "rc", "references": "ref"}, '
-        '"evidence": {"definition": {"item_id": "raw/sources/complete.md", '
-        '"source_text_excerpt": "定义"}, "characteristics": {"item_id": '
-        '"raw/sources/complete.md", "source_text_excerpt": "定义"}, '
-        '"examples": {"item_id": "raw/sources/complete.md", '
-        '"source_text_excerpt": "定义"}, "related_concepts": {"item_id": '
-        '"raw/sources/complete.md", "source_text_excerpt": "定义"}, '
-        '"references": {"item_id": "raw/sources/complete.md", '
+        '"evidence": {"definition": {"item_index": 0, '
+        '"source_text_excerpt": "定义"}, "characteristics": {"item_index": 0, '
+        '"source_text_excerpt": "定义"}, "examples": {"item_index": 0, '
+        '"source_text_excerpt": "定义"}, "related_concepts": {"item_index": 0, '
+        '"source_text_excerpt": "定义"}, "references": {"item_index": 0, '
         '"source_text_excerpt": "定义"}}}'
     ))
 

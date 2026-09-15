@@ -131,6 +131,43 @@ Wave 1 完全相同,确认是 **v3 实施 T2.5 引入的 pre-existing bug**,不�
 **本计划范围外**:plan §1.5 / §6 明确"不动 v3 实施的 _legacy.py / __init__.py",
 "不重写 Stage 1/3/4/5 的语义"。修这个 bug 属于 v3 后续 task,**Wave 2 不动**。
 
+### Wave 1 遗留 — `test_full_apply_writes_concepts` fixture 不一致(主会话发现并修复)
+
+**测试**:`tests/test_scripts/test_extract_full.py::test_full_apply_writes_concepts`
+
+**最初报告**:Luna-D 在 Wave 2 验收时把这个 fail 报成"pre-existing v3 T2.5 bug",
+与 `test_content_filter` 混淆。Luna-D 引用了 Wave 1 ledger 的描述,**未独立验证**。
+
+**主会话独立调查**(`git checkout 9e641367 --` + `8943f696 --` + `c56f08eb --` +
+`b744293b --` 逐个跑测试):
+| HEAD | 结果 |
+|---|---|
+| `9e641367`(Wave 0 准备) | ✅ PASS |
+| `8943f696`(Luna-A: T1 provenance) | ❌ FAIL ← **回归引入点** |
+| `c56f08eb`(Luna-B: T3 queue) | ❌ FAIL |
+| `b744293b`(Luna-C: T0 async) | ❌ FAIL |
+
+**真正的根因**:Luna-A 把 `slot_filler.py` 的 evidence 字段从 `item_id`(字符串)改为
+`item_index`(整数,plan §4 Task 1 契约)。`test_full_apply_writes_concepts` 用
+`fake.script("fill_slots", {"evidence": {"definition": {"item_id": "..."}}})`,
+Luna-A 改造后 evidence 校验失败,page 被 `needs_review` 阻断,`wiki/concepts/*.md`
+没生成。Luna-A 改了 `slot_filler.py` 但**没改这个测试的 fixture**,Luna-D 抄报告时
+把它误归类为 pre-existing bug。
+
+**Luna-D 的新测试同样受影响**:`test_full_summary_pages_counts_written_only` 用
+同样的 buggy fixture,虽然不验证写盘所以 PASS,但仍是隐性 fixture bug。
+
+**修复**:主会话 surgical 修复,把 `tests/test_scripts/test_extract_full.py` 的两处
+fixture `item_id` 字符串改为 `item_index` 整数,符合 plan §4 Task 1 契约。修复后
+全套 150 passed / 0 failed。
+
+**Lesson for Wave 3**:
+- subagent 报告 "pre-existing" 时,主 agent 必须**独立验证**(逐 commit checkout)。
+- Luna-A 的 deviation #5 "旧 payload 测试改名" 范围应包括 `test_extract_full.py`
+  的两个 fixture,但 Luna-A 没看到这两个测试,只改了 `test_v7_extract_slot_filler.py`。
+- **Luna-E/F 改造 `wiki_writer.py` + `extract_full.py` 时**,需主动 audit
+  `tests/test_scripts/test_extract_full.py` 的 fixture 是否仍匹配新契约。
+
 ### Wave 2(待 Wave 1 完成)
 
 - Luna-D: Task 2 unified ExtractionResult
