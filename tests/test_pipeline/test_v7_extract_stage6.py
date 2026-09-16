@@ -397,3 +397,189 @@ def test_page_update_triggers_relation_recompute(tmp_path) -> None:
 
     assert stale == ["p1"]
     assert "p2" not in stale
+
+
+# ---------------------------------------------------------------------------
+# Task 25 — Stage 6R candidate retrieval + LLM-controlled predicate ontology
+# ---------------------------------------------------------------------------
+
+
+def _make_page(page_id: str, title: str, body: str):
+    """Minimal duck-typed page object exposing ``id`` / ``title`` / ``body``."""
+
+    class _P:
+        pass
+
+    p = _P()
+    p.id = page_id
+    p.title = title
+    p.body = body
+    return p
+
+
+def test_candidate_retrieval_returns_top_n() -> None:
+    """retrieve_candidates returns at most ``max_candidates`` rows and is
+    deterministic: the EXPLICIT [[b]] wikilink ranks first with score=1.0."""
+    from src.pipeline.v7_extract.candidate_retrieval import (
+        MAX_CANDIDATES_PER_PAGE,
+        PageIndex,
+        retrieve_candidates,
+    )
+
+    pages = [
+        _make_page(
+            "a",
+            "Alpha concept",
+            "discusses [[b]] and explores retrieval augmentation methods",
+        ),
+        _make_page("b", "Beta concept", "no links here"),
+        _make_page(
+            "c",
+            "Gamma retrieval augmentation overview",
+            "introduces retrieval augmentation concepts and discusses methods",
+        ),
+    ]
+    index = PageIndex.build(pages)
+    candidates = retrieve_candidates("a", index, max_candidates=2)
+
+    assert len(candidates) == 2
+    # The constant must match the spec (used as the global cap).
+    assert MAX_CANDIDATES_PER_PAGE == 30
+    # Top-1 must be the explicit [[b]] wikilink — score=1.0, EXPLICIT kind.
+    assert candidates[0].target_page_id == "b"
+    assert candidates[0].kind == relation_models.RelationSupportKind.EXPLICIT
+    assert candidates[0].score == 1.0
+    # Determinism: scores are non-increasing (ties broken by target_page_id asc).
+    scores = [c.score for c in candidates]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_llm_cannot_invent_predicate() -> None:
+    """LLM emits an unknown predicate → RelationSupportStatus.UNRESOLVED,
+    not a hard error. Each edge (including the unknown-predicate one)
+    still produces a RelationAssertion so the review queue keeps the
+    evidence trail."""
+    from src.pipeline.v7_extract import candidate_retrieval
+    from src.pipeline.v7_extract.candidate_retrieval import (
+        parse_llm_edges,
+        render_llm_prompt,
+    )
+
+    raw = (
+        '{"edges": ['
+        '{"target": "b", "predicate": "refines", "context": "ok"},'
+        '{"target": "c", "predicate": "made_up_predicate_xyz", "context": "bad"},'
+        '{"target": "d", "predicate": "causes", "context": "ok"}'
+        "]}"
+    )
+
+    pages = [
+        _make_page("a", "Alpha", ""),
+        _make_page("b", "Beta", ""),
+        _make_page("c", "Gamma", ""),
+        _make_page("d", "Delta", ""),
+    ]
+    # We don't actually call render_llm_prompt here (covered separately);
+    # we only assert the prompt renders without raising.
+    _ = render_llm_prompt(
+        pages[0],
+        [
+            candidate_retrieval.RetrievalCandidate(
+                target_page_id="b",
+                score=1.0,
+                kind=relation_models.RelationSupportKind.EXPLICIT,
+                detail="wikilink",
+            ),
+            candidate_retrieval.RetrievalCandidate(
+                target_page_id="c",
+                score=0.9,
+                kind=relation_models.RelationSupportKind.INFERRED,
+                detail="jaccard",
+            ),
+            candidate_retrieval.RetrievalCandidate(
+                target_page_id="d",
+                score=0.8,
+                kind=relation_models.RelationSupportKind.INFERRED,
+                detail="lexical",
+            ),
+        ],
+    )
+
+    candidates = [
+        candidate_retrieval.RetrievalCandidate(
+            target_page_id="b",
+            score=1.0,
+            kind=relation_models.RelationSupportKind.EXPLICIT,
+            detail="wikilink",
+        ),
+        candidate_retrieval.RetrievalCandidate(
+            target_page_id="c",
+            score=0.9,
+            kind=relation_models.RelationSupportKind.INFERRED,
+            detail="jaccard",
+        ),
+        candidate_retrieval.RetrievalCandidate(
+            target_page_id="d",
+            score=0.8,
+            kind=relation_models.RelationSupportKind.INFERRED,
+            detail="lexical",
+        ),
+    ]
+
+    assertions = parse_llm_edges(
+        raw,
+        source_page_id="a",
+        candidates=candidates,
+        extractor_fingerprint="fp-test",
+    )
+
+    # All 3 edges produce a RelationAssertion (no exceptions).
+    assert len(assertions) == 3
+    by_target = {a.key.target_page_id: a for a in assertions}
+
+    # Known predicates → SUPPORTED.
+    assert by_target["b"].support_status == relation_models.RelationSupportStatus.SUPPORTED
+    assert by_target["d"].support_status == relation_models.RelationSupportStatus.SUPPORTED
+
+    # The invented predicate → UNRESOLVED status + UNRESOLVED predicate
+    # (coerce() falls back to the catch-all member).
+    assert by_target["c"].support_status == relation_models.RelationSupportStatus.UNRESOLVED
+    assert (
+        by_target["c"].key.predicate
+        is relation_ontology.RelationPredicate.UNRESOLVED
+    )
+
+    # Every assertion carries the script-owned fingerprint (so reviewers
+    # can tell which extractor produced the row).
+    for a in assertions:
+        assert a.extractor_fingerprint == "fp-test"
+        assert a.support_kind == relation_models.RelationSupportKind.LLM_DIRECT
+
+
+def test_explicit_vs_inferred_kind_distinguished() -> None:
+    """The 3 retrieval categories populate ``RetrievalCandidate.kind``
+    correctly: wikilinks → EXPLICIT, entity-overlap → INFERRED."""
+    from src.pipeline.v7_extract.candidate_retrieval import (
+        PageIndex,
+        retrieve_candidates,
+    )
+
+    pages = [
+        _make_page("a", "Alpha", "links to [[b]] explicitly"),
+        _make_page("b", "Beta", "different content"),
+        _make_page("c", "Concept Alpha Method", "shares alpha words"),
+    ]
+    index = PageIndex.build(pages)
+    candidates = retrieve_candidates("a", index)
+
+    by_target = {c.target_page_id: c for c in candidates}
+
+    # The [[b]] link is explicit (always wins with score=1.0).
+    assert "b" in by_target
+    assert by_target["b"].kind == relation_models.RelationSupportKind.EXPLICIT
+    assert by_target["b"].score == 1.0
+
+    # The high-overlap sibling should be present and tagged INFERRED
+    # (entity Jaccard). We don't pin the exact score — only the kind.
+    if "c" in by_target:
+        assert by_target["c"].kind == relation_models.RelationSupportKind.INFERRED

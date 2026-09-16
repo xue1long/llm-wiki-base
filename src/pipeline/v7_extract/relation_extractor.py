@@ -6,6 +6,7 @@ import inspect
 import json
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Mapping
 
 
@@ -34,13 +35,41 @@ class PageRelation:
 Relation = PageRelation
 
 
-def extract_relations(pages: list[Any], *, llm: Any = None) -> list[PageRelation]:
+def extract_relations(
+    pages: list[Any],
+    *,
+    llm: Any = None,
+    project_root: Path | str | None = None,
+    index: Any = None,
+    vector_neighbors: dict[str, list[tuple[str, float]]] | None = None,
+    max_candidates: int = 30,
+) -> list[PageRelation]:
     """Return deduplicated, validated relations between ``pages``.
 
-    The extractor currently focuses on the two V7 relations with clear
-    semantics: ``refines`` for a more specific method and ``supported_by``
-    for a concept grounded by another page.
+    Refactored in Task 25 to support the new ``PageIndex``-driven
+    retrieval pipeline. Two execution paths:
+
+    * When ``index`` is provided, the function delegates to
+      ``_extract_with_ontology`` — bounded candidate retrieval + LLM
+      over the controlled predicate whitelist. This is the production
+      path; it scales O(N·C) rather than O(N²).
+    * When ``index is None`` (the legacy / tests path), the function
+      falls back to the v1 pairwise heuristic or the v1 LLM prompt —
+      preserved verbatim so the existing 3 stage6 tests stay green.
+
+    The returned ``PageRelation`` shape is unchanged — Task 25 only
+    changes *how* the candidates are found, not the contract callers
+    downstream of this function rely on.
     """
+    if index is not None:
+        return _extract_with_ontology(
+            pages,
+            index=index,
+            llm=llm,
+            vector_neighbors=vector_neighbors,
+            max_candidates=max_candidates,
+        )
+
     page_data = [_page_parts(page) for page in pages]
     page_ids = {page_id for page_id, _, _ in page_data}
     if llm is not None:
@@ -55,6 +84,148 @@ def extract_relations(pages: list[Any], *, llm: Any = None) -> list[PageRelation
                 and relation.type in ALLOWED_RELATION_TYPES
             )
     return _heuristic_relations(page_data)
+
+
+def _extract_with_ontology(
+    pages: list[Any],
+    *,
+    index: Any,
+    llm: Any | None,
+    vector_neighbors: dict[str, list[tuple[str, float]]] | None,
+    max_candidates: int,
+) -> list[PageRelation]:
+    """New (Task 25) path: build a PageIndex over ``pages`` (if needed),
+    run candidate retrieval per source page, optionally call the LLM
+    with the controlled-ontology prompt, then map ``RelationAssertion``
+    rows back to ``PageRelation`` for the legacy contract.
+
+    Falls back gracefully when no ``llm`` is wired — we just return the
+    top retrieval candidates as ``supported_by`` edges (no type guessing
+    without LLM involvement). The deterministic ``refines`` /
+    ``supported_by`` split from v1 only applied when the LLM was
+    present; in the index-only mode we keep the semantics simple.
+    """
+    # Local import — keeps the candidate_retrieval dependency optional
+    # so legacy callers that don't import the new module don't pull it.
+    from .candidate_retrieval import (
+        PageIndex as _PageIndex,
+        retrieve_candidates,
+    )
+
+    if not isinstance(index, _PageIndex):
+        # Be tolerant: if a foreign PageIndex-like object was passed,
+        # build one over the supplied pages so the strategy still works.
+        index = _PageIndex.build(pages)
+
+    relations: list[PageRelation] = []
+    seen: set[tuple[str, str, str]] = set()
+
+    for page in pages:
+        page_id = str(getattr(page, "id", "") or "")
+        if not page_id or page_id not in index.pages:
+            continue
+        source_entry = index.get(page_id)
+        if source_entry is None:
+            continue
+        neighbors = (vector_neighbors or {}).get(page_id)
+        candidates = retrieve_candidates(
+            page_id,
+            index,
+            max_candidates=max_candidates,
+            vector_neighbors=neighbors,
+        )
+
+        # Path A: LLM present — parse controlled JSON edges.
+        if llm is not None:
+            assertions = _invoke_ontology_llm(
+                llm, source_entry, candidates
+            )
+            for assertion in assertions:
+                # Map only SUPPORTED rows (REJECTED / UNRESOLVED are
+                # surfaced through the RelationStore, not the legacy
+                # PageRelation contract).
+                if (
+                    assertion.support_status.value != "supported"
+                    or assertion.key.predicate.value == "unresolved"
+                ):
+                    continue
+                rel_type = str(assertion.key.predicate.value)
+                if rel_type not in ALLOWED_RELATION_TYPES:
+                    # LLM-direct edges outside the legacy whitelist are
+                    # only honored when callers opt-in via the new
+                    # module. Keep the legacy contract narrow.
+                    continue
+                key = (page_id, assertion.key.target_page_id, rel_type)
+                if key in seen:
+                    continue
+                seen.add(key)
+                relations.append(
+                    PageRelation(
+                        source_id=page_id,
+                        target_id=str(assertion.key.target_page_id),
+                        type=rel_type,
+                        weight=float(assertion.confidence),
+                        context="llm_direct",
+                    )
+                )
+            continue
+
+        # Path B: no LLM — top candidates become "supported_by" edges.
+        for cand in candidates[:max_candidates]:
+            key = (page_id, cand.target_page_id, "supported_by")
+            if key in seen:
+                continue
+            seen.add(key)
+            relations.append(
+                PageRelation(
+                    source_id=page_id,
+                    target_id=cand.target_page_id,
+                    type="supported_by",
+                    weight=round(cand.score, 2),
+                    context=cand.kind.value,
+                )
+            )
+
+    return relations
+
+
+def _invoke_ontology_llm(llm: Any, source_entry: Any, candidates: list[Any]) -> list[Any]:
+    """Call the LLM with the controlled-ontology prompt, parse the JSON
+    response, and return the resulting ``RelationAssertion`` rows.
+
+    Failures (LLM exception, malformed JSON, etc.) yield an empty list
+    rather than raising — the legacy ``extract_relations`` semantics
+    treated LLM errors as "fall back to heuristic", and we keep that
+    behavior here so a flaky LLM doesn't kill the whole batch.
+    """
+    # Imports here to keep top-level module import cheap when callers
+    # don't exercise the ontology path.
+    from .candidate_retrieval import (
+        parse_llm_edges,
+        render_llm_prompt,
+    )
+
+    try:
+        prompt = render_llm_prompt(source_entry, candidates)
+        response = llm.complete(
+            prompt_kind="extract_relations_ontology",
+            user_prompt=prompt,
+            system_prompt=(
+                "Output only JSON. Use ONLY predicates from the allowed list."
+            ),
+            max_tokens=2048,
+            temperature=0.0,
+        )
+        if inspect.isawaitable(response):
+            response = asyncio.run(response)
+        return parse_llm_edges(
+            str(response),
+            source_page_id=source_entry.page_id,
+            candidates=candidates,
+            extractor_fingerprint="relation_extractor.v2",
+        )
+    except (TypeError, ValueError, KeyError, RuntimeError, AttributeError):
+        return []
 
 
 def _extract_with_llm(
