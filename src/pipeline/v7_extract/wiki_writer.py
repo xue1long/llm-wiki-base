@@ -100,6 +100,8 @@ class WikiWriter:
         prompt_kind: str = "",
         pipeline_fingerprint: str = "",
         commit_id_factory: Callable[[], str] | None = None,
+        durable_failure_path: str | Path | None = None,
+        queue_projection_pending_path: str | Path | None = None,
     ) -> None:
         if max_retries < 1:
             raise ValueError("max_retries must be positive")
@@ -119,6 +121,20 @@ class WikiWriter:
         self.queue_path = Path(queue_path) if queue_path is not None else None
         self.provider = provider
         self.prompt_kind = prompt_kind
+        # Task 21 (plan §4 F11): durable failure fact is the source of
+        # truth for every page outcome. ``durable_failure_path`` is
+        # optional (defaults to None) so existing callers/tests see no
+        # change. ``queue_projection_pending_path`` captures projection
+        # failures from ``reviews_queue.json`` so a repair job can replay
+        # them later — also opt-in.
+        self.durable_failure_path = (
+            Path(durable_failure_path) if durable_failure_path is not None else None
+        )
+        self.queue_projection_pending_path = (
+            Path(queue_projection_pending_path)
+            if queue_projection_pending_path is not None
+            else None
+        )
         # Task 19 (plan §4): commit manifest hooks. Both kwargs are
         # additive and default-safe — existing callers see no change.
         # ``pipeline_fingerprint`` is recorded on every manifest so
@@ -231,6 +247,15 @@ class WikiWriter:
                 report.page_writes[page.id] = path
                 report.skipped.append(page.id)
                 self._audit_page(page)
+                # Task 21: durable outcome fact for idempotent skips.
+                self._record_durable_outcome(
+                    page.id,
+                    str(getattr(page, "topic_id", "") or ""),
+                    source_paths=list(getattr(page, "sources", []) or []),
+                    outcome="skipped",
+                    reason="manifest_already_committed",
+                    phase="stage7_commit",
+                )
                 continue
             if page.id in completed and path.exists():
                 report.page_writes[page.id] = path
@@ -239,6 +264,15 @@ class WikiWriter:
                 # Backfill the manifest so a future restart sees this
                 # page as committed even though the writer skipped it.
                 self._record_page_committed(manifest, page, path)
+                # Task 21: durable outcome fact for idempotent skips.
+                self._record_durable_outcome(
+                    page.id,
+                    str(getattr(page, "topic_id", "") or ""),
+                    source_paths=list(getattr(page, "sources", []) or []),
+                    outcome="skipped",
+                    reason="checkpoint_already_completed",
+                    phase="stage7_commit",
+                )
                 continue
             if page.id in completed:
                 completed.remove(page.id)
@@ -275,6 +309,16 @@ class WikiWriter:
             report.written.append(page.id)
             self._record_page_committed(manifest, page, path)
             self._audit_page(page)
+            # Task 21: durable outcome fact for the committed page.
+            self._record_durable_outcome(
+                page.id,
+                str(getattr(page, "topic_id", "") or ""),
+                source_paths=list(getattr(page, "sources", []) or []),
+                outcome="committed",
+                reason="",
+                phase="stage7_commit",
+                committed_at_ms=int(time.time() * 1000),
+            )
 
         manifest.phase = CommitPhase.INDEXING
         manifest.updated_at_ms = int(time.time() * 1000)
@@ -292,10 +336,95 @@ class WikiWriter:
     ) -> None:
         """Record a page-level failure into the reviews queue (Task 3).
 
-        No-op when ``queue_path`` is None (tests + dry-run callers).
-        Uses Luna-B's stable sha1 ``enqueue_failure`` so the same
-        (source, stage, page, topic, reason) tuple is idempotent across
-        re-runs.
+        Task 21 (plan §4 F11): this now orchestrates two independent
+        writes:
+
+          1. ``_record_durable_outcome`` — append the outcome fact to
+             ``durable_failure.jsonl`` (100% coverage, never raises).
+             Written FIRST so a queue projection failure never costs us
+             the outcome.
+          2. ``_project_failures_to_review_queue`` — project gated /
+             failed pages into ``reviews_queue.json`` (idempotent via
+             Luna-B's stable sha1 ``enqueue_failure``). On projection
+             failure, the projection request is captured in
+             ``queue_projection_pending.jsonl`` for a repair job.
+
+        Both helpers swallow IO errors per Failure Contract §1 — the
+        writer itself must never raise.
+        """
+        self._record_durable_outcome(
+            page.id,
+            str(getattr(page, "topic_id", "") or ""),
+            source_paths=list(getattr(page, "sources", []) or []),
+            outcome="blocked" if stage != "stage7_write" and stage != "stage7_path" else "failed",
+            reason=reason,
+            phase=stage,
+        )
+        self._project_failures_to_review_queue(
+            page, stage, reason=reason, content_hash=content_hash,
+        )
+
+    def _record_durable_outcome(
+        self,
+        page_id: str,
+        topic_id: str,
+        *,
+        source_paths: list[str],
+        outcome: str,
+        reason: str = "",
+        phase: str = "",
+        revision_hash: str = "",
+        committed_at_ms: int | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Append one JSONL line to ``durable_failure.jsonl``.
+
+        Task 21 (plan §4 F11): ``durable_failure.jsonl`` is the source of
+        truth for every page outcome (committed / blocked / failed /
+        skipped / reconciled) — 100% coverage, no overlap with
+        ``reviews_queue.json``.
+
+        Never raises (Failure Contract §1): if disk write fails, the
+        exception is swallowed + logged; the writer itself must not
+        crash because the audit trail could not be flushed. A no-op when
+        ``self.durable_failure_path`` is None so callers that haven't
+        opted into the durable trail still work unchanged.
+        """
+        if self.durable_failure_path is None:
+            return
+        try:
+            payload = {
+                "timestamp_ms": int(time.time() * 1000),
+                "page_id": page_id,
+                "topic_id": topic_id,
+                "source_paths": list(source_paths),
+                "outcome": outcome,
+                "reason": reason,
+                "phase": phase,
+                "revision_hash": revision_hash,
+                "committed_at_ms": committed_at_ms,
+                "error": error,
+            }
+            self.durable_failure_path.parent.mkdir(parents=True, exist_ok=True)
+            with self.durable_failure_path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        except Exception:  # noqa: BLE001 — Failure Contract §1: never raises
+            return
+
+    def _project_failures_to_review_queue(
+        self,
+        page: ConceptPage,
+        stage: str,
+        *,
+        reason: str,
+        content_hash: str = "",
+    ) -> None:
+        """Project a blocked / failed page into ``reviews_queue.json``.
+
+        No-op when ``self.queue_path`` is None (tests + dry-run callers).
+        Wraps ``enqueue_failure`` in try/except: on projection failure,
+        appends the request to ``queue_projection_pending.jsonl`` (when
+        configured) so a repair job can replay it later. Never raises.
         """
         if self.queue_path is None:
             return
@@ -311,10 +440,60 @@ class WikiWriter:
                 provider=self.provider,
                 queue_path=self.queue_path,
             )
-        except Exception:  # noqa: BLE001 — best-effort, never crash the writer
-            # P2: writer must not raise. If queue I/O fails (disk full,
-            # permission denied) we keep the in-memory report so the
-            # caller still sees the failed page.
+        except Exception as exc:  # noqa: BLE001 — Failure Contract §1
+            # queue projection failed → record to pending log so a repair
+            # job can replay. Best-effort: pending log write is itself
+            # wrapped in try/except (Failure Contract §1).
+            self._record_queue_projection_pending(
+                page=page,
+                stage=stage,
+                reason=reason,
+                content_hash=content_hash,
+                queue_path=self.queue_path,
+                error=exc,
+            )
+
+    def _record_queue_projection_pending(
+        self,
+        *,
+        page: ConceptPage,
+        stage: str,
+        reason: str,
+        content_hash: str,
+        queue_path: Path,
+        error: Exception,
+    ) -> None:
+        """Append one JSONL line to ``queue_projection_pending.jsonl``.
+
+        Best-effort: if the pending log itself cannot be written (disk
+        full / permission denied), the error is swallowed per Failure
+        Contract §1. A no-op when ``self.queue_projection_pending_path``
+        is None so callers that haven't opted in still work.
+        """
+        if self.queue_projection_pending_path is None:
+            return
+        try:
+            payload = {
+                "timestamp_ms": int(time.time() * 1000),
+                "page_id": page.id,
+                "topic_id": str(getattr(page, "topic_id", "") or ""),
+                "source_id": str(page.sources[0] if page.sources else page.id),
+                "stage": stage,
+                "reason": reason,
+                "content_hash": content_hash,
+                "prompt_kind": self.prompt_kind,
+                "provider": self.provider,
+                "queue_path": str(queue_path),
+                "error": "queue io failed: " + repr(error),
+            }
+            self.queue_projection_pending_path.parent.mkdir(
+                parents=True, exist_ok=True
+            )
+            with self.queue_projection_pending_path.open(
+                "a", encoding="utf-8"
+            ) as fh:
+                fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        except Exception:  # noqa: BLE001 — Failure Contract §1: never raises
             return
 
     def _write_page_atomically(self, page: ConceptPage, path: Path) -> None:

@@ -396,3 +396,163 @@ def test_page_frontmatter_has_pipeline_fingerprint(tmp_path: Path) -> None:
     writer.commit_and_index([page])
     frontmatter2, _ = _parse_page_frontmatter(page_path)
     assert frontmatter2["pipeline_fingerprint"] == "abc123"
+
+
+# ---------------------------------------------------------------------------
+# Task 21 (Stage 7 — durable failure fact + review queue 降级)
+# ---------------------------------------------------------------------------
+
+
+def test_durable_failure_log_written_before_review_queue(tmp_path: Path) -> None:
+    """durable_failure.jsonl must be written (unconditionally) for every
+    page outcome, while reviews_queue.json only sees the gated /
+    failed subset. The durable log is written before the queue so a
+    queue I/O failure never costs us the outcome fact.
+    """
+    durable_path = tmp_path / ".index" / "durable_failure.jsonl"
+    queue_path = tmp_path / "reviews_queue.json"
+    writer = WikiWriter(
+        tmp_path,
+        queue_path=queue_path,
+        durable_failure_path=durable_path,
+    )
+
+    writer.commit_and_index([_page("p-a", "raw-a")])
+
+    durable = durable_path.read_text(encoding="utf-8")
+    assert '"outcome": "committed"' in durable
+    assert '"page_id": "p-a"' in durable
+    # committed outcome never pollutes the review queue (F11 hard rule).
+    # When no gate / failure fired, the queue file is absent — that's the
+    # strongest possible "committed not in queue" assertion.
+    queue_text = (
+        queue_path.read_text(encoding="utf-8") if queue_path.exists() else ""
+    )
+    assert "p-a" not in queue_text
+
+
+def test_review_queue_projection_failure_marks_pending(tmp_path: Path) -> None:
+    """When reviews_queue.json write fails, the projection is recorded in
+    queue_projection_pending.jsonl so a repair job can replay later.
+    durable_failure.jsonl is still written (and intact).
+    """
+    durable_path = tmp_path / ".index" / "durable_failure.jsonl"
+    pending_path = tmp_path / ".index" / "queue_projection_pending.jsonl"
+
+    # Simulate queue I/O failure by patching enqueue_failure to raise.
+    # Note: resolve WikiWriter via the live wiki_writer module rather than
+    # the module-level ``WikiWriter`` binding at the top of this file —
+    # test_v7_extract_feature_flag.py deletes and reimports the v7_extract
+    # modules, so the class binding cached at import time would point to
+    # a stale module whose ``enqueue_failure`` global no longer matches
+    # the patched value below.
+    from src.pipeline.v7_extract import wiki_writer as _writer_mod
+
+    original_enqueue = _writer_mod.enqueue_failure
+    WikiWriterCls = _writer_mod.WikiWriter
+
+    def _boom(**kwargs):  # noqa: ANN001
+        raise OSError("simulated queue write failure")
+
+    _writer_mod.enqueue_failure = _boom
+    try:
+        writer = WikiWriterCls(
+            tmp_path,
+            queue_path=tmp_path / "reviews_queue.json",
+            durable_failure_path=durable_path,
+            queue_projection_pending_path=pending_path,
+        )
+        # needs_review → blocked path → calls _enqueue_failure
+        page = _page("p-blocked", "raw-b")
+        page.needs_review_slots = ("definition",)
+        writer.commit_and_index([page])
+    finally:
+        _writer_mod.enqueue_failure = original_enqueue
+
+    # durable_failure.jsonl still has the outcome (never raises)
+    durable = durable_path.read_text(encoding="utf-8")
+    assert "p-blocked" in durable
+    assert '"outcome": "blocked"' in durable
+
+    # queue_projection_pending.jsonl captured the projection failure
+    pending = pending_path.read_text(encoding="utf-8")
+    assert "p-blocked" in pending
+    assert "simulated queue write failure" in pending
+    assert "queue io failed" in pending
+
+
+def test_durable_facts_survive_queue_io_failure(tmp_path: Path) -> None:
+    """durable_failure.jsonl is the source of truth for outcomes; queue
+    write failures must never corrupt or skip it.
+    """
+    durable_path = tmp_path / ".index" / "durable_failure.jsonl"
+    pending_path = tmp_path / ".index" / "queue_projection_pending.jsonl"
+
+    from src.pipeline.v7_extract import wiki_writer as _writer_mod
+
+    original_enqueue = _writer_mod.enqueue_failure
+    WikiWriterCls = _writer_mod.WikiWriter
+
+    def _boom(**kwargs):  # noqa: ANN001
+        raise OSError("disk full")
+
+    _writer_mod.enqueue_failure = _boom
+    try:
+        writer = WikiWriterCls(
+            tmp_path,
+            queue_path=tmp_path / "reviews_queue.json",
+            durable_failure_path=durable_path,
+            queue_projection_pending_path=pending_path,
+        )
+        pa = _page("p-ok", "raw-a")
+        # Trigger blocked branch (needs_review → _enqueue_failure called)
+        pb = _page("p-blocked", "raw-b")
+        pb.needs_review_slots = ("definition",)
+        writer.commit_and_index([pa, pb])
+    finally:
+        _writer_mod.enqueue_failure = original_enqueue
+
+    durable = durable_path.read_text(encoding="utf-8")
+    pending = pending_path.read_text(encoding="utf-8")
+
+    # Both outcomes made it into the durable log
+    assert "p-ok" in durable and '"outcome": "committed"' in durable
+    assert "p-blocked" in durable and '"outcome": "blocked"' in durable
+    assert durable.count('"outcome"') == 2
+
+    # Only the blocked page's projection failed and was captured in pending
+    assert "p-blocked" in pending
+    assert "p-ok" not in pending
+
+
+def test_durable_failure_does_not_pollute_reviews_queue(tmp_path: Path) -> None:
+    """F11 hard rule: committed outcomes must never be written into
+    reviews_queue.json. Only blocked/failed outcomes are projected.
+    """
+    queue_path = tmp_path / "reviews_queue.json"
+    durable_path = tmp_path / ".index" / "durable_failure.jsonl"
+    writer = WikiWriter(
+        tmp_path,
+        queue_path=queue_path,
+        durable_failure_path=durable_path,
+    )
+
+    pa = _page("p-committed", "raw-a")
+    pb = _page("p-blocked", "raw-b")
+    pb.needs_review_slots = ("definition",)
+
+    writer.commit_and_index([pa, pb])
+
+    queue = queue_path.read_text(encoding="utf-8")
+    durable = durable_path.read_text(encoding="utf-8")
+
+    # p-committed is NEVER in the review queue
+    assert "p-committed" not in queue
+    # p-blocked DOES appear in the queue
+    assert "p-blocked" in queue
+    # Both outcomes ARE in the durable log (full coverage)
+    assert "p-committed" in durable
+    assert "p-blocked" in durable
+    assert durable.count('"outcome"') == 2
+    assert '"outcome": "committed"' in durable
+    assert '"outcome": "blocked"' in durable
