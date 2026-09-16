@@ -583,3 +583,120 @@ def test_explicit_vs_inferred_kind_distinguished() -> None:
     # (entity Jaccard). We don't pin the exact score — only the kind.
     if "c" in by_target:
         assert by_target["c"].kind == relation_models.RelationSupportKind.INFERRED
+
+
+# ---------------------------------------------------------------------------
+# Task 26 — Stage 6R mechanical validator + 12 invariants
+# ---------------------------------------------------------------------------
+
+
+def test_validator_rejects_unknown_target() -> None:
+    """I6: target_page_id 不在 known_page_ids → REJECTED"""
+    from src.pipeline.v7_extract.relation_models import (
+        RelationAssertion,
+        validate_relation_assertions,
+    )
+    from src.pipeline.v7_extract.relation_models import (
+        RelationSupportStatus,
+    )
+
+    k = relation_models.RelationKey(
+        "a", relation_ontology.RelationPredicate.REFINES, "ghost-page"
+    )
+    a = RelationAssertion(
+        key=k,
+        relation_id=k.relation_id(),
+        support_kind=relation_models.RelationSupportKind.LLM_DIRECT,
+        support_status=RelationSupportStatus.SUPPORTED,
+        evidence_refs=[],
+        claim_ids=[],
+        confidence=0.9,
+        extractor_fingerprint="fp-1",
+    )
+    report = validate_relation_assertions([a], known_page_ids={"a"})
+    assert len(report.rejected) == 1
+    assert len(report.accepted) == 0
+    assert any("I6" in v for v in report.violations[k.relation_id()])
+
+
+def test_validator_rejects_invalid_predicate() -> None:
+    """I5 + I2: 定向 self-loop + 不合法 predicate 双拒"""
+    from src.pipeline.v7_extract.relation_models import (
+        RelationAssertion,
+        validate_relation_assertions,
+    )
+    from src.pipeline.v7_extract.relation_models import (
+        RelationSupportStatus,
+    )
+
+    # self-loop with directional predicate → I5 reject
+    k = relation_models.RelationKey(
+        "a", relation_ontology.RelationPredicate.REFINES, "a"
+    )
+    a = RelationAssertion(
+        key=k,
+        relation_id=k.relation_id(),
+        support_kind=relation_models.RelationSupportKind.LLM_DIRECT,
+        support_status=RelationSupportStatus.SUPPORTED,
+        evidence_refs=[],
+        claim_ids=[],
+        confidence=0.9,
+        extractor_fingerprint="fp-1",
+    )
+    report = validate_relation_assertions([a])
+    assert any("I5" in v for v in report.violations[k.relation_id()])
+
+
+def test_validator_rejects_self_edge_for_directional_predicate() -> None:
+    """I5 + I4 联合: 定向谓词的 self-loop 是 hard reject"""
+    from src.pipeline.v7_extract.relation_models import (
+        RelationAssertion,
+        filter_substantive_relations,
+        validate_relation_assertions,
+    )
+    from src.pipeline.v7_extract.relation_models import (
+        RelationSupportStatus,
+    )
+
+    # UNRESOLVED + self-loop → allowed (I4)
+    k1 = relation_models.RelationKey(
+        "a", relation_ontology.RelationPredicate.UNRESOLVED, "a"
+    )
+    a1 = RelationAssertion(
+        key=k1,
+        relation_id=k1.relation_id(),
+        support_kind=relation_models.RelationSupportKind.LLM_DIRECT,
+        support_status=RelationSupportStatus.UNRESOLVED,
+        evidence_refs=[],
+        claim_ids=[],
+        confidence=0.5,
+        extractor_fingerprint="fp-1",
+    )
+    # directional + self-loop → rejected
+    k2 = relation_models.RelationKey(
+        "b", relation_ontology.RelationPredicate.CAUSES, "b"
+    )
+    a2 = RelationAssertion(
+        key=k2,
+        relation_id=k2.relation_id(),
+        support_kind=relation_models.RelationSupportKind.LLM_DIRECT,
+        support_status=RelationSupportStatus.SUPPORTED,
+        evidence_refs=[],
+        claim_ids=[],
+        confidence=0.5,
+        extractor_fingerprint="fp-1",
+    )
+    report = validate_relation_assertions([a1, a2])
+    assert len(report.unresolved) == 1
+    assert (
+        report.unresolved[0].key.predicate
+        is relation_ontology.RelationPredicate.UNRESOLVED
+    )
+    assert len(report.rejected) == 1
+    assert any("I5" in v for v in report.violations[k2.relation_id()])
+
+    # filter_substantive_relations keeps SUPPORTED only
+    substantive = filter_substantive_relations(
+        report.accepted + report.unresolved + report.rejected
+    )
+    assert len(substantive) == 0  # both rejected or unresolved
