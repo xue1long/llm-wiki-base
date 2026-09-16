@@ -171,7 +171,11 @@ async def _run_full_unlocked(
     # Task 8: compute the pipeline fingerprint once per run; the source
     # checkpoint row's ``pipeline_fingerprint`` field must match for the
     # INCOMPLETE-skip path to apply (Persistence Contract §4.4).
-    current_pipeline_fp = _current_pipeline_fingerprint()
+    # Task 37: include clusterer_fp so cluster prompt upgrades trigger
+    # source re-evaluation (was previously empty string, masking upgrades).
+    current_pipeline_fp = _current_pipeline_fingerprint(
+        clusterer_fp=_compute_clusterer_fingerprint_for_run(),
+    )
     try:
         for batch_number, batch in enumerate(batches, 1):
             batch_processed = False
@@ -477,6 +481,27 @@ def _current_pipeline_fingerprint(
             parts.append(f"{name}:{template_hashes[name]}")
     identity = "|".join(parts)
     return "pipe-" + hashlib.sha1(identity.encode()).hexdigest()[:16]
+
+
+def _compute_clusterer_fingerprint_for_run() -> str:
+    """Task 37: Resolve the cluster prompt and compute its fingerprint.
+
+    Returns empty string when the cluster prompt cannot be resolved (e.g.
+    missing prompts/builtin/cluster.toml). Defensive: cluster_fp="" already
+    hashes to a deterministic value in _current_pipeline_fingerprint.
+    """
+    try:
+        from src.pipeline.v7_extract.prompts.resolver import resolve
+        from src.pipeline.v7_extract.topic_clusterer import (
+            _compute_clusterer_fingerprint,
+        )
+        template = resolve("cluster", project_root=None)
+    except Exception:
+        return ""
+    try:
+        return _compute_clusterer_fingerprint(template)
+    except Exception:
+        return ""
 
 
 def _merge_write_report_into_outcome(

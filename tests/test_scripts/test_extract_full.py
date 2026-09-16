@@ -1048,3 +1048,33 @@ def test_source_outcome_from_result_records_pipeline_fingerprint() -> None:
         result, md5="abc123", dry_run=False, llm_provider="offline",
     )
     assert row_legacy["pipeline_fingerprint"] == ""
+
+
+# ---------------------------------------------------------------------------
+# Task 37: clusterer_fingerprint wired into _current_pipeline_fingerprint call
+# ---------------------------------------------------------------------------
+
+
+def test_clusterer_fingerprint_for_run_returns_non_empty() -> None:
+    """Task 37: helper resolves the cluster prompt and hashes it.
+    Non-empty string is the success indicator; empty means the prompt
+    could not be resolved (which falls back to the original behaviour).
+    """
+    fp = extract_full._compute_clusterer_fingerprint_for_run()
+    assert fp.startswith("clu-")
+    assert len(fp) == len("clu-") + 16
+
+
+def test_current_pipeline_fingerprint_with_clusterer_differs_from_without() -> None:
+    """Task 37: when clusterer_fp is non-empty (as in extract_full.py's real
+    call site after Task 37), the resulting pipeline_fingerprint must
+    differ from the no-clusterer case so that source checkpoints
+    correctly invalidate on cluster prompt upgrades.
+    """
+    fp_with = extract_full._current_pipeline_fingerprint(
+        clusterer_fp=extract_full._compute_clusterer_fingerprint_for_run(),
+    )
+    fp_without = extract_full._current_pipeline_fingerprint()
+    assert fp_with != fp_without
+    assert fp_with.startswith("pipe-")
+    assert fp_without.startswith("pipe-")
