@@ -319,3 +319,116 @@ TOOL_DOC = """百家姓
 赵 钱 孙 李 周 吴 郑 王
 """
 
+
+# ---------------------------------------------------------------------------
+# v4 Stage 1 remediation (plan 2026-09-17) — Failure Contract + traits +
+# fingerprint + evidence_summary.
+# ---------------------------------------------------------------------------
+
+
+def test_classification_has_v4_fields_with_defaults():
+    """v4: Classification carries failed/error/uncertain/traits/fingerprint."""
+    c = Classification(doc_type="collection", confidence=0.8, rationale="r")
+    assert c.failed is False
+    assert c.error is None
+    assert c.uncertain is False
+    assert c.traits == []
+    assert c.evidence_summary == {}
+    assert c.classifier_fingerprint == ""
+
+
+def test_payload_to_classification_parses_traits_and_uncertain():
+    """v4: LLM output may include ``traits`` list and ``uncertain`` flag."""
+    payload = {
+        "doc_type": "collection",
+        "confidence": 0.7,
+        "rationale": "looks like a collection",
+        "traits": ["possible_collection", "multi_author"],
+        "uncertain": True,
+    }
+    c = _payload_to_classification(payload)
+    assert c.doc_type == "collection"
+    assert c.uncertain is True
+    assert c.traits == ["possible_collection", "multi_author"]
+    assert c.failed is False
+
+
+def test_payload_to_classification_defaults_traits_when_missing():
+    """v4: missing ``traits`` key → empty list, not crash."""
+    c = _payload_to_classification({
+        "doc_type": "single_method",
+        "confidence": 0.9,
+        "rationale": "ok",
+    })
+    assert c.traits == []
+
+
+def test_payload_to_classification_infers_uncertain_from_low_confidence():
+    """v4: confidence < 0.4 → uncertain=True (heuristic)."""
+    c = _payload_to_classification({
+        "doc_type": "multi_section",
+        "confidence": 0.3,
+        "rationale": "weak",
+    })
+    assert c.uncertain is True
+
+
+@pytest.mark.asyncio
+async def test_classify_doc_failed_true_on_llm_timeout():
+    """Failure Contract: technical failure → failed=True, NOT doc_type='incomplete' alone."""
+    class _ExplodingFake:
+        async def complete(self, **kwargs):
+            raise TimeoutError("provider outage")
+
+    result = await classify_doc(
+        "body", filename_hint="x.md", llm=_ExplodingFake(),
+        project_root=None,
+    )
+    # Backward compat: doc_type still "incomplete" so legacy callers/tests
+    # don't break. But the new ``failed`` flag is the source of truth.
+    assert result.doc_type == "incomplete"
+    assert result.failed is True
+    assert result.error is not None
+    # str(exception) gives the message body; rationale carries the repr.
+    assert "provider outage" in result.error
+    # rationale uses str(exception) (body only) for backward compat —
+    # downstream consumers can switch to .error / .failed when needed.
+    assert "stage1_failed" in result.rationale
+    assert result.evidence_summary != {}  # still computed before LLM call
+    assert result.classifier_fingerprint.startswith("cls-")
+
+
+@pytest.mark.asyncio
+async def test_classify_doc_failed_true_on_invalid_json():
+    """Failure Contract: schema-invalid response → failed=True after retries."""
+    fake = FakeLLMClient()
+    fake.script("classify", "not json")
+    fake.script("classify", "still not json")
+    fake.script("classify", "{nope}")
+
+    result = await classify_doc(
+        "body", filename_hint="x.md", llm=fake,
+        project_root=None,
+    )
+    assert result.failed is True
+    assert result.doc_type == "incomplete"  # legacy compat
+    assert len(fake.calls) == 3
+
+
+@pytest.mark.asyncio
+async def test_classify_doc_success_path_failed_false():
+    """Happy path: LLM returns valid payload → failed=False."""
+    fake = FakeLLMClient()
+    fake.script(
+        "classify",
+        '{"doc_type": "collection", "confidence": 0.85, "rationale": "ok"}',
+    )
+    result = await classify_doc(
+        "body", filename_hint="x.md", llm=fake,
+        project_root=None,
+    )
+    assert result.failed is False
+    assert result.doc_type == "collection"
+    assert result.uncertain is False  # 0.85 > 0.4 threshold
+    assert result.classifier_fingerprint.startswith("cls-")
+
