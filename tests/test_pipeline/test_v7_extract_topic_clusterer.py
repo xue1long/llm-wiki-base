@@ -995,3 +995,223 @@ def test_page_id_derived_from_script_generated_topic_id():
     )
     page_other = _stable_page_id("raw/sources/other.md", other_topic)
     assert page_a != page_other
+
+
+# ---------------------------------------------------------------------------
+# Task 13 (Plan 2026-09-17): __other__ preserved + unresolved signal in
+# metrics + ClusterResult.unresolved. Backward compat: Stage 7 reads the
+# __other__ Topic from cluster_result.topics as a sentinel. New: the same
+# ClusterResult also exposes ClusterResult.unresolved (candidate IDs) +
+# ClusterResult.metrics.unresolved_item_ratio so downstream can monitor
+# knowledge loss without breaking the Stage 7 gate.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_unresolved_ratio_appears_in_metrics():
+    """Task 13: when the LLM forgets an item (only assigns a, b but c is
+    in items), ClusterResult.metrics.unresolved_item_ratio must reflect
+    the lost coverage AND ClusterResult.unresolved must list the lost
+    candidate ID. Stage 7 keeps reading __other__ from .topics as the
+    block sentinel — both surfaces must agree.
+    """
+    fake = FakeLLMClient()
+    # LLM assigns indexes [0, 1] only — forgets index 2 (id "i-2").
+    fake.script(
+        "cluster",
+        _script_cluster_buckets([("t1", "T1", [0, 1])]),
+    )
+
+    items = _make_items(3)  # ids: "i-0", "i-1", "i-2"
+    result = await cluster_topics(items, llm=fake, project_root=None)
+
+    # Metric: 1 of 3 items unresolved → ratio = 1/3.
+    assert result.metrics.unresolved_item_ratio == pytest.approx(1 / 3)
+
+    # ClusterResult.unresolved lists the lost candidate IDs (script-owned).
+    assert "i-2" in result.unresolved
+    # __other__ Topic is still in .topics — Stage 7 gate keeps working.
+    other_topics = [t for t in result.topics if t.id == OTHER_TOPIC_ID]
+    assert len(other_topics) == 1
+    assert "i-2" in other_topics[0].item_ids
+
+
+@pytest.mark.asyncio
+async def test_other_topic_preserved_as_blocked_but_metrics_emitted():
+    """Task 13: when many items end up in __other__ (e.g. 6 of 10 items
+    unresolved), the __other__ Topic is still emitted in cluster_result.topics
+    (Stage 7 backward compat), AND metrics.unresolved_item_ratio exposes
+    the 0.6 ratio so extract_pilot can warn operators about knowledge loss.
+    """
+    fake = FakeLLMClient()
+    # LLM assigns indexes [0, 1, 2, 3] only — indexes 4..9 (6 items)
+    # land in __other__. 6 / 10 = 0.6 unresolved_item_ratio.
+    fake.script(
+        "cluster",
+        _script_cluster_buckets([("t1", "T1", [0, 1, 2, 3])]),
+    )
+
+    items = _make_items(10)
+    result = await cluster_topics(items, llm=fake, project_root=None)
+
+    # Backward compat: __other__ Topic is preserved in .topics.
+    other_topics = [t for t in result.topics if t.id == OTHER_TOPIC_ID]
+    assert len(other_topics) == 1
+    assert len(other_topics[0].item_ids) == 6
+
+    # New signal: metrics surface the unresolved ratio (>= 0.3 threshold).
+    assert result.metrics.unresolved_item_ratio == pytest.approx(0.6)
+    # ClusterResult.unresolved lists each candidate ID the LLM did not
+    # place into a real topic — operators can grep this directly.
+    assert len(result.unresolved) == 6
+
+
+# ---------------------------------------------------------------------------
+# Task 13 / Stage 7 integration: extract_pilot emits ``stage4_unresolved``
+# in ``review_reasons`` when ``metrics.unresolved_item_ratio`` exceeds
+# UNRESOLVED_REVIEW_THRESHOLD (0.3). The ``__other__`` Topic in
+# ``cluster_result.topics`` is preserved regardless (Stage 7 Guard A reads
+# it as the block sentinel) — this is purely an operator-facing metric.
+#
+# Convention: extract_pilot integration tests for Stage 4 live here
+# (alongside test_extract_pilot_routes_cluster_failed_to_extraction_failed
+# from Task 9) because they bridge ClusterResult → ExtractionResult.
+# ---------------------------------------------------------------------------
+
+
+def _stage_scripts_for_unresolved(*, assign_first_n: int) -> "FakeLLMClient":
+    """Queue scripts for a Stage 4 LLM that forgets most items.
+
+    Returns a fake that classifies as single_method + completeness OK + a
+    cluster call that only assigns the first ``assign_first_n`` Stage 2
+    items to one topic. Everything else lands in ``__other__`` (Task 13
+    backward compat).
+    """
+    from src.pipeline.v7_extract.llm_client import FakeLLMClient as _Fake
+    fake = _Fake()
+    fake.script(
+        "classify",
+        '{"doc_type": "single_method", "confidence": 0.9, "rationale": "r"}',
+    )
+    fake.script("completeness", '{"complete": true, "reason": "ok"}')
+    bucket_indexes = list(range(assign_first_n))
+    fake.script(
+        "cluster",
+        '{"topics": ['
+        '{"id": "t1", "title": "T1", "item_indexes": '
+        + str(bucket_indexes).replace("'", "") + '}]}',
+    )
+    # fill_slots: 8 copies — even the __other__ topic runs Stage 5.
+    for _ in range(8):
+        fake.script(
+            "fill_slots",
+            '{"slots": '
+            '{"definition":"def","characteristics":"c",'
+            '"examples":"e","related_concepts":"rc","references":"ref"}, '
+            '"evidence": '
+            '{"definition":{"item_index":0,"source_text_excerpt":"x"},'
+            '"characteristics":{"item_index":0,"source_text_excerpt":"x"},'
+            '"examples":{"item_index":0,"source_text_excerpt":"x"},'
+            '"related_concepts":{"item_index":0,"source_text_excerpt":"x"},'
+            '"references":{"item_index":0,"source_text_excerpt":"x"}}}',
+        )
+    return fake
+
+
+def _write_unresolved_fixture(tmp_path, *, items: int):
+    """Write a Stage 2-shaped source with ``items`` structural units."""
+    from pathlib import Path
+    parts = [f"# 主题\n\n源文档导言。" + ("补充。" * 30) + "\n"]
+    for i in range(items):
+        parts.append(
+            f"\n## 子主题 {i}\n\n这是子主题 {i} 的足够长的内容。"
+            + ("细节。" * 30),
+        )
+    body = "".join(parts)
+    path = tmp_path / "raw" / "sources" / "unresolved.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+@pytest.fixture(autouse=False)
+def _scrub_d9_temp_whitelist(monkeypatch):
+    """D9: the resolver rejects tmp_path (which lives under %TEMP%) unless
+    we clear the temp env vars. Pilot tests always pass a tmp_path as
+    project_root, so this scrub is required (mirrors test_extract_pilot.py).
+    """
+    monkeypatch.delenv("TEMP", raising=False)
+    monkeypatch.delenv("TMPDIR", raising=False)
+    monkeypatch.delenv("TMP", raising=False)
+
+
+def test_extract_pilot_emits_unresolved_review_reason(tmp_path, _scrub_d9_temp_whitelist) -> None:
+    """Task 13: when Stage 4's ``unresolved_item_ratio`` exceeds 0.3, the
+    pilot must surface a ``stage4_unresolved`` entry in
+    ``ExtractionResult.review_reasons`` so operators can monitor knowledge
+    loss. The ``__other__`` Topic in ``cluster_result.topics`` is preserved
+    (Stage 7 backward compat) — no Stage 7 change required.
+    """
+    import asyncio
+    from scripts.extract_pilot import _extract_one
+
+    # The structural scanner produces ``# 主题`` + ``## 子主题 N`` as
+    # separate items, so a fixture with 5 ## headings yields 6 Stage 2
+    # items. With the LLM assigning 1 of 6 → 5/6 ≈ 0.83 unresolved,
+    # well above the 0.3 threshold.
+    path = _write_unresolved_fixture(tmp_path, items=5)
+    fake = _stage_scripts_for_unresolved(assign_first_n=1)
+
+    result = asyncio.run(_extract_one(
+        tmp_path, path, "raw/sources/unresolved.md", llm=fake,
+    ))
+
+    # Sanity: the metric is over 0.3 (the trigger condition).
+    actual_ratio = result.metadata["cluster_metrics"]["unresolved_item_ratio"]
+    assert actual_ratio > 0.3, (
+        f"fixture should yield unresolved_ratio > 0.3, got {actual_ratio:.2f}"
+    )
+
+    # The unresolved signal MUST appear in review_reasons (Task 13 contract).
+    unresolved_reasons = [
+        r for r in result.review_reasons if r.startswith("stage4_unresolved")
+    ]
+    assert unresolved_reasons, (
+        f"expected stage4_unresolved in review_reasons; got {result.review_reasons}"
+    )
+    # Reason includes the ratio so operators can grep / threshold against it.
+    assert any(f"{actual_ratio:.2f}" in r for r in unresolved_reasons), (
+        f"unresolved_ratio={actual_ratio:.2f} should appear in reason; "
+        f"got {unresolved_reasons}"
+    )
+
+
+def test_extract_pilot_no_unresolved_review_reason_when_ratio_low(tmp_path, _scrub_d9_temp_whitelist) -> None:
+    """Task 13 (negative): when Stage 4's ``unresolved_item_ratio`` is
+    below the 0.3 threshold, the pilot MUST NOT emit a
+    ``stage4_unresolved`` review reason. We only warn when knowledge
+    loss is significant.
+    """
+    import asyncio
+    from scripts.extract_pilot import _extract_one
+
+    # 5 ## headings → 6 Stage 2 items. LLM assigns 5 of 6 → 1/6 ≈ 0.17,
+    # well below the 0.3 threshold.
+    path = _write_unresolved_fixture(tmp_path, items=5)
+    fake = _stage_scripts_for_unresolved(assign_first_n=5)
+
+    result = asyncio.run(_extract_one(
+        tmp_path, path, "raw/sources/low_unresolved.md", llm=fake,
+    ))
+
+    unresolved_reasons = [
+        r for r in result.review_reasons if r.startswith("stage4_unresolved")
+    ]
+    actual_ratio = result.metadata["cluster_metrics"]["unresolved_item_ratio"]
+    assert actual_ratio <= 0.3, (
+        f"fixture should yield unresolved_ratio <= 0.3, got {actual_ratio:.2f}"
+    )
+    assert not unresolved_reasons, (
+        f"unresolved_ratio={actual_ratio:.2f} should NOT trigger review reason; "
+        f"got {unresolved_reasons}"
+    )

@@ -77,6 +77,14 @@ DEFAULT_MARKDOWN = Path("docs/superpowers/reports/2026-09-13-extract-pilot-repor
 # doesn't dominate the pilot's report.
 _EXC_REASON_LIMIT = 500
 
+# Task 13 (Plan 2026-09-17): when Stage 4's unresolved_item_ratio
+# exceeds this threshold, emit a ``stage4_unresolved`` entry in
+# ``result.review_reasons`` so operators can monitor knowledge loss.
+# The ``__other__`` Topic in ``cluster_result.topics`` is preserved
+# regardless (Stage 7 Guard A reads it as a sentinel and blocks the
+# page) — this signal is purely advisory for the JSON report.
+UNRESOLVED_REVIEW_THRESHOLD = 0.3
+
 
 async def run_pilot(
     root: str | Path = DEFAULT_ROOT,
@@ -402,6 +410,17 @@ async def _extract_one(
         }
         metadata["cluster_warnings"] = list(cluster_result.warnings)
         metadata["clusterer_fingerprint"] = cluster_result.clusterer_fingerprint
+
+        # Task 13: surface knowledge-loss signal in review_reasons.
+        # The ``__other__`` Topic in ``cluster_result.topics`` is kept
+        # (Stage 7 Guard A reads it as a block sentinel — backward compat);
+        # this is purely an operator-facing metric that fires when the LLM
+        # forgot more than UNRESOLVED_REVIEW_THRESHOLD of the items.
+        unresolved_ratio = cluster_result.metrics.unresolved_item_ratio
+        if unresolved_ratio > UNRESOLVED_REVIEW_THRESHOLD:
+            result.review_reasons.append(
+                f"stage4_unresolved: ratio={unresolved_ratio:.2f}"
+            )
 
         # Failure Contract §1: ClusterStatus.FAILED → ExtractionStatus.FAILED.
         # Technical failure (LLM timeout / parse / schema invalid) MUST NOT

@@ -703,9 +703,22 @@ def _apply_quality_gate(
 
 
 def _collect_unresolved(topics: list[Topic], items: list[dict]) -> list[str]:
-    """List of candidate IDs the LLM did not assign to any non-__other__ topic."""
-    assigned: set[str] = {iid for t in topics for iid in t.item_ids}
-    return sorted({item["id"] for item in items} - assigned)
+    """List of candidate IDs the LLM did not assign to any real (non-__other__) topic.
+
+    Task 13: the items that landed in the ``__other__`` bucket (P4 sentinel)
+    ARE unresolved from the operator's perspective — the clusterer still
+    emits the ``__other__`` Topic for Stage 7 backward compat, but the
+    candidate IDs that were bucketed there should be exposed here so the
+    pilot can warn about knowledge loss via ``review_reasons``. Without
+    this, ``metrics.unresolved_item_ratio`` would disagree with
+    ``ClusterResult.unresolved`` (Task 13 regression test enforces both).
+    """
+    assigned_real: set[str] = {
+        iid for t in topics
+        if t.id != OTHER_TOPIC_ID
+        for iid in t.item_ids
+    }
+    return sorted({item["id"] for item in items} - assigned_real)
 
 
 def _payload_to_topics(

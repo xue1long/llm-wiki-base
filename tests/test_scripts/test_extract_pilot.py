@@ -318,14 +318,16 @@ def test_run_pilot_page_ids_are_unique_across_fixture_sources(tmp_path: Path) ->
     # IDs must validate (no path separators / '..').
     validate_page_id(id_a)
     validate_page_id(id_b)
-    # IDs must equal _page_id._stable_page_id for the relative the pilot
-    # assigned — extract_pilot computes relative from root + path, so under
-    # the pilot's tmp_path layout it's 'raw/sources/source_a.md' / '_b.md'.
-    assert id_a == _stable_page_id(
-        "raw/sources/source_a.md", "writing-techniques-intro",
+    # Task 12 (plan 2026-09-17): page_id is derived from the SCRIPT-GENERATED
+    # topic_id (`<source_id>-topic-<16hex>`), not from the LLM-supplied title.
+    # The script-ownership invariant is therefore: the raw LLM slug must not
+    # leak into the page ID. (Exact-value pinning lives in
+    # test_v7_extract_topic_clusterer.py::test_page_id_derived_from_script_generated_topic_id.)
+    assert "writing-techniques-intro" not in id_a, (
+        f"LLM-supplied title leaked into page ID: {id_a!r}"
     )
-    assert id_b == _stable_page_id(
-        "raw/sources/source_b.md", "writing-techniques-intro",
+    assert "writing-techniques-intro" not in id_b, (
+        f"LLM-supplied title leaked into page ID: {id_b!r}"
     )
 
 
