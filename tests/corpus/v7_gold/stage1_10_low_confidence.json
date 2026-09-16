@@ -1,0 +1,15 @@
+{
+  "id": "stage1-10",
+  "stage": "stage1_classify",
+  "description": "Boundary: low-confidence classification (LLM uncertain).",
+  "input": {
+    "content": "## Title\n\nSome content here that's hard to categorize.\n",
+    "filename_hint": "ambiguous.md",
+    "llm_response": {"doc_type": "multi_section", "confidence": 0.45, "rationale": "ambiguous, possibly multi-section", "traits": [], "uncertain": true}
+  },
+  "expected": {
+    "doc_type": "multi_section",
+    "failed": false,
+    "min_confidence": 0.3
+  }
+}

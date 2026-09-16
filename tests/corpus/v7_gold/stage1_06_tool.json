@@ -1,0 +1,16 @@
+{
+  "id": "stage1-06",
+  "stage": "stage1_classify",
+  "description": "Tool reference: command/API usage doc.",
+  "input": {
+    "content": "# ripgrep 用法\n\n## 常用参数\n\n- `-i` 忽略大小写\n- `-n` 显示行号\n- `-r` 递归搜索\n- `-l` 只列出文件名\n\n## 例子\n\n```\nrg -i 'TODO' src/\n```\n",
+    "filename_hint": "tool.md",
+    "llm_response": {"doc_type": "tool", "confidence": 0.8, "rationale": "command reference doc", "traits": ["has_code_block", "has_options"], "uncertain": false}
+  },
+  "expected": {
+    "doc_type": "tool",
+    "failed": false,
+    "min_confidence": 0.5,
+    "traits_subset": ["has_code_block"]
+  }
+}

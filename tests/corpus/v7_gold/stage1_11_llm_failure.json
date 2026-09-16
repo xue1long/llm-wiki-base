@@ -1,0 +1,13 @@
+{
+  "id": "stage1-11",
+  "stage": "stage1_classify",
+  "description": "Failure path: LLM returns malformed JSON. classify_doc should swallow and return failed=True.",
+  "input": {
+    "content": "## Some content\n\nbody here\n",
+    "filename_hint": "fail.md",
+    "llm_response": "this is not valid json {"
+  },
+  "expected": {
+    "failed": true
+  }
+}

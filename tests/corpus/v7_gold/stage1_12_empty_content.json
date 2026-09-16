@@ -1,0 +1,14 @@
+{
+  "id": "stage1-12",
+  "stage": "stage1_classify",
+  "description": "Edge case: empty content. LLM should still produce a classification (with low confidence).",
+  "input": {
+    "content": "",
+    "filename_hint": "empty.md",
+    "llm_response": {"doc_type": "incomplete", "confidence": 0.0, "rationale": "empty content", "traits": [], "uncertain": true}
+  },
+  "expected": {
+    "failed": false,
+    "min_confidence": 0.0
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "stage1-15",
+  "stage": "stage1_classify",
+  "description": "Edge case: collection with introductory section + author bylines.",
+  "input": {
+    "content": "# 三江杂谈 2024-09\n\n本月精选多篇短文。\n\n## 作者 101：第一篇\n\n第一段正文。\n\n## 作者 102：第二篇\n\n第二段正文。\n",
+    "filename_hint": "monthly.md",
+    "llm_response": {"doc_type": "collection", "confidence": 0.92, "rationale": "monthly roundup with intro + bylines", "traits": ["has_author_byline", "possible_collection", "has_intro_section"], "uncertain": false}
+  },
+  "expected": {
+    "doc_type": "collection",
+    "failed": false,
+    "min_confidence": 0.7,
+    "traits_subset": ["has_author_byline", "possible_collection"]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "stage1-14",
+  "stage": "stage1_classify",
+  "description": "Edge case: multi-section without explicit steps, no h2 numbered.",
+  "input": {
+    "content": "## First topic\n\nContent about first topic.\n\n## Second topic\n\nContent about second topic.\n\n## Third topic\n\nContent about third topic.\n",
+    "filename_hint": "three_topics.md",
+    "llm_response": {"doc_type": "multi_section", "confidence": 0.85, "rationale": "three distinct sub-topics", "traits": ["has_h2_sections"], "uncertain": false}
+  },
+  "expected": {
+    "doc_type": "multi_section",
+    "failed": false,
+    "min_confidence": 0.6,
+    "traits_subset": ["has_h2_sections"]
+  }
+}

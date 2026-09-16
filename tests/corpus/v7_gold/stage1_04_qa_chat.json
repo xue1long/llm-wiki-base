@@ -1,0 +1,16 @@
+{
+  "id": "stage1-04",
+  "stage": "stage1_classify",
+  "description": "Q&A chat log: distinct question/answer turns.",
+  "input": {
+    "content": "Q: 扩句法怎么用？\nA: 扩句法通过增加动作描写、环境描写、感官细节来让句子更具体。\n\nQ: 心理描写呢？\nA: 通过描写人物心理活动来推进情节。\n",
+    "filename_hint": "qa.md",
+    "llm_response": {"doc_type": "qa_chat", "confidence": 0.85, "rationale": "Q/A turn structure", "traits": ["has_qa_turns"], "uncertain": false}
+  },
+  "expected": {
+    "doc_type": "qa_chat",
+    "failed": false,
+    "min_confidence": 0.5,
+    "traits_subset": ["has_qa_turns"]
+  }
+}

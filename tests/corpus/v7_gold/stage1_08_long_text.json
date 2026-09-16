@@ -1,0 +1,16 @@
+{
+  "id": "stage1-08",
+  "stage": "stage1_classify",
+  "description": "Edge case: very long single_method content (multiple paragraphs).",
+  "input": {
+    "content": "## 扩句法\n\n这是关于如何扩写句子的方法。\n\n通过添加动作描写，让读者能更直观地看到场景中发生的事。比如不写\"他走进房间\"，而写\"他推开门，脚步声在空旷的走廊里回响\"。\n\n通过添加环境描写，营造氛围。比如不写\"她站在窗前\"，而写\"夕阳透过玻璃窗洒进来，她站在窗前，影子拉得很长\"。\n\n通过添加感官细节，让读者身临其境。比如不写\"饭很香\"，而写\"揭开锅盖，蒸汽裹着浓郁的香气扑面而来\"。\n\n通过添加比喻和拟人，让抽象变具体。比如不写\"时间过得很快\"，而写\"时间像握紧的沙子，从指缝间无声滑落\"。\n\n以上四种方法综合使用，可以显著提升文字的画面感和感染力。\n",
+    "filename_hint": "long.md",
+    "llm_response": {"doc_type": "single_method", "confidence": 0.9, "rationale": "long single-method tutorial", "traits": ["has_steps", "has_examples"], "uncertain": false}
+  },
+  "expected": {
+    "doc_type": "single_method",
+    "failed": false,
+    "min_confidence": 0.7,
+    "traits_subset": ["has_steps"]
+  }
+}

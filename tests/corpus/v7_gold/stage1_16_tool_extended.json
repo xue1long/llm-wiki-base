@@ -1,0 +1,16 @@
+{
+  "id": "stage1-16",
+  "stage": "stage1_classify",
+  "description": "Edge case: tool reference with extensive code blocks and parameter tables.",
+  "input": {
+    "content": "# pytest 参数详解\n\n## 常用 fixtures\n\n```python\n@pytest.fixture\ndef tmp_path():\n    return Path('/tmp/test')\n```\n\n## 常用参数\n\n| 参数 | 说明 |\n|------|------|\n| `-v` | 详细输出 |\n| `-s` | 不捕获 stdout |\n| `-k` | 按关键字过滤 |\n\n## 例子\n\n```python\n@pytest.mark.parametrize('x', [1, 2, 3])\ndef test_x(x):\n    assert x > 0\n```\n",
+    "filename_hint": "pytest.md",
+    "llm_response": {"doc_type": "tool", "confidence": 0.92, "rationale": "API reference with code blocks + tables", "traits": ["has_code_block", "has_table", "has_examples"], "uncertain": false}
+  },
+  "expected": {
+    "doc_type": "tool",
+    "failed": false,
+    "min_confidence": 0.7,
+    "traits_subset": ["has_code_block"]
+  }
+}

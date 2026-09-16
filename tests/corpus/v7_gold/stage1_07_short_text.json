@@ -1,0 +1,15 @@
+{
+  "id": "stage1-07",
+  "stage": "stage1_classify",
+  "description": "Edge case: very short content (< 50 chars).",
+  "input": {
+    "content": "扩句法：增加描写。\n",
+    "filename_hint": "short.md",
+    "llm_response": {"doc_type": "single_method", "confidence": 0.55, "rationale": "short but method-shaped", "traits": [], "uncertain": true}
+  },
+  "expected": {
+    "doc_type": "single_method",
+    "failed": false,
+    "min_confidence": 0.4
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "stage1-13",
+  "stage": "stage1_classify",
+  "description": "Edge case: LLM marks uncertain=True but returns valid classification (low confidence).",
+  "input": {
+    "content": "## Some content\n",
+    "filename_hint": "uncertain.md",
+    "llm_response": {"doc_type": "single_method", "confidence": 0.3, "rationale": "uncertain", "traits": [], "uncertain": true}
+  },
+  "expected": {
+    "doc_type": "single_method",
+    "failed": false,
+    "min_confidence": 0.2
+  }
+}

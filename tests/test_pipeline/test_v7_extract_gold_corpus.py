@@ -132,3 +132,20 @@ def test_corpus_runner_handles_unknown_stage(tmp_path):
     assert len(results) == 1
     assert results[0].passed is False
     assert "stageX_unknown" in results[0].diff
+
+
+def test_stage1_corpus_meets_count_threshold():
+    """Master plan §5 Task 46: each stage must have ≥ 16 fixtures.
+
+    Verifies the Stage 1 corpus shipped in this commit meets the
+    threshold. Other stages (Stage 2-7 + 6R + Recon) are tracked in
+    subsequent commits.
+    """
+    fixtures = []
+    for p in CorpusLoader.discover(DEFAULT_CORPUS_ROOT):
+        fx = CorpusLoader.load(p)
+        if fx is not None and fx.stage == "stage1_classify":
+            fixtures.append(fx)
+    assert len(fixtures) >= 16, (
+        f"Stage 1 corpus has {len(fixtures)} fixtures, need >= 16 per master plan §5"
+    )

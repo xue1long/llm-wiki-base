@@ -1,0 +1,16 @@
+{
+  "id": "stage1-09",
+  "stage": "stage1_classify",
+  "description": "Edge case: many traits observed (multi-author collection).",
+  "input": {
+    "content": "# 多种风格合集\n\n## 作者 A：叙事技巧\n\n第一段。\n\n## 作者 B：对话技巧\n\n第二段。\n\n## 作者 C：人物塑造\n\n第三段。\n",
+    "filename_hint": "many.md",
+    "llm_response": {"doc_type": "collection", "confidence": 0.85, "rationale": "multiple authors with bylines", "traits": ["has_author_byline", "possible_collection", "multi_author", "has_h2_sections"], "uncertain": false}
+  },
+  "expected": {
+    "doc_type": "collection",
+    "failed": false,
+    "min_confidence": 0.7,
+    "traits_subset": ["has_author_byline", "multi_author", "possible_collection"]
+  }
+}
