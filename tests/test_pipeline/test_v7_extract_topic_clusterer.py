@@ -1194,3 +1194,141 @@ def test_extract_pilot_no_unresolved_review_reason_when_ratio_low(tmp_path, _scr
         f"unresolved_ratio={actual_ratio:.2f} should NOT trigger review reason; "
         f"got {unresolved_reasons}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Task 47: Stage 4 identity stability (rerun same source -> same topic_id)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_topic_id_stable_across_repeated_runs():
+    """Same source + same LLM scripted response + same prompt
+    -> two cluster_topics() calls produce identical topic_id sequences."""
+    response = (
+        '{"topics": [{"id": "t1", "title": "T1", "item_indexes": [0, 1]},'
+        '           {"id": "t2", "title": "T2", "item_indexes": [2]}]}'
+    )
+    fake = FakeLLMClient()
+    fake.script("cluster", response)
+    fake.script("cluster", response)   # queue 2 responses (one per run)
+
+    items = [
+        {"id": "article-1", "text": "first item", "kind": "article"},
+        {"id": "article-2", "text": "second item", "kind": "article"},
+        {"id": "article-3", "text": "third item", "kind": "article"},
+    ]
+
+    r1 = await cluster_topics(
+        items, llm=fake, project_root=None, source_id="raw/source-A.md",
+    )
+    r2 = await cluster_topics(
+        items, llm=fake, project_root=None, source_id="raw/source-A.md",
+    )
+
+    # Topic id sequence (script-generated from items + source_id) must be identical.
+    ids_1 = [t.id for t in r1.topics]
+    ids_2 = [t.id for t in r2.topics]
+    assert ids_1 == ids_2
+    # And topic_id format is non-empty / deterministic (not the __other__ fallback).
+    assert len(ids_1) == 2
+    for tid in ids_1:
+        assert tid
+        assert isinstance(tid, str)
+        assert tid != "__other__"
+
+
+@pytest.mark.asyncio
+async def test_topic_id_differs_between_different_sources():
+    """Same items, different source_id -> different topic_ids
+    (script hash includes source_id)."""
+    fake = FakeLLMClient()
+    fake.script(
+        "cluster",
+        '{"topics": [{"id": "t1", "title": "T1", "item_indexes": [0]}]}',
+    )
+
+    items = [
+        {"id": "article-1", "text": "shared item", "kind": "article"},
+    ]
+
+    r1 = await cluster_topics(items, llm=fake, project_root=None, source_id="source-A.md")
+    r2 = await cluster_topics(items, llm=fake, project_root=None, source_id="source-B.md")
+
+    ids_1 = {t.id for t in r1.topics}
+    ids_2 = {t.id for t in r2.topics}
+    assert ids_1.isdisjoint(ids_2), (
+        f"different sources produced overlapping topic_ids: {ids_1 & ids_2}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_topic_id_stable_when_only_llm_response_unchanged():
+    """FakeLLMClient scripted identically across runs -> topic_ids stable.
+
+    Note: FakeLLMClient.script() consumes one response per complete() call,
+    so we queue 3 identical responses (one per run) to get 3 stable runs.
+    """
+    fake = FakeLLMClient()
+    response = (
+        '{"topics": [{"id": "alpha", "title": "A", "item_indexes": [0]},'
+        '           {"id": "beta", "title": "B", "item_indexes": [1]}]}'
+    )
+    fake.script("cluster", response)
+    fake.script("cluster", response)
+    fake.script("cluster", response)
+
+    items = [
+        {"id": "a1", "text": "first", "kind": "article"},
+        {"id": "a2", "text": "second", "kind": "article"},
+    ]
+
+    runs = []
+    for _ in range(3):
+        result = await cluster_topics(
+            items, llm=fake, project_root=None, source_id="src.md",
+        )
+        runs.append([t.id for t in result.topics])
+
+    # All 3 runs produce the same topic_id sequence.
+    assert runs[0] == runs[1] == runs[2]
+    # And 2 topics (not the __other__ fallback).
+    assert len(runs[0]) == 2
+    assert all(tid != "__other__" for tid in runs[0])
+
+
+@pytest.mark.asyncio
+async def test_topic_id_changes_when_input_items_change():
+    """Different item set -> different topic_ids (script hash includes items)."""
+    fake = FakeLLMClient()
+    fake.script(
+        "cluster",
+        '{"topics": [{"id": "t1", "title": "T1", "item_indexes": [0]}]}',
+    )
+
+    items_v1 = [{"id": "a1", "text": "alpha", "kind": "article"}]
+    items_v2 = [{"id": "b1", "text": "beta", "kind": "article"}]
+
+    r1 = await cluster_topics(items_v1, llm=fake, project_root=None, source_id="src.md")
+    r2 = await cluster_topics(items_v2, llm=fake, project_root=None, source_id="src.md")
+
+    assert [t.id for t in r1.topics] != [t.id for t in r2.topics]
+
+
+@pytest.mark.asyncio
+async def test_topic_id_format_is_source_id_based_hash():
+    """topic_id is a script-derived hash; never equals the LLM-supplied id."""
+    fake = FakeLLMClient()
+    fake.script(
+        "cluster",
+        '{"topics": [{"id": "llm-supplied-id", "title": "T1", "item_indexes": [0]}]}',
+    )
+
+    items = [{"id": "a1", "text": "x", "kind": "article"}]
+    result = await cluster_topics(
+        items, llm=fake, project_root=None, source_id="src.md",
+    )
+
+    # Topic.id is the script hash, NOT the LLM-supplied "llm-supplied-id".
+    assert result.topics
+    assert result.topics[0].id != "llm-supplied-id"
