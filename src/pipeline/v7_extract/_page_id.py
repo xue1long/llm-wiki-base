@@ -6,6 +6,10 @@ produce the same ID for the same logical source.
 The script owns page IDs end-to-end: the LLM never invents them. Stage 5
 maps LLM-supplied ``item_index`` integers back to canonical item IDs
 (``Topic.item_ids[index]``) so the LLM can't smuggle in a fake reference.
+
+Task 12 (plan 2026-09-17): the second argument is now the script-
+generated ``Topic.id`` (via ``derive_topic_id``), NOT the LLM-supplied
+title. Both inputs are script-owned and stable across re-runs.
 """
 from __future__ import annotations
 
@@ -16,20 +20,27 @@ _SLUG_RE = re.compile(r"[^\w-]+", re.UNICODE)
 _MAX_SLUG_LEN = 32
 
 
-def _slugify(title: str) -> str:
-    """Lowercase title, replace non-word chars with '-', trim, cap at 32 chars."""
-    s = _SLUG_RE.sub("-", title.lower()).strip("-")
-    return s[:_MAX_SLUG_LEN] or "untitled"
+def _slugify(s: str) -> str:
+    """Lowercase, replace non-word chars with '-', trim, cap at 32 chars.
+
+    Accepts any string (historically a topic title; now a topic_id or
+    display string — the rule is the same either way).
+    """
+    lowered = _SLUG_RE.sub("-", s.lower()).strip("-")
+    return lowered[:_MAX_SLUG_LEN] or "untitled"
 
 
-def _stable_page_id(relative: str, topic_title: str) -> str:
-    """Stable page ID from source relative path + topic title.
+def _stable_page_id(relative: str, topic_id: str) -> str:
+    """Stable page ID from source relative path + script-generated topic_id.
 
-    Uses md5(relative)[:8] + slug(topic_title)[:32] joined by '-'.
+    Both inputs are script-owned (no LLM dependence — see
+    ``derive_topic_id`` and the Canonical Identity Contract §2). The page
+    ID is preserved across LLM renames because the topic_id is derived
+    from membership, not from the LLM label.
     """
     rel = relative.replace("\\", "/")
     digest = hashlib.md5(rel.encode("utf-8")).hexdigest()[:8]
-    slug = _slugify(topic_title)
+    slug = _slugify(topic_id)
     return f"{digest}-{slug}"
 
 

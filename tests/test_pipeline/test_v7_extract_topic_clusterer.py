@@ -40,26 +40,37 @@ def test_payload_to_topics_happy_path():
     }
     topics = _payload_to_topics(payload, ["a", "b", "c"])
     assert len(topics) == 2
-    assert topics[0].id == "t1"
+    # Task 12: Topic.id is script-generated (no LLM id dependence).
     assert topics[0].item_ids == ["a", "b"]
     assert topics[1].title == "Topic 2"
+    # The LLM-supplied "id" field is intentionally ignored — the topic_id
+    # is derived from (source_id, mapped_ids) via derive_topic_id.
+    assert topics[0].id != "t1"
+    assert topics[1].id != "t2"
 
 
 def test_payload_to_topics_skips_non_dict_entries():
     payload = {"topics": ["garbage", {"id": "t1", "title": "T1", "item_indexes": []}]}
     topics = _payload_to_topics(payload, ["a"])
     assert len(topics) == 1
-    assert topics[0].id == "t1"
+    # Task 12: Topic.id is script-generated (not "t1").
+    assert topics[0].id != "t1"
+    # Title still comes from the LLM payload.
+    assert topics[0].title == "T1"
 
 
 def test_payload_to_topics_renames_duplicate_ids():
+    """Task 12: with script-generated ids, the LLM-supplied "id" field is
+    discarded, so two entries with the same LLM id produce different
+    script-generated topic_ids (because their memberships differ).
+    """
     payload = {"topics": [
         {"id": "dup", "title": "A", "item_indexes": [0]},
         {"id": "dup", "title": "B", "item_indexes": [1]},
     ]}
     topics = _payload_to_topics(payload, ["a", "b"])
-    assert topics[0].id == "dup"
-    assert topics[1].id == "dup-1"
+    # Distinct memberships → distinct script-generated topic_ids.
+    assert topics[0].id != topics[1].id
 
 
 def test_payload_to_topics_handles_missing_topics_key():
@@ -166,9 +177,10 @@ async def test_cluster_topics_returns_topics():
     topics = result.topics
 
     assert len(topics) == 2
-    assert topics[0].id == "t1"
+    # Task 12: Topic.id is script-generated, not "t1" / "t2".
+    assert topics[0].id != "t1"
     assert topics[0].item_ids == ["a", "b"]
-    assert topics[1].id == "t2"
+    assert topics[1].id != "t2"
     # No __other__ bucket — every item was assigned
     assert not any(t.id == OTHER_TOPIC_ID for t in topics)
 
@@ -883,3 +895,103 @@ async def test_clustering_consumes_stage2_structural_summary():
     assert result.status.value in {"clustered", "degraded"}
     assert len(result.topics) == 1
     assert result.topics[0].item_ids == ["a"]
+
+
+# ---------------------------------------------------------------------------
+# Task 12 (Plan 2026-09-17): Topic.id is script-generated (no LLM dependence)
+# Identity Contract (Canonical Identity Contract §2): SAME/ALIAS share
+# canonical; LLM does NOT generate canonical IDs. For Stage 4 (which has
+# no canonical concept yet), the analogous rule is: Topic.id must be
+# script-derived from (source_id, candidate_ids) — never from the LLM
+# semantic_label.
+# ---------------------------------------------------------------------------
+
+
+def test_topic_id_is_deterministic_hash_not_llm_label():
+    """Task 12: derive_topic_id is deterministic on (source_id, candidate_ids).
+
+    The same identity inputs → same topic_id, even when LLM label drifts.
+    """
+    from src.pipeline.v7_extract.topic_id import derive_topic_id
+
+    source = "raw/sources/a.md"
+    cands = ["raw/a#item-0", "raw/a#item-1"]
+    a = derive_topic_id(source_id=source, candidate_ids=cands)
+    b = derive_topic_id(source_id=source, candidate_ids=cands)
+    assert a == b, "derive_topic_id must be deterministic"
+    # Different label, same membership → same topic_id.
+    # (semantic_label is explicitly NOT part of identity per Identity Contract.)
+    c = derive_topic_id(
+        source_id=source, candidate_ids=cands, semantic_label="重命名标签",
+    )
+    assert a == c, "semantic_label must not influence topic_id"
+
+
+def test_topic_id_format_is_source_id_topic_hash():
+    """Task 12: topic_id shape contract is `<source_id>-topic-<16hex>`.
+
+    The format is a hard invariant — derive_topic_id returns exactly this
+    shape so downstream consumers (page_id, Stage 7 writer) can rely on it.
+    """
+    import re
+    from src.pipeline.v7_extract.topic_id import derive_topic_id
+
+    source = "raw/sources/article_42.md"
+    topic_id = derive_topic_id(
+        source_id=source, candidate_ids=["a", "b", "c"],
+    )
+    # Format: <source_id>-topic-<16 hex chars>
+    pattern = rf"^{re.escape(source)}-topic-[0-9a-f]{{16}}$"
+    assert re.match(pattern, topic_id), (
+        f"topic_id {topic_id!r} does not match pattern {pattern!r}"
+    )
+    # Hash portion is order-independent (sorted(candidate_ids)).
+    same_set = derive_topic_id(
+        source_id=source, candidate_ids=["c", "b", "a"],
+    )
+    assert topic_id == same_set, "candidate_ids order must not affect topic_id"
+    # Different source_id → different topic_id (per-source uniqueness).
+    other = derive_topic_id(
+        source_id="raw/sources/article_99.md",
+        candidate_ids=["a", "b", "c"],
+    )
+    assert topic_id != other
+    # Different candidate set → different topic_id.
+    other_set = derive_topic_id(
+        source_id=source, candidate_ids=["a", "b"],
+    )
+    assert topic_id != other_set
+
+
+def test_page_id_derived_from_script_generated_topic_id():
+    """Task 12 / Persistence Contract §4.2.3: page_id is built from the
+    script-generated topic_id (not from an LLM-supplied title). The same
+    script-generated inputs → the same page_id, and the page_id survives
+    LLM label drift.
+    """
+    from src.pipeline.v7_extract.topic_id import derive_topic_id
+    from src.pipeline.v7_extract._page_id import _stable_page_id
+
+    source = "raw/sources/article_42.md"
+    candidate_ids = ["raw/article_42#item-0", "raw/article_42#item-1"]
+    # Two different LLM labels for the same membership.
+    topic_a = derive_topic_id(
+        source_id=source, candidate_ids=candidate_ids,
+    )
+    topic_b = derive_topic_id(
+        source_id=source, candidate_ids=candidate_ids,
+        semantic_label="completely different LLM title",
+    )
+    page_a = _stable_page_id("raw/sources/article_42.md", topic_a)
+    page_b = _stable_page_id("raw/sources/article_42.md", topic_b)
+    assert page_a == page_b, (
+        "page_id must not change when LLM label drifts — identity is the "
+        "script-generated topic_id, not the label"
+    )
+    # Different source → different page_id.
+    other_topic = derive_topic_id(
+        source_id="raw/sources/other.md",
+        candidate_ids=candidate_ids,
+    )
+    page_other = _stable_page_id("raw/sources/other.md", other_topic)
+    assert page_a != page_other

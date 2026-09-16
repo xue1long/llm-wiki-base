@@ -83,10 +83,17 @@ async def test_cluster_topics_uses_llm_topics_and_assignments() -> None:
     )
     topics = result.topics
 
-    assert topics == [
-        Topic(id="conflict", title="冲突升级", item_ids=["a", "b"]),
-        Topic(id="motivation", title="角色动机", item_ids=["c"]),
-    ]
+    # Task 12: Topic.id is script-generated from (source_id, item_ids).
+    # The LLM-supplied "id" field is intentionally discarded; the only
+    # thing the script preserves from the LLM payload is ``item_indexes``
+    # (mapped to canonical item_ids) and ``title``.
+    assert len(topics) == 2
+    assert topics[0].title == "冲突升级"
+    assert topics[0].item_ids == ["a", "b"]
+    assert topics[1].title == "角色动机"
+    assert topics[1].item_ids == ["c"]
+    assert topics[0].id != "conflict"
+    assert topics[1].id != "motivation"
     assert llm.calls[0]["prompt_kind"] == "cluster"
 
 

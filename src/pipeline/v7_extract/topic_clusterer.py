@@ -47,6 +47,7 @@ from .prompts.renderer import (
 from .prompts.resolver import PromptNotFoundError, resolve
 from .topic_candidate import TopicCandidate, derive_candidate_id
 from .topic_descriptor import TopicDescriptor, build_descriptors
+from .topic_id import derive_topic_id
 
 if TYPE_CHECKING:
     from .prompts.ast import PromptTemplate
@@ -150,6 +151,7 @@ async def cluster_topics(
     max_retries: int = 3,
     segmentation_result: "SegmentationResult | None" = None,
     classification_hint: dict | None = None,
+    source_id: str = "",
 ) -> ClusterResult:
     """Cluster ``items`` into topics with explicit status + metrics.
 
@@ -176,6 +178,11 @@ async def cluster_topics(
         classification_hint: Task 11 — Stage 1 v4 ``Classification`` view
             (a dict, e.g. ``{"primary_type": "multi_section", "traits": [...]}``).
             Soft hint only; the LLM re-evaluates from the items directly.
+        source_id: Task 12 — per-source identifier (typically the source's
+            relative path). Used as the prefix of every script-generated
+            ``Topic.id`` so the same semantic topic in two different
+            sources does not collide. Empty string is acceptable for
+            standalone tests / callers that don't care about identity.
 
     Returns:
         ``ClusterResult`` with explicit ``status``, ``topics``, ``unresolved``,
@@ -229,7 +236,7 @@ async def cluster_topics(
                 temperature=0.0,
             )
             payload = parse_llm_response(raw, template.output_schema)
-            topics = _payload_to_topics(payload, item_ids)
+            topics = _payload_to_topics(payload, item_ids, source_id=source_id)
             topics = _enforce_full_coverage(topics, items)
             return _finalize_result(
                 topics, items, fingerprint,
@@ -705,6 +712,8 @@ def _payload_to_topics(
     payload: dict,
     item_ids: list[str],
     item_fingerprints: list[str] | None = None,
+    *,
+    source_id: str = "",
 ) -> list[Topic]:
     """Convert validated LLM JSON payload into Topic list.
 
@@ -718,14 +727,18 @@ def _payload_to_topics(
     the new ``candidates`` shape the same ``item_index`` may appear
     multiple times with distinct ``local_index`` values, lifting that
     constraint at the candidate level.
+
+    Task 12: every ``Topic.id`` is script-generated via
+    :func:`derive_topic_id` from ``(source_id, item_ids)`` so identity
+    does not depend on the LLM-supplied ``semantic_label``.
     """
     if "candidates" in payload:
         fingerprints = item_fingerprints or [str(iid) for iid in item_ids]
         candidates = _payload_to_candidates(
             payload, item_ids, fingerprints,
         )
-        return _candidates_to_topics(candidates, item_ids)
-    return _payload_to_topics_legacy(payload, item_ids)
+        return _candidates_to_topics(candidates, item_ids, source_id=source_id)
+    return _payload_to_topics_legacy(payload, item_ids, source_id=source_id)
 
 
 def _payload_to_candidates(
@@ -785,12 +798,18 @@ def _payload_to_candidates(
 def _candidates_to_topics(
     candidates: list[TopicCandidate],
     item_ids: list[str],
+    *,
+    source_id: str = "",
 ) -> list[Topic]:
     """Group ``TopicCandidate`` list into ``Topic`` list (Task 10 baseline).
 
     Task 11 will replace this with a real discovery → grouping two-stage
     LLM. For Task 10 we use the trivial grouping: one Topic per item
     that produced at least one candidate.
+
+    Task 12: ``Topic.id`` is script-generated via
+    :func:`derive_topic_id` from ``(source_id, item_ids)`` so the LLM
+    label does not influence identity.
     """
     by_item: dict[int, list[TopicCandidate]] = {}
     for c in candidates:
@@ -801,39 +820,44 @@ def _candidates_to_topics(
         # we have without a grouping LLM call).
         first = by_item[item_index][0]
         title = first.semantic_label or f"item-{item_index}"
+        topic_item_ids = [item_ids[item_index]]
         topics.append(Topic(
-            id=f"item-{item_index}",
+            id=derive_topic_id(
+                source_id=source_id,
+                candidate_ids=topic_item_ids,
+                semantic_label=title,
+            ),
             title=title,
-            item_ids=[item_ids[item_index]],
+            item_ids=topic_item_ids,
         ))
     return topics
 
 
-def _payload_to_topics_legacy(payload: dict, item_ids: list[str]) -> list[Topic]:
+def _payload_to_topics_legacy(
+    payload: dict,
+    item_ids: list[str],
+    source_id: str = "",
+) -> list[Topic]:
     """Convert validated LLM JSON payload into Topic list (legacy shape).
 
     The LLM returns positions; canonical item IDs stay script-owned.
     Legacy ``topics`` shape retains the single-topic-per-item hard
     constraint (each ``item_index`` may appear in at most one topic).
+
+    Task 12: ``Topic.id`` is script-generated via
+    :func:`derive_topic_id` from ``(source_id, mapped_ids)``. The
+    LLM-supplied ``entry["id"]`` is intentionally discarded: identity
+    is membership-based, not label-based (Canonical Identity Contract §2).
     """
     raw = payload.get("topics", [])
     if not isinstance(raw, list):
         return []
     topics: list[Topic] = []
-    seen: set[str] = set()  # avoid duplicate topic ids
     seen_indexes: set[int] = set()
-    for idx, entry in enumerate(raw):
+    for entry in raw:
         if not isinstance(entry, dict):
             continue
-        tid = str(entry.get("id") or f"topic-{idx + 1}")
-        # If the LLM produces a duplicate id, suffix it
-        original_tid = tid
-        suffix = 1
-        while tid in seen:
-            tid = f"{original_tid}-{suffix}"
-            suffix += 1
-        seen.add(tid)
-        title = str(entry.get("title") or tid)
+        title = str(entry.get("title", ""))
         indexes = entry.get("item_indexes", [])
         if not isinstance(indexes, list):
             raise LLMResponseError("item_indexes must be a list")
@@ -853,7 +877,17 @@ def _payload_to_topics_legacy(payload: dict, item_ids: list[str]) -> list[Topic]
                 )
             seen_indexes.add(item_index)
             mapped_ids.append(item_ids[item_index])
-        topics.append(Topic(id=tid, title=title, item_ids=mapped_ids))
+        # Task 12: script-generated topic_id from membership, not from LLM.
+        topic_id = derive_topic_id(
+            source_id=source_id,
+            candidate_ids=mapped_ids,
+            semantic_label=title,
+        )
+        topics.append(Topic(
+            id=topic_id,
+            title=title or topic_id,
+            item_ids=mapped_ids,
+        ))
     return topics
 
 
