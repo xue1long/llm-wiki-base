@@ -505,6 +505,90 @@ def test_full_dry_run_records_llm_enabled_when_injected(tmp_path: Path) -> None:
     assert fake.calls, "injected LLM should have been invoked"
 
 
+def test_run_full_summary_cost_zero_when_fake_llm(tmp_path: Path) -> None:
+    """FakeLLMClient does NOT accumulate cost — summary.cost is zero."""
+    _write_source(tmp_path, "one.md")
+    fake = FakeLLMClient()
+    fake.script("classify", '{"doc_type": "single_method", "confidence": 0.9, "rationale": "r"}')
+    fake.script("completeness", '{"complete": false, "reason": "too short"}')
+
+    report = asyncio.run(run_full(
+        tmp_path,
+        batch_size=1,
+        checkpoint_path=tmp_path / ".index" / "full.json",
+        llm=fake,
+    ))
+
+    cost = report["summary"]["cost"]
+    assert cost["cumulative_usd"] == 0.0
+    assert cost["call_count"] == 0
+    assert cost["input_tokens"] == 0
+    assert cost["output_tokens"] == 0
+
+
+def test_run_full_summary_cost_with_real_llm(tmp_path: Path) -> None:
+    """When ``llm`` is an AnthropicLLMClient wired to a ledger, summary.cost
+    gets populated from ledger.snapshot(). Verifies run_full → summary plumbing.
+
+    Task 2 already covers AnthropicLLMClient.record() end-to-end via its own
+    dedicated unit tests; this test only verifies the wiring through ``run_full``.
+    """
+    from src.llm.base import LLMResponse
+    from src.lib.budget import CostLedger
+    from src.pipeline.v7_extract.llm_client import AnthropicLLMClient
+
+    class _StubProvider:
+        model = "stub"
+        async def complete(self, messages, **kwargs):
+            return LLMResponse(
+                content='{"doc_type": "single_method", "confidence": 0.9, "rationale": "r"}',
+                model="stub",
+                usage={"input_tokens": 800, "output_tokens": 50},
+            )
+
+    ledger = CostLedger()
+    real_client = AnthropicLLMClient.__new__(AnthropicLLMClient)
+    real_client._provider_name = "stub"
+    real_client._provider = _StubProvider()
+    real_client._ledger = ledger
+
+    _write_source(tmp_path, "one.md")
+    report = asyncio.run(run_full(
+        tmp_path,
+        batch_size=1,
+        checkpoint_path=tmp_path / ".index" / "full.json",
+        llm=real_client,
+        ledger=ledger,
+    ))
+
+    cost = report["summary"]["cost"]
+    assert cost["call_count"] >= 1
+    assert cost["cumulative_usd"] > 0.0
+    assert cost["input_tokens"] >= 800
+    assert cost["output_tokens"] >= 50
+    assert "classify" in cost["cost_by_stage"]
+
+
+def test_markdown_report_omits_cost_section_when_cost_zero(tmp_path: Path) -> None:
+    """Markdown omits `## Cost` section when cumulative_usd == 0 (FakeLLM / dry-run)."""
+    _write_source(tmp_path, "one.md")
+    fake = FakeLLMClient()
+    fake.script("classify", '{"doc_type": "single_method", "confidence": 0.9, "rationale": "r"}')
+    fake.script("completeness", '{"complete": false, "reason": "too short"}')
+
+    md_path = tmp_path / "report.md"
+    asyncio.run(run_full(
+        tmp_path,
+        batch_size=1,
+        checkpoint_path=tmp_path / ".index" / "full.json",
+        llm=fake,
+        markdown_output=md_path,
+    ))
+
+    md = md_path.read_text(encoding="utf-8")
+    assert "## Cost" not in md
+
+
 # ---------------------------------------------------------------------------
 # Wave 2 / Task 2: run_full summary now carries five-state counters
 # (plan §4 Task 5 partial) and separates ``errors`` from blocked outcomes.

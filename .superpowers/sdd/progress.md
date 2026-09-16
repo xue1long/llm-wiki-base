@@ -1059,3 +1059,13 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ 验收基线：V7 聚焦 pytest **298 passed, 1 skipped**；deterministic FakeLLM 单源 apply smoke 1 passed；`compileall` + `git diff --check` exit 0；`extract_full.py` / `extract_pilot.py` 缺 `--root` exit 2。
 - ✅ Wave 5 真实 Provider smoke：`4d3cd026`（MiniMax-M3 / openai-compatible 单源 apply）；raw md5 不变；apply1 `written=1`、`generated_pages=1`；apply2 `skipped=1`（md5 skip）；五态契约与 queue 去重全部成立。详见 `.memory/feedback-v7-control-plane-real-provider-smoke-2026-09-15.md`。
 - ⚠️ 不宣称：未对正式生产 raw 调用外部 Provider；`_legacy.py` placeholder 按 Wave 0 决策仍在范围外；Stage 6 C4（后处理失败隔离）交未来独立 Stage 6 接入计划；4918/1362 source 全量 apply 仍未执行。
+
+### Plan 4 — V7 cost observability (2026-09-16)
+
+- ✅ 计划：`docs/superpowers/plans/2026-09-16-v7-budget-observability.md`（plan-audit Round 1 + Round 2 整改落地）。
+- ✅ `src/lib/budget.py`：CostLedger dataclass + `load_default_prices`（env: `RUFLO_INPUT_TOKEN_PRICE` / `RUFLO_OUTPUT_TOKEN_PRICE`；默认 `0.0000003` / `0.0000006` USD/token）。asyncio 单线程使用，非线程安全。
+- ✅ `AnthropicLLMClient` 接受可选 `ledger` 参数；`complete()` 在 `provider.complete()` 成功返回后累计 token + cost；优先读 `response.usage`（兼容 `input_tokens`/`output_tokens`（Anthropic）+ `prompt_tokens`/`completion_tokens`（OpenAI-compatible）），fallback `len/4` 估算；truncated/retry-time raise 不累计。FakeLLMClient 不变（不累计 cost）。
+- ✅ `scripts/extract_full.py` summary 输出 `cost` 顶层字段（`cumulative_usd` / `cost_by_stage` / `cost_per_call_avg` / `input_tokens` / `output_tokens` / `call_count`）；Markdown 仅在 cost>0 时输出 `## Cost` 段落；`RUFLO_BUDGET_PRINT=0` 抑制 markdown 输出（JSON 仍写入）。
+- ✅ 测试：5 个 lib unit + 5 个 llm_client integration + 3 个 extract_full summary = 13 个新增；现有 299 测试零回归，**V7 聚焦套件 312 passed, 1 skipped**。
+- ✅ 真实 Provider dry-run smoke：2 source → `cumulative_usd=0.004805`、`call_count=8`、4 个 stage（classify/completeness/cluster/fill_slots）各自拆分清晰。
+- 🚫 明确不做（6 维评审 + plan-audit 共同确认）：trust boundary 注入（边际收益低）、paused_budget 自动暂停门（checkpoint 续跑死循环风险 + 5 年视角过时）、内容层 retry 修改 prompt、BudgetedLLM 上下文 chunking、v1 batch_runner budget 路径重构、跨 v1/V7 budget 统一。

@@ -6,6 +6,8 @@ tests verify:
 - FakeLLMClient records every call for later assertion.
 - LLMClient is abstract (cannot be instantiated directly).
 - AnthropicLLMClient can be constructed (real provider resolution).
+- AnthropicLLMClient accumulates token cost into an injected CostLedger
+  after successful calls only (truncated / errored responses do NOT record).
 """
 import asyncio
 
@@ -13,6 +15,7 @@ import pytest
 
 from src.llm.base import LLMResponse
 from src.llm.types import TruncatedResponseError
+from src.lib.budget import CostLedger
 from src.pipeline.v7_extract.llm_client import (
     AnthropicLLMClient,
     FakeLLMClient,
@@ -28,10 +31,13 @@ class _ResponseProvider:
         return self.response
 
 
-def _client_with_provider(response):
+def _client_with_provider(response, ledger=None):
     client = object.__new__(AnthropicLLMClient)
     client._provider_name = "test-provider"
     client._provider = _ResponseProvider(response)
+    # Plan 4: tests that don't care about cost skip ledger explicitly;
+    # tests that do care pass ledger via _client_with_ledger helper.
+    client._ledger = ledger
     return client
 
 
@@ -201,3 +207,130 @@ def test_anthropic_llm_client_rejects_truncated_provider_response():
                 user_prompt="classify this",
             )
         )
+
+
+def _client_with_ledger(response, ledger):
+    """Wire a CostLedger into an AnthropicLLMClient (bypass __init__)."""
+    client = _client_with_provider(response)
+    client._ledger = ledger
+    return client
+
+
+def test_anthropic_llm_client_records_usage_when_present():
+    """When response.usage has input_tokens/output_tokens, ledger uses them."""
+    ledger = CostLedger()
+    client = _client_with_ledger(
+        LLMResponse(
+            content="ok",
+            model="test-model",
+            usage={"input_tokens": 1000, "output_tokens": 200},
+        ),
+        ledger,
+    )
+
+    asyncio.run(
+        client.complete(
+            prompt_kind="classify",
+            user_prompt="abc",
+            system_prompt="",
+        )
+    )
+
+    assert ledger.call_count == 1
+    assert ledger.input_tokens == 1000
+    assert ledger.output_tokens == 200
+    assert ledger.cost_by_stage["classify"]["calls"] == 1
+
+
+def test_anthropic_llm_client_estimates_tokens_when_no_usage():
+    """When response.usage is None, fall back to len(content)//4 heuristic."""
+    ledger = CostLedger()
+    client = _client_with_ledger(
+        LLMResponse(content="abcdefgh", model="test-model", usage=None),  # 8 chars => 2 tokens
+        ledger,
+    )
+
+    asyncio.run(
+        client.complete(
+            prompt_kind="classify",
+            user_prompt="x" * 400,  # 400 chars => 100 tokens
+            system_prompt="y" * 40,  # 40 chars => 10 tokens
+        )
+    )
+
+    assert ledger.input_tokens == 110  # (400+40)//4
+    assert ledger.output_tokens == 2  # 8//4
+    assert ledger.call_count == 1
+
+
+def test_anthropic_llm_client_accepts_openai_style_usage_keys():
+    """OpenAI-compatible providers (MiniMax-M3, etc.) return prompt_tokens/completion_tokens
+    instead of Anthropic's input_tokens/output_tokens — record both."""
+    ledger = CostLedger()
+    client = _client_with_ledger(
+        LLMResponse(
+            content="ok",
+            model="test-model",
+            usage={"prompt_tokens": 700, "completion_tokens": 80, "total_tokens": 780},
+        ),
+        ledger,
+    )
+
+    asyncio.run(
+        client.complete(
+            prompt_kind="classify",
+            user_prompt="x",
+            system_prompt="",
+        )
+    )
+
+    assert ledger.input_tokens == 700
+    assert ledger.output_tokens == 80
+    assert ledger.call_count == 1
+
+
+def test_anthropic_llm_client_does_not_record_on_truncated():
+    """Truncated responses raise BEFORE record() — ledger stays clean."""
+    ledger = CostLedger()
+    client = _client_with_ledger(
+        LLMResponse(
+            content="abcdefgh",
+            model="test-model",
+            truncated=True,
+            usage={"input_tokens": 100, "output_tokens": 50},
+        ),
+        ledger,
+    )
+
+    with pytest.raises(TruncatedResponseError):
+        asyncio.run(
+            client.complete(
+                prompt_kind="classify",
+                user_prompt="x",
+                system_prompt="",
+            )
+        )
+
+    assert ledger.call_count == 0
+    assert ledger.cost_usd == 0.0
+
+
+def test_anthropic_llm_client_no_ledger_still_works():
+    """Backwards compatibility: ledger=None still returns provider content."""
+    client = _client_with_provider(
+        LLMResponse(
+            content="ok",
+            model="test-model",
+            usage={"input_tokens": 5, "output_tokens": 1},
+        )
+    )
+
+    result = asyncio.run(
+        client.complete(
+            prompt_kind="classify",
+            user_prompt="x",
+            system_prompt="",
+        )
+    )
+
+    assert result == "ok"

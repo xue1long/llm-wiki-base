@@ -1,5 +1,6 @@
 # Project Memory Index
 
+- [2026-09-16 V7 cost observability](feedback-v7-cost-observability-2026-09-16.md) — CostLedger + summary.cost 字段；real Provider smoke `cumulative_usd=0.0048` / 4 stage 拆分；兼容 Anthropic + OpenAI usage keys；FakeLLM bypass
 - [2026-09-15 V7 ingestion control-plane refactor](feedback-v7-control-plane-refactor-2026-09-15.md) — source-level checkpoint v2, required root, per-root queue lock, Writer reconciliation, terminal report counts, and 298-pass focused verification; production-provider apply remains intentionally unrun
 - [2026-09-15 V7 control-plane real MiniMax-M3 Provider smoke](feedback-v7-control-plane-real-provider-smoke-2026-09-15.md) — single-source apply under temp root, md5 skip on second run, five-way contract holds end-to-end against external openai-compatible provider; production raw untouched
 

@@ -113,7 +113,11 @@ class AnthropicLLMClient(LLMClient):
     dependency direction ``pipeline.v7_extract → llm`` one-way.
     """
 
-    def __init__(self, default_provider_name: str | None = None) -> None:
+    def __init__(
+        self,
+        default_provider_name: str | None = None,
+        ledger: "CostLedger | None" = None,
+    ) -> None:
         # Lazy import: avoid hard import at module-load time so test
         # environments that never invoke .complete() don't need the
         # llm registry on disk.
@@ -139,6 +143,9 @@ class AnthropicLLMClient(LLMClient):
             default_provider_name = cfg.name
         self._provider_name = default_provider_name
         self._provider = create_llm_provider(default_provider_name)
+        # Plan 4: optional cost ledger; only successful LLM calls record.
+        # FakeLLMClient bypasses by design (test isolation).
+        self._ledger = ledger
 
     @property
     def provider_name(self) -> str:
@@ -174,5 +181,33 @@ class AnthropicLLMClient(LLMClient):
                 "LLM response was truncated by max_tokens",
                 content_length=getattr(response, "content_length", 0)
                 or (len(content) if isinstance(content, str) else 0),
+            )
+        # Plan 4: record token cost AFTER truncated check (only successful calls
+        # accumulate). Retry-time raises never reach here either.
+        if self._ledger is not None:
+            from ...lib.budget import load_default_prices
+            usage = getattr(response, "usage", None)
+            if isinstance(usage, dict):
+                # Accept both Anthropic (`input_tokens`/`output_tokens`) and
+                # OpenAI-compatible (`prompt_tokens`/`completion_tokens`).
+                input_tokens = int(
+                    usage.get("input_tokens") or usage.get("prompt_tokens") or 0
+                )
+                output_tokens = int(
+                    usage.get("output_tokens") or usage.get("completion_tokens") or 0
+                )
+            else:
+                # ponytail: char/4 heuristic; ±50% but only when provider omits usage.
+                prompt_text_len = len(user_prompt) + len(system_prompt or "")
+                content = getattr(response, "content", "") or ""
+                input_tokens = prompt_text_len // 4
+                output_tokens = len(content) // 4
+            in_p, out_p = load_default_prices()
+            self._ledger.record(
+                stage=prompt_kind,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                input_price=in_p,
+                output_price=out_p,
             )
         return response.content

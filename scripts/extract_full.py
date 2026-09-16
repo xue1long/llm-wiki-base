@@ -30,6 +30,7 @@ from scripts.extract_pilot import (  # noqa: E402
     _source_files,
     _write_report,
 )
+from src.lib.budget import CostLedger  # noqa: E402
 from src.pipeline.v7_extract.failures import ExtractionResult, ExtractionStatus  # noqa: E402
 from src.pipeline.v7_extract._queue_lock import (  # noqa: E402
     acquire_queue_lock,
@@ -56,6 +57,7 @@ async def run_full(
     markdown_output: str | Path | None = None,
     llm: Any = None,
     queue_path: str | Path | None = None,
+    ledger: CostLedger | None = None,
 ) -> dict[str, Any]:
     """Run the source-level control plane under the per-root queue lock."""
     root_path = Path(root)
@@ -78,6 +80,7 @@ async def run_full(
             markdown_output=markdown_output,
             llm=llm,
             queue_path=queue_path,
+            ledger=ledger,
         )
     finally:
         atexit.unregister(release)
@@ -96,6 +99,7 @@ async def _run_full_unlocked(
     markdown_output: str | Path | None,
     llm: Any,
     queue_path: str | Path | None,
+    ledger: CostLedger | None = None,
 ) -> dict[str, Any]:
     """Process every supported raw source in resumable batches.
 
@@ -138,6 +142,11 @@ async def _run_full_unlocked(
         if not dry_run
         else None
     )
+    # Plan 4: process-local cost ledger. Always constructed so summary has
+    # a ``cost`` field even when llm is None / FakeLLMClient (cost stays 0).
+    # External callers may inject a pre-populated ledger (tests).
+    if ledger is None:
+        ledger = CostLedger()
     source_files = _source_files(root)
     batches = [
         source_files[start : start + batch_size]
@@ -262,6 +271,7 @@ async def _run_full_unlocked(
         batches=len(batches),
         batches_skipped=batches_skipped,
         results_reused=bool(raw_previous),
+        cost_snapshot=ledger.snapshot(),
     )
     report = {
         "mode": "apply" if not dry_run else "dry-run",
@@ -624,6 +634,7 @@ def _summarize_results(
     batches: int,
     batches_skipped: int,
     results_reused: bool,
+    cost_snapshot: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the five-state summary for ``run_full`` (plan §4 Task 5).
 
@@ -631,6 +642,10 @@ def _summarize_results(
     ``errors`` / ``pages`` aggregates. ``errors`` is strictly the count
     of FAILED results (pre-refactor conflated BLOCKED + FAILED into the
     same counter; plan §4 Task 5 splits them).
+
+    Plan 4: ``cost_snapshot`` from CostLedger.snapshot() is merged under
+    the ``cost`` key. Defaults to an empty-snapshot dict when omitted so
+    callers don't need to construct a ledger.
     """
     by_status: dict[str, int] = {
         ExtractionStatus.WRITTEN.value: 0,
@@ -667,6 +682,15 @@ def _summarize_results(
         "generated_pages": sum(len(r.pages) for r in results),
         "errors": by_status[ExtractionStatus.FAILED.value],
         "pages": sum(len(r.written_page_ids) for r in results),
+        # Plan 4: cost observability — operator sees USD after run completes.
+        "cost": cost_snapshot if cost_snapshot is not None else {
+            "cumulative_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "call_count": 0,
+            "cost_per_call_avg": 0.0,
+            "cost_by_stage": {},
+        },
     }
 
 
@@ -706,6 +730,32 @@ def _markdown_text(report: dict[str, Any]) -> str:
             f"{item.get('attempts', 1)} | {item.get('error') or ''} |"
         )
     lines.append("")
+    # Plan 4: render Cost block only when there was real LLM activity.
+    # RUFLO_BUDGET_PRINT=0 suppresses the block (JSON path still has cost field).
+    cost = summary.get("cost", {})
+    print_cost = (
+        cost.get("cumulative_usd", 0) > 0
+        and os.environ.get("RUFLO_BUDGET_PRINT", "1") != "0"
+    )
+    if print_cost:
+        lines.extend([
+            "## Cost",
+            "",
+            f"- cumulative: ${cost['cumulative_usd']:.4f}",
+            f"- calls: {cost['call_count']}",
+            f"- input tokens: {cost['input_tokens']}",
+            f"- output tokens: {cost['output_tokens']}",
+            f"- avg/call: ${cost['cost_per_call_avg']:.4f}",
+            "",
+            "| Stage | Calls | Input | Output | Cost |",
+            "|---|---:|---:|---:|---:|",
+        ])
+        for stage, data in sorted(cost.get("cost_by_stage", {}).items()):
+            lines.append(
+                f"| `{stage}` | {data['calls']} | {data['input_tokens']} | "
+                f"{data['output_tokens']} | ${data['cost_usd']:.4f} |"
+            )
+        lines.append("")
     return "\n".join(lines)
 
 
@@ -731,7 +781,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if not getattr(args, "root", None):
         parser.error("--root is required (use --root <project_root>)")
-    llm = _build_llm(args.provider)
+    # Plan 4: ledger constructed here so _build_llm can inject it into
+    # AnthropicLLMClient and run_full can fold ledger.snapshot() into summary.
+    ledger = CostLedger()
+    llm = _build_llm(args.provider, ledger=ledger)
     report = asyncio.run(run_full(
         args.root,
         batch_size=args.batch_size,
@@ -742,12 +795,13 @@ def main(argv: list[str] | None = None) -> int:
         json_output=args.json_out,
         markdown_output=args.markdown_out,
         llm=llm,
+        ledger=ledger,
     ))
     print(_json_text(report), end="")
     return 0 if report["summary"]["errors"] == 0 else 2
 
 
-def _build_llm(provider_name: str | None):
+def _build_llm(provider_name: str | None, *, ledger: CostLedger | None = None):
     target = provider_name
     if not target:
         try:
@@ -760,7 +814,7 @@ def _build_llm(provider_name: str | None):
     try:
         from src.pipeline.v7_extract.llm_client import AnthropicLLMClient
 
-        return AnthropicLLMClient(default_provider_name=target)
+        return AnthropicLLMClient(default_provider_name=target, ledger=ledger)
     except Exception:
         return None
 
