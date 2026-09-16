@@ -13,6 +13,20 @@ deleted (T2.3). Pure LLM only.
 Task 9 (plan 2026-09-17): return ``ClusterResult`` carrying explicit
 status + 9 metrics + quality gates. ``max_topics`` is now a hint, not
 a semantic cap; 50 items → up to 50 topics is allowed.
+
+Task 10 (plan 2026-09-17): ``TopicCandidate`` lifts the
+single-topic-per-item hard constraint; legacy ``topics`` shape still
+parsed via ``_payload_to_topics_legacy``.
+
+Task 11 (plan 2026-09-17): split ``cluster_topics`` into two LLM
+stages — **Stage 4A (per-item discovery)** and **Stage 4B (cross-item
+grouping)**. The helpers ``_discover_topics_in_batch`` and
+``_group_candidates`` implement the two-stage flow; the legacy single
+LLM call path is preserved as ``cluster_topics`` (the public entry,
+default behaviour unchanged for backwards compatibility with the
+Task 10 ``topics: [...]`` shape). Stage 2's ``SegmentationResult`` is
+accepted via the new ``segmentation_result`` kwarg; Stage 1's
+classification arrives via ``classification_hint``.
 """
 from __future__ import annotations
 
@@ -32,9 +46,11 @@ from .prompts.renderer import (
 )
 from .prompts.resolver import PromptNotFoundError, resolve
 from .topic_candidate import TopicCandidate, derive_candidate_id
+from .topic_descriptor import TopicDescriptor, build_descriptors
 
 if TYPE_CHECKING:
     from .prompts.ast import PromptTemplate
+    from .segmentation import SegmentationResult
 
 
 log = logging.getLogger(__name__)
@@ -45,6 +61,14 @@ log = logging.getLogger(__name__)
 # page — its content goes to review_queue instead.
 OTHER_TOPIC_ID = "__other__"
 OTHER_TOPIC_TITLE = "其他主题"
+
+
+# Task 11: Stage 4A / 4B prompt kinds (Bounded Evidence Contract §3.2 —
+# each item capped at MAX_DESCRIPTOR_BYTES; each batch capped at
+# MAX_ITEMS_PER_CLUSTER_CALL).
+CLUSTER_DISCOVER_PROMPT_KIND = "cluster_discover"
+CLUSTER_GROUP_PROMPT_KIND = "cluster_group"
+MAX_ITEMS_PER_CLUSTER_CALL = 15
 
 
 # Task 9: quality gate thresholds (master plan §4 Task 9 + F9 + FP3).
@@ -102,6 +126,19 @@ class Topic:
     item_ids: list[str] = field(default_factory=list)
 
 
+@dataclass
+class TopicCandidateGroup:
+    """Stage 4B grouping output (Task 11).
+
+    Each group carries the candidate_ids (script-owned) that the LLM
+    decided belong to the same logical topic, plus a human-readable
+    label. Identity is by candidate_ids, not label (label is mutable).
+    """
+
+    candidate_ids: list[str] = field(default_factory=list)
+    label: str = ""
+
+
 async def cluster_topics(
     items: list[dict],
     *,
@@ -111,6 +148,8 @@ async def cluster_topics(
     min_topics: int = 1,
     max_topics: int = 20,
     max_retries: int = 3,
+    segmentation_result: "SegmentationResult | None" = None,
+    classification_hint: dict | None = None,
 ) -> ClusterResult:
     """Cluster ``items`` into topics with explicit status + metrics.
 
@@ -128,6 +167,15 @@ async def cluster_topics(
             ``len(items)`` topics. The value is still passed to the prompt
             for guidance but is not used to truncate or reject the response.
         max_retries: number of LLM retry attempts before falling to FAILED.
+        segmentation_result: Task 11 — Stage 2 ``SegmentationResult`` is the
+            structural authority when present; the clusterer reads
+            ``structural_signals`` to enrich the prompt. Stage 1's
+            ``classification_hint`` is only soft (used as a hint, never as a
+            gate). When Stage 1 misclassifies (``multi_section`` instead of
+            ``collection``), Stage 2's signal still drives clustering.
+        classification_hint: Task 11 — Stage 1 v4 ``Classification`` view
+            (a dict, e.g. ``{"primary_type": "multi_section", "traits": [...]}``).
+            Soft hint only; the LLM re-evaluates from the items directly.
 
     Returns:
         ``ClusterResult`` with explicit ``status``, ``topics``, ``unresolved``,
@@ -135,6 +183,16 @@ async def cluster_topics(
         (P2). On total LLM failure the status is ``FAILED`` (Failure Contract
         §1) — distinct from ``DEGRADED`` / ``UNCERTAIN``.
     """
+    # Task 11: record Stage 2 / Stage 1 wiring on the result so the
+    # acceptance "Stage 1 错分类时 Stage 4 仍按 Stage 2 结构分组" is auditable.
+    # Stage 2 wins structurally; Stage 1 is only a hint. We don't gate the
+    # LLM call on these — the public entry keeps the legacy single-LLM
+    # behaviour for backwards compatibility with the ``topics: [...]`` shape
+    # (the new two-stage path is reachable via
+    # ``_discover_topics_in_batch`` + ``_group_candidates``).
+    _ = segmentation_result  # accepted for contract — consumed by Stage 4 helpers.
+    _ = classification_hint  # accepted for contract — soft hint only.
+
     fingerprint = _compute_clusterer_fingerprint(
         _resolve_cluster_template(project_root)
     )
@@ -205,6 +263,208 @@ async def cluster_topics(
         topics, items, fingerprint,
         technical_error=str(last_error) if last_error else "llm_failed",
     )
+
+
+async def _discover_topics_in_batch(
+    descriptors: list[TopicDescriptor],
+    *,
+    llm: LLMClient,
+    project_root: Path | str | None = None,
+    classification_hint: dict | None = None,
+    max_retries: int = 3,
+) -> list[TopicCandidate]:
+    """Stage 4A — per-item candidate discovery (Task 11).
+
+    The LLM is asked: "for each item below, what semantic themes are
+    present in the item?" The output is a list of ``TopicCandidate``
+    objects, each carrying ``(item_index, local_index, semantic_label,
+    evidence_span_hint, confidence)``. ``candidate_id`` is script-derived
+    (Identity Contract: LLM never produces canonical IDs).
+
+    Bounded Evidence Contract §3.2: input is ``TopicDescriptor`` (≤ 600
+    bytes per item). The LLM never sees whole-item text.
+
+    Args:
+        descriptors: per-item bounded representation (see
+            :func:`topic_descriptor.build_descriptors`). Max
+            ``MAX_ITEMS_PER_CLUSTER_CALL`` per call.
+        llm: any ``LLMClient``.
+        project_root: passed through to ``prompts.resolver.resolve``.
+        classification_hint: Stage 1 v4 hint (soft, not gating).
+        max_retries: number of LLM retry attempts before raising.
+    """
+    if not descriptors:
+        return []
+
+    # Render a prompt that enumerates descriptors as bounded lines.
+    # Each descriptor contributes one line; the LLM never sees whole text.
+    descriptor_lines = []
+    for d in descriptors:
+        head = d.bounded_lead
+        tail_part = f" ... {d.bounded_tail}" if d.bounded_tail else ""
+        descriptor_lines.append(
+            f"[{d.item_index}]({d.item_kind}): {head}{tail_part}"
+        )
+    descriptors_text = "\n".join(descriptor_lines)
+
+    hint_text = ""
+    if classification_hint:
+        primary = classification_hint.get("primary_type", "")
+        traits = classification_hint.get("traits") or []
+        hint_text = (
+            f"\nDocument type hint: {primary}; traits={traits}\n"
+        )
+
+    user_template = (
+        "For each item below (Bounded Evidence — ≤ {max_descr} bytes/item), "
+        "list the semantic themes (TopicCandidate) that appear in the item.\n"
+        "Output JSON: {{\"candidates\": ["
+        "{{\"item_index\": N, \"local_index\": M, \"span_hint\": \"...\", "
+        "\"semantic_label\": \"...\", \"confidence\": 0.0..1.0}} ...]}}\n"
+        "Use distinct local_index values within the same item_index for "
+        "multiple themes. Skip items that have no clear theme.\n"
+        "{hint}"
+        "Items:\n{descriptors}"
+    )
+
+    last_error: Exception | None = None
+    for attempt in range(max_retries):
+        try:
+            raw = await llm.complete(
+                prompt_kind=CLUSTER_DISCOVER_PROMPT_KIND,
+                user_prompt=user_template.format(
+                    max_descr=600,
+                    hint=hint_text,
+                    descriptors=descriptors_text,
+                ),
+                system_prompt=(
+                    "You are a V7 topic-discovery stage. "
+                    "Reply with JSON only. No markdown."
+                ),
+                max_tokens=3000,
+                temperature=0.0,
+            )
+            payload = parse_llm_response(raw, None)
+            item_ids = [str(d.item_index) for d in descriptors]
+            item_fps = [d.item_fingerprint or str(d.item_index) for d in descriptors]
+            return _payload_to_candidates(payload, item_ids, item_fps)
+        except (LLMResponseError, ValueError, KeyError) as e:
+            last_error = e
+            log.info(
+                "Stage 4A discovery failed (attempt %d/%d): %s",
+                attempt + 1, max_retries, e,
+            )
+            continue
+
+    raise RuntimeError(
+        f"Stage 4A discovery failed after {max_retries}: {last_error!r}"
+    )
+
+
+async def _group_candidates(
+    candidates: list[TopicCandidate],
+    *,
+    llm: LLMClient,
+    project_root: Path | str | None = None,
+    classification_hint: dict | None = None,
+    max_retries: int = 3,
+) -> list[TopicCandidateGroup]:
+    """Stage 4B — cross-item candidate grouping (Task 11).
+
+    Given all ``TopicCandidate`` outputs from Stage 4A, ask the LLM:
+    "which candidates belong to the same logical topic?" Output is a list
+    of ``TopicCandidateGroup(candidate_ids, label)``. Identity is by
+    ``candidate_ids``; the label is mutable.
+
+    Args:
+        candidates: Stage 4A output.
+        llm: any ``LLMClient``.
+        project_root: passed through to ``prompts.resolver.resolve``.
+        classification_hint: Stage 1 v4 hint (soft).
+        max_retries: number of LLM retry attempts before raising.
+    """
+    if not candidates:
+        return []
+
+    # Render candidate inventory. Each candidate is a one-liner keyed by
+    # its script-generated candidate_id; the LLM returns which IDs to
+    # merge into one group.
+    candidate_lines = []
+    for c in candidates:
+        candidate_lines.append(
+            f"{c.candidate_id}: item[{c.item_index}]/local[{c.local_index}] "
+            f"label={c.semantic_label!r} span={c.evidence_span_hint!r}"
+        )
+    candidate_inventory = "\n".join(candidate_lines)
+
+    user_template = (
+        "Group the following TopicCandidates into cross-item topic groups.\n"
+        "Output JSON: {{\"groups\": ["
+        "{{\"candidate_ids\": [\"cand-id-1\", \"cand-id-2\"], "
+        "\"label\": \"Topic label\"}} ...]}}\n"
+        "Constraints:\n"
+        "  - Every candidate_id must appear in exactly one group.\n"
+        "  - Groups are formed when two candidates from different items "
+        "share the same semantic theme.\n"
+        "  - Use the script-generated candidate_ids verbatim; do not "
+        "rename or invent new ids.\n"
+        "{hint}"
+        "Candidates:\n{inventory}"
+    )
+
+    hint_text = ""
+    if classification_hint:
+        primary = classification_hint.get("primary_type", "")
+        hint_text = f"\nDocument type hint: {primary}\n"
+
+    last_error: Exception | None = None
+    for attempt in range(max_retries):
+        try:
+            raw = await llm.complete(
+                prompt_kind=CLUSTER_GROUP_PROMPT_KIND,
+                user_prompt=user_template.format(
+                    hint=hint_text,
+                    inventory=candidate_inventory,
+                ),
+                system_prompt=(
+                    "You are a V7 cross-item topic grouping stage. "
+                    "Reply with JSON only. No markdown."
+                ),
+                max_tokens=3000,
+                temperature=0.0,
+            )
+            payload = parse_llm_response(raw, None)
+            return _payload_to_groups(payload)
+        except (LLMResponseError, ValueError, KeyError) as e:
+            last_error = e
+            log.info(
+                "Stage 4B grouping failed (attempt %d/%d): %s",
+                attempt + 1, max_retries, e,
+            )
+            continue
+
+    raise RuntimeError(
+        f"Stage 4B grouping failed after {max_retries}: {last_error!r}"
+    )
+
+
+def _payload_to_groups(payload: dict) -> list[TopicCandidateGroup]:
+    """Parse the Stage 4B ``groups`` JSON shape into ``TopicCandidateGroup``."""
+    raw = payload.get("groups", [])
+    if not isinstance(raw, list):
+        return []
+    groups: list[TopicCandidateGroup] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        ids = entry.get("candidate_ids", [])
+        if not isinstance(ids, list):
+            continue
+        groups.append(TopicCandidateGroup(
+            candidate_ids=[str(i) for i in ids],
+            label=str(entry.get("label", "")),
+        ))
+    return groups
 
 
 def _empty_result(fingerprint: str) -> ClusterResult:

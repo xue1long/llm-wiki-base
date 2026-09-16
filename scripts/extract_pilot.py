@@ -379,7 +379,10 @@ async def _extract_one(
         #   DEGRADED  → continue (warnings emitted)
         #   CLUSTERED → continue
         cluster_result = await cluster_topics(
-            items, llm=llm, project_root=root,
+            items,
+            llm=llm,
+            project_root=root,
+            segmentation_result=segmentation_result,
         )
         # Stage 4 quality metrics get surfaced in metadata so the JSON
         # report carries them without callers re-running Stage 4.

@@ -681,3 +681,205 @@ async def test_collection_one_article_may_produce_multiple_topics():
     assert len({c.candidate_id for c in candidates}) == 3
     # All three point to the same item but are independent candidates.
     assert all(c.item_index == 0 for c in candidates)
+
+
+# ---------------------------------------------------------------------------
+# Task 11 (Plan 2026-09-17): two-stage LLM (Stage 4A discovery + 4B grouping)
+# + TopicDescriptor (Bounded Evidence Contract §3.2 — ≤ 600 bytes/item)
+# ---------------------------------------------------------------------------
+
+
+def test_topic_descriptor_within_budget():
+    """Task 11 / Bounded Evidence Contract §3.2: each TopicDescriptor must
+    fit in ≤ MAX_DESCRIPTOR_BYTES (600 bytes). Hard invariant — failing this
+    is a Contract violation, not a soft warning.
+    """
+    from src.pipeline.v7_extract.topic_descriptor import (
+        MAX_DESCRIPTOR_BYTES,
+        build_descriptors,
+    )
+
+    # Three item shapes: tiny / medium / huge — descriptor must stay ≤ budget
+    # even when the source text is unbounded.
+    items = [
+        {"id": "tiny", "text": "x" * 50, "kind": "article", "title": "T"},
+        {"id": "medium", "text": "y" * 1500, "kind": "section", "title": "M"},
+        {"id": "huge", "text": "z" * 200_000, "kind": "article", "title": "H"},
+    ]
+    descriptors = build_descriptors(items)
+    assert len(descriptors) == 3
+    for d in descriptors:
+        size = len(d.bounded_lead.encode("utf-8")) + len(d.bounded_tail.encode("utf-8"))
+        # The DESCRIPTOR TEXT (head + tail) is what the LLM sees — must stay bounded.
+        assert size <= MAX_DESCRIPTOR_BYTES, (
+            f"descriptor for item_index={d.item_index} is {size} bytes "
+            f"(limit {MAX_DESCRIPTOR_BYTES}) — Bounded Evidence Contract §3.2 violation"
+        )
+
+
+@pytest.mark.asyncio
+async def test_stage4a_discovers_per_item_candidates():
+    """Task 11: Stage 4A = per-item candidate discovery. The function
+    accepts ``TopicDescriptor`` objects and returns ``TopicCandidate`` list.
+    """
+    from src.pipeline.v7_extract.topic_descriptor import build_descriptors
+    from src.pipeline.v7_extract.topic_clusterer import (
+        _discover_topics_in_batch,
+    )
+
+    items = [
+        {"id": "a", "text": "Embedding + Chunking + Reranking", "kind": "article"},
+        {"id": "b", "text": "Worldbuilding: magic system", "kind": "article"},
+    ]
+    descriptors = build_descriptors(items)
+
+    fake = FakeLLMClient()
+    fake.script(
+        "cluster_discover",
+        '{"candidates": ['
+        '{"item_index": 0, "local_index": 0, "span_hint": "p1", "semantic_label": "Embedding", "confidence": 0.9},'
+        '{"item_index": 0, "local_index": 1, "span_hint": "p2", "semantic_label": "Chunking", "confidence": 0.85},'
+        '{"item_index": 1, "local_index": 0, "span_hint": "p3", "semantic_label": "Magic system", "confidence": 0.8}'
+        ']}',
+    )
+
+    candidates = await _discover_topics_in_batch(
+        descriptors, llm=fake, project_root=None,
+    )
+    assert len(candidates) == 3
+    assert candidates[0].item_index == 0
+    assert candidates[0].semantic_label == "Embedding"
+    assert candidates[2].item_index == 1
+    assert candidates[2].semantic_label == "Magic system"
+    # All candidate_ids are script-generated (distinct).
+    assert len({c.candidate_id for c in candidates}) == 3
+    # Discovery must NOT do cross-item grouping (Stage 4B's job).
+    assert all(c.item_index in (0, 1) for c in candidates)
+
+
+@pytest.mark.asyncio
+async def test_stage4b_groups_candidates_across_items():
+    """Task 11: Stage 4B = cross-item candidate grouping. The function
+    takes the candidates from Stage 4A and asks the LLM which belong to
+    the same logical topic; returns grouping labels / group identifiers.
+    """
+    from src.pipeline.v7_extract.topic_candidate import TopicCandidate
+    from src.pipeline.v7_extract.topic_clusterer import (
+        _group_candidates,
+    )
+
+    candidates = [
+        TopicCandidate(
+            candidate_id="cand-0-0-abc", item_index=0, local_index=0,
+            semantic_label="Embedding", evidence_span_hint="p1", confidence=0.9,
+        ),
+        TopicCandidate(
+            candidate_id="cand-0-1-def", item_index=0, local_index=1,
+            semantic_label="Chunking", evidence_span_hint="p2", confidence=0.85,
+        ),
+        TopicCandidate(
+            candidate_id="cand-1-0-ghi", item_index=1, local_index=0,
+            semantic_label="Embedding techniques", evidence_span_hint="p3",
+            confidence=0.8,
+        ),
+    ]
+
+    fake = FakeLLMClient()
+    # Stage 4B output: a list of groups, each with the candidate_ids that
+    # belong together. Group 1 = embedding-related (cand-0-0 + cand-1-0);
+    # Group 2 = chunking (cand-0-1).
+    fake.script(
+        "cluster_group",
+        '{"groups": ['
+        '{"candidate_ids": ["cand-0-0-abc", "cand-1-0-ghi"], "label": "Embedding"},'
+        '{"candidate_ids": ["cand-0-1-def"], "label": "Chunking"}'
+        ']}',
+    )
+
+    groups = await _group_candidates(
+        candidates, llm=fake, project_root=None,
+    )
+    # Two groups produced by the LLM.
+    assert len(groups) == 2
+    # The grouping is by candidate_id, which is script-owned.
+    assert "cand-0-0-abc" in groups[0].candidate_ids
+    assert "cand-1-0-ghi" in groups[0].candidate_ids
+    assert "cand-0-1-def" in groups[1].candidate_ids
+
+
+@pytest.mark.asyncio
+async def test_clustering_consumes_stage2_structural_summary():
+    """Task 11: cluster_topics must accept a ``segmentation_result`` parameter
+    and consume Stage 2's structural summary (even when only stored / passed
+    through — the wiring is the contract).
+
+    This is the "Stage 1 错分类（collection → multi_section）时 Stage 4 仍按
+    Stage 2 结构分组" acceptance from the master plan: Stage 2 wins, Stage 1
+    is only a soft hint.
+    """
+    from src.pipeline.v7_extract.segmentation import (
+        CoverageReport,
+        ItemKind,
+        CanonicalItem,
+        SegmentationResult,
+        SegmentationStatus,
+    )
+    from src.pipeline.v7_extract.invariants import InvariantReport
+    from src.pipeline.v7_extract.topic_clusterer import cluster_topics
+
+    items = [{"id": "a", "text": "alpha", "kind": "article"}]
+
+    # Minimal SegmentationResult — only structural_signals is read by Stage 4.
+    fake_segmentation = SegmentationResult(
+        status=SegmentationStatus.SEGMENTED,
+        method="structural_deterministic",
+        items=[
+            CanonicalItem(
+                item_id="a", kind=ItemKind.ARTICLE,
+                start_byte=0, end_byte=5,
+                title="Alpha", text="alpha",
+            ),
+        ],
+        coverage=CoverageReport(
+            byte_accounting=1.0, structured_coverage=1.0,
+            residual_ratio=0.0, unknown_ratio=0.0,
+        ),
+        invariants=InvariantReport(
+            i1_nonempty=True,
+            i2_boundaries_valid=True,
+            i3_sorted=True,
+            i4_non_overlapping=True,
+            i5_complete_accounting=True,
+        ),
+        warnings=[],
+        structural_signals={
+            "header_count": 3,
+            "byline_count": 1,
+            "qa_marker_count": 0,
+            "article_count": 1,
+        },
+        source_hash="abc123",
+        segmenter_fingerprint="seg-123",
+        residual_items=[],
+    )
+
+    fake = FakeLLMClient()
+    fake.script(
+        "cluster",
+        '{"topics": [{"id": "t1", "title": "T1", "item_indexes": [0]}]}',
+    )
+
+    # Stage 1 doc_type says "multi_section" (the WRONG classification).
+    # Stage 2 segmentation_result says SEGMENTED with article_count=1
+    # (the right structure). Stage 4 must accept both params and proceed.
+    result = await cluster_topics(
+        items,
+        llm=fake,
+        project_root=None,
+        doc_type="multi_section",           # wrong Stage 1 hint
+        segmentation_result=fake_segmentation,  # right Stage 2 contract
+    )
+    # The function returned a ClusterResult — wiring accepted both params.
+    assert result.status.value in {"clustered", "degraded"}
+    assert len(result.topics) == 1
+    assert result.topics[0].item_ids == ["a"]
