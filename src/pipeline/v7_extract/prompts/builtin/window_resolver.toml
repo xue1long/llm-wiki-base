@@ -1,0 +1,60 @@
+[meta]
+prompt_kind = "window_resolver"
+version = "1.0"
+
+[system]
+text = """You are a V7 window resolver. For each bounded source window below,
+decide whether the window contains a single coherent item (KEEP), multiple
+items that should be SPLIT, blocks that should MERGE with adjacent windows,
+or NOISE (boilerplate / nav / headers to skip).
+
+Reply with a single JSON object only. No markdown, no commentary outside JSON.
+
+You decide ONLY the verdict. You NEVER generate window_id, item_id, or any
+persistent identifier. The script derives every identifier from block_range
+via a deterministic hash."""
+
+[user]
+template = """\
+Window id: {window_id}
+Block range: {block_range}
+Block kinds: {block_kinds}
+
+Window text:
+\"\"\"
+{window_text}
+\"\"\"
+
+Decide:
+  - "keep":     single coherent item — keep as one
+  - "split":    multiple items — return split_points as byte offsets within window_text
+  - "merge":    this window joins adjacent windows (no split_points)
+  - "noise":    boilerplate / nav / skip
+  - "unresolved": insufficient evidence to decide
+
+Respond with JSON in exactly this shape:
+{"verdict": "keep|split|merge|noise|unresolved", "confidence": 0.0..1.0, "split_points": [<byte_offset>, ...]}"""
+
+[output_schema]
+type = "json"
+required = ["verdict"]
+
+[[slot]]
+name = "window_id"
+required = true
+description = "Script-derived window identifier"
+
+[[slot]]
+name = "window_text"
+required = true
+description = "Bounded window text (≤ 1500 chars per master plan §3.2)"
+
+[[slot]]
+name = "block_range"
+required = true
+description = "First..last block indices (inclusive)"
+
+[[slot]]
+name = "block_kinds"
+required = true
+description = "Comma-separated StructuralBlockKind values"
