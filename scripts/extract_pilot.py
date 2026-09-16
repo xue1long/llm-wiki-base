@@ -569,7 +569,25 @@ def _wrap_items_as_segmentation_result(
 
 
 def _extract_items(content: str, relative: str) -> list[dict[str, str]]:
-    """Section / list-item based slicing — same algorithm as v2."""
+    """Deterministic structural splitter — Task 4 contract.
+
+    Tries structural splitters in order of decreasing specificity:
+      1. Author byline (``作者 XXX``) — strongest signal for
+         multi-author collections (master plan Task 4). Used even when
+         Stage 1 mis-classifies the source as ``multi_section``; Stage 2
+         no longer reads ``doc_type`` for this decision.
+      2. ``## `` markdown headings — existing v2 fallback.
+      3. Numbered list — existing v2 fallback for short listicles.
+      4. Single-item fallback — wraps the whole content as one item.
+
+    Each splitter is pure (no LLM call, no doc_type input) so the path
+    stays deterministic and bounded (Contract 3 §3.4: Stage 2 must not
+    feed full ``content`` to an LLM; this is the offline-heuristic
+    branch that runs before the LLM window resolver wired in Task 5).
+    """
+    byline_items = _extract_items_by_author_byline(content, relative)
+    if len(byline_items) >= 2:
+        return byline_items
     headings = list(re.finditer(r"(?m)^#{1,3}\s+(.+?)\s*$", content))
     if len(headings) >= 2:
         items = []
@@ -585,6 +603,64 @@ def _extract_items(content: str, relative: str) -> list[dict[str, str]]:
             for index, text in enumerate(numbered)
         ]
     return [{"id": relative, "text": content.strip()}]
+
+
+# Task 4 — byline patterns.
+# STRICT form (canonical, shared with doc_classifier._AUTHOR_BYLINE_RE):
+#   ``作者 : XXX`` or ``作者：XXX`` — used for evidence_summary accounting.
+# HEADING form (used by actual novel-wiki fixtures):
+#   ``## 作者 314 — 如何更好地包装作品`` — heading-wrapped bylines.
+# Both forms are accepted by the splitter; the strict count is the
+# Stage 1 evidence_summary signal, the broad match is the Stage 2 split.
+_AUTHOR_BYLINE_RE_STRICT = re.compile(r"(?m)^\s*作者\s*[:：]\s*\S{1,20}\s*$")
+_AUTHOR_BYLINE_RE_BROAD = re.compile(
+    r"(?m)^(?:\s*#+\s+)?\s*作者\s*[:：]?\s*\S{1,20}\s*(?:—|-|：|:|$)",
+)
+
+
+def _extract_items_by_author_byline(
+    content: str, relative: str,
+) -> list[dict[str, str]]:
+    """Split a source on ``作者 XXX`` byline lines.
+
+    Each item's ``text`` runs from the byline line up to (but not
+    including) the next byline line — never overlapping, always sorted
+    by source position. Returns an empty list when the content has no
+    bylines; the caller decides whether to fall through to other
+    splitters based on the count.
+
+    Accepts both the strict ``作者 : XXX`` form (doc_classifier
+    evidence_summary signal) and the heading-wrapped
+    ``## 作者 314 — Title`` form found in actual fixtures.
+    """
+    matches = list(_AUTHOR_BYLINE_RE_BROAD.finditer(content))
+    if not matches:
+        return []
+    items: list[dict[str, str]] = []
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(content)
+        text = content[match.start():end].strip()
+        items.append({
+            "id": f"{relative}#author-{index + 1}",
+            "text": text,
+        })
+    return items
+
+
+def _looks_like_collection(content: str) -> bool:
+    """Soft structural hint that ``content`` reads like a multi-author
+    collection. Pure function — derived from regex sweep only, never
+    consults Stage 1 ``doc_type``.
+
+    Returns True when BOTH signals fire:
+      - ≥ 2 author byline lines (strict or heading form, multi-author)
+      - ≥ 1 markdown ``#`` / ``##`` header (curated editorial wrapper)
+    """
+    strict_count = len(_AUTHOR_BYLINE_RE_STRICT.findall(content))
+    broad_count = len(_AUTHOR_BYLINE_RE_BROAD.findall(content))
+    byline_count = max(strict_count, broad_count)
+    header_count = len(re.findall(r"(?m)^#+\s+", content))
+    return byline_count >= 2 and header_count >= 1
 
 
 def _llm_provider_label(llm: Any) -> str:
