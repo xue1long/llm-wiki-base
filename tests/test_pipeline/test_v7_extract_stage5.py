@@ -664,3 +664,112 @@ async def test_legacy_concept_page_still_generated_for_stage7() -> None:
     )
     assert isinstance(legacy_page, _ConceptPage)
     assert legacy_page.title == "扩句法"
+
+
+# ---------------------------------------------------------------------------
+# Task 38: reviewer cache (avoid re-reviewing identical claim+evidence pairs)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_reviewer_cache_hit_skips_llm(tmp_path):
+    """Cache fully hit → no LLM call (FakeLLMClient.calls stays empty)."""
+    from src.pipeline.v7_extract.claim import Claim, ClaimRisk, ClaimSupport
+    from src.pipeline.v7_extract.claim_reviewer import (
+        ReviewerCache, ReviewerCacheEntry, review_high_risk_claims,
+    )
+
+    ref = type("Ref", (), {"item_id": "i1", "start_byte": 0, "end_byte": 100})()
+    claim = Claim(
+        claim_id="claim-cache-1",
+        slot_name="definition",
+        text="X 提高 10%",
+        evidence_refs=[ref],
+        support=ClaimSupport.SUPPORTED,
+        confidence=0.9,
+        risk=ClaimRisk.HIGH,
+    )
+
+    cache = ReviewerCache(tmp_path)
+    # Pre-seed cache for this exact claim.
+    key = ReviewerCache.cache_key(claim.text, claim.evidence_refs, "claim_reviewer|v1")
+    cache.put(ReviewerCacheEntry(
+        cache_key=key, claim_id="claim-cache-1",
+        verdict="supported", confidence=0.9, reason="",
+        reviewed_at_ms=1_700_000_000_000,
+    ))
+
+    fake = FakeLLMClient()
+    # No script() — any LLM call would raise KeyError.
+    out = await review_high_risk_claims(
+        [claim], source_bytes=b"x" * 1000,
+        llm=fake, project_root=None, cache=cache,
+    )
+    assert out[0].support is ClaimSupport.SUPPORTED
+    # LLM was NOT called.
+    assert fake.calls == []
+
+
+@pytest.mark.asyncio
+async def test_reviewer_cache_miss_falls_back_to_llm(tmp_path):
+    """Different evidence → cache miss → LLM runs and verdict persisted."""
+    from src.pipeline.v7_extract.claim import Claim, ClaimRisk, ClaimSupport
+    from src.pipeline.v7_extract.claim_reviewer import (
+        ReviewerCache, ReviewerCacheEntry, review_high_risk_claims,
+    )
+
+    ref_a = type("Ref", (), {"item_id": "i1", "start_byte": 0, "end_byte": 100})()
+    ref_b = type("Ref", (), {"item_id": "i1", "start_byte": 0, "end_byte": 200})()
+    claim = Claim(
+        claim_id="claim-cache-miss",
+        slot_name="definition",
+        text="Y 增加 20%",
+        evidence_refs=[ref_b],      # different from ref_a
+        support=ClaimSupport.SUPPORTED,
+        confidence=0.8,
+        risk=ClaimRisk.HIGH,
+    )
+
+    cache = ReviewerCache(tmp_path)
+    # Seed cache for ref_a only.
+    seed_key = ReviewerCache.cache_key(
+        "X 提高 10%", [ref_a], "claim_reviewer|v1",
+    )
+    cache.put(ReviewerCacheEntry(
+        cache_key=seed_key, claim_id="other",
+        verdict="contradicted", confidence=0.5, reason="",
+        reviewed_at_ms=1,
+    ))
+
+    fake = FakeLLMClient()
+    fake.script(
+        "claim_reviewer",
+        '{"verdicts": [{"claim_id": "claim-cache-miss", "verdict": "supported", "confidence": 0.7}]}',
+    )
+    out = await review_high_risk_claims(
+        [claim], source_bytes=b"y" * 1000,
+        llm=fake, project_root=None, cache=cache,
+    )
+    assert out[0].support is ClaimSupport.SUPPORTED
+    # LLM was called.
+    assert len(fake.calls) == 1
+    # Cache now contains the new verdict for ref_b.
+    new_key = ReviewerCache.cache_key(claim.text, claim.evidence_refs, "claim_reviewer|v1")
+    assert cache.get(new_key) is not None
+
+
+def test_reviewer_cache_persists_to_jsonl(tmp_path):
+    """ReviewerCache.put → .index/reviewer_cache.jsonl 文件存在。"""
+    from src.pipeline.v7_extract.claim_reviewer import ReviewerCache, ReviewerCacheEntry
+
+    cache = ReviewerCache(tmp_path)
+    cache.put(ReviewerCacheEntry(
+        cache_key="rc-test", claim_id="c1",
+        verdict="supported", confidence=0.9, reason="ok",
+        reviewed_at_ms=1_700_000_000_000,
+    ))
+    path = tmp_path / ".index" / "reviewer_cache.jsonl"
+    assert path.exists()
+    text = path.read_text(encoding="utf-8")
+    assert "rc-test" in text
+    assert '"verdict": "supported"' in text

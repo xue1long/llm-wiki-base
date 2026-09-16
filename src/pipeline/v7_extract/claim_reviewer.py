@@ -26,9 +26,14 @@ entirely — they are not seen, not cited, not charged.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
+import time
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 from .claim import Claim, ClaimRisk, ClaimSupport
 from .claim_validator import MAX_EVIDENCE_BYTES
@@ -72,6 +77,94 @@ _VERDICT_TO_SUPPORT: dict[ReviewerVerdict, ClaimSupport] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Task 38: reviewer cache (avoid re-reviewing identical claim+evidence pairs)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ReviewerCacheEntry:
+    cache_key: str
+    claim_id: str
+    verdict: str            # ReviewerVerdict.value
+    confidence: float
+    reason: str
+    reviewed_at_ms: int
+
+
+class ReviewerCache:
+    """Append-only reviewer cache persisted to ``<.index/reviewer_cache.jsonl>``.
+
+    Cache key = ``sha1(claim_text | sorted(evidence byte ranges) | reviewer_fingerprint)[:16]``
+    — deterministic; different evidence ranges OR different fingerprint
+    miss the cache.
+
+    The cache is best-effort: failures to read/write the file swallow + log
+    rather than raising (Failure Contract §1).
+    """
+
+    def __init__(self, root: Path | str):
+        self.root = Path(root)
+
+    def _path(self) -> Path:
+        p = self.root / ".index" / "reviewer_cache.jsonl"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        return p
+
+    @staticmethod
+    def cache_key(
+        claim_text: str,
+        evidence_refs: Any,
+        reviewer_fingerprint: str,
+    ) -> str:
+        sorted_ranges = sorted(
+            (getattr(ref, "start_byte", 0), getattr(ref, "end_byte", 0))
+            for ref in (evidence_refs or [])
+        )
+        identity = f"{claim_text}|{sorted_ranges}|{reviewer_fingerprint}"
+        return "rc-" + hashlib.sha1(identity.encode("utf-8")).hexdigest()[:16]
+
+    def get(self, cache_key: str) -> ReviewerCacheEntry | None:
+        path = self._path()
+        if not path.exists():
+            return None
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    payload = json.loads(line)
+                except ValueError:
+                    continue
+                if payload.get("cache_key") == cache_key:
+                    return ReviewerCacheEntry(
+                        cache_key=payload["cache_key"],
+                        claim_id=payload.get("claim_id", ""),
+                        verdict=payload.get("verdict", "insufficient"),
+                        confidence=float(payload.get("confidence", 0.0) or 0.0),
+                        reason=payload.get("reason", ""),
+                        reviewed_at_ms=int(payload.get("reviewed_at_ms", 0) or 0),
+                    )
+        except OSError:
+            return None
+        return None
+
+    def put(self, entry: ReviewerCacheEntry) -> None:
+        path = self._path()
+        try:
+            with path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps({
+                    "cache_key": entry.cache_key,
+                    "claim_id": entry.claim_id,
+                    "verdict": entry.verdict,
+                    "confidence": entry.confidence,
+                    "reason": entry.reason,
+                    "reviewed_at_ms": entry.reviewed_at_ms,
+                }, ensure_ascii=False) + "\n")
+        except OSError as e:
+            log.warning("ReviewerCache.put failed: %s", e)
+
+
 async def review_high_risk_claims(
     claims: list[Claim],
     *,
@@ -79,6 +172,7 @@ async def review_high_risk_claims(
     llm: LLMClient,
     project_root: Path | str | None = None,
     max_retries: int = 3,
+    cache: ReviewerCache | None = None,
 ) -> list[Claim]:
     """Re-check every HIGH-risk claim against its cited evidence.
 
@@ -96,10 +190,45 @@ async def review_high_risk_claims(
 
     Returns the *same* list object (in-place mutation), and also returns
     it for caller convenience.
+
+    Task 38: when ``cache`` is provided, look up each HIGH-risk claim's
+    cache key first. Cache hit skips the LLM call for that claim.
     """
     high_risk = [claim for claim in claims if claim.risk is ClaimRisk.HIGH]
     if not high_risk:
         return claims
+
+    # Task 38: cache pre-check. Cache fingerprint here is a coarse
+    # "reviewer fingerprint" — Task 17's template fingerprint (sha1 of the
+    # prompt file). For cache we use a constant identity so we don't
+    # require resolving the template first; cache invalidation on
+    # prompt change is the caller's responsibility (e.g. by deleting
+    # .index/reviewer_cache.jsonl when bumping the prompt version).
+    cache_fingerprint = "claim_reviewer|v1"
+    cache_hits: dict[str, ReviewerCacheEntry] = {}
+    if cache is not None:
+        for claim in high_risk:
+            key = ReviewerCache.cache_key(
+                claim.text, claim.evidence_refs, cache_fingerprint,
+            )
+            entry = cache.get(key)
+            if entry is not None:
+                cache_hits[claim.claim_id] = entry
+
+    if cache is not None and len(cache_hits) == len(high_risk):
+        # Every HIGH-risk claim hit the cache — skip LLM entirely.
+        log.info(
+            "claim_reviewer: cache fully hit %d/%d HIGH-risk claim(s); "
+            "skipping LLM", len(cache_hits), len(high_risk),
+        )
+        for claim in high_risk:
+            entry = cache_hits[claim.claim_id]
+            verdict = _verdict_from_str(entry.verdict)
+            claim.support = _VERDICT_TO_SUPPORT[verdict]
+        return claims
+
+    # Partial or no cache: resolve template + call LLM only for misses.
+    misses = [c for c in high_risk if c.claim_id not in cache_hits]
 
     try:
         template = _resolve_template(project_root)
@@ -111,7 +240,7 @@ async def review_high_risk_claims(
         return claims
 
     system_prompt, user_prompt = render_prompt(template, {
-        "claims_block": _render_claims_block(high_risk, source_bytes),
+        "claims_block": _render_claims_block(misses, source_bytes),
     })
 
     verdicts_by_id = await _call_review_with_retries(
@@ -120,25 +249,54 @@ async def review_high_risk_claims(
     )
 
     if verdicts_by_id is None:
-        # All retries exhausted — fail-closed demote.
+        # All retries exhausted — fail-closed demote for misses only.
         log.warning(
             "claim_reviewer: LLM failed after %d attempts; demoting %d "
             "HIGH-risk claim(s) to INSUFFICIENT_EVIDENCE",
-            max_retries, len(high_risk),
+            max_retries, len(misses),
         )
-        _demote_all(high_risk)
-        return claims
+        _demote_all(misses)
+    else:
+        for claim in misses:
+            verdict = verdicts_by_id.get(claim.claim_id)
+            if verdict is None:
+                claim.support = ClaimSupport.INSUFFICIENT_EVIDENCE
+                continue
+            claim.support = _VERDICT_TO_SUPPORT[verdict]
 
-    known_ids = {claim.claim_id for claim in high_risk}
+    # Task 38: persist new verdicts to cache.
+    if cache is not None and verdicts_by_id is not None:
+        now_ms = int(time.time() * 1000)
+        for claim in misses:
+            verdict = verdicts_by_id.get(claim.claim_id)
+            if verdict is None:
+                continue
+            key = ReviewerCache.cache_key(
+                claim.text, claim.evidence_refs, cache_fingerprint,
+            )
+            cache.put(ReviewerCacheEntry(
+                cache_key=key,
+                claim_id=claim.claim_id,
+                verdict=verdict.value,
+                confidence=claim.confidence,
+                reason="",
+                reviewed_at_ms=now_ms,
+            ))
+
+    # Apply cached hits on the remaining (cache-hit) claims.
     for claim in high_risk:
-        verdict = verdicts_by_id.get(claim.claim_id)
-        if verdict is None:
-            # No verdict for this claim — treat as insufficient
-            # (conservative: no reviewer signal -> don't keep SUPPORTED).
-            claim.support = ClaimSupport.INSUFFICIENT_EVIDENCE
-            continue
-        claim.support = _VERDICT_TO_SUPPORT[verdict]
+        if claim.claim_id in cache_hits:
+            entry = cache_hits[claim.claim_id]
+            claim.support = _VERDICT_TO_SUPPORT[_verdict_from_str(entry.verdict)]
     return claims
+
+
+def _verdict_from_str(value: str) -> ReviewerVerdict:
+    """Map a cached verdict string back to the enum. Unknown → INSUFFICIENT."""
+    try:
+        return ReviewerVerdict(value)
+    except ValueError:
+        return ReviewerVerdict.INSUFFICIENT
 
 
 # ---------------------------------------------------------------------------
