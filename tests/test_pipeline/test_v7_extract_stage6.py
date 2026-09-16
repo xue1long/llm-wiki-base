@@ -277,3 +277,123 @@ def test_relations_remain_in_wiki_frontmatter_as_best_effort_view(tmp_path) -> N
         # frontmatter closer.
         section = after.split("\n", 1)[0]
         assert section.strip() in ("[]", "")
+
+
+# ---------------------------------------------------------------------------
+# Task 24 — Stage 6R RelationStore + independent checkpoint
+# ---------------------------------------------------------------------------
+
+
+def test_relation_store_persists_per_page(tmp_path) -> None:
+    """RelationStore.apply_result writes the run-state + event log, and
+    get_run_record / list_page_relations read back what was written.
+    """
+    from src.pipeline.v7_extract.relation_store import (
+        RelationRunRecord,
+        RelationRunStatus,
+        RelationStore,
+    )
+
+    store = RelationStore(tmp_path, extractor_fingerprint="fp-1")
+    record = RelationRunRecord(
+        page_id="p1",
+        page_revision="rev-1",
+        relation_ids=["rel-aaa", "rel-bbb"],
+        status=RelationRunStatus.READY,
+        extractor_fingerprint="fp-1",
+        updated_at_ms=1000,
+    )
+    store.apply_result(record)
+
+    # Both index files were created.
+    assert (tmp_path / ".index" / "relation_run_state.json").exists()
+    assert (tmp_path / ".index" / "relations.jsonl").exists()
+
+    # Round-trip: get_run_record returns the record we wrote.
+    fetched = store.get_run_record("p1")
+    assert fetched == record
+
+    # list_page_relations returns the relation_ids, sorted, no tombstone.
+    assert store.list_page_relations("p1") == ["rel-aaa", "rel-bbb"]
+
+
+def test_cascade_page_delete_tombstones_edges(tmp_path) -> None:
+    """cascade_page_delete tombstones every relation whose source OR target
+    is the deleted page. Tombstone events land in relations.jsonl; the
+    deleted page's relation list collapses to empty; unrelated pages are
+    untouched.
+    """
+    from src.pipeline.v7_extract.relation_store import (
+        RelationRunRecord,
+        RelationRunStatus,
+        RelationStore,
+    )
+
+    store = RelationStore(tmp_path)
+    store.apply_result(
+        RelationRunRecord(
+            page_id="p1",
+            page_revision="r1",
+            relation_ids=["rel-aaa", "rel-bbb"],
+            status=RelationRunStatus.READY,
+        )
+    )
+    store.apply_result(
+        RelationRunRecord(
+            page_id="p2",
+            page_revision="r1",
+            relation_ids=["rel-ccc"],
+            status=RelationRunStatus.READY,
+        )
+    )
+
+    store.cascade_page_delete("p1")
+
+    # p1's relations are gone from the live view.
+    assert store.list_page_relations("p1") == []
+
+    # The event log has a tombstone line that mentions at least one of
+    # p1's relation ids.
+    jsonl = (tmp_path / ".index" / "relations.jsonl").read_text(encoding="utf-8")
+    assert '"event": "tombstone"' in jsonl
+    assert "rel-aaa" in jsonl
+
+    # p2 is unaffected.
+    assert store.list_page_relations("p2") == ["rel-ccc"]
+
+
+def test_page_update_triggers_relation_recompute(tmp_path) -> None:
+    """find_stale returns page_ids whose run record's page_revision no
+    longer matches the wiki revision — these are the pages whose
+    relations need to be re-run.
+    """
+    from src.pipeline.v7_extract.relation_store import (
+        RelationRunRecord,
+        RelationRunStatus,
+        RelationStore,
+    )
+
+    store = RelationStore(tmp_path)
+    store.apply_result(
+        RelationRunRecord(
+            page_id="p1",
+            page_revision="rev-old",
+            relation_ids=["rel-aaa"],
+            status=RelationRunStatus.READY,
+        )
+    )
+    store.apply_result(
+        RelationRunRecord(
+            page_id="p2",
+            page_revision="rev-stable",
+            relation_ids=["rel-bbb"],
+            status=RelationRunStatus.READY,
+        )
+    )
+
+    # Simulate the wiki updating p1's revision but not p2's.
+    current = {"p1": "rev-new", "p2": "rev-stable"}
+    stale = store.find_stale(current)
+
+    assert stale == ["p1"]
+    assert "p2" not in stale
