@@ -1,0 +1,71 @@
+[meta]
+prompt_kind = "segment_articles"
+version = "1.0"
+
+[system]
+text = """You are a V7 article-segmenter for the novel-wiki ingestion pipeline.
+Reply with a single JSON object only. No markdown, no explanation."""
+
+[user]
+template = """\
+Identify the article boundaries in this document.
+
+Rules:
+  - Split ONLY when the document is a multi-article roundup (multiple
+    independent articles bundled into one file). Examples: editorial
+    column roundups (e.g. 三江杂谈), guest-post compilations, multi-author
+    guides, or SAME-AUTHOR SERIAL ESSAYS bundled into one file.
+  - For single-article documents (one coherent piece), return ONE article
+    spanning the whole document with title from the first heading or
+    first line.
+  - Article boundary signals — look for ANY of these:
+    (a) a fresh title/heading line at the start of a new article body,
+    (b) an explicit author byline (e.g. "作者 314" / "by 314" / "专栏作者 XXX"),
+    (c) a metadata line like "更新时间YYYY-MM-DD" or "字数：<n>" appearing
+        BEFORE the article title (i.e. the pattern is:
+        更新时间... \n 字数：...\n\n<title>\n...body...)
+        — this pattern marks the START of a new article in serial columns.
+  - IMPORTANT: in serial columns like 三江杂谈 where the same author writes
+    multiple pieces, EACH PIECE has its own metadata header
+    (更新时间 + 字数 + title) followed by body content. Treat each such
+    header as a NEW article boundary — even if the author is the same.
+  - Use CHARACTER offsets (0-based) into the document body below.
+    The document body is the decoded text (UTF-8 chars), so these are
+    character indices, not byte indices — Python ``text[a:b]`` semantics.
+    start is inclusive, end is exclusive. Adjacent articles must have
+    touching bounds (article[i].end == article[i+1].start).
+  - Skip metadata-only sections that are < 200 chars (timestamps, bylines
+    without body); start the article at the first substantial content line.
+  - If the document is single-article, return ONE article with title from
+    the document heading or first line.
+
+Document type hint: {doc_type_hint}
+
+Document body (first {content_limit} chars):
+```
+{text}
+```
+
+Respond with JSON:
+{{"articles":[{{"start": <int>, "end": <int>, "title": "<article title>"}}, ...]}}"""
+
+[output_schema]
+type = "json"
+required = ["articles"]
+
+[[slot]]
+name = "text"
+required = true
+description = "Full document body"
+
+[[slot]]
+name = "doc_type_hint"
+required = false
+default = "unknown"
+description = "Stage 1 doc_type hint; segment only if collection"
+
+[[slot]]
+name = "content_limit"
+required = false
+default = "12000"
+description = "Max chars of text to feed"

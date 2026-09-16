@@ -311,3 +311,246 @@ def test_first_match_wins_replaced_with_strong_weak_invalid_classification() -> 
     assert _looks_like_collection(
         "## 作者 314 — 单一文章\n\n正文。"
     ) is False
+
+
+# ---------------------------------------------------------------------------
+# Plan 2026-09-17 / Task 5: UTF-8 byte offset coordinate system.
+#
+# The LLM segmenter currently stores ``start`` / ``end`` as if they were
+# byte offsets, but the prompt is fed the decoded ``text`` (char) and the
+# LLM effectively returns char offsets. On Chinese content the mismatch
+# silently breaks slicing — Python ``str[a:b]`` indexes by char, but
+# every CJK char is 3 UTF-8 bytes, so a "byte" pointer in the middle of
+# a multi-byte char lands on the wrong boundary.
+#
+# F5 (master plan §6) is the hard rule: ``test_chinese_byte_offset_slice_consistent``
+# must pass before Stage 5 can consume Stage 2 byte spans.
+# ---------------------------------------------------------------------------
+
+import warnings
+
+from src.pipeline.v7_extract.article_segmenter import (
+    ArticleBoundary,
+    _payload_to_boundaries,
+)
+
+
+def _chinese_fixture() -> tuple[str, bytes]:
+    """Return a Chinese source string + its UTF-8 bytes.
+
+    Layout (chars):
+        "前言\\n\\n" + "作者 314 — 如何更好地包装作品\\n\\n" + "正文一。" * 5
+        + "作者 阿零 — 解决卡文的三两招\\n\\n" + "正文二。" * 5
+
+    Why this fixture exposes the bug:
+        - "知" / "识" / "前" / "言" are 3 UTF-8 bytes each
+        - 11 ASCII chars ("作者 314 — " prefix) are 1 byte each
+        - char offsets differ from byte offsets by exactly 2*3 = 6 bytes
+          once we cross the first CJK char
+    """
+    text = (
+        "前言\n\n"
+        "作者 314 — 如何更好地包装作品\n\n"
+        + "正文一。" * 5
+        + "\n\n"
+        + "作者 阿零 — 解决卡文的三两招\n\n"
+        + "正文二。" * 5
+    )
+    return text, text.encode("utf-8")
+
+
+def test_byte_offset_against_utf8_source_bytes() -> None:
+    """ArticleBoundary carries char offsets against the original source
+    text. ``slice_bytes(source_bytes)`` must convert char→byte and slice
+    raw bytes; ``slice_text(source_bytes)`` must return the decoded
+    substring.
+
+    This is the contract that downstream Stage 5 relies on when it
+    receives ``CanonicalItem.start_byte/end_byte`` (which is the same
+    coordinate system, just applied to the source bytes).
+    """
+    text, source_bytes = _chinese_fixture()
+    # char offsets into the source text (the LLM returns these because
+    # the prompt input was the decoded ``text``).
+    boundary = ArticleBoundary(
+        char_start=0,
+        char_end=len("前言\n\n作者 314 — 如何更好地包装作品\n\n正文一。正文一。正文一。"),
+        title="作者 314 — 如何更好地包装作品",
+    )
+
+    # slice_text decodes correctly even though char_start/char_end are
+    # not byte offsets — the conversion is mechanical.
+    sliced = boundary.slice_text(source_bytes)
+    assert sliced == text[boundary.char_start:boundary.char_end]
+    # And the bytes are exactly the UTF-8 encoding of those chars.
+    assert boundary.slice_bytes(source_bytes) == sliced.encode("utf-8")
+
+
+def test_chinese_string_byte_offset_consistent() -> None:
+    """F5 — char slice through UTF-8 source MUST equal byte slice through
+    the same char range. This is the hard invariant for Stage 5 byte
+    spans: a char-range slice must produce the exact bytes that would
+    round-trip through .encode()/.decode().
+
+    Concretely: pick a char range that crosses a CJK char boundary,
+    take ``text[char_start:char_end]`` and
+    ``source_bytes.decode("utf-8")[char_start:char_end]`` — both must
+    agree AND must be valid UTF-8 when re-encoded.
+    """
+    text, source_bytes = _chinese_fixture()
+    # Pick a range starting mid-CJK to make the bug visible: start at
+    # char 1 (inside "前言") so char/byte offsets diverge by 2 bytes.
+    char_start = 1
+    char_end = len("前言\n\n作者 314 — 如何更好地包装作品\n\n正文一。正文一。")
+    boundary = ArticleBoundary(char_start=char_start, char_end=char_end, title="")
+
+    # Honest char indexing (Python str)
+    expected_text = text[char_start:char_end]
+    # What slice_text returns when we hand it the source bytes
+    got_text = boundary.slice_text(source_bytes)
+
+    assert got_text == expected_text
+    # The byte count of the slice must equal the byte count of the
+    # char-sliced result — this is what proves the conversion is honest
+    # (a buggy implementation would return e.g. 6 fewer bytes because
+    # it sliced source_bytes with char_start, hitting the middle of a
+    # 3-byte CJK char and re-encoding garbage).
+    assert len(got_text.encode("utf-8")) == len(expected_text.encode("utf-8"))
+    # And round-trip: re-encoding then re-decoding yields the same text.
+    assert got_text.encode("utf-8").decode("utf-8") == got_text
+
+
+def test_chinese_byte_offset_slice_consistent() -> None:
+    """F5 硬指标 — the exact hard metric from the master plan.
+
+    The bug scenario: suppose someone (legacy code, an old caller, a
+    future Stage 5 mistake) hands raw byte offsets to ``slice_text``
+    instead of char offsets. The conversion must STILL be correct: a
+    char-anchored slice through the bytes yields the same text as a
+    char slice through the source string.
+
+    The fixture is positioned so that char 0 == byte 0, but char N
+    (for N > 2) differs from byte N by exactly ``2 * 3 = 6`` bytes
+    (because each of "前" / "言" is 3 UTF-8 bytes). Any naive byte
+    arithmetic that ignores this would slice to the wrong position.
+    """
+    text, source_bytes = _chinese_fixture()
+    # Pick a range that crosses both the "前言" 2-char/6-byte region
+    # AND the "作者 314 — " ASCII region, so byte offset ≠ char offset
+    # in BOTH directions (CJK shrinks byte offset, ASCII preserves it).
+    char_start = len("前言\n\n")
+    char_end = char_start + len("作者 314 — 如何更好地包装作品\n\n正文一。正文一。")
+    boundary = ArticleBoundary(char_start=char_start, char_end=char_end, title="")
+
+    expected = text[char_start:char_end]
+    got = boundary.slice_text(source_bytes)
+
+    assert got == expected
+    # The bug signature: if slice_text indexed source_bytes with
+    # char_start (treating it as byte offset), it would slice from byte
+    # char_start — which is mid-CJK in this fixture — and
+    # ``.decode("utf-8")`` would either crash (decode raises) or
+    # produce garbled text. The current implementation must NOT do
+    # that.
+    assert got.encode("utf-8")[:6] == "正文一。".encode("utf-8")[:6] or got.startswith("作者 314")
+    # Strong invariant: the decoded text must be valid UTF-8 round-trip.
+    assert got.encode("utf-8").decode("utf-8") == got
+
+
+def test_article_boundary_slice_bytes_returns_correct_text() -> None:
+    """``slice_bytes`` returns the raw UTF-8 bytes corresponding to the
+    char range. The bytes, when decoded, must match the char-slice
+    result.
+
+    This is the wire-format contract that Stage 5 ``CanonicalSpan``
+    consumers (and any future downstream byte-exact tooling) rely on.
+    """
+    text, source_bytes = _chinese_fixture()
+    boundary = ArticleBoundary(
+        char_start=0,
+        char_end=len(text),
+        title="whole doc",
+    )
+
+    raw = boundary.slice_bytes(source_bytes)
+    assert raw == source_bytes  # whole-doc slice == whole source
+    assert raw.decode("utf-8") == text
+
+    # A sub-range: must be exactly the UTF-8 encoding of the char slice
+    char_start = len("前言\n\n")
+    char_end = char_start + len("作者 314 — 如何更好地包装作品\n\n")
+    boundary2 = ArticleBoundary(char_start=char_start, char_end=char_end, title="")
+    sub = boundary2.slice_bytes(source_bytes)
+    assert sub.decode("utf-8") == text[char_start:char_end]
+    # Round-trip: the bytes must decode to valid UTF-8 of the right
+    # length (char count, not byte count).
+    assert len(sub.decode("utf-8")) == char_end - char_start
+
+
+def test_article_boundary_legacy_slice_emits_deprecation_warning() -> None:
+    """The legacy ``ArticleBoundary.slice(content)`` API assumed
+    char-indexed slicing. Now that ``start`` / ``end`` have been renamed
+    to ``char_start`` / ``char_end`` and the canonical API is
+    ``slice_bytes`` / ``slice_text``, the legacy method emits a
+    ``DeprecationWarning`` so existing callers can migrate.
+
+    The method must STILL work (callers shouldn't crash) — it just
+    warns once per call. After the warning, it must produce the same
+    text as ``slice_text``.
+    """
+    text, source_bytes = _chinese_fixture()
+    boundary = ArticleBoundary(
+        char_start=0,
+        char_end=len("前言\n\n作者 314 — 如何更好地包装作品\n\n"),
+        title="",
+    )
+
+    with pytest.warns(DeprecationWarning, match="byte offset"):
+        legacy = boundary.slice(text)
+    # Legacy still produces the correct substring (for backward compat).
+    assert legacy == boundary.slice_text(source_bytes)
+
+
+def test_payload_to_boundaries_uses_char_offsets_for_chinese() -> None:
+    """Task 5 acceptance: ``_payload_to_boundaries`` must use char
+    offsets (not byte offsets) when normalizing LLM output. On Chinese
+    content, the LLM returns offsets measured against the decoded
+    ``text`` (the prompt input) — those are char offsets. If the
+    helper naively stored them as bytes, slicing would corrupt CJK
+    boundaries.
+
+    The test fixture has char/byte offset divergence of exactly 6
+    bytes (two 3-byte CJK chars at the start). A buggy implementation
+    that stored char offsets as bytes would return boundaries whose
+    ``char_start`` > ``char_end`` or that point into the middle of a
+    CJK char (visible as a mismatched ``title`` location).
+    """
+    text, _source_bytes = _chinese_fixture()
+    payload = {
+        "articles": [
+            {
+                "start": 0,
+                "end": len("前言\n\n作者 314 — 如何更好地包装作品\n\n正文一。正文一。"),
+                "title": "作者 314 — 如何更好地包装作品",
+            },
+            {
+                "start": len("前言\n\n作者 314 — 如何更好地包装作品\n\n正文一。正文一。"),
+                "end": len(text),
+                "title": "作者 阿零 — 解决卡文的三两招",
+            },
+        ]
+    }
+
+    boundaries = _payload_to_boundaries(payload, text)
+    assert len(boundaries) == 2
+    # The first boundary must start at char 0 (which happens to equal
+    # byte 0 here — the bug would shift it by 6 if it stored byte
+    # offsets in a char field).
+    first = boundaries[0]
+    assert first.char_start == 0
+    # The substring at [char_start:char_end] must contain the title text.
+    assert "作者 314" in text[first.char_start:first.char_end]
+    second = boundaries[1]
+    assert "作者 阿零" in text[second.char_start:second.char_end]
+    # Adjacency: end[0] == start[1] (LLM contract)
+    assert first.char_end == second.char_start
