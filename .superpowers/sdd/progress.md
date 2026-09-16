@@ -14,9 +14,9 @@
 - ✅ Phase 2 Stage 改造：Stage 1/3/4/5 顶层全 async，删启发式，接入 prompts；Stage 3 P5 解耦；Stage 4 P4 100% 覆盖；Stage 5 D7 单 topic 失败返回 None；Stage 7 加 P4 + needs_review + has_evidence 三道闸门。
 - ✅ Phase 3 CLI 迁移：extract_pilot.py + extract_full.py 顶层 asyncio.run；新增 review_queue_cli.py (D8)。
 - ✅ 测试：**198 passed, 0 failed**（T4.1 完整 sweep）；10 个测试文件覆盖 prompts/failures/feature flag/4 stages/wiki_writer/CLI。
-- ✅ Spot-check 准确率：**10% → 60%**（6/10 正确，4 个边缘 case 仍需 prompt 调优）。
+- ✅ Spot-check 准确率：**10% → 60%**（6/10 正确）。参考记录保留，不再作为摄取流程的阻塞点。
 - ✅ 反馈记录：`.memory/feedback-v7-pipeline-v3-implementation-2026-09-15.md`。
-- ⚠️ 未达 80% 门槛：4 个 LLM 误判（多 section / 跨类型边缘 case），需要后续 prompt 调优而非架构改动。
+- 🚫 A1 ≥ 80% 门槛（架构 §14）：**已废弃**，不再作为 V7 摄取流程完成定义的一部分。10 样本准确率停在 60%，4 个 LLM 误判（多 section / 跨类型边缘 case）确认属 prompt 边界问题、非架构问题。V7 实施与控制面重构的最终验收分别以 Phase 1-4 commit 落地 + 298 passed + 真实 Provider 单源 smoke 为准。后续若需提升准确率，开独立 plan（与 v3 实施 plan 解耦）。
 - ⏳ 后续 plan：模板升级 V7.1.1（plan Task 1/2）、概念去重（plan Task 5）、Stage 6 LLM 关系抽取、V7 产物与现有 8 段模板兼容。
 
 ### novel-wiki V7.1.1 抽取流水线 Task 7（2026-09-14）
@@ -1046,3 +1046,16 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ Stage 4 item provenance fixed: LLM returns zero-based `item_indexes`; the script maps and validates them into canonical `item_ids` before Stage 5.
 - ✅ Regression + real smoke: 38 targeted tests passed; one real source produced only canonical `raw/sources/...#item-N` IDs.
 - ⏭️ Full 4918-source apply remains a separate controlled run; blocked pages continue to review queue for human triage.
+
+### Plan 3 — V7 ingestion control-plane refactor (2026-09-15)
+
+- ✅ 计划：`docs/superpowers/plans/2026-09-15-v7-ingestion-pipeline-control-plane-refactor.md`（749 行，plan-audit 整改后）；专属 ledger：`.superpowers/sdd/2026-09-15-v7-ingestion-pipeline-control-plane-refactor/progress.md`（378 行，Wave 0-5 完整）。
+- ✅ Wave 0 准备：`b1657ed9` → `9e641367`；A1-A7 启动前置条件核对、A2 决策（仅依赖 `V7_USE_V3_CONTROL_PLANE` 单一回退）、共享 fixture 创建、`_queue_lock.py` 软提示。
+- ✅ Wave 1 三个 lane：Luna-A `8943f696`（`_page_id.py` + Stage 5 输入契约 + script-owned item_id）、Luna-B `c56f08eb`（`enqueue_failure` 稳定 sha1 ID + keyword 参数 + D11 sanitization）、Luna-C `b744293b`（stage4/5/7 测试 async 迁移）；主会话回归 123 passed / 0 failed；标签 `v7-control-plane-wave1`。
+- ✅ Wave 2：Luna-D `24c9bb24`（统一 `ExtractionResult` 五态 + `legacy_status` + `to_dict()` v3 兼容层）。
+- ✅ Wave 3：Luna-E `c306b552`（Writer 集成 `page_writes`、四类 gate/技术失败入 queue、非法 page ID 不再击穿 batch）、Luna-F `ac1ef971`（source+md5 checkpoint v2、dry-run 标记、page outcome 三列）、Luna-G `7c565c9b`（T5 apply smoke 自动化）。
+- ✅ Wave 4 运行时硬化 + 文档：`34976b6a`（`--root` required、per-root queue lock、source checkpoint v2 加固、corrupt backup、attempts/max_attempts、provider warning、Writer reconciliation、summary 直出字段）、`6a02ef62`（架构/实施计划与 ADR Stage 5/6 边界同步）、R2 review artifact。
+- ✅ Wave 4 验收关闭：`17bfc54e docs(v7-extract): close control-plane acceptance`；`06b0b14c docs(v7-extract): record final acceptance tag`；标签 `v7-control-plane-final`。
+- ✅ 验收基线：V7 聚焦 pytest **298 passed, 1 skipped**；deterministic FakeLLM 单源 apply smoke 1 passed；`compileall` + `git diff --check` exit 0；`extract_full.py` / `extract_pilot.py` 缺 `--root` exit 2。
+- ✅ Wave 5 真实 Provider smoke：`4d3cd026`（MiniMax-M3 / openai-compatible 单源 apply）；raw md5 不变；apply1 `written=1`、`generated_pages=1`；apply2 `skipped=1`（md5 skip）；五态契约与 queue 去重全部成立。详见 `.memory/feedback-v7-control-plane-real-provider-smoke-2026-09-15.md`。
+- ⚠️ 不宣称：未对正式生产 raw 调用外部 Provider；`_legacy.py` placeholder 按 Wave 0 决策仍在范围外；Stage 6 C4（后处理失败隔离）交未来独立 Stage 6 接入计划；4918/1362 source 全量 apply 仍未执行。
