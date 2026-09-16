@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
+
+import yaml
 
 from src.pipeline.v7_extract.relation_extractor import PageRelation
 from src.pipeline.v7_extract.slot_filler import (
@@ -294,3 +297,102 @@ def test_idempotent_page_commit_skips_when_revision_hash_matches(tmp_path: Path)
 
     # Both manifests are now terminal — list_unfinished_manifests is empty.
     assert list_unfinished_manifests(tmp_path) == []
+
+
+# ---------------------------------------------------------------------------
+# Task 20 (Stage 7 — page frontmatter ownership + revision_hash)
+# ---------------------------------------------------------------------------
+
+
+def _parse_page_frontmatter(path: Path) -> tuple[dict, str]:
+    """Read a page file written by WikiWriter and split into (frontmatter, body).
+
+    Frontmatter is the YAML block between the first pair of ``---`` lines;
+    body is everything after the closing ``---``. The writer emits
+    ``"---\\n<fm>---\\n\\n<body>"`` so two newlines sit between the closing
+    fence and the body — strip them both before handing the body to callers
+    so the bytes match what the writer actually hashed.
+    """
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith("---\n"), f"page file missing YAML header: {path}"
+    closing = text.find("\n---", 4)
+    assert closing != -1, f"page file missing YAML closing fence: {path}"
+    fm_block = text[4:closing]
+    body = text[closing + 4 :]
+    # The writer emits ``\n---\n\n<body>`` so two leading newlines need
+    # to go — only then does ``body`` equal ``page.body``.
+    while body.startswith("\n"):
+        body = body[1:]
+    frontmatter = yaml.safe_load(fm_block)
+    assert isinstance(frontmatter, dict), "frontmatter must deserialize to a mapping"
+    return frontmatter, body
+
+
+def test_page_frontmatter_has_owner_v7(tmp_path: Path) -> None:
+    """Every page written by WikiWriter carries the v7 ownership triple:
+    ``owner``, ``pipeline`` (constants) and ``committed_at`` (per-write
+    unix ms). Without these, downstream consumers (e.g. Tier B/C tooling)
+    cannot tell which pipeline produced the page.
+    """
+    writer = WikiWriter(tmp_path)
+    page = _page("concept-a", "raw-a")
+
+    writer.commit_and_index([page])
+
+    page_path = tmp_path / "wiki" / "concepts" / "concept-a.md"
+    frontmatter, _ = _parse_page_frontmatter(page_path)
+
+    assert frontmatter["owner"] == "v7"
+    assert frontmatter["pipeline"] == "v7"
+    committed_at = frontmatter["committed_at"]
+    assert isinstance(committed_at, int)
+    assert committed_at > 0
+
+
+def test_page_frontmatter_has_revision_hash(tmp_path: Path) -> None:
+    """``revision_hash`` is a sha1 of the rendered page with the hash
+    field first serialised as ``""``. The two-pass dump must be
+    byte-identical (same field order, same quoting, same Unicode flags)
+    so the hash verification round-trips without human intervention.
+    """
+    writer = WikiWriter(tmp_path)
+    page = _page("concept-a", "raw-a")
+
+    writer.commit_and_index([page])
+
+    page_path = tmp_path / "wiki" / "concepts" / "concept-a.md"
+    frontmatter, body = _parse_page_frontmatter(page_path)
+
+    actual_hash = frontmatter["revision_hash"]
+    assert isinstance(actual_hash, str) and len(actual_hash) == 40
+
+    # Reconstruct the byte stream the writer hashed:
+    #   frontmatter_with_empty_hash + body
+    # ``yaml.safe_dump`` settings must mirror the writer exactly so the
+    # field order is preserved (sort_keys=False).
+    fm_for_hash = dict(frontmatter)
+    fm_for_hash["revision_hash"] = ""
+    dumped = yaml.safe_dump(fm_for_hash, allow_unicode=True, sort_keys=False)
+    expected = hashlib.sha1(dumped.encode("utf-8") + body.encode("utf-8")).hexdigest()
+    assert actual_hash == expected
+
+
+def test_page_frontmatter_has_pipeline_fingerprint(tmp_path: Path) -> None:
+    """``pipeline_fingerprint`` is sourced from the WikiWriter constructor
+    kwarg and must appear on every page (including pages written by a
+    second ``commit_and_index`` call — idempotency must not drop the
+    field).
+    """
+    writer = WikiWriter(tmp_path, pipeline_fingerprint="abc123")
+    page = _page("concept-a", "raw-a")
+
+    writer.commit_and_index([page])
+    page_path = tmp_path / "wiki" / "concepts" / "concept-a.md"
+    frontmatter, _ = _parse_page_frontmatter(page_path)
+    assert frontmatter["pipeline_fingerprint"] == "abc123"
+
+    # Second run (idempotent skip) — pipeline_fingerprint must still be
+    # readable from the on-disk page file.
+    writer.commit_and_index([page])
+    frontmatter2, _ = _parse_page_frontmatter(page_path)
+    assert frontmatter2["pipeline_fingerprint"] == "abc123"

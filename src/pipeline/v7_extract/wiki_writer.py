@@ -319,17 +319,52 @@ class WikiWriter:
 
     def _write_page_atomically(self, page: ConceptPage, path: Path) -> None:
         relations = getattr(self, "_last_relations", {}).get(page.id, [])
+        # Task 20: pull ``commit_id`` from the active manifest (set by
+        # ``_open_manifest`` / cleared by ``_close_manifest``). When the
+        # writer is invoked outside a ``commit_and_index`` call (e.g. a
+        # test or a dry-run script that exercises ``_write_page_atomically``
+        # directly) the attribute is missing → commit_id falls back to
+        # ``""`` so back-compat callers keep working.
+        manifest = getattr(self, "_current_manifest", None)
+        commit_id = manifest.commit_id if manifest is not None else ""
+        committed_at = int(time.time() * 1000)
         frontmatter = {
             "id": page.id,
             "title": page.title,
             "type": page.type,
             "sources": list(page.sources),
             "relations": [relation.to_dict() for relation in relations],
+            "owner": "v7",
+            "pipeline": "v7",
+            "commit_id": commit_id,
+            "pipeline_fingerprint": self.pipeline_fingerprint,
+            # First pass writes ``revision_hash=""``; the real sha1 is
+            # substituted into the same dict before the second dump so
+            # ``_compute_revision_hash`` and the on-disk payload agree.
+            "revision_hash": "",
+            "committed_at": committed_at,
         }
+        body = page.body
+        frontmatter["revision_hash"] = self._compute_revision_hash(frontmatter, body)
         content = "---\n" + yaml.safe_dump(
             frontmatter, allow_unicode=True, sort_keys=False
-        ) + "---\n\n" + page.body
+        ) + "---\n\n" + body
         self._atomic_write(path, content)
+
+    @staticmethod
+    def _compute_revision_hash(frontmatter: dict[str, Any], body: str) -> str:
+        """Sha1 of the rendered page with ``revision_hash`` set to ``""``.
+
+        The two-pass dump (empty hash → sha1 → fill in hash → re-dump)
+        relies on this method being byte-identical to the second dump
+        in ``_write_page_atomically``. The dump settings are pinned here
+        so any future change to the dump defaults would force a test
+        failure rather than silently invalidating every on-disk hash.
+        """
+        payload = dict(frontmatter)
+        payload["revision_hash"] = ""
+        dumped = yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
+        return hashlib.sha1((dumped + body).encode("utf-8")).hexdigest()
 
     def _append_index(self, pages: list[ConceptPage], report: WriteReport) -> None:
         self.index_path.parent.mkdir(parents=True, exist_ok=True)
@@ -422,6 +457,11 @@ class WikiWriter:
         # Ensure the per-project manifest directory exists.
         manifest_dir(self.root)
         write_manifest(self.root, manifest)
+        # Task 20: stash the manifest so ``_write_page_atomically`` can
+        # embed ``commit_id`` into each page frontmatter. Cleared by
+        # ``_close_manifest`` so a stray reference after the batch
+        # doesn't leak into the next one.
+        self._current_manifest = manifest
         return manifest
 
     def _close_manifest(
@@ -449,6 +489,11 @@ class WikiWriter:
             manifest.phase = CommitPhase.COMMITTED
         manifest.updated_at_ms = now_ms
         write_manifest(self.root, manifest)
+        # Task 20: drop the in-flight manifest reference. ``_write_page_atomically``
+        # falls back to commit_id="" once this is cleared, so an out-of-band
+        # call after ``commit_and_index`` returns won't accidentally
+        # attribute its pages to the closed commit.
+        self._current_manifest = None
 
     def _record_page_committed(
         self,
