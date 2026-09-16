@@ -15,10 +15,21 @@ v3 (plan 2026-09-15) adds three guards on top of the v2 writer:
 
 These three guards plus the existing content_filter are the v3 "four
 gates" (P3 + P4). WriteReport.blocked records all four categories.
+
+v4 (plan 2026-09-17, Task 19) appends a CommitManifest ledger without
+touching the four gates: every ``commit_and_index`` call writes
+``.index/commit_manifests/<commit_id>.json`` and updates it as each
+page is published, the index is appended, and the checkpoint is
+flushed. On restart, ``reconcile_unfinished_commits`` walks the
+non-terminal manifests and recovers either as PREPARED (re-run) or
+RECONCILED (commit + index done).
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import time
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path, PureWindowsPath
 from typing import Any, Callable, Iterable, Mapping
@@ -26,6 +37,13 @@ from typing import Any, Callable, Iterable, Mapping
 import yaml
 
 from .audit_logger import AuditLogger
+from .commit_manifest import (
+    CommitManifest,
+    CommitPhase,
+    PageCommitRecord,
+    manifest_dir,
+    write_manifest,
+)
 from .failures import enqueue_failure
 from .relation_extractor import PageRelation
 from .slot_filler import ConceptPage
@@ -80,6 +98,8 @@ class WikiWriter:
         queue_path: str | Path | None = None,
         provider: str = "",
         prompt_kind: str = "",
+        pipeline_fingerprint: str = "",
+        commit_id_factory: Callable[[], str] | None = None,
     ) -> None:
         if max_retries < 1:
             raise ValueError("max_retries must be positive")
@@ -99,6 +119,16 @@ class WikiWriter:
         self.queue_path = Path(queue_path) if queue_path is not None else None
         self.provider = provider
         self.prompt_kind = prompt_kind
+        # Task 19 (plan §4): commit manifest hooks. Both kwargs are
+        # additive and default-safe — existing callers see no change.
+        # ``pipeline_fingerprint`` is recorded on every manifest so
+        # Task 22's source checkpoint can detect pipeline upgrades.
+        # ``commit_id_factory`` defaults to uuid4 hex; tests inject a
+        # deterministic factory to make commit ids predictable.
+        self.pipeline_fingerprint = pipeline_fingerprint
+        self.commit_id_factory: Callable[[], str] = (
+            commit_id_factory if commit_id_factory is not None else (lambda: uuid.uuid4().hex)
+        )
 
     def commit_and_index(
         self,
@@ -111,6 +141,12 @@ class WikiWriter:
         checkpoint = self._read_checkpoint()
         completed = checkpoint["completed"]
         report = WriteReport()
+        # Task 19: open the manifest up-front so a crash before any
+        # write still leaves a PREPARED ledger entry. ``source_id``
+        # defaults to the first page's first source; a single-page
+        # batch keeps this consistent with the per-page records.
+        manifest = self._open_manifest(pages)
+        manifest_failed = False
 
         for page in pages:
             # Guard A: P4 — __other__ topic is a sentinel, never write.
@@ -127,6 +163,7 @@ class WikiWriter:
                     page, "stage7_gate",
                     reason=f"__other__: topic={_topic_id}",
                 )
+                self._record_page_blocked(manifest, page)
                 continue
 
             # Guard B: needs_review — any slot flagged for review blocks.
@@ -137,6 +174,8 @@ class WikiWriter:
                     page, "stage7_gate",
                     reason=f"needs_review: slots={','.join(page.needs_review_slots)}",
                 )
+                self._record_page_blocked(manifest, page)
+                manifest_failed = True
                 continue
 
             # Guard C: has_evidence — no evidence at all means hallucination.
@@ -147,6 +186,8 @@ class WikiWriter:
                     page, "stage7_gate",
                     reason="no_evidence",
                 )
+                self._record_page_blocked(manifest, page)
+                manifest_failed = True
                 continue
 
             # Guard D: content_filter (existing v2).
@@ -163,6 +204,8 @@ class WikiWriter:
                         page, "stage7_content_filter",
                         reason=f"content_filter: {filter_result.status}",
                     )
+                    self._record_page_blocked(manifest, page)
+                    manifest_failed = True
                     continue
 
             try:
@@ -177,11 +220,25 @@ class WikiWriter:
                     page, "stage7_path",
                     reason=f"page_id_invalid: {exc}",
                 )
+                self._record_page_failed(manifest, page, f"page_id_invalid: {exc}")
+                manifest_failed = True
+                continue
+            # Task 19: idempotent re-run. If the manifest already has a
+            # COMMITTED record for this page AND the on-disk sha1
+            # matches, treat the page as skipped (no rewrite, no
+            # append-to-index double-write).
+            if self._manifest_page_already_committed(manifest, page, path):
+                report.page_writes[page.id] = path
+                report.skipped.append(page.id)
+                self._audit_page(page)
                 continue
             if page.id in completed and path.exists():
                 report.page_writes[page.id] = path
                 report.skipped.append(page.id)
                 self._audit_page(page)
+                # Backfill the manifest so a future restart sees this
+                # page as committed even though the writer skipped it.
+                self._record_page_committed(manifest, page, path)
                 continue
             if page.id in completed:
                 completed.remove(page.id)
@@ -203,16 +260,26 @@ class WikiWriter:
                     reason=f"writer_retry_exhausted: {last_error}",
                     content_hash="",
                 )
+                self._record_page_failed(manifest, page, str(last_error))
+                manifest_failed = True
                 continue
 
             if page.id not in completed:
                 completed.append(page.id)
+            # Task 19: mark CHECKPOINTING just before the checkpoint
+            # flush, then back to the per-page record on success.
+            manifest.phase = CommitPhase.CHECKPOINTING
+            manifest.updated_at_ms = int(time.time() * 1000)
             self._save_checkpoint(completed)
             report.page_writes[page.id] = path
             report.written.append(page.id)
+            self._record_page_committed(manifest, page, path)
             self._audit_page(page)
 
+        manifest.phase = CommitPhase.INDEXING
+        manifest.updated_at_ms = int(time.time() * 1000)
         self._append_index(pages, report)
+        self._close_manifest(manifest, manifest_failed, report)
         return report
 
     def _enqueue_failure(
@@ -322,6 +389,148 @@ class WikiWriter:
         temporary = path.with_suffix(path.suffix + ".tmp")
         temporary.write_text(content, encoding="utf-8")
         temporary.replace(path)
+
+    # ------------------------------------------------------------------
+    # Task 19 (plan §4): CommitManifest hooks. These four helpers are
+    # the only surface area added on top of the v3 writer. The four
+    # gates (P4 / needs_review / has_evidence / content_filter) and the
+    # retry / checkpoint flow above are untouched.
+    # ------------------------------------------------------------------
+
+    def _open_manifest(self, pages: list[ConceptPage]) -> CommitManifest:
+        """Create + persist a PREPARED manifest for this batch.
+
+        ``source_id`` falls back to ``"<unknown>"`` when the batch is
+        empty so ``CommitManifest.source_id`` (a required str) never
+        crashes the writer. Page-level sources fill in the per-page
+        ``PageCommitRecord.source_paths`` instead.
+        """
+        now_ms = int(time.time() * 1000)
+        source_id = "<unknown>"
+        if pages:
+            first_sources = getattr(pages[0], "sources", []) or []
+            if first_sources:
+                source_id = str(first_sources[0])
+        manifest = CommitManifest(
+            commit_id=self.commit_id_factory(),
+            source_id=source_id,
+            created_at_ms=now_ms,
+            updated_at_ms=now_ms,
+            pipeline_fingerprint=self.pipeline_fingerprint,
+            phase=CommitPhase.PREPARED,
+        )
+        # Ensure the per-project manifest directory exists.
+        manifest_dir(self.root)
+        write_manifest(self.root, manifest)
+        return manifest
+
+    def _close_manifest(
+        self,
+        manifest: CommitManifest,
+        manifest_failed: bool,
+        report: WriteReport,
+    ) -> None:
+        """Final phase transition for the batch's manifest.
+
+        * Any blocked / failed page → manifest.phase = FAILED.
+        * Otherwise → manifest.phase = COMMITTED.
+        * Any technical exception while writing the page (writer
+          retry exhausted, page_id_invalid) is captured in
+          ``manifest.error`` and surfaces in the on-disk ledger for
+          ``reconcile_unfinished_commits`` to find.
+        """
+        now_ms = int(time.time() * 1000)
+        if manifest_failed or report.blocked or report.failed:
+            manifest.phase = CommitPhase.FAILED
+            if report.failed:
+                first_page_id, first_error = next(iter(report.failed.items()))
+                manifest.error = f"{first_page_id}: {first_error}"
+        else:
+            manifest.phase = CommitPhase.COMMITTED
+        manifest.updated_at_ms = now_ms
+        write_manifest(self.root, manifest)
+
+    def _record_page_committed(
+        self,
+        manifest: CommitManifest,
+        page: ConceptPage,
+        path: Path,
+    ) -> None:
+        """Append / update a COMMITTED ``PageCommitRecord`` for ``page``.
+
+        ``revision_hash`` is the sha1 of the rendered body (Task 19
+        placeholder; Task 20 will extend this to cover frontmatter).
+        The manifest is rewritten at every per-page transition so a
+        mid-batch crash leaves a recoverable ledger.
+        """
+        record = PageCommitRecord(
+            page_id=page.id,
+            topic_id=str(getattr(page, "topic_id", "") or ""),
+            source_paths=list(page.sources),
+            phase=CommitPhase.COMMITTED,
+            revision_hash=hashlib.sha1(page.body.encode("utf-8")).hexdigest(),
+            written_path=str(path),
+            committed_at_ms=int(time.time() * 1000),
+        )
+        manifest.pages[page.id] = record
+        manifest.updated_at_ms = record.committed_at_ms
+        write_manifest(self.root, manifest)
+
+    def _record_page_blocked(
+        self,
+        manifest: CommitManifest,
+        page: ConceptPage,
+    ) -> None:
+        """Append a FAILED record for a gate-rejected page."""
+        record = PageCommitRecord(
+            page_id=page.id,
+            topic_id=str(getattr(page, "topic_id", "") or ""),
+            source_paths=list(page.sources),
+            phase=CommitPhase.FAILED,
+            error="blocked_by_gate",
+        )
+        manifest.pages[page.id] = record
+        manifest.updated_at_ms = int(time.time() * 1000)
+        write_manifest(self.root, manifest)
+
+    def _record_page_failed(
+        self,
+        manifest: CommitManifest,
+        page: ConceptPage,
+        error: str,
+    ) -> None:
+        """Append a FAILED record for a technical write failure."""
+        record = PageCommitRecord(
+            page_id=page.id,
+            topic_id=str(getattr(page, "topic_id", "") or ""),
+            source_paths=list(page.sources),
+            phase=CommitPhase.FAILED,
+            error=str(error),
+        )
+        manifest.pages[page.id] = record
+        manifest.updated_at_ms = int(time.time() * 1000)
+        write_manifest(self.root, manifest)
+
+    def _manifest_page_already_committed(
+        self,
+        manifest: CommitManifest,
+        page: ConceptPage,
+        path: Path,
+    ) -> bool:
+        """True when this same batch's manifest already committed ``page``.
+
+        On the second ``commit_and_index`` call with the same page,
+        ``report.skipped`` should reflect idempotency without rewriting
+        the file or re-appending to the wiki index.
+        """
+        existing = manifest.pages.get(page.id)
+        if existing is None or existing.phase != CommitPhase.COMMITTED:
+            return False
+        if existing.revision_hash != hashlib.sha1(page.body.encode("utf-8")).hexdigest():
+            return False
+        # The page file must already exist on disk; if not, treat this
+        # as not-yet-committed and let the normal write path handle it.
+        return path.exists()
 
 
 def _relations_by_source(relations: Iterable[PageRelation]) -> dict[str, list[PageRelation]]:
