@@ -1,0 +1,15 @@
+{
+  "id": "stage1-02",
+  "stage": "stage1_classify",
+  "description": "Multi-section article: two unrelated sub-topics.",
+  "input": {
+    "content": "# Title\n\n## 第一节 扩句法\n\n扩句法通过增加动作描写让句子更具体。\n\n## 第二节 心理描写\n\n通过描写人物心理活动来推进情节。\n",
+    "filename_hint": "multi.md",
+    "llm_response": {"doc_type": "multi_section", "confidence": 0.8, "rationale": "two unrelated sub-topics", "traits": ["has_h2_sections"], "uncertain": false}
+  },
+  "expected": {
+    "doc_type": "multi_section",
+    "failed": false,
+    "min_confidence": 0.5
+  }
+}
