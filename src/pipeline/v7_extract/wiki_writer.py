@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -48,6 +49,9 @@ from .failures import enqueue_failure
 from .relation_extractor import PageRelation
 from .slot_filler import ConceptPage
 from .topic_clusterer import OTHER_TOPIC_ID
+
+
+log = logging.getLogger(__name__)
 
 
 PageWriter = Callable[[ConceptPage, Path], None]
@@ -562,6 +566,59 @@ class WikiWriter:
             content += f"- **{page.id}** (concept) — {page.title}\n"
             existing.add(page.id)
         self._atomic_write(self.index_path, content)
+
+    def rebuild_index(self) -> int:
+        """Task 39: scan wiki/concepts/*.md, regenerate wiki/index.md.
+
+        Useful when the index drifts from disk (manual edit, batch rollback,
+        partial crash) and a clean rebuild is desired.
+
+        Returns the count of pages indexed. Pages with no frontmatter /
+        missing id/title are skipped with a warning. Output rows are sorted
+        by page_id ascending for deterministic indexing.
+        """
+        import yaml as _yaml
+        self.pages_dir.mkdir(parents=True, exist_ok=True)
+        rows: list[tuple[str, str]] = []   # (page_id, title)
+        skipped = 0
+        for md_path in sorted(self.pages_dir.glob("*.md")):
+            try:
+                text = md_path.read_text(encoding="utf-8")
+            except OSError as e:
+                log.warning("rebuild_index: cannot read %s: %s", md_path, e)
+                skipped += 1
+                continue
+            # Frontmatter is the part between the first pair of --- fences.
+            if not text.startswith("---"):
+                log.warning("rebuild_index: %s missing frontmatter; skipped", md_path.name)
+                skipped += 1
+                continue
+            try:
+                _, fm_block, body = text.split("---", 2)
+                frontmatter = _yaml.safe_load(fm_block) or {}
+            except (ValueError, _yaml.YAMLError) as e:
+                log.warning("rebuild_index: %s frontmatter parse failed: %s", md_path.name, e)
+                skipped += 1
+                continue
+            page_id = str(frontmatter.get("id", "") or "").strip()
+            title = str(frontmatter.get("title", "") or "").strip()
+            page_type = str(frontmatter.get("type", "concept") or "concept")
+            if not page_id or not title:
+                log.warning("rebuild_index: %s missing id/title; skipped", md_path.name)
+                skipped += 1
+                continue
+            rows.append((page_id, title, page_type))
+        rows.sort(key=lambda r: r[0])
+        lines = ["# Wiki Index", ""]
+        for page_id, title, page_type in rows:
+            lines.append(f"- **{page_id}** ({page_type}) — {title}")
+        content = "\n".join(lines) + "\n"
+        try:
+            self._atomic_write(self.index_path, content)
+        except OSError as e:
+            log.error("rebuild_index: failed to write %s: %s", self.index_path, e)
+        log.info("rebuild_index: %d pages indexed, %d skipped", len(rows), skipped)
+        return len(rows)
 
     def _audit_page(self, page: ConceptPage) -> None:
         for source_id in page.sources:

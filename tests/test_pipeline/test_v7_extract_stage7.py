@@ -556,3 +556,71 @@ def test_durable_failure_does_not_pollute_reviews_queue(tmp_path: Path) -> None:
     assert durable.count('"outcome"') == 2
     assert '"outcome": "committed"' in durable
     assert '"outcome": "blocked"' in durable
+
+
+# ---------------------------------------------------------------------------
+# Task 39: WikiWriter.rebuild_index() (regenerate index.md from disk)
+# ---------------------------------------------------------------------------
+
+
+def test_rebuild_index_reads_existing_pages_from_disk(tmp_path: Path) -> None:
+    """Pre-place 2 wiki page .md files; rebuild_index() regenerates index.md
+    listing both, sorted by id ascending."""
+    import yaml as _yaml
+
+    pages_dir = tmp_path / "wiki" / "concepts"
+    pages_dir.mkdir(parents=True)
+
+    # Two pages: write frontmatter + minimal body (rebuild_index only reads FM).
+    for page_id, title in [("zz-last", "Zeta Last"), ("aa-first", "Alpha First")]:
+        frontmatter = {
+            "id": page_id, "title": title, "type": "concept",
+            "sources": [], "relations": [],
+            "owner": "v7", "pipeline": "v7",
+        }
+        body = f"---\n{_yaml.safe_dump(frontmatter, allow_unicode=True, sort_keys=False)}---\n\n## {title}\n\nbody\n"
+        (pages_dir / f"{page_id}.md").write_text(body, encoding="utf-8")
+
+    writer = WikiWriter(tmp_path)
+    count = writer.rebuild_index()
+    assert count == 2
+
+    index_text = (tmp_path / "wiki" / "index.md").read_text(encoding="utf-8")
+    assert "- **aa-first** (concept) — Alpha First" in index_text
+    assert "- **zz-last** (concept) — Zeta Last" in index_text
+    # Sorted ascending by id
+    assert index_text.index("aa-first") < index_text.index("zz-last")
+
+
+def test_rebuild_index_handles_empty_pages_dir(tmp_path: Path) -> None:
+    """Empty pages_dir → index.md has only the header line, no rows."""
+    (tmp_path / "wiki" / "concepts").mkdir(parents=True)
+    writer = WikiWriter(tmp_path)
+    count = writer.rebuild_index()
+    assert count == 0
+    index_text = (tmp_path / "wiki" / "index.md").read_text(encoding="utf-8")
+    assert index_text.startswith("# Wiki Index")
+    # No page rows.
+    assert "- **" not in index_text
+
+
+def test_rebuild_index_skips_pages_without_frontmatter(tmp_path: Path) -> None:
+    """Pages missing frontmatter (no leading ---) are skipped with a warning."""
+    pages_dir = tmp_path / "wiki" / "concepts"
+    pages_dir.mkdir(parents=True)
+    # One good page.
+    import yaml as _yaml
+    fm = {"id": "good-page", "title": "Good", "type": "concept"}
+    (pages_dir / "good-page.md").write_text(
+        f"---\n{_yaml.safe_dump(fm, allow_unicode=True, sort_keys=False)}---\nbody\n",
+        encoding="utf-8",
+    )
+    # One bad page: no frontmatter at all.
+    (pages_dir / "bad-page.md").write_text("just some text\n", encoding="utf-8")
+
+    writer = WikiWriter(tmp_path)
+    count = writer.rebuild_index()
+    assert count == 1
+    index_text = (tmp_path / "wiki" / "index.md").read_text(encoding="utf-8")
+    assert "- **good-page**" in index_text
+    assert "- **bad-page**" not in index_text
