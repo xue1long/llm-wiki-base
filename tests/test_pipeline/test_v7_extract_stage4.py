@@ -49,7 +49,8 @@ async def test_103_bridge_items_are_bounded_to_three_to_five_topics() -> None:
         ),
     )
 
-    topics = await cluster_topics(items, llm=llm)
+    result = await cluster_topics(items, llm=llm)
+    topics = result.topics
 
     assert 3 <= len(topics) <= 5
     assert sum(len(topic.item_ids) for topic in topics) == 103
@@ -72,7 +73,7 @@ async def test_cluster_topics_uses_llm_topics_and_assignments() -> None:
         '"title": "角色动机", "item_indexes": [2]}]}',
     )
 
-    topics = await cluster_topics(
+    result = await cluster_topics(
         [
             {"id": "a", "text": "对手正面冲突"},
             {"id": "b", "text": "冲突升级"},
@@ -80,6 +81,7 @@ async def test_cluster_topics_uses_llm_topics_and_assignments() -> None:
         ],
         llm=llm,
     )
+    topics = result.topics
 
     assert topics == [
         Topic(id="conflict", title="冲突升级", item_ids=["a", "b"]),

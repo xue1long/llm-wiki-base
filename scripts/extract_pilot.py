@@ -60,7 +60,10 @@ from src.pipeline.v7_extract.segmentation import (
     SegmentationStatus,
 )
 from src.pipeline.v7_extract.slot_filler import fill_slots
-from src.pipeline.v7_extract.topic_clusterer import cluster_topics
+from src.pipeline.v7_extract.topic_clusterer import (
+    ClusterStatus,
+    cluster_topics,
+)
 
 log = logging.getLogger(__name__)
 
@@ -367,10 +370,78 @@ async def _extract_one(
         metadata["segmentation_invariants_pass"] = segmentation_result.invariants.all_pass
         metadata["segmentation_item_count"] = len(segmentation_result.items)
         item_map = {item["id"]: item for item in items}
-        # v3: cluster_topics is async; returns [] if LLM missing
-        topics = await cluster_topics(
+        # Task 9: cluster_topics returns ClusterResult carrying explicit
+        # status + 9 metrics + quality gates. Map stage-local ClusterStatus
+        # to global ExtractionStatus (Failure Contract §1):
+        #   FAILED    → ExtractionStatus.FAILED  (retry)
+        #   UNCERTAIN → ExtractionStatus.BLOCKED (review)
+        #   EMPTY     → ExtractionStatus.BLOCKED (no topics → no useful work)
+        #   DEGRADED  → continue (warnings emitted)
+        #   CLUSTERED → continue
+        cluster_result = await cluster_topics(
             items, llm=llm, project_root=root,
         )
+        # Stage 4 quality metrics get surfaced in metadata so the JSON
+        # report carries them without callers re-running Stage 4.
+        metadata["cluster_status"] = cluster_result.status.value
+        metadata["cluster_metrics"] = {
+            "item_count": cluster_result.metrics.item_count,
+            "topic_count": cluster_result.metrics.topic_count,
+            "items_per_topic": cluster_result.metrics.items_per_topic,
+            "unresolved_item_ratio": cluster_result.metrics.unresolved_item_ratio,
+            "unresolved_byte_ratio": cluster_result.metrics.unresolved_byte_ratio,
+            "unresolved_article_ratio": cluster_result.metrics.unresolved_article_ratio,
+            "singleton_topic_ratio": cluster_result.metrics.singleton_topic_ratio,
+            "largest_topic_share": cluster_result.metrics.largest_topic_share,
+            "article_preservation_ratio": cluster_result.metrics.article_preservation_ratio,
+            "article_preservation_diagnostic": cluster_result.metrics.article_preservation_diagnostic,
+            "duplicate_assignment_ratio": cluster_result.metrics.duplicate_assignment_ratio,
+        }
+        metadata["cluster_warnings"] = list(cluster_result.warnings)
+        metadata["clusterer_fingerprint"] = cluster_result.clusterer_fingerprint
+
+        # Failure Contract §1: ClusterStatus.FAILED → ExtractionStatus.FAILED.
+        # Technical failure (LLM timeout / parse / schema invalid) MUST NOT
+        # be routed as BLOCKED or WRITTEN.
+        if cluster_result.status is ClusterStatus.FAILED:
+            reason = (
+                "stage4_technical_failure: "
+                f"{cluster_result.warnings[0] if cluster_result.warnings else 'unspecified'}"
+            )
+            _record_failure(
+                relative,
+                "stage4",
+                reason=reason,
+                content_hash=source_md5,
+                provider=_llm_provider_label(llm),
+                queue_path=root / ".index" / "reviews_queue.json",
+            )
+            return ExtractionResult(
+                status=ExtractionStatus.FAILED,
+                source_id=relative,
+                source_md5=source_md5,
+                failure_stage="stage4",
+                review_reasons=[reason],
+                metadata=metadata,
+            )
+
+        # UNCERTAIN / EMPTY → ExtractionStatus.BLOCKED.
+        # UNCERTAIN = article loss (F9). EMPTY = no items to work on.
+        if cluster_result.status in {
+            ClusterStatus.UNCERTAIN, ClusterStatus.EMPTY,
+        }:
+            result = ExtractionResult(
+                status=ExtractionStatus.BLOCKED,
+                source_id=relative,
+                source_md5=source_md5,
+                review_reasons=list(cluster_result.warnings),
+                metadata=metadata,
+            )
+            return result
+
+        # DEGRADED / CLUSTERED → continue. Quality warnings become
+        # review_reasons so the JSON report carries the audit trail.
+        topics = cluster_result.topics
         # Track topics + page summaries for the legacy JSON contract.
         topic_dicts: list[dict[str, Any]] = []
         page_dicts: list[dict[str, Any]] = []
@@ -378,6 +449,9 @@ async def _extract_one(
         failed_topic_ids: list[str] = []
         written_page_ids: list[str] = []
         blocked_page_ids: list[str] = []
+        if cluster_result.warnings:
+            for w in cluster_result.warnings:
+                result.review_reasons.append(f"stage4:{w}")
         for topic in topics:
             topic_text = "\n\n".join(
                 item_map[item_id]["text"]
