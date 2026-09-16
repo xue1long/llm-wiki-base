@@ -352,3 +352,315 @@ async def test_reviewer_failure_demotes_claim_to_insufficient() -> None:
     # Reviewer-level failure must not raise — it returns claims with
     # support downgraded (Failure Contract §1: a technical failure never
     # silently inflates apparent support).
+
+
+# ---------------------------------------------------------------------------
+# Task 18: Stage 5B deterministic page synthesis + FillResult
+# ---------------------------------------------------------------------------
+
+from src.pipeline.v7_extract.page_synthesizer import (
+    FillResult,
+    FillStatus,
+    map_fill_to_extraction,
+    synthesize_slot,
+)
+from src.pipeline.v7_extract.failures import ExtractionStatus
+
+
+def _make_supported_claim(
+    *,
+    claim_id: str,
+    slot_name: str,
+    text: str,
+    refs: list[EvidenceRef] | None = None,
+) -> Claim:
+    """Build a SUPPORTED claim carrying at least one evidence ref by default.
+
+    Used to exercise ``synthesize_slot`` and ``FillResult`` rendering. Refs
+    default to one valid EvidenceRef so the claim passes
+    ``filter_substantive_claims``.
+    """
+    return Claim(
+        claim_id=claim_id,
+        slot_name=slot_name,
+        text=text,
+        evidence_refs=refs if refs is not None else [_ref()],
+        support=ClaimSupport.SUPPORTED,
+        confidence=0.9,
+        risk=ClaimRisk.LOW,
+    )
+
+
+def test_synthesize_slot_drops_unsupported_claims() -> None:
+    """``synthesize_slot`` 只保留 SUPPORTED + 有 evidence 的 claim。
+
+    Output format: bullet list (one bullet per SUPPORTED claim, deterministic
+    order). Empty input -> empty body so the caller marks the slot as
+    needs_review. INSUFFICIENT_EVIDENCE claims (and SUPPORTED claims with
+    no evidence) MUST NOT appear in the rendered Markdown — that is the
+    last mechanical gate before publication.
+    """
+    good1 = _make_supported_claim(
+        claim_id="claim-a", slot_name="definition", text="概念是…",
+    )
+    good2 = _make_supported_claim(
+        claim_id="claim-b", slot_name="definition", text="特征是…",
+    )
+    insufficient = _make_supported_claim(
+        claim_id="claim-c", slot_name="definition", text="应该被丢弃",
+    )
+    insufficient.support = ClaimSupport.INSUFFICIENT_EVIDENCE
+    no_evidence = Claim(
+        claim_id="claim-d", slot_name="definition", text="没有证据",
+        evidence_refs=[],
+        support=ClaimSupport.SUPPORTED,
+    )
+
+    body = synthesize_slot("definition", [good1, insufficient, good2, no_evidence])
+
+    # Two SUPPORTED claims => two bullet items (deterministic input order).
+    assert body.count("- 概念是") == 1
+    assert body.count("- 特征是") == 1
+    assert body.count("- 应该被丢弃") == 0
+    assert body.count("- 没有证据") == 0
+    # Sentence-final "。" preservation / appending: claim texts above already
+    # end with "…" (not "。") so the renderer appends "。" exactly once per
+    # bullet — verify by counting the trailing punctuation per bullet line.
+    lines = [line for line in body.splitlines() if line.startswith("- ")]
+    assert len(lines) == 2
+    assert all(line.endswith("。") for line in lines)
+
+    # Empty input -> empty body (caller marks slot needs_review).
+    assert synthesize_slot("definition", []) == ""
+    # All-unsupported input -> empty body too.
+    assert synthesize_slot("definition", [insufficient, no_evidence]) == ""
+
+
+def test_fillresult_status_mapping_to_extraction() -> None:
+    """``FillStatus`` → ``ExtractionStatus`` 五态映射（硬指标：TECHNICAL_FAILURE → FAILED）。
+
+    Six cases from the spec:
+      TECHNICAL_FAILURE → FAILED       (关键回归：never WRITTEN)
+      INSUFFICIENT      → BLOCKED
+      COHERENCE_FAILED  → BLOCKED
+      FILLED            → WRITTEN
+      PARTIAL >=0.4     → WRITTEN
+      PARTIAL <0.4      → BLOCKED
+
+    Plus CONFLICTING with/without the completion_ratio gate to verify both
+    branches of the same switch.
+    """
+    def _make_result(status: FillStatus, completion: float = 1.0) -> FillResult:
+        return FillResult(
+            topic_id="t",
+            title="T",
+            status=status,
+            slots={},
+            needs_review_slots=(),
+            metrics={
+                "topic_completion_ratio": completion,
+                "claim_support_ratio": 1.0,
+                "reviewer_verdicts_count": 0,
+            },
+            generator_fingerprint="",
+        )
+
+    # TECHNICAL_FAILURE -> FAILED (hard contract).
+    assert (
+        map_fill_to_extraction(_make_result(FillStatus.TECHNICAL_FAILURE))
+        is ExtractionStatus.FAILED
+    )
+    # INSUFFICIENT -> BLOCKED.
+    assert (
+        map_fill_to_extraction(_make_result(FillStatus.INSUFFICIENT))
+        is ExtractionStatus.BLOCKED
+    )
+    # COHERENCE_FAILED -> BLOCKED.
+    assert (
+        map_fill_to_extraction(_make_result(FillStatus.COHERENCE_FAILED))
+        is ExtractionStatus.BLOCKED
+    )
+    # FILLED -> WRITTEN.
+    assert (
+        map_fill_to_extraction(_make_result(FillStatus.FILLED))
+        is ExtractionStatus.WRITTEN
+    )
+    # PARTIAL with completion_ratio >= 0.4 -> WRITTEN.
+    assert (
+        map_fill_to_extraction(_make_result(FillStatus.PARTIAL, completion=0.4))
+        is ExtractionStatus.WRITTEN
+    )
+    assert (
+        map_fill_to_extraction(_make_result(FillStatus.PARTIAL, completion=0.8))
+        is ExtractionStatus.WRITTEN
+    )
+    # PARTIAL with completion_ratio < 0.4 -> BLOCKED.
+    assert (
+        map_fill_to_extraction(_make_result(FillStatus.PARTIAL, completion=0.2))
+        is ExtractionStatus.BLOCKED
+    )
+    # CONFLICTING: same completion_ratio gate as PARTIAL.
+    assert (
+        map_fill_to_extraction(_make_result(FillStatus.CONFLICTING, completion=0.5))
+        is ExtractionStatus.WRITTEN
+    )
+    assert (
+        map_fill_to_extraction(_make_result(FillStatus.CONFLICTING, completion=0.1))
+        is ExtractionStatus.BLOCKED
+    )
+
+
+@pytest.mark.asyncio
+async def test_legacy_concept_page_still_generated_for_stage7() -> None:
+    """``fill_slots``（legacy 入口）仍可用，``fill_slots_v2``（v2 入口）桥接后回填
+    ``FillResult.legacy_page``，保证 Stage 7 wiki_writer 的数据契约不破。
+
+    这里只验证 v2 入口能产出 ``FillResult`` 且 ``legacy_page`` 是同标题的
+    ``ConceptPage``；不验证内容正确性（fill_slots 的内容正确性已由旧测试
+    覆盖）。脚本策略：分别 script ``fill_slots``（legacy）和
+    ``fill_slots_extract``（v2 Stage 5A）两种 prompt_kind —— fill_slots
+    的脚本会被 legacy fallback 消耗（因为 v2 主路径也要桥接回 legacy
+    一次以填充 ConceptPage），fill_slots_extract 的脚本被 Stage 5A 消
+    耗，claim_reviewer 不被调用（无 HIGH-risk claim）。要求 LLM 至少能
+    提供 definition 的内容以让 FILLED / PARTIAL 状态成立。
+    """
+    llm = FakeLLMClient()
+
+    # v2 main path -> Stage 5A claim extraction per slot (one claim per slot,
+    # all LOW-risk so the reviewer is never invoked). We script 5 responses
+    # because fill_slots_v2 calls extract_slot_claims once per slot.
+    _claim_payload = json.dumps(
+        {
+            "claims": [
+                {
+                    "text": "扩句法是文学创作的具体方法",
+                    "span_ids": ["span-stub"],
+                    "confidence": 0.9,
+                }
+            ]
+        }
+    )
+    for slot_name in CONCEPT_SLOTS:
+        llm.script("fill_slots_extract", _claim_payload)
+
+    # v2 main path also bridges to legacy fill_slots (for FillResult.legacy_page).
+    llm.script(
+        "fill_slots",
+        json.dumps(
+            {
+                "slots": {
+                    "definition": "扩句法是文学创作的具体方法",
+                    "characteristics": "扩句法的特征",
+                    "examples": "扩句法例子",
+                    "related_concepts": "相关概念",
+                    "references": "来源文章",
+                },
+                "evidence": {
+                    "definition": {"item_index": 0, "source_text_excerpt": "扩句法"},
+                    "characteristics": {"item_index": 0, "source_text_excerpt": "特征"},
+                    "examples": {"item_index": 0, "source_text_excerpt": "例子"},
+                    "related_concepts": {"item_index": 0, "source_text_excerpt": "相关"},
+                    "references": {"item_index": 0, "source_text_excerpt": "来源"},
+                },
+            }
+        ),
+    )
+
+    from src.pipeline.v7_extract.canonical_spans import CanonicalSpan
+    # Import inside the test: ``test_v7_extract_feature_flag`` purges
+    # ``sys.modules['src.pipeline.v7_extract.*']`` which would otherwise
+    # leave this test with a stale ``FillResult`` / ``ConceptPage`` class
+    # reference and a mismatch against the freshly imported
+    # ``fill_slots_v2`` return value. Re-importing on every call sidesteps
+    # the pytest ordering hazard.
+    from src.pipeline.v7_extract.page_synthesizer import (
+        FillResult as _FillResult,
+        fill_slots_v2,
+    )
+    from src.pipeline.v7_extract.slot_filler import (
+        ConceptPage as _ConceptPage,
+        fill_slots as _fill_slots,
+    )
+    from src.pipeline.v7_extract.segmentation import CanonicalItem, ItemKind
+
+    # Minimal CanonicalItem / CanonicalSpan fixture (span byte length = 60,
+    # comfortably inside 30..3000).
+    item_text = "扩句法原文摘录扩句法让句子更具体" * 2  # 16 CJK chars * 3B = 96B
+    item = CanonicalItem(
+        item_id="article-1",
+        kind=ItemKind.ARTICLE,
+        start_byte=0,
+        end_byte=len(item_text.encode("utf-8")),
+        title="扩句法",
+        text=item_text,
+    )
+    span = CanonicalSpan(
+        span_id="span-stub",
+        item_id="article-1",
+        item_index=0,
+        start_byte=0,
+        end_byte=item.end_byte,
+        char_start=0,
+        char_end=len(item_text),
+    )
+    source_bytes = item_text.encode("utf-8")
+
+    from src.pipeline.v7_extract.topic_clusterer import Topic
+
+    topic = Topic("topic-1", "扩句法", ["article-1"])
+    spans_per_slot: dict[str, list[CanonicalSpan]] = {name: [span] for name in CONCEPT_SLOTS}
+
+    result = await fill_slots_v2(
+        topic,
+        spans_per_slot=spans_per_slot,
+        topic_items=[item],
+        source_bytes=source_bytes,
+        llm=llm,
+    )
+
+    # v2 must always return a FillResult, never raise (Failure Contract §1.3).
+    assert isinstance(result, _FillResult)
+    # legacy bridge must populate FillResult.legacy_page for Stage 7 callers.
+    assert isinstance(result.legacy_page, _ConceptPage)
+    assert result.legacy_page.title == "扩句法"
+    # Stage 5A produced 1 SUPPORTED LOW-risk claim → all 5 slots get that
+    # single bullet. Status is PARTIAL (only 1 claim, but body non-empty in
+    # all 5 slots via synthesize_slot's deterministic broadcast), metrics
+    # recorded, fingerprint present.
+    assert result.status in {FillStatus.PARTIAL, FillStatus.FILLED}
+    assert result.metrics["topic_completion_ratio"] > 0
+    assert result.generator_fingerprint != ""
+
+    # Legacy fill_slots still works (back-compat Acceptance from spec) —
+    # use a fresh LLM so the v2 path's scripted responses don't get
+    # double-consumed by the legacy call.
+    legacy_llm = FakeLLMClient()
+    legacy_llm.script(
+        "fill_slots",
+        json.dumps(
+            {
+                "slots": {
+                    "definition": "legacy 定义",
+                    "characteristics": "legacy 特征",
+                    "examples": "legacy 例子",
+                    "related_concepts": "legacy 相关",
+                    "references": "legacy 来源",
+                },
+                "evidence": {
+                    "definition": {"item_index": 0, "source_text_excerpt": "定义"},
+                    "characteristics": {"item_index": 0, "source_text_excerpt": "特征"},
+                    "examples": {"item_index": 0, "source_text_excerpt": "例子"},
+                    "related_concepts": {"item_index": 0, "source_text_excerpt": "相关"},
+                    "references": {"item_index": 0, "source_text_excerpt": "来源"},
+                },
+            }
+        ),
+    )
+    legacy_page = await _fill_slots(
+        topic,
+        source_text=item_text,
+        llm=legacy_llm,
+        item_texts={"article-1": item_text},
+    )
+    assert isinstance(legacy_page, _ConceptPage)
+    assert legacy_page.title == "扩句法"

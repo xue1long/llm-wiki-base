@@ -358,3 +358,23 @@ def _resolve_fill_slots_template(project_root: Path | str | None) -> "PromptTemp
             f"V7 fill_slots prompt is not available: {e}. "
             f"Check that prompts/builtin/fill_slots.toml is installed."
         ) from e
+
+
+# ---------------------------------------------------------------------------
+# Task 18 (Stage 5B): re-export the deterministic page synthesis API.
+#
+# ``fill_slots`` / ``ConceptPage`` / ``Slot`` / ``SlotEvidence`` /
+# ``CONCEPT_SLOTS`` are intentionally untouched — they remain the Stage 7
+# wiki_writer contract until Tasks 19-22 land. The v2 entry point
+# (``fill_slots_v2``) lives in ``page_synthesizer.py`` and is re-exported
+# here so callers can ``from src.pipeline.v7_extract.slot_filler import
+# fill_slots_v2`` without a second import path.
+# ---------------------------------------------------------------------------
+
+from .page_synthesizer import (  # noqa: E402  (re-export at module bottom)
+    FillResult,
+    FillStatus,
+    fill_slots_v2,
+    map_fill_to_extraction,
+    synthesize_slot,
+)
