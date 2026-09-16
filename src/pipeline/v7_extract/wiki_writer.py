@@ -845,3 +845,82 @@ def _coerce_relation(raw: Any) -> PageRelation:
         float(getattr(raw, "weight", 1.0)),
         str(getattr(raw, "context", "")),
     )
+
+
+# ---------------------------------------------------------------------------
+# Task 40: queue projection repair job
+# ---------------------------------------------------------------------------
+
+
+def repair_queue_projections(root: Path | str) -> int:
+    """Replay ``.index/queue_projection_pending.jsonl`` into reviews_queue.
+
+    Task 21 + Task 40: wiki_writer writes a pending log line whenever the
+    reviews_queue projection itself fails (disk full, permission denied).
+    This function scans the pending log, replays each entry through
+    ``enqueue_failure``, and removes successfully repaired entries from the
+    pending log. Failed re-projection keeps the entry (preserves data).
+
+    Best-effort, never raises (Failure Contract §1). Returns the count of
+    successfully repaired entries. Missing pending file is a no-op (0).
+
+    Atomic rewrite: successful entries are filtered out and the pending log
+    is overwritten via tmp + rename.
+    """
+    root_path = Path(root)
+    pending_path = root_path / ".index" / "queue_projection_pending.jsonl"
+    if not pending_path.exists():
+        return 0
+    try:
+        lines = pending_path.read_text(encoding="utf-8").splitlines()
+    except OSError as e:
+        log.warning("repair_queue_projections: cannot read %s: %s", pending_path, e)
+        return 0
+
+    remaining: list[str] = []
+    repaired = 0
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            payload = json.loads(line)
+        except ValueError:
+            continue
+        queue_path = Path(payload.get(
+            "queue_path",
+            str(root_path / ".index" / "reviews_queue.json"),
+        ))
+        try:
+            from .failures import enqueue_failure
+            enqueue_failure(
+                source_id=str(payload.get("source_id", "")),
+                stage=str(payload.get("stage", "stage7")),
+                page_id=str(payload.get("page_id", "")),
+                topic_id=str(payload.get("topic_id", "")),
+                reason=str(payload.get("reason", "queue io failed: prior")),
+                content_hash=str(payload.get("content_hash", "")),
+                prompt_kind=str(payload.get("prompt_kind", "")),
+                provider=str(payload.get("provider", "")),
+                queue_path=queue_path,
+            )
+            repaired += 1
+        except Exception as e:  # noqa: BLE001
+            log.warning(
+                "repair_queue_projections: replay failed for page_id=%s: %s",
+                payload.get("page_id"), e,
+            )
+            remaining.append(line)
+
+    # Atomic rewrite of pending log with only the still-failing entries.
+    try:
+        tmp = pending_path.with_suffix(".jsonl.tmp")
+        if remaining:
+            tmp.write_text("\n".join(remaining) + "\n", encoding="utf-8")
+        else:
+            tmp.write_text("", encoding="utf-8")
+        tmp.replace(pending_path)
+    except OSError as e:
+        log.error("repair_queue_projections: failed to rewrite %s: %s", pending_path, e)
+
+    log.info("repair_queue_projections: %d repaired, %d still pending", repaired, len(remaining))
+    return repaired

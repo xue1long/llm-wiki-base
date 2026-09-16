@@ -624,3 +624,76 @@ def test_rebuild_index_skips_pages_without_frontmatter(tmp_path: Path) -> None:
     index_text = (tmp_path / "wiki" / "index.md").read_text(encoding="utf-8")
     assert "- **good-page**" in index_text
     assert "- **bad-page**" not in index_text
+
+
+# ---------------------------------------------------------------------------
+# Task 40: queue projection repair job
+# ---------------------------------------------------------------------------
+
+
+def test_repair_queue_projections_replays_pending(tmp_path: Path) -> None:
+    """3 pending entries → all re-projected → reviews_queue has 3 rows,
+    pending log is now empty."""
+    from src.pipeline.v7_extract.wiki_writer import repair_queue_projections
+
+    pending = tmp_path / ".index" / "queue_projection_pending.jsonl"
+    pending.parent.mkdir(parents=True, exist_ok=True)
+    pending.write_text(
+        "\n".join([
+            json.dumps({
+                "timestamp_ms": 1000, "page_id": f"p-{i}",
+                "topic_id": f"t-{i}", "source_id": f"s-{i}",
+                "stage": "stage7_write", "reason": f"test reason {i}",
+                "content_hash": "", "prompt_kind": "fill_slots",
+                "provider": "offline",
+                "queue_path": str(tmp_path / "reviews_queue.json"),
+                "error": "queue io failed",
+            })
+            for i in range(3)
+        ]) + "\n",
+        encoding="utf-8",
+    )
+
+    repaired = repair_queue_projections(tmp_path)
+    assert repaired == 3
+
+    # pending file still exists but is empty.
+    assert pending.exists()
+    assert pending.read_text(encoding="utf-8").strip() == ""
+
+    # reviews_queue now contains the 3 entries.
+    queue_text = (tmp_path / "reviews_queue.json").read_text(encoding="utf-8")
+    for i in range(3):
+        assert f"p-{i}" in queue_text
+
+
+def test_repair_queue_projections_handles_missing_pending_file(tmp_path: Path) -> None:
+    """Missing pending file → return 0, no-op, no exceptions."""
+    from src.pipeline.v7_extract.wiki_writer import repair_queue_projections
+
+    # Don't create the file.
+    repaired = repair_queue_projections(tmp_path)
+    assert repaired == 0
+
+
+def test_repair_queue_projections_keeps_unparseable_lines(tmp_path: Path) -> None:
+    """Unparseable lines are dropped (not preserved verbatim)."""
+    from src.pipeline.v7_extract.wiki_writer import repair_queue_projections
+
+    pending = tmp_path / ".index" / "queue_projection_pending.jsonl"
+    pending.parent.mkdir(parents=True, exist_ok=True)
+    # Mix: 1 valid + 1 garbage line.
+    valid = json.dumps({
+        "timestamp_ms": 2000, "page_id": "p-good", "topic_id": "t1",
+        "source_id": "s1", "stage": "stage7_write", "reason": "good",
+        "content_hash": "", "prompt_kind": "", "provider": "",
+        "queue_path": str(tmp_path / "reviews_queue.json"),
+        "error": "x",
+    })
+    pending.write_text(valid + "\nthis-is-not-json\n", encoding="utf-8")
+
+    repaired = repair_queue_projections(tmp_path)
+    assert repaired == 1
+    # Pending log empty (unparseable dropped; not kept verbatim).
+    assert pending.read_text(encoding="utf-8").strip() == ""
+    assert "p-good" in (tmp_path / "reviews_queue.json").read_text(encoding="utf-8")
