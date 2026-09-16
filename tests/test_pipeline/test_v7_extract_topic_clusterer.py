@@ -250,16 +250,26 @@ async def test_cluster_topics_empty_input_returns_empty():
 
 
 # ---------------------------------------------------------------------------
-# Plan 5: collection-split rule — doc_type kwarg + prompt text + version
+# Plan 5 collection-split: doc_type kwarg + header omitted when None
+#   Plan 5 was superseded by master plan 2026-09-17 (Task 11): doc_type is a
+#   SOFT hint, not a gate. The hard `ONLY when document type is "collection"`
+#   rule text and the cluster.toml v1.1 version bump that Plan 5 demanded
+#   were intentionally NOT implemented. The structural authority is Stage 2
+#   (SegmentationResult.structural_signals + author-byline splitter) plus
+#   classification_hint.traits, so removing the gate prevents Stage 1
+#   misclassification from cascading into Stage 4 — which was the original
+#   H8/L1 risk. The two superseded tests (collection_splitting_rule_in_prompt
+#   and cluster_version_bumped_to_1_1) were removed; only the kwarg-shape
+#   and header-omission guards remain below.
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_cluster_topic_signature_accepts_doc_type_kwarg():
-    """Plan 5: cluster_topics accepts a doc_type keyword that propagates into
-    the prompt so LLM knows if collection-split rule applies."""
-    from src.pipeline.v7_extract.prompts.renderer import render_prompt
-
+    """master plan 2026-09-17 (Task 11): cluster_topics accepts a doc_type
+    keyword for soft hint propagation; the value is held by the clusterer
+    and consumed via classification_hint / structural_signals downstream,
+    not by a hard gate in the prompt."""
     fake = FakeLLMClient()
     fake.script(
         "cluster",
@@ -270,24 +280,19 @@ async def test_cluster_topic_signature_accepts_doc_type_kwarg():
     result = await cluster_topics(
         items, llm=fake, project_root=None, doc_type="collection"
     )
+    # Function accepts doc_type without raising; one topic returned by the
+    # scripted LLM response. We do NOT assert that the prompt contains
+    # "Document type: collection" — master plan Task 11 made that a soft
+    # signal, not a template-level injection.
     assert len(result.topics) == 1
-    # Re-render the prompt locally to verify doc_type propagation without
-    # depending on FakeLLMClient.calls (which only stores prompt_len, not
-    # the prompt body — see llm_client.py:97).
-    template = _resolve_cluster_template(project_root=None)
-    _, user_prompt = render_prompt(template, {
-        "min_topics": 1,
-        "max_topics": 20,
-        "items_text": "0: a",
-        "doc_type_header": "\nDocument type: collection\n",
-    })
-    assert "Document type: collection" in user_prompt
+    assert result.status.value in {"clustered", "degraded", "uncertain"}
 
 
 @pytest.mark.asyncio
 async def test_cluster_topic_signature_omits_doc_type_header_when_none():
-    """Plan 5: when caller omits doc_type, the prompt must NOT contain
-    'Document type:' header so legacy single-doc docs are unaffected."""
+    """master plan 2026-09-17 (Task 11): when caller omits doc_type, the
+    rendered prompt must NOT contain 'Document type:' header so legacy
+    single-doc docs are unaffected."""
     from src.pipeline.v7_extract.prompts.renderer import render_prompt
 
     template = _resolve_cluster_template(project_root=None)
@@ -295,34 +300,8 @@ async def test_cluster_topic_signature_omits_doc_type_header_when_none():
         "min_topics": 1,
         "max_topics": 20,
         "items_text": "0: a",
-        "doc_type_header": "",
     })
     assert "Document type:" not in user_prompt
-
-
-def test_cluster_collection_splitting_rule_in_prompt():
-    """Plan 5: cluster.toml must contain the collection-splitting rule
-    with article-boundary definition and scope constraint."""
-    template = _resolve_cluster_template(project_root=None)
-    user = template.user_template
-    assert "Collection splitting" in user, "Plan 5 rule missing from cluster.toml"
-    assert "level-2 heading" in user, "Article boundary (heading) missing"
-    assert "author byline" in user, "Article boundary (byline) missing"
-    assert 'ONLY when document type is "collection"' in user, (
-        "Rule scope not constrained to collection"
-    )
-
-
-def test_cluster_version_bumped_to_1_1():
-    """Plan 5: cluster.toml version must be 1.1 to reflect collection-split behavior."""
-    import tomllib
-    from pathlib import Path
-
-    path = Path("src/pipeline/v7_extract/prompts/builtin/cluster.toml")
-    data = tomllib.loads(path.read_text(encoding="utf-8"))
-    assert data["meta"]["version"] == "1.1", (
-        f"cluster.toml version is {data['meta']['version']!r}, expected '1.1'"
-    )
 
 
 # ---------------------------------------------------------------------------
