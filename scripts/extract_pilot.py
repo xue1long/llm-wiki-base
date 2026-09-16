@@ -13,6 +13,13 @@ v3 (plan 2026-09-15) changes:
   ``DocType.value`` in v2). Output JSON schema unchanged.
 - CLI flags unchanged: ``--count``, ``--seed``, ``--root``,
   ``--json-out``, ``--markdown-out``, ``--provider``, ``--sources``.
+
+Task 6 (plan 2026-09-17 Stage 3 remediation): ``check_completeness``
+returns ``CompletenessResult | None`` — ``None`` means technical
+failure (LLM timeout / parse / schema invalid). Per Failure Contract
+(2026-09-17-remediation-contract-freeze §1), technical failure MUST
+NOT be routed as INCOMPLETE — it becomes ``ExtractionStatus.FAILED``
+with ``failure_stage="stage3"``.
 """
 from __future__ import annotations
 
@@ -34,7 +41,10 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from src.pipeline.v7_extract._page_id import _stable_page_id, validate_page_id
-from src.pipeline.v7_extract.completeness_checker import check_completeness
+from src.pipeline.v7_extract.completeness_checker import (
+    CompletenessStatus,
+    check_completeness,
+)
 from src.pipeline.v7_extract.doc_classifier import classify_doc
 from src.pipeline.v7_extract.failures import (
     ExtractionResult,
@@ -229,7 +239,10 @@ async def _extract_one(
                 },
             )
         # v3: Stage 3 is async + P5-decoupled (doc_type is soft hint).
-        complete, completeness_reason = await check_completeness(
+        # Task 6: returns CompletenessResult | None. None = technical
+        # failure (LLM timeout / parse / schema invalid) — per Failure
+        # Contract (§1), this MUST NOT be routed as INCOMPLETE.
+        completeness = await check_completeness(
             content,
             doc_type_hint=classification.doc_type,
             llm=llm,
@@ -238,6 +251,9 @@ async def _extract_one(
 
         # Legacy dict fields carried through ``metadata`` so the JSON
         # contract stays identical to the pre-refactor shape.
+        # Task 6: technical failure -> FAILED (not INCOMPLETE). The
+        # legacy ``complete`` boolean still serializes as False so old
+        # JSON consumers do not crash.
         metadata: dict[str, Any] = {
             "source": relative,
             "characters": len(content),
@@ -245,21 +261,81 @@ async def _extract_one(
             "doc_type": classification.doc_type,
             "confidence": classification.confidence,
             "rationale": classification.rationale,
-            "complete": complete,
-            "completeness_reason": completeness_reason,
             "topics": [],
             "error": None,
         }
+
+        # Task 6: CompletenessResult | None -> ExtractionStatus mapping.
+        #   None                -> FAILED (failure_stage="stage3")  [tech fail]
+        #   TECHNICAL_FAILURE   -> FAILED (defense in depth — should
+        #                                       not happen if None works)
+        #   INCOMPLETE          -> INCOMPLETE
+        #   UNCERTAIN           -> BLOCKED (review; ambiguous)
+        #   COMPLETE            -> WRITTEN
+        if completeness is None:
+            reason = "stage3_llm_failed_after_retries"
+            metadata["complete"] = False
+            metadata["completeness_reason"] = reason
+            return ExtractionResult(
+                status=ExtractionStatus.FAILED,
+                source_id=relative,
+                source_md5=source_md5,
+                failure_stage="stage3",
+                review_reasons=[reason],
+                metadata=metadata,
+            )
+
+        metadata["complete"] = (
+            completeness.status is CompletenessStatus.COMPLETE
+        )
+        metadata["completeness_reason"] = (
+            completeness.reason_codes[0] if completeness.reason_codes else ""
+        )
+
+        if completeness.status is CompletenessStatus.TECHNICAL_FAILURE:
+            # Defense in depth — None path is the primary signal. If a
+            # TECHNICAL_FAILURE enum slips through, route the same way.
+            reason = (
+                "stage3_technical_failure: "
+                f"{completeness.technical_error or 'unspecified'}"
+            )
+            return ExtractionResult(
+                status=ExtractionStatus.FAILED,
+                source_id=relative,
+                source_md5=source_md5,
+                failure_stage="stage3",
+                review_reasons=[reason],
+                metadata=metadata,
+            )
+
+        if completeness.status is CompletenessStatus.UNCERTAIN:
+            result = ExtractionResult(
+                status=ExtractionStatus.BLOCKED,
+                source_id=relative,
+                source_md5=source_md5,
+                review_reasons=list(completeness.reason_codes),
+                blocked_topic_ids=[relative],
+                metadata=metadata,
+            )
+            return result
+
+        if completeness.status is CompletenessStatus.INCOMPLETE:
+            result = ExtractionResult(
+                status=ExtractionStatus.INCOMPLETE,
+                source_id=relative,
+                source_md5=source_md5,
+                review_reasons=list(completeness.reason_codes),
+                metadata=metadata,
+            )
+            return result
+
+        # COMPLETE — continue to Stage 4 / 5.
         result = ExtractionResult(
-            status=ExtractionStatus.INCOMPLETE if not complete
-            else ExtractionStatus.WRITTEN,
+            status=ExtractionStatus.WRITTEN,
             source_id=relative,
             source_md5=source_md5,
-            pages=[],
             metadata=metadata,
         )
-        if not complete:
-            return result
 
         items = _extract_items(content, relative)
         # Task 3: wrap into the canonical SegmentationResult contract.
