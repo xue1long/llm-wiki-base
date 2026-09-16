@@ -1,0 +1,24 @@
+{
+  "id": "stage2-08",
+  "stage": "stage2_segment",
+  "description": "tool doc_type: single article.",
+  "input": {
+    "content": "# ripgrep\n\n## usage\n\nrg -i 'TODO' src/\n",
+    "doc_type_hint": "tool",
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {
+            "start": 0,
+            "end": 39,
+            "title": "ripgrep"
+          }
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 1,
+    "article_count_max": 1
+  }
+}

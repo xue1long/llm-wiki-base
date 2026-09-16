@@ -1,0 +1,24 @@
+{
+  "id": "stage2-05",
+  "stage": "stage2_segment",
+  "description": "multi_section doc_type: stays as single article.",
+  "input": {
+    "content": "# Title\n\n## Section 1\n\ncontent 1.\n\n## Section 2\n\ncontent 2.\n",
+    "doc_type_hint": "multi_section",
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {
+            "start": 0,
+            "end": 60,
+            "title": "Title"
+          }
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 1,
+    "article_count_max": 1
+  }
+}

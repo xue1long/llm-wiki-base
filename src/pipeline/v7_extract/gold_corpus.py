@@ -99,6 +99,25 @@ def _diff_strings(expected: Any, actual: Any, *, indent: int = 0) -> str:
     return f"{pad}expected: {e}\n{pad}actual:   {a}"
 
 
+def _script_llm_for_fixture(
+    fixture: CorpusFixture, llm: LLMClient, prompt_kind: str
+) -> LLMClient:
+    """If the fixture provides an LLM response for ``prompt_kind`` and
+    ``llm`` is a FakeLLMClient, return a new FakeLLMClient with the
+    response queued. Otherwise return ``llm`` unchanged.
+    """
+    from src.pipeline.v7_extract.llm_client import FakeLLMClient
+
+    response = fixture.input.get("llm_responses", {}).get(prompt_kind)
+    if response is None:
+        return llm
+    if not isinstance(llm, FakeLLMClient):
+        return llm
+    new = FakeLLMClient()
+    new.script(prompt_kind, json.dumps(response, ensure_ascii=False))
+    return new
+
+
 async def run_stage1(
     fixture: CorpusFixture,
     *,
@@ -117,20 +136,10 @@ async def run_stage1(
     clients will be called normally).
     """
     from src.pipeline.v7_extract.doc_classifier import classify_doc
-    from src.pipeline.v7_extract.llm_client import FakeLLMClient
 
     content = str(fixture.input.get("content", ""))
     filename_hint = str(fixture.input.get("filename_hint", ""))
-    active_llm: LLMClient = llm
-    llm_response = fixture.input.get("llm_response")
-    if llm_response is not None and isinstance(active_llm, FakeLLMClient):
-        # Queue a scripted response for the next call. If the runner
-        # was given a different llm, leave it alone.
-        active_llm = FakeLLMClient()
-        active_llm.script(
-            "classify",
-            json.dumps(llm_response, ensure_ascii=False),
-        )
+    active_llm = _script_llm_for_fixture(fixture, llm, "classify")
 
     result = await classify_doc(
         content, filename_hint=filename_hint, llm=active_llm, project_root=None,
@@ -168,9 +177,70 @@ async def run_stage1(
     )
 
 
+async def run_stage2(
+    fixture: CorpusFixture,
+    *,
+    llm: LLMClient,
+) -> CorpusRunResult:
+    """Run Stage 2 (segment_articles) and compare to expected.
+
+    Expected fields supported:
+      - article_count_min: int (>= this many articles)
+      - article_count_max: int (<= this many articles)
+      - first_article_title_contains: str (substring check on first article)
+      - boundaries_touching: bool (article[i].end == article[i+1].start)
+    """
+    from src.pipeline.v7_extract.article_segmenter import segment_articles
+
+    content = str(fixture.input.get("content", ""))
+    doc_type = fixture.input.get("doc_type_hint")
+    active_llm = _script_llm_for_fixture(fixture, llm, "segment_articles")
+
+    articles = await segment_articles(
+        content, llm=active_llm, doc_type=doc_type, project_root=None,
+    )
+
+    diffs: list[str] = []
+    n = len(articles)
+
+    if "article_count_min" in fixture.expected:
+        min_n = int(fixture.expected["article_count_min"])
+        if n < min_n:
+            diffs.append(f"  expected >= {min_n} articles; got {n}")
+
+    if "article_count_max" in fixture.expected:
+        max_n = int(fixture.expected["article_count_max"])
+        if n > max_n:
+            diffs.append(f"  expected <= {max_n} articles; got {n}")
+
+    if "first_article_title_contains" in fixture.expected and articles:
+        needle = str(fixture.expected["first_article_title_contains"])
+        title = articles[0].title or ""
+        if needle not in title:
+            diffs.append(
+                f"  expected first article title to contain {needle!r}; got {title!r}"
+            )
+
+    if fixture.expected.get("boundaries_touching") and n > 1:
+        for i in range(n - 1):
+            if articles[i].char_end != articles[i + 1].char_start:
+                diffs.append(
+                    f"  boundaries not touching: article[{i}].char_end={articles[i].char_end} "
+                    f"!= article[{i + 1}].char_start={articles[i + 1].char_start}"
+                )
+
+    return CorpusRunResult(
+        fixture_id=fixture.id,
+        stage=fixture.stage,
+        passed=not diffs,
+        diff="\n".join(diffs),
+    )
+
+
 # Per-stage dispatcher. New stages add their runner here.
 STAGE_RUNNERS: dict[str, Callable[..., Awaitable[CorpusRunResult]]] = {
     "stage1_classify": run_stage1,
+    "stage2_segment": run_stage2,
 }
 
 

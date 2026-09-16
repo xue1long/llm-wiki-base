@@ -1,0 +1,14 @@
+{
+  "id": "stage2-10",
+  "stage": "stage2_segment",
+  "description": "Edge: very short content (single article even for collection hint).",
+  "input": {
+    "content": "x",
+    "doc_type_hint": "collection",
+    "llm_responses": {}
+  },
+  "expected": {
+    "article_count_min": 1,
+    "article_count_max": 1
+  }
+}

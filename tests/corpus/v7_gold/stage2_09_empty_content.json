@@ -1,0 +1,14 @@
+{
+  "id": "stage2-09",
+  "stage": "stage2_segment",
+  "description": "Empty content: single whole-doc boundary (failure path).",
+  "input": {
+    "content": "",
+    "doc_type_hint": "single_method",
+    "llm_responses": {}
+  },
+  "expected": {
+    "article_count_min": 1,
+    "article_count_max": 1
+  }
+}

@@ -65,9 +65,11 @@ def test_corpus_runner_passes_for_seeded_fixtures(tmp_path):
             "input": {
                 "content": f"text {i}",
                 "filename_hint": f"f{i}.md",
-                "llm_response": {
-                    "doc_type": doc_type, "confidence": 0.8,
-                    "rationale": "ok", "traits": [], "uncertain": False,
+                "llm_responses": {
+                    "classify": {
+                        "doc_type": doc_type, "confidence": 0.8,
+                        "rationale": "ok", "traits": [], "uncertain": False,
+                    },
                 },
             },
             "expected": {
@@ -96,9 +98,11 @@ def test_corpus_runner_reports_failure_with_diff(tmp_path):
         "input": {
             "content": "x",
             "filename_hint": "f.md",
-            "llm_response": {
-                "doc_type": "single_method", "confidence": 0.8,
-                "rationale": "ok", "traits": [], "uncertain": False,
+            "llm_responses": {
+                "classify": {
+                    "doc_type": "single_method", "confidence": 0.8,
+                    "rationale": "ok", "traits": [], "uncertain": False,
+                },
             },
         },
         "expected": {
@@ -148,4 +152,16 @@ def test_stage1_corpus_meets_count_threshold():
             fixtures.append(fx)
     assert len(fixtures) >= 16, (
         f"Stage 1 corpus has {len(fixtures)} fixtures, need >= 16 per master plan §5"
+    )
+
+
+def test_stage2_corpus_meets_count_threshold():
+    """Stage 2 corpus >= 16 fixtures (master plan §5 Task 46)."""
+    fixtures = []
+    for p in CorpusLoader.discover(DEFAULT_CORPUS_ROOT):
+        fx = CorpusLoader.load(p)
+        if fx is not None and fx.stage == "stage2_segment":
+            fixtures.append(fx)
+    assert len(fixtures) >= 16, (
+        f"Stage 2 corpus has {len(fixtures)} fixtures, need >= 16 per master plan §5"
     )

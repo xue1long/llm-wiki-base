@@ -1,0 +1,22 @@
+{
+  "id": "stage2-04",
+  "stage": "stage2_segment",
+  "description": "Collection with author bylines between articles.",
+  "input": {
+    "content": "## Title A\n\nA body.\n\n作者 314\n\n## Title B\n\nB body.\n",
+    "doc_type_hint": "collection",
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {"start": 0, "end": 22, "title": "Title A"},
+          {"start": 22, "end": 49, "title": "Title B"}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 2,
+    "article_count_max": 2,
+    "first_article_title_contains": "Title"
+  }
+}

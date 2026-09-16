@@ -1,0 +1,22 @@
+{
+  "id": "stage2-15",
+  "stage": "stage2_segment",
+  "description": "Long content collection (multi-paragraph articles).",
+  "input": {
+    "content": "## Article A\n\nFirst paragraph of A.\n\nSecond paragraph of A.\n\nThird paragraph of A.\n\n## Article B\n\nFirst paragraph of B.\n\nSecond paragraph of B.\n",
+    "doc_type_hint": "collection",
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {"start": 0, "end": 80, "title": "Article A"},
+          {"start": 80, "end": 150, "title": "Article B"}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 2,
+    "article_count_max": 2,
+    "boundaries_touching": true
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "stage2-12",
+  "stage": "stage2_segment",
+  "description": "Edge: LLM returns fewer articles than suggested by content (boundary confidence low).",
+  "input": {
+    "content": "## A\n\nbody a.\n\n## B\n\nbody b.\n\n## C\n\nbody c.\n",
+    "doc_type_hint": "collection",
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {"start": 0, "end": 50, "title": "ABC-merged"}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 1,
+    "article_count_max": 1,
+    "first_article_title_contains": "merged"
+  }
+}

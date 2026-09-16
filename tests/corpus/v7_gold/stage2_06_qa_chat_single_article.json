@@ -1,0 +1,24 @@
+{
+  "id": "stage2-06",
+  "stage": "stage2_segment",
+  "description": "qa_chat doc_type: single article (not a collection).",
+  "input": {
+    "content": "Q: 扩句法？\nA: 增加动作描写。\n",
+    "doc_type_hint": "qa_chat",
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {
+            "start": 0,
+            "end": 19,
+            "title": "QA"
+          }
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 1,
+    "article_count_max": 1
+  }
+}

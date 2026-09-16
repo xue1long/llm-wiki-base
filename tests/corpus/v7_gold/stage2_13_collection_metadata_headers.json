@@ -1,0 +1,30 @@
+{
+  "id": "stage2-13",
+  "stage": "stage2_segment",
+  "description": "Serial column: each article has 更新时间 + 字数 metadata header.",
+  "input": {
+    "content": "更新时间 2024-09-01\n字数：1500\n\n## First Article\n\nBody one.\n\n更新时间 2024-09-02\n字数：2000\n\n## Second Article\n\nBody two.\n",
+    "doc_type_hint": "collection",
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {
+            "start": 0,
+            "end": 60,
+            "title": "First Article"
+          },
+          {
+            "start": 60,
+            "end": 108,
+            "title": "Second Article"
+          }
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 2,
+    "article_count_max": 2,
+    "first_article_title_contains": "First"
+  }
+}

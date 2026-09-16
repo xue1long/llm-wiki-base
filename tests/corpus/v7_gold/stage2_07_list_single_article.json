@@ -1,0 +1,24 @@
+{
+  "id": "stage2-07",
+  "stage": "stage2_segment",
+  "description": "list doc_type: single article.",
+  "input": {
+    "content": "# 写作技巧\n\n1. 扩句\n2. 心理\n3. 环境\n",
+    "doc_type_hint": "list",
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {
+            "start": 0,
+            "end": 26,
+            "title": "写作技巧"
+          }
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 1,
+    "article_count_max": 1
+  }
+}

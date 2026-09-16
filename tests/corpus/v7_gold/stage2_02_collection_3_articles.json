@@ -1,0 +1,24 @@
+{
+  "id": "stage2-02",
+  "stage": "stage2_segment",
+  "description": "Collection with 3 articles (one-author serial).",
+  "input": {
+    "content": "## Article One\n\nFirst body.\n\n## Article Two\n\nSecond body.\n\n## Article Three\n\nThird body.\n",
+    "doc_type_hint": "collection",
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {"start": 0, "end": 36, "title": "Article One"},
+          {"start": 36, "end": 72, "title": "Article Two"},
+          {"start": 72, "end": 108, "title": "Article Three"}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 3,
+    "article_count_max": 3,
+    "first_article_title_contains": "Article One",
+    "boundaries_touching": true
+  }
+}

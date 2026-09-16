@@ -1,0 +1,25 @@
+{
+  "id": "stage2-03",
+  "stage": "stage2_segment",
+  "description": "Collection with 5 articles.",
+  "input": {
+    "content": "## A\n\nbody a.\n\n## B\n\nbody b.\n\n## C\n\nbody c.\n\n## D\n\nbody d.\n\n## E\n\nbody e.\n",
+    "doc_type_hint": "collection",
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {"start": 0, "end": 16, "title": "A"},
+          {"start": 16, "end": 32, "title": "B"},
+          {"start": 32, "end": 48, "title": "C"},
+          {"start": 48, "end": 64, "title": "D"},
+          {"start": 64, "end": 80, "title": "E"}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 5,
+    "article_count_max": 5,
+    "boundaries_touching": true
+  }
+}

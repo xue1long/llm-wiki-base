@@ -1,0 +1,31 @@
+{
+  "id": "stage2-16",
+  "stage": "stage2_segment",
+  "description": "Unicode-heavy content: emoji + CJK characters in titles.",
+  "input": {
+    "content": "## 🚀 写作技巧\n\nEmoji and CJK content here. 长内容。\n\n## 📚 推荐阅读\n\nMore content. 更多内容。\n",
+    "doc_type_hint": "collection",
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {
+            "start": 0,
+            "end": 40,
+            "title": "🚀 写作技巧"
+          },
+          {
+            "start": 40,
+            "end": 76,
+            "title": "📚 推荐阅读"
+          }
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 2,
+    "article_count_max": 2,
+    "first_article_title_contains": "写作",
+    "boundaries_touching": true
+  }
+}

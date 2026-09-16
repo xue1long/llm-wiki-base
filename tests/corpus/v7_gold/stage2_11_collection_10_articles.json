@@ -1,0 +1,70 @@
+{
+  "id": "stage2-11",
+  "stage": "stage2_segment",
+  "description": "Large collection: 10 articles.",
+  "input": {
+    "content": "## A1\n\nb1\n\n## A2\n\nb2\n\n## A3\n\nb3\n\n## A4\n\nb4\n\n## A5\n\nb5\n\n## A6\n\nb6\n\n## A7\n\nb7\n\n## A8\n\nb8\n\n## A9\n\nb9\n\n## A10\n\nb10\n",
+    "doc_type_hint": "collection",
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {
+            "start": 0,
+            "end": 11,
+            "title": "A 1"
+          },
+          {
+            "start": 11,
+            "end": 22,
+            "title": "A 2"
+          },
+          {
+            "start": 22,
+            "end": 33,
+            "title": "A 3"
+          },
+          {
+            "start": 33,
+            "end": 44,
+            "title": "A 4"
+          },
+          {
+            "start": 44,
+            "end": 55,
+            "title": "A 5"
+          },
+          {
+            "start": 55,
+            "end": 66,
+            "title": "A 6"
+          },
+          {
+            "start": 66,
+            "end": 77,
+            "title": "A 7"
+          },
+          {
+            "start": 77,
+            "end": 88,
+            "title": "A 8"
+          },
+          {
+            "start": 88,
+            "end": 99,
+            "title": "A 9"
+          },
+          {
+            "start": 99,
+            "end": 111,
+            "title": "A 10"
+          }
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 10,
+    "article_count_max": 10,
+    "boundaries_touching": true
+  }
+}

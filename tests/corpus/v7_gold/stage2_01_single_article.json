@@ -1,0 +1,20 @@
+{
+  "id": "stage2-01",
+  "stage": "stage2_segment",
+  "description": "Single-article content: doc_type=single_method, expect 1 article.",
+  "input": {
+    "content": "## 扩句法\n\n通过添加动作描写让句子更具体。\n",
+    "doc_type_hint": "single_method",
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {"start": 0, "end": 24, "title": "扩句法"}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 1,
+    "article_count_max": 1
+  }
+}

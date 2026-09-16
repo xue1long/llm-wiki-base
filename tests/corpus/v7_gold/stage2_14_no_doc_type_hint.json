@@ -1,0 +1,24 @@
+{
+  "id": "stage2-14",
+  "stage": "stage2_segment",
+  "description": "doc_type_hint=None (no Stage 1 hint): treat as single article by default.",
+  "input": {
+    "content": "## Some content\n\nBody.\n",
+    "doc_type_hint": null,
+    "llm_responses": {
+      "segment_articles": {
+        "articles": [
+          {
+            "start": 0,
+            "end": 24,
+            "title": "Some content"
+          }
+        ]
+      }
+    }
+  },
+  "expected": {
+    "article_count_min": 1,
+    "article_count_max": 1
+  }
+}
