@@ -168,6 +168,10 @@ async def _run_full_unlocked(
             pending_dirty = False
 
     atexit.register(flush_pending)
+    # Task 8: compute the pipeline fingerprint once per run; the source
+    # checkpoint row's ``pipeline_fingerprint`` field must match for the
+    # INCOMPLETE-skip path to apply (Persistence Contract §4.4).
+    current_pipeline_fp = _current_pipeline_fingerprint()
     try:
         for batch_number, batch in enumerate(batches, 1):
             batch_processed = False
@@ -183,7 +187,10 @@ async def _run_full_unlocked(
                     prior["llm_provider"] != provider_identity
                 ):
                     warnings.append(f"provider_changed_since_last_run:{relative}")
-                if _source_can_skip(prior, source_md5, dry_run=dry_run):
+                if _source_can_skip(
+                    prior, source_md5, dry_run=dry_run,
+                    pipeline_fingerprint=current_pipeline_fp,
+                ):
                     results.append(_replay_extraction_result(relative, prior, skipped=True))
                     continue
                 prior_attempts = int((prior or {}).get("attempts", 0) or 0)
@@ -221,6 +228,7 @@ async def _run_full_unlocked(
                         "last_attempt_at": int(time.time() * 1000),
                         "llm_provider": provider_identity,
                         "dry_run": True,
+                        "pipeline_fingerprint": current_pipeline_fp,
                     })
                 else:
                     row = _source_outcome_from_result(
@@ -228,6 +236,7 @@ async def _run_full_unlocked(
                         md5=source_md5,
                         dry_run=dry_run,
                         llm_provider=provider_identity,
+                        pipeline_fingerprint=current_pipeline_fp,
                     )
                 if result.status == ExtractionStatus.FAILED:
                     batch_failed = True
@@ -415,14 +424,16 @@ def _source_outcome_from_result(
     md5: str,
     dry_run: bool,
     llm_provider: str = "",
+    pipeline_fingerprint: str = "",
 ) -> dict[str, Any]:
     """Translate an ExtractionResult into the v2 checkpoint row.
 
-    Schema (plan §4 Task 4):
+    Schema (plan §4 Task 4 + Task 8):
       version=2, sources[<relative>] = {
         md5, status, legacy_status, written_page_ids,
         blocked_page_ids, failed_page_ids, attempts,
-        last_attempt_at, llm_provider, dry_run
+        last_attempt_at, llm_provider, dry_run,
+        pipeline_fingerprint   # NEW (Task 8): skip double-key
       }
     """
     d = result.to_dict()  # gives correct legacy_status via _legacy_from_status
@@ -437,7 +448,35 @@ def _source_outcome_from_result(
         "last_attempt_at": int(time.time() * 1000),
         "llm_provider": llm_provider,
         "dry_run": bool(dry_run),
+        "pipeline_fingerprint": pipeline_fingerprint,
     }
+
+
+def _current_pipeline_fingerprint(
+    *,
+    classifier_fp: str = "",
+    segmenter_fp: str = "",
+    checker_fp: str = "",
+    clusterer_fp: str = "",
+    generator_fp: str = "",
+    template_hashes: dict[str, str] | None = None,
+) -> str:
+    """Single source of truth for the source-checkpoint pipeline_fingerprint.
+
+    Contract Freeze §4.4.1: pipeline_fingerprint is a stable identifier of
+    (prompt version + model policy + structural rules version). It is the
+    combined hash of every stage fingerprint + template hash list.
+
+    Format: ``pipe-<16hex>``. Empty inputs hash to a deterministic value
+    (callers may pass empty strings for stages that don't yet expose a
+    fingerprint).
+    """
+    parts = [classifier_fp, segmenter_fp, checker_fp, clusterer_fp, generator_fp]
+    if template_hashes:
+        for name in sorted(template_hashes):
+            parts.append(f"{name}:{template_hashes[name]}")
+    identity = "|".join(parts)
+    return "pipe-" + hashlib.sha1(identity.encode()).hexdigest()[:16]
 
 
 def _merge_write_report_into_outcome(
@@ -501,20 +540,43 @@ def _source_can_skip(
     source_md5: str,
     *,
     dry_run: bool,
+    pipeline_fingerprint: str = "",
 ) -> bool:
+    """Decide whether a prior v2 checkpoint row is eligible to skip re-run.
+
+    Persistence Contract §4.4 — double-key skip:
+      1. md5 matches (content unchanged)
+      2. pipeline_fingerprint matches (no prompt / policy upgrade since
+         last run)
+      3. status is one of the skip-eligible stable outcomes:
+         - INCOMPLETE (proven incomplete, not a transient failure — Task 8
+           conservative read)
+         - WRITTEN-with-pages-and-no-blocked-or-failed (clean prior run,
+           idempotent resume — pre-existing semantics preserved)
+
+    FAILED / BLOCKED never skip — they must be retried (technical) or
+    escalated (semantic / quality block). Old checkpoint rows without
+    ``pipeline_fingerprint`` are read as empty string; if the current run
+    also reports empty (no fingerprint infrastructure yet) the skip is
+    allowed for backward compat (plan acceptance: pipeline_fingerprint 不变
+    + source 不变 → 仍可 skip).
+    """
     if dry_run or not prior or prior.get("dry_run", False):
         return False
     if prior.get("md5") != source_md5:
         return False
+    if prior.get("pipeline_fingerprint", "") != pipeline_fingerprint:
+        return False
     status = prior.get("status")
-    if status in {ExtractionStatus.BLOCKED.value, ExtractionStatus.INCOMPLETE.value}:
+    if status == ExtractionStatus.INCOMPLETE.value:
         return True
-    return (
-        status == ExtractionStatus.WRITTEN.value
-        and bool(prior.get("written_page_ids"))
-        and not prior.get("blocked_page_ids")
-        and not prior.get("failed_page_ids")
-    )
+    if status == ExtractionStatus.WRITTEN.value:
+        return (
+            bool(prior.get("written_page_ids"))
+            and not prior.get("blocked_page_ids")
+            and not prior.get("failed_page_ids")
+        )
+    return False
 
 
 def _provider_identity(llm: Any) -> str:

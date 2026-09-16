@@ -119,22 +119,34 @@ def test_source_attempts_increment_once_per_run_and_stop_at_max_attempts(
     assert row["status"] == "failed_max_attempts"
 
 
-def test_stage5_internal_retries_count_as_one_source_attempt_and_blocked_resumes_skip(
+def test_stage5_internal_retries_count_as_one_source_attempt_and_blocked_reruns(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Task 8 (Persistence Contract §4.4): BLOCKED never skips.
+
+    Previously this test asserted BLOCKED reuses the prior checkpoint
+    (skip). Task 8 deliberately changes the semantics so BLOCKED sources
+    always re-evaluate — only INCOMPLETE (proven incomplete, not a
+    transient failure) may be skipped. Stage 5 retries still count as
+    one source-level attempt (D5 from the v3 plan).
+    """
     _write_source(tmp_path, "one.md")
     fake = FakeLLMClient()
-    fake.script(
-        "classify",
-        '{"doc_type": "single_method", "confidence": 0.9, "rationale": "r"}',
-    )
-    fake.script("completeness", '{"complete": true, "reason": "ok"}')
-    fake.script(
-        "cluster",
-        '{"topics": [{"id": "t1", "title": "T1", "item_indexes": [0]}]}',
-    )
-    for _ in range(3):
-        fake.script("fill_slots", "not json")
+    # Register scripts for BOTH runs (Task 8: BLOCKED no longer skips, so
+    # the second run must re-consume classify / completeness / cluster /
+    # fill_slots scripts).
+    for _ in range(2):
+        fake.script(
+            "classify",
+            '{"doc_type": "single_method", "confidence": 0.9, "rationale": "r"}',
+        )
+        fake.script("completeness", '{"complete": true, "reason": "ok"}')
+        fake.script(
+            "cluster",
+            '{"topics": [{"id": "t1", "title": "T1", "item_indexes": [0]}]}',
+        )
+        for _ in range(3):
+            fake.script("fill_slots", "not json")
     monkeypatch.setenv("V7_ALLOW_APPLY", "1")
     checkpoint = tmp_path / ".index" / "full.json"
 
@@ -151,9 +163,13 @@ def test_stage5_internal_retries_count_as_one_source_attempt_and_blocked_resumes
     ]
     assert first["summary"]["blocked"] == 1
     assert first_call_count >= 6  # classify + completeness + cluster + 3 Stage 5 retries
-    assert row["attempts"] == 1
-    assert len(fake.calls) == first_call_count
-    assert second["summary"]["skipped"] == 1
+    # Task 8: BLOCKED must re-run, NOT skip. The source-level attempt counter
+    # therefore advances on the second run (Stage 5 retries still count as
+    # one source-level attempt each invocation, per D5).
+    assert len(fake.calls) > first_call_count
+    assert second["summary"]["blocked"] == 1
+    assert second["summary"]["skipped"] == 0
+    assert row["attempts"] == 2
 
 
 @pytest.mark.parametrize(
@@ -870,3 +886,165 @@ def test_v2_checkpoint_dry_run_does_not_mark_source_done(
 
     assert report["mode"] == "apply"
     assert list((tmp_path / "wiki" / "concepts").glob("*.md"))
+
+
+# ---------------------------------------------------------------------------
+# Task 8 (V7 Stage Remediation / 2026-09-17 plan): source checkpoint double-key
+# (md5 + pipeline_fingerprint). Skip is only allowed when:
+#   1. md5 matches (content unchanged)
+#   2. status is INCOMPLETE (proven incomplete, not a transient failure)
+#   3. pipeline_fingerprint matches (no prompt/policy upgrade since last run)
+# FAILED / BLOCKED never skip. Old checkpoints without pipeline_fingerprint
+# still work via backward compat (empty string on both sides).
+# ---------------------------------------------------------------------------
+
+
+def _make_extraction_result(status: ExtractionStatus, *, attempts: int = 1) -> ExtractionResult:
+    """Helper for unit tests on _source_outcome_from_result."""
+    return ExtractionResult(
+        status=status,
+        source_id="raw/sources/one.md",
+        attempts=attempts,
+        metadata={"source": "raw/sources/one.md", "doc_type": None, "complete": False,
+                  "topics": [], "pages": [], "error": None},
+    )
+
+
+def _prior_row(*, status: str, md5: str = "abc123", pipeline_fingerprint: str = "",
+               written: list[str] | None = None,
+               blocked: list[str] | None = None,
+               failed: list[str] | None = None,
+               dry_run: bool = False) -> dict[str, object]:
+    return {
+        "md5": md5,
+        "status": status,
+        "legacy_status": status,
+        "written_page_ids": list(written or []),
+        "blocked_page_ids": list(blocked or []),
+        "failed_page_ids": list(failed or []),
+        "attempts": 1,
+        "last_attempt_at": 0,
+        "llm_provider": "offline",
+        "dry_run": dry_run,
+        "pipeline_fingerprint": pipeline_fingerprint,
+    }
+
+
+def test_incomplete_only_skips_when_fingerprint_matches() -> None:
+    """INCOMPLETE status + matching fingerprint → skip; mismatched → re-evaluate."""
+    prior = _prior_row(status="incomplete", md5="abc123", pipeline_fingerprint="pipe-aaaa")
+    assert extract_full._source_can_skip(
+        prior, "abc123", dry_run=False, pipeline_fingerprint="pipe-aaaa",
+    ) is True
+    # Fingerprint changed (prompt / template upgrade) → must NOT skip.
+    assert extract_full._source_can_skip(
+        prior, "abc123", dry_run=False, pipeline_fingerprint="pipe-bbbb",
+    ) is False
+
+
+def test_failed_or_blocked_never_skipped() -> None:
+    """FAILED and BLOCKED must never skip — they must be retried / escalated.
+
+    Persistence Contract §4.4: only INCOMPLETE (proven incomplete) is a valid
+    skip candidate. FAILED means retry will help (technical). BLOCKED means
+    human review is needed.
+    """
+    # FAILED — never skip regardless of fingerprint.
+    failed_prior = _prior_row(
+        status="failed", md5="abc123",
+        pipeline_fingerprint="pipe-aaaa",
+        failed=["p1"],
+    )
+    assert extract_full._source_can_skip(
+        failed_prior, "abc123", dry_run=False, pipeline_fingerprint="pipe-aaaa",
+    ) is False
+    # BLOCKED — never skip regardless of fingerprint.
+    blocked_prior = _prior_row(
+        status="blocked", md5="abc123",
+        pipeline_fingerprint="pipe-aaaa",
+        blocked=["p1"],
+    )
+    assert extract_full._source_can_skip(
+        blocked_prior, "abc123", dry_run=False, pipeline_fingerprint="pipe-aaaa",
+    ) is False
+
+
+def test_fingerprint_upgrade_triggers_re_evaluation() -> None:
+    """When current pipeline_fingerprint differs from prior, source must be
+    re-evaluated even if md5 + INCOMPLETE match (acceptance: checker 升级
+    后相同 source md5 仍会重判 incomplete)."""
+    prior = _prior_row(status="incomplete", md5="abc123", pipeline_fingerprint="pipe-old")
+    # Upgrade: same md5, status, but new pipeline fingerprint.
+    assert extract_full._source_can_skip(
+        prior, "abc123", dry_run=False, pipeline_fingerprint="pipe-new",
+    ) is False
+
+
+def test_backward_compat_old_checkpoint_without_fingerprint() -> None:
+    """Old checkpoint rows (pre-Task-8) have no ``pipeline_fingerprint`` field
+    — the helper falls back to empty string. Backward compat:
+      - old "" + current "" → still skip (no fingerprint infrastructure yet)
+      - old "" + current "pipe-xxxx" → re-run (upgrade on this side)
+      - old "pipe-xxxx" + current "" → re-run (downgrade on this side)
+    """
+    prior = _prior_row(status="incomplete", md5="abc123", pipeline_fingerprint="")
+    # Both empty → allow skip (backward compat for very old checkpoints).
+    assert extract_full._source_can_skip(
+        prior, "abc123", dry_run=False, pipeline_fingerprint="",
+    ) is True
+    # Only new has fingerprint → mismatch → re-run.
+    assert extract_full._source_can_skip(
+        prior, "abc123", dry_run=False, pipeline_fingerprint="pipe-aaaa",
+    ) is False
+
+    # Inverse: only old has fingerprint → mismatch → re-run.
+    prior_with_fp = _prior_row(status="incomplete", md5="abc123", pipeline_fingerprint="pipe-aaaa")
+    assert extract_full._source_can_skip(
+        prior_with_fp, "abc123", dry_run=False, pipeline_fingerprint="",
+    ) is False
+
+
+def test_current_pipeline_fingerprint_is_stable_and_order_independent() -> None:
+    """Contract Freeze §4.4.1 — same inputs in different arg order produce the
+    same fingerprint (template_hashes order is sorted internally)."""
+    fp1 = extract_full._current_pipeline_fingerprint(
+        classifier_fp="c1", segmenter_fp="s1", checker_fp="k1",
+        template_hashes={"a": "h1", "b": "h2"},
+    )
+    fp2 = extract_full._current_pipeline_fingerprint(
+        classifier_fp="c1", segmenter_fp="s1", checker_fp="k1",
+        template_hashes={"b": "h2", "a": "h1"},
+    )
+    assert fp1 == fp2
+    assert fp1.startswith("pipe-")
+    assert len(fp1) == len("pipe-") + 16
+
+
+def test_current_pipeline_fingerprint_changes_with_any_input() -> None:
+    """Any input change → fingerprint change. Sanity check on the 5 stage
+    fingerprints + template hash list."""
+    base = dict(classifier_fp="c1", segmenter_fp="s1", checker_fp="k1",
+                clusterer_fp="cl1", generator_fp="g1")
+    fp = extract_full._current_pipeline_fingerprint(**base)
+    for key in ("classifier_fp", "segmenter_fp", "checker_fp",
+                "clusterer_fp", "generator_fp"):
+        mutated = dict(base)
+        mutated[key] = base[key] + "-x"
+        assert extract_full._current_pipeline_fingerprint(**mutated) != fp
+
+
+def test_source_outcome_from_result_records_pipeline_fingerprint() -> None:
+    """The v2 checkpoint row carries the current pipeline_fingerprint so the
+    next run can verify double-key match (Persistence Contract §4.4.5)."""
+    result = _make_extraction_result(ExtractionStatus.WRITTEN)
+    row = extract_full._source_outcome_from_result(
+        result, md5="abc123", dry_run=False,
+        llm_provider="offline", pipeline_fingerprint="pipe-aaaa",
+    )
+    assert row["pipeline_fingerprint"] == "pipe-aaaa"
+    # Old callers (no pipeline_fingerprint kwarg) must still work — the field
+    # simply serializes as empty string (treated as no-fingerprint infra).
+    row_legacy = extract_full._source_outcome_from_result(
+        result, md5="abc123", dry_run=False, llm_provider="offline",
+    )
+    assert row_legacy["pipeline_fingerprint"] == ""
