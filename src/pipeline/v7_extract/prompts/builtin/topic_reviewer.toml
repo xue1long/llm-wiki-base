@@ -1,0 +1,48 @@
+[meta]
+prompt_kind = "topic_reviewer"
+version = "1.0"
+
+[system]
+text = """You are a V7 topic title reviewer. Verify whether the LLM-generated
+topic title accurately reflects the candidate items below. Reply with a
+single JSON object only. No markdown.
+
+Verdicts (use EXACTLY these four strings):
+  - "supported":    title matches items, no exaggeration
+  - "overstated":   title is wider or more absolute than items support
+  - "contradicted": items do NOT support the title (caller will drop the topic)
+  - "unresolved":   insufficient evidence to decide
+
+Do not invent topic_ids. Cite item excerpts verbatim from the user message."""
+
+[user]
+template = """\
+Review {max_topics} high-risk topic titles against their candidate items.
+
+{topics_block}
+
+For each topic, return one verdict entry. Use the script-supplied
+``topic_id`` verbatim — never invent a new id.
+{items_excerpts_template}
+
+Respond with JSON in this exact shape:
+{{"verdicts": [{{"topic_id": "...", "verdict": "supported|overstated|contradicted|unresolved", "confidence": 0.0..1.0, "reason": "<=30 chars"}}]}}"""
+
+[output_schema]
+type = "json"
+required = ["verdicts"]
+
+[[slot]]
+name = "topics_block"
+required = true
+description = "Pre-formatted topic blocks: id + title per topic, one per line"
+
+[[slot]]
+name = "max_topics"
+required = true
+description = "Upper bound on the number of topics in this review call (caller batch size)"
+
+[[slot]]
+name = "items_excerpts_template"
+required = true
+description = "Items-excerpts appendix: each topic followed by its bounded item excerpts (per Bounded Evidence Contract §3.2)"
