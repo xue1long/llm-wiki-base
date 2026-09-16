@@ -318,7 +318,8 @@ Plans are completed in dependency order. Check `.superpowers/sdd/progress.md` fo
 - 阶段切换由用户指令驱动，不擅自切换模式。
 - 优先级排序：`PROJECT_SOP.md` > 已确认的架构方案 > ponytail 内置规则 > mattpocock 默认规则 > 本文件行为准则。
 - 模块化永久约束：模块内部逻辑私有，仅通过模块内 `api.ts` / `types.ts` 对外暴露；禁止跨模块导入 service/model/utils 内部文件。
-- 方案审查门：方案初稿完成后必须通过 plan-audit 两轮审查 + 人工复核整改，方可进入编码阶段。
+- 方案审查门：方案初稿完成后必须通过 plan-audit 两轮审查（Round 1 全面漏洞审计 + Round 2 压力测试推演）+ 人工复核整改，方可进入编码阶段。
+- 编码阶段禁用 `ponytail ultra`：激进模式易破坏模块化所需抽象。ponytail 仅在编码阶段启用，架构设计与方案审查阶段务必关闭。
 - 重大架构决策写入 `docs/adr/`；领域术语统一维护在 `CONTEXT.md`。
 
 ## Behavioral Guidelines
