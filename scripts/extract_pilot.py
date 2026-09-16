@@ -41,6 +41,14 @@ from src.pipeline.v7_extract.failures import (
     ExtractionStatus,
     enqueue_failure,
 )
+from src.pipeline.v7_extract.invariants import validate_segmentation_invariants
+from src.pipeline.v7_extract.segmentation import (
+    CanonicalItem,
+    CoverageReport,
+    ItemKind,
+    SegmentationResult,
+    SegmentationStatus,
+)
 from src.pipeline.v7_extract.slot_filler import fill_slots
 from src.pipeline.v7_extract.topic_clusterer import cluster_topics
 
@@ -254,6 +262,17 @@ async def _extract_one(
             return result
 
         items = _extract_items(content, relative)
+        # Task 3: wrap into the canonical SegmentationResult contract.
+        # Downstream Stage 4 still consumes ``items`` (legacy dicts);
+        # the result is informational here — recorded for callers and
+        # future Stage 5 byte-span migration (Task 5).
+        segmentation_result = _wrap_items_as_segmentation_result(
+            items, content=content, source_md5=source_md5, relative=relative,
+        )
+        metadata["segmentation_status"] = segmentation_result.status.value
+        metadata["segmentation_coverage"] = segmentation_result.coverage.byte_accounting
+        metadata["segmentation_invariants_pass"] = segmentation_result.invariants.all_pass
+        metadata["segmentation_item_count"] = len(segmentation_result.items)
         item_map = {item["id"]: item for item in items}
         # v3: cluster_topics is async; returns [] if LLM missing
         topics = await cluster_topics(
@@ -416,6 +435,137 @@ async def _extract_one(
                 "error": reason,
             },
         )
+
+
+def _wrap_items_as_segmentation_result(
+    items: list[dict[str, str]],
+    *,
+    content: str,
+    source_md5: str,
+    relative: str,
+) -> SegmentationResult:
+    """Task 3 contract scaffold: wrap the legacy ``list[dict]`` shape
+    into a ``SegmentationResult``.
+
+    The downstream Stage 4 still consumes ``items`` (the dict list) —
+    this wrapper is informational. Task 5 will rewrite
+    ``article_segmenter.py`` to slice source_bytes directly, at which
+    point the byte offsets produced here will be authoritative.
+
+    Coordinate conversion (char offset -> UTF-8 byte offset) is
+    mechanical: ``len(content[:char_start].encode("utf-8"))``. The
+    position is found by searching ``item["text"]`` in ``content``;
+    a fresh ``char`` scan yields the char start of the substring.
+    """
+    source_bytes = content.encode("utf-8")
+    source_size = len(source_bytes)
+    canonical_items: list[CanonicalItem] = []
+    warnings: list[str] = []
+    # Track char cursor so we can slice items in source order.
+    char_cursor = 0
+    boundary_sources = ["metadata_header", "byline", "llm_window", "fallback"]
+
+    for index, raw in enumerate(items):
+        text = raw.get("text") or ""
+        if not text:
+            warnings.append(f"item_{index}_empty_text")
+            canonical_items.append(CanonicalItem(
+                item_id=str(raw.get("id") or f"{relative}#item-{index}"),
+                kind=ItemKind.UNKNOWN,
+                start_byte=0,
+                end_byte=0,
+                title=raw.get("title"),
+                text="",
+                boundary_sources=boundary_sources,
+                confidence=0.0,
+                display_index=index,
+            ))
+            continue
+        # Locate the text in the content starting from cursor (avoids the
+        # ``.find`` ambiguity when items share substrings).
+        char_start = content.find(text, char_cursor)
+        if char_start < 0:
+            # Last resort: scan from offset 0. Records a degraded item so
+            # invariant I4/I5 can surface the gap.
+            char_start = content.find(text)
+            warnings.append(f"item_{index}_text_out_of_order")
+        if char_start < 0:
+            warnings.append(f"item_{index}_text_not_located")
+            canonical_items.append(CanonicalItem(
+                item_id=str(raw.get("id") or f"{relative}#item-{index}"),
+                kind=ItemKind.UNKNOWN,
+                start_byte=0,
+                end_byte=0,
+                title=raw.get("title"),
+                text="",
+                boundary_sources=boundary_sources,
+                confidence=0.0,
+                display_index=index,
+            ))
+            continue
+        start_byte = len(content[:char_start].encode("utf-8"))
+        end_byte = start_byte + len(text.encode("utf-8"))
+        canonical_items.append(CanonicalItem(
+            item_id=str(raw.get("id") or f"{relative}#item-{index}"),
+            kind=ItemKind.ARTICLE,
+            start_byte=start_byte,
+            end_byte=end_byte,
+            title=raw.get("title"),
+            text=text,
+            boundary_sources=boundary_sources,
+            confidence=1.0,
+            display_index=index,
+        ))
+        char_cursor = char_start + len(text)
+
+    invariants = validate_segmentation_invariants(
+        canonical_items, source_size=source_size,
+    )
+
+    # Decide SegmentationStatus from invariants + coverage
+    if invariants.all_pass:
+        if len(canonical_items) == 1:
+            status = SegmentationStatus.SINGLE_EXPECTED
+        else:
+            status = SegmentationStatus.SEGMENTED
+    elif invariants.i1_nonempty and not invariants.i5_complete_accounting:
+        status = SegmentationStatus.DEGRADED
+    elif not invariants.i1_nonempty:
+        status = SegmentationStatus.UNCERTAIN
+    else:
+        # invariant broken but I1 still satisfied -> invariant validation
+        # failed -> FAILED (technical contract violation, per Failure
+        # Contract 1).
+        status = SegmentationStatus.FAILED
+
+    article_bytes = sum(
+        ci.end_byte - ci.start_byte
+        for ci in canonical_items
+        if ci.kind == ItemKind.ARTICLE
+    )
+    coverage = CoverageReport(
+        byte_accounting=sum(
+            ci.end_byte - ci.start_byte for ci in canonical_items
+        ) / source_size if source_size else 0.0,
+        structured_coverage=article_bytes / source_size if source_size else 0.0,
+        residual_ratio=0.0,
+        unknown_ratio=sum(
+            (ci.end_byte - ci.start_byte) for ci in canonical_items
+            if ci.kind == ItemKind.UNKNOWN
+        ) / source_size if source_size else 0.0,
+    )
+    return SegmentationResult(
+        status=status,
+        method="structural_deterministic",
+        items=canonical_items,
+        coverage=coverage,
+        invariants=invariants,
+        warnings=warnings,
+        structural_signals={"item_count": len(canonical_items)},
+        source_hash=source_md5,
+        segmenter_fingerprint="seg-fp-task3",
+        residual_items=[],
+    )
 
 
 def _extract_items(content: str, relative: str) -> list[dict[str, str]]:
