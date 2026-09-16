@@ -188,6 +188,38 @@ async def _extract_one(
             content, filename_hint=path.name, llm=llm,
             project_root=root,
         )
+        # Plan 2026-09-17 / Task 2: short-circuit on Stage 1 technical
+        # failure. Per Failure Contract, a Stage 1 LLM outage must NOT
+        # silently become INCOMPLETE / WRITTEN — it returns FAILED and
+        # records the failure to the reviews queue.
+        if classification.failed:
+            reason = f"stage1_llm_failed: {classification.error}"
+            _record_failure(
+                relative,
+                "stage1",
+                reason=reason,
+                content_hash=source_md5,
+                provider=_llm_provider_label(llm),
+                queue_path=root / ".index" / "reviews_queue.json",
+            )
+            return ExtractionResult(
+                status=ExtractionStatus.FAILED,
+                source_id=relative,
+                source_md5=source_md5,
+                failure_stage="stage1",
+                review_reasons=[reason],
+                metadata={
+                    "source": relative,
+                    "characters": len(content),
+                    "doc_type": classification.doc_type,
+                    "confidence": classification.confidence,
+                    "rationale": classification.rationale,
+                    "complete": False,
+                    "completeness_reason": "",
+                    "topics": [],
+                    "error": reason,
+                },
+            )
         # v3: Stage 3 is async + P5-decoupled (doc_type is soft hint).
         complete, completeness_reason = await check_completeness(
             content,

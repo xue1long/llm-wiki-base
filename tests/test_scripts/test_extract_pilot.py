@@ -54,7 +54,17 @@ def test_run_pilot_selects_deterministic_sources_and_never_writes_wiki(
         run_pilot(tmp_path, count=3, seed=7)
     )["sources"]
     assert not (tmp_path / "wiki").exists()
-    assert not (tmp_path / ".index").exists()
+    # Plan Task 2: when Stage 1 fails (no LLM injected here), the pilot
+    # now records the failure to the shared reviews queue instead of
+    # silently rolling through with INCOMPLETE. .index/ is therefore
+    # allowed to exist, but it must hold ONLY the queue file — no wiki
+    # data, no caches, no derived state.
+    index_dir = tmp_path / ".index"
+    if index_dir.exists():
+        children = sorted(p.name for p in index_dir.iterdir())
+        assert children == ["reviews_queue.json"], (
+            f"unexpected .index contents: {children}"
+        )
 
 
 def test_run_pilot_reports_classification_and_pages(tmp_path: Path) -> None:
@@ -468,3 +478,124 @@ def test_extract_one_page_sink_receives_concept_page(tmp_path: Path) -> None:
         "raw/sources/complete.md", seen[0].id,
     )
     assert expected_stable_id in result.written_page_ids
+
+
+# ---------------------------------------------------------------------------
+# Plan 2026-09-17 / Task 2: Stage 1 failure routes to FAILED status
+# (Failure Contract: technical failure never mapped to WRITTEN / INCOMPLETE).
+# ---------------------------------------------------------------------------
+
+
+class _ExplodingClassifyFake(FakeLLMClient):
+    """Fake LLM that raises on every Stage 1 (classify) call.
+
+    Other prompt kinds return empty (the default FakeLLMClient behaviour
+    when the script queue is empty). This simulates a Stage 1 provider
+    outage — Stage 3/4/5 should never be reached.
+
+    We log the call BEFORE raising so ``self.calls`` reflects the
+    attempts (mirrors the production retry-counter behaviour that
+    classifies a Stage 1 outage as 3 LLM attempts even though none
+    returned a payload).
+    """
+
+    async def complete(self, **kwargs):  # type: ignore[override]
+        self.calls.append({
+            "prompt_kind": kwargs.get("prompt_kind"),
+            "user_prompt_len": len(kwargs.get("user_prompt", "")),
+            "system_prompt_len": len(kwargs.get("system_prompt", "")),
+            "max_tokens": kwargs.get("max_tokens", 0),
+            "temperature": kwargs.get("temperature", 0.0),
+        })
+        if kwargs.get("prompt_kind") == "classify":
+            raise TimeoutError("simulated stage1 provider outage")
+        # Stage 3/4/5 fall through to empty string (no script queued).
+        return ""
+
+
+def test_stage1_failed_routes_to_review_queue(tmp_path: Path) -> None:
+    """Plan Task 2: Stage 1 LLM failure enqueues a review item.
+
+    Failure Contract: technical failure → FAILED status (not WRITTEN /
+    INCOMPLETE), AND a review item with ``failure_stage="stage1"`` is
+    recorded to the shared reviews queue.
+    """
+    path = tmp_path / "raw" / "sources" / "complete.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "# 扩句法\n\n定义：通过增加动作、环境和感官细节让句子更具体。\n\n"
+        + "正文内容。" * 200,
+        encoding="utf-8",
+    )
+
+    fake = _ExplodingClassifyFake()
+    result = asyncio.run(_extract_one(
+        tmp_path, path, "raw/sources/complete.md", llm=fake,
+    ))
+
+    # Failure Contract: technical failure → FAILED, never WRITTEN/INCOMPLETE.
+    assert isinstance(result, ExtractionResult)
+    assert result.status == ExtractionStatus.FAILED
+    assert result.failure_stage == "stage1"
+    assert result.review_reasons
+    assert any("stage1_llm_failed" in r for r in result.review_reasons)
+    # No pages written — Stage 3/4/5 never ran.
+    assert result.pages == []
+    assert result.written_page_ids == []
+
+    # The review queue contains a stage1 failure entry.
+    queue_path = tmp_path / ".index" / "reviews_queue.json"
+    assert queue_path.exists(), "stage1 failure should write the review queue"
+    items = json.loads(queue_path.read_text(encoding="utf-8"))["items"]
+    assert items, "expected at least one review queue item"
+    stage1_items = [it for it in items if it.get("failure_stage") == "stage1"]
+    assert len(stage1_items) == 1
+    item = stage1_items[0]
+    assert item["source_id"] == "raw/sources/complete.md"
+    assert "stage1_llm_failed" in item["reason"]
+    # Content hash ties the queue entry back to the source md5.
+    assert item["content_hash"] == result.source_md5
+    assert len(item["content_hash"]) == 32
+
+
+def test_stage1_failed_does_not_proceed_to_stage3(tmp_path: Path) -> None:
+    """Plan Task 2: Stage 1 failure short-circuits — Stage 3 must NOT run.
+
+    Failure Contract + Performance: when Stage 1 fails, the pipeline
+    must NOT call Stage 3 (or any later stage) — that would burn tokens
+    on a doomed source and falsely emit a non-FAILED status.
+    """
+    path = tmp_path / "raw" / "sources" / "complete.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "# 扩句法\n\n定义：通过增加动作、环境和感官细节让句子更具体。\n\n"
+        + "正文内容。" * 200,
+        encoding="utf-8",
+    )
+
+    fake = _ExplodingClassifyFake()
+    # Pre-queue responses for later stages — if Stage 3 runs, these would
+    # be consumed. The test asserts they stay untouched.
+    fake.script("completeness", '{"complete": true, "reason": "should never run"}')
+    fake.script(
+        "cluster",
+        '{"topics": [{"id": "t1", "title": "T1", "item_indexes": [0]}]}',
+    )
+    fake.script("fill_slots", "should never run")
+
+    result = asyncio.run(_extract_one(
+        tmp_path, path, "raw/sources/complete.md", llm=fake,
+    ))
+
+    assert result.status == ExtractionStatus.FAILED
+
+    # Only "classify" prompt kinds were attempted (3 retries of Stage 1).
+    # No Stage 3 ("completeness"), Stage 4 ("cluster"), or Stage 5
+    # ("fill_slots") LLM calls should have been made.
+    kinds_invoked = [c["prompt_kind"] for c in fake.calls]
+    assert kinds_invoked, "Stage 1 must have been attempted at least once"
+    assert all(k == "classify" for k in kinds_invoked), (
+        f"Stage 1 failure must short-circuit; saw prompt kinds: {kinds_invoked}"
+    )
+    # 3 attempts (max_retries=3 in classify_doc).
+    assert len(kinds_invoked) == 3
