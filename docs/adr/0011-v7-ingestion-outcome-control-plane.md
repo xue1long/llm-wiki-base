@@ -193,6 +193,32 @@ Task 6 文档验收要求：两份计划与本 ADR 对 Stage 5/6 边界表述一
   放弃:plan §4 Task 1 已说明 "不将 Stage 1/3 的软判断继续升级成更多硬阻断",
   且二次校验增加 LLM 调用成本(~1.5x 放大系数)。
 
+## 后续扩展（2026-09-17, ADR 0012 补注）
+
+本 ADR 控制面在 2026-09-17 master plan 中按以下方式扩展，**不修改**既有 outcome 流：
+
+- **claim-level evidence (Task 14–18)**：Stage 5A 不再让 LLM 生成 byte offset / excerpt，
+  改为 LLM 返回 `span_id`（来自 Stage 2 的 `CanonicalSpan`），脚本把 `span_id` 映射回
+  source-absolute byte range 作为 `EvidenceRef`。Stage 5B `claim_reviewer` 对 HIGH-risk
+  claims（数字 / 否定 / 因果 / 比较）二次裁决 → fail-closed；最终通过 `filter_substantive_claims`
+  闸门后才进 page。Outcome 流仍由本 ADR 的 `ExtractionResult` 5 态控制，
+  内部 `FillResult` 是 Stage 5-local enum（`FILLED / PARTIAL / INSUFFICIENT / CONFLICTING /
+  COHERENCE_FAILED / TECHNICAL_FAILURE`）映射到 5 态。
+
+- **crash consistency (Task 19–21)**：`CommitManifest` 9 态机 (`PREPARED / STAGING / PUBLISHING /
+  INDEXING / CHECKPOINTING / FINALIZING / COMMITTED / FAILED / RECONCILED`) + 每 page outcome
+  record + `reconcile_unfinished_commits()` startup 扫描。durable_failure.jsonl（每 page
+  outcome 全量）与 reviews_queue.json（仅 review-needed）显式分工（F11 整改：committed 永
+  不污染 queue）。Outcome 流末端的"committed/blocked/failed" 与本 ADR 5 态映射不变。
+
+- **canonical_id 解耦 (Task 27–31)**：新增 Reconciliation Plane（ADR 0012），`canonical_id`
+  **永不**进 wiki frontmatter；frontmatter 仍是 page view，`page_id` 维度由本 ADR 控制面管，
+  `canonical_id` 维度由 ADR 0012 单独管。两层单向耦合：reconciliation 读 wiki `revision_hash`
+  做 stale 检测，wiki writer 不知道 reconciliation 存在（F8 决策回退）。
+
+本 ADR 仍是 source 维度 outcome 控制面的权威 ADR；ADR 0012 是其上层的 cross-source
+收敛平面，不替代、不冲突。
+
 ## 参考
 
 - 计划:`docs/superpowers/plans/2026-09-15-v7-ingestion-pipeline-control-plane-refactor.md`

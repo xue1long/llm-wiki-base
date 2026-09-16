@@ -1069,3 +1069,42 @@ B-T1 偏差记录（代码 + docstring 双标注）：
 - ✅ 测试：5 个 lib unit + 5 个 llm_client integration + 3 个 extract_full summary = 13 个新增；现有 299 测试零回归，**V7 聚焦套件 312 passed, 1 skipped**。
 - ✅ 真实 Provider dry-run smoke：2 source → `cumulative_usd=0.004805`、`call_count=8`、4 个 stage（classify/completeness/cluster/fill_slots）各自拆分清晰。
 - 🚫 明确不做（6 维评审 + plan-audit 共同确认）：trust boundary 注入（边际收益低）、paused_budget 自动暂停门（checkpoint 续跑死循环风险 + 5 年视角过时）、内容层 retry 修改 prompt、BudgetedLLM 上下文 chunking、v1 batch_runner budget 路径重构、跨 v1/V7 budget 统一。
+
+### Master plan — V7 Stage 1–7 + Stage 6R + Reconciliation Phase 1（2026-09-17）
+
+- ✅ 计划：`docs/superpowers/plans/2026-09-17-v7-stage-remediation-master-plan.md`（33 个 Task；plan-audit Round 1/R2 + 人工复核全部通过；Contract Freeze 生效）。
+- ✅ **32 / 33 Tasks 完成**（Task 33 文档同步当前 commit）：
+  - Stage 1（Tasks 1–2）：`73f90988` `4b4f45bb`
+  - Stage 2（Tasks 3–5）：`8b129fc6` `29012b81` `8a303beb`
+  - Stage 3（Tasks 6–8）：`613cdde4` `9201be5f` `a84e1c11`
+  - Stage 4（Tasks 9–13）：`0d439e00` `97bf2683` `8a07151e` `c053ea41` `848b9b31`
+  - Plan 5 过时测试处理（用户裁定 (a)：删除/改写）：`8b4d4c7a`
+  - Stage 5 升级（Tasks 17–18）：`25ef8fb6` `127ca61f`
+  - Stage 7 crash consistency（Tasks 19–21）：`4f738df1` `3022ebb1` `d6dce6c3`
+  - Stage 7 source checkpoint（Task 22，by Stage 3）：`0253e4f2`
+  - Stage 6R（Tasks 23–26）：`495b393f` `d95c22fe` `59b4a9d2` `c1806e3a`
+  - Reconciliation Phase 1（Tasks 27–31）：`016787b1` `662cecfd` `178ad4a4` `495ad547` `97d85ec3`
+  - E2E fault injection（Task 32）：`98f8adc0`
+  - 文档 + ADR（Task 33）：当前 commit
+- ✅ 4 个核心 Contract 全部落地：
+  - **Failure Contract**：technical failure 永 → 5 态的 `FAILED`/`TECHNICAL_FAILURE`，不映射 `INCOMPLETE`/`UNRESOLVED`/`CONFLICTING`
+  - **Bounded Evidence Contract**：每个 LLM 路径真 bounded（HEAD/TAIL/descriptor/spans/pack），硬预算在 §3.2
+  - **Canonical Identity Contract**：脚本生成所有 id（topic_id/page_id/claim_id/relation_id/canonical_id/decision_id），LLM 不可身份伪造
+  - **Persistence Contract**：revision_hash + pipeline_fingerprint 双键、CommitManifest 9 态机 + reconcile_unfinished_commits
+- ✅ 关键整改硬指标全部 GREEN：
+  - **F4** fingerprint 升级 → STALE（`test_resolver_fingerprint_drift_marks_stale`）
+  - **F8** frontmatter relations 保留 best-effort 视图 + RelationStore 权威源（零 reader 改造 blast radius）
+  - **F10** 10k canonical vector_neighbor < 100ms（实测 24-26ms）
+  - **F11** committed outcome 永不污染 reviews_queue（`test_durable_failure_does_not_pollute_reviews_queue`）
+  - **F15** alias 单写入路径（`test_alias_single_source_of_truth`）
+- ✅ ADR：`docs/adr/0012-v7-knowledge-reconciliation-plane.md` 新建；`docs/adr/0011-v7-ingestion-outcome-control-plane.md` 追加 reconciliation 扩展注
+- ✅ 主指南：`docs/guides/v7-ingestion-pipeline.md` §13-15 追加（Stage-local Status / Fingerprint / Bounded Evidence / Canonical Identity / Stage 5B / Stage 7 crash / Stage 6R / Reconciliation Plane / E2E）
+- ⚠️ 已知 baseline 失败：`tests/test_pipeline/` 跨 sweep 仍有 ~60 failed，**全部预先存在**（已 `git stash` 验证与本整改无关），多为 `src/wiki/templates/parser.py:118` 的 `wiki-template-version` header 缺失 + `test_v7_extract_feature_flag.py` 的 sys.modules 清污染。**本整改净增 0 失败**（Task 1–32 期间跑过的所有 v7_extract / reconciliation / integration 测试 0 回归）。
+- 🚫 未做（按用户指示）：
+  - 旧 wiki page migration（master plan §6 Task 51 是既定落点，本 Session 不处理）
+  - 未 push 到 origin：`git log origin/codex/book-series-target..HEAD` 显示本地领先 16 commit（截至本 commit 时）；按 AGENTS.md / 项目 SOP 默认本地，等用户明示再 push
+
+**下一步**（如需继续）：
+- Task 34–45 第二批/第三批（canonical claims / Stage 4 reviewer / Stage 6R semantic reviewer / StructuralScanner / HTML 解析 / canonical claim projection）
+- Task 46–51 第四批（gold corpus / 长期稳定性 / 迁移工具）
+- cli.py 接线 `reconciliation_cmd.register(subparsers)` —— 主会话可独立做，无需新 plan

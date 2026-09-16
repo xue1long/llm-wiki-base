@@ -1460,7 +1460,7 @@ docs: update v7-ingestion-pipeline.md + ADR 0011 + ADR 0012
 
 > **本节取代各 Task 小节末尾的 `**Status**: pending` 字段** —— 那些字段是本 plan 起草时的占位，未随执行逐条回填。以本节为准。
 
-**已完成：16 / 33**（Stage 1–4 全部 + Stage 5 前三项）
+**已完成：32 / 33**（Task 33 文档同步进行中）
 
 | Task | Commit | 主题 |
 |---|---|---|
@@ -1480,18 +1480,59 @@ docs: update v7-ingestion-pipeline.md + ADR 0011 + ADR 0012
 | 14 | `35f6c2ca` | `Claim`/`EvidenceRef` + `CanonicalSpan`（source-absolute 坐标）|
 | 15 | `1db31b3e` | Stage 5A claim extraction（LLM 只回 `span_ids`）|
 | 16 | `b9b45c28` | 10 条 mechanical claim invariant + substantive-claim filter |
+| — | `8b4d4c7a` | chore: 移除 Plan 5 过时的 collection-split 硬门控测试（**用户裁定走 (a)：删除/改写**）|
+| 17 | `25ef8fb6` | Stage 5B semantic reviewer（HIGH-risk claims → verdict → fail-closed）|
+| 18 | `127ca61f` | Stage 5B `page_synthesizer` + `FillResult` + status 五态映射（TECHNICAL_FAILURE→FAILED）|
+| 19 | `4f738df1` | Stage 7 `CommitManifest` + 9 态机 + crash recovery via `reconcile_unfinished_commits` |
+| 20 | `3022ebb1` | Stage 7 page frontmatter 6 字段（owner/pipeline/commit_id/fingerprint/revision_hash/committed_at）|
+| 21 | `d6dce6c3` | Stage 7 `durable_failure.jsonl` + queue projection 分工（F11：committed 不污染 queue）|
+| 22 | `0253e4f2` | **done by Stage 3 `a84e1c11`**：`_source_can_skip` 双键（md5 + pipeline_fingerprint）已实现；spec 标记 superseded |
+| 23 | `495b393f` | Stage 6R `RelationPredicate` 13 枚举 + `RelationKey` 对称折叠 + `RelationAssertion` |
+| 24 | `d95c22fe` | Stage 6R `RelationStore` + 独立 `.index/relation_run_state.json` + `.index/relations.jsonl` |
+| 25 | `59b4a9d2` | Stage 6R `candidate_retrieval` 6 策略 + LLM 受控 ontology + 最小重构 `relation_extractor` |
+| 26 | `c1806e3a` | Stage 6R mechanical validator + 12 invariant + `filter_substantive_relations` |
+| 27 | `016787b1` | Reconciliation `canonical_models` + `ReconciliationDecision` 8 态 + `CanonicalConcept` + `AliasRecord` |
+| 28 | `662cecfd` | Reconciliation `candidate_retrieval` 6 策略 + vector_neighbor（F10 硬指标：10k < 100ms，实实测 24-26ms）|
+| 29 | `178ad4a4` | Reconciliation `identity_resolver` + bounded evidence（600B/1500B）+ LLM fail-closed |
+| 30 | `495ad547` | Reconciliation `CanonicalRegistry` + reversible membership + F4（fingerprint→STALE）+ F15（alias 单源）|
+| 31 | `97d85ec3` | Reconciliation `reconcile_pages` 主循环 + CLI 4 子命令（reconcile/show-canonical/list-canonicals/undo）|
+| 32 | `98f8adc0` | **E2E fault injection** 8 测试（happy / Stage1 fail / Stage3 TECHNICAL_FAILURE / crash recovery / stale / reconcile attach / UNRESOLVED / fingerprint upgrade）|
 
-**当前验收基线**（v7-extract 批次，15 文件）：`3 failed, 223 passed`。
+**最后 1 个（Task 33）**：文档 + ADR 0011/0012（当前 commit）
 
-3 个红灯是**过时的 Plan 5 测试**（`test_cluster_version_bumped_to_1_1`、`test_cluster_collection_splitting_rule_in_prompt`、`test_cluster_topic_signature_accepts_doc_type_kwarg`）——它们断言「仅当 `doc_type == collection` 才拆分」，而这正是 **Task 11 移除**的行为。修它等于把已移除的硬门控加回 prompt，属独立决策，**留待人工裁定**（删除/改写这 3 个测试，或补 `cluster.toml` v1.1）。
+**全量验收基线**（v7_extract test sweep，跨 Stage 1-7 + Stage 6R + Reconciliation + E2E）：
 
-**待续：17 / 33**（Task 17–33）
+| 套件 | 测试 | 结果 |
+|---|---|---|
+| `tests/test_pipeline/test_v7_extract_*.py` | 23 文件 | 358 passed / 1 skipped / 0 新增失败（baseline 60 失败均为预先存在，与本整改无关，已 `git stash` 验证）|
+| `tests/test_reconciliation/` | 5 文件 | 23 passed / 0 failed |
+| `tests/test_integration/test_v7_e2e_remediation.py` | 1 文件 | 8 passed |
+| `tests/test_scripts/test_extract_full.py` | 1 文件 | 35 passed（fingerprint 双键覆盖）|
 
-- Stage 5 剩余：17（semantic reviewer）、18（Stage 5B deterministic synthesis + `FillResult`）
-- Stage 7：19（`CommitManifest` + crash consistency）、20（frontmatter ownership）、21（durable failure fact）、22（source checkpoint fingerprint 双键）
-- Stage 6R：23（`RelationPredicate` ontology）、24（`RelationStore`）、25（candidate retrieval）、26（12 条 invariant）
-- Reconciliation：27–31（Phase 1 闭环）
-- 32（E2E fault injection）、33（文档 + ADR 0012）
+**Contract 落实**：
+
+| Contract | 落地 Task |
+|---|---|
+| Failure（technical failure ≠ insufficient/unresolved/conflicting）| 1/2/6/9/17/18/19/21/26/29/32 |
+| Bounded Evidence（所有 LLM path 真 bounded）| 7/11/14/29 |
+| Canonical Identity（脚本管身份）| 10/12/15/23/27/29 |
+| Persistence（revision_hash/fingerprint 唯一语义）| 8/19/20/22/30 |
+| Crash Consistency（manifest + reconcile）| 19/30/32 |
+
+**关键决策记录**：
+
+1. **Task 22 提前完成**：`a84e1c11`（Task 8 checkpoint 双键）已实现 source checkpoint 接入 pipeline_fingerprint；Task 22 spec 无新工作，标记 done-by-Stage-3。
+2. **Plan 5 过时测试处理（用户裁定 (a)：删除/改写）**：commit `8b4d4c7a` 移除 `test_cluster_collection_splitting_rule_in_prompt`、`test_cluster_version_bumped_to_1_1`，改写 `test_cluster_topic_signature_accepts_doc_type_kwarg` 为 soft-hint 语义。Plan 5 plan 文档标 superseded 指向 master plan Task 11。
+3. **F11 整改**：commit `d6dce6c3` 显式分工：durable_failure.jsonl 记录每 page outcome（committed/blocked/failed/skipped/reconciled），reviews_queue.json 仅 review-needed（blocked/failed 中 need-human-review 的子集）；committed outcome **永不**进 queue。
+4. **F4 整改**：commit `495ad547` 引入 `resolver_fingerprint` 字段 + `mark_stale_concepts(current_fingerprint)` 入口；fingerprint 升级自动 STALE。
+5. **F10 整改**：commit `662cecfd` 第一批就含 vector_neighbor 路径；10k canonical 实测 24-26ms（< 100ms 硬指标）。
+6. **F8 决策回退**：commit `495b393f` 保留 `wiki_writer._write_page_atomically` 写 frontmatter relations 字段（F8 acceptance test `test_relations_remain_in_wiki_frontmatter_as_best_effort_view` 绿），RelationStore 是权威源，frontmatter 是 best-effort 视图——零 reader 改造 blast radius。
+7. **Failure Contract §1 一致性**：Task 32 E2E 测试发现 Stage 3 `check_completeness` 失败实际返回 `None`（不是 `CompletenessStatus.TECHNICAL_FAILURE` enum 值）—— enum 值是 defense-in-depth，优先路径是 `None`。
+
+**unresolved 决策（按用户指示）**：
+
+- 旧 wiki page 失效（Task 12 改了 `page_id` 派生公式）：master plan §6 Task 51 是既定落点，本 Session 不处理。
+- 未 push：按项目 SOP 默认本地，`git log origin/codex/book-series-target..HEAD` 显示 16 个 commit 领先（截至本 commit 时）。
 
 ---
 
