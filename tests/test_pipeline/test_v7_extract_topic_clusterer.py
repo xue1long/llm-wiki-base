@@ -8,6 +8,7 @@ from src.pipeline.v7_extract.topic_clusterer import (
     OTHER_TOPIC_TITLE,
     Topic,
     _enforce_full_coverage,
+    _payload_to_candidates,
     _payload_to_topics,
     _resolve_cluster_template,
     cluster_topics,
@@ -590,3 +591,93 @@ def test_extract_pilot_routes_cluster_failed_to_extraction_failed():
     assert stage == "stage4"
     # Hard invariant: FAILED must never map to WRITTEN.
     assert mapped_status is not ExtractionStatus.WRITTEN
+
+
+# ---------------------------------------------------------------------------
+# Task 10 (Plan 2026-09-17): TopicCandidate + lift single-topic-per-item constraint
+# ---------------------------------------------------------------------------
+
+
+def test_one_item_multiple_topic_candidates():
+    """Task 10: a single item can produce multiple TopicCandidates via
+    ``local_index``. Lifting the old "duplicate item_index → raise" hard
+    constraint (canonical Identity Contract: identity is per-candidate,
+    not per-item).
+    """
+    payload = {
+        "candidates": [
+            {"item_index": 0, "local_index": 0, "span_hint": "p1-2",
+             "semantic_label": "Embedding", "confidence": 0.9},
+            {"item_index": 0, "local_index": 1, "span_hint": "p3-4",
+             "semantic_label": "Chunking", "confidence": 0.85},
+            {"item_index": 0, "local_index": 2, "span_hint": "p5-6",
+             "semantic_label": "Reranking", "confidence": 0.8},
+        ]
+    }
+    from src.pipeline.v7_extract.topic_candidate import TopicCandidate
+
+    candidates = _payload_to_candidates(payload, ["a"], ["fp-a"])
+    assert len(candidates) == 3
+    assert all(isinstance(c, TopicCandidate) for c in candidates)
+    # No exception, three distinct candidates, distinct candidate_ids.
+    assert len({c.candidate_id for c in candidates}) == 3
+    # All share item_index=0 but differ in local_index.
+    assert all(c.item_index == 0 for c in candidates)
+    assert [c.local_index for c in candidates] == [0, 1, 2]
+
+
+def test_topic_candidate_id_is_script_generated():
+    """Task 10 / Canonical Identity Contract: candidate_id is derived
+    by the script from (item_index, local_index, span_hint, item_fingerprint),
+    NOT from the LLM-supplied semantic_label.
+    """
+    from src.pipeline.v7_extract.topic_candidate import derive_candidate_id
+
+    fp = "fingerprint-abc"
+    # Two different labels, same identity inputs → same candidate_id.
+    a = derive_candidate_id(0, 0, span_hint="p1", item_fingerprint=fp)
+    b = derive_candidate_id(0, 0, span_hint="p1", item_fingerprint=fp)
+    assert a == b, "candidate_id must be deterministic"
+    # Different local_index → different candidate_id.
+    c = derive_candidate_id(0, 1, span_hint="p1", item_fingerprint=fp)
+    assert a != c
+    # Different span_hint → different candidate_id.
+    d = derive_candidate_id(0, 0, span_hint="p2", item_fingerprint=fp)
+    assert a != d
+    # Different item_fingerprint → different candidate_id (stable across
+    # sources, not just within one).
+    e = derive_candidate_id(0, 0, span_hint="p1", item_fingerprint="other-fp")
+    assert a != e
+    # Prefix shape sanity: starts with "cand-".
+    assert a.startswith("cand-0-0-")
+
+
+@pytest.mark.asyncio
+async def test_collection_one_article_may_produce_multiple_topics():
+    """Task 10 sanity: a single collection article that the LLM splits
+    into 3 candidates (local_index 0..2) results in 3 candidates
+    accessible via the topic_clusterer internals.
+    """
+    from src.pipeline.v7_extract.topic_candidate import TopicCandidate
+
+    items = [{"id": "art-0", "text": "Embedding + Chunking + Reranking", "kind": "article"}]
+    payload = {
+        "candidates": [
+            {"item_index": 0, "local_index": 0, "span_hint": "para1",
+             "semantic_label": "Embedding", "confidence": 0.9},
+            {"item_index": 0, "local_index": 1, "span_hint": "para2",
+             "semantic_label": "Chunking", "confidence": 0.85},
+            {"item_index": 0, "local_index": 2, "span_hint": "para3",
+             "semantic_label": "Reranking", "confidence": 0.8},
+        ]
+    }
+    candidates = _payload_to_candidates(
+        payload,
+        [items[0]["id"]],
+        ["fp-art-0"],
+    )
+    assert len(candidates) == 3
+    assert all(isinstance(c, TopicCandidate) for c in candidates)
+    assert len({c.candidate_id for c in candidates}) == 3
+    # All three point to the same item but are independent candidates.
+    assert all(c.item_index == 0 for c in candidates)

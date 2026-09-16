@@ -31,6 +31,7 @@ from .prompts.renderer import (
     render_prompt,
 )
 from .prompts.resolver import PromptNotFoundError, resolve
+from .topic_candidate import TopicCandidate, derive_candidate_id
 
 if TYPE_CHECKING:
     from .prompts.ast import PromptTemplate
@@ -440,10 +441,120 @@ def _collect_unresolved(topics: list[Topic], items: list[dict]) -> list[str]:
     return sorted({item["id"] for item in items} - assigned)
 
 
-def _payload_to_topics(payload: dict, item_ids: list[str]) -> list[Topic]:
+def _payload_to_topics(
+    payload: dict,
+    item_ids: list[str],
+    item_fingerprints: list[str] | None = None,
+) -> list[Topic]:
     """Convert validated LLM JSON payload into Topic list.
 
+    Task 10: accept BOTH the new ``candidates`` shape (per-item, multi-
+    candidate via ``local_index``) and the legacy ``topics`` shape.
+    Canonical item IDs stay script-owned; ``candidate_id`` is derived
+    from the span fingerprint (not the LLM-supplied label).
+
+    In the legacy ``topics`` shape each ``item_index`` may appear in at
+    most one topic (the old single-topic-per-item hard constraint). In
+    the new ``candidates`` shape the same ``item_index`` may appear
+    multiple times with distinct ``local_index`` values, lifting that
+    constraint at the candidate level.
+    """
+    if "candidates" in payload:
+        fingerprints = item_fingerprints or [str(iid) for iid in item_ids]
+        candidates = _payload_to_candidates(
+            payload, item_ids, fingerprints,
+        )
+        return _candidates_to_topics(candidates, item_ids)
+    return _payload_to_topics_legacy(payload, item_ids)
+
+
+def _payload_to_candidates(
+    payload: dict,
+    item_ids: list[str],
+    item_fingerprints: list[str],
+) -> list[TopicCandidate]:
+    """Parse the new ``candidates`` shape into ``TopicCandidate`` objects.
+
+    Lifts the old single-topic-per-item hard constraint: the same
+    ``item_index`` may appear multiple times as long as ``local_index``
+    differs. ``candidate_id`` is script-generated via
+    :func:`derive_candidate_id` so identity never depends on the LLM
+    label.
+    """
+    raw = payload.get("candidates", [])
+    if not isinstance(raw, list):
+        return []
+    candidates: list[TopicCandidate] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        try:
+            item_index = int(entry["item_index"])
+            local_index = int(entry.get("local_index", 0))
+        except (TypeError, ValueError, KeyError):
+            continue
+        if (
+            isinstance(item_index, bool)
+            or not 0 <= item_index < len(item_ids)
+        ):
+            raise LLMResponseError(
+                f"candidates contains invalid item_index: {item_index!r}"
+            )
+        span_hint = str(entry.get("span_hint", ""))
+        label = str(entry.get("semantic_label", ""))
+        try:
+            confidence = float(entry.get("confidence", 0.5))
+        except (TypeError, ValueError):
+            confidence = 0.5
+        cid = derive_candidate_id(
+            item_index, local_index,
+            span_hint=span_hint,
+            item_fingerprint=item_fingerprints[item_index],
+        )
+        candidates.append(TopicCandidate(
+            candidate_id=cid,
+            item_index=item_index,
+            local_index=local_index,
+            semantic_label=label,
+            evidence_span_hint=span_hint,
+            confidence=confidence,
+        ))
+    return candidates
+
+
+def _candidates_to_topics(
+    candidates: list[TopicCandidate],
+    item_ids: list[str],
+) -> list[Topic]:
+    """Group ``TopicCandidate`` list into ``Topic`` list (Task 10 baseline).
+
+    Task 11 will replace this with a real discovery → grouping two-stage
+    LLM. For Task 10 we use the trivial grouping: one Topic per item
+    that produced at least one candidate.
+    """
+    by_item: dict[int, list[TopicCandidate]] = {}
+    for c in candidates:
+        by_item.setdefault(c.item_index, []).append(c)
+    topics: list[Topic] = []
+    for item_index in sorted(by_item):
+        # Use the first candidate's label as the topic title (best hint
+        # we have without a grouping LLM call).
+        first = by_item[item_index][0]
+        title = first.semantic_label or f"item-{item_index}"
+        topics.append(Topic(
+            id=f"item-{item_index}",
+            title=title,
+            item_ids=[item_ids[item_index]],
+        ))
+    return topics
+
+
+def _payload_to_topics_legacy(payload: dict, item_ids: list[str]) -> list[Topic]:
+    """Convert validated LLM JSON payload into Topic list (legacy shape).
+
     The LLM returns positions; canonical item IDs stay script-owned.
+    Legacy ``topics`` shape retains the single-topic-per-item hard
+    constraint (each ``item_index`` may appear in at most one topic).
     """
     raw = payload.get("topics", [])
     if not isinstance(raw, list):
