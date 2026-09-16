@@ -238,15 +238,36 @@ async def _extract_one(
                     "error": reason,
                 },
             )
+        # v3 + Task 7: Stage 2 runs BEFORE Stage 3 so the latter can
+        # consume Stage 2's ``SegmentationResult`` as a bounded
+        # structural summary (Bounded Evidence Contract §3.2). Stage 2
+        # is a deterministic structural split — no LLM — so running
+        # it on a stub source costs only a regex sweep.
+        items = _extract_items(content, relative)
+        # Task 3: wrap into the canonical SegmentationResult contract.
+        # Downstream Stage 4 still consumes ``items`` (legacy dicts);
+        # the result is informational here — recorded for callers and
+        # future Stage 5 byte-span migration (Task 5).
+        segmentation_result = _wrap_items_as_segmentation_result(
+            items, content=content, source_md5=source_md5, relative=relative,
+        )
+        structural_summary = _build_structural_summary(
+            segmentation_result, content=content,
+        )
+
         # v3: Stage 3 is async + P5-decoupled (doc_type is soft hint).
         # Task 6: returns CompletenessResult | None. None = technical
         # failure (LLM timeout / parse / schema invalid) — per Failure
         # Contract (§1), this MUST NOT be routed as INCOMPLETE.
+        # Task 7: pass structural_summary so Stage 3 sees bounded
+        # Stage 2 signals (HEAD/TAIL + 3 mid samples) instead of the
+        # raw full content.
         completeness = await check_completeness(
             content,
             doc_type_hint=classification.doc_type,
             llm=llm,
             project_root=root,
+            structural_summary=structural_summary,
         )
 
         # Legacy dict fields carried through ``metadata`` so the JSON
@@ -337,14 +358,10 @@ async def _extract_one(
             metadata=metadata,
         )
 
-        items = _extract_items(content, relative)
-        # Task 3: wrap into the canonical SegmentationResult contract.
-        # Downstream Stage 4 still consumes ``items`` (legacy dicts);
-        # the result is informational here — recorded for callers and
-        # future Stage 5 byte-span migration (Task 5).
-        segmentation_result = _wrap_items_as_segmentation_result(
-            items, content=content, source_md5=source_md5, relative=relative,
-        )
+        # Stage 2 ran above (Task 7: moved before Stage 3). Stage 3 just
+        # consumed its structural_summary — now record the same fields
+        # on the legacy metadata block so existing JSON consumers keep
+        # seeing them.
         metadata["segmentation_status"] = segmentation_result.status.value
         metadata["segmentation_coverage"] = segmentation_result.coverage.byte_accounting
         metadata["segmentation_invariants_pass"] = segmentation_result.invariants.all_pass
@@ -511,6 +528,38 @@ async def _extract_one(
                 "error": reason,
             },
         )
+
+
+def _build_structural_summary(
+    segmentation_result: SegmentationResult,
+    *,
+    content: str,
+) -> dict:
+    """Task 7: produce the bounded structural summary Stage 3 consumes.
+
+    Per master plan Task 7 / Contract Freeze §3.2 — Stage 3's evidence
+    pack embeds Stage 2 signals so the LLM can judge completeness from
+    structural cues (item count / kind distribution / boundary
+    confidence / last-item truncation flag) instead of guessing from
+    raw text. The dict is JSON-serializable; values are short scalars
+    so the embedded signal text in the bounded pack stays small.
+    """
+    items = segmentation_result.items
+    article_count = sum(1 for it in items if it.kind == ItemKind.ARTICLE)
+    section_count = sum(1 for it in items if it.kind == ItemKind.SECTION)
+    source_bytes = len(content.encode("utf-8"))
+    last_item_truncated = bool(items) and items[-1].end_byte > source_bytes
+    return {
+        "item_count": len(items),
+        "article_count": article_count,
+        "section_count": section_count,
+        "status": segmentation_result.status.value,
+        "boundary_confidence": (
+            1.0 if segmentation_result.invariants.all_pass else 0.5
+        ),
+        "byte_accounting": round(segmentation_result.coverage.byte_accounting, 4),
+        "last_item_truncated": last_item_truncated,
+    }
 
 
 def _wrap_items_as_segmentation_result(

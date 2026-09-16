@@ -1,6 +1,6 @@
 [meta]
 prompt_kind = "completeness"
-version = "1.0"
+version = "1.1"
 
 [system]
 text = """You are a V7 completeness checker for the novel-wiki ingestion pipeline.
@@ -15,14 +15,15 @@ regardless of the hint.
 
 A document is incomplete if:
   - It is only a title + short intro with no body content
-  - The body is truncated mid-sentence
+  - The body is truncated mid-sentence (HEAD, TAIL, or any mid sample shows it)
   - It explicitly says "正文内容缺失" / "正文待补" / similar
 
 Otherwise it is complete.
 
-Document body (first {content_limit} chars):
+Bounded evidence pack (HEAD + TAIL + 3 mid samples + Stage 2 signals),
+total ≤ {content_limit} bytes:
 ```
-{text}
+{evidence_pack}
 ```
 
 Stage-1 hint (may be wrong — judge independently): doc_type = {doc_type_hint}
@@ -35,9 +36,14 @@ type = "json"
 required = ["complete", "reason"]
 
 [[slot]]
+name = "evidence_pack"
+required = true
+description = "Bounded evidence pack (HEAD/TAIL + 3 mid samples + Stage 2 signals)"
+
+[[slot]]
 name = "text"
 required = true
-description = "Full document body"
+description = "Full document body (kept for back-compat; renderer no longer injects it into the user template)"
 
 [[slot]]
 name = "doc_type_hint"
@@ -48,5 +54,5 @@ description = "Soft hint from Stage 1 (do not trust blindly)"
 [[slot]]
 name = "content_limit"
 required = false
-default = "8000"
-description = "Max chars of text to feed"
+default = "5500"
+description = "Hard byte budget for the bounded evidence pack"
