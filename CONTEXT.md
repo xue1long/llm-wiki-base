@@ -94,6 +94,12 @@ _Avoid_: executable plugin, installer script, implicit direct copy, marketplace 
 | NDG | (referenced in batch_runner) — Non-Deterministic Gate, batch-level predicate |
 | TLD | (referenced in audit reports) — Transitive Loop Depth |
 | SCC | Strongly Connected Component |
+| AGL | Agent Lightning — Microsoft RL training framework (external repo `E:\002-Pr\agent-lightning-main`). Three components: Trainer (verl + vLLM + GRPO) / Gateway (FastAPI proxy + event store) / Controller (local or K8s rollout spawner). |
+| V7 | The 7-stage ingestion pipeline (`src/pipeline/v7_extract/`). Default mode is V3 (`V7_USE_V3=true`); V2 is fallback. Stages: `classify_doc` → `extract_structure` → `check_completeness` → `cluster_topics` → `fill_slots` → `extract_relations` → `commit_and_index`. |
+| V7 Stage5 | The slot-filling LLM call. V2 path = `slot_filler.fill_slots` (single LLM call, all slots in one JSON). V3 path = `claim_extractor.extract_slot_claims` (per-slot, 8+1 LLM calls). For AGL training, lock to V2 via `V7_USE_V3=false`. |
+| V7 Stage7 | The atomic wiki write (`wiki_writer.commit_and_index`). Writes V7 ownership 6 fields (`owner/pipeline/commit_id/pipeline_fingerprint/revision_hash/committed_at`). 4 gates: P4 (`__other__`) / needs_review / has_evidence / content_filter. |
+| Rollout | One Agent Lightning execution unit = one (input, is_train, config) tuple. Lifecycle: `QUEUING` → `RUNNING` → `SUCCEEDED` / `FAILED`. Events: `model_request` (auto by Gateway) / `reward` (agent-posted) / custom. |
+| Triplet | `(prompt_token_ids, response_token_ids, reward)` derived from one `model_request` event. Per-rollout-mean loss treats all triplets in one rollout as equal contributors; reward broadcasts to every triplet. |
 
 ## Cross-references
 
@@ -105,3 +111,4 @@ _Avoid_: executable plugin, installer script, implicit direct copy, marketplace 
 - Skill Library and Agent deployment decision: `docs/adr/0010-skill-library-and-agent-deployment.md`
 - Graph subgraph report: `docs/architecture/2026-09-01-graph-subgraph-report.md`
 - ADRs: `docs/adr/0007-knowledge-candidate-ownership.md`
+- V7 AGL 训练设计档案: `.memory/feedback-v7-agl-design-tree-2026-09-18.md`
