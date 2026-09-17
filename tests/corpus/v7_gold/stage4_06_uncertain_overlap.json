@@ -1,0 +1,25 @@
+{
+  "id": "stage4-06",
+  "stage": "stage4_cluster",
+  "description": "Items share words but are semantically distinct -> UNCERTAIN cluster.",
+  "input": {
+    "source_id": "src-06.md",
+    "items": [
+      {"id": "a1", "text": "扩句法 扩句法 扩句法 扩句法 扩句法", "kind": "article"},
+      {"id": "a2", "text": "扩句法 扩句法 扩句法 扩句法 扩句法", "kind": "article"},
+      {"id": "a3", "text": "扩句法 扩句法 扩句法 扩句法 扩句法", "kind": "article"}
+    ],
+    "llm_responses": {
+      "cluster": {
+        "topics": [
+          {"id": "t1", "title": "扩句法 all items", "item_indexes": [0, 1, 2]}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "status": "clustered",
+    "topic_count_min": 1,
+    "topic_count_max": 1
+  }
+}

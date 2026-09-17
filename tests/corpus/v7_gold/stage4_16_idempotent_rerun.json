@@ -1,0 +1,26 @@
+{
+  "id": "stage4-16",
+  "stage": "stage4_cluster",
+  "description": "Same source re-clustered twice -> identical topic_id sequence (idempotent).",
+  "input": {
+    "source_id": "src-idempotent.md",
+    "items": [
+      {"id": "a1", "text": "扩句法", "kind": "article"},
+      {"id": "a2", "text": "心理描写", "kind": "article"}
+    ],
+    "llm_responses": {
+      "cluster": {
+        "topics": [
+          {"id": "t1", "title": "扩句法", "item_indexes": [0]},
+          {"id": "t2", "title": "心理描写", "item_indexes": [1]}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "status": "clustered",
+    "topic_count_min": 2,
+    "topic_count_max": 2,
+    "first_topic_title_contains": "扩句法"
+  }
+}

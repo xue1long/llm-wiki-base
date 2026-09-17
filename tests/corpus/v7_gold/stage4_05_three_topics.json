@@ -1,0 +1,27 @@
+{
+  "id": "stage4-05",
+  "stage": "stage4_cluster",
+  "description": "Three distinct topics.",
+  "input": {
+    "source_id": "src-05.md",
+    "items": [
+      {"id": "a1", "text": "topic A", "kind": "article"},
+      {"id": "b1", "text": "topic B", "kind": "article"},
+      {"id": "c1", "text": "topic C", "kind": "article"}
+    ],
+    "llm_responses": {
+      "cluster": {
+        "topics": [
+          {"id": "t1", "title": "Topic A", "item_indexes": [0]},
+          {"id": "t2", "title": "Topic B", "item_indexes": [1]},
+          {"id": "t3", "title": "Topic C", "item_indexes": [2]}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "status": "clustered",
+    "topic_count_min": 3,
+    "topic_count_max": 3
+  }
+}

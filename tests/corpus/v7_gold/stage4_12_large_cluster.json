@@ -1,0 +1,37 @@
+{
+  "id": "stage4-12",
+  "stage": "stage4_cluster",
+  "description": "Large cluster: many items in one topic.",
+  "input": {
+    "source_id": "src-12.md",
+    "items": [
+      {"id": "a0", "text": "扩句法 item 0", "kind": "article"},
+      {"id": "a1", "text": "扩句法 item 1", "kind": "article"},
+      {"id": "a2", "text": "扩句法 item 2", "kind": "article"},
+      {"id": "a3", "text": "扩句法 item 3", "kind": "article"},
+      {"id": "a4", "text": "扩句法 item 4", "kind": "article"},
+      {"id": "a5", "text": "扩句法 item 5", "kind": "article"},
+      {"id": "a6", "text": "扩句法 item 6", "kind": "article"},
+      {"id": "a7", "text": "扩句法 item 7", "kind": "article"},
+      {"id": "a8", "text": "扩句法 item 8", "kind": "article"},
+      {"id": "a9", "text": "扩句法 item 9", "kind": "article"},
+      {"id": "a10", "text": "扩句法 item 10", "kind": "article"},
+      {"id": "a11", "text": "扩句法 item 11", "kind": "article"},
+      {"id": "a12", "text": "扩句法 item 12", "kind": "article"},
+      {"id": "a13", "text": "扩句法 item 13", "kind": "article"},
+      {"id": "a14", "text": "扩句法 item 14", "kind": "article"}
+    ],
+    "llm_responses": {
+      "cluster": {
+        "topics": [
+          {"id": "t1", "title": "扩句法 mega cluster", "item_indexes": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "status": "clustered",
+    "topic_count_min": 1,
+    "topic_count_max": 1
+  }
+}

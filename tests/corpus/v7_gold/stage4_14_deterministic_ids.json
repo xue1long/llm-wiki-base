@@ -1,0 +1,23 @@
+{
+  "id": "stage4-14",
+  "stage": "stage4_cluster",
+  "description": "Topic.id is script-derived hash, never equals LLM-supplied id.",
+  "input": {
+    "source_id": "src-14.md",
+    "items": [
+      {"id": "a1", "text": "topic A content", "kind": "article"}
+    ],
+    "llm_responses": {
+      "cluster": {
+        "topics": [
+          {"id": "llm-supplied-id", "title": "Topic A", "item_indexes": [0]}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "status": "clustered",
+    "topic_count_min": 1,
+    "topic_count_max": 1
+  }
+}

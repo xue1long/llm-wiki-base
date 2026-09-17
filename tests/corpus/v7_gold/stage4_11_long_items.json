@@ -1,0 +1,26 @@
+{
+  "id": "stage4-11",
+  "stage": "stage4_cluster",
+  "description": "Items with long text content (paragraphs).",
+  "input": {
+    "source_id": "src-11.md",
+    "items": [
+      {"id": "a1", "text": "This is a long article body about topic A. Repeated text to make the item long enough to be a substantial paragraph for Stage 4 to cluster.", "kind": "article"},
+      {"id": "a2", "text": "This is another long article body with different content. Different topic from a1, with longer paragraph content for clustering.", "kind": "article"},
+      {"id": "a3", "text": "Yet another long article body about a different topic. Again a distinct paragraph, third in the set of articles to cluster.", "kind": "article"}
+    ],
+    "llm_responses": {
+      "cluster": {
+        "topics": [
+          {"id": "t1", "title": "Topic One", "item_indexes": [0]},
+          {"id": "t2", "title": "Topic Two", "item_indexes": [1]},
+          {"id": "t3", "title": "Topic Three", "item_indexes": [2]}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "status": "clustered",
+    "topic_count_min": 3
+  }
+}

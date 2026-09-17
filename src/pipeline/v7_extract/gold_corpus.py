@@ -237,10 +237,120 @@ async def run_stage2(
     )
 
 
+async def run_stage3(
+    fixture: CorpusFixture,
+    *,
+    llm: LLMClient,
+) -> CorpusRunResult:
+    """Run Stage 3 (check_completeness) and compare to expected.
+
+    Expected fields supported:
+      - status: str — one of the four CompletenessStatus values, or
+        the special string ``"none"`` which means check_completeness
+        returned None (technical failure path).
+    """
+    from src.pipeline.v7_extract.completeness_checker import (
+        check_completeness,
+        CompletenessStatus,
+    )
+
+    content = str(fixture.input.get("content", ""))
+    doc_type_hint = str(fixture.input.get("doc_type_hint", "unknown"))
+    active_llm = _script_llm_for_fixture(fixture, llm, "completeness")
+
+    result = await check_completeness(
+        content, doc_type_hint, llm=active_llm, project_root=None,
+    )
+
+    diffs: list[str] = []
+    expected_status = str(fixture.expected.get("status", ""))
+    if expected_status == "none":
+        if result is not None:
+            diffs.append(
+                f"  expected None (technical failure); got {result.status.value}"
+            )
+    else:
+        if result is None:
+            diffs.append(
+                f"  expected {expected_status}; got None (technical failure)"
+            )
+        else:
+            try:
+                expected_enum = CompletenessStatus(expected_status)
+            except ValueError:
+                expected_enum = None
+            if expected_enum is not None and result.status is not expected_enum:
+                diffs.append(_diff_strings(expected_status, result.status.value))
+
+    return CorpusRunResult(
+        fixture_id=fixture.id,
+        stage=fixture.stage,
+        passed=not diffs,
+        diff="\n".join(diffs),
+    )
+
+
+async def run_stage4(
+    fixture: CorpusFixture,
+    *,
+    llm: LLMClient,
+) -> CorpusRunResult:
+    """Run Stage 4 (cluster_topics) and compare to expected.
+
+    Expected fields supported:
+      - status: str — one of CLUSTERED / DEGRADED / UNCERTAIN / FAILED / EMPTY
+      - topic_count_min: int
+      - topic_count_max: int
+      - first_topic_title_contains: str
+    """
+    from src.pipeline.v7_extract.topic_clusterer import cluster_topics
+
+    items = fixture.input.get("items", [])
+    source_id = str(fixture.input.get("source_id", ""))
+    active_llm = _script_llm_for_fixture(fixture, llm, "cluster")
+
+    result = await cluster_topics(
+        items, llm=active_llm, project_root=None, source_id=source_id,
+    )
+
+    diffs: list[str] = []
+    if "status" in fixture.expected:
+        expected_status = str(fixture.expected["status"])
+        if result.status.value != expected_status:
+            diffs.append(_diff_strings(expected_status, result.status.value))
+
+    n = len(result.topics)
+    if "topic_count_min" in fixture.expected:
+        min_n = int(fixture.expected["topic_count_min"])
+        if n < min_n:
+            diffs.append(f"  expected >= {min_n} topics; got {n}")
+    if "topic_count_max" in fixture.expected:
+        max_n = int(fixture.expected["topic_count_max"])
+        if n > max_n:
+            diffs.append(f"  expected <= {max_n} topics; got {n}")
+
+    if "first_topic_title_contains" in fixture.expected and result.topics:
+        needle = str(fixture.expected["first_topic_title_contains"])
+        title = result.topics[0].title or ""
+        if needle not in title:
+            diffs.append(
+                f"  expected first topic title to contain {needle!r}; got {title!r}"
+            )
+
+    return CorpusRunResult(
+        fixture_id=fixture.id,
+        stage=fixture.stage,
+        passed=not diffs,
+        diff="\n".join(diffs),
+    )
+
+
 # Per-stage dispatcher. New stages add their runner here.
 STAGE_RUNNERS: dict[str, Callable[..., Awaitable[CorpusRunResult]]] = {
     "stage1_classify": run_stage1,
     "stage2_segment": run_stage2,
+    "stage3_completeness": run_stage3,
+    "stage4_cluster": run_stage4,
 }
 
 

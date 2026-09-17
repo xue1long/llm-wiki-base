@@ -1,0 +1,13 @@
+{
+  "id": "stage3-12",
+  "stage": "stage3_completeness",
+  "description": "Edge: LLM returns malformed JSON -> check_completeness fallback to None or retry exhausted.",
+  "input": {
+    "content": "## Some content\n",
+    "doc_type_hint": "single_method",
+    "llm_responses": "this is not json {"
+  },
+  "expected": {
+    "status": "none"
+  }
+}

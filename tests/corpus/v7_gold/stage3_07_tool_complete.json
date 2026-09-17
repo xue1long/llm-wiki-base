@@ -1,0 +1,15 @@
+{
+  "id": "stage3-07",
+  "stage": "stage3_completeness",
+  "description": "Tool reference doc: complete.",
+  "input": {
+    "content": "# ripgrep\n\n## usage\n\nrg -i 'TODO' src/\n",
+    "doc_type_hint": "tool",
+    "llm_responses": {
+      "completeness": {"status": "complete", "confidence": 0.85, "reason_codes": ["sufficient_content"]}
+    }
+  },
+  "expected": {
+    "status": "complete"
+  }
+}

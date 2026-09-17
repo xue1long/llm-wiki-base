@@ -1,0 +1,15 @@
+{
+  "id": "stage4-04",
+  "stage": "stage4_cluster",
+  "description": "LLM returns malformed -> FAILED status.",
+  "input": {
+    "source_id": "src-04.md",
+    "items": [
+      {"id": "a1", "text": "扩句法", "kind": "article"}
+    ],
+    "llm_responses": "not valid json {"
+  },
+  "expected": {
+    "status": "failed"
+  }
+}

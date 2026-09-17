@@ -1,0 +1,13 @@
+{
+  "id": "stage3-04",
+  "stage": "stage3_completeness",
+  "description": "LLM raises on all retries: check_completeness returns None.",
+  "input": {
+    "content": "## Some content\n\nbody\n",
+    "doc_type_hint": "single_method",
+    "llm_responses": {}
+  },
+  "expected": {
+    "status": "none"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "stage4-15",
+  "stage": "stage4_cluster",
+  "description": "Source-level cluster: many items per topic.",
+  "input": {
+    "source_id": "src-15.md",
+    "items": [
+      {"id": "a1", "text": "扩句法 item 1", "kind": "article"},
+      {"id": "a2", "text": "扩句法 item 2", "kind": "article"},
+      {"id": "a3", "text": "扩句法 item 3", "kind": "article"},
+      {"id": "b1", "text": "心理描写 item 1", "kind": "article"},
+      {"id": "b2", "text": "心理描写 item 2", "kind": "article"}
+    ],
+    "llm_responses": {
+      "cluster": {
+        "topics": [
+          {"id": "t1", "title": "扩句法", "item_indexes": [0, 1, 2]},
+          {"id": "t2", "title": "心理描写", "item_indexes": [3, 4]}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "status": "clustered",
+    "topic_count_min": 2,
+    "topic_count_max": 2
+  }
+}

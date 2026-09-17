@@ -1,0 +1,15 @@
+{
+  "id": "stage3-13",
+  "stage": "stage3_completeness",
+  "description": "Placeholder content (lorem ipsum) -> incomplete.",
+  "input": {
+    "content": "## Title\n\nLorem ipsum dolor sit amet.\n",
+    "doc_type_hint": "single_method",
+    "llm_responses": {
+      "completeness": {"status": "incomplete", "confidence": 0.9, "reason_codes": ["placeholder_text"]}
+    }
+  },
+  "expected": {
+    "status": "incomplete"
+  }
+}

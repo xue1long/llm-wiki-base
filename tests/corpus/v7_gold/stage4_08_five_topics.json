@@ -1,0 +1,31 @@
+{
+  "id": "stage4-08",
+  "stage": "stage4_cluster",
+  "description": "Five distinct topics, all single-item.",
+  "input": {
+    "source_id": "src-08.md",
+    "items": [
+      {"id": "a1", "text": "T1 content", "kind": "article"},
+      {"id": "b1", "text": "T2 content", "kind": "article"},
+      {"id": "c1", "text": "T3 content", "kind": "article"},
+      {"id": "d1", "text": "T4 content", "kind": "article"},
+      {"id": "e1", "text": "T5 content", "kind": "article"}
+    ],
+    "llm_responses": {
+      "cluster": {
+        "topics": [
+          {"id": "t1", "title": "T1", "item_indexes": [0]},
+          {"id": "t2", "title": "T2", "item_indexes": [1]},
+          {"id": "t3", "title": "T3", "item_indexes": [2]},
+          {"id": "t4", "title": "T4", "item_indexes": [3]},
+          {"id": "t5", "title": "T5", "item_indexes": [4]}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "status": "clustered",
+    "topic_count_min": 5,
+    "topic_count_max": 5
+  }
+}

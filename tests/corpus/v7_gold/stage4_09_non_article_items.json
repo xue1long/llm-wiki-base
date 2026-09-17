@@ -1,0 +1,26 @@
+{
+  "id": "stage4-09",
+  "stage": "stage4_cluster",
+  "description": "Non-article items mixed with article items.",
+  "input": {
+    "source_id": "src-09.md",
+    "items": [
+      {"id": "a1", "text": "扩句法", "kind": "article"},
+      {"id": "n1", "text": "nav header", "kind": "noise"},
+      {"id": "a2", "text": "扩句法 more", "kind": "article"},
+      {"id": "n2", "text": "footer", "kind": "noise"}
+    ],
+    "llm_responses": {
+      "cluster": {
+        "topics": [
+          {"id": "t1", "title": "扩句法", "item_indexes": [0, 2]}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "status": "clustered",
+    "topic_count_min": 1,
+    "topic_count_max": 1
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "stage4-10",
+  "stage": "stage4_cluster",
+  "description": "Unicode-heavy content: emoji + CJK.",
+  "input": {
+    "source_id": "src-10.md",
+    "items": [
+      {"id": "a1", "text": "🚀 写作技巧", "kind": "article"},
+      {"id": "a2", "text": "📚 推荐阅读", "kind": "article"},
+      {"id": "a3", "text": "💡 实战技巧", "kind": "article"}
+    ],
+    "llm_responses": {
+      "cluster": {
+        "topics": [
+          {"id": "t1", "title": "🚀 写作技巧", "item_indexes": [0]},
+          {"id": "t2", "title": "📚 推荐阅读", "item_indexes": [1]},
+          {"id": "t3", "title": "💡 实战技巧", "item_indexes": [2]}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "status": "clustered",
+    "topic_count_min": 3,
+    "topic_count_max": 3,
+    "first_topic_title_contains": "写作"
+  }
+}

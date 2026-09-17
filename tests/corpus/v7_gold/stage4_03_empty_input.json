@@ -1,0 +1,15 @@
+{
+  "id": "stage4-03",
+  "stage": "stage4_cluster",
+  "description": "Empty items list -> EMPTY status.",
+  "input": {
+    "source_id": "src-03.md",
+    "items": [],
+    "llm_responses": {}
+  },
+  "expected": {
+    "status": "empty",
+    "topic_count_min": 0,
+    "topic_count_max": 0
+  }
+}

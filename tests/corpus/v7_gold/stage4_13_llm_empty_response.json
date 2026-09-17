@@ -1,0 +1,22 @@
+{
+  "id": "stage4-13",
+  "stage": "stage4_cluster",
+  "description": "LLM returns empty topics list -> status depends on items handling.",
+  "input": {
+    "source_id": "src-13.md",
+    "items": [
+      {"id": "a1", "text": "some content", "kind": "article"},
+      {"id": "a2", "text": "more content", "kind": "article"}
+    ],
+    "llm_responses": {
+      "cluster": {
+        "topics": []
+      }
+    }
+  },
+  "expected": {
+    "status": "clustered",
+    "topic_count_min": 1,
+    "topic_count_max": 5
+  }
+}

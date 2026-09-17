@@ -1,0 +1,15 @@
+{
+  "id": "stage3-14",
+  "stage": "stage3_completeness",
+  "description": "List: complete (number of items matters more than prose).",
+  "input": {
+    "content": "# 写作技巧\n\n1. 扩句\n2. 心理\n3. 环境\n4. 对话\n5. 情节\n",
+    "doc_type_hint": "list",
+    "llm_responses": {
+      "completeness": {"status": "complete", "confidence": 0.85, "reason_codes": ["sufficient_items"]}
+    }
+  },
+  "expected": {
+    "status": "complete"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "stage3-09",
+  "stage": "stage3_completeness",
+  "description": "Uncertain with low confidence.",
+  "input": {
+    "content": "## Some title\n\nA few words here.\n",
+    "doc_type_hint": "multi_section",
+    "llm_responses": {
+      "completeness": {"status": "uncertain", "confidence": 0.3, "reason_codes": ["low_confidence"]}
+    }
+  },
+  "expected": {
+    "status": "uncertain"
+  }
+}

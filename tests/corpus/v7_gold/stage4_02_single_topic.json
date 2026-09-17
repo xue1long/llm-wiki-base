@@ -1,0 +1,24 @@
+{
+  "id": "stage4-02",
+  "stage": "stage4_cluster",
+  "description": "Single coherent topic.",
+  "input": {
+    "source_id": "src-02.md",
+    "items": [
+      {"id": "a1", "text": "扩句法 item 1", "kind": "article"},
+      {"id": "a2", "text": "扩句法 item 2", "kind": "article"}
+    ],
+    "llm_responses": {
+      "cluster": {
+        "topics": [
+          {"id": "t1", "title": "扩句法", "item_indexes": [0, 1]}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "status": "clustered",
+    "topic_count_min": 1,
+    "topic_count_max": 1
+  }
+}

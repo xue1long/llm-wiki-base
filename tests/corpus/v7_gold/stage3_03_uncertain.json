@@ -1,0 +1,15 @@
+{
+  "id": "stage3-03",
+  "stage": "stage3_completeness",
+  "description": "LLM cannot judge: check_completeness returns UNCERTAIN.",
+  "input": {
+    "content": "## 一些内容\n\nContent here is ambiguous. The source could be either substantial or just a fragment.\n",
+    "doc_type_hint": "multi_section",
+    "llm_responses": {
+      "completeness": {"status": "uncertain", "confidence": 0.5, "reason_codes": ["ambiguous"]}
+    }
+  },
+  "expected": {
+    "status": "uncertain"
+  }
+}

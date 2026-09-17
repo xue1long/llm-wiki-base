@@ -1,0 +1,15 @@
+{
+  "id": "stage3-16",
+  "stage": "stage3_completeness",
+  "description": "Unicode-heavy content: complete.",
+  "input": {
+    "content": "## 🚀 写作技巧\n\nEmoji and CJK characters throughout. 详细的写作技巧内容涵盖多个方面，包括扩句法、心理描写、环境描写、对话技巧、情节推进等。每个技巧都配有具体的使用建议。\n",
+    "doc_type_hint": "single_method",
+    "llm_responses": {
+      "completeness": {"status": "complete", "confidence": 0.9, "reason_codes": ["sufficient_content"]}
+    }
+  },
+  "expected": {
+    "status": "complete"
+  }
+}

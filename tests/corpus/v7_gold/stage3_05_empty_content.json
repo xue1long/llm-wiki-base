@@ -1,0 +1,15 @@
+{
+  "id": "stage3-05",
+  "stage": "stage3_completeness",
+  "description": "Empty content: provably incomplete.",
+  "input": {
+    "content": "",
+    "doc_type_hint": "unknown",
+    "llm_responses": {
+      "completeness": {"status": "incomplete", "confidence": 1.0, "reason_codes": ["empty_content"]}
+    }
+  },
+  "expected": {
+    "status": "incomplete"
+  }
+}

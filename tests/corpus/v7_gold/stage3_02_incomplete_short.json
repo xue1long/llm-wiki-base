@@ -1,0 +1,15 @@
+{
+  "id": "stage3-02",
+  "stage": "stage3_completeness",
+  "description": "Too short: check_completeness returns INCOMPLETE.",
+  "input": {
+    "content": "## Title\n\n",
+    "doc_type_hint": "single_method",
+    "llm_responses": {
+      "completeness": {"status": "incomplete", "confidence": 0.95, "reason_codes": ["body_too_short"]}
+    }
+  },
+  "expected": {
+    "status": "incomplete"
+  }
+}

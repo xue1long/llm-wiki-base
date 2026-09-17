@@ -1,0 +1,15 @@
+{
+  "id": "stage3-06",
+  "stage": "stage3_completeness",
+  "description": "Collection content: complete (multi-article roundup).",
+  "input": {
+    "content": "## Article A\n\nbody a.\n\n## Article B\n\nbody b.\n",
+    "doc_type_hint": "collection",
+    "llm_responses": {
+      "completeness": {"status": "complete", "confidence": 0.9, "reason_codes": ["sufficient_content"]}
+    }
+  },
+  "expected": {
+    "status": "complete"
+  }
+}

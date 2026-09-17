@@ -1,0 +1,23 @@
+{
+  "id": "stage4-07",
+  "stage": "stage4_cluster",
+  "description": "Quality threshold not met -> DEGRADED.",
+  "input": {
+    "source_id": "src-07.md",
+    "items": [
+      {"id": "a1", "text": "random content 1", "kind": "article"},
+      {"id": "a2", "text": "random content 2", "kind": "article"}
+    ],
+    "llm_responses": {
+      "cluster": {
+        "topics": [
+          {"id": "t1", "title": "Random", "item_indexes": [0, 1]}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "status": "degraded",
+    "topic_count_min": 1
+  }
+}

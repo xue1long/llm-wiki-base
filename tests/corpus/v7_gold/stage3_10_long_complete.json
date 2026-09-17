@@ -1,0 +1,15 @@
+{
+  "id": "stage3-10",
+  "stage": "stage3_completeness",
+  "description": "Long content: definitely complete.",
+  "input": {
+    "content": "# Long Article\n\nThis is a long article with many paragraphs. A detailed paragraph about various aspects of the topic. A detailed paragraph about various aspects of the topic. A detailed paragraph about various aspects of the topic. A detailed paragraph about various aspects of the topic. A detailed paragraph about various aspects of the topic. A detailed paragraph about various aspects of the topic. A detailed paragraph about various aspects of the topic. A detailed paragraph about various aspects of the topic. A detailed paragraph about various aspects of the topic. A detailed paragraph about various aspects of the topic.\n",
+    "doc_type_hint": "single_method",
+    "llm_responses": {
+      "completeness": {"status": "complete", "confidence": 0.98, "reason_codes": ["sufficient_content"]}
+    }
+  },
+  "expected": {
+    "status": "complete"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "stage3-08",
+  "stage": "stage3_completeness",
+  "description": "Q&A chat: complete.",
+  "input": {
+    "content": "Q: How to expand sentences?\nA: Add action descriptions, environment details, and sensory language.\n",
+    "doc_type_hint": "qa_chat",
+    "llm_responses": {
+      "completeness": {"status": "complete", "confidence": 0.8, "reason_codes": ["sufficient_content"]}
+    }
+  },
+  "expected": {
+    "status": "complete"
+  }
+}

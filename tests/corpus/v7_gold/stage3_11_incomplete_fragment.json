@@ -1,0 +1,15 @@
+{
+  "id": "stage3-11",
+  "stage": "stage3_completeness",
+  "description": "Fragment: incomplete body (TODO marker).",
+  "input": {
+    "content": "## 扩句法\n\nTODO: expand this section later.\n",
+    "doc_type_hint": "single_method",
+    "llm_responses": {
+      "completeness": {"status": "incomplete", "confidence": 0.85, "reason_codes": ["has_todo", "stub_content"]}
+    }
+  },
+  "expected": {
+    "status": "incomplete"
+  }
+}

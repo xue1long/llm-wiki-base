@@ -1,0 +1,15 @@
+{
+  "id": "stage3-15",
+  "stage": "stage3_completeness",
+  "description": "Collection with partial content (only first article written).",
+  "input": {
+    "content": "## First Article\n\nFirst article body only. Second article not yet written.\n",
+    "doc_type_hint": "collection",
+    "llm_responses": {
+      "completeness": {"status": "incomplete", "confidence": 0.8, "reason_codes": ["partial_collection"]}
+    }
+  },
+  "expected": {
+    "status": "incomplete"
+  }
+}
