@@ -22,10 +22,14 @@ from src.pipeline.v7_extract.llm_client import FakeLLMClient
 # Constants
 # ---------------------------------------------------------------------------
 
-def test_concept_slots_is_five_slots():
-    assert len(CONCEPT_SLOTS) == 5
+def test_concept_slots_is_eight_slots():
+    # ponytail: 8-slot expansion (plan 2026-09-18-v7-agl-training PR-A).
+    assert len(CONCEPT_SLOTS) == 8
     assert "definition" in CONCEPT_SLOTS
     assert "characteristics" in CONCEPT_SLOTS
+    assert "context" in CONCEPT_SLOTS
+    assert "anti_patterns" in CONCEPT_SLOTS
+    assert "evidence" in CONCEPT_SLOTS
     assert "examples" in CONCEPT_SLOTS
     assert "related_concepts" in CONCEPT_SLOTS
     assert "references" in CONCEPT_SLOTS
@@ -50,14 +54,14 @@ def test_slot_to_dict():
     assert d["evidence"]["has_evidence"] is True
 
 
-def test_concept_page_body_renders_5_sections():
+def test_concept_page_body_renders_8_sections():
     page = ConceptPage(
         id="p1",
         title="Test",
         slots={n: f"<{n}>" for n in CONCEPT_SLOTS},
     )
     body = page.body
-    assert body.count("## ") == 5
+    assert body.count("## ") == 8
     for name in CONCEPT_SLOTS:
         assert name in body
 
@@ -155,6 +159,9 @@ _VALID_PAYLOAD = {
     "slots": {
         "definition": "How to write strong openings",
         "characteristics": "3 techniques",
+        "context": "Use when starting a new chapter or scene",
+        "anti_patterns": "Don't start with character waking up",
+        "evidence": "Based on published novel analysis",
         "examples": "Examples from published novels",
         "related_concepts": "See [[conflict]]",
         "references": "raw source 1",
@@ -163,6 +170,9 @@ _VALID_PAYLOAD = {
         # v3.1 (T1): LLM cites by zero-based item_index into `sources`.
         "definition": {"item_index": 0, "source_text_excerpt": "openings are important"},
         "characteristics": {"item_index": 0, "source_text_excerpt": "three techniques"},
+        "context": {"item_index": 0, "source_text_excerpt": "starting a chapter"},
+        "anti_patterns": {"item_index": 0, "source_text_excerpt": "waking up"},
+        "evidence": {"item_index": 0, "source_text_excerpt": "published analysis"},
         "examples": {"item_index": 0, "source_text_excerpt": "examples from"},
         "related_concepts": {"item_index": 0, "source_text_excerpt": "see conflict"},
         "references": {"item_index": 0, "source_text_excerpt": "raw source 1"},
@@ -321,12 +331,18 @@ async def test_fill_slots_returns_concept_page_with_evidence():
         '{"slots": '
         '{"definition":"How to write openings",'
         '"characteristics":"3 techniques",'
+        '"context":"when starting a chapter",'
+        '"anti_patterns":"waking up",'
+        '"evidence":"novel study",'
         '"examples":"Examples",'
         '"related_concepts":"conflict",'
         '"references":"raw source 1"}, '
         '"evidence": '
         '{"definition":{"item_index":0,"source_text_excerpt":"openings are important"},'
         '"characteristics":{"item_index":0,"source_text_excerpt":"three techniques"},'
+        '"context":{"item_index":0,"source_text_excerpt":"when starting"},'
+        '"anti_patterns":{"item_index":0,"source_text_excerpt":"waking up"},'
+        '"evidence":{"item_index":0,"source_text_excerpt":"novel study"},'
         '"examples":{"item_index":0,"source_text_excerpt":"examples from published"},'
         '"related_concepts":{"item_index":0,"source_text_excerpt":"see conflict"},'
         '"references":{"item_index":0,"source_text_excerpt":"raw source 1"}}}',
@@ -445,6 +461,9 @@ def test_payload_to_page_maps_item_index_to_canonical_item_id():
         "evidence": {
             "definition": {"item_index": 0, "source_text_excerpt": "openings"},
             "characteristics": {"item_index": 1, "source_text_excerpt": "techniques"},
+            "context": {"item_index": 0, "source_text_excerpt": "context"},
+            "anti_patterns": {"item_index": 1, "source_text_excerpt": "anti"},
+            "evidence": {"item_index": 0, "source_text_excerpt": "evidence"},
             "examples": {"item_index": 0, "source_text_excerpt": "examples"},
             "related_concepts": {"item_index": 1, "source_text_excerpt": "related"},
             "references": {"item_index": 0, "source_text_excerpt": "refs"},

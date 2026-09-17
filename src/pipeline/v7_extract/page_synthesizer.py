@@ -61,10 +61,13 @@ log = logging.getLogger(__name__)
 # Local mirror of ``CONCEPT_SLOTS`` from ``slot_filler`` — duplicated here
 # rather than imported at module level to break the
 # ``slot_filler`` ⟷ ``page_synthesizer`` import cycle. The two MUST stay
-# in lock-step (both are 5-tuple literals).
+# in lock-step (8-tuple as of plan 2026-09-18-v7-agl-training).
 _CONCEPT_SLOTS: tuple[str, ...] = (
     "definition",
     "characteristics",
+    "context",
+    "anti_patterns",
+    "evidence",
     "examples",
     "related_concepts",
     "references",

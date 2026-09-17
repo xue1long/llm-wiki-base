@@ -36,12 +36,18 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-# The 5 canonical concept slots. v3 still emits these 5 (matches the
-# v2 concept contract); expanding to the full 8-section template is
-# tracked separately in plan Task 1 / 2 (out of scope for v3.0).
+# The 8 canonical concept slots, aligned with project-level template 3.0.0
+# (knowledge/novel-wiki/.wiki-templates/concept.md).
+# ponytail: 8-section expansion tracked in plan 2026-09-18-v7-agl-training.
+# The 3 new slots (context / anti_patterns / evidence) match the project
+# template's 适用场景 / 反模式与常见错误 / 证据强度 sections. The V3 default
+# path (claim_extractor per-slot) reads its own _CONCEPT_SLOTS — not this one.
 CONCEPT_SLOTS: tuple[str, ...] = (
     "definition",
     "characteristics",
+    "context",
+    "anti_patterns",
+    "evidence",
     "examples",
     "related_concepts",
     "references",
@@ -50,7 +56,10 @@ CONCEPT_SLOTS: tuple[str, ...] = (
 
 _SLOT_HEADINGS: dict[str, str] = {
     "definition": "定义",
-    "characteristics": "特征",
+    "characteristics": "主要特点",
+    "context": "适用场景",
+    "anti_patterns": "反模式与常见错误",
+    "evidence": "证据强度",
     "examples": "例子",
     "related_concepts": "相关概念",
     "references": "参考来源",

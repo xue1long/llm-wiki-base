@@ -41,6 +41,9 @@ from .topic_clusterer import Topic
 CONCEPT_SLOTS: tuple[str, ...] = (
     "definition",
     "characteristics",
+    "context",
+    "anti_patterns",
+    "evidence",
     "examples",
     "related_concepts",
     "references",
@@ -48,7 +51,10 @@ CONCEPT_SLOTS: tuple[str, ...] = (
 
 _SLOT_HEADINGS = {
     "definition": "定义",
-    "characteristics": "特征",
+    "characteristics": "主要特点",
+    "context": "适用场景",
+    "anti_patterns": "反模式与常见错误",
+    "evidence": "证据强度",
     "examples": "例子",
     "related_concepts": "相关概念",
     "references": "参考来源",

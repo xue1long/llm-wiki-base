@@ -630,6 +630,26 @@ def lint_wiki(
                             )
                         )
 
+            # LINT-MISSING-COMMENT: ponytail (plan 2026-09-18-v7-agl-training PR-D).
+            # V7-written pages should carry `<!-- wiki-template-version: ... -->`
+            # so LINT-MISSING-SECTION can fire. If a page has frontmatter
+            # type=concept / entity / etc but no version comment, flag it
+            # as a warning so missing-comment bugs surface early.
+            if page.type in ("concept", "entity", "source", "synthesis", "tool") and not vm:
+                if page.processing_depth != "stub":
+                    issues.append(
+                        LintIssue(
+                            code="LINT-MISSING-COMMENT",
+                            severity=LintSeverity.WARNING,
+                            message=(
+                                "Page is missing <!-- wiki-template-version: ... -->"
+                                " comment. V7 wiki_writer should inject this;"
+                                " check wiki_writer._write_page_atomically."
+                            ),
+                            page_id=page.id,
+                        )
+                    )
+
             # LINT-MISSING-SECTION: v2+ template pages must include every
             # required heading. The parser strips the leading comment from
             # page.body, so we re-read the raw file to read it (vm already

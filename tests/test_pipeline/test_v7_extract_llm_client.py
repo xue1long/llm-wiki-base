@@ -18,6 +18,7 @@ from src.llm.types import TruncatedResponseError
 from src.lib.budget import CostLedger
 from src.pipeline.v7_extract.llm_client import (
     AnthropicLLMClient,
+    BaseURLLLMClient,
     FakeLLMClient,
     LLMClient,
 )
@@ -334,3 +335,25 @@ def test_anthropic_llm_client_no_ledger_still_works():
     )
 
     assert result == "ok"
+
+
+# ---------------------------------------------------------------------------
+# BaseURLLLMClient (plan 2026-09-18-v7-agl-training PR-C)
+# ---------------------------------------------------------------------------
+
+def test_base_url_llm_client_constructs_without_registry():
+    """Ponytail: BaseURLLLMClient must not touch ProviderRegistry at all —
+    it constructs an isolated OpenAIProvider from explicit base_url+api_key.
+    """
+    from src.pipeline.v7_extract.llm_client import BaseURLLLMClient
+
+    client = BaseURLLLMClient(
+        base_url="http://127.0.0.1:8080/proxy/rollout/r1/attempt/0/mode/train/openai/v1",
+        api_key="dummy",
+        model="Qwen/Qwen2.5-1.5B-Instruct",
+    )
+
+    assert client.provider_name == "agl_proxy"
+    assert "127.0.0.1:8080" in client._provider.base_url
+    assert client._provider.api_key == "dummy"
+    assert client._provider.model == "Qwen/Qwen2.5-1.5B-Instruct"

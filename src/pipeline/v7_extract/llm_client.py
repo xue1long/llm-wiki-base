@@ -64,6 +64,85 @@ class LLMClient(ABC):
         raise NotImplementedError
 
 
+class BaseURLLLMClient(LLMClient):
+    """LLM client that bypasses the ProviderRegistry and routes directly to a
+    configurable OpenAI-compatible endpoint.
+
+    Ponytail: plan 2026-09-18-v7-agl-training PR-C. Used by the AGL training
+    agent to route Stage5 LLM calls to the Agent Lightning Gateway proxy URL
+    (``AGL_OPENAI_BASE_URL``), without polluting the global provider config.
+    """
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        api_key: str,
+        model: str = "Qwen/Qwen2.5-1.5B-Instruct",
+        timeout_seconds: int = 300,
+        ledger: "CostLedger | None" = None,
+    ) -> None:
+        from ...llm.openai_provider import OpenAIProvider
+        from ...llm.types import ProviderConfig
+        self._provider = OpenAIProvider(
+            config=ProviderConfig(
+                name="agl_proxy",
+                type="openai",
+                base_url=base_url,
+                api_key=api_key,
+                default_chat_model=model,
+                timeout_seconds=timeout_seconds,
+            )
+        )
+        self._ledger = ledger
+        self._provider_name = "agl_proxy"
+
+    @property
+    def provider_name(self) -> str:
+        return self._provider_name
+
+    async def complete(
+        self,
+        *,
+        prompt_kind: str,
+        user_prompt: str,
+        system_prompt: str = "",
+        max_tokens: int = 8192,
+        temperature: float = 0.0,
+    ) -> str:
+        messages: list[dict[str, Any]] = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": user_prompt})
+        response = await self._provider.complete(
+            messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        if self._ledger is not None:
+            from ...lib.budget import load_default_prices
+            usage = getattr(response, "usage", None)
+            if isinstance(usage, dict):
+                input_tokens = int(
+                    usage.get("input_tokens") or usage.get("prompt_tokens") or 0
+                )
+                output_tokens = int(
+                    usage.get("output_tokens") or usage.get("completion_tokens") or 0
+                )
+            else:
+                input_tokens = (len(user_prompt) + len(system_prompt or "")) // 4
+                output_tokens = len(getattr(response, "content", "") or "") // 4
+            in_p, out_p = load_default_prices()
+            self._ledger.record(
+                stage=prompt_kind,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                input_price=in_p,
+                output_price=out_p,
+            )
+        return response.content
+
+
 class FakeLLMClient(LLMClient):
     """In-memory LLM client that returns scripted responses by prompt_kind.
 

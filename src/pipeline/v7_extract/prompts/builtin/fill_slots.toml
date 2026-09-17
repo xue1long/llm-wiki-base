@@ -18,7 +18,7 @@ Reply with a single JSON object only. No markdown, no explanation."""
 
 [user]
 template = """\
-Fill the 5 required slots of a concept page for this topic.
+Fill the 8 required slots of a concept page for this topic.
 
 Topic title: {title}
 Source material (numbered item list — cite by zero-based integer index):
@@ -39,12 +39,22 @@ Example output shape:
   "slots": {{
     "definition": "<definition text>",
     "characteristics": "<characteristics text>",
-    ...
+    "context": "<when/where to use text>",
+    "anti_patterns": "<common mistakes text>",
+    "evidence": "<evidence strength text>",
+    "examples": "<examples text>",
+    "related_concepts": "<related concepts text>",
+    "references": "<references text>"
   }},
   "evidence": {{
     "definition": {{"item_index": 0, "source_text_excerpt": "<literal substring>"}},
     "characteristics": {{"item_index": 1, "source_text_excerpt": "<literal substring>"}},
-    ...
+    "context": {{"item_index": 0, "source_text_excerpt": "<literal substring>"}},
+    "anti_patterns": {{"item_index": 2, "source_text_excerpt": "<literal substring>"}},
+    "evidence": {{"item_index": 0, "source_text_excerpt": "<literal substring>"}},
+    "examples": {{"item_index": 3, "source_text_excerpt": "<literal substring>"}},
+    "related_concepts": {{"item_index": 0, "source_text_excerpt": "<literal substring>"}},
+    "references": {{"item_index": 0, "source_text_excerpt": "<literal substring>"}}
   }}
 }}"""
 

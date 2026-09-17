@@ -139,8 +139,26 @@ def test_lint_clean_wiki_no_issues(tmp_path):
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
     # Pages carry sources so they are clean under LINT-MISSING-SOURCES too.
-    write_page(p, WikiPage(id="foo", title="Foo", type=PageType.ENTITY, body="Hello world", sources=["a.md"]))
-    write_page(p, WikiPage(id="bar", title="Bar", type=PageType.CONCEPT, body="Other content", sources=["b.md"]))
+    # Ponytail: PR-D requires version-comment (added by V7 wiki_writer).
+    # Body covers the bundled v2.0.0 entity template slots.
+    entity_body = (
+        "<!-- wiki-template-version: 2.0.0 -->\n"
+        "## 基本信息\n\nbasic\n\n"
+        "## 简介\n\nintro\n\n"
+        "## 相关引用\n\nrefs"
+    )
+    concept_body = (
+        "<!-- wiki-template-version: 2.0.0 -->\n"
+        "## 定义\n\ndef\n\n"
+        "## 主要特点\n\nchar\n\n"
+        "## 例子\n\nex\n\n"
+        "## 相关概念\n\nrelated\n\n"
+        "## 参考来源\n\nrefs"
+    )
+    write_page(p, WikiPage(id="foo", title="Foo", type=PageType.ENTITY,
+                           body=entity_body, sources=["a.md"]))
+    write_page(p, WikiPage(id="bar", title="Bar", type=PageType.CONCEPT,
+                           body=concept_body, sources=["b.md"]))
     append_to_index(p, [("foo", PageType.ENTITY, "Foo"), ("bar", PageType.CONCEPT, "Bar")])
 
     report = lint_wiki(p)

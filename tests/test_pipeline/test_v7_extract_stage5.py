@@ -36,18 +36,28 @@ async def test_fill_slots_returns_none_on_total_llm_failure() -> None:
 @pytest.mark.asyncio
 async def test_fill_slots_accepts_scripted_llm_json_with_evidence() -> None:
     """v3.1: LLM cites evidence by zero-based ``item_index`` integer into
-    ``Topic.item_ids``. All five slots cite the lone ``article-1`` item
+    ``Topic.item_ids``. All eight slots cite the lone ``article-1`` item
     (index 0) — the script maps index back to canonical id."""
     llm = FakeLLMClient()
     llm.script(
         "fill_slots",
         '{"slots": {"definition": "精确定义", '
-        '"characteristics": "核心特征", "examples": "具体例子", '
+        '"characteristics": "核心特征", '
+        '"context": "适用场景", '
+        '"anti_patterns": "反模式", '
+        '"evidence": "证据强度", '
+        '"examples": "具体例子", '
         '"related_concepts": "相关概念", "references": "来源文章"}, '
         '"evidence": {"definition": {"item_index": 0, '
         '"source_text_excerpt": "扩句法原文摘录"}, '
         '"characteristics": {"item_index": 0, '
         '"source_text_excerpt": "核心特征原文"}, '
+        '"context": {"item_index": 0, '
+        '"source_text_excerpt": "适用场景原文"}, '
+        '"anti_patterns": {"item_index": 0, '
+        '"source_text_excerpt": "反模式原文"}, '
+        '"evidence": {"item_index": 0, '
+        '"source_text_excerpt": "证据强度原文"}, '
         '"examples": {"item_index": 0, '
         '"source_text_excerpt": "具体例子原文"}, '
         '"related_concepts": {"item_index": 0, '
@@ -59,8 +69,8 @@ async def test_fill_slots_accepts_scripted_llm_json_with_evidence() -> None:
     page = await fill_slots(
         Topic("topic-1", "扩句法", ["article-1"]),
         source_text=(
-            "扩句法原文摘录 扩句法让句子更具体。 核心特征原文 具体例子原文 "
-            "相关概念原文 来源文章原文"
+            "扩句法原文摘录 扩句法让句子更具体。 核心特征原文 适用场景原文 "
+            "反模式原文 证据强度原文 具体例子原文 相关概念原文 来源文章原文"
         ),
         llm=llm,
         item_texts={"article-1": "扩句法通过增加动作、环境和感官细节，让句子更具体。"},
@@ -70,7 +80,7 @@ async def test_fill_slots_accepts_scripted_llm_json_with_evidence() -> None:
     assert page.slots["definition"] == "精确定义"
     assert page.slots["references"] == "来源文章"
     assert llm.calls[0]["prompt_kind"] == "fill_slots"
-    # All five slots cite the known article-1 item -> no needs_review.
+    # All eight slots cite the known article-1 item -> no needs_review.
     assert page.needs_review_slots == ()
     # ConceptPage.has_evidence is True when every slot has evidence
     # and none are flagged for review.

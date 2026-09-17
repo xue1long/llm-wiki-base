@@ -114,6 +114,14 @@ class WikiWriter:
         self.index_path = self.root / "wiki" / "index.md"
         self.checkpoint_path = self.root / ".index" / "v7_checkpoint.json"
         self.audit = AuditLogger(self.root / ".index" / "extract_report.json")
+        # ponytail: post-process hook (plan 2026-09-18-v7-agl-training PR-B).
+        # Mutates ConceptPage (e.g. add tags/relations) before disk write.
+        # Default None — existing callers see no change.
+        self._post_process_page: Callable[[ConceptPage], ConceptPage] | None = None
+        # ponytail: optional pages subdir for isolation (e.g. "_agl" →
+        # pages_dir becomes wiki/_agl/concepts/, used by AGL training to
+        # quarantine AI-written pages before human review).
+        self._pages_subdir: str | None = None
         self.page_writer = page_writer or self._write_page_atomically
         self.content_filter = content_filter
         self.max_retries = max_retries
@@ -149,6 +157,20 @@ class WikiWriter:
         self.commit_id_factory: Callable[[], str] = (
             commit_id_factory if commit_id_factory is not None else (lambda: uuid.uuid4().hex)
         )
+
+    def set_post_process_page(
+        self,
+        fn: Callable[[ConceptPage], ConceptPage] | None,
+    ) -> None:
+        """Register a callable that mutates each ``ConceptPage`` before disk
+        write. Ponytail: PR-B setter, avoids __init__ arg churn."""
+        self._post_process_page = fn
+
+    def set_pages_subdir(self, subdir: str | None) -> None:
+        """Override the on-disk concepts subdir. Ponytail: PR-B, used by AGL
+        training to write into ``wiki/_agl/concepts/`` for quarantine."""
+        self.pages_dir = self.root / "wiki" / subdir / "concepts" if subdir else self.root / "wiki" / "concepts"
+        self._pages_subdir = subdir
 
     def commit_and_index(
         self,
@@ -281,6 +303,22 @@ class WikiWriter:
             if page.id in completed:
                 completed.remove(page.id)
                 self._save_checkpoint(completed)
+
+            # ponytail: post-process hook (plan 2026-09-18-v7-agl-training PR-B).
+            # Run before write; raised exceptions abort the write (D7 contract).
+            if self._post_process_page is not None:
+                try:
+                    page = self._post_process_page(page)
+                except Exception as exc:
+                    report.page_writes[page.id] = None
+                    report.failed[page.id] = f"post_process: {exc}"
+                    self._enqueue_failure(
+                        page, "stage7_post_process",
+                        reason=f"post_process: {exc}",
+                    )
+                    self._record_page_failed(manifest, page, f"post_process: {exc}")
+                    manifest_failed = True
+                    continue
 
             last_error: Exception | None = None
             for _ in range(self.max_retries):
@@ -528,6 +566,11 @@ class WikiWriter:
             "committed_at": committed_at,
         }
         body = page.body
+        # ponytail: inject template-version comment so LINT-MISSING-SECTION
+        # (lint.py) actually fires on V7-written concept pages.
+        # See plan 2026-09-18-v7-agl-training.md PR-A.
+        if page.type == "concept" and not body.lstrip().startswith("<!-- wiki-template-version"):
+            body = "<!-- wiki-template-version: 3.0.0 -->\n" + body
         frontmatter["revision_hash"] = self._compute_revision_hash(frontmatter, body)
         content = "---\n" + yaml.safe_dump(
             frontmatter, allow_unicode=True, sort_keys=False
