@@ -405,6 +405,11 @@ def build_parser() -> "argparse.ArgumentParser":
     from .cli_ext.closure_cmd import register as register_closure_cmd
     register_closure_cmd(subparsers)
 
+    # Knowledge Reconciliation Plane (reconcile / show-canonical /
+    # list-canonicals / undo — ADR 0012, master plan Tasks 27-31)
+    from .cli_ext.reconciliation_cmd import register as register_reconciliation_cmd
+    register_reconciliation_cmd(subparsers)
+
     # MCP (stdio Model Context Protocol server)
     p_mcp = subparsers.add_parser("mcp", help="Start stdio MCP server")
     p_mcp.set_defaults(func=lambda args: asyncio.run(_run_mcp()))
@@ -712,7 +717,15 @@ def main():
     if callable(validate):
         validate(args, parser)
 
-    args.func(args)
+    # Propagate a command's integer return code to the process exit status.
+    # Handlers that signal failure by *returning* a non-zero int (e.g. the
+    # reconciliation commands: 0 = ok, 2 = error) were previously ignored,
+    # so scripts could not detect their failures. Handlers that return None
+    # (the vast majority) are unaffected, as are handlers that already call
+    # sys.exit() themselves.
+    rc = args.func(args)
+    if isinstance(rc, int) and not isinstance(rc, bool) and rc != 0:
+        sys.exit(rc)
 
 
 if __name__ == "__main__":

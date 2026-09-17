@@ -179,3 +179,50 @@ def test_undo_command_removes_membership(tmp_path: Path):
     assert after is not None
     assert "page-x" not in after.member_page_ids
     assert "page-y" in after.member_page_ids  # 其它 member 不动
+
+
+# ---------------------------------------------------------------------------
+# CLI wiring (cli.py) — the four subcommands must be reachable from `ruflo`
+# ---------------------------------------------------------------------------
+
+
+def test_reconciliation_subcommands_are_wired_into_the_cli():
+    """``src.cli.build_parser()`` must expose the four reconciliation
+    subcommands. Guards against the register() call being dropped from
+    cli.py, which would leave the whole Reconciliation Plane unreachable
+    from the command line."""
+    from src.cli import build_parser
+
+    parser = build_parser()
+    names: set[str] = set()
+    for action in parser._actions:
+        name_map = getattr(action, "_name_parser_map", None)
+        if name_map:
+            names = set(name_map.keys())
+            break
+
+    assert {"reconcile", "show-canonical", "list-canonicals", "undo"} <= names
+
+
+def test_show_canonical_missing_id_returns_two(tmp_path):
+    """Error exit code contract: a missing canonical_id must return 2
+    (not a silent 0), so scripts can detect the failure."""
+    from src.cli_ext.reconciliation_cmd import cmd_show_canonical
+
+    args = argparse.Namespace(
+        project_root=tmp_path,
+        canonical_id="c-does-not-exist",
+    )
+    assert cmd_show_canonical(args) == 2
+
+
+def test_undo_missing_page_returns_two(tmp_path):
+    """Error exit code contract: undo on an unknown page returns 2."""
+    from src.cli_ext.reconciliation_cmd import cmd_undo
+
+    args = argparse.Namespace(
+        project_root=tmp_path,
+        page_id="page-does-not-exist",
+        canonical_id=None,
+    )
+    assert cmd_undo(args) == 2
