@@ -1,0 +1,25 @@
+{
+  "id": "stage5-09",
+  "stage": "stage5_extract_claims",
+  "description": "References slot: source citation.",
+  "input": {
+    "source_bytes": "## 参考\n\n《写作技法》第一章节。\n",
+    "slot_name": "references",
+    "topic_label": "扩句法",
+    "spans": [
+      {"item_id": "a1", "item_index": 0, "start_byte": 0, "end_byte": 14, "char_start": 0, "char_end": 14}
+    ],
+    "llm_responses": {
+      "fill_slots_extract": {
+        "claims": [
+          {"text": "《写作技法》第一章节。", "span_ids": ["span-0"], "confidence": 0.9}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "claim_count_min": 1,
+    "claim_count_max": 1,
+    "status": "supported"
+  }
+}

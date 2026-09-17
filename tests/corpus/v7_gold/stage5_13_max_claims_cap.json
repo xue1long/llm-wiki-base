@@ -1,0 +1,31 @@
+{
+  "id": "stage5-13",
+  "stage": "stage5_extract_claims",
+  "description": "LLM returns 8 claims, capped at MAX_CLAIMS_PER_SLOT=6.",
+  "input": {
+    "source_bytes": "Various content for the slot.",
+    "slot_name": "definition",
+    "topic_label": "topic",
+    "spans": [
+      {"item_id": "a1", "item_index": 0, "start_byte": 0, "end_byte": 25, "char_start": 0, "char_end": 25}
+    ],
+    "llm_responses": {
+      "fill_slots_extract": {
+        "claims": [
+          {"text": "claim 0", "span_ids": ["span-0"], "confidence": 0.5},
+          {"text": "claim 1", "span_ids": ["span-0"], "confidence": 0.55},
+          {"text": "claim 2", "span_ids": ["span-0"], "confidence": 0.6},
+          {"text": "claim 3", "span_ids": ["span-0"], "confidence": 0.65},
+          {"text": "claim 4", "span_ids": ["span-0"], "confidence": 0.7},
+          {"text": "claim 5", "span_ids": ["span-0"], "confidence": 0.75},
+          {"text": "claim 6", "span_ids": ["span-0"], "confidence": 0.8},
+          {"text": "claim 7", "span_ids": ["span-0"], "confidence": 0.85}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "claim_count_min": 1,
+    "claim_count_max": 6
+  }
+}

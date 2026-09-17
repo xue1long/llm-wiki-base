@@ -1,0 +1,25 @@
+{
+  "id": "stage5-12",
+  "stage": "stage5_extract_claims",
+  "description": "Duplicate claim text -> dedup (first wins).",
+  "input": {
+    "source_bytes": "扩句法是动作描写方法。扩句法是动作描写方法。",
+    "slot_name": "definition",
+    "topic_label": "扩句法",
+    "spans": [
+      {"item_id": "a1", "item_index": 0, "start_byte": 0, "end_byte": 25, "char_start": 0, "char_end": 25}
+    ],
+    "llm_responses": {
+      "fill_slots_extract": {
+        "claims": [
+          {"text": "扩句法是动作描写方法。", "span_ids": ["span-0"], "confidence": 0.9},
+          {"text": "扩句法是动作描写方法。", "span_ids": ["span-0"], "confidence": 0.9}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "claim_count_min": 1,
+    "claim_count_max": 1
+  }
+}

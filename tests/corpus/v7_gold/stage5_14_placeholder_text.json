@@ -1,0 +1,25 @@
+{
+  "id": "stage5-14",
+  "stage": "stage5_extract_claims",
+  "description": "Claim with placeholder text -> filtered (is_substantive check).",
+  "input": {
+    "source_bytes": "Some content.",
+    "slot_name": "definition",
+    "topic_label": "topic",
+    "spans": [
+      {"item_id": "a1", "item_index": 0, "start_byte": 0, "end_byte": 13, "char_start": 0, "char_end": 13}
+    ],
+    "llm_responses": {
+      "fill_slots_extract": {
+        "claims": [
+          {"text": "需结合原文核对", "span_ids": ["span-0"], "confidence": 0.5}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "claim_count_min": 0,
+    "claim_count_max": 0,
+    "status": "not_applicable"
+  }
+}

@@ -345,12 +345,101 @@ async def run_stage4(
     )
 
 
+async def run_stage5(
+    fixture: CorpusFixture,
+    *,
+    llm: LLMClient,
+) -> CorpusRunResult:
+    """Run Stage 5A (extract_slot_claims) and compare to expected.
+
+    Fixture input schema:
+      - source_bytes: str (the source text)
+      - slot_name: str (e.g. "definition")
+      - topic_label: str
+      - spans: list of {item_id, start_byte, end_byte, char_start, char_end}
+        (source-absolute byte offsets)
+
+    Expected fields supported:
+      - claim_count_min: int
+      - claim_count_max: int
+      - status: one of SUPPORTED / NOT_APPLICABLE / INSUFFICIENT_EVIDENCE / CONFLICTING
+        (ClaimSupport enum values)
+    """
+    from src.pipeline.v7_extract.claim import ClaimSupport
+    from src.pipeline.v7_extract.claim_extractor import extract_slot_claims
+    from src.pipeline.v7_extract.canonical_spans import CanonicalSpan
+
+    source_bytes = fixture.input.get("source_bytes", "").encode("utf-8")
+    slot_name = str(fixture.input.get("slot_name", "definition"))
+    topic_label = str(fixture.input.get("topic_label", "topic"))
+    spans_data = fixture.input.get("spans", [])
+    spans = [
+        CanonicalSpan(
+            span_id=f"span-{i}",
+            item_id=s.get("item_id", f"item-{i}"),
+            item_index=int(s.get("item_index", 0)),
+            start_byte=int(s.get("start_byte", 0)),
+            end_byte=int(s.get("end_byte", 0)),
+            char_start=int(s.get("char_start", 0)),
+            char_end=int(s.get("char_end", 0)),
+        )
+        for i, s in enumerate(spans_data)
+    ]
+    active_llm = _script_llm_for_fixture(fixture, llm, "fill_slots_extract")
+
+    try:
+        result = await extract_slot_claims(
+            slot_name,
+            topic_label=topic_label,
+            spans=spans,
+            llm=active_llm,
+            project_root=None,
+            source_bytes=source_bytes,
+        )
+    except RuntimeError as e:
+        # Failure Contract §1: technical failure must surface as a
+        # failed result (never as a fake "0 claims" success).
+        return CorpusRunResult(
+            fixture_id=fixture.id,
+            stage=fixture.stage,
+            passed=False,
+            diff=f"technical_failure: {e}",
+        )
+
+    diffs: list[str] = []
+    n = len(result.claims)
+    if "claim_count_min" in fixture.expected:
+        min_n = int(fixture.expected["claim_count_min"])
+        if n < min_n:
+            diffs.append(f"  expected >= {min_n} claims; got {n}")
+    if "claim_count_max" in fixture.expected:
+        max_n = int(fixture.expected["claim_count_max"])
+        if n > max_n:
+            diffs.append(f"  expected <= {max_n} claims; got {n}")
+    if "status" in fixture.expected:
+        expected_status = str(fixture.expected["status"])
+        try:
+            expected_enum = ClaimSupport(expected_status)
+        except ValueError:
+            expected_enum = None
+        if expected_enum is not None and result.status is not expected_enum:
+            diffs.append(_diff_strings(expected_status, result.status.value))
+
+    return CorpusRunResult(
+        fixture_id=fixture.id,
+        stage=fixture.stage,
+        passed=not diffs,
+        diff="\n".join(diffs),
+    )
+
+
 # Per-stage dispatcher. New stages add their runner here.
 STAGE_RUNNERS: dict[str, Callable[..., Awaitable[CorpusRunResult]]] = {
     "stage1_classify": run_stage1,
     "stage2_segment": run_stage2,
     "stage3_completeness": run_stage3,
     "stage4_cluster": run_stage4,
+    "stage5_extract_claims": run_stage5,
 }
 
 

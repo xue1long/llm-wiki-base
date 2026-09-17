@@ -1,0 +1,18 @@
+{
+  "id": "stage5-04",
+  "stage": "stage5_extract_claims",
+  "description": "LLM raises on all retries -> runner records a failed result (Failure Contract: technical failure must not pretend success).",
+  "input": {
+    "source_bytes": "some content",
+    "slot_name": "definition",
+    "topic_label": "topic",
+    "spans": [
+      {"item_id": "a1", "item_index": 0, "start_byte": 0, "end_byte": 12, "char_start": 0, "char_end": 12}
+    ],
+    "llm_responses": {}
+  },
+  "expected": {
+    "claim_count_min": 0,
+    "claim_count_max": 0
+  }
+}

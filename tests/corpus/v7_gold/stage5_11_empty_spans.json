@@ -1,0 +1,21 @@
+{
+  "id": "stage5-11",
+  "stage": "stage5_extract_claims",
+  "description": "Empty spans list -> LLM has no evidence -> 0 claims.",
+  "input": {
+    "source_bytes": "any content",
+    "slot_name": "definition",
+    "topic_label": "topic",
+    "spans": [],
+    "llm_responses": {
+      "fill_slots_extract": {
+        "claims": []
+      }
+    }
+  },
+  "expected": {
+    "claim_count_min": 0,
+    "claim_count_max": 0,
+    "status": "not_applicable"
+  }
+}

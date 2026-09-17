@@ -1,0 +1,25 @@
+{
+  "id": "stage5-05",
+  "stage": "stage5_extract_claims",
+  "description": "Numeric claim (10% increase): LLM returns it; the SUPPORTED claim survives Stage 5A (reviewer is separate).",
+  "input": {
+    "source_bytes": "通过这个方法，写作速度提高 10%。",
+    "slot_name": "examples",
+    "topic_label": "扩句法",
+    "spans": [
+      {"item_id": "a1", "item_index": 0, "start_byte": 0, "end_byte": 20, "char_start": 0, "char_end": 20}
+    ],
+    "llm_responses": {
+      "fill_slots_extract": {
+        "claims": [
+          {"text": "写作速度提高 10%。", "span_ids": ["span-0"], "confidence": 0.85}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "claim_count_min": 1,
+    "claim_count_max": 1,
+    "status": "supported"
+  }
+}

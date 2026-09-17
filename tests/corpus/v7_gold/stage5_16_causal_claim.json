@@ -1,0 +1,25 @@
+{
+  "id": "stage5-16",
+  "stage": "stage5_extract_claims",
+  "description": "Causal claim (X leads to Y).",
+  "input": {
+    "source_bytes": "缺少描写导致读者无法构建场景。",
+    "slot_name": "characteristics",
+    "topic_label": "扩句法",
+    "spans": [
+      {"item_id": "a1", "item_index": 0, "start_byte": 0, "end_byte": 18, "char_start": 0, "char_end": 18}
+    ],
+    "llm_responses": {
+      "fill_slots_extract": {
+        "claims": [
+          {"text": "缺少描写导致读者无法构建场景。", "span_ids": ["span-0"], "confidence": 0.8}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "claim_count_min": 1,
+    "claim_count_max": 1,
+    "status": "supported"
+  }
+}

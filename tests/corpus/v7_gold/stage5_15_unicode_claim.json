@@ -1,0 +1,25 @@
+{
+  "id": "stage5-15",
+  "stage": "stage5_extract_claims",
+  "description": "Unicode claim with emoji.",
+  "input": {
+    "source_bytes": "🚀 写作技巧的核心是画面感。",
+    "slot_name": "characteristics",
+    "topic_label": "写作技巧",
+    "spans": [
+      {"item_id": "a1", "item_index": 0, "start_byte": 0, "end_byte": 18, "char_start": 0, "char_end": 18}
+    ],
+    "llm_responses": {
+      "fill_slots_extract": {
+        "claims": [
+          {"text": "🚀 写作技巧的核心是画面感。", "span_ids": ["span-0"], "confidence": 0.85}
+        ]
+      }
+    }
+  },
+  "expected": {
+    "claim_count_min": 1,
+    "claim_count_max": 1,
+    "status": "supported"
+  }
+}
