@@ -1873,14 +1873,23 @@ async def _call_with_slot_retry(
             continue
         last_response = response_dict
 
-        # Empty extraction is a valid evidence outcome. The ingest caller may
-        # still create its deterministic source record, but no downstream page
+        # Empty extraction: V7 personal-KB mode used to return immediately
+        # here, but that propagated an empty dict up to ingest.py:784 and
+        # caused the whole task to fail. Instead, treat empty pages as a
+        # retryable condition: if we still have budget, retry once more
+        # (typically with a temperature bump / reprompt); only after the
+        # retry budget is exhausted do we return. The caller may still
+        # create a deterministic source record, but no downstream page
         # should be invented to satisfy a quantity floor.
         if not response_dict.get("pages"):
             _logger.info(
                 "[Generator] LLM returned no evidence-backed pages on attempt %d/%d",
                 attempt + 1, MAX_GEN_ATTEMPTS,
             )
+            if attempt < MAX_GEN_ATTEMPTS - 1:
+                # Still have budget — retry with feedback next iteration.
+                continue
+            # Budget exhausted; return what we have (likely empty).
             return response_dict
 
         last_missing = _find_missing_required_slots(

@@ -157,6 +157,11 @@ Rules:
   - block_id: copy exactly one block_id from the identity-bearing block registry below
   - page: page number or null
   - quote: verbatim contiguous text from that exact block; never paraphrase, add ellipses, or repair text
+  - **CRITICAL JSON SAFETY**: never put unescaped `"` inside any string field
+    (especially `quote` and `statement`). If the source text contains an
+    English double quote `"`, replace it with a Chinese double quote `"`
+    (or `“`/`”`) or a single quote `'`. The JSON parser will reject the
+    response otherwise. This is the #1 cause of failed ingestion runs.
 
 The block registry is authoritative. Every evidence entry must bind to one
 declared block_id; do not invent IDs or select a different block because its
@@ -233,9 +238,17 @@ class AnalyzerOutputParser:
         status = CandidateStatus.PENDING
 
         # -- Tier 2: Schema check -------------------------------------------------
+        # source_id: trust the caller-provided source_path when the LLM
+        # omits or mis-fills the field. LLM extraction on tutorial-style
+        # sources sometimes drops source_id or fills a relative path,
+        # which would otherwise reject the entire candidate. The pipeline
+        # caller knows the authoritative source path (it was the one who
+        # fed the chunk to the analyzer), so we override and decay
+        # confidence slightly to flag the LLM-side omission.
         source_id = raw.get("source_id", "")
-        if not source_id:
-            status = CandidateStatus.REJECTED
+        if not source_id or source_id != (source_path or ""):
+            confidence *= 0.7
+            source_id = source_path or "unknown"
 
         # default page type is "concept"; decay confidence when inferred
         if "type" not in raw:

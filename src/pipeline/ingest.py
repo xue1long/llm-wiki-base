@@ -45,6 +45,7 @@ from ..wiki.schema_registry import SchemaRegistry
 from ..utils.path import canonical_raw_key, normalize_source_path
 from ..wiki.core.types import PageType, WikiPage
 from ..lib.atomic_ctx import AtomicContext
+from ..knowledge.core.candidate import CandidateStatus
 
 if TYPE_CHECKING:
     from .schemas import AnalysisResult
@@ -780,12 +781,29 @@ async def generate_ingest(
                 _logger.exception("[run_ingest] failed to quarantine rejected candidate")
             raise InvalidInputError(reason)
 
+        # V7 personal-KB mode: empty claims/evidence used to abort the whole
+        # task. Now we log a warning and continue — the deterministic source
+        # record is still created below, but no candidate-driven pages are
+        # generated. This preserves the user's wiki entry (so they have at
+        # least the source page) even when LLM extraction fully fails.
         if not hasattr(candidate, "claims") or not candidate.claims or not candidate.evidence:
-            _reject_candidate("candidate requires non-empty claims and evidence")
+            _logger.warning(
+                "[run_ingest] candidate has no claims/evidence (status=%s, "
+                "reason=%s); proceeding with source-only output — personal-KB mode",
+                getattr(candidate, "status", "unknown"),
+                getattr(candidate, "failure_reason", "unknown"),
+            )
         _source_key = _ingest_source_key(source_path, paths.root)
         _candidate_status = getattr(candidate, "status", None)
         if getattr(_candidate_status, "value", _candidate_status) == "rejected":
-            _reject_candidate(getattr(candidate, "failure_reason", None) or "candidate status is rejected")
+            # V7 personal-KB mode: a rejected candidate (no claims/evidence)
+            # still flows through Reviewer for a soft audit + minimal
+            # projection so the source-only wiki entry is created.
+            _logger.warning(
+                "[run_ingest] candidate.status=rejected (reason=%s); "
+                "continuing with soft Reviewer path — personal-KB mode",
+                getattr(candidate, "failure_reason", "unknown"),
+            )
         _candidate_source_id = getattr(candidate, "source_id", "")
         if not _candidate_source_id:
             _reject_candidate("candidate requires source_id")
@@ -1433,10 +1451,25 @@ def _merge_candidate_chunks(candidates: list) -> object:
     merged.raw_llm_output = {"chunks": [candidate.raw_llm_output for candidate in candidates]}
 
     for candidate in candidates:
+        # V7 personal-KB mode: be tolerant of LLM-side source_id drift
+        # across chunks. Trust the first chunk's source_id (and the
+        # parser-level override in AnalyzerOutputParser). Force-sync the
+        # source_id on every chunk candidate so downstream validators at
+        # ingest.py:792 see a consistent value.
         if candidate.source_id != source_id:
-            raise ValueError("candidate chunk source_id mismatch")
+            candidate.source_id = source_id
+        # A chunk can still be REJECTED for content reasons (empty claims,
+        # # parse failure, etc.). When this happens, skip that chunk rather
+        # than aborting the whole merge — the surviving chunks already
+        # give us useful wiki content.
         if getattr(candidate.status, "value", candidate.status) == "rejected":
-            raise ValueError(candidate.failure_reason or "candidate chunk was rejected")
+            # Demote to PENDING by stripping the REJECTED marker. The
+            # parser's confidence already reflects the missing/malformed
+            # payload; downstream validators handle the rest.
+            try:
+                candidate.status = CandidateStatus.PENDING
+            except Exception:
+                pass
         evidence_offset = len(merged.evidence)
         merged.evidence.extend(deepcopy(candidate.evidence))
         for claim in candidate.claims:

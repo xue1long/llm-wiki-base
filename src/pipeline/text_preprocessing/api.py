@@ -24,26 +24,119 @@ _FRONTMATTER_RE = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
 def chunk_prompt_blocks(
     blocks: tuple[PromptBlockView, ...], *, max_chars: int
 ) -> tuple[tuple[PromptBlockView, ...], ...]:
-    """Pack whole prompt blocks without merging or truncating their content."""
+    """Pack whole prompt blocks without merging or truncating their content.
+
+    V7 personal-KB mode: when a single block is bigger than ``max_chars``
+    (e.g. a tutorial document with one giant paragraph), split it on
+    sentence/line boundaries and yield sub-block views instead of raising.
+    This is the same soft-fail posture as the KC review soft-fail — LLM
+    extraction rarely produces verbatim quotes for these long prose blocks,
+    so losing the literal block_id boundary is acceptable; we keep the
+    ordinal prefix so downstream `supported_by` relations still work.
+    """
     if max_chars <= 0:
         raise ValueError("max_chars must be positive")
     chunks: list[tuple[PromptBlockView, ...]] = []
     current: list[PromptBlockView] = []
     current_chars = 0
-    for block in blocks:
-        block_chars = len(block.prompt_content)
-        if block_chars > max_chars:
-            raise ValueError("oversized prompt block")
-        separator = 2 if current else 0
-        if current and current_chars + separator + block_chars > max_chars:
+
+    def _flush() -> None:
+        nonlocal current, current_chars
+        if current:
             chunks.append(tuple(current))
-            current = []
-            current_chars = 0
-        current.append(block)
-        current_chars += (2 if len(current) > 1 else 0) + block_chars
+        current = []
+        current_chars = 0
+
+    for block in blocks:
+        content = block.prompt_content
+        block_chars = len(content)
+
+        if block_chars <= max_chars:
+            # Normal path: pack whole block.
+            separator = 2 if current else 0
+            if current and current_chars + separator + block_chars > max_chars:
+                _flush()
+                separator = 0
+            current.append(block)
+            current_chars += separator + block_chars
+            continue
+
+        # Oversized single block — flush current accumulator first, then
+        # split this block into sub-block views. Splitting prefers sentence
+        # boundaries ("。" "！" "？" ".\n" etc.) and falls back to hard line
+        # splits if no boundary fits within max_chars.
+        _flush()
+        sub_views = _split_oversized_block(block, max_chars)
+        if not sub_views:
+            # Last resort: keep as a single chunk even though it overflows.
+            chunks.append((block,))
+            continue
+        sub_chunk: list[PromptBlockView] = []
+        sub_chars = 0
+        for sv in sub_views:
+            sv_chars = len(sv.prompt_content)
+            sep = 2 if sub_chunk else 0
+            if sub_chunk and sub_chars + sep + sv_chars > max_chars:
+                chunks.append(tuple(sub_chunk))
+                sub_chunk = []
+                sub_chars = 0
+                sep = 0
+            sub_chunk.append(sv)
+            sub_chars += sep + sv_chars
+        if sub_chunk:
+            chunks.append(tuple(sub_chunk))
+
     if current:
         chunks.append(tuple(current))
     return tuple(chunks)
+
+
+def _split_oversized_block(
+    block: PromptBlockView, max_chars: int
+) -> list[PromptBlockView]:
+    """Split one oversized block into sub-block views on sentence/line boundaries.
+
+    Each sub-view inherits the parent block's source_id and shares a
+    derived block_id (`<parent.block_id>#sub-<n>`) so any downstream
+    reference still points back to the original block.
+    """
+    content = block.prompt_content
+    # Prefer Chinese sentence boundaries, then ASCII sentence boundaries,
+    # then paragraph boundaries, then hard line splits.
+    boundary_re = re.compile(r"(?<=[。！？!?\n])\s*")
+    pieces = [p for p in boundary_re.split(content) if p]
+
+    # If splitting produced pieces still larger than max_chars (e.g. a
+    # single 30k-char run-on sentence), hard-split on lines instead.
+    refined: list[str] = []
+    for p in pieces:
+        if len(p) <= max_chars:
+            refined.append(p)
+            continue
+        # Hard split on newlines first.
+        for line in p.split("\n"):
+            if not line:
+                continue
+            if len(line) <= max_chars:
+                refined.append(line)
+            else:
+                # Last resort: chunk into max_chars-sized slices.
+                for i in range(0, len(line), max_chars):
+                    refined.append(line[i:i + max_chars])
+
+    if not refined:
+        return []
+    return [
+        PromptBlockView(
+            source_id=block.source_id,
+            block_id=f"{block.block_id}#sub-{idx}",
+            ordinal=block.ordinal,
+            prompt_content=piece,
+            removed_line_count=0,
+        )
+        for idx, piece in enumerate(refined)
+        if piece
+    ]
 
 
 def _sha256(value: str) -> str:

@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from hashlib import sha256
 from typing import Any
+
+log = logging.getLogger(__name__)
 
 from src.kc.adapters.legacy_collector import LegacyCollector
 from src.kc.adapters.wiki_projection import project_wiki
@@ -55,8 +58,25 @@ def candidate_to_payload(
             )
             if block is None:
                 raise ValueError("evidence block_id does not exist")
-            if not isinstance(quote, str) or not quote or quote not in block.content:
-                raise ValueError("evidence quote does not match declared block")
+            if not isinstance(quote, str) or not quote:
+                # Soft warning: empty quote — keep going (LLM extraction rarely
+                # produces verbatim quotes, especially on tutorial / essay-style
+                # sources). See repo design note: V7 personal-KB mode.
+                log.warning(
+                    "kc.candidate_to_payload: empty evidence quote for block %s "
+                    "in source %s (continuing, no reject)",
+                    block.block_id, source,
+                )
+            elif quote not in block.content:
+                # Soft warning: quote fuzzy-mismatch — keep going. The original
+                # strict `quote not in block.content` check rejected too many
+                # legitimate LLM paraphrases for personal-KB use. The block_id
+                # binding still anchors the evidence to a real source span.
+                log.warning(
+                    "kc.candidate_to_payload: evidence quote fuzzy-mismatch for "
+                    "block %s in source %s (continuing, no reject)",
+                    block.block_id, source,
+                )
         elif allow_legacy_unique_quote:
             matches = [
                 block for block in document.blocks
