@@ -1,0 +1,17 @@
+{
+  "id": "stage7-09",
+  "stage": "stage7_write",
+  "description": "Unicode content (CJK + emoji).",
+  "input": {
+    "pages": [
+      {
+        "id": "p-unicode-扩句法", "title": "🚀 写作技巧", "sources": ["src.md"],
+        "slots": {"definition": "扩句法定义。", "characteristics": "画面感。", "examples": "例子。", "related_concepts": "相关。", "references": "参考。"},
+        "evidence": {"definition": {"item_id": "src.md", "has_evidence": true}, "characteristics": {"item_id": "src.md", "has_evidence": true}, "examples": {"item_id": "src.md", "has_evidence": true}, "related_concepts": {"item_id": "src.md", "has_evidence": true}, "references": {"item_id": "src.md", "has_evidence": true}}
+      }
+    ]
+  },
+  "expected": {
+    "written_count_min": 1
+  }
+}

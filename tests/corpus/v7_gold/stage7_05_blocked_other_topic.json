@@ -1,0 +1,19 @@
+{
+  "id": "stage7-05",
+  "stage": "stage7_write",
+  "description": "Page with topic_id='__other__' -> blocked by Guard A.",
+  "input": {
+    "pages": [
+      {
+        "id": "p-other", "title": "Other", "sources": ["src.md"],
+        "topic_id": "__other__",
+        "slots": {"definition": "d", "characteristics": "c", "examples": "e", "related_concepts": "r", "references": "f"},
+        "evidence": {"definition": {"item_id": "src.md", "has_evidence": true}, "characteristics": {"item_id": "src.md", "has_evidence": true}, "examples": {"item_id": "src.md", "has_evidence": true}, "related_concepts": {"item_id": "src.md", "has_evidence": true}, "references": {"item_id": "src.md", "has_evidence": true}}
+      }
+    ]
+  },
+  "expected": {
+    "written_count_min": 0,
+    "blocked_count_min": 1
+  }
+}

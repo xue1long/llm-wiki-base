@@ -1,0 +1,28 @@
+{
+  "id": "stage7-02",
+  "stage": "stage7_write",
+  "description": "Three pages written.",
+  "input": {
+    "pages": [
+      {
+        "id": "p-topic-a", "title": "Topic A", "sources": ["src-a.md"],
+        "slots": {"definition": "Topic A definition.", "characteristics": "char", "examples": "ex", "related_concepts": "rc", "references": "ref"},
+        "evidence": {"definition": {"item_id": "src-a.md", "has_evidence": true}, "characteristics": {"item_id": "src-a.md", "has_evidence": true}, "examples": {"item_id": "src-a.md", "has_evidence": true}, "related_concepts": {"item_id": "src-a.md", "has_evidence": true}, "references": {"item_id": "src-a.md", "has_evidence": true}}
+      },
+      {
+        "id": "p-topic-b", "title": "Topic B", "sources": ["src-b.md"],
+        "slots": {"definition": "Topic B definition.", "characteristics": "char", "examples": "ex", "related_concepts": "rc", "references": "ref"},
+        "evidence": {"definition": {"item_id": "src-b.md", "has_evidence": true}, "characteristics": {"item_id": "src-b.md", "has_evidence": true}, "examples": {"item_id": "src-b.md", "has_evidence": true}, "related_concepts": {"item_id": "src-b.md", "has_evidence": true}, "references": {"item_id": "src-b.md", "has_evidence": true}}
+      },
+      {
+        "id": "p-topic-c", "title": "Topic C", "sources": ["src-c.md"],
+        "slots": {"definition": "Topic C definition.", "characteristics": "char", "examples": "ex", "related_concepts": "rc", "references": "ref"},
+        "evidence": {"definition": {"item_id": "src-c.md", "has_evidence": true}, "characteristics": {"item_id": "src-c.md", "has_evidence": true}, "examples": {"item_id": "src-c.md", "has_evidence": true}, "related_concepts": {"item_id": "src-c.md", "has_evidence": true}, "references": {"item_id": "src-c.md", "has_evidence": true}}
+      }
+    ]
+  },
+  "expected": {
+    "written_count_min": 3,
+    "durable_failure_log_exists": true
+  }
+}

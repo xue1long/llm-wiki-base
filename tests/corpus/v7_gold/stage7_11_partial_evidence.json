@@ -1,0 +1,23 @@
+{
+  "id": "stage7-11",
+  "stage": "stage7_write",
+  "description": "Page with partial evidence (some slots ok, some not).",
+  "input": {
+    "pages": [
+      {
+        "id": "p-partial", "title": "Partial", "sources": ["src.md"],
+        "slots": {"definition": "d", "characteristics": "c", "examples": "e", "related_concepts": "", "references": ""},
+        "evidence": {
+          "definition": {"item_id": "src.md", "has_evidence": true},
+          "characteristics": {"item_id": "src.md", "has_evidence": true},
+          "examples": {"item_id": "src.md", "has_evidence": true},
+          "related_concepts": {"item_id": "src.md", "has_evidence": false},
+          "references": {"item_id": "src.md", "has_evidence": false}
+        }
+      }
+    ]
+  },
+  "expected": {
+    "written_count_min": 1
+  }
+}

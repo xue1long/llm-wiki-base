@@ -1,0 +1,29 @@
+{
+  "id": "stage7-08",
+  "stage": "stage7_write",
+  "description": "Page with substantial body content (single long paragraph).",
+  "input": {
+    "pages": [
+      {
+        "id": "p-large", "title": "Large Page", "sources": ["src.md"],
+        "slots": {
+          "definition": "This is a substantial definition with many words describing a complex topic in detail. The definition should be long enough to constitute a paragraph but not so long as to be unwieldy in JSON serialization.",
+          "characteristics": "Multiple characteristics are listed here to show the breadth of the topic. Each characteristic is a separate thought but they all relate to the same central concept.",
+          "examples": "Here is one example that illustrates the concept. It contains enough detail to be useful as a teaching tool without being excessively long.",
+          "related_concepts": "Related concepts are mentioned in passing but the focus remains on the central topic being described in this page.",
+          "references": "Reference 1: A primary source. Reference 2: A secondary source. Reference 3: An additional source for further reading."
+        },
+        "evidence": {
+          "definition": {"item_id": "src.md", "has_evidence": true},
+          "characteristics": {"item_id": "src.md", "has_evidence": true},
+          "examples": {"item_id": "src.md", "has_evidence": true},
+          "related_concepts": {"item_id": "src.md", "has_evidence": true},
+          "references": {"item_id": "src.md", "has_evidence": true}
+        }
+      }
+    ]
+  },
+  "expected": {
+    "written_count_min": 1
+  }
+}

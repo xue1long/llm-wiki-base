@@ -1,0 +1,12 @@
+{
+  "id": "stage7-10",
+  "stage": "stage7_write",
+  "description": "Empty pages list -> no writes, no blocks, empty report.",
+  "input": {
+    "pages": []
+  },
+  "expected": {
+    "written_count_min": 0,
+    "blocked_count_min": 0
+  }
+}

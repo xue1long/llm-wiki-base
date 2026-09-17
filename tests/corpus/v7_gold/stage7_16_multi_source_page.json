@@ -1,0 +1,17 @@
+{
+  "id": "stage7-16",
+  "stage": "stage7_write",
+  "description": "Page with multiple sources (provenance merge).",
+  "input": {
+    "pages": [
+      {
+        "id": "p-multi-source", "title": "Multi Source", "sources": ["src-a.md", "src-b.md", "src-c.md"],
+        "slots": {"definition": "d", "characteristics": "c", "examples": "e", "related_concepts": "r", "references": "f"},
+        "evidence": {"definition": {"item_id": "src-a.md", "has_evidence": true}, "characteristics": {"item_id": "src-b.md", "has_evidence": true}, "examples": {"item_id": "src-c.md", "has_evidence": true}, "related_concepts": {"item_id": "src-a.md", "has_evidence": true}, "references": {"item_id": "src-b.md", "has_evidence": true}}
+      }
+    ]
+  },
+  "expected": {
+    "written_count_min": 1
+  }
+}

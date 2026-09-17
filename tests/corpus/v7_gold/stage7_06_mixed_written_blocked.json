@@ -1,0 +1,23 @@
+{
+  "id": "stage7-06",
+  "stage": "stage7_write",
+  "description": "Two pages: one written, one blocked.",
+  "input": {
+    "pages": [
+      {
+        "id": "p-good", "title": "Good Page", "sources": ["src.md"],
+        "slots": {"definition": "d", "characteristics": "c", "examples": "e", "related_concepts": "r", "references": "f"},
+        "evidence": {"definition": {"item_id": "src.md", "has_evidence": true}, "characteristics": {"item_id": "src.md", "has_evidence": true}, "examples": {"item_id": "src.md", "has_evidence": true}, "related_concepts": {"item_id": "src.md", "has_evidence": true}, "references": {"item_id": "src.md", "has_evidence": true}}
+      },
+      {
+        "id": "p-bad", "title": "Bad Page", "sources": ["src.md"],
+        "slots": {"definition": "", "characteristics": "", "examples": "", "related_concepts": "", "references": ""},
+        "evidence": {"definition": {"item_id": "src.md", "has_evidence": false}, "characteristics": {"item_id": "src.md", "has_evidence": false}, "examples": {"item_id": "src.md", "has_evidence": false}, "related_concepts": {"item_id": "src.md", "has_evidence": false}, "references": {"item_id": "src.md", "has_evidence": false}}
+      }
+    ]
+  },
+  "expected": {
+    "written_count_min": 2,
+    "durable_failure_log_exists": true
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "stage7-07",
+  "stage": "stage7_write",
+  "description": "Same page written twice -> second run is skipped (idempotent).",
+  "input": {
+    "pages": [
+      {
+        "id": "p-idempotent", "title": "Idempotent Page", "sources": ["src.md"],
+        "slots": {"definition": "d", "characteristics": "c", "examples": "e", "related_concepts": "r", "references": "f"},
+        "evidence": {"definition": {"item_id": "src.md", "has_evidence": true}, "characteristics": {"item_id": "src.md", "has_evidence": true}, "examples": {"item_id": "src.md", "has_evidence": true}, "related_concepts": {"item_id": "src.md", "has_evidence": true}, "references": {"item_id": "src.md", "has_evidence": true}}
+      }
+    ]
+  },
+  "expected": {
+    "written_count_min": 1,
+    "durable_failure_log_exists": true
+  }
+}

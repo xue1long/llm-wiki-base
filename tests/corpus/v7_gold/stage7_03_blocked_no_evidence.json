@@ -1,0 +1,23 @@
+{
+  "id": "stage7-03",
+  "stage": "stage7_write",
+  "description": "Page with empty body (all slot bodies empty) -> wiki_writer still writes (Guard C is not triggered by has_evidence=False on SlotEvidence; it only triggers on missing slot_evidence entirely).",
+  "input": {
+    "pages": [
+      {
+        "id": "p-no-evidence", "title": "No Evidence Page", "sources": ["src.md"],
+        "slots": {"definition": "", "characteristics": "", "examples": "", "related_concepts": "", "references": ""},
+        "evidence": {
+          "definition": {"item_id": "src.md", "has_evidence": false},
+          "characteristics": {"item_id": "src.md", "has_evidence": false},
+          "examples": {"item_id": "src.md", "has_evidence": false},
+          "related_concepts": {"item_id": "src.md", "has_evidence": false},
+          "references": {"item_id": "src.md", "has_evidence": false}
+        }
+      }
+    ]
+  },
+  "expected": {
+    "written_count_min": 1
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "stage7-12",
+  "stage": "stage7_write",
+  "description": "Six pages written in a single commit.",
+  "input": {
+    "pages": [
+      {"id": "p-0", "title": "Topic 0", "sources": ["src0.md"],
+        "slots": {"definition": "Topic 0 definition.", "characteristics": "c", "examples": "e", "related_concepts": "r", "references": "f"},
+        "evidence": {"definition": {"item_id": "src0.md", "has_evidence": true}, "characteristics": {"item_id": "src0.md", "has_evidence": true}, "examples": {"item_id": "src0.md", "has_evidence": true}, "related_concepts": {"item_id": "src0.md", "has_evidence": true}, "references": {"item_id": "src0.md", "has_evidence": true}}},
+      {"id": "p-1", "title": "Topic 1", "sources": ["src1.md"],
+        "slots": {"definition": "Topic 1 definition.", "characteristics": "c", "examples": "e", "related_concepts": "r", "references": "f"},
+        "evidence": {"definition": {"item_id": "src1.md", "has_evidence": true}, "characteristics": {"item_id": "src1.md", "has_evidence": true}, "examples": {"item_id": "src1.md", "has_evidence": true}, "related_concepts": {"item_id": "src1.md", "has_evidence": true}, "references": {"item_id": "src1.md", "has_evidence": true}}},
+      {"id": "p-2", "title": "Topic 2", "sources": ["src2.md"],
+        "slots": {"definition": "Topic 2 definition.", "characteristics": "c", "examples": "e", "related_concepts": "r", "references": "f"},
+        "evidence": {"definition": {"item_id": "src2.md", "has_evidence": true}, "characteristics": {"item_id": "src2.md", "has_evidence": true}, "examples": {"item_id": "src2.md", "has_evidence": true}, "related_concepts": {"item_id": "src2.md", "has_evidence": true}, "references": {"item_id": "src2.md", "has_evidence": true}}},
+      {"id": "p-3", "title": "Topic 3", "sources": ["src3.md"],
+        "slots": {"definition": "Topic 3 definition.", "characteristics": "c", "examples": "e", "related_concepts": "r", "references": "f"},
+        "evidence": {"definition": {"item_id": "src3.md", "has_evidence": true}, "characteristics": {"item_id": "src3.md", "has_evidence": true}, "examples": {"item_id": "src3.md", "has_evidence": true}, "related_concepts": {"item_id": "src3.md", "has_evidence": true}, "references": {"item_id": "src3.md", "has_evidence": true}}},
+      {"id": "p-4", "title": "Topic 4", "sources": ["src4.md"],
+        "slots": {"definition": "Topic 4 definition.", "characteristics": "c", "examples": "e", "related_concepts": "r", "references": "f"},
+        "evidence": {"definition": {"item_id": "src4.md", "has_evidence": true}, "characteristics": {"item_id": "src4.md", "has_evidence": true}, "examples": {"item_id": "src4.md", "has_evidence": true}, "related_concepts": {"item_id": "src4.md", "has_evidence": true}, "references": {"item_id": "src4.md", "has_evidence": true}}},
+      {"id": "p-5", "title": "Topic 5", "sources": ["src5.md"],
+        "slots": {"definition": "Topic 5 definition.", "characteristics": "c", "examples": "e", "related_concepts": "r", "references": "f"},
+        "evidence": {"definition": {"item_id": "src5.md", "has_evidence": true}, "characteristics": {"item_id": "src5.md", "has_evidence": true}, "examples": {"item_id": "src5.md", "has_evidence": true}, "related_concepts": {"item_id": "src5.md", "has_evidence": true}, "references": {"item_id": "src5.md", "has_evidence": true}}}
+    ]
+  },
+  "expected": {
+    "written_count_min": 6
+  }
+}

@@ -201,3 +201,15 @@ def test_stage5_corpus_meets_count_threshold():
     assert len(fixtures) >= 16, (
         f"Stage 5 corpus has {len(fixtures)} fixtures, need >= 16 per master plan §5"
     )
+
+
+def test_stage7_corpus_meets_count_threshold():
+    """Stage 7 corpus >= 16 fixtures (master plan §5 Task 46)."""
+    fixtures = []
+    for p in CorpusLoader.discover(DEFAULT_CORPUS_ROOT):
+        fx = CorpusLoader.load(p)
+        if fx is not None and fx.stage == "stage7_write":
+            fixtures.append(fx)
+    assert len(fixtures) >= 16, (
+        f"Stage 7 corpus has {len(fixtures)} fixtures, need >= 16 per master plan §5"
+    )

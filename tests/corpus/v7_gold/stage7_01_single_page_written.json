@@ -1,0 +1,32 @@
+{
+  "id": "stage7-01",
+  "stage": "stage7_write",
+  "description": "Single page with full evidence: written successfully.",
+  "input": {
+    "pages": [
+      {
+        "id": "p-扩句法-1",
+        "title": "扩句法",
+        "sources": ["src1.md"],
+        "slots": {
+          "definition": "扩句法通过增加动作描写让句子更具体。",
+          "characteristics": "画面感和感染力。",
+          "examples": "将\"他走进房间\"扩写。",
+          "related_concepts": "心理描写。",
+          "references": "《写作技法》。"
+        },
+        "evidence": {
+          "definition": {"item_id": "src1.md", "source_text_excerpt": "扩句法定义。", "has_evidence": true},
+          "characteristics": {"item_id": "src1.md", "source_text_excerpt": "特点。", "has_evidence": true},
+          "examples": {"item_id": "src1.md", "source_text_excerpt": "例子。", "has_evidence": true},
+          "related_concepts": {"item_id": "src1.md", "source_text_excerpt": "相关概念。", "has_evidence": true},
+          "references": {"item_id": "src1.md", "source_text_excerpt": "参考。", "has_evidence": true}
+        }
+      }
+    ]
+  },
+  "expected": {
+    "written_count_min": 1,
+    "durable_failure_log_exists": true
+  }
+}

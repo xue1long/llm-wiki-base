@@ -433,6 +433,110 @@ async def run_stage5(
     )
 
 
+def _build_concept_page_for_stage7(page_data: dict[str, Any]) -> Any:
+    """Construct a ConceptPage for Stage 7 corpus fixtures.
+
+    page_data schema:
+      - id, title, sources (list[str])
+      - slots: dict[slot_name -> body text]
+      - evidence: dict[slot_name -> {item_id, source_text_excerpt, has_evidence}]
+    """
+    from src.pipeline.v7_extract.slot_filler import (
+        ConceptPage,
+        Slot,
+        SlotEvidence,
+        CONCEPT_SLOTS,
+    )
+    slots = page_data.get("slots", {})
+    evidence = page_data.get("evidence", {})
+    slot_objs: dict[str, Slot] = {}
+    for name in CONCEPT_SLOTS:
+        body = slots.get(name, "")
+        ev = evidence.get(name, {})
+        item_id = ev.get("item_id", page_data.get("sources", ["src"])[0])
+        excerpt = ev.get("source_text_excerpt", "excerpt")
+        slot_objs[name] = Slot(
+            name=name,
+            body=body,
+            evidence=SlotEvidence(
+                item_id=item_id,
+                source_text_excerpt=excerpt,
+                has_evidence=ev.get("has_evidence", True),
+                needs_review=ev.get("needs_review", False),
+            ),
+            needs_review=ev.get("needs_review", False),
+        )
+    return ConceptPage(
+        id=page_data["id"],
+        title=page_data.get("title", page_data["id"]),
+        slots=slots,
+        sources=page_data.get("sources", ["src"]),
+        slot_evidence=slot_objs,
+        needs_review_slots=(),
+        topic_id=page_data.get("topic_id", page_data["id"]),
+    )
+
+
+def run_stage7(
+    fixture: CorpusFixture,
+    *,
+    llm: LLMClient,
+    project_root: Path,
+) -> CorpusRunResult:
+    """Run Stage 7 (WikiWriter.commit_and_index) and compare to expected.
+
+    The CorpusRunner passes a per-test project_root (tmp_path) so
+    Stage 7's filesystem side effects are isolated to that root.
+
+    Fixture input:
+      - pages: list of page dicts (see _build_concept_page_for_stage7)
+    Expected:
+      - written_count_min: int
+      - blocked_count_min: int
+      - durable_failure_log_exists: bool
+    """
+    from src.pipeline.v7_extract.wiki_writer import WikiWriter
+
+    pages_data = fixture.input.get("pages", [])
+    pages = [_build_concept_page_for_stage7(p) for p in pages_data]
+
+    project_root.mkdir(parents=True, exist_ok=True)
+    (project_root / "wiki" / "concepts").mkdir(parents=True, exist_ok=True)
+    (project_root / ".index").mkdir(parents=True, exist_ok=True)
+
+    writer = WikiWriter(project_root, pipeline_fingerprint="fp-corpus")
+    durable_failure_path = project_root / ".index" / "durable_failure.jsonl"
+    writer.durable_failure_path = durable_failure_path
+    report = writer.commit_and_index(pages)
+
+    diffs: list[str] = []
+    n_written = len(report.written)
+    n_blocked = len(report.blocked)
+    if "written_count_min" in fixture.expected:
+        min_n = int(fixture.expected["written_count_min"])
+        if n_written < min_n:
+            diffs.append(f"  expected >= {min_n} written; got {n_written}")
+    if "blocked_count_min" in fixture.expected:
+        min_n = int(fixture.expected["blocked_count_min"])
+        if n_blocked < min_n:
+            diffs.append(f"  expected >= {min_n} blocked; got {n_blocked}")
+    if fixture.expected.get("durable_failure_log_exists") is True:
+        if not durable_failure_path.exists():
+            diffs.append("  expected durable_failure.jsonl to exist")
+    elif fixture.expected.get("durable_failure_log_exists") is False:
+        if durable_failure_path.exists() and durable_failure_path.read_text(
+            encoding="utf-8"
+        ).strip():
+            diffs.append("  expected durable_failure.jsonl to be empty/absent")
+
+    return CorpusRunResult(
+        fixture_id=fixture.id,
+        stage=fixture.stage,
+        passed=not diffs,
+        diff="\n".join(diffs),
+    )
+
+
 # Per-stage dispatcher. New stages add their runner here.
 STAGE_RUNNERS: dict[str, Callable[..., Awaitable[CorpusRunResult]]] = {
     "stage1_classify": run_stage1,
@@ -440,6 +544,7 @@ STAGE_RUNNERS: dict[str, Callable[..., Awaitable[CorpusRunResult]]] = {
     "stage3_completeness": run_stage3,
     "stage4_cluster": run_stage4,
     "stage5_extract_claims": run_stage5,
+    "stage7_write": run_stage7,
 }
 
 
@@ -451,8 +556,9 @@ class CorpusRunner:
     tests can assert pass/fail and surface a useful diff on failure.
     """
 
-    def __init__(self, *, llm: LLMClient) -> None:
+    def __init__(self, *, llm: LLMClient, project_root: Path | None = None) -> None:
         self.llm = llm
+        self.project_root = project_root
 
     def run(self, fixtures: Sequence[CorpusFixture]) -> list[CorpusRunResult]:
         return self._run_sync(fixtures)
@@ -469,7 +575,20 @@ class CorpusRunner:
                 ))
                 continue
             try:
-                result = asyncio.run(runner(fx, llm=self.llm))
+                # Stage 7 needs a project root; other stages ignore it.
+                # Stage 7's run_stage7 is sync; everything else is async.
+                if fx.stage == "stage7_write":
+                    if self.project_root is None:
+                        # No project_root supplied by caller — fall back to
+                        # creating a fresh staging dir (caller should
+                        # pass tmp_path for hermetic tests).
+                        import tempfile
+                        proj = Path(tempfile.mkdtemp(prefix="stage7_"))
+                    else:
+                        proj = self.project_root
+                    result = runner(fx, llm=self.llm, project_root=proj)
+                else:
+                    result = asyncio.run(runner(fx, llm=self.llm))
             except Exception as e:  # noqa: BLE001
                 results.append(CorpusRunResult(
                     fixture_id=fx.id, stage=fx.stage, passed=False,

@@ -1,0 +1,30 @@
+{
+  "id": "stage7-04",
+  "stage": "stage7_write",
+  "description": "Page with needs_review slot -> blocked by Guard B.",
+  "input": {
+    "pages": [
+      {
+        "id": "p-needs-review", "title": "Needs Review", "sources": ["src.md"],
+        "slots": {
+          "definition": "Some def.",
+          "characteristics": "needs review here",
+          "examples": "ex",
+          "related_concepts": "rc",
+          "references": "ref"
+        },
+        "evidence": {
+          "definition": {"item_id": "src.md", "has_evidence": true},
+          "characteristics": {"item_id": "src.md", "has_evidence": true, "needs_review": true},
+          "examples": {"item_id": "src.md", "has_evidence": true},
+          "related_concepts": {"item_id": "src.md", "has_evidence": true},
+          "references": {"item_id": "src.md", "has_evidence": true}
+        }
+      }
+    ]
+  },
+  "expected": {
+    "written_count_min": 0,
+    "blocked_count_min": 1
+  }
+}
