@@ -1105,6 +1105,64 @@ B-T1 偏差记录（代码 + docstring 双标注）：
   - 未 push 到 origin：`git log origin/codex/book-series-target..HEAD` 显示本地领先 16 commit（截至本 commit 时）；按 AGENTS.md / 项目 SOP 默认本地，等用户明示再 push
 
 **下一步**（如需继续）：
-- Task 34–45 第二批/第三批（canonical claims / Stage 4 reviewer / Stage 6R semantic reviewer / StructuralScanner / HTML 解析 / canonical claim projection）
-- Task 46–51 第四批（gold corpus / 长期稳定性 / 迁移工具）
 - cli.py 接线 `reconciliation_cmd.register(subparsers)` —— 主会话可独立做，无需新 plan
+
+### Master plan 第二批 / 第三批 / 第四批 完成（Tasks 34–51，2026-09-17）
+
+Master plan §5 的后三批路线图（第二批 7 个 / 第三批 5 个 / 第四批 6 个 = 18 个 Task）已全部落地。
+**累计 master plan 完成度 51 / 51**。
+
+**第二批（Tasks 34–40，7 commit）**
+
+| Task | Commit | 主题 |
+|---|---|---|
+| 34 | `8c449251` | `CanonicalClaim` 模型 + Phase 2 claim reconciliation（`canonical_claim_models.py` / `canonical_claim_registry.py` / `claim_resolver.py` + `claim_resolve.toml`）|
+| 35 | `d0cc1476` | Stage 4 reviewer（HIGH-risk topic candidate）——`topic_reviewer.py` + 4 态 verdict，low-risk 免 LLM |
+| 36 | `69bfead4` | Stage 6R semantic reviewer（HIGH-risk relation）——`relation_reviewer.py` + 4 态 verdict |
+| 37 | `1e35f351` | `clusterer_fingerprint` 接入 `_current_pipeline_fingerprint` 调用点（此前 clusterer_fp 恒为空，cluster prompt 升级不会触发重审）|
+| 38 | `41ee3b7a` | Stage 5 reviewer cache（`ReviewerCache` + `.index/reviewer_cache.jsonl`，全命中时不调 LLM）|
+| 39 | `4d147864` | `WikiWriter.rebuild_index()` 从磁盘重建 index.md |
+| 40 | `20b8c29a` | `repair_queue_projections()` —— pending log 重投影 + 原子重写 |
+
+**第三批（Tasks 41–45，5 commit）**
+
+| Task | Commit | 主题 |
+|---|---|---|
+| 41 | `e6adc910` | `structural_scanner.py` —— 确定性 markdown 结构扫描（heading / code fence / list / blockquote / hr）+ `blocks_to_fingerprint` |
+| 42 | `63031d5a` | `window_resolver.py` —— bounded window（`MAX_WINDOW_CHARS=1500`）+ LLM 受控 verdict（keep/split/merge/noise/unresolved）|
+| 43 | `a43902dc` | `analysis_view.py` —— HTML → rendered text + 双向 offset 映射（stdlib `html.parser`，无新依赖）|
+| 44 | `b037e4bb` | `canonical_claim_projection.py` —— canonical view 投影（SAME/OVERLAP/CONFLICT/SINGLE + evidence dedup）|
+| 45 | `ee77acd6` | `canonical_relations.py` —— page 级 relation 投影到 canonical 级（对称折叠 / 同 canonical 跳过）|
+
+**第四批（Tasks 46–51，10 commit）**
+
+| Task | Commit | 主题 |
+|---|---|---|
+| 47 | `971f942c` | Stage 4 identity stability（5 测试：重跑同 source → 同 `topic_id`）|
+| 48 | `11f841b8` | `stage5_metrics.py` —— `claim_support_ratio` 长期指标（JSONL + read_recent + aggregate_average）|
+| 49 | `cab6f5ab` | Stage 7 fault injection 补全至 **6 个 crash point**（PREPARED / PUBLISHING / CHECKPOINTING / INDEXING / FINALIZING / durable-IO）|
+| 50 | `c2ecc877` | `drift_monitor.py` —— canonical / stale / tombstoned 计数 + fingerprint drift + recent unresolved |
+| 51 | `c3739a43` | `migrate_pages.py` —— 旧 page → canonical_id 迁移工具（默认 dry-run，`dry_run=False` 才写盘）|
+| 46 c1 | `1539a08f` | gold corpus 框架（loader / runner / dispatch）+ Stage 1 fixture × 3 |
+| 46 c2 | `b0b05f8d` | Stage 1 corpus 补足 16 |
+| 46 c3 | `4392f1d0` | Stage 2 corpus 16 + `llm_responses` schema |
+| 46 c4 | `f1715cb6` | Stage 3 + Stage 4 corpus 各 16 |
+| 46 c5 | `f768847d` | Stage 5 corpus 16 |
+| 46 c6 | `9f703533` | Stage 7 corpus 16 |
+| 46 c7 | `71a162c0` | Stage 6R + Reconciliation corpus 各 16 + 聚合收口 gate |
+
+**Task 46 验收**：`tests/corpus/v7_gold/` **128 个 fixture，8 个 stage 各 16 个**
+（Stage 1/2/3/4/5/7 + Stage 6R + Reconciliation）；全部 fixture 逐条实测通过；
+15 个 corpus 测试全绿，其中 `test_all_eight_stages_have_a_corpus` 是 master plan §5 的收口 gate。
+
+**实施中发现并修正的语义**（详见 Task 46 plan §6）：
+1. `segment_articles` 在 boundary 短于 content 时补尾部 filler article —— 单 article fixture 的 `end` 必须覆盖整个 content。
+2. `WikiWriter` Guard C（"no evidence"）只看 slot_evidence **是否存在**，不看 `SlotEvidence.has_evidence=False`；空 body 页仍会写入。可靠 block 触发只有 Guard A（`__other__`）与 Guard B（`needs_review_slots`）。
+3. `reconcile_pages` 用 `getattr(page, "id"/"title"/"body")` 读页对象，**不接受 dict**（corpus runner 负责包装）。
+4. `ArticleBoundary` 坐标字段是 `char_start` / `char_end`（非 `start`/`end`）。
+5. corpus fixture 必须是**纯 JSON**，不能写 Python 表达式（loader 会静默跳过解析失败文件）。
+
+**已知边界 / 未做**：
+- `cli.py` 仍未接线 `reconciliation_cmd.register(subparsers)`（不需要新 plan，主会话可独立完成）。
+- 旧 wiki page 迁移（Task 51 工具已就绪，但**未对真实项目执行**；按用户此前决策「不管旧 wiki」）。
+- Stage 6（legacy 关系后处理）不在 corpus 范围内——其继任者是 Stage 6R，已覆盖。
