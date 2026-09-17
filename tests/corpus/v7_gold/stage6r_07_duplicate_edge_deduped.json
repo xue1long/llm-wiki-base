@@ -1,0 +1,16 @@
+{
+  "id": "stage6r-07",
+  "stage": "stage6r_relations",
+  "description": "Duplicate target page entry -> identical edge deduplicated to one.",
+  "input": {
+    "pages": [
+      {"id": "p-1", "title": "一号概念", "slots": {"definition": "二号概念"}},
+      {"id": "p-2", "title": "二号概念", "slots": {"definition": "二号内容"}},
+      {"id": "p-2", "title": "二号概念", "slots": {"definition": "二号内容"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 1,
+    "relation_count_max": 1
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "recon-12",
+  "stage": "reconciliation",
+  "description": "Seeded canonical that the page does NOT match -> no candidates -> processed only.",
+  "input": {
+    "pages": [{"id": "p-unrelated", "title": "完全无关的概念", "body": "无关说明文本"}],
+    "canonical_seed": [
+      {"canonical_id": "c-seed-1", "preferred_label": "扩句法", "member_page_ids": [], "aliases": ["扩句法"]}
+    ],
+    "llm_verdicts": []
+  },
+  "expected": {
+    "processed_min": 1,
+    "created_new_min": 0,
+    "joined_existing_min": 0
+  }
+}

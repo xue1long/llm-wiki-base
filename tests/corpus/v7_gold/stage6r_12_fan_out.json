@@ -1,0 +1,16 @@
+{
+  "id": "stage6r-12",
+  "stage": "stage6r_relations",
+  "description": "One source mentions two distinct targets -> two relations.",
+  "input": {
+    "pages": [
+      {"id": "p-parent", "title": "母概念", "slots": {"related_concepts": "子概念甲 子概念乙"}},
+      {"id": "p-child-a", "title": "子概念甲", "slots": {"definition": "甲说明"}},
+      {"id": "p-child-b", "title": "子概念乙", "slots": {"definition": "乙说明"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 2,
+    "relation_count_max": 2
+  }
+}

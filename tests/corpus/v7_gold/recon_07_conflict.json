@@ -1,0 +1,17 @@
+{
+  "id": "recon-07",
+  "stage": "reconciliation",
+  "description": "Seeded canonical + CONFLICT verdict -> handled without crash.",
+  "input": {
+    "pages": [{"id": "p-conf", "title": "扩句法", "body": "扩句法说明文本"}],
+    "canonical_seed": [
+      {"canonical_id": "c-seed-1", "preferred_label": "扩句法", "member_page_ids": [], "aliases": ["扩句法"]}
+    ],
+    "llm_verdicts": [
+      {"canonical_id": "c-seed-1", "decision": "conflict", "confidence": 0.7}
+    ]
+  },
+  "expected": {
+    "processed_min": 1
+  }
+}

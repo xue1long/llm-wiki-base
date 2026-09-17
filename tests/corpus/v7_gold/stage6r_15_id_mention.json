@@ -1,0 +1,15 @@
+{
+  "id": "stage6r-15",
+  "stage": "stage6r_relations",
+  "description": "Title mentions the target's page id -> relation detected via id match.",
+  "input": {
+    "pages": [
+      {"id": "p-src", "title": "See p-tgt for details", "slots": {}},
+      {"id": "p-tgt", "title": "Target Concept", "slots": {"definition": "target body"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 1,
+    "relation_predicates_subset": ["supported_by"]
+  }
+}

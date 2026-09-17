@@ -1,0 +1,18 @@
+{
+  "id": "stage6r-14",
+  "stage": "stage6r_relations",
+  "description": "Five-page chain -> four relations.",
+  "input": {
+    "pages": [
+      {"id": "p-1", "title": "第一环", "slots": {"related_concepts": "第二环"}},
+      {"id": "p-2", "title": "第二环", "slots": {"related_concepts": "第三环"}},
+      {"id": "p-3", "title": "第三环", "slots": {"related_concepts": "第四环"}},
+      {"id": "p-4", "title": "第四环", "slots": {"related_concepts": "第五环"}},
+      {"id": "p-5", "title": "第五环", "slots": {"definition": "链尾说明"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 4,
+    "relation_count_max": 4
+  }
+}

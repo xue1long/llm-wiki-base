@@ -1,0 +1,19 @@
+{
+  "id": "recon-16",
+  "stage": "reconciliation",
+  "description": "Two seeded canonicals; DISTINCT joins the first -> one new canonical created.",
+  "input": {
+    "pages": [{"id": "p-multi", "title": "扩句法", "body": "扩句法说明"}],
+    "canonical_seed": [
+      {"canonical_id": "c-seed-a", "preferred_label": "扩句法", "member_page_ids": [], "aliases": ["扩句法"]},
+      {"canonical_id": "c-seed-b", "preferred_label": "心理描写", "member_page_ids": [], "aliases": ["心理描写"]}
+    ],
+    "llm_verdicts": [
+      {"canonical_id": "c-seed-a", "decision": "distinct", "confidence": 0.88}
+    ]
+  },
+  "expected": {
+    "processed_min": 1,
+    "created_new_min": 1
+  }
+}

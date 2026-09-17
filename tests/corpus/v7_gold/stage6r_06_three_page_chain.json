@@ -1,0 +1,16 @@
+{
+  "id": "stage6r-06",
+  "stage": "stage6r_relations",
+  "description": "Three-page chain a->b->c -> two relations.",
+  "input": {
+    "pages": [
+      {"id": "p-a", "title": "甲概念", "slots": {"related_concepts": "乙概念"}},
+      {"id": "p-b", "title": "乙概念", "slots": {"related_concepts": "丙概念"}},
+      {"id": "p-c", "title": "丙概念", "slots": {"definition": "丙概念说明"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 2,
+    "relation_count_max": 2
+  }
+}

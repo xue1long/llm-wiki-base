@@ -1,0 +1,16 @@
+{
+  "id": "stage6r-16",
+  "stage": "stage6r_relations",
+  "description": "Both predicate kinds present: marker source yields refines, plain source yields supported_by.",
+  "input": {
+    "pages": [
+      {"id": "p-base", "title": "扩句法", "slots": {"definition": "扩句法基础"}},
+      {"id": "p-adv", "title": "进阶扩句法", "slots": {"definition": "扩句法"}},
+      {"id": "p-xin", "title": "心理描写", "slots": {"related_concepts": "扩句法"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 2,
+    "relation_predicates_subset": ["refines", "supported_by"]
+  }
+}

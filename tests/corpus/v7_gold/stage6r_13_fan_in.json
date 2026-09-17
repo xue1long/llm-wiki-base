@@ -1,0 +1,16 @@
+{
+  "id": "stage6r-13",
+  "stage": "stage6r_relations",
+  "description": "Two sources both mention the same target -> two inbound relations.",
+  "input": {
+    "pages": [
+      {"id": "p-center", "title": "中心概念", "slots": {"definition": "中心说明"}},
+      {"id": "p-x", "title": "概念X", "slots": {"related_concepts": "中心概念"}},
+      {"id": "p-y", "title": "概念Y", "slots": {"related_concepts": "中心概念"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 2,
+    "relation_count_max": 2
+  }
+}

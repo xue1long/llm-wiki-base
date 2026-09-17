@@ -1,0 +1,14 @@
+{
+  "id": "stage6r-10",
+  "stage": "stage6r_relations",
+  "description": "Single page (no possible target) -> no relations.",
+  "input": {
+    "pages": [
+      {"id": "p-only", "title": "唯一概念", "slots": {"definition": "唯一说明"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 0,
+    "relation_count_max": 0
+  }
+}

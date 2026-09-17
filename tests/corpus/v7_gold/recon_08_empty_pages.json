@@ -1,0 +1,14 @@
+{
+  "id": "recon-08",
+  "stage": "reconciliation",
+  "description": "Empty pages list -> nothing processed, no crash.",
+  "input": {
+    "pages": [],
+    "canonical_seed": [],
+    "llm_verdicts": []
+  },
+  "expected": {
+    "processed_min": 0,
+    "created_new_min": 0
+  }
+}

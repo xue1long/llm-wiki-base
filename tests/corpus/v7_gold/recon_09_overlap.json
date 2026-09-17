@@ -1,0 +1,18 @@
+{
+  "id": "recon-09",
+  "stage": "reconciliation",
+  "description": "Seeded canonical + OVERLAP verdict -> page joins existing canonical.",
+  "input": {
+    "pages": [{"id": "p-overlap", "title": "扩句法", "body": "扩句法相关说明"}],
+    "canonical_seed": [
+      {"canonical_id": "c-seed-1", "preferred_label": "扩句法", "member_page_ids": [], "aliases": ["扩句法"]}
+    ],
+    "llm_verdicts": [
+      {"canonical_id": "c-seed-1", "decision": "overlap", "confidence": 0.6}
+    ]
+  },
+  "expected": {
+    "processed_min": 1,
+    "joined_existing_min": 1
+  }
+}

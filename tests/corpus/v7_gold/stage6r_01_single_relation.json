@@ -1,0 +1,15 @@
+{
+  "id": "stage6r-01",
+  "stage": "stage6r_relations",
+  "description": "Source page mentions target's title -> one supported_by relation.",
+  "input": {
+    "pages": [
+      {"id": "p-kuoju", "title": "扩句法", "slots": {"definition": "扩句法", "related_concepts": "心理描写"}},
+      {"id": "p-xinli", "title": "心理描写", "slots": {"definition": "心理描写技巧"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 1,
+    "relation_predicates_subset": ["supported_by"]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "recon-14",
+  "stage": "reconciliation",
+  "description": "Seeded canonical already has a member; SAME adds a second member.",
+  "input": {
+    "pages": [{"id": "p-second", "title": "扩句法", "body": "扩句法的第二份说明"}],
+    "canonical_seed": [
+      {"canonical_id": "c-seed-1", "preferred_label": "扩句法", "member_page_ids": ["p-first"], "aliases": ["扩句法"]}
+    ],
+    "llm_verdicts": [
+      {"canonical_id": "c-seed-1", "decision": "same", "confidence": 0.9}
+    ]
+  },
+  "expected": {
+    "processed_min": 1,
+    "joined_existing_min": 1
+  }
+}

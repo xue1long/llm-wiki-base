@@ -144,6 +144,31 @@ LLM is `FakeLLMClient` by default (deterministic); per-fixture can specify `expe
 
 ## 6. Status
 
-draft → in-progress（Commit 1）→ 后续 commit 推进其他 stage fixtures → completed（当每 stage ≥ 16）
+**completed**（2026-09-17）
 
-**本 Session 仅完成 Commit 1**（runner + Stage 1 fixture）。剩余 7 stage × 16 fixture = 112 fixture 留待后续 subagent / Session 推进。
+| Commit | 内容 |
+|---|---|
+| `1539a08f` | Commit 1: 框架（loader + runner + dispatch）+ Stage 1 fixture × 3 + 6 tests |
+| `b0b05f8d` | Commit 2: Stage 1 fixture × 13（凑足 16）+ Stage 1 count gate |
+| `4392f1d0` | Commit 3: Stage 2 runner + fixture × 16 + `llm_responses` schema 升级 |
+| `f1715cb6` | Commit 4: Stage 3 + Stage 4 runner + 各 16 fixture |
+| `f768847d` | Commit 5: Stage 5 runner（`extract_slot_claims`）+ 16 fixture |
+| `9f703533` | Commit 6: Stage 7 runner（`commit_and_index`, sync）+ 16 fixture |
+| （本 commit） | Commit 7: Stage 6R + Reconciliation runner + 各 16 fixture + 聚合 gate |
+
+**最终验收**：**128 fixtures，8 stage 各 16 个**（Stage 1/2/3/4/5/7 + Stage 6R + Reconciliation）。
+全部 fixture 实测通过（CorpusRunner 逐条 PASS）；15 个 corpus 测试全绿，
+其中 `test_all_eight_stages_have_a_corpus` 是 master plan §5 的收口 gate。
+
+**实施中发现并修正的语义**（记录以免后人重踩）：
+
+1. `segment_articles` 在 LLM 给出的 boundary 短于 content 时会补一个尾部 filler
+   article —— 单 article fixture 的 `end` 必须覆盖整个 content 长度。
+2. `WikiWriter` 的 Guard C（"no evidence"）只看 **是否存在 slot_evidence**，
+   不看 `SlotEvidence.has_evidence=False`；空 body 的页**仍会被写入**。
+   可靠的 block 触发只有 Guard A（`__other__`）与 Guard B（`needs_review_slots`）。
+3. `reconcile_pages` 通过 `getattr(page, "id"/"title"/"body")` 读取页对象，
+   不接受 dict；corpus runner 负责把 fixture 的 dict 包成属性对象。
+4. `ArticleBoundary` 的坐标字段是 `char_start` / `char_end`（非 `start`/`end`）。
+5. Fixture 文件必须是**纯 JSON**——不能写 Python 表达式（`"A" * 5000`、
+   list comprehension 等），loader 会静默跳过解析失败的文件。

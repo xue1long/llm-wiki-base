@@ -1,0 +1,18 @@
+{
+  "id": "recon-05",
+  "stage": "reconciliation",
+  "description": "Seeded canonical + ALIAS verdict -> page joins existing canonical (alias link).",
+  "input": {
+    "pages": [{"id": "p-alias", "title": "扩句法", "body": "扩句法说明文本"}],
+    "canonical_seed": [
+      {"canonical_id": "c-seed-1", "preferred_label": "扩句法", "member_page_ids": [], "aliases": ["扩句法"]}
+    ],
+    "llm_verdicts": [
+      {"canonical_id": "c-seed-1", "decision": "alias", "confidence": 0.8}
+    ]
+  },
+  "expected": {
+    "processed_min": 1,
+    "joined_existing_min": 1
+  }
+}

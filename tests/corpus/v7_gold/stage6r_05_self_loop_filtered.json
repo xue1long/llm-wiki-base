@@ -1,0 +1,14 @@
+{
+  "id": "stage6r-05",
+  "stage": "stage6r_relations",
+  "description": "Single self-referencing page -> self-loop filtered -> no relations.",
+  "input": {
+    "pages": [
+      {"id": "p-self", "title": "自指概念", "slots": {"definition": "自指概念"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 0,
+    "relation_count_max": 0
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "recon-03",
+  "stage": "reconciliation",
+  "description": "Seeded canonical + DISTINCT verdict -> new canonical created.",
+  "input": {
+    "pages": [{"id": "p-new", "title": "扩句法", "body": "扩句法说明文本"}],
+    "canonical_seed": [
+      {"canonical_id": "c-seed-1", "preferred_label": "扩句法", "member_page_ids": [], "aliases": ["扩句法"]}
+    ],
+    "llm_verdicts": [
+      {"canonical_id": "c-seed-1", "decision": "distinct", "confidence": 0.9}
+    ]
+  },
+  "expected": {
+    "processed_min": 1,
+    "created_new_min": 1
+  }
+}

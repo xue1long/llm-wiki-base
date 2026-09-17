@@ -1,0 +1,15 @@
+{
+  "id": "stage6r-08",
+  "stage": "stage6r_relations",
+  "description": "Source mentions a string that is not any page -> no relations.",
+  "input": {
+    "pages": [
+      {"id": "p-alpha", "title": "概念甲", "slots": {"definition": "幽灵概念说明"}},
+      {"id": "p-beta", "title": "概念乙", "slots": {"definition": "乙的说明"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 0,
+    "relation_count_max": 0
+  }
+}

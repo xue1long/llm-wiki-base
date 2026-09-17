@@ -1,0 +1,18 @@
+{
+  "id": "recon-13",
+  "stage": "reconciliation",
+  "description": "Unicode labels (CJK + emoji): DISTINCT creates a new canonical.",
+  "input": {
+    "pages": [{"id": "p-uni", "title": "🚀 火箭技巧", "body": "火箭技巧说明"}],
+    "canonical_seed": [
+      {"canonical_id": "c-uni-1", "preferred_label": "🚀 火箭技巧", "member_page_ids": [], "aliases": ["🚀 火箭技巧"]}
+    ],
+    "llm_verdicts": [
+      {"canonical_id": "c-uni-1", "decision": "distinct", "confidence": 0.9}
+    ]
+  },
+  "expected": {
+    "processed_min": 1,
+    "created_new_min": 1
+  }
+}

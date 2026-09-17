@@ -213,3 +213,57 @@ def test_stage7_corpus_meets_count_threshold():
     assert len(fixtures) >= 16, (
         f"Stage 7 corpus has {len(fixtures)} fixtures, need >= 16 per master plan §5"
     )
+
+
+def test_stage6r_corpus_meets_count_threshold():
+    """Stage 6R corpus >= 16 fixtures (master plan §5 Task 46)."""
+    fixtures = []
+    for p in CorpusLoader.discover(DEFAULT_CORPUS_ROOT):
+        fx = CorpusLoader.load(p)
+        if fx is not None and fx.stage == "stage6r_relations":
+            fixtures.append(fx)
+    assert len(fixtures) >= 16, (
+        f"Stage 6R corpus has {len(fixtures)} fixtures, need >= 16 per master plan §5"
+    )
+
+
+def test_reconciliation_corpus_meets_count_threshold():
+    """Reconciliation corpus >= 16 fixtures (master plan §5 Task 46)."""
+    fixtures = []
+    for p in CorpusLoader.discover(DEFAULT_CORPUS_ROOT):
+        fx = CorpusLoader.load(p)
+        if fx is not None and fx.stage == "reconciliation":
+            fixtures.append(fx)
+    assert len(fixtures) >= 16, (
+        f"Reconciliation corpus has {len(fixtures)} fixtures, need >= 16 per master plan §5"
+    )
+
+
+def test_all_eight_stages_have_a_corpus():
+    """Master plan §5 Task 46 closure: all 8 stages covered, each >= 16.
+
+    Stage list: Stage 1-5, Stage 7, Stage 6R, Reconciliation. Stage 6
+    (legacy relation post-processing) is out of scope — its successor is
+    Stage 6R, which is covered.
+    """
+    expected_stages = {
+        "stage1_classify",
+        "stage2_segment",
+        "stage3_completeness",
+        "stage4_cluster",
+        "stage5_extract_claims",
+        "stage7_write",
+        "stage6r_relations",
+        "reconciliation",
+    }
+    counts: dict[str, int] = {}
+    for p in CorpusLoader.discover(DEFAULT_CORPUS_ROOT):
+        fx = CorpusLoader.load(p)
+        if fx is None:
+            continue
+        counts[fx.stage] = counts.get(fx.stage, 0) + 1
+
+    missing = expected_stages - set(counts)
+    assert not missing, f"stages with no corpus: {sorted(missing)}"
+    thin = {s: counts[s] for s in expected_stages if counts[s] < 16}
+    assert not thin, f"stages below the 16-fixture threshold: {thin}"

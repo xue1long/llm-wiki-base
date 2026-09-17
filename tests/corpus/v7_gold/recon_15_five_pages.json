@@ -1,0 +1,20 @@
+{
+  "id": "recon-15",
+  "stage": "reconciliation",
+  "description": "Five pages, empty registry -> all processed.",
+  "input": {
+    "pages": [
+      {"id": "p-1", "title": "概念一", "body": "说明一"},
+      {"id": "p-2", "title": "概念二", "body": "说明二"},
+      {"id": "p-3", "title": "概念三", "body": "说明三"},
+      {"id": "p-4", "title": "概念四", "body": "说明四"},
+      {"id": "p-5", "title": "概念五", "body": "说明五"}
+    ],
+    "canonical_seed": [],
+    "llm_verdicts": []
+  },
+  "expected": {
+    "processed_min": 5,
+    "created_new_min": 0
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "stage6r-11",
+  "stage": "stage6r_relations",
+  "description": "Unicode titles with emoji -> relation still detected.",
+  "input": {
+    "pages": [
+      {"id": "p-rocket", "title": "🚀 火箭技巧", "slots": {"related_concepts": "📚 阅读技巧"}},
+      {"id": "p-book", "title": "📚 阅读技巧", "slots": {"definition": "阅读方法"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 1,
+    "relation_predicates_subset": ["supported_by"]
+  }
+}

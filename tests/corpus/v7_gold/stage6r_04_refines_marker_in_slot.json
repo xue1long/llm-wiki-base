@@ -1,0 +1,15 @@
+{
+  "id": "stage6r-04",
+  "stage": "stage6r_relations",
+  "description": "Refinement marker (基础上) in characteristics slot -> refines relation.",
+  "input": {
+    "pages": [
+      {"id": "p-x", "title": "高级技巧", "slots": {"definition": "高级技巧", "characteristics": "在扩句法基础上"}},
+      {"id": "p-y", "title": "扩句法", "slots": {"definition": "扩句法"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 1,
+    "relation_predicates_subset": ["refines"]
+  }
+}

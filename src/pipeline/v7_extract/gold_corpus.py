@@ -537,6 +537,177 @@ def run_stage7(
     )
 
 
+async def run_stage6r(
+    fixture: CorpusFixture,
+    *,
+    llm: LLMClient,
+) -> CorpusRunResult:
+    """Run Stage 6R (relation extraction, deterministic heuristic path).
+
+    Fixture input:
+      - pages: list of {id, title, slots: dict[str,str]}
+
+    The runner deliberately passes ``llm=None`` so the extractor uses its
+    deterministic ``_heuristic_relations`` path (substring mention of a
+    target's id/title inside the source's title+slots; ``refines`` when a
+    refinement marker appears, else ``supported_by``). This keeps the
+    Stage 6R corpus LLM-free and reproducible.
+
+    Expected:
+      - relation_count_min / relation_count_max: int
+      - relation_predicates_subset: list[str] of PageRelation.type values
+    """
+    from src.pipeline.v7_extract.relation_extractor import extract_relations
+
+    pages = fixture.input.get("pages", [])
+    relations = extract_relations(pages, llm=None)
+
+    diffs: list[str] = []
+    n = len(relations)
+    if "relation_count_min" in fixture.expected:
+        min_n = int(fixture.expected["relation_count_min"])
+        if n < min_n:
+            diffs.append(f"  expected >= {min_n} relations; got {n}")
+    if "relation_count_max" in fixture.expected:
+        max_n = int(fixture.expected["relation_count_max"])
+        if n > max_n:
+            diffs.append(f"  expected <= {max_n} relations; got {n}")
+    if "relation_predicates_subset" in fixture.expected:
+        expected_types = set(fixture.expected["relation_predicates_subset"])
+        actual_types = {r.type for r in relations}
+        if not expected_types.issubset(actual_types):
+            diffs.append(
+                f"  expected relation types superset {sorted(expected_types)}; "
+                f"got {sorted(actual_types)}"
+            )
+
+    return CorpusRunResult(
+        fixture_id=fixture.id,
+        stage=fixture.stage,
+        passed=not diffs,
+        diff="\n".join(diffs),
+    )
+
+
+async def run_reconciliation(
+    fixture: CorpusFixture,
+    *,
+    llm: LLMClient,
+    project_root: Path,
+) -> CorpusRunResult:
+    """Run Reconciliation Phase 1 (reconcile_pages) and compare to expected.
+
+    Fixture input:
+      - pages: list of {id, title, body} (pages to reconcile)
+      - canonical_seed: optional list of {canonical_id, preferred_label,
+        member_page_ids} seeded into the registry before the run
+      - llm_verdicts: optional list of {page_id, canonical_id, decision,
+        confidence} the LLM is scripted to return per page
+
+    Expected:
+      - processed_min / created_new_min / joined_existing_min: int
+    """
+    from src.reconciliation.canonical_models import (
+        CanonicalConcept,
+        ReconciliationStatus,
+    )
+    from src.reconciliation.canonical_registry import CanonicalRegistry
+    from src.reconciliation.reconcile_job import reconcile_pages
+
+    # prompt_kind used by the identity resolver (see
+    # src/reconciliation/prompts/builtin/identity_resolve.toml).
+    identity_prompt_kind = "identity_resolve"
+
+    project_root.mkdir(parents=True, exist_ok=True)
+    (project_root / ".index").mkdir(parents=True, exist_ok=True)
+
+    # Seed canonicals if requested.
+    seed = fixture.input.get("canonical_seed", [])
+    if seed:
+        registry = CanonicalRegistry(project_root)
+        concepts = {}
+        for entry in seed:
+            cid = str(entry["canonical_id"])
+            concepts[cid] = CanonicalConcept(
+                canonical_id=cid,
+                preferred_label=str(entry.get("preferred_label", cid)),
+                member_page_ids=list(entry.get("member_page_ids", [])),
+                status=ReconciliationStatus.ACTIVE,
+                resolver_fingerprint="fp-corpus",
+            )
+        registry._save_concepts(concepts)
+
+    # Scripted LLM verdicts (one per page).
+    verdicts = fixture.input.get("llm_verdicts", [])
+    if verdicts:
+        from src.pipeline.v7_extract.llm_client import FakeLLMClient
+        batch: list[dict[str, Any]] = []
+        for v in verdicts:
+            batch.append({
+                "canonical_id": v.get("canonical_id", ""),
+                "decision": v.get("decision", "unresolved"),
+                "confidence": float(v.get("confidence", 0.5)),
+                "reason": "corpus",
+            })
+        scripter = FakeLLMClient()
+        scripter.script(identity_prompt_kind, json.dumps({"verdicts": batch}, ensure_ascii=False))
+        active_llm: Any = scripter
+    else:
+        active_llm = llm
+
+    pages_raw = fixture.input.get("pages", [])
+
+    # reconcile_pages reads page.id / page.title / page.body via getattr,
+    # so dict fixtures must be wrapped in a simple attribute holder.
+    class _Page:
+        __slots__ = ("id", "title", "body")
+
+        def __init__(self, page_id: str, title: str, body: str) -> None:
+            self.id = page_id
+            self.title = title
+            self.body = body
+
+    pages = [
+        _Page(
+            str(p.get("id", "")),
+            str(p.get("title", "")),
+            str(p.get("body", "")),
+        )
+        for p in pages_raw
+    ]
+
+    result = await reconcile_pages(
+        pages,
+        project_root=project_root,
+        llm=active_llm,
+        body_by_page={
+            str(p.get("id", "")): str(p.get("body", ""))
+            for p in pages_raw
+        },
+        resolver_fingerprint="fp-corpus",
+    )
+
+    diffs: list[str] = []
+    for key, attr in (
+        ("processed_min", "processed"),
+        ("created_new_min", "created_new"),
+        ("joined_existing_min", "joined_existing"),
+        ("unresolved_min", "unresolved"),
+    ):
+        if key in fixture.expected:
+            min_n = int(fixture.expected[key])
+            actual = int(getattr(result, attr))
+            if actual < min_n:
+                diffs.append(f"  expected {attr} >= {min_n}; got {actual}")
+
+    return CorpusRunResult(
+        fixture_id=fixture.id,
+        stage=fixture.stage,
+        passed=not diffs,
+        diff="\n".join(diffs),
+    )
+
+
 # Per-stage dispatcher. New stages add their runner here.
 STAGE_RUNNERS: dict[str, Callable[..., Awaitable[CorpusRunResult]]] = {
     "stage1_classify": run_stage1,
@@ -545,6 +716,8 @@ STAGE_RUNNERS: dict[str, Callable[..., Awaitable[CorpusRunResult]]] = {
     "stage4_cluster": run_stage4,
     "stage5_extract_claims": run_stage5,
     "stage7_write": run_stage7,
+    "stage6r_relations": run_stage6r,
+    "reconciliation": run_reconciliation,
 }
 
 
@@ -575,18 +748,25 @@ class CorpusRunner:
                 ))
                 continue
             try:
-                # Stage 7 needs a project root; other stages ignore it.
-                # Stage 7's run_stage7 is sync; everything else is async.
-                if fx.stage == "stage7_write":
+                # Stage 7 / Reconciliation need a project root; other
+                # stages ignore it. Stage 7's run_stage7 is sync;
+                # everything else is async.
+                needs_root = fx.stage in ("stage7_write", "reconciliation")
+                if needs_root:
                     if self.project_root is None:
                         # No project_root supplied by caller — fall back to
                         # creating a fresh staging dir (caller should
                         # pass tmp_path for hermetic tests).
                         import tempfile
-                        proj = Path(tempfile.mkdtemp(prefix="stage7_"))
+                        proj = Path(tempfile.mkdtemp(prefix="corpus_"))
                     else:
                         proj = self.project_root
+                if fx.stage == "stage7_write":
                     result = runner(fx, llm=self.llm, project_root=proj)
+                elif fx.stage == "reconciliation":
+                    result = asyncio.run(
+                        runner(fx, llm=self.llm, project_root=proj)
+                    )
                 else:
                     result = asyncio.run(runner(fx, llm=self.llm))
             except Exception as e:  # noqa: BLE001

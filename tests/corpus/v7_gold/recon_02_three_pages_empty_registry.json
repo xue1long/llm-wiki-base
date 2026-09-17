@@ -1,0 +1,18 @@
+{
+  "id": "recon-02",
+  "stage": "reconciliation",
+  "description": "Three pages, empty registry -> all processed, none created.",
+  "input": {
+    "pages": [
+      {"id": "p-1", "title": "概念一", "body": "概念一的说明"},
+      {"id": "p-2", "title": "概念二", "body": "概念二的说明"},
+      {"id": "p-3", "title": "概念三", "body": "概念三的说明"}
+    ],
+    "canonical_seed": [],
+    "llm_verdicts": []
+  },
+  "expected": {
+    "processed_min": 3,
+    "created_new_min": 0
+  }
+}

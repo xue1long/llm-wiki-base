@@ -1,0 +1,14 @@
+{
+  "id": "recon-01",
+  "stage": "reconciliation",
+  "description": "Single page, empty registry -> no candidates -> processed only, nothing created.",
+  "input": {
+    "pages": [{"id": "p-a", "title": "全新概念", "body": "全新概念的说明文本"}],
+    "canonical_seed": [],
+    "llm_verdicts": []
+  },
+  "expected": {
+    "processed_min": 1,
+    "created_new_min": 0
+  }
+}

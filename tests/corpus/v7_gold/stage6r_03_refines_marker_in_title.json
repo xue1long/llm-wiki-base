@@ -1,0 +1,15 @@
+{
+  "id": "stage6r-03",
+  "stage": "stage6r_relations",
+  "description": "Refinement marker (进阶) in source title -> refines relation.",
+  "input": {
+    "pages": [
+      {"id": "p-adv", "title": "扩句法进阶", "slots": {"definition": "扩句法"}},
+      {"id": "p-base", "title": "扩句法", "slots": {"definition": "基础扩句"}}
+    ]
+  },
+  "expected": {
+    "relation_count_min": 1,
+    "relation_predicates_subset": ["refines"]
+  }
+}
