@@ -13,6 +13,8 @@ from ..wiki.core.types import PageType, WikiPage
 
 _KNOWN_TYPE_PREFIXES = tuple(f"{pt.value}-" for pt in PageType)
 _WIKILINK_RE = re.compile(r'\[\[.*?\]\]')
+_HEADING_RE = re.compile(r'^#{1,6}\s+.*$', re.MULTILINE)
+_HTML_COMMENT_RE = re.compile(r'<!--.*?-->', re.DOTALL)
 
 
 @dataclass
@@ -33,6 +35,13 @@ def _meaningful_length(body: str) -> int:
     stripped = _WIKILINK_RE.sub('', body)
     stripped = stripped.replace('-', ' ')  # unordered-list bullets → space
     return len(stripped.strip())
+
+
+def _has_only_template_headings(body: str) -> bool:
+    """True for a rendered template whose required sections have no content."""
+    without_headings = _HEADING_RE.sub('', body)
+    without_comments = _HTML_COMMENT_RE.sub('', without_headings)
+    return bool(_HEADING_RE.search(body)) and not without_comments.strip()
 
 
 def check_pages(pages: list[WikiPage]) -> QualityGateResult:
@@ -56,6 +65,11 @@ def check_pages(pages: list[WikiPage]) -> QualityGateResult:
 
         # --- PREFIX_GHOST + EMPTY_BODY ---
         reasons: list[str] = []
+
+        if page.processing_depth != "stub" and _has_only_template_headings(body):
+            page.grade = "C"
+            degraded[page.id] = "missing_required_content"
+            continue
 
         if _has_type_prefix(page.id) or _has_type_prefix(page.title):
             page.grade = "C"

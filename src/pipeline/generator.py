@@ -17,6 +17,7 @@ This module is the single source of truth for wiki template enforcement.
 See docs/superpowers/plans/2026-07-26-wiki-schema-v23.md.
 """
 import logging
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
@@ -95,6 +96,35 @@ _DEPTH_BY_TYPE: dict[PageType, str] = {
 # Valid values for WikiPage.processing_depth (see src/wiki/core/types.py).
 # Deliberately NOT the page-type enum — these are content processing depths.
 PROCESSING_DEPTH_VALUES = ["concept", "memory", "operation"]
+
+
+class SlotVerdict(str, Enum):
+    """Whether a required template slot may be committed."""
+
+    FILLED = "FILLED"
+    DECLARATIVE_ABSENCE = "DECLARATIVE_ABSENCE"
+    EMPTY = "EMPTY"
+    PLACEHOLDER = "PLACEHOLDER"
+
+
+class GeneratedPages(list[WikiPage]):
+    """Candidate render output plus pages withheld before the writer.
+
+    This remains a list for existing generator callers.  ``rejected`` gives
+    the ingest boundary a structured reason to return source-only review
+    instead of inferring validity from rendered markdown.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.rejected: dict[str, str] = {}
+
+
+_DECLARATIVE_ABSENCE = "来源未详述此方面"
+_PLACEHOLDER_MARKERS = (
+    "（待补充）", "待补充", "placeholder", "tbd", "...", "（空）", "（无内容）",
+    "（占位）", "系统占位",
+)
 
 # 21 built-in relation types (17 graph edges + 4 namespace edges) + x-* custom.
 # Phase 3 follow-up：relations[].type 的 JSON schema 加 enum 约束，防止 LLM
@@ -946,7 +976,8 @@ async def generate_from_candidate(
     taxonomy_content: str = "",
     missing_slugs_resolver=None,
     processing_depth_hint: Optional[str] = None,
-) -> list[WikiPage]:
+    enforce_slot_verdicts: bool = False,
+) -> GeneratedPages:
     """Render wiki pages from a validated KnowledgeCandidate.
 
     The LLM is instructed to RENDER the candidate's claims into
@@ -1064,18 +1095,8 @@ async def generate_from_candidate(
         source_slug_map=source_slug_map,
     )
 
-    filled_pages, missing_summary = _ensure_required_slots_filled(
-        raw_pages,
-        required_slots_by_type=required_slots_by_type,
-    )
-    if missing_summary:
-        _logger.warning(
-            "[generate_from_candidate] required slots still missing after retry+auto-fill, "
-            "filled with placeholder: %s", missing_summary,
-        )
-
     now = datetime.datetime.now(datetime.timezone.utc)
-    pages: list[WikiPage] = []
+    pages = GeneratedPages()
 
     # Build provenance payload from candidate evidence
     _first_ev = candidate.evidence[0] if candidate.evidence else {}
@@ -1089,7 +1110,7 @@ async def generate_from_candidate(
         "ingestor_version": "2.0.0",
     }
 
-    for p in filled_pages:
+    for p in raw_pages:
         title = p.get("title", candidate.title)
         slug = _slugify(title) or p.get("id", "")
 
@@ -1099,6 +1120,35 @@ async def generate_from_candidate(
             page_type = _resolve_page_type(p.get("type"), schema_registry)
         if page_type is None:
             _logger.warning(f"Unknown page type: {p.get('type')}")
+            continue
+
+        page_key = str(p.get("id") or slug or title)
+        required = required_slots_by_type.get(page_type, [])
+        invalid_slots = _invalid_required_slots(p.get("slots", {}) or {}, required)
+        if enforce_slot_verdicts and invalid_slots:
+            pages.rejected[page_key] = "required slots: " + ", ".join(invalid_slots)
+            _logger.warning(
+                "[generate_from_candidate] withholding page %s: %s",
+                page_key, pages.rejected[page_key],
+            )
+            continue
+
+        # Candidate rendering may add distinct, evidence-backed concepts, but
+        # a title that merely decorates the candidate title is an unproven
+        # semantic variant.  Do not silently publish it as a second page.
+        if (
+            enforce_slot_verdicts
+            and
+            page_type != PageType.SOURCE
+            and title != candidate.title
+            and candidate.title
+            and candidate.title in title
+        ):
+            pages.rejected[page_key] = "ambiguous title variant"
+            _logger.warning(
+                "[generate_from_candidate] withholding ambiguous title variant %s",
+                page_key,
+            )
             continue
 
         # Deterministic source-page slug
@@ -2088,6 +2138,28 @@ def _slot_is_empty(value) -> bool:
             isinstance(v, str) and not v.strip() for v in value
         )
     return False
+
+
+def _slot_verdict(value: object) -> SlotVerdict:
+    """Classify a slot before rendering can hide an invalid value."""
+    if _slot_is_empty(value):
+        return SlotVerdict.EMPTY
+    values = value if isinstance(value, (list, tuple)) else [value]
+    text = "\n".join(str(item).strip() for item in values if str(item).strip())
+    normalized = text.lower()
+    if any(marker in normalized for marker in _PLACEHOLDER_MARKERS):
+        return SlotVerdict.PLACEHOLDER
+    if text == _DECLARATIVE_ABSENCE:
+        return SlotVerdict.DECLARATIVE_ABSENCE
+    return SlotVerdict.FILLED
+
+
+def _invalid_required_slots(slots: dict, required: list[str]) -> list[str]:
+    """Return required slots that cannot pass the formal write boundary."""
+    return [
+        name for name in required
+        if _slot_verdict(slots.get(name)) in {SlotVerdict.EMPTY, SlotVerdict.PLACEHOLDER}
+    ]
 
 
 def _ensure_required_slots_filled(

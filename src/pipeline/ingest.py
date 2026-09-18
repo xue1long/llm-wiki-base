@@ -729,6 +729,7 @@ async def generate_ingest(
     # truncated to 8000 chars, losing most content).
     analysis = None  # type: ignore[assignment]
     pages: list[WikiPage] = []
+    _withheld_pages: dict[str, str] = {}
     _kc_review: dict | None = None
     _kc_promotion = None
     _pilot_audit: dict | None = None
@@ -781,35 +782,24 @@ async def generate_ingest(
                 _logger.exception("[run_ingest] failed to quarantine rejected candidate")
             raise InvalidInputError(reason)
 
-        # V7 personal-KB mode: empty claims/evidence used to abort the whole
-        # task. Now we log a warning and continue — the deterministic source
-        # record is still created below, but no candidate-driven pages are
-        # generated. This preserves the user's wiki entry (so they have at
-        # least the source page) even when LLM extraction fully fails.
-        if not hasattr(candidate, "claims") or not candidate.claims or not candidate.evidence:
-            _logger.warning(
-                "[run_ingest] candidate has no claims/evidence (status=%s, "
-                "reason=%s); proceeding with source-only output — personal-KB mode",
-                getattr(candidate, "status", "unknown"),
-                getattr(candidate, "failure_reason", "unknown"),
-            )
-        _source_key = _ingest_source_key(source_path, paths.root)
         _candidate_status = getattr(candidate, "status", None)
         if getattr(_candidate_status, "value", _candidate_status) == "rejected":
-            # V7 personal-KB mode: a rejected candidate (no claims/evidence)
-            # still flows through Reviewer for a soft audit + minimal
-            # projection so the source-only wiki entry is created.
-            _logger.warning(
-                "[run_ingest] candidate.status=rejected (reason=%s); "
-                "continuing with soft Reviewer path — personal-KB mode",
-                getattr(candidate, "failure_reason", "unknown"),
-            )
+            _reject_candidate(candidate.failure_reason or "candidate rejected")
+        if not getattr(candidate, "claims", None) or not getattr(candidate, "evidence", None):
+            _reject_candidate(candidate.failure_reason or "candidate has no claims/evidence")
+        _source_key = _ingest_source_key(source_path, paths.root)
         _candidate_source_id = getattr(candidate, "source_id", "")
         if not _candidate_source_id:
             _reject_candidate("candidate requires source_id")
         if _ingest_source_key(_candidate_source_id, paths.root) != _source_key:
             _reject_candidate("candidate source_id does not match source")
         document = _result.canonical_document
+        from src.kc.compiler.evidence import validate_evidence
+        try:
+            for _evidence in candidate.evidence:
+                validate_evidence(document, _evidence)
+        except (TypeError, ValueError) as exc:
+            _reject_candidate(f"candidate evidence quote does not match source block: {exc}")
         review = await CandidateReviewer().review(
             candidate,
             document,
@@ -824,12 +814,15 @@ async def generate_ingest(
             "document_id": review.document_id,
             "projections": list(review.projections),
         }
-        _kc_promotion = CandidatePromoter().promote(
-            candidate,
-            review,
-            project_root=paths.root,
-            document=document,
-        )
+        try:
+            _kc_promotion = CandidatePromoter().promote(
+                candidate,
+                review,
+                project_root=paths.root,
+                document=document,
+            )
+        except Exception as exc:
+            _reject_candidate(f"candidate promotion failed: {exc}")
         from src.kc.compiler.evidence import canonical_quote
         from .readiness_replay import serialize_audit
         _audit_evidence = []
@@ -872,7 +865,7 @@ async def generate_ingest(
                 "exact_quote": _audit_evidence[0]["quote"],
                 "quote_hash": _audit_evidence[0]["quote_hash"],
             })
-        pages = await generate_from_candidate(
+        _candidate_pages = await generate_from_candidate(
             candidate=candidate,
             paths=paths,
             existing_wiki_index=_existing_wiki_index,
@@ -883,7 +876,10 @@ async def generate_ingest(
             taxonomy_content=_taxonomy_text,
             missing_slugs_resolver=_missing_resolver,
             processing_depth_hint=_processing_depth_hint,
+            enforce_slot_verdicts=True,
         )
+        _withheld_pages.update(getattr(_candidate_pages, "rejected", {}))
+        pages = list(_candidate_pages)
         analysis = None
     elif len(_sanitized_source_text) > _get_max_source_chars():
         try:
@@ -1330,9 +1326,11 @@ async def generate_ingest(
     # and returns a filtered list (duplicates removed).
     from .quality_gate import check_pages
     _gate = check_pages(pages + extra_pages)
+    _keep_ids = {p.id for p in _gate.pages}
     for _pid, _reason in _gate.degraded.items():
         _logger.warning("[run_ingest] quality gate: %s degraded — %s", _pid, _reason)
-    _keep_ids = {p.id for p in _gate.pages}
+        if _candidate_mode and _pid not in _keep_ids:
+            _withheld_pages.setdefault(_pid, _reason)
     pages = [p for p in pages if p.id in _keep_ids]
     extra_pages = [p for p in extra_pages if p.id in _keep_ids]
 
@@ -1345,6 +1343,11 @@ async def generate_ingest(
         if _ep.body:
             _ep.body = _clean_placeholder_text(_ep.body)
 
+    _withheld_warnings = [
+        f"page {page_id} withheld: {reason}"
+        for page_id, reason in _withheld_pages.items()
+    ]
+    _warnings = list(_result.report.warnings) + _withheld_warnings
     return pages, extra_pages, {
         "analysis": analysis,
         "source_slug": source_slug,
@@ -1361,7 +1364,9 @@ async def generate_ingest(
         "downstream_count": _downstream_count,
         "extra_pages_count": len(extra_pages),
         "rejected": bool(_result.report.warnings),
-        "warnings": list(_result.report.warnings),
+        "warnings": _warnings,
+        "verdict": "NEEDS_HUMAN_REVIEW" if _withheld_pages else "VALIDATED",
+        "quarantined_page_ids": list(_withheld_pages),
         "kc_bundle_key": getattr(_kc_promotion, "bundle_key", None),
         "kc_object_ids": list(getattr(_kc_promotion, "object_ids", ())),
         "kc_manifest_path": str(getattr(_kc_promotion, "manifest_path", "")) if _kc_promotion else None,
