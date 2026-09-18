@@ -1622,6 +1622,16 @@ async def test_outline_candidate_uses_v3_template_and_preserves_supported_facts(
                 "related_concepts": ["[[大纲写作技巧]]"],
                 "references": [f"[[{source_slug}]]"],
             }},
+            {"id": "大纲写作技巧的重要性", "type": "concept", "title": "大纲写作技巧的重要性", "slots": {
+                "definition": "大纲的重要性在于帮助作者把握方向。",
+                "characteristics": ["避免失去方向"],
+                "context": "用于写作规划。",
+                "anti_patterns": "不要脱离证据扩展。",
+                "evidence": "仅为候选标题变体。",
+                "examples": "原文没有提供可独立复用的案例。",
+                "related_concepts": ["[[大纲写作技巧]]"],
+                "references": [f"[[{source_slug}]]"],
+            }},
         ],
         },
     ])
@@ -1638,6 +1648,8 @@ async def test_outline_candidate_uses_v3_template_and_preserves_supported_facts(
     assert len(source_pages) == 1 and source_pages[0].id == meta["source_page_id"]
     assert {page.id for page in concept_pages} == {"大纲写作技巧", "大纲四要素"}
     assert "提纲的重要性" not in {page.title for page in pages}
+    assert "大纲写作技巧的重要性" not in {page.title for page in pages}
+    assert meta["verdict"] == "NEEDS_HUMAN_REVIEW"
     assert all("（系统占位" not in page.body for page in concept_pages)
     assert all("## 适用场景" in page.body and "## 证据强度" in page.body for page in concept_pages)
     assert all(page.sources == [source_id] for page in concept_pages)

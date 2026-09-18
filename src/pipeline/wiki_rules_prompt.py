@@ -154,6 +154,12 @@ tags: []                         # 业务轻量标签（无 type 约束）
 - `wikilink_syntax`: `[[directory/slug]]` 或 `[[directory/slug|alias]]`
 - `allowed_markdown`: bold / italic / headings / lists / wikilinks
 
+## 3.1 Candidate 页面语义边界
+
+- 仅创建证据充分、可脱离当前来源复用的独立概念；小节级主张（如“提纲的重要性”）没有独立可复用证据时不得独立成页。
+- 禁止标题装饰、改名标题或语义变体生成第二页。精确重复的 id/title 必须确定性去重；仅相似但无充分证明的标题变体必须进入 `NEEDS_HUMAN_REVIEW`，不得静默写盘。
+- 引用只能指向本次响应定义的页面、现有 index 页面或 source 页面；必须原样复用已有 slug，不得猜测或发明 slug。taxonomy 目标是虚拟目标，由 taxonomy 规则处理。
+
 ---
 
 ## 4. 写盘协议

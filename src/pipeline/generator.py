@@ -946,6 +946,19 @@ facts not present in the claims.
 **Page count**: Create only pages supported by the claims below. There is no
 fixed minimum; if the claims do not support a substantive page, return none.
 
+**Concept boundaries — CRITICAL**:
+- Create only an independent concept with sufficient evidence that is reusable
+  beyond this source. A subsection-level claim (for example, `提纲的重要性`)
+  is not an independent page unless it has independent reusable evidence.
+- Do not create title decorations, renamed headings, or semantic variants of
+  the candidate title as separate pages. Exact duplicate ids/titles must be
+  deterministically deduplicated; a merely similar title without proof must be
+  withheld for `NEEDS_HUMAN_REVIEW`, never silently written.
+- References may target only pages defined in this response, pages in the
+  existing wiki index, or the source page. Reuse those slugs exactly; never
+  guess or invent a slug. Taxonomy targets are virtual and are handled by the
+  taxonomy rules.
+
 **Slot filling — CRITICAL: NO EMPTY SLOTS ALLOWED**:
 - Every `<!-- slot:NAME -->` (no `?`) is REQUIRED and MUST have substantive content.
 - Never use placeholder text ("...", "（空）", "TBD", "placeholder").
