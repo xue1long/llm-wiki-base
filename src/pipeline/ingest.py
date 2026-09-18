@@ -1342,6 +1342,7 @@ async def generate_ingest(
     _empty_warning = "空摄取"
     for _source in (p for p in pages if p.type == PageType.SOURCE):
         _source.grade = _source_grade
+        _source.source_grade = _source_grade
         if _source_grade == "C" and _empty_warning not in (_source.body or ""):
             _source.body = (_source.body or "") + (
                 "\n\n> ⚠️ **空摄取**: LLM 未从此文档提取到任何实体/概念/综合页面。"

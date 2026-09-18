@@ -951,4 +951,5 @@ async def test_source_metadata_is_recomputed_after_quality_gate_drops_page(
     assert meta["downstream_count"] == 0
     assert meta["source_grade"] == "C"
     assert source.grade == "C"
+    assert source.source_grade == "C"
     assert "空摄取" in source.body
