@@ -1659,3 +1659,117 @@ async def test_outline_candidate_uses_v3_template_and_preserves_supported_facts(
     assert all(fact in bodies["大纲四要素"] for fact in ("时间", "地点", "人物", "主要内容"))
     assert "蓝图" in bodies["大纲写作技巧"] and "方向" in bodies["大纲写作技巧"]
     assert "提纲的重要性" in bodies["大纲写作技巧"]
+
+
+def _outline_render_slots():
+    return {
+        "definition": "大纲是小说写作前的蓝图。",
+        "characteristics": ["先规划整体结构"],
+        "context": "适用于长篇小说写作前的规划。",
+        "anti_patterns": "不要把无证据的小节拆成独立概念。",
+        "evidence": "来源原文支持该结论。",
+        "examples": "来源未详述此方面",
+        "related_concepts": ["[[大纲四要素]]"],
+        "references": ["[[大纲写作技巧- source]]"],
+    }
+
+
+@pytest.mark.asyncio
+async def test_candidate_render_deduplicates_exact_ids_and_titles(tmp_path: Path):
+    from src.pipeline.generator import generate_from_candidate
+    from src.wiki.core.paths import WikiPaths
+    from src.wiki.storage.ensure import ensure_knowledge_base
+
+    ensure_knowledge_base(tmp_path)
+    _install_outline_v3_concept_template(tmp_path)
+    paths = WikiPaths(tmp_path)
+    candidate = _outline_candidate()
+    provider = ScriptedLLMProvider([{
+        "pages": [
+            {"id": "大纲写作技巧", "type": "concept", "title": "大纲写作技巧",
+             "slots": _outline_render_slots()},
+            {"id": "大纲写作技巧", "type": "concept", "title": "大纲写作技巧",
+             "slots": _outline_render_slots()},
+        ]
+    }])
+
+    pages = await generate_from_candidate(
+        candidate=candidate,
+        paths=paths,
+        existing_wiki_index="",
+        provider=provider,
+        source_slug_map={candidate.source_id: "大纲写作技巧-source"},
+        source_text="",
+        enforce_slot_verdicts=True,
+    )
+
+    assert [page.id for page in pages] == ["大纲写作技巧"]
+    assert not pages.rejected
+
+
+@pytest.mark.asyncio
+async def test_candidate_render_uses_registered_slug_alias_only(tmp_path: Path):
+    from src.pipeline.generator import generate_from_candidate
+    from src.wiki.core.paths import WikiPaths
+    from src.wiki.features.slug_aliases import SlugAliasRegistry
+    from src.wiki.storage.ensure import ensure_knowledge_base
+
+    ensure_knowledge_base(tmp_path)
+    _install_outline_v3_concept_template(tmp_path)
+    registry = SlugAliasRegistry(tmp_path)
+    registry.add("大纲写作技巧变体", "大纲写作技巧")
+    registry.save()
+    paths = WikiPaths(tmp_path)
+    candidate = _outline_candidate()
+    provider = ScriptedLLMProvider([{
+        "pages": [{
+            "id": "大纲写作技巧变体", "type": "concept", "title": "大纲写作技巧变体",
+            "slots": _outline_render_slots(),
+        }]
+    }])
+
+    pages = await generate_from_candidate(
+        candidate=candidate,
+        paths=paths,
+        existing_wiki_index="",
+        provider=provider,
+        source_slug_map={candidate.source_id: "大纲写作技巧-source"},
+        source_text="",
+        enforce_slot_verdicts=True,
+    )
+
+    assert [page.id for page in pages] == ["大纲写作技巧"]
+    assert not pages.rejected
+
+
+@pytest.mark.asyncio
+async def test_candidate_render_withholds_unsupported_subsection_title(tmp_path: Path):
+    from src.pipeline.generator import generate_from_candidate
+    from src.wiki.core.paths import WikiPaths
+    from src.wiki.storage.ensure import ensure_knowledge_base
+
+    ensure_knowledge_base(tmp_path)
+    _install_outline_v3_concept_template(tmp_path)
+    paths = WikiPaths(tmp_path)
+    candidate = _outline_candidate()
+    provider = ScriptedLLMProvider([{
+        "pages": [
+            {"id": "大纲写作技巧", "type": "concept", "title": "大纲写作技巧",
+             "slots": _outline_render_slots()},
+            {"id": "提纲的重要性", "type": "concept", "title": "提纲的重要性",
+             "slots": _outline_render_slots()},
+        ]
+    }])
+
+    pages = await generate_from_candidate(
+        candidate=candidate,
+        paths=paths,
+        existing_wiki_index="",
+        provider=provider,
+        source_slug_map={candidate.source_id: "大纲写作技巧-source"},
+        source_text="",
+        enforce_slot_verdicts=True,
+    )
+
+    assert [page.id for page in pages] == ["大纲写作技巧"]
+    assert pages.rejected["提纲的重要性"].startswith("NEEDS_HUMAN_REVIEW")

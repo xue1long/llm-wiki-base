@@ -114,9 +114,8 @@ def _resolve_processing_depth(
         return "concept"
     if raw_depth not in PROCESSING_DEPTH_VALUES:
         return None
-    if page_type == PageType.SOURCE or (
-        raw_depth == "memory" and page_type != PageType.CONCEPT
-    ):
+    from ..wiki.core.types import is_valid_processing_depth
+    if not is_valid_processing_depth(page_type, str(raw_depth)):
         return None
     return str(raw_depth)
 
@@ -165,6 +164,61 @@ class GeneratedPages(list[WikiPage]):
     def __init__(self) -> None:
         super().__init__()
         self.rejected: dict[str, str] = {}
+
+
+def _registered_alias_target(registry, *values: object) -> str | None:
+    """Return a canonical id only for an explicit registry entry."""
+    if registry is None:
+        return None
+    aliases = getattr(registry, "aliases", {}) or {}
+    for value in values:
+        if not isinstance(value, str) or not value.strip():
+            continue
+        raw = value.strip()
+        canonical = registry.get_canonical(raw)
+        if canonical:
+            return canonical
+        normalized = normalize_id_chars(raw).casefold()
+        for alias, target in aliases.items():
+            if normalize_id_chars(str(alias)).casefold() == normalized:
+                return registry.get_canonical(alias) or target
+    return None
+
+
+def _candidate_text(candidate: KnowledgeCandidate) -> str:
+    claims = "\n".join(str(c.get("statement", "")) for c in candidate.claims)
+    evidence = "\n".join(str(e.get("quote", "")) for e in candidate.evidence)
+    return f"{claims}\n{evidence}"
+
+
+def _title_has_independent_support(title: str, candidate: KnowledgeCandidate) -> bool:
+    """Conservatively allow a new title only when its anchors are evidenced."""
+    import re
+
+    text = _candidate_text(candidate)
+    if not title.strip() or title.strip() in text:
+        return True
+    cjk = re.findall(r"[\u4e00-\u9fff]", title)
+    if len(cjk) >= 4:
+        anchors = {"".join(cjk[i:i + 2]) for i in range(len(cjk) - 1)}
+        hits = sum(anchor in text for anchor in anchors)
+        return hits >= max(2, (len(anchors) + 1) // 2)
+    words = re.findall(r"[\w-]+", title.casefold())
+    return bool(words) and all(word in text.casefold() for word in words)
+
+
+def _is_unproven_title_variant(
+    title: str,
+    candidate: KnowledgeCandidate,
+) -> bool:
+    """Identify a likely variant without fuzzy-merging it."""
+    candidate_title = candidate.title.strip()
+    title = title.strip()
+    if not title or title == candidate_title:
+        return False
+    if candidate_title and (candidate_title in title or title in candidate_title):
+        return True
+    return not _title_has_independent_support(title, candidate)
 
 
 _DECLARATIVE_ABSENCE = "来源未详述此方面"
@@ -516,7 +570,11 @@ off-topic source may produce no downstream pages.
 **Language**: 简体中文 for all user-visible text (title, slots, relations[].context).
 Slugs may be CJK or ASCII kebab-case — keep the concept's natural form, no forced pinyin.
 
-**Slug reuse**: Use EXISTING slugs from the wiki index verbatim. Never invent variants.
+**Slug reuse**: Use EXISTING slugs from the wiki index verbatim. Never invent
+variants. A title that is merely similar to the candidate title is not proof
+of a second concept: keep it as a subsection or return it for human review.
+Only an alias explicitly registered in `SlugAliasRegistry` may resolve to a
+canonical slug; do not infer aliases from spelling or title similarity.
 
 **Slot filling — CRITICAL: NO EMPTY SLOTS ALLOWED**:
 - Every `<!-- slot:NAME -->` (no `?`) is REQUIRED and MUST have substantive content.
@@ -945,6 +1003,10 @@ facts not present in the claims.
 
 **Page count**: Create only pages supported by the claims below. There is no
 fixed minimum; if the claims do not support a substantive page, return none.
+Do not create a page for a subsection-level argument such as an importance,
+benefit, or rationale heading unless it has independent reusable evidence in
+the claims and evidence excerpts. Do not create entity or synthesis pages for
+ordinary tutorial material unless the claims explicitly support that type.
 
 **Concept boundaries — CRITICAL**:
 - Create only an independent concept with sufficient evidence that is reusable
@@ -993,6 +1055,13 @@ template lacks them.
 
 **Factuality**: Copy facts EXACTLY from the claims. Do NOT invent titles, names,
 or statistics. When a claim has no example, write "来源未提供例子".
+
+**Reference allowlist**: Every `[[wikilink]]` and every relation target must
+be one of: a page defined in THIS response, an exact slug from the existing
+wiki index, or the deterministic source page id above. Do not guess slugs,
+invent pinyin, or create a page solely to satisfy a reference. Taxonomy targets
+are virtual namespace values and must be emitted only when present in the
+project taxonomy; they are not ordinary wiki pages.
 
 **Tags**: `prefix/name` format, 10 allowed prefixes:
 题材/ 功能/ 角色/ 事件/ 情绪/ 实体/ 场景阶段/ 状态/ 素材/ 可信度/
@@ -1165,6 +1234,19 @@ async def generate_from_candidate(
 
     now = datetime.datetime.now(datetime.timezone.utc)
     pages = GeneratedPages()
+    alias_registry = None
+    if enforce_slot_verdicts:
+        try:
+            from ..wiki.features.slug_aliases import SlugAliasRegistry
+            alias_registry = SlugAliasRegistry(paths.root)
+        except Exception:
+            _logger.warning(
+                "[generate_from_candidate] slug alias registry unavailable",
+                exc_info=True,
+            )
+    seen_page_ids: set[tuple[str, str]] = set()
+    seen_titles: set[tuple[str, str]] = set()
+    seen_raw_ids: set[tuple[str, str]] = set()
 
     # Build provenance payload from candidate evidence
     _first_ev = candidate.evidence[0] if candidate.evidence else {}
@@ -1179,8 +1261,12 @@ async def generate_from_candidate(
     }
 
     for p in raw_pages:
-        title = p.get("title", candidate.title)
-        slug = _slugify(title) or p.get("id", "")
+        title = str(p.get("title") or candidate.title).strip()
+        raw_id = str(p.get("id") or "").strip()
+        slug = _slugify(title) or raw_id
+        alias_target = _registered_alias_target(alias_registry, raw_id, title, slug)
+        if alias_target:
+            slug = alias_target
 
         if candidate.custom_type and schema_registry and schema_registry.is_custom(candidate.custom_type):
             page_type = schema_registry.get_base_type(candidate.custom_type)
@@ -1215,19 +1301,19 @@ async def generate_from_candidate(
             continue
 
         # Candidate rendering may add distinct, evidence-backed concepts, but
-        # a title that merely decorates the candidate title is an unproven
-        # semantic variant.  Do not silently publish it as a second page.
+        # a title with no independent support is not safe to publish. An
+        # explicit registry alias is the only exception to this guard.
         if (
             enforce_slot_verdicts
-            and
-            page_type != PageType.SOURCE
-            and title != candidate.title
-            and candidate.title
-            and candidate.title in title
+            and page_type != PageType.SOURCE
+            and alias_target is None
+            and _is_unproven_title_variant(title, candidate)
         ):
-            pages.rejected[page_key] = "ambiguous title variant"
+            pages.rejected[page_key] = (
+                "NEEDS_HUMAN_REVIEW: ambiguous title variant or unsupported subsection"
+            )
             _logger.warning(
-                "[generate_from_candidate] withholding ambiguous title variant %s",
+                "[generate_from_candidate] withholding unproven title variant %s",
                 page_key,
             )
             continue
@@ -1248,6 +1334,29 @@ async def generate_from_candidate(
                 )
                 continue
             slug = cleaned
+
+        # Exact duplicates are safe to discard deterministically. Keep the
+        # first response item so ordering remains stable and no fuzzy merge is
+        # introduced for genuinely different concepts.
+        type_key = page_type.value
+        id_key = normalize_id_chars(slug).casefold()
+        title_key = normalize_id_chars(title).casefold()
+        raw_id_key = normalize_id_chars(raw_id).casefold()
+        if (
+            (type_key, id_key) in seen_page_ids
+            or (type_key, title_key) in seen_titles
+            or (raw_id_key and (type_key, raw_id_key) in seen_raw_ids)
+        ):
+            _logger.info(
+                "[generate_from_candidate] dropping exact duplicate %s (%s)",
+                slug,
+                title,
+            )
+            continue
+        seen_page_ids.add((type_key, id_key))
+        seen_titles.add((type_key, title_key))
+        if raw_id_key:
+            seen_raw_ids.add((type_key, raw_id_key))
 
         template = resolved_templates.get(page_type)
         body_md = _render_page_body(
