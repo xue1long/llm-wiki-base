@@ -58,6 +58,24 @@ SOURCE_SECTION_HEADINGS: dict[str, str] = {
 }
 
 
+def _strip_section_suffix(source: str) -> str:
+    """Strip ``#section-N`` / ``#author-N`` / ``#item-N`` suffix from a source path.
+
+    V7's deterministic splitter appends an item ordinal suffix to each
+    item id (e.g. ``raw/sources/foo.md#author-1``). These item ids
+    become ``ConceptPage.sources`` via ``topic.item_ids``. But the wiki
+    H1 file-existence check treats each ``source`` as a literal file
+    path — the suffix makes every source "not found".
+
+    H1 expects the raw project-relative file path. We strip the
+    fragment so the page survives the lint check.
+    """
+    idx = source.find("#")
+    if idx == -1:
+        return source
+    return source[:idx]
+
+
 def adapt_concept_page(page: ConceptPage) -> WikiPage:
     """Adapt V7's ``ConceptPage`` to the standard ``WikiPage`` for write.
 
@@ -97,11 +115,17 @@ def adapt_concept_page(page: ConceptPage) -> WikiPage:
             for slot_name, slot in page.slot_evidence.items()
         }
 
+    # Strip item-ordinal suffixes (e.g. "#author-1", "#section-2")
+    # from sources so the H1 file-existence check resolves the actual
+    # file path. The original item ids stay in
+    # _ko_extra.slot_evidence for audit.
+    cleaned_sources = [_strip_section_suffix(s) for s in page.sources]
+
     return WikiPage(
         id=page.id,
         title=page.title,
         type=PageType.CONCEPT,
-        sources=list(page.sources),
+        sources=cleaned_sources,
         body=body,
         processing_depth="concept",
         # V7-written pages inherit V7 metadata; commit_ingest writes
@@ -207,6 +231,7 @@ __all__ = [
     "CONCEPT_BODY_PREFIX",
     "CONCEPT_SECTION_HEADINGS",
     "SOURCE_SECTION_HEADINGS",
+    "_strip_section_suffix",
     "adapt_concept_page",
     "build_source_stub_page",
 ]

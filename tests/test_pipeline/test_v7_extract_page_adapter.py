@@ -74,6 +74,23 @@ def test_adapt_concept_page_basic_8_slots_yields_8_sections():
     assert "## 参考来源" in wp.body
 
 
+def test_adapt_concept_page_strips_section_suffix_from_sources():
+    """V7's deterministic splitter appends ``#author-N`` / ``#section-N``
+    item ordinals to source paths. The H1 lint rule treats ``source`` as
+    a literal file path, so the suffix would mark every source as
+    "not found". adapt_concept_page strips it (originals are preserved
+    in _ko_extra.slot_evidence).
+    """
+    page = ConceptPage(
+        id="c",
+        title="C",
+        sources=["raw/sources/foo.md#author-1", "raw/sources/bar.md#section-3"],
+        slots={"definition": "d"},
+    )
+    wp = adapt_concept_page(page)
+    assert wp.sources == ["raw/sources/foo.md", "raw/sources/bar.md"]
+
+
 def test_adapt_concept_page_partial_5_slots_yields_5_sections():
     """A ConceptPage with only 5 slots filled produces a body with 5 sections."""
     page = ConceptPage(
