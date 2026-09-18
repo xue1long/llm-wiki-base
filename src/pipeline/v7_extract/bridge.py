@@ -195,11 +195,27 @@ async def _bounded_complete(
 class BridgeBudgetExceeded(RuntimeError):
     """Raised when LLM call count would exceed BridgeBudget.max_calls.
 
-    Reserved for future callers that want to enforce budget before each
-    LLM call. The current Stage 0 bridge relies on V7 stages' own
-    retry/parse loops and surfaces budget exhaustion via the
-    ``calls_count`` property on ``ProviderAdapter`` instead.
+    The bridge checks ``adapter.calls_count`` at each stage boundary
+    (Stage 1/3/4/5/6) and aborts the run early if the next stage's
+    LLM calls would push us over budget. The exception is caught at
+    the top of ``run_v7_ingest`` and the failure is recorded in the
+    ``.index/quarantine/<task_id>/v7_failure.md`` for ops triage.
     """
+
+
+def _check_budget(llm: Any, budget: "BridgeBudget", stage: str) -> None:
+    """Pre-check: raise BridgeBudgetExceeded if next stage would exceed budget.
+
+    ``stage`` is informational only — used in the exception message so
+    operators can see where the budget was exceeded.
+    """
+    if not hasattr(llm, "calls_count"):
+        return  # Non-tracked LLM (e.g. custom subclass); skip check
+    if llm.calls_count >= budget.max_calls:
+        raise BridgeBudgetExceeded(
+            f"calls {llm.calls_count} already at max {budget.max_calls} "
+            f"before stage {stage}"
+        )
 
 
 async def run_v7_ingest(
@@ -276,6 +292,7 @@ async def run_v7_ingest(
         structural_summary = build_structural_summary(segmentation, content=source_text)
 
         # ── Stage 1: classify ──
+        _check_budget(llm, budget, "stage1")
         # classify_doc handles prompt rendering + LLM call + JSON parsing
         # + Classification construction. Returns a Classification object
         # (never raises; failed=True signals technical failure).
@@ -294,6 +311,7 @@ async def run_v7_ingest(
             return result
 
         # ── Stage 3: completeness ──
+        _check_budget(llm, budget, "stage3")
         # check_completeness handles its own LLM call + retry + parse.
         # Returns CompletenessResult | None (None = technical failure).
         completeness = await check_completeness(
@@ -317,6 +335,7 @@ async def run_v7_ingest(
             return result
 
         # ── Stage 4: cluster topics ──
+        _check_budget(llm, budget, "stage4")
         cluster_result = await cluster_topics(
             items,
             llm=llm,
@@ -330,6 +349,7 @@ async def run_v7_ingest(
             return result
 
         # ── Stage 5: fill_slots per topic (v2 or v3 path) ──
+        _check_budget(llm, budget, "stage5")
         # v3 path: build spans_per_slot from Stage 2 items. Each item's
         # text is sliced into ~1500-byte spans (the canonical_v7 limit)
         # and every slot gets the same span list — the LLM filters by
@@ -376,6 +396,13 @@ async def run_v7_ingest(
 
         concept_pages: list[Any] = []
         failed_topics: list[str] = []
+        # P1-3: When cluster_topics returns multiple topics with the same
+        # topic.id (e.g. when the LLM duplicates), the second occurrence
+        # would overwrite the first because _stable_page_id is purely
+        # deterministic. We count per-source duplicates and append
+        # ``-{n}`` to the page id of the (n+1)th occurrence.
+        from collections import Counter
+        seen_topic_ids: Counter[str] = Counter()
         for topic in cluster_result.topics:
             if topic.id == OTHER_TOPIC_ID:
                 continue  # Stage 7 sentinel; never write
@@ -438,7 +465,14 @@ async def run_v7_ingest(
             # T1 / H2 加固: page id must be script-owned (don't trust
             # LLM-supplied topic id). _stable_page_id is in _page_id.py.
             from src.pipeline.v7_extract._page_id import _stable_page_id, validate_page_id
-            page_id = _stable_page_id(source_key, topic.id)
+            base_page_id = _stable_page_id(source_key, topic.id)
+            # P1-3: de-dup collision on repeated topic.id
+            n_occurrence = seen_topic_ids[topic.id]
+            if n_occurrence > 0:
+                page_id = f"{base_page_id}-{n_occurrence}"
+            else:
+                page_id = base_page_id
+            seen_topic_ids[topic.id] += 1
             try:
                 validate_page_id(page_id)
             except Exception as exc:
@@ -449,6 +483,7 @@ async def run_v7_ingest(
             concept_pages.append(concept_page)
 
         # ── Stage 6: relations (best-effort, never fatal) ──
+        _check_budget(llm, budget, "stage6")
         try:
             _ = extract_relations(
                 concept_pages,

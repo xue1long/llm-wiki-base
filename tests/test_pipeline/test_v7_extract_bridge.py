@@ -378,11 +378,10 @@ async def test_bridge_records_provider_calls_count(project_root: Path):
 
 @pytest.mark.asyncio
 async def test_bridge_respects_max_calls_budget(project_root: Path):
-    """BridgeBudget tracking — calls_count increments per LLM call.
-
-    The Stage 0 bridge does not enforce a hard cap (that's Stage 2);
-    it relies on the caller to read ``ProviderAdapter.calls_count``
-    after the fact. This test just verifies the counter increments.
+    """BridgeBudget tracks calls_count and aborts the run when next stage
+    would exceed the budget. The Stage 0 default is 20 calls; this
+    test sets max_calls=2 to force early abort at Stage 4 (after Stage
+    1 + Stage 3 = 2 LLM calls).
     """
     from src.pipeline.v7_extract.llm_bridge import ProviderAdapter
 
@@ -391,18 +390,24 @@ async def test_bridge_respects_max_calls_budget(project_root: Path):
     adapter = ProviderAdapter(base)
     base.script('{"doc_type": "single_method", "confidence": 0.9, "rationale": "ok", "traits": [], "uncertain": false}')
     base.script('{"complete": true, "reason": "ok"}')
-    base.script('{"topics": []}')
+    # No Stage 4 script — but budget check fires BEFORE the LLM call
 
     assert adapter.calls_count == 0
-    await run_v7_ingest(
+    result = await run_v7_ingest(
         paths=paths,
         source_path=Path("raw/sources/test/x.md"),
         source_text="substantive content",
         provider=adapter,
-        task_id="kb-test-007",
+        task_id="kb-test-budget",
+        budget=BridgeBudget(max_calls=2),
     )
-    # At least 1 LLM call was made (Stage 1 + Stage 3)
-    assert adapter.calls_count >= 1
+
+    # Budget exceeded at Stage 4 (after Stage 1 + Stage 3 = 2 calls)
+    assert result.failure_stage == "budget"
+    assert adapter.calls_count == 2
+    # The quarantine marker should exist for ops triage
+    quarantine = paths.index / "quarantine" / "kb-test-budget"
+    assert (quarantine / "v7_failure.md").exists()
 
 
 # ---------- Quarantine ----------
@@ -460,3 +465,42 @@ def test_bridge_result_is_dataclass_with_required_fields():
     assert "meta" in field_names
     assert "failure_stage" in field_names
     assert "failure_reason" in field_names
+
+
+@pytest.mark.asyncio
+async def test_bridge_dedupes_duplicate_topic_ids(project_root: Path):
+    """P1-3: When cluster_topics returns multiple topics with the same
+    topic.id, the bridge must produce distinct page_ids so neither
+    page overwrites the other. Otherwise the second topic silently
+    overwrites the first on disk.
+    """
+    paths = WikiPaths(project_root)
+    llm = _ScriptedProvider()
+    # Stage 1 classify
+    llm.script('{"doc_type": "single_method", "confidence": 0.9, "rationale": "ok", "traits": [], "uncertain": false}')
+    # Stage 3 completeness
+    llm.script('{"complete": true, "reason": "ok"}')
+    # Stage 4 cluster — 2 topics with the SAME id "dup"
+    llm.script('{"topics": [{"id": "dup", "title": "Topic One", "item_ids": ["raw/sources/test/source.md"]}, {"id": "dup", "title": "Topic Two", "item_ids": ["raw/sources/test/source.md"]}]}')
+    # Stage 5 fill_slots × 2 topics (each with v2 fill_slots call)
+    for _ in range(2):
+        llm.script('{"slots": {"definition": "d", "characteristics": "c", "context": "x", "anti_patterns": "a", "evidence": "e", "examples": "x", "related_concepts": "[]", "references": "[]"}, "evidence": {"definition": {"item_index": 0}, "characteristics": {"item_index": 0}, "context": {"item_index": 0}, "anti_patterns": {"item_index": 0}, "evidence": {"item_index": 0}, "examples": {"item_index": 0}, "related_concepts": {"item_index": 0}, "references": {"item_index": 0}}}')
+    # Stage 6 relations (2 calls)
+    llm.script('{"relations": []}')
+    llm.script('{"relations": []}')
+
+    result = await run_v7_ingest(
+        paths=paths,
+        source_path=Path("raw/sources/test/source.md"),
+        source_text="Substantial content for stage 1 to mark complete.",
+        provider=llm,
+        task_id="kb-test-dedup",
+    )
+
+    if result.failure_stage is not None:
+        pytest.fail(f"unexpected failure: stage={result.failure_stage} reason={result.failure_reason}")
+    # Source stub + 2 distinct concept pages
+    concept_pages = [p for p in result.pages if p.type.value == "concept"]
+    assert len(concept_pages) == 2, f"expected 2 concept pages, got {len(concept_pages)}"
+    page_ids = {p.id for p in concept_pages}
+    assert len(page_ids) == 2, f"page_ids must be distinct, got {page_ids}"
