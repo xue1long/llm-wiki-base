@@ -914,3 +914,41 @@ async def test_outline_missing_required_concept_keeps_only_source_with_warning(t
     assert meta["verdict"] == "NEEDS_HUMAN_REVIEW"
     assert "大纲四要素" in meta["quarantined_page_ids"]
     assert meta["warnings"]
+
+
+async def test_source_metadata_is_recomputed_after_quality_gate_drops_page(
+    tmp_path: Path, monkeypatch,
+):
+    """Source grade/count describe the post-gate page set, not pre-gate output."""
+    from src.pipeline.generator import unified_generate
+
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "heading-only.md"
+    raw.write_text("原始内容。", encoding="utf-8")
+    heading_only = WikiPage(
+        id="heading-only-concept",
+        title="Heading Only",
+        type=PageType.CONCEPT,
+        body="## 定义\n\n## 主要特点\n",
+        processing_depth="concept",
+    )
+
+    async def fake_unified_generate(**_kwargs):
+        return [heading_only]
+
+    monkeypatch.setattr("src.pipeline.generator.unified_generate", fake_unified_generate)
+
+    pages, _extra, meta = await generate_ingest(
+        paths=paths,
+        source_path=raw,
+        source_text="原始内容。",
+        provider=object(),
+        task_id="heading-only-gate",
+    )
+
+    source = next(page for page in pages if page.type == PageType.SOURCE)
+    assert meta["downstream_count"] == 0
+    assert meta["source_grade"] == "C"
+    assert source.grade == "C"
+    assert "空摄取" in source.body

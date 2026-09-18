@@ -40,6 +40,7 @@ from ..wiki.templates import (
     render_body,
     required_slot_names,
 )
+from ..wiki.templates.parser import parse as parse_template
 from ..wiki.templates.types import Template
 from ..knowledge.core.candidate import KnowledgeCandidate
 from ..knowledge.core.object import KnowledgeObject
@@ -96,6 +97,52 @@ _DEPTH_BY_TYPE: dict[PageType, str] = {
 # Valid values for WikiPage.processing_depth (see src/wiki/core/types.py).
 # Deliberately NOT the page-type enum — these are content processing depths.
 PROCESSING_DEPTH_VALUES = ["concept", "memory", "operation"]
+
+
+def _resolve_processing_depth(
+    raw_depth: object,
+    page_type: PageType,
+    *,
+    hint: Optional[str] = None,
+) -> str | None:
+    """Resolve an LLM depth without normalizing invalid type/depth pairs."""
+    if raw_depth is None:
+        if page_type == PageType.SOURCE:
+            return "source"
+        if page_type == PageType.CONCEPT and hint in PROCESSING_DEPTH_VALUES:
+            return hint
+        return "concept"
+    if raw_depth not in PROCESSING_DEPTH_VALUES:
+        return None
+    if page_type == PageType.SOURCE or (
+        raw_depth == "memory" and page_type != PageType.CONCEPT
+    ):
+        return None
+    return str(raw_depth)
+
+
+def _required_slots_by_depth(
+    project_root: Path,
+    resolved_templates: dict[PageType, Template],
+) -> dict[tuple[PageType, str], list[str] | None]:
+    """Build required slots from the template that will actually render."""
+    contracts: dict[tuple[PageType, str], list[str] | None] = {}
+    for page_type, template in resolved_templates.items():
+        required = required_slot_names(template)
+        for depth in PROCESSING_DEPTH_VALUES:
+            if depth != "memory" or page_type == PageType.CONCEPT:
+                contracts[(page_type, depth)] = required
+
+    try:
+        short_form = _load_short_form_template(project_root)
+        short_ast = parse_template(short_form, expected_type=PageType.CONCEPT)
+        contracts[(PageType.CONCEPT, "memory")] = [
+            slot.name for slot in short_ast.all_slots if not slot.is_optional
+        ]
+    except (FileNotFoundError, ValueError):
+        # A memory page without its resolved short-form contract is unsafe.
+        contracts[(PageType.CONCEPT, "memory")] = None
+    return contracts
 
 
 class SlotVerdict(str, Enum):
@@ -627,6 +674,7 @@ async def unified_generate(
         for pt in PageType
         if pt in resolved_templates
     }
+    required_slots_by_depth = _required_slots_by_depth(paths.root, resolved_templates)
 
     response_format = {
         "type": "object",
@@ -693,6 +741,8 @@ async def unified_generate(
         base_prompt=base_prompt,
         response_format=response_format,
         required_slots_by_type=required_slots_by_type,
+        required_slots_by_depth=required_slots_by_depth,
+        processing_depth_hint=processing_depth_hint,
         timeout=600.0,
         missing_slugs_resolver=missing_slugs_resolver,
     )
@@ -712,6 +762,8 @@ async def unified_generate(
     filled_pages, missing_summary = _ensure_required_slots_filled(
         raw_pages,
         required_slots_by_type=required_slots_by_type,
+        required_slots_by_depth=required_slots_by_depth,
+        processing_depth_hint=processing_depth_hint,
     )
     if missing_summary:
         _logger.warning(
@@ -955,7 +1007,7 @@ Render the claims above into structured wiki pages. Output strict JSON:
       "grade": "A|B|C",
       "category": "",
       "taxonomy_sub": "",
-      "processing_depth": "concept|memory"
+      "processing_depth": "concept|memory|operation"
     }}
   ]
 }}
@@ -1013,6 +1065,7 @@ async def generate_from_candidate(
         for pt in PageType
         if pt in resolved_templates
     }
+    required_slots_by_depth = _required_slots_by_depth(paths.root, resolved_templates)
 
     response_format = {
         "type": "object",
@@ -1081,6 +1134,8 @@ async def generate_from_candidate(
         base_prompt=base_prompt,
         response_format=response_format,
         required_slots_by_type=required_slots_by_type,
+        required_slots_by_depth=required_slots_by_depth,
+        processing_depth_hint=processing_depth_hint,
         timeout=600.0,
         missing_slugs_resolver=missing_slugs_resolver,
     )
@@ -1123,7 +1178,20 @@ async def generate_from_candidate(
             continue
 
         page_key = str(p.get("id") or slug or title)
-        required = required_slots_by_type.get(page_type, [])
+        depth = _resolve_processing_depth(
+            p.get("processing_depth"), page_type, hint=processing_depth_hint,
+        )
+        required = required_slots_by_depth.get((page_type, depth)) if depth else None
+        if depth is None or required is None:
+            pages.rejected[page_key] = (
+                f"invalid processing_depth for {page_type.value}: "
+                f"{p.get('processing_depth')!r}"
+            )
+            _logger.warning(
+                "[generate_from_candidate] withholding page %s: %s",
+                page_key, pages.rejected[page_key],
+            )
+            continue
         invalid_slots = _invalid_required_slots(p.get("slots", {}) or {}, required)
         if enforce_slot_verdicts and invalid_slots:
             pages.rejected[page_key] = "required slots: " + ", ".join(invalid_slots)
@@ -1174,6 +1242,7 @@ async def generate_from_candidate(
             slots=p.get("slots", {}) or {},
             page_type=page_type,
             paths=paths,
+            processing_depth=depth,
             processing_depth_hint=processing_depth_hint,
         )
         # Phase 3 follow-up (M4)：渲染后确定性清洗 LLM 惯性占位符
@@ -1197,7 +1266,7 @@ async def generate_from_candidate(
             sources=[normalize_source_path(candidate.source_id, paths.root)],
             created_at=now, updated_at=now, body=body_md,
             grade=p.get("grade", _derived_grade),
-            processing_depth=p.get("processing_depth") or _DEPTH_BY_TYPE.get(page_type, "concept"),
+            processing_depth=depth,
             is_immutable=p.get("is_immutable", False),
             relations=parse_relations_from_response(deduped_relations),
             tags=_resolve_page_tags_unified(p),
@@ -1258,6 +1327,7 @@ async def generate_from_knowledge_object(
         for pt in PageType
         if pt in resolved_templates
     }
+    required_slots_by_depth = _required_slots_by_depth(paths.root, resolved_templates)
 
     response_format = {
         "type": "object",
@@ -1326,6 +1396,8 @@ async def generate_from_knowledge_object(
         base_prompt=base_prompt,
         response_format=response_format,
         required_slots_by_type=required_slots_by_type,
+        required_slots_by_depth=required_slots_by_depth,
+        processing_depth_hint=processing_depth_hint,
         timeout=600.0,
         missing_slugs_resolver=missing_slugs_resolver,
     )
@@ -1342,6 +1414,8 @@ async def generate_from_knowledge_object(
     filled_pages, missing_summary = _ensure_required_slots_filled(
         raw_pages,
         required_slots_by_type=required_slots_by_type,
+        required_slots_by_depth=required_slots_by_depth,
+        processing_depth_hint=processing_depth_hint,
     )
     if missing_summary:
         _logger.warning(
@@ -1483,6 +1557,7 @@ async def generate(
         for pt in PageType
         if pt in resolved_templates
     }
+    required_slots_by_depth = _required_slots_by_depth(paths.root, resolved_templates)
 
     analysis_json = json.dumps({
         "summary": analysis.summary,
@@ -1574,6 +1649,8 @@ async def generate(
         base_prompt=base_prompt,
         response_format=response_format,
         required_slots_by_type=required_slots_by_type,
+        required_slots_by_depth=required_slots_by_depth,
+        processing_depth_hint=processing_depth_hint,
         timeout=600.0,
         missing_slugs_resolver=missing_slugs_resolver,
     )
@@ -1595,6 +1672,8 @@ async def generate(
     filled_pages, missing_summary = _ensure_required_slots_filled(
         raw_pages,
         required_slots_by_type=required_slots_by_type,
+        required_slots_by_depth=required_slots_by_depth,
+        processing_depth_hint=processing_depth_hint,
     )
     if missing_summary:
         _logger.warning(
@@ -1743,6 +1822,8 @@ async def _call_with_slot_retry(
     base_prompt: str,
     response_format: dict,
     required_slots_by_type: dict[PageType, list[str]],
+    required_slots_by_depth: dict[tuple[PageType, str], list[str] | None] | None = None,
+    processing_depth_hint: Optional[str] = None,
     timeout: float = 180.0,
     max_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
     missing_slugs_resolver=None,
@@ -1945,6 +2026,8 @@ async def _call_with_slot_retry(
         last_missing = _find_missing_required_slots(
             response_dict.get("pages", []),
             required_slots_by_type=required_slots_by_type,
+            required_slots_by_depth=required_slots_by_depth,
+            processing_depth_hint=processing_depth_hint,
         )
         if last_missing:
             # 槽缺失 → 下一轮以槽反馈重试
@@ -1976,6 +2059,8 @@ def _find_missing_required_slots(
     pages: list[dict],
     *,
     required_slots_by_type: dict[PageType, list[str]],
+    required_slots_by_depth: dict[tuple[PageType, str], list[str] | None] | None = None,
+    processing_depth_hint: Optional[str] = None,
 ) -> dict[str, list[str]]:
     """Return ``{PageType.value: [slot_name, ...]}`` for missing required slots."""
     missing_by_type: dict[str, list[str]] = {}
@@ -1984,7 +2069,13 @@ def _find_missing_required_slots(
             ptype = PageType(p.get("type"))
         except (ValueError, TypeError):
             continue
-        required = required_slots_by_type.get(ptype, [])
+        if required_slots_by_depth is None:
+            required = required_slots_by_type.get(ptype, [])
+        else:
+            depth = _resolve_processing_depth(
+                p.get("processing_depth"), ptype, hint=processing_depth_hint,
+            )
+            required = required_slots_by_depth.get((ptype, depth)) if depth else None
         if not required:
             continue
         status = compute_slot_fill_status(p.get("slots", {}) or {}, required)
@@ -2166,6 +2257,8 @@ def _ensure_required_slots_filled(
     pages: list[dict],
     *,
     required_slots_by_type: dict[PageType, list[str]],
+    required_slots_by_depth: dict[tuple[PageType, str], list[str] | None] | None = None,
+    processing_depth_hint: Optional[str] = None,
     placeholder: str = "",
 ) -> tuple[list[dict], dict[str, list[str]]]:
     """Fill any still-missing required slots.
@@ -2184,7 +2277,13 @@ def _ensure_required_slots_filled(
             ptype = PageType(p.get("type"))
         except (ValueError, TypeError):
             continue
-        required = required_slots_by_type.get(ptype, [])
+        if required_slots_by_depth is None:
+            required = required_slots_by_type.get(ptype, [])
+        else:
+            depth = _resolve_processing_depth(
+                p.get("processing_depth"), ptype, hint=processing_depth_hint,
+            )
+            required = required_slots_by_depth.get((ptype, depth)) if depth else None
         if not required:
             continue
         slots = p.setdefault("slots", {})
@@ -2315,6 +2414,7 @@ def _render_page_body(
     slots: dict,
     page_type: PageType,
     paths: WikiPaths,
+    processing_depth: Optional[str] = None,
     processing_depth_hint: Optional[str] = None,
 ) -> str:
     """Render wiki page body, choosing template by processing_depth_hint.
@@ -2327,14 +2427,18 @@ def _render_page_body(
     Falls back to the resolved PageType template when short-form is unavailable
     (Q16: graceful fallback, not crash).
     """
-    if processing_depth_hint == "memory" and page_type == PageType.CONCEPT and template is not None:
+    depth = processing_depth if processing_depth is not None else processing_depth_hint
+    if depth == "memory" and page_type == PageType.CONCEPT and template is not None:
         try:
             short_form_body = _load_short_form_template(paths.root)
+            short_form_version = parse_template(
+                short_form_body, expected_type=PageType.CONCEPT
+            ).version or template.version or ""
             return render_body(
                 template_body=short_form_body,
                 slots=slots,
                 page_type=page_type,
-                template_version=template.version or "",
+                template_version=short_form_version,
             )
         except FileNotFoundError:
             _logger.warning("short-form.md missing, falling back to concept template")

@@ -47,6 +47,18 @@ The 11 warnings are the existing `unified_generate` deprecation warnings from
 legacy-path coverage; no test failures remain. `graphify update .` was also
 run after the code changes.
 
+## Follow-up review fixes
+
+The review found that memory pages were validated against the wrong template,
+invalid type/depth pairs could be normalized later, and source metadata was
+calculated before the quality gate. The follow-up now resolves required slots
+from the actual short-form template, rejects invalid pairs before page
+construction, includes `operation` in the candidate depth contract, and
+recomputes source grade/count after filtering.
+
+Follow-up verification: 129 focused tests passed with the same 11 legacy
+deprecation warnings.
+
 ## Scope note
 
 No Task 1 test or fixture was changed. The working tree already contains Task

@@ -63,6 +63,90 @@ def _make_mock_provider(response_dict):
 
 
 class TestGenerateFromCandidate:
+    def test_memory_depth_uses_short_form_slots_and_template(self, sample_candidate, sample_paths):
+        """Memory pages validate and render against short-form.md, not concept.md."""
+        provider = _make_mock_provider({
+            "pages": [{
+                "id": "test-memory",
+                "type": "concept",
+                "title": "测试概念",
+                "processing_depth": "memory",
+                "slots": {
+                    "summary": "这是短记忆摘要。",
+                    "key_points": ["这是短记忆要点。"],
+                    "references": ["[[ceshi-abc12345]]"],
+                },
+            }]
+        })
+
+        from src.pipeline.generator import generate_from_candidate
+        import asyncio
+
+        pages = asyncio.run(generate_from_candidate(
+            candidate=sample_candidate,
+            paths=sample_paths,
+            existing_wiki_index="",
+            provider=provider,
+            source_slug_map={"raw/sources/test.md": "ceshi-abc12345"},
+            enforce_slot_verdicts=True,
+            processing_depth_hint="concept",
+        ))
+
+        assert len(pages) == 1
+        assert "## 摘要" in pages[0].body
+        assert "## 核心观点" in pages[0].body
+        assert "## 引用与来源" in pages[0].body
+        assert "## 定义" not in pages[0].body
+
+    def test_invalid_page_type_depth_combination_is_withheld(self, sample_candidate, sample_paths):
+        """LLM source depth cannot be accepted for a concept page."""
+        provider = _make_mock_provider({
+            "pages": [{
+                "id": "test-invalid-depth",
+                "type": "concept",
+                "title": "测试概念",
+                "processing_depth": "source",
+                "slots": {
+                    "definition": "定义。",
+                    "characteristics": "特点。",
+                    "examples": "例子。",
+                    "related_concepts": "相关。",
+                    "references": "来源。",
+                },
+            }]
+        })
+
+        from src.pipeline.generator import generate_from_candidate
+        import asyncio
+
+        pages = asyncio.run(generate_from_candidate(
+            candidate=sample_candidate,
+            paths=sample_paths,
+            existing_wiki_index="",
+            provider=provider,
+            enforce_slot_verdicts=True,
+        ))
+
+        assert pages == []
+        assert "test-invalid-depth" in pages.rejected
+
+    def test_candidate_prompt_lists_operation_but_not_source_depth(self, sample_candidate, sample_paths):
+        provider = _make_mock_provider({"pages": []})
+
+        from src.pipeline.generator import generate_from_candidate
+        import asyncio
+
+        asyncio.run(generate_from_candidate(
+            candidate=sample_candidate,
+            paths=sample_paths,
+            existing_wiki_index="",
+            provider=provider,
+        ))
+
+        prompt = provider.complete.call_args.kwargs["messages"][0]["content"]
+        assert '"processing_depth": "concept|memory|operation"' in prompt
+        assert "concept|memory|operation|source" not in prompt
+
     def test_returns_list_of_wiki_pages(self, sample_candidate, sample_paths):
         """Happy path: mock LLM returns one concept page → verify WikiPage output."""
         provider = _make_mock_provider({

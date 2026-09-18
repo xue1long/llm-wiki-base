@@ -1334,6 +1334,22 @@ async def generate_ingest(
     pages = [p for p in pages if p.id in _keep_ids]
     extra_pages = [p for p in extra_pages if p.id in _keep_ids]
 
+    # Recompute source metadata from the post-gate page set.  A concept that
+    # was removed by the gate must not keep the source at grade A or make the
+    # task look non-empty.
+    _downstream_count = sum(1 for p in pages if p.type != PageType.SOURCE)
+    _source_grade = "A" if _downstream_count else "C"
+    _empty_warning = "空摄取"
+    for _source in (p for p in pages if p.type == PageType.SOURCE):
+        _source.grade = _source_grade
+        if _source_grade == "C" and _empty_warning not in (_source.body or ""):
+            _source.body = (_source.body or "") + (
+                "\n\n> ⚠️ **空摄取**: LLM 未从此文档提取到任何实体/概念/综合页面。"
+                "内容可能过于简短、格式化程度低，或与 wiki 主题不相关。"
+                "建议人工审核原始文档，或更换 LLM 模型后重新摄取。"
+            )
+        break
+
     # M4（Phase 3 实测）：extras（存量页反向边）写入前清洗 body 占位符。
     # pages 已在 render_body 后经 _clean_placeholder_text；extras 是磁盘加载
     # 的存量页，body 可能含历史占位符（如「来源未提供具体例子」），直接写盘
