@@ -102,6 +102,14 @@ raw/
 |---|---|---|
 | 维度下的小类 | tag 名内二级——前缀校验只看第一段（`parse` 用 `partition("/")`，name 可含斜杠） | `功能/写作技法/结构` |
 | 对齐业务分类体系 | `category` / `taxonomy_sub` frontmatter 字段（WikiPage 原生支持，round-trip 正常） | category=`写作技法`, taxonomy_sub=`人物塑造` |
+
+### Wikilink 与 taxonomy 规范
+
+普通页面引用接受 bare slug、`directory/slug` 和 `|alias` 形式；解析器只在
+canonical id、现有 alias 或唯一标题可证明时改写，歧义或未知目标进入 gap/review，
+不自动猜测相似 slug。taxonomy 是虚拟命名空间：输入 `taxonomy/<name>`，持久化为
+`taxonomy-<slug>`；项目 `taxonomy.md` 中不存在的 taxonomy 明确报错，合法 taxonomy
+不创建 wiki 页面，也不计入普通断链或 gap。
 | 页与页的类型化联系 | `x-*` 自定义关系类型（17 内置 + 无限 `x-*`） | `x-改自`、`x-致敬` |
 | 多维度并存 | 每页 0-N 个 tag，正交前缀并行 | `题材/玄幻` + `功能/写作技法` + `情绪/爽` |
 

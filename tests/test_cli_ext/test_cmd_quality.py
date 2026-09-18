@@ -47,3 +47,17 @@ def test_cmd_quality_score_file_not_found(tmp_path, capsys):
     with pytest.raises(SystemExit) as exc:
         cmd_quality_score(args)
     assert exc.value.code == 2
+
+
+def test_duplicate_titles_are_scoped_by_page_type(tmp_path):
+    from src.cli_ext.wiki_quality_cmd import _count_duplicate_titles
+
+    for directory in ("sources", "concepts"):
+        path = tmp_path / "wiki" / directory
+        path.mkdir(parents=True)
+        (path / "same.md").write_text(
+            f"---\nid: {directory}-same\ntype: {directory[:-1]}\ntitle: Same\n---\nbody",
+            encoding="utf-8",
+        )
+
+    assert _count_duplicate_titles(tmp_path / "wiki") == (0, 0)

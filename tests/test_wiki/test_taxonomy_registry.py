@@ -1,6 +1,10 @@
 """Public behavior tests for project taxonomy.md support."""
 
 from src.wiki.taxonomy_registry import TaxonomyRegistry
+from src.wiki.features.target_resolver import (
+    is_valid_taxonomy_target,
+    normalize_taxonomy_target,
+)
 
 
 def test_parse_taxonomy_headings_and_aliases():
@@ -61,3 +65,14 @@ def test_malformed_taxonomy_is_rejected_in_strict_mode(tmp_path):
         assert "taxonomy" in str(exc).lower()
     else:
         raise AssertionError("strict taxonomy parsing must reject malformed input")
+
+
+def test_taxonomy_targets_normalize_and_validate(tmp_path):
+    (tmp_path / "taxonomy.md").write_text(
+        "# Taxonomy\n\n## Writing\n- Technique\n", encoding="utf-8",
+    )
+
+    assert normalize_taxonomy_target("taxonomy/Technique") == "taxonomy-technique"
+    assert normalize_taxonomy_target("taxonomy-Technique") == "taxonomy-technique"
+    assert is_valid_taxonomy_target("taxonomy/Technique", tmp_path)
+    assert not is_valid_taxonomy_target("taxonomy/Unknown", tmp_path)

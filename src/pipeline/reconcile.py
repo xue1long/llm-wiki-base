@@ -81,6 +81,11 @@ def _raw_is_blocklisted(raw: str) -> bool:
     return is_raw_reference_blocklisted(raw)
 
 
+def _is_virtual_taxonomy(raw: str, paths: WikiPaths) -> bool:
+    from ..wiki.features.target_resolver import is_valid_taxonomy_target
+    return is_valid_taxonomy_target(raw, paths.root)
+
+
 def _resolvable_set(paths: WikiPaths, produced_slugs: set[str]) -> set[str]:
     """Build the reconciliation set: produced ∪ disk ∪ alias-resolvable ∪ index.
 
@@ -140,6 +145,8 @@ def make_missing_slugs_resolver(
                 tgt = rel.get("target") or rel.get("target_id") or ""
                 if tgt:
                     norm = normalize_reconcile_slug(tgt)
+                    if _is_virtual_taxonomy(tgt, paths):
+                        continue
                     if (norm and norm not in resolvable and norm not in seen
                             and not _raw_is_blocklisted(tgt)):
                         seen.add(norm)
@@ -152,6 +159,8 @@ def make_missing_slugs_resolver(
                     if isinstance(v, str):
                         for _t in _extract_wikilink_targets(v):
                             norm = normalize_reconcile_slug(_t)
+                            if _is_virtual_taxonomy(_t, paths):
+                                continue
                             if (norm and norm not in resolvable and norm not in seen
                                     and not _raw_is_blocklisted(_t)):
                                 seen.add(norm)
@@ -179,6 +188,8 @@ def collect_missing_slugs(
     seen: set[str] = set()
     for p in pages:
         for raw in _collect_referenced_slugs([p]):
+            if _is_virtual_taxonomy(raw, paths):
+                continue
             # 先查原始（未归一）形态的 blocklist——类型前缀等幻觉引用在归一
             # 剥前缀前拦截（否则 source-补充教程 → 补充教程 绕过 blocklist）。
             if _raw_is_blocklisted(raw):

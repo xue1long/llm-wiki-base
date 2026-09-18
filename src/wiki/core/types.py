@@ -365,6 +365,24 @@ VALID_WORKFLOW_STATES = frozenset({"draft", "ready", "verified", "outdated"})
 VALID_PROCESSING_DEPTHS = frozenset({"concept", "memory", "operation"})
 
 
+def is_valid_processing_depth(
+    page_type: PageType,
+    processing_depth: str,
+    *,
+    allow_system_depths: bool = False,
+) -> bool:
+    """Validate page type/depth without rewriting legacy page metadata."""
+    if processing_depth in VALID_PROCESSING_DEPTHS:
+        return processing_depth != "memory" or page_type == PageType.CONCEPT
+    if not allow_system_depths:
+        return False
+    if processing_depth == "source":
+        return page_type == PageType.SOURCE
+    if processing_depth == "stub":
+        return page_type != PageType.SOURCE
+    return False
+
+
 @dataclass
 class ReviewItem:
     id: str

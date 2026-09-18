@@ -59,3 +59,34 @@ def test_h2_intentional_stub_not_broken(tmp_path):
     result = check.run()
     assert result.passed  # stub exempts wikilink
     assert result.issue_count == 0
+
+
+def test_h2_treats_declared_taxonomy_as_virtual_target(tmp_path):
+    (tmp_path / "wiki" / "concepts").mkdir(parents=True)
+    (tmp_path / "taxonomy.md").write_text(
+        "# Taxonomy\n\n## Writing\n- Technique\n", encoding="utf-8",
+    )
+    (tmp_path / "wiki" / "concepts" / "foo.md").write_text(
+        "---\nid: foo\ntype: concept\n---\nsee [[taxonomy/Technique]]",
+        encoding="utf-8",
+    )
+
+    result = H2BreakLinksCheck(tmp_path).run()
+
+    assert result.passed
+
+
+def test_h2_rejects_undeclared_taxonomy_target(tmp_path):
+    (tmp_path / "wiki" / "concepts").mkdir(parents=True)
+    (tmp_path / "taxonomy.md").write_text(
+        "# Taxonomy\n\n## Writing\n- Technique\n", encoding="utf-8",
+    )
+    (tmp_path / "wiki" / "concepts" / "foo.md").write_text(
+        "---\nid: foo\ntype: concept\n---\nsee [[taxonomy/Unknown]]",
+        encoding="utf-8",
+    )
+
+    result = H2BreakLinksCheck(tmp_path).run()
+
+    assert not result.passed
+    assert result.issues[0].target == "taxonomy/Unknown"

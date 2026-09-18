@@ -14,7 +14,7 @@ from __future__ import annotations
 import re as _re
 
 from src.wiki.core.paths import WikiPaths
-from src.wiki.core.types import PageType
+from src.wiki.core.types import PageType, is_valid_processing_depth
 
 
 # ---------------------------------------------------------------------------
@@ -37,9 +37,9 @@ def _gate_fields(page) -> list[str]:
         errs.append("L0: missing sources")
     if page.grade not in ("A", "B", "C"):
         errs.append(f"L1: invalid grade: {page.grade}")
-    _VALID_DEPTHS = {"memory", "concept", "operation",
-                     "source", "entity", "synthesis", "stub"}
-    if page.processing_depth not in _VALID_DEPTHS:
+    if not is_valid_processing_depth(
+        page.type, page.processing_depth, allow_system_depths=True,
+    ):
         errs.append(f"L1: invalid processing_depth: {page.processing_depth}")
     return errs
 
@@ -198,6 +198,7 @@ def _gate_reconcile(pages, extra_pages, paths: WikiPaths,
     from src.wiki.features.indexer import read_index
     from src.wiki.features.knowledge_gaps import KnowledgeGapStore
     from src.wiki.features.slug_utils import normalize_reconcile_slug
+    from src.wiki.features.target_resolver import is_valid_taxonomy_target
 
     produced = {p.id for p in pages} | {p.id for p in (extra_pages or [])}
     disk = {slug for slug, _, _ in read_index(paths)}
@@ -220,6 +221,8 @@ def _gate_reconcile(pages, extra_pages, paths: WikiPaths,
     # 其历史断链由 cascade 重建消解（不计入批内 M1）。
     for p in pages:
         for target in _wikilink_targets_of(p):
+            if is_valid_taxonomy_target(target, paths.root):
+                continue
             canon = alias_canon(target) if alias_canon else target
             # get_canonical 对未知 slug 返回 None → 回退原 target（review 实测）
             canon = canon if canon else target

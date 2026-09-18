@@ -95,8 +95,8 @@ def _count_legacy_int_timestamps(wiki_root: Path) -> int:
 
 
 def _count_duplicate_titles(wiki_root: Path) -> tuple[int, int]:
-    """Return (group_count, page_count) of pages whose title matches ≥1 other page."""
-    titles: dict[str, int] = {}
+    """Return duplicates grouped by page type and normalized title."""
+    titles: dict[tuple[str, str], int] = {}
     for md in wiki_root.rglob("*.md"):
         rel = md.relative_to(wiki_root)
         if len(rel.parts) == 1 and rel.name in {"index.md", "log.md"}:
@@ -114,12 +114,17 @@ def _count_duplicate_titles(wiki_root: Path) -> tuple[int, int]:
         end = text.find("\n---", 4)
         if end < 0:
             continue
+        page_type = "unknown"
+        title = ""
         for line in text[4:end].split("\n"):
-            if line.startswith("title:"):
-                t = line[6:].strip()
-                if t:
-                    titles[t] = titles.get(t, 0) + 1
-                break
+            if line.startswith("type:"):
+                page_type = line[5:].strip().strip("'\"") or "unknown"
+            elif line.startswith("title:"):
+                title = line[6:].strip().strip("'\"")
+        if title:
+            normalized = re.sub(r"\s+", " ", title).casefold().strip()
+            key = (page_type, normalized)
+            titles[key] = titles.get(key, 0) + 1
     groups = [c for c in titles.values() if c > 1]
     return len(groups), sum(groups)
 

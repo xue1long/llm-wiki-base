@@ -20,9 +20,39 @@ import re
 from dataclasses import dataclass, field
 from typing import Mapping, Sequence
 
+from ...utils.slugify import slugify
+from ..taxonomy_registry import TaxonomyRegistry
 from .slug_utils import normalize_reconcile_slug
 
 _LEGACY_HASH_SUFFIX = re.compile(r"-[0-9a-f]{8}$")
+
+
+def normalize_taxonomy_target(raw_target: str) -> str | None:
+    """Normalize accepted taxonomy input to the persisted virtual target."""
+    target = _clean_target(raw_target)
+    if target.startswith("taxonomy/"):
+        name = target.removeprefix("taxonomy/")
+    elif target.startswith("taxonomy-"):
+        name = target.removeprefix("taxonomy-")
+    else:
+        return None
+    name = slugify(name)
+    return f"taxonomy-{name}" if name else None
+
+
+def is_valid_taxonomy_target(raw_target: str, root) -> bool:
+    """Return whether a taxonomy target is virtual and declared by the project."""
+    canonical = normalize_taxonomy_target(raw_target)
+    if not canonical:
+        return False
+    name = canonical.removeprefix("taxonomy-")
+    registry = TaxonomyRegistry.from_project(root)
+    if registry.is_empty:
+        return False
+    values = set(registry.categories) | {
+        value for children in registry.categories.values() for value in children
+    } | set(registry.aliases)
+    return any(slugify(value) == name for value in values)
 
 
 @dataclass(frozen=True)

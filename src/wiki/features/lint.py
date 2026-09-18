@@ -27,7 +27,10 @@ from .indexer import read_index
 
 logger = logging.getLogger(__name__)
 from ..storage.page_writer import read_page
-from ..core.types import VALID_PROCESSING_DEPTHS, VALID_WORKFLOW_STATES
+from ..core.types import (
+    VALID_WORKFLOW_STATES,
+    is_valid_processing_depth,
+)
 from ..core.paths import WikiPaths
 from ..core.types import PageType, _coerce_ts_ms
 from ..templates import list_resolved, required_slot_names
@@ -414,7 +417,9 @@ def lint_wiki(
                     )
                 )
             _pd = page.processing_depth or "concept"
-            if _pd not in VALID_PROCESSING_DEPTHS:
+            if not is_valid_processing_depth(
+                page.type, _pd, allow_system_depths=True,
+            ):
                 issues.append(
                     LintIssue(
                         code="LINT-INVALID-PROCESSING-DEPTH",

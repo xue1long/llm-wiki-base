@@ -77,7 +77,8 @@ rules:
 
 - `body` (str) —— Markdown body（页面正文，不算 frontmatter 字段）
 - `grade` (str) —— A/B/C 评级的内存别名；V6 写盘使用 `source_grade`
-- `processing_depth` (str) —— concept/memory/operation
+- `processing_depth` (str) —— LLM 只允许 `concept`/`memory`/`operation`；系统
+  source 页使用 `source`，stub 页使用 `stub`。`memory` 只适用于 concept。
 - `is_immutable` (bool) —— 保留字段定义但未启用守卫
 - `heat` / `last_used_at` / `zombie_since` —— 热度衰减（未启用）
 - `verified_at` —— 治理状态的运行时字段，V6 不写入
@@ -154,7 +155,8 @@ tags: []                         # 业务轻量标签（无 type 约束）
 
 - `min_length`: 1 字符
 - `max_length`: 50000 字符
-- `wikilink_syntax`: `[[directory/slug]]` 或 `[[directory/slug|alias]]`
+- `wikilink_syntax`: 输入可为 `[[slug]]`、`[[directory/slug]]` 或带显示名的
+  `[[directory/slug|alias]]`；解析后统一按 canonical page id 比对。
 - `allowed_markdown`: bold / italic / headings / lists / wikilinks
 
 ---
@@ -217,9 +219,9 @@ $ python scripts/validate_novel_wiki_frontmatter.py
 
 | 旧字段 | V4 转换 |
 |---|---|
-| `category: 写作技法` | `relations: [{target: taxonomy/写作技法, type: taxonomy_of}]` |
-| `taxonomy_sub: 人物塑造` | `relations: [{target: taxonomy/人物塑造, type: taxonomy_of}]` |
-| `tags: [题材/玄幻]` | `relations: [{target: taxonomy/玄幻, type: taxonomy_of}]` |
+| `category: 写作技法` | 输入 `taxonomy/写作技法`，持久化为虚拟 target `taxonomy-写作技法` |
+| `taxonomy_sub: 人物塑造` | 输入 `taxonomy/人物塑造`，持久化为虚拟 target `taxonomy-人物塑造` |
+| `tags: [题材/玄幻]` | 输入 `taxonomy/玄幻`，持久化为虚拟 target `taxonomy-玄幻` |
 | `tags: [读者群/女性向]` | `relations: [{target: audience/女性向, type: belongs_to_audience}]` |
 | `tags: [平台/飞书]` | `relations: [{target: platform/飞书, type: hosted_on_platform}]` |
 | `tags: [可信度/ugc]` | `relations: [{target: credibility/ugc, type: has_credibility}]` |
