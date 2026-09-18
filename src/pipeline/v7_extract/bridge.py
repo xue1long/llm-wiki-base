@@ -43,6 +43,7 @@ from .doc_classifier import classify_doc
 from .failures import enqueue_failure
 from .llm_bridge import ProviderAdapter
 from .page_adapter import adapt_concept_page, build_source_stub_page
+from .page_synthesizer import FillStatus, fill_slots_v2
 from .relation_extractor import extract_relations
 from .segmentation import (
     build_structural_summary,
@@ -328,18 +329,49 @@ async def run_v7_ingest(
             result.failure_reason = "; ".join(cluster_result.warnings) or cluster_result.status.value
             return result
 
-        # ── Stage 5: fill_slots per topic (v2 path) ──
-        # If use_fill_slots_v2=True, the v3 path requires window_resolver
-        # to produce spans_per_slot — TODO for Stage 2.
+        # ── Stage 5: fill_slots per topic (v2 or v3 path) ──
+        # v3 path: build spans_per_slot from Stage 2 items. Each item's
+        # text is sliced into ~1500-byte spans (the canonical_v7 limit)
+        # and every slot gets the same span list — the LLM filters by
+        # relevance in extract_slot_claims. This avoids the
+        # window_resolver dependency while still giving v3's per-slot
+        # claim validation.
+        spans_per_slot: dict[str, list[Any]] = {}
         if use_fill_slots_v2:
-            result.failure_stage = "stage5_v2_not_implemented"
-            result.failure_reason = (
-                "fill_slots_v2 requires window_resolver; deferred to Stage 2"
-            )
-            return result
+            from .canonical_spans import CanonicalSpan
+            source_bytes = source_text.encode("utf-8")
+            for slot_name in ("definition", "characteristics", "context",
+                              "anti_patterns", "evidence", "examples",
+                              "related_concepts", "references"):
+                spans_for_slot: list[CanonicalSpan] = []
+                for idx, ci in enumerate(segmentation.items):
+                    text_bytes = ci.text.encode("utf-8")
+                    n_bytes = len(text_bytes)
+                    if n_bytes == 0:
+                        continue
+                    starts = list(range(0, n_bytes, 1500))
+                    if not starts or starts[-1] != n_bytes:
+                        starts.append(n_bytes)
+                    for j, s in enumerate(starts):
+                        e = starts[j + 1] if j + 1 < len(starts) else n_bytes
+                        if e <= s:
+                            continue
+                        text_prefix = text_bytes[:s].decode("utf-8", errors="replace")
+                        char_start = len(text_prefix)
+                        char_end = char_start + len(text_bytes[s:e].decode("utf-8", errors="replace"))
+                        spans_for_slot.append(CanonicalSpan(
+                            span_id=f"span-{ci.item_id}-{slot_name[:4]}-i{j}",
+                            item_id=ci.item_id,
+                            item_index=idx,
+                            start_byte=s,
+                            end_byte=e,
+                            char_start=char_start,
+                            char_end=char_end,
+                        ))
+                spans_per_slot[slot_name] = spans_for_slot
 
         # Build the item_texts map from the splitter output so fill_slots
-        # can index into the items by id.
+        # (v2 path) can index into the items by id.
         item_texts: dict[str, str] = {it["id"]: it["text"] for it in items}
 
         concept_pages: list[Any] = []
@@ -347,19 +379,42 @@ async def run_v7_ingest(
         for topic in cluster_result.topics:
             if topic.id == OTHER_TOPIC_ID:
                 continue  # Stage 7 sentinel; never write
+            topic_label = topic.title or topic.id
+            # v2 path uses topic_text (concat of all items' text);
+            # v3 path uses spans_per_slot (already indexed by slot).
             topic_text = "\n\n".join(
                 item_texts[item_id]
                 for item_id in topic.item_ids
                 if item_id in item_texts
             )
             try:
-                concept_page = await fill_slots(
-                    topic,
-                    source_text=topic_text,
-                    llm=llm,
-                    item_texts=item_texts,
-                    project_root=paths.root,
-                )
+                if use_fill_slots_v2:
+                    fill_result = await fill_slots_v2(
+                        topic,
+                        spans_per_slot=spans_per_slot,
+                        topic_items=segmentation.items,
+                        source_bytes=source_text.encode("utf-8"),
+                        llm=llm,
+                        project_root=paths.root,
+                        topic_label=topic_label,
+                    )
+                    # Map FillStatus → concept_page
+                    if fill_result.status is FillStatus.FILLED:
+                        concept_page = fill_result.legacy_page
+                    else:
+                        log.warning(
+                            "[v7-bridge] topic %s fill_slots_v2 status=%s technical_error=%s",
+                            topic.id, fill_result.status.value, fill_result.technical_error,
+                        )
+                        concept_page = None
+                else:
+                    concept_page = await fill_slots(
+                        topic,
+                        source_text=topic_text,
+                        llm=llm,
+                        item_texts=item_texts,
+                        project_root=paths.root,
+                    )
             except Exception as exc:
                 log.warning(
                     "[v7-bridge] fill_slots exception for topic %s: %s", topic.id, exc
