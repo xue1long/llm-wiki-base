@@ -214,3 +214,22 @@ class TestEmptyInput:
         result = check_pages([])
         assert result.pages == []
         assert result.degraded == {}
+
+
+class TestOutlineRequiredContent:
+    def test_invalid_concept_is_dropped_without_dropping_source(self):
+        """The gate must preserve a valid source when a concept has only headings."""
+        source = WikiPage(
+            id="outline-source", title="大纲写作技巧", type=PageType.SOURCE,
+            body="来源正文完整，说明大纲包含时间、地点、人物和主要内容。", processing_depth="source",
+        )
+        empty_concept = WikiPage(
+            id="大纲四要素", title="大纲四要素", type=PageType.CONCEPT,
+            body="## 定义\n\n## 主要特点\n\n## 例子\n\n## 相关概念\n\n## 参考来源\n",
+            processing_depth="concept",
+        )
+
+        result = check_pages([source, empty_concept])
+
+        assert [page.id for page in result.pages] == [source.id]
+        assert "missing_required_content" in result.degraded[empty_concept.id]

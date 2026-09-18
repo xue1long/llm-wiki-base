@@ -12,6 +12,7 @@ Locks in the three invariants of the split:
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import time
 from pathlib import Path
@@ -819,3 +820,97 @@ def test_finalize_generated_page_overrides_system_fields():
     ]
     finalize_generated_page(page3, WikiPaths("."), now=1)
     assert [r.weight for r in page3.relations] == [1.0, 1.0, 0.3]
+
+
+# ---------------------------------------------------------------------------
+# 2026-09-18 novel-wiki-v2: generated-page disposition before commit.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_outline_variant_is_not_written_and_requires_human_review(tmp_path: Path, monkeypatch):
+    """A semantic title variant must quarantine, never silently succeed."""
+    monkeypatch.setenv("RUFLO_PIPELINE_MODE", "candidate")
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "视频音频转录教程" / "02进阶视频教程" / "大纲写作技巧.md"
+    raw.parent.mkdir(parents=True)
+    source_text = (Path(__file__).parents[1] / "fixtures" / "novel_wiki_v2_outline_source.md").read_text(encoding="utf-8")
+    raw.write_text(source_text, encoding="utf-8")
+    source_id = "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md"
+    from src.pipeline.text_preprocessing import preprocess_source
+    block = preprocess_source(
+        source_text, source_id=source_id,
+        source_bytes_sha256=hashlib.sha256(raw.read_bytes()).hexdigest(),
+        format="md", extraction_method="markdown",
+    ).canonical_document.blocks[1]
+    provider = ScriptedLLMProvider([
+        {
+            "source_id": source_id,
+            "type": "concept",
+            "title": "大纲写作技巧",
+            "claims": [{"statement": "大纲包含时间、地点、人物、主要内容四要素。", "confidence": 0.9, "evidence_refs": [0]}],
+            "evidence": [{"source_path": source_id, "block_id": block.block_id, "quote": block.content}],
+        },
+        {
+            "pages": [{
+                "id": "小说大纲写作技巧", "type": "concept", "title": "小说大纲写作技巧",
+                "slots": {"definition": "大纲是蓝图。", "characteristics": ["结构"], "examples": ["无"], "related_concepts": [], "references": []},
+            }],
+        },
+    ])
+
+    pages, extra_pages, meta = await generate_ingest(
+        paths=paths, source_path=raw, source_text=source_text,
+        provider=provider, task_id="kb-outline-variant",
+    )
+
+    assert not extra_pages
+    source_pages = [page for page in pages if page.type == PageType.SOURCE]
+    assert len(source_pages) == 1
+    assert source_pages[0].id == meta["source_page_id"]
+    assert source_pages[0].id.startswith("大纲写作技巧-")
+    assert {page.id for page in pages} == {source_pages[0].id}
+    assert meta["verdict"] == "NEEDS_HUMAN_REVIEW"
+    assert meta["quarantined_page_ids"] == ["小说大纲写作技巧"]
+
+
+@pytest.mark.asyncio
+async def test_outline_missing_required_concept_keeps_only_source_with_warning(tmp_path: Path, monkeypatch):
+    """A bad downstream concept cannot block the deterministic source page."""
+    monkeypatch.setenv("RUFLO_PIPELINE_MODE", "candidate")
+    ensure_knowledge_base(tmp_path)
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "大纲写作技巧.md"
+    source_text = "大纲包含时间、地点、人物、主要内容。"
+    raw.write_text(source_text, encoding="utf-8")
+    source_id = "raw/sources/大纲写作技巧.md"
+    from src.pipeline.text_preprocessing import preprocess_source
+    block = preprocess_source(
+        source_text, source_id=source_id,
+        source_bytes_sha256=hashlib.sha256(raw.read_bytes()).hexdigest(),
+        format="md", extraction_method="markdown",
+    ).canonical_document.blocks[0]
+    provider = ScriptedLLMProvider([
+        {
+            "source_id": source_id, "type": "concept", "title": "大纲写作技巧",
+            "claims": [{"statement": "大纲包含四要素。", "confidence": 0.9, "evidence_refs": [0]}],
+            "evidence": [{"source_path": source_id, "block_id": block.block_id, "quote": block.content}],
+        },
+        {
+            "pages": [{
+                "id": "大纲四要素", "type": "concept", "title": "大纲四要素",
+                "slots": {"definition": "", "characteristics": [], "examples": [], "related_concepts": [], "references": []},
+            }],
+        },
+    ])
+
+    pages, _extra_pages, meta = await generate_ingest(
+        paths=paths, source_path=raw, source_text=source_text,
+        provider=provider, task_id="kb-outline-missing-slot",
+    )
+
+    assert [page.type for page in pages] == [PageType.SOURCE]
+    assert meta["verdict"] == "NEEDS_HUMAN_REVIEW"
+    assert "大纲四要素" in meta["quarantined_page_ids"]
+    assert meta["warnings"]

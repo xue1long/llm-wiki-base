@@ -1,4 +1,7 @@
 # tests/test_pipeline/test_generator.py
+import hashlib
+from pathlib import Path
+
 import pytest
 from tests.support.test_helpers import ScriptedLLMProvider
 from src.pipeline.schemas import AnalysisResult, EntityMention, PageSpec
@@ -1484,3 +1487,163 @@ async def test_call_with_slot_retry_no_resolver_unaffected():
     )
     assert len(provider.calls) == 1
     assert result["pages"][0]["id"] == "s"
+
+
+# ---------------------------------------------------------------------------
+# 2026-09-18 novel-wiki-v2: representative outline generation contract.
+# ---------------------------------------------------------------------------
+
+
+_OUTLINE_SOURCE_ID = "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md"
+def _outline_candidate():
+    from src.knowledge.core.candidate import KnowledgeCandidate
+    from src.knowledge.core.object import KnowledgeType
+
+    return KnowledgeCandidate(
+        id="cand-outline",
+        source_id=_OUTLINE_SOURCE_ID,
+        type=KnowledgeType.CONCEPT,
+        title="大纲写作技巧",
+        confidence=0.9,
+        claims=[
+            {"statement": "大纲包含时间、地点、人物、主要内容四要素。", "confidence": 0.9, "evidence_refs": [0]},
+            {"statement": "大纲是写作前的蓝图，可避免作者失去方向。", "confidence": 0.9, "evidence_refs": [1]},
+        ],
+        evidence=[
+            {"source_path": _OUTLINE_SOURCE_ID, "block_id": "outline-block", "quote": "时间、地点、人物、主要内容四个部分"},
+            {"source_path": _OUTLINE_SOURCE_ID, "block_id": "outline-block", "quote": "提纲像盖大楼前的图纸，避免写到一半失去方向"},
+        ],
+        raw_llm_output={},
+    )
+
+
+def _install_outline_v3_concept_template(root: Path) -> None:
+    template_dir = root / ".wiki-templates"
+    template_dir.mkdir()
+    (template_dir / "concept.md").write_text(
+        """<!-- wiki-template-version: 3.0.0 -->
+<!-- wiki-template-type: concept -->
+
+## 定义
+
+<!-- slot:definition -->
+
+## 主要特点
+
+<!-- slot:characteristics -->
+
+## 适用场景
+
+<!-- slot:context -->
+
+## 反模式与常见错误
+
+<!-- slot:anti_patterns -->
+
+## 证据强度
+
+<!-- slot:evidence -->
+
+## 例子
+
+<!-- slot:examples -->
+
+## 相关概念
+
+<!-- slot:related_concepts -->
+
+## 参考来源
+
+<!-- slot:references -->
+""",
+        encoding="utf-8",
+    )
+
+
+@pytest.mark.asyncio
+async def test_outline_candidate_uses_v3_template_and_preserves_supported_facts(tmp_path: Path, monkeypatch):
+    """The representative outline commits one source plus two concepts."""
+    from src.pipeline.ingest import generate_ingest
+    from src.pipeline.text_preprocessing import preprocess_source
+    from src.wiki.storage.ensure import ensure_knowledge_base
+    from src.wiki.core.paths import WikiPaths
+    from types import SimpleNamespace
+
+    ensure_knowledge_base(tmp_path)
+    _install_outline_v3_concept_template(tmp_path)
+    source_text = (Path(__file__).parents[1] / "fixtures" / "novel_wiki_v2_outline_source.md").read_text(encoding="utf-8")
+    paths = WikiPaths(tmp_path)
+    raw = paths.raw_sources / "视频音频转录教程" / "02进阶视频教程" / "大纲写作技巧.md"
+    raw.parent.mkdir(parents=True)
+    raw.write_text(source_text, encoding="utf-8")
+    source_id = _OUTLINE_SOURCE_ID
+    source_slug = f"{raw.stem}-{hashlib.md5(str(raw).encode('utf-8')).hexdigest()[:8]}"
+    blocks = preprocess_source(
+        source_text, source_id=source_id,
+        source_bytes_sha256=hashlib.sha256(raw.read_bytes()).hexdigest(),
+        format="md", extraction_method="markdown",
+    ).canonical_document.blocks
+    monkeypatch.setattr(
+        "src.pipeline.short_form.detect_short_form",
+        lambda _text: SimpleNamespace(processing_depth="concept", char_count=0, step_count=0, timed_out=False),
+    )
+    provider = ScriptedLLMProvider([
+        {
+            "source_id": source_id,
+            "type": "concept",
+            "title": "大纲写作技巧",
+            "claims": [
+                {"statement": "大纲包含时间、地点、人物、主要内容四要素。", "confidence": 0.9, "evidence_refs": [0]},
+                {"statement": "大纲是写作前的蓝图，可避免作者失去方向。", "confidence": 0.9, "evidence_refs": [1]},
+            ],
+            "evidence": [
+                {"source_path": source_id, "block_id": blocks[1].block_id, "quote": blocks[1].content},
+                {"source_path": source_id, "block_id": blocks[3].block_id, "quote": blocks[3].content},
+            ],
+        },
+        {"pages": [
+            {"id": "大纲写作技巧", "type": "concept", "title": "大纲写作技巧", "slots": {
+                "definition": "大纲是小说写作前的蓝图，帮助作者把握方向；提纲的重要性在于此。",
+                "characteristics": ["先规划整体结构", "避免写到一半失去方向"],
+                "context": "适用于开始长篇小说前的规划。",
+                "anti_patterns": "不要把提纲拆成缺乏证据的独立主题。",
+                "evidence": "来源为未署名教程转录，结论仅限原文陈述。",
+                "examples": "原文没有提供可独立复用的案例。",
+                "related_concepts": ["[[大纲四要素]]"],
+                "references": [f"[[{source_slug}]]"],
+            }},
+            {"id": "大纲四要素", "type": "concept", "title": "大纲四要素", "slots": {
+                "definition": "小说大纲应覆盖时间、地点、人物和主要内容。",
+                "characteristics": ["时间写大致背景", "地点先列大地点", "人物写性格身份背景", "主要内容交代开端和解决"],
+                "context": "用于整理小说提纲的基本构成。",
+                "anti_patterns": "不要把时间写死到妨碍后续修改。",
+                "evidence": "四要素均有来源原文回指。",
+                "examples": "原文没有提供可独立复用的案例。",
+                "related_concepts": ["[[大纲写作技巧]]"],
+                "references": [f"[[{source_slug}]]"],
+            }},
+        ],
+        },
+    ])
+
+    pages, extra_pages, meta = await generate_ingest(
+        paths=paths, source_path=raw, source_text=source_text,
+        provider=provider, task_id="kb-outline-contract",
+    )
+
+    assert not extra_pages
+    assert len(pages) == 3
+    source_pages = [page for page in pages if page.type == PageType.SOURCE]
+    concept_pages = [page for page in pages if page.type == PageType.CONCEPT]
+    assert len(source_pages) == 1 and source_pages[0].id == meta["source_page_id"]
+    assert {page.id for page in concept_pages} == {"大纲写作技巧", "大纲四要素"}
+    assert "提纲的重要性" not in {page.title for page in pages}
+    assert all("（系统占位" not in page.body for page in concept_pages)
+    assert all("## 适用场景" in page.body and "## 证据强度" in page.body for page in concept_pages)
+    assert all(page.sources == [source_id] for page in concept_pages)
+    assert all(f"[[{source_pages[0].id}]]" in page.body for page in concept_pages)
+    assert all("作者:" not in page.body and "平台:" not in page.body and "http" not in page.body for page in concept_pages)
+    bodies = {page.id: page.body for page in concept_pages}
+    assert all(fact in bodies["大纲四要素"] for fact in ("时间", "地点", "人物", "主要内容"))
+    assert "蓝图" in bodies["大纲写作技巧"] and "方向" in bodies["大纲写作技巧"]
+    assert "提纲的重要性" in bodies["大纲写作技巧"]
