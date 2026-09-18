@@ -77,7 +77,11 @@ def _write_bundle(
     bundle_dir = kc_root / "bundles" / bundle_key
     (bundle_dir / "objects").mkdir(parents=True, exist_ok=True)
     (bundle_dir / "manifest.json").write_text(
-        json.dumps({"bundle_key": bundle_key, "source_path": source_path}),
+        json.dumps({
+            "bundle_key": bundle_key,
+            "source_path": source_path,
+            "status": "published",
+        }),
         encoding="utf-8",
     )
     for claim in claims:

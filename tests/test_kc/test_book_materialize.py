@@ -100,6 +100,7 @@ def _write_bundle(
     source_path: str,
     claims: list[dict],
     evidences: list[dict] | None = None,
+    status: str = "published",
 ) -> Path:
     bundle_dir = kc_root / "bundles" / bundle_key
     (bundle_dir / "objects").mkdir(parents=True, exist_ok=True)
@@ -111,7 +112,7 @@ def _write_bundle(
         "document_id": f"doc_{bundle_key[:8]}",
         "source_path": source_path,
         "object_ids": [c["id"] for c in claims],
-        "status": "staged",
+        "status": status,
     }
     (bundle_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -175,6 +176,22 @@ def test_materialize_missing_publication_state_defaults_to_zero(tmp_path: Path) 
     )
     snapshot = materialize_book_snapshot(tmp_path)
     assert snapshot.publication_version == 0
+
+
+def test_materialize_skips_staged_bundle(tmp_path: Path) -> None:
+    _make_project(
+        tmp_path,
+        bundles=[("bk1", "raw/sources/a.md", [_claim("c1", source_path="raw/sources/a.md")], None)],
+    )
+    manifest = tmp_path / ".index" / "kc" / "bundles" / "bk1" / "manifest.json"
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["status"] = "staged"
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    snapshot = materialize_book_snapshot(tmp_path)
+
+    assert snapshot.is_empty
+    assert snapshot.stats.claim_count == 0
 
 
 # ─── Grouping (decision D-1) ───────────────────────────────────────────

@@ -270,6 +270,10 @@ def _collect(kc_root: Path) -> _CollectedState:
         state.bundles += 1
 
         manifest = _read_json(bundle_dir / "manifest.json") or {}
+        # Staged/quarantined bundles are recovery inputs, not published Book
+        # material.  Fail closed when status is missing or unknown.
+        if manifest.get("status") != "published":
+            continue
         manifest_source = manifest.get("source_path")
 
         objects_dir = bundle_dir / "objects"
