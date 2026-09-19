@@ -121,6 +121,11 @@ def adapt_concept_page(page: ConceptPage) -> WikiPage:
     # _ko_extra.slot_evidence for audit.
     cleaned_sources = [_strip_section_suffix(s) for s in page.sources]
 
+    # Set created_at/updated_at so the frontmatter has real timestamps
+    # (WikiPage.to_frontmatter_dict → _to_iso_dt maps int 0 to None,
+    # which YAML writes as empty string — cosmetically ugly).
+    now = datetime.now(timezone.utc)
+
     return WikiPage(
         id=page.id,
         title=page.title,
@@ -216,12 +221,20 @@ def build_source_stub_page(
             context="引用原始教程来源",
         ))
 
+    # Set created_at/updated_at so the frontmatter has real timestamps
+    # (WikiPage.to_frontmatter_dict → _to_iso_dt maps int 0 to None,
+    # which YAML writes as empty string — cosmetically ugly and breaks
+    # ordering by recency in the wiki index).
+    now = datetime.now(timezone.utc)
+
     return WikiPage(
         id=page_id,
         title=raw_stem or page_id,
         type=PageType.SOURCE,
         sources=[rel_source],
         body=body,
+        created_at=now,
+        updated_at=now,
         processing_depth="source",
         relations=relations,
     )
