@@ -1,5 +1,28 @@
 # Project Memory Index
 
+- [2026-09-18 novel-wiki-v2 Task 2 fail-closed slots](feedback-novel-wiki-v2-task2-2026-09-18.md) — candidate slot verdicts at the formal write boundary, source-only restricted to downstream page failures, and heading-only template bodies blocked
+
+- [novel-wiki-v2 70KB 长稿摄取实测](feedback-novel-wiki-v2-ingest-audio-daolun-2026-09-18.md) — 音频教程/大纲写作技巧.md 71 s 内被 Reviewer 拒，wiki 0 写入；证明 fail-closed slot 在 ASR 错字 + 大文档下行为符合预期，但暴露 evidence 抽取 byte-match 与 ASR 噪声冲突
+
+- [novel-wiki-v2 70KB 摄取质量评估](feedback-novel-wiki-v2-ingest-audio-daolun-quality-2026-09-18.md) — 8 维度评分：主张准确度 4.5/5、block_id 定位 1.0/5；真实失败根因是 LLM 把 prompt-chunk `#sub-N` ID 复用进 evidence 而 validate_evidence 查 canonical blocks；示例/案例 0/4 被抽
+
+- [novel-wiki-v2 摄取问题根因调研](feedback-novel-wiki-v2-quality-rootcause-2026-09-18.md) — 7 个问题拆解：4 个架构责任（block_id ID 空间错配 / 失败诊断不分类 / `_merge_candidate_chunks` 残缺无 dedup / fuzzy fallback 缺失），2 个提示词责任（示例抽取 / 覆盖均匀），1 个混合（ASR 错字被纠正）；P0 修 #1 + #5 即可解锁 22/24 evidence
+
+- [V7 Extract 接入生产摄取管线设计](design-v7-ingest-integration-2026-09-18.md) — V7 7 阶段已 smoke-test 通真实 MiniMax-M3 但未被 ingest queue 调用；唯一端到端 orchestrator 在 `scripts/extract_pilot.py:run_pilot`；接入需新增 `bridge.py:run_v7_ingest` + LLM adapter + ConceptPage→WikiPage 适配；4 阶段实施路径
+
+- [V7 Replace Plan grilling 决策](decision-v7-replace-grilling-2026-09-18.md) — 6 框架评分（第一性原理/批判性思维/奥卡姆/终局/全局/二八）后选 B 灰度延迟删除；重组成 4 阶段（Stage 0 smoke + Stage 1 双项目 env var + Stage 2 默认 + Stage 3 删除旧代码）；不可逆操作 Task 5/5a 推迟到 Stage 3
+
+- [V7 Replace Plan Stage 0 完成报告](feedback-v7-replace-stage0-complete-2026-09-18.md) — 5 个 Task 全部 commit（seg+llm+page+bridge+H1 fix）；70 KB 音频转录 smoke 通过：5 LLM 调用 / 26-40 s / 0 H1-H5 issues / wiki-quality HEALTHY / 10 KB 高质量 8 槽位概念页；cost ~0.05-0.10 USD；Stage 1 灰度前 P1 清单（fill_slots_v2、2 topic 同 id、BridgeBudget 硬 cap）
+
+- [V7 Replace Plan Stage 1 P1 三项修复](feedback-v7-replace-stage1-p1-2026-09-18.md) — P1-1 fill_slots_v2 v3 path 通过 inline spans_per_slot 实现绕开 window_resolver；P1-2 BridgeBudget 硬性 cap 在 Stage 1/3/4/5/6 边界 _check_budget 抛 BridgeBudgetExceeded；P1-3 topic 同 id 时第 (n+1) 个 occurrence 拿 -{n} 后缀；76/76 测试通过；70 KB smoke 5 calls / 26 s / 0 issues / wiki-quality HEALTHY
+
+- [V7 Replace Plan Stage 1 启动](feedback-v7-replace-stage1-launch-2026-09-19.md) — `RUFLO_PIPELINE_MODE=v7` env var 在 server 启动时激活 v7 bridge；HTTP /ingest v2 path 21 s 成功（5 LLM calls / 1 source + 1 concept / H1-H5 OK / wiki-quality HEALTHY）；v3 path 23 calls 触发 budget abort（v7_failure.md 写 quarantine，按设计触发）；3 天观察期开始
+
+- [V7 Replace Plan Stage 1 排查](feedback-v7-replace-stage1-troubleshoot-2026-09-19.md) — 2 个 bug 修复：① v7 failure 不抛异常导致队列把 Stage 1 失败标记为 succeeded（现按 retryable/InvalidInput 分类抛异常）；② adapt_concept_page 忘了把 now 传给 WikiPage 导致 created_at=null；v3 budget cap 与 P1-3 dedup 均验证正常；MiniMax 429 限流阻塞真实验证
+- [novel-wiki-v2 单文档摄取测试](feedback-novel-wiki-v2-single-ingest-2026-09-18.md) — HTTP 队列链路成功生成 4 页，但 lint/wiki-quality 未通过：模板占位正文、18 个断链、1 组重复标题、2 个 taxonomy gap
+- [novel-wiki-v2 质量门理由复核](feedback-novel-wiki-v2-quality-gate-judgment-2026-09-18.md) — 质量拒绝方向基本合理，但 18 个断链中 11 个是路径型链接误报，taxonomy 关系被错误按页面检查，source processing_depth 与 lint 合法值不一致
+- [novel-wiki-v2 初始化](project-novel-wiki-v2-2026-09-18.md) — 新建实例 `knowledge/novel-wiki-v2`，项目 ID `9be6839c-3a38-43e2-88cf-0fdb37fe3e1c`，使用 `novel` 模板
+
 - [2026-09-17 novel-wiki 随机文档摄取](feedback-novel-wiki-random-ingest-2026-09-17.md) — 实际实例路径为 `knowledge/novel-wiki`；随机 Markdown 源 `raw/sources/01_新手入门/入门教程写作方法.md` 通过同步 candidate pipeline 成功生成 3 页，过程含 fuzzy/unresolved/duplicate-degraded 告警
 - [2026-09-18 V7 AGL 训练方案 Grilling 决策树](feedback-v7-agl-design-tree-2026-09-18.md) — 35 项判断 + 8 bug + 6 校准；V2 fill_slots 单 call 训练 Stage5 LLM；冻结 Stage1/3/4；3 个独立 V7 PR；全参 checkpoint；Windows 仅烟测
 - [2026-09-16 V7 cost observability](feedback-v7-cost-observability-2026-09-16.md) — CostLedger + summary.cost 字段；real Provider smoke `cumulative_usd=0.0048` / 4 stage 拆分；兼容 Anthropic + OpenAI usage keys；FakeLLM bypass
