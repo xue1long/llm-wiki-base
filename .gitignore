@@ -52,7 +52,14 @@ knowledge/*/.index/*
 !knowledge/*/.index/quality/
 !knowledge/*/.index/quality/README.md
 # LLM cache dir
-.llm-wiki
+# 排除任意层级 `.llm-wiki` 的内容——必须用 `**/` 前缀，因为含 `/` 的模式
+# 默认锚定到本文件所在目录，裸的 `.llm-wiki/*` 只会匹配仓库根的 `.llm-wiki`。
+# 放行项目身份文件 project.json：跨机器交接与复现需要固定 UUID
+# （见 docs/ops/handoff-v7-stage1-remote.md）。这里不能用裸的 `.llm-wiki`，
+# 那会把目录本身一起排除，使 `!` 例外失效（gitignore 规定：父目录被排除时
+# 无法重新包含其下的文件）。
+**/.llm-wiki/*
+!knowledge/*/.llm-wiki/project.json
 # Obsidian vault (when this repo is opened in Obsidian)
 .obsidian
 # queue persistence (in-memory state is canonical)
