@@ -472,6 +472,133 @@ async def test_completeness_consumes_stage2_structural_summary():
     assert "status=segmented" in expected_pack
 
 
+# ---------------------------------------------------------------------------
+# ASR transcript exemption (2026-09-19)
+#
+# Stage 3 had been rejecting novel-wiki-v2 ASR transcripts (audio-to-text
+# material with naturally mid-sentence endings) as "stage3_incomplete".
+# Per the 5x run validation (2026-09-19 evening), 4/5 sample ASR files
+# were rejected with TAIL ends mid-sentence reasons even though their
+# bodies were substantive. The prompt was tightened to v1.2 to exempt
+# "naturally ending" transcripts while keeping the hard rejection for
+# real truncation (mid-section "正文内容缺失" / 标题+intro only).
+#
+# These tests assert:
+#   - The bundled prompt version is bumped (1.2+) and contains the ASR
+#     exemption clause.
+#   - A scripted LLM that follows the new rule (returns complete=true
+#     on ASR-like content) flows through to COMPLETE state — proving the
+#     render/parse pipeline does not silently drop the ASR verdict.
+#   - The hard "real truncation" rejection invariant is preserved:
+#     a 100KB doc with "正文内容缺失" mid-section still gets INCOMPLETE.
+# ---------------------------------------------------------------------------
+
+def test_bundled_prompt_version_is_at_least_1_2():
+    """The completeness.toml bundled prompt must be at version 1.2 to
+    include the ASR exemption clause added on 2026-09-19."""
+    template = _resolve_completeness_template(project_root=None)
+    assert template.source == "bundled"
+    assert template.version >= "1.2", (
+        f"completeness.toml bundled version must be >= 1.2 for ASR exemption, "
+        f"got {template.version!r}. Update prompts/builtin/completeness.toml."
+    )
+
+
+def test_bundled_prompt_contains_asr_exemption_clause():
+    """The rendered user template must mention ASR transcripts explicitly
+    so the LLM does not mis-classify naturally-ending transcripts."""
+    template = _resolve_completeness_template(project_root=None)
+    text = template.user_template.lower()
+    # Match either English or Chinese phrasing — the exemption must be there.
+    has_asr = "asr" in text or "transcript" in text or "转录" in text
+    has_natural = (
+        "natural" in text or "naturally" in text
+        or "自然" in text or "口语" in text
+    )
+    assert has_asr, (
+        "completeness.toml user template must mention ASR / transcript. "
+        "Without this clause the LLM rejects naturally-ending transcripts."
+    )
+    assert has_natural, (
+        "completeness.toml user template must allow natural transcript endings. "
+        "Without this clause mid-sentence TAIL always fails completeness."
+    )
+
+
+@pytest.mark.asyncio
+async def test_asr_transcript_natural_ending_routes_to_complete():
+    """When the LLM (correctly interpreting the ASR clause) returns
+    complete=true on a transcript with mid-sentence ending, the result
+    must be COMPLETE — proving the render/parse pipeline accepts the
+    ASR verdict."""
+    fake = FakeLLMClient()
+    fake.script(
+        "completeness",
+        '{"complete": true, "reason": "ASR transcript covers 7 distinct '
+        'topics across HEAD + 3 mid samples; TAIL mid-sentence is natural audio ending"}',
+    )
+
+    # ASR-like content: ends mid-sentence, repeated sign-off phrases
+    # (typical audio transcript ending pattern).
+    asr_content = (
+        "本节课主题：人物形象写作技巧。\n\n"
+        "第一部分：人物差异化。要想在众多网文中脱颖而出..."
+        + ("内容继续展开。\n\n" * 30)
+        + "今天的课就到这里 谢谢大家 帅的人已经加我微信了"
+    )
+
+    result = await check_completeness(
+        asr_content,
+        doc_type_hint="single_method",
+        llm=fake,
+        project_root=None,
+    )
+    assert result is not None, "check_completeness must not return None on a successful LLM verdict"
+    assert result.status is CompletenessStatus.COMPLETE, (
+        "ASR transcript with natural mid-sentence ending must route to "
+        "COMPLETE, not INCOMPLETE. The v1.2 prompt is supposed to teach "
+        "the LLM this rule."
+    )
+    # Reason should mention ASR-related reasoning.
+    assert any("asr" in r.lower() or "transcript" in r.lower() or "natural" in r.lower()
+               for r in result.reason_codes)
+
+
+@pytest.mark.asyncio
+async def test_real_truncation_still_rejects_after_asr_exemption():
+    """Hard invariant preserved: a 100KB doc with "正文内容缺失" mid-section
+    marker still routes to INCOMPLETE. The ASR exemption must NOT loosen
+    real truncation detection.
+    """
+    fake = FakeLLMClient()
+    fake.script(
+        "completeness",
+        '{"complete": false, "reason": "mid-section marker 正文内容缺失 present", '
+        '"assessment": "incomplete"}',
+    )
+
+    chunks = [
+        f"para-{i:04d}: " + ("lorem ipsum " * 20) for i in range(500)
+    ]
+    chunks.insert(300, "正文内容缺失 mid-section")
+    huge = "\n\n".join(chunks)
+    assert len(huge) > 100_000
+
+    result = await check_completeness(
+        huge,
+        doc_type_hint="collection",
+        llm=fake,
+        project_root=None,
+        structural_summary={"item_count": 200, "boundary_confidence": 0.8},
+    )
+    assert result is not None
+    assert result.status is CompletenessStatus.INCOMPLETE, (
+        "Real mid-section truncation marker (正文内容缺失) must still "
+        "route to INCOMPLETE — the ASR exemption only relaxes TAIL "
+        "natural endings, not internal missing content."
+    )
+
+
 @pytest.mark.asyncio
 async def test_long_doc_does_not_truncate_observation():
     """Task 7: a 100KB doc still gets a bounded LLM input (≤ 5500 bytes).
