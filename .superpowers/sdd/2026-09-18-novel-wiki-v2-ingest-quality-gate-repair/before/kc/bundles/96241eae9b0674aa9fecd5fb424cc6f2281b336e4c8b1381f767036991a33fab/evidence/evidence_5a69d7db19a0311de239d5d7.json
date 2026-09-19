@@ -1,0 +1,13 @@
+{
+  "evidence_id": "evidence_5a69d7db19a0311de239d5d7",
+  "document_id": "doc_af9862a727672984cae7d8d5",
+  "block_id": "block_d428fece0c16094dac012c40",
+  "quote": "提钢就是为所有新作者们 提供了一个写小说钱的框架 也是和于多人和写",
+  "quote_hash": "f8eb7dd825a17fb10caaa26d533da8fdcc9a60052d6cac784daa78c766cce29f",
+  "supports": [],
+  "confidence": 0.0,
+  "status": "candidate",
+  "evidence_type": "direct_quote",
+  "structured_provenance": null,
+  "computation_provenance": null
+}

@@ -1,0 +1,13 @@
+{
+  "evidence_id": "evidence_0f9fd5b56472c1610b3203fd",
+  "document_id": "doc_af9862a727672984cae7d8d5",
+  "block_id": "block_d428fece0c16094dac012c40",
+  "quote": "主要内容我的一般做法是 在提刚中 指令事情的开端和解决 中间的发展过程空着 还是方便修改增山 最后在定稿时 把这一部分填起来",
+  "quote_hash": "2358e50bb31e0d40f6bb6335689590ec11a78c6b51b879243b4bad5b896d9008",
+  "supports": [],
+  "confidence": 0.0,
+  "status": "candidate",
+  "evidence_type": "direct_quote",
+  "structured_provenance": null,
+  "computation_provenance": null
+}

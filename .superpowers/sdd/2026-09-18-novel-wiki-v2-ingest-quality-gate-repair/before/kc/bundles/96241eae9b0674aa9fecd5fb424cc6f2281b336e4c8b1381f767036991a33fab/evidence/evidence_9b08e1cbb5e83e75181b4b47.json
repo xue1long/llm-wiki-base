@@ -1,0 +1,13 @@
+{
+  "evidence_id": "evidence_9b08e1cbb5e83e75181b4b47",
+  "document_id": "doc_af9862a727672984cae7d8d5",
+  "block_id": "block_d428fece0c16094dac012c40",
+  "quote": "明确四大部分 实际 地点 人物 主要内容",
+  "quote_hash": "04e30578195ea936d626ff3db67e5c72401b02664542b911945ddbd93f4ea0c5",
+  "supports": [],
+  "confidence": 0.0,
+  "status": "candidate",
+  "evidence_type": "direct_quote",
+  "structured_provenance": null,
+  "computation_provenance": null
+}

@@ -1,0 +1,13 @@
+{
+  "evidence_id": "evidence_0c3b9d67d5037e6e185215c4",
+  "document_id": "doc_af9862a727672984cae7d8d5",
+  "block_id": "block_d428fece0c16094dac012c40",
+  "quote": "每一节的编辑就会如同把一句话 放大成数千字一样 能够随时把握小说的进度和访下 写作时的难度也会大大降低",
+  "quote_hash": "1cc4ef0e08dbfebfe6367e36c5e227ef74bb0f96a0c0c5e43fd2776b8de25da5",
+  "supports": [],
+  "confidence": 0.0,
+  "status": "candidate",
+  "evidence_type": "direct_quote",
+  "structured_provenance": null,
+  "computation_provenance": null
+}

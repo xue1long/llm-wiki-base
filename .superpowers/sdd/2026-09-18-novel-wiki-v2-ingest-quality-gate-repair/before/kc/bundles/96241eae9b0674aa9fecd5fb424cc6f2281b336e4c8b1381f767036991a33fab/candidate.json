@@ -1,0 +1,249 @@
+{
+  "id": "cand_9638842200da",
+  "source_id": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+  "type": "concept",
+  "title": "小说大纲写作技巧",
+  "claims": [
+    {
+      "statement": "小说提纲不需要固定格式，但总体应包含四个核心部分：时间、地点、人物、主要内容。",
+      "confidence": 0.85,
+      "evidence_refs": [
+        0
+      ]
+    },
+    {
+      "statement": "提纲中的时间只需写出大致背景时段，不必精确到具体某一天某一秒，因为长篇小说在修改时时间安排常常需要变动。",
+      "confidence": 0.8,
+      "evidence_refs": [
+        1
+      ]
+    },
+    {
+      "statement": "提纲中地点应先列出几个大地点，便于后续修改时灵活调整。",
+      "confidence": 0.8,
+      "evidence_refs": [
+        2
+      ]
+    },
+    {
+      "statement": "人物部分应从性格、身份、背景等方面详细描写，因为对人物介绍越详细，越有利于推动后续情节发展。",
+      "confidence": 0.85,
+      "evidence_refs": [
+        3
+      ]
+    },
+    {
+      "statement": "主要内容部分的常见做法是写清楚事情的开端和解决，中间的发展过程留空，最后在定稿时再填充。",
+      "confidence": 0.85,
+      "evidence_refs": [
+        4
+      ]
+    },
+    {
+      "statement": "许多新作者在推出大量作品后陷入迷茫，常常写到一半就不知道如何继续和收尾。",
+      "confidence": 0.8,
+      "evidence_refs": [
+        5
+      ]
+    },
+    {
+      "statement": "写长篇小说如同盖大楼，必须有一份精细的图纸（提纲）作为框架，否则情节难以连贯。",
+      "confidence": 0.85,
+      "evidence_refs": [
+        6
+      ]
+    },
+    {
+      "statement": "提纲为小说提供了写作前的整体框架，便于作者把握进度和降低写作难度，也方便多人协作。",
+      "confidence": 0.85,
+      "evidence_refs": [
+        7,
+        8
+      ]
+    }
+  ],
+  "confidence": 1.0,
+  "evidence": [
+    {
+      "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+      "block_id": "block_d428fece0c16094dac012c40",
+      "page": null,
+      "quote": "明确四大部分 实际 地点 人物 主要内容"
+    },
+    {
+      "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+      "block_id": "block_d428fece0c16094dac012c40",
+      "page": null,
+      "quote": "时间一般就写上背景的时间 还是不一定要惊细到哪一天来一生哪一秒 因为如果你实在写长线小说的话 对出做的时间安排 很可能需要变动 如果在修改的时候 平凡变动时间的话 那这个习刚很有意义吗"
+    },
+    {
+      "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+      "block_id": "block_d428fece0c16094dac012c40",
+      "page": null,
+      "quote": "在这就是地点 也是先写几个大地点 方便修改"
+    },
+    {
+      "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+      "block_id": "block_d428fece0c16094dac012c40",
+      "page": null,
+      "quote": "人物方面 要从性格 身份背景等方来写 这里要详细一点 因为对人物的介绍越详细 退推动以后的情节发展 却有力 因为你如果清楚的人物的性格身份 就能明白人物会怎样 去对待周围的环境变化 以及情凡等"
+    },
+    {
+      "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+      "block_id": "block_d428fece0c16094dac012c40",
+      "page": null,
+      "quote": "主要内容我的一般做法是 在提刚中 指令事情的开端和解决 中间的发展过程空着 还是方便修改增山 最后在定稿时 把这一部分填起来"
+    },
+    {
+      "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+      "block_id": "block_d428fece0c16094dac012c40",
+      "page": null,
+      "quote": "很多的 新作者 在推出了大量的作品后 确实流给多者的是迷茫 包括作者本人都处于迷茫之中 一开始都想写成一部灰红剧组 场面巨大 确写到一半发现 后文该不知如何写下去 也不知道如何研许 如何收尾"
+    },
+    {
+      "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+      "block_id": "block_d428fece0c16094dac012c40",
+      "page": null,
+      "quote": "这就像是盖于状大楼闲 必须有一副精细的图纸 任何一部分都能心中有数 文章也会调理分明 请节也可以许续建讯"
+    },
+    {
+      "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+      "block_id": "block_d428fece0c16094dac012c40",
+      "page": null,
+      "quote": "提钢就是为所有新作者们 提供了一个写小说钱的框架 也是和于多人和写"
+    },
+    {
+      "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+      "block_id": "block_d428fece0c16094dac012c40",
+      "page": null,
+      "quote": "每一节的编辑就会如同把一句话 放大成数千字一样 能够随时把握小说的进度和访下 写作时的难度也会大大降低"
+    }
+  ],
+  "raw_llm_output": {
+    "source_id": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+    "type": "concept",
+    "custom_type": "procedure",
+    "title": "小说大纲写作技巧",
+    "claims": [
+      {
+        "statement": "小说提纲不需要固定格式，但总体应包含四个核心部分：时间、地点、人物、主要内容。",
+        "confidence": 0.85,
+        "evidence_refs": [
+          0
+        ]
+      },
+      {
+        "statement": "提纲中的时间只需写出大致背景时段，不必精确到具体某一天某一秒，因为长篇小说在修改时时间安排常常需要变动。",
+        "confidence": 0.8,
+        "evidence_refs": [
+          1
+        ]
+      },
+      {
+        "statement": "提纲中地点应先列出几个大地点，便于后续修改时灵活调整。",
+        "confidence": 0.8,
+        "evidence_refs": [
+          2
+        ]
+      },
+      {
+        "statement": "人物部分应从性格、身份、背景等方面详细描写，因为对人物介绍越详细，越有利于推动后续情节发展。",
+        "confidence": 0.85,
+        "evidence_refs": [
+          3
+        ]
+      },
+      {
+        "statement": "主要内容部分的常见做法是写清楚事情的开端和解决，中间的发展过程留空，最后在定稿时再填充。",
+        "confidence": 0.85,
+        "evidence_refs": [
+          4
+        ]
+      },
+      {
+        "statement": "许多新作者在推出大量作品后陷入迷茫，常常写到一半就不知道如何继续和收尾。",
+        "confidence": 0.8,
+        "evidence_refs": [
+          5
+        ]
+      },
+      {
+        "statement": "写长篇小说如同盖大楼，必须有一份精细的图纸（提纲）作为框架，否则情节难以连贯。",
+        "confidence": 0.85,
+        "evidence_refs": [
+          6
+        ]
+      },
+      {
+        "statement": "提纲为小说提供了写作前的整体框架，便于作者把握进度和降低写作难度，也方便多人协作。",
+        "confidence": 0.85,
+        "evidence_refs": [
+          7,
+          8
+        ]
+      }
+    ],
+    "evidence": [
+      {
+        "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+        "block_id": "block_d428fece0c16094dac012c40",
+        "page": null,
+        "quote": "明确四大部分 实际 地点 人物 主要内容"
+      },
+      {
+        "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+        "block_id": "block_d428fece0c16094dac012c40",
+        "page": null,
+        "quote": "时间一般就写上背景的时间 还是不一定要惊细到哪一天来一生哪一秒 因为如果你实在写长线小说的话 对出做的时间安排 很可能需要变动 如果在修改的时候 平凡变动时间的话 那这个习刚很有意义吗"
+      },
+      {
+        "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+        "block_id": "block_d428fece0c16094dac012c40",
+        "page": null,
+        "quote": "在这就是地点 也是先写几个大地点 方便修改"
+      },
+      {
+        "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+        "block_id": "block_d428fece0c16094dac012c40",
+        "page": null,
+        "quote": "人物方面 要从性格 身份背景等方来写 这里要详细一点 因为对人物的介绍越详细 退推动以后的情节发展 却有力 因为你如果清楚的人物的性格身份 就能明白人物会怎样 去对待周围的环境变化 以及情凡等"
+      },
+      {
+        "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+        "block_id": "block_d428fece0c16094dac012c40",
+        "page": null,
+        "quote": "主要内容我的一般做法是 在提刚中 指令事情的开端和解决 中间的发展过程空着 还是方便修改增山 最后在定稿时 把这一部分填起来"
+      },
+      {
+        "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+        "block_id": "block_d428fece0c16094dac012c40",
+        "page": null,
+        "quote": "很多的 新作者 在推出了大量的作品后 确实流给多者的是迷茫 包括作者本人都处于迷茫之中 一开始都想写成一部灰红剧组 场面巨大 确写到一半发现 后文该不知如何写下去 也不知道如何研许 如何收尾"
+      },
+      {
+        "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+        "block_id": "block_d428fece0c16094dac012c40",
+        "page": null,
+        "quote": "这就像是盖于状大楼闲 必须有一副精细的图纸 任何一部分都能心中有数 文章也会调理分明 请节也可以许续建讯"
+      },
+      {
+        "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+        "block_id": "block_d428fece0c16094dac012c40",
+        "page": null,
+        "quote": "提钢就是为所有新作者们 提供了一个写小说钱的框架 也是和于多人和写"
+      },
+      {
+        "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+        "block_id": "block_d428fece0c16094dac012c40",
+        "page": null,
+        "quote": "每一节的编辑就会如同把一句话 放大成数千字一样 能够随时把握小说的进度和访下 写作时的难度也会大大降低"
+      }
+    ]
+  },
+  "status": "promoted",
+  "chunk_index": null,
+  "chunk_total": null,
+  "custom_type": "procedure",
+  "knowledge_mode": "unknown",
+  "failure_reason": null
+}

@@ -1,0 +1,26 @@
+{
+  "bundle_key": "96241eae9b0674aa9fecd5fb424cc6f2281b336e4c8b1381f767036991a33fab",
+  "candidate_id": "cand_9638842200da",
+  "document_id": "doc_af9862a727672984cae7d8d5",
+  "source_path": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+  "normalization_version": "kc-text-v2",
+  "parser_version": "legacy-text-v1",
+  "projection_version": "kc-wiki-v1",
+  "object_ids": [],
+  "candidate_path": "96241eae9b0674aa9fecd5fb424cc6f2281b336e4c8b1381f767036991a33fab\\candidate.json",
+  "stores": {
+    "knowledge_object": "ready",
+    "wiki": "ready",
+    "index": "ready",
+    "vector": "pending"
+  },
+  "status": "staged",
+  "batch_id": "pub_1_1789705560852",
+  "page_ids": [
+    "大纲写作技巧",
+    "小说大纲写作技巧",
+    "大纲四要素",
+    "大纲写作技巧-280f64ec"
+  ],
+  "publication_version": 1
+}

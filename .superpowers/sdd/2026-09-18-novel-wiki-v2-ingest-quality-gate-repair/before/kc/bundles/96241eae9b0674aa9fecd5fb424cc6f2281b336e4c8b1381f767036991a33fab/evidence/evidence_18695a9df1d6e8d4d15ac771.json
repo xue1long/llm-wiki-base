@@ -1,0 +1,13 @@
+{
+  "evidence_id": "evidence_18695a9df1d6e8d4d15ac771",
+  "document_id": "doc_af9862a727672984cae7d8d5",
+  "block_id": "block_d428fece0c16094dac012c40",
+  "quote": "在这就是地点 也是先写几个大地点 方便修改",
+  "quote_hash": "f62e45aa5dddd8ad4d94d7a71cefdfe5d6a4fba8f96d8d4b48de6e552a4244cd",
+  "supports": [],
+  "confidence": 0.0,
+  "status": "candidate",
+  "evidence_type": "direct_quote",
+  "structured_provenance": null,
+  "computation_provenance": null
+}

@@ -1,0 +1,13 @@
+{
+  "evidence_id": "evidence_b4caccf129b5972d5451c751",
+  "document_id": "doc_af9862a727672984cae7d8d5",
+  "block_id": "block_d428fece0c16094dac012c40",
+  "quote": "时间一般就写上背景的时间 还是不一定要惊细到哪一天来一生哪一秒 因为如果你实在写长线小说的话 对出做的时间安排 很可能需要变动 如果在修改的时候 平凡变动时间的话 那这个习刚很有意义吗",
+  "quote_hash": "ba312bd13d2b6a25a335e12cc1d4ea64f6c085cf23c011a8a9406d29ccbd8725",
+  "supports": [],
+  "confidence": 0.0,
+  "status": "candidate",
+  "evidence_type": "direct_quote",
+  "structured_provenance": null,
+  "computation_provenance": null
+}

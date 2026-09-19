@@ -1,0 +1,13 @@
+{
+  "evidence_id": "evidence_1165a43ac842e6ff838ce40c",
+  "document_id": "doc_af9862a727672984cae7d8d5",
+  "block_id": "block_d428fece0c16094dac012c40",
+  "quote": "这就像是盖于状大楼闲 必须有一副精细的图纸 任何一部分都能心中有数 文章也会调理分明 请节也可以许续建讯",
+  "quote_hash": "74d896e311836e8e7f156edef195e7e3c6caaff1353542da7bbedd2351e00200",
+  "supports": [],
+  "confidence": 0.0,
+  "status": "candidate",
+  "evidence_type": "direct_quote",
+  "structured_provenance": null,
+  "computation_provenance": null
+}

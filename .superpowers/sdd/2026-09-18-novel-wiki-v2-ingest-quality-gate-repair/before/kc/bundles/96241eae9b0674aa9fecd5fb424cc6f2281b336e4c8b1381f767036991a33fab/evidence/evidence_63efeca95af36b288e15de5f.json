@@ -1,0 +1,13 @@
+{
+  "evidence_id": "evidence_63efeca95af36b288e15de5f",
+  "document_id": "doc_af9862a727672984cae7d8d5",
+  "block_id": "block_d428fece0c16094dac012c40",
+  "quote": "很多的 新作者 在推出了大量的作品后 确实流给多者的是迷茫 包括作者本人都处于迷茫之中 一开始都想写成一部灰红剧组 场面巨大 确写到一半发现 后文该不知如何写下去 也不知道如何研许 如何收尾",
+  "quote_hash": "ad945f63b9ddfe9aa62b7a381cc1ad152aad35aef81134d62d602fdc166a752d",
+  "supports": [],
+  "confidence": 0.0,
+  "status": "candidate",
+  "evidence_type": "direct_quote",
+  "structured_provenance": null,
+  "computation_provenance": null
+}

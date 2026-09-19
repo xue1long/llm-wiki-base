@@ -1,0 +1,14 @@
+{
+  "current_version": 0,
+  "active_batches": [
+    {
+      "batch_id": "pub_1_1789705560852",
+      "publication_version": 1,
+      "status": "preparing",
+      "object_versions": [],
+      "invalidated_object_ids": [],
+      "created_at": 1789705560852,
+      "published_at": null
+    }
+  ]
+}

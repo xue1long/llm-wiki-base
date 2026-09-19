@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "gaps": [
+    {
+      "slug": "taxonomy-写作技法",
+      "raw_hint": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+      "referenced_by": [
+        "小说大纲写作技巧"
+      ],
+      "created_at": 1789705560866,
+      "status": "open"
+    },
+    {
+      "slug": "taxonomy-大纲与结构",
+      "raw_hint": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md",
+      "referenced_by": [
+        "小说大纲写作技巧"
+      ],
+      "created_at": 1789705560866,
+      "status": "open"
+    }
+  ]
+}

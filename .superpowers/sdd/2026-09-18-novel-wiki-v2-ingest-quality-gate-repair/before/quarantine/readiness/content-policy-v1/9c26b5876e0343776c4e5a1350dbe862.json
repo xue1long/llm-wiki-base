@@ -1,0 +1,92 @@
+{
+  "analyzer_called": true,
+  "applied_rules": [],
+  "assessment_version": "content-readiness-v1",
+  "binding_mode": "explicit_block_binding",
+  "block_id": "block_d428fece0c16094dac012c40",
+  "canonical_text_sha256": "3e158626498f356dbc3678d7ebced31ab58c7a41c5f49459e78fca17fd85a5b0",
+  "content_kind": "mixed",
+  "decision": "ready_with_warning",
+  "evidence": [
+    {
+      "block_id": "block_d428fece0c16094dac012c40",
+      "quote": "明确四大部分 实际 地点 人物 主要内容",
+      "quote_hash": "04e30578195ea936d626ff3db67e5c72401b02664542b911945ddbd93f4ea0c5",
+      "source_id": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md"
+    },
+    {
+      "block_id": "block_d428fece0c16094dac012c40",
+      "quote": "时间一般就写上背景的时间 还是不一定要惊细到哪一天来一生哪一秒 因为如果你实在写长线小说的话 对出做的时间安排 很可能需要变动 如果在修改的时候 平凡变动时间的话 那这个习刚很有意义吗",
+      "quote_hash": "ba312bd13d2b6a25a335e12cc1d4ea64f6c085cf23c011a8a9406d29ccbd8725",
+      "source_id": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md"
+    },
+    {
+      "block_id": "block_d428fece0c16094dac012c40",
+      "quote": "在这就是地点 也是先写几个大地点 方便修改",
+      "quote_hash": "f62e45aa5dddd8ad4d94d7a71cefdfe5d6a4fba8f96d8d4b48de6e552a4244cd",
+      "source_id": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md"
+    },
+    {
+      "block_id": "block_d428fece0c16094dac012c40",
+      "quote": "人物方面 要从性格 身份背景等方来写 这里要详细一点 因为对人物的介绍越详细 退推动以后的情节发展 却有力 因为你如果清楚的人物的性格身份 就能明白人物会怎样 去对待周围的环境变化 以及情凡等",
+      "quote_hash": "efc866d06c721dd944cfc481ba62baeae1c1c9d8fa63413a5a757f0bed54ba2f",
+      "source_id": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md"
+    },
+    {
+      "block_id": "block_d428fece0c16094dac012c40",
+      "quote": "主要内容我的一般做法是 在提刚中 指令事情的开端和解决 中间的发展过程空着 还是方便修改增山 最后在定稿时 把这一部分填起来",
+      "quote_hash": "2358e50bb31e0d40f6bb6335689590ec11a78c6b51b879243b4bad5b896d9008",
+      "source_id": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md"
+    },
+    {
+      "block_id": "block_d428fece0c16094dac012c40",
+      "quote": "很多的 新作者 在推出了大量的作品后 确实流给多者的是迷茫 包括作者本人都处于迷茫之中 一开始都想写成一部灰红剧组 场面巨大 确写到一半发现 后文该不知如何写下去 也不知道如何研许 如何收尾",
+      "quote_hash": "ad945f63b9ddfe9aa62b7a381cc1ad152aad35aef81134d62d602fdc166a752d",
+      "source_id": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md"
+    },
+    {
+      "block_id": "block_d428fece0c16094dac012c40",
+      "quote": "这就像是盖于状大楼闲 必须有一副精细的图纸 任何一部分都能心中有数 文章也会调理分明 请节也可以许续建讯",
+      "quote_hash": "74d896e311836e8e7f156edef195e7e3c6caaff1353542da7bbedd2351e00200",
+      "source_id": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md"
+    },
+    {
+      "block_id": "block_d428fece0c16094dac012c40",
+      "quote": "提钢就是为所有新作者们 提供了一个写小说钱的框架 也是和于多人和写",
+      "quote_hash": "f8eb7dd825a17fb10caaa26d533da8fdcc9a60052d6cac784daa78c766cce29f",
+      "source_id": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md"
+    },
+    {
+      "block_id": "block_d428fece0c16094dac012c40",
+      "quote": "每一节的编辑就会如同把一句话 放大成数千字一样 能够随时把握小说的进度和访下 写作时的难度也会大大降低",
+      "quote_hash": "1cc4ef0e08dbfebfe6367e36c5e227ef74bb0f96a0c0c5e43fd2776b8de25da5",
+      "source_id": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md"
+    }
+  ],
+  "evidence_capacity": {
+    "blocks": 4,
+    "chars": 1165,
+    "max_span_chars": 1052,
+    "min_span_chars": 3,
+    "units": 10
+  },
+  "evidence_refs": [],
+  "exact_quote": "明确四大部分 实际 地点 人物 主要内容",
+  "extraction_method": "native_text",
+  "failure_reason": null,
+  "format": "md",
+  "input_text_sha256": "bc830396ad680ad8977986fa0221b0b46439ceba5d827e9d11d22fd075d8310a",
+  "noise_warnings": [],
+  "policy_version": "content-policy-v1",
+  "preprocessing_version": "text-preprocess-v1",
+  "prompt_text_sha256": "3e158626498f356dbc3678d7ebced31ab58c7a41c5f49459e78fca17fd85a5b0",
+  "quote_hash": "04e30578195ea936d626ff3db67e5c72401b02664542b911945ddbd93f4ea0c5",
+  "reason_codes": [
+    "metadata_only",
+    "no_evidence_capacity",
+    "legitimate_short",
+    "empty_subblock"
+  ],
+  "source_bytes_sha256": null,
+  "source_id": "raw/sources/视频音频转录教程/02进阶视频教程/大纲写作技巧.md"
+}
