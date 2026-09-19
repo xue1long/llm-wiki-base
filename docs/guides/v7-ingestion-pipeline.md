@@ -135,9 +135,20 @@ dict 契约，JSON 报告格式不变）。
 ### 4.2 ID 归属：脚本拥有 ID，LLM 只给语义（决策 2）
 
 - `page_id` = `_stable_page_id(relative, topic.id)`，格式
-  `{md5(source_relative)[:8]}-{slugify(topic_id)[:32]}`。source 路径先归一为
-  POSIX 分隔符，保证跨 OS 一致。
+  `{md5(source_relative)[:8]}-{slugify(source_stem)[:32]}-{md5(topic_id)[:8]}`。
+  source 路径先归一为 POSIX 分隔符并 NFC 归一化；调用方传 `project_root` 时
+  还会走 `canonical_raw_key`，使绝对路径与项目相对路径解析为**同一个** page id。
+- **2026-09-19（D7 修复）**：旧格式是 `{md5}-{slugify(topic_id)[:32]}`。因为
+  `topic_id` 形如 `<source_id>-topic-<16hex>`、把整条源路径包了进去，
+  `_slugify` 的 32 字符预算全被路径前缀吃掉，判别符 `-topic-<16hex>` 被整段截断
+  ——同一源的**所有 topic 得到同一个 page_id**，第二个起静默覆盖第一个
+  （现场：日志记 "generated 3 pages"，磁盘只有 1 个 concept）。
+  该塌缩**与是否 CJK 无关**，凡是 slug 前缀吃满 32 字符的源都会中招。
+  现在判别符放在截断预算之外，唯一性由 `md5(topic_id)[:8]`（32 位）+ bridge 内
+  按派生 id 去重共同保证；`-{n}` 后缀仍保留为兜底。
 - `validate_page_id` 拒绝含 `/`、`\`、`..` 的 page id。
+- id 总长恒 ≤ 50 字符（`8+1+32+1+8`）：id 会直接当文件名用，
+  长度必须有界，否则会在 `AtomicContext` 内写盘失败并整批回滚。
 - 此前 LLM 回填 item_id 字符串导致跨文档同名 topic 互相覆盖，已根除。
 
 ### 4.3 Stage 7 四道闸门（P3 + P4）

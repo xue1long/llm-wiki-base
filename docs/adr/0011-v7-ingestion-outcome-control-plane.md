@@ -50,8 +50,13 @@ LLM 只负责语义判断和内容,不再回填 `item_id` 或 `page_id`:
   `{source_relative}#section-{N}`，编号条目使用 `{source_relative}#item-{N}`，
   未切片全文使用 `{source_relative}`。LLM 只返回当前 topic 内的 `item_index`。
 - page ID 当前由 `_stable_page_id(relative, topic.id)` 生成，格式为
-  `{md5(source_relative)[:8]}-{slugify(topic.id)[:32]}`；source 路径先归一为
-  POSIX 分隔符，保证跨 OS 一致。
+  `{md5(source_relative)[:8]}-{slugify(source_stem)[:32]}-{md5(topic_id)[:8]}`；
+  source 路径先归一为 POSIX 分隔符并 NFC 归一化，保证跨 OS 一致。
+  > **2026-09-19 修订（D7）**：原格式为 `{md5}-{slugify(topic.id)[:32]}`。
+  > `topic_id` 内嵌整条源路径，导致 `_slugify` 的 32 字符预算被路径前缀占满、
+  > `-topic-<16hex>` 判别符被截断，同一源的所有 topic 塌缩成同一个 page id，
+  > 第二个起静默覆盖第一个。判别符已移至截断预算之外（详见
+  > `docs/guides/v7-ingestion-pipeline.md` §4.2）。
 - `validate_page_id` 拒绝包含 `/` `\` `..` 的 page id。
 - `_extract_one` 把 page id 改为 `_stable_page_id(relative, topic.id)` 生成,
   `page.topic_id` 由 `__dict__` 注入改为正式 dataclass 字段

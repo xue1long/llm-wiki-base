@@ -1,5 +1,5 @@
 {
-  "_comment": "Expected page IDs for tests/fixtures/v7_control_plane/. Computed via _page_id._stable_page_id(relative, topic_title) using hashlib.md5(relative.encode()).hexdigest()[:8] + slug(topic_title)[:32]. Update if source filenames change.",
+  "_comment": "Expected page IDs for tests/fixtures/v7_control_plane/. Computed via _page_id._stable_page_id(relative, topic_id) using hashlib.md5(relative.encode()).hexdigest()[:8] + '-' + _slugify(source_stem)[:32] + '-' + hashlib.md5(topic_id.encode()).hexdigest()[:8]. Updated 2026-09-19 for the D7 fix (the topic discriminator moved out of the truncated slug budget). Only md5_prefix is consumed by tests; expected_topic_slugs is descriptive and predates the D7 fix.",
 
   "fixtures_dir": "tests/fixtures/v7_control_plane/",
 
@@ -26,8 +26,10 @@
 
   "test_invariants": [
     "source_a.md topic 'writing-techniques' and source_b.md topic 'writing-techniques' produce different page_ids (different md5 prefix)",
-    "page_id format: <8-hex-md5>-<lowercase-slug-with-dashes>",
+    "page_id format (2026-09-19, D7 fix): <8-hex source md5>-<slug of source stem, <=32 chars>-<8-hex topic md5>",
     "page_id never contains path separators or '..'",
-    "page_id stable across Windows (raw\\sources\\x) and POSIX (raw/sources/x) given the same logical relative path"
+    "page_id length is bounded (<= 50 chars) so it is safe as a filename component",
+    "page_id stable across Windows (raw\\sources\\x) and POSIX (raw/sources/x) given the same logical relative path",
+    "two different topics of one source always produce different page_ids (the D7 regression: they used to collapse to one id and the later page silently overwrote the earlier)"
   ]
 }

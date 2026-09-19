@@ -396,13 +396,14 @@ async def run_v7_ingest(
 
         concept_pages: list[Any] = []
         failed_topics: list[str] = []
-        # P1-3: When cluster_topics returns multiple topics with the same
-        # topic.id (e.g. when the LLM duplicates), the second occurrence
-        # would overwrite the first because _stable_page_id is purely
-        # deterministic. We count per-source duplicates and append
-        # ``-{n}`` to the page id of the (n+1)th occurrence.
+        # Page-id uniqueness is enforced on the DERIVED base page id, not on
+        # topic.id (2026-09-19, D7 follow-up). Keying on topic.id missed two
+        # cases that both end in a silent overwrite: two topics that share one
+        # topic.id (the original P1-3 case), and two *different* topic.ids whose
+        # 32-bit topic hash collides. Counter-on-base_page_id covers both and
+        # still appends ``-{n}`` to the (n+1)th occurrence.
         from collections import Counter
-        seen_topic_ids: Counter[str] = Counter()
+        seen_page_ids: Counter[str] = Counter()
         for topic in cluster_result.topics:
             if topic.id == OTHER_TOPIC_ID:
                 continue  # Stage 7 sentinel; never write
@@ -464,15 +465,17 @@ async def run_v7_ingest(
                 continue
             # T1 / H2 加固: page id must be script-owned (don't trust
             # LLM-supplied topic id). _stable_page_id is in _page_id.py.
+            # project_root is passed so an absolute path and its
+            # project-relative spelling resolve to ONE page id.
             from src.pipeline.v7_extract._page_id import _stable_page_id, validate_page_id
-            base_page_id = _stable_page_id(source_key, topic.id)
-            # P1-3: de-dup collision on repeated topic.id
-            n_occurrence = seen_topic_ids[topic.id]
+            base_page_id = _stable_page_id(source_key, topic.id, project_root=paths.root)
+            # De-dup on the derived id (see seen_page_ids note above).
+            n_occurrence = seen_page_ids[base_page_id]
             if n_occurrence > 0:
                 page_id = f"{base_page_id}-{n_occurrence}"
             else:
                 page_id = base_page_id
-            seen_topic_ids[topic.id] += 1
+            seen_page_ids[base_page_id] += 1
             try:
                 validate_page_id(page_id)
             except Exception as exc:

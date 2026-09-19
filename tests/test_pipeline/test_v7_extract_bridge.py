@@ -504,3 +504,47 @@ async def test_bridge_dedupes_duplicate_topic_ids(project_root: Path):
     assert len(concept_pages) == 2, f"expected 2 concept pages, got {len(concept_pages)}"
     page_ids = {p.id for p in concept_pages}
     assert len(page_ids) == 2, f"page_ids must be distinct, got {page_ids}"
+
+
+@pytest.mark.asyncio
+async def test_bridge_dedupes_colliding_derived_page_ids(project_root: Path, monkeypatch):
+    """D7 follow-up / P15: uniqueness is enforced on the DERIVED base page id.
+
+    Two *different* topic.ids can still map to one page_id once the 32-bit
+    topic hash is applied. Deduping on topic.id misses that and the second
+    topic silently overwrites the first, so the bridge must key on the
+    derived id. Simulated here by pinning _stable_page_id to a constant.
+    """
+    from src.pipeline.v7_extract import _page_id as page_id_mod
+
+    monkeypatch.setattr(
+        page_id_mod, "_stable_page_id", lambda *a, **kw: "deadbeef-collide-12345678"
+    )
+
+    paths = WikiPaths(project_root)
+    llm = _ScriptedProvider()
+    llm.script('{"doc_type": "single_method", "confidence": 0.9, "rationale": "ok", "traits": [], "uncertain": false}')
+    llm.script('{"complete": true, "reason": "ok"}')
+    # Two topics with DIFFERENT ids — topic.id dedup alone cannot see this.
+    llm.script('{"topics": [{"id": "alpha", "title": "Topic One", "item_ids": ["raw/sources/test/source.md"]}, {"id": "beta", "title": "Topic Two", "item_ids": ["raw/sources/test/source.md"]}]}')
+    for _ in range(2):
+        llm.script('{"slots": {"definition": "d", "characteristics": "c", "context": "x", "anti_patterns": "a", "evidence": "e", "examples": "x", "related_concepts": "[]", "references": "[]"}, "evidence": {"definition": {"item_index": 0}, "characteristics": {"item_index": 0}, "context": {"item_index": 0}, "anti_patterns": {"item_index": 0}, "evidence": {"item_index": 0}, "examples": {"item_index": 0}, "related_concepts": {"item_index": 0}, "references": {"item_index": 0}}}')
+    llm.script('{"relations": []}')
+    llm.script('{"relations": []}')
+
+    result = await run_v7_ingest(
+        paths=paths,
+        source_path=Path("raw/sources/test/source.md"),
+        source_text="Substantial content for stage 1 to mark complete.",
+        provider=llm,
+        task_id="kb-test-collide",
+    )
+
+    if result.failure_stage is not None:
+        pytest.fail(f"unexpected failure: stage={result.failure_stage} reason={result.failure_reason}")
+    concept_pages = [p for p in result.pages if p.type.value == "concept"]
+    assert len(concept_pages) == 2, f"expected 2 concept pages, got {len(concept_pages)}"
+    page_ids = {p.id for p in concept_pages}
+    assert len(page_ids) == 2, f"colliding base ids must be disambiguated, got {page_ids}"
+    assert "deadbeef-collide-12345678" in page_ids
+    assert "deadbeef-collide-12345678-1" in page_ids
