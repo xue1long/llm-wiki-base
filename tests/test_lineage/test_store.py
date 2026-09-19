@@ -38,6 +38,11 @@ def test_store_health_reports_sqlite_integrity(tmp_path):
 
 
 def test_store_enables_foreign_keys(tmp_path):
+    """Run-time write path: a FK orphan (Stage 5 produced an unregistered
+    source_id) raises DataConsistencyError so commit_ingest fails loudly.
+    Plan: 2026-09-19-v7-stage2-i5-lineage-unblock.md Task 2.
+    """
     store = LineageStore.open(tmp_path)
-    with pytest.raises(sqlite3.IntegrityError):
+    from src.lib.errors import DataConsistencyError
+    with pytest.raises(DataConsistencyError):
         store.link_artifact("wiki", "wiki-1", ("missing",), "x.md", "h", "committed")

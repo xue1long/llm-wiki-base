@@ -1,12 +1,57 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
+import time
 import uuid
 import hashlib
 from pathlib import Path
+from typing import Iterable
 
 from .types import LineageHealth, RawScanResult, RawSourceChange
+
+log = logging.getLogger(__name__)
+
+
+def _safe_insert_artifact_sources(
+    db: sqlite3.Connection,
+    artifact_id: str,
+    source_ids: Iterable[str],
+) -> list[tuple[str, str]]:
+    """Write source_ids into ``artifact_sources`` with dedup + orphan tolerance.
+
+    Returns ``[(source_id, error_msg), ...]`` for the ones that were
+    skipped due to FK orphan or duplicate. The caller decides whether to
+    log / clear pending state based on this list.
+
+    Plan: docs/superpowers/plans/2026-09-19-v7-stage2-i5-lineage-unblock.md Task 2
+    """
+    seen: set[str] = set()
+    errors: list[tuple[str, str]] = []
+    for sid in source_ids:
+        if not sid or sid in seen:
+            continue
+        seen.add(sid)
+        try:
+            db.execute(
+                "INSERT OR IGNORE INTO artifact_sources"
+                "(artifact_id, source_id) VALUES (?, ?)",
+                (artifact_id, sid),
+            )
+        except sqlite3.IntegrityError as e:
+            msg = str(e)
+            if "FOREIGN KEY constraint" in msg:
+                log.warning(
+                    "orphan source_id skipped: %s/%s", artifact_id, sid,
+                )
+                errors.append((sid, "FK violation"))
+            elif "UNIQUE constraint" in msg:
+                # INSERT OR IGNORE should swallow this, but record defensively.
+                errors.append((sid, "UNIQUE violation"))
+            else:
+                raise
+    return errors
 
 
 _TRANSITIONS = {
@@ -135,18 +180,89 @@ class LineageStore:
 
     @staticmethod
     def _recover_pending(db: sqlite3.Connection, root: Path) -> None:
-        rows = db.execute("SELECT wiki_page_id, source_ids, path, content_hash FROM pending_wiki_commits").fetchall()
+        """Restore pending_wiki_commits into artifact_sources.
+
+        Decision table:
+        - file missing or hash mismatched → skip (pending stays for ops)
+        - INSERT succeeds → page_id in pending_deletions
+        - INSERT partial-fails (FK orphans swallowed) → page_id in
+          pending_deletions AND write to recovery_errors.log
+        - helper raises non-IntegrityError → skip (pending stays)
+
+        The DELETE for pending_wiki_commits is conditional on the row
+        having reached the artifacts/artifact_sources tables, so a row
+        that errored out is preserved for an operator to inspect.
+
+        Plan: docs/superpowers/plans/2026-09-19-v7-stage2-i5-lineage-unblock.md Task 2
+        """
+        rows = db.execute(
+            "SELECT wiki_page_id, source_ids, path, content_hash "
+            "FROM pending_wiki_commits"
+        ).fetchall()
+
+        recovery_log = root / ".index" / "lineage" / "recovery_errors.log"
+        pending_deletions: list[str] = []  # only successful page_ids
+
         for page_id, source_ids, path, expected in rows:
-            target = root / path
-            if not target.is_file():
-                continue
-            if not _hash_matches(target, expected):
-                continue
-            ids = tuple(x for x in source_ids.split("\n") if x)
-            db.execute("INSERT OR REPLACE INTO artifacts(artifact_kind, artifact_id, path, content_hash, status) VALUES ('wiki', ?, ?, ?, 'committed')", (page_id, path, expected))
-            db.execute("DELETE FROM artifact_sources WHERE artifact_id = ?", (page_id,))
-            db.executemany("INSERT INTO artifact_sources(artifact_id, source_id) VALUES (?, ?)", ((page_id, x) for x in ids))
-            db.execute("DELETE FROM pending_wiki_commits WHERE wiki_page_id = ?", (page_id,))
+            try:
+                target = root / path
+                if not target.is_file() or not _hash_matches(target, expected):
+                    continue  # skip — pending stays
+                ids = list(x for x in source_ids.split("\n") if x)
+
+                db.execute(
+                    "INSERT OR REPLACE INTO artifacts"
+                    "(artifact_kind, artifact_id, path, content_hash, status) "
+                    "VALUES ('wiki', ?, ?, ?, 'committed')",
+                    (page_id, path, expected),
+                )
+                db.execute(
+                    "DELETE FROM artifact_sources WHERE artifact_id = ?",
+                    (page_id,),
+                )
+                errors = _safe_insert_artifact_sources(db, page_id, ids)
+
+                # Success (or partial-success) → enqueue DELETE
+                pending_deletions.append(page_id)
+
+                if errors:
+                    # Round 2 P0 加固 (场景 2): log 写入失败不阻断 DELETE
+                    try:
+                        recovery_log.parent.mkdir(parents=True, exist_ok=True)
+                        with recovery_log.open("a", encoding="utf-8") as f:
+                            f.write(
+                                f"{time.strftime('%Y-%m-%d %H:%M:%S')} "
+                                f"page_id={page_id} skipped={errors}\n"
+                            )
+                    except OSError as log_err:
+                        log.warning(
+                            "recover_pending: failed to write "
+                            "recovery_errors.log for %s: %s",
+                            page_id, log_err,
+                        )
+                        # Don't propagate — pending_deletions already
+                        # contains page_id, so the DELETE below still runs.
+            except sqlite3.IntegrityError:
+                log.exception(
+                    "recover_pending IntegrityError for %s", page_id,
+                )
+                continue  # don't enqueue DELETE
+            except (OSError, ValueError) as e:
+                log.warning(
+                    "recover_pending error for %s: %s", page_id, e,
+                )
+                continue  # don't enqueue DELETE
+
+        # Stage 2 of recovery: DELETE only successful page_ids.
+        # The DELETE is outside the per-row try/except so a single
+        # failing row can't poison the others.
+        if pending_deletions:
+            placeholders = ",".join("?" * len(pending_deletions))
+            db.execute(
+                f"DELETE FROM pending_wiki_commits "
+                f"WHERE wiki_page_id IN ({placeholders})",
+                pending_deletions,
+            )
         db.commit()
 
     @staticmethod
@@ -194,10 +310,24 @@ class LineageStore:
             (run_id, rel_manifest, manifest_hash),
         )
         db.execute("DELETE FROM artifact_sources WHERE artifact_id = ?", (run_id,))
-        db.executemany(
-            "INSERT INTO artifact_sources(artifact_id, source_id) VALUES (?, ?)",
-            ((run_id, source_id) for source_id in source_ids),
-        )
+        # Plan: 2026-09-19-v7-stage2-i5-lineage-unblock.md Task 2
+        # Book recovery uses the same helper — orphans are written to
+        # the same recovery_errors.log so ops sees the skip uniformly.
+        book_errors = _safe_insert_artifact_sources(db, run_id, source_ids)
+        if book_errors:
+            recovery_log = root / ".index" / "lineage" / "recovery_errors.log"
+            try:
+                recovery_log.parent.mkdir(parents=True, exist_ok=True)
+                with recovery_log.open("a", encoding="utf-8") as f:
+                    f.write(
+                        f"{time.strftime('%Y-%m-%d %H:%M:%S')} "
+                        f"run_id={run_id} skipped={book_errors}\n"
+                    )
+            except OSError as log_err:
+                log.warning(
+                    "recover_book_releases: failed to write "
+                    "recovery_errors.log for %s: %s", run_id, log_err,
+                )
         db.execute(
             "UPDATE build_runs SET status = 'published', artifact_id = ? WHERE run_id = ?",
             (run_id, run_id),
@@ -511,10 +641,17 @@ class LineageStore:
                 (run_id, path, content_hash),
             )
             self._db.execute("DELETE FROM artifact_sources WHERE artifact_id = ?", (run_id,))
-            self._db.executemany(
-                "INSERT INTO artifact_sources(artifact_id, source_id) VALUES (?, ?)",
-                ((run_id, source_id) for source_id in source_ids),
-            )
+            # Plan: 2026-09-19-v7-stage2-i5-lineage-unblock.md Task 2
+            # The caller already pre-validates every source_id, so
+            # _safe_insert_artifact_sources returns [] in the happy path.
+            # Plan records skipped (FK orphan) into the same
+            # recovery_errors.log so ops sees the skip uniformly.
+            errors = _safe_insert_artifact_sources(self._db, run_id, source_ids)
+            if errors:
+                log.warning(
+                    "record_book_release: %s skipped source_ids=%s",
+                    run_id, errors,
+                )
             self._db.execute(
                 "UPDATE build_members SET status = 'published' "
                 "WHERE run_id = ? AND status IN ('running', 'staged')",
@@ -606,10 +743,19 @@ class LineageStore:
             self._db.execute(
                 "DELETE FROM artifact_sources WHERE artifact_id = ?", (artifact_id,)
             )
-            self._db.executemany(
-                "INSERT INTO artifact_sources(artifact_id, source_id) VALUES (?, ?)",
-                ((artifact_id, source_id) for source_id in source_ids),
-            )
+            # Plan: 2026-09-19-v7-stage2-i5-lineage-unblock.md Task 2
+            # Run-time write path. A FK orphan here is a real bug (Stage 5
+            # produced a source_id that wasn't registered). Surface it via
+            # DataConsistencyError so commit_ingest fails loudly and the
+            # `with self._db:` block rolls back the artifact row too.
+            errors = _safe_insert_artifact_sources(self._db, artifact_id, source_ids)
+            fk_orphans = [sid for sid, kind in errors if kind == "FK violation"]
+            if fk_orphans:
+                from ..lib.errors import DataConsistencyError
+                raise DataConsistencyError(
+                    f"link_artifact({artifact_kind}/{artifact_id}): "
+                    f"orphan source_ids={fk_orphans}"
+                )
 
     def record_wiki_commit(self, wiki_page_id: str,
                            source_ids: tuple[str, ...], path: str,

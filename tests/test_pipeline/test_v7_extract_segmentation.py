@@ -154,10 +154,13 @@ def test_wrap_items_creates_canonical_items_with_byte_offsets(tmp_path: Path):
     assert result.invariants.i2_boundaries_valid
     assert result.invariants.i3_sorted
     assert result.invariants.i4_non_overlapping
-    # status for byline split is DEGRADED or SEGMENTED depending on whitespace
+    # status for byline split is DEGRADED / SEGMENTED / TAIL_RESIDUE
+    # depending on whitespace / trailing-byte accounting.
+    # Plan: 2026-09-19-v7-stage2-i5-lineage-unblock.md Task 1
     assert result.status in (
         SegmentationStatus.SEGMENTED,
         SegmentationStatus.DEGRADED,
+        SegmentationStatus.TAIL_RESIDUE,
     )
 
 
@@ -215,8 +218,10 @@ def test_build_structural_summary_counts_articles_and_sections(tmp_path: Path):
     assert summary["article_count"] >= 2
     assert "byte_accounting" in summary
     assert "last_item_truncated" in summary
-    # Status is SEGMENTED or DEGRADED depending on whitespace accounting
-    assert summary["status"] in ("segmented", "degraded")
+    # Status is SEGMENTED, DEGRADED, or TAIL_RESIDUE depending on
+    # whitespace / trailing-byte accounting.
+    # Plan: 2026-09-19-v7-stage2-i5-lineage-unblock.md Task 1
+    assert summary["status"] in ("segmented", "degraded", "tail_residue")
 
 
 # ---------- invariant pass-through ----------
