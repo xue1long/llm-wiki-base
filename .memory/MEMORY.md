@@ -19,6 +19,8 @@
 - [V7 Replace Plan Stage 1 启动](feedback-v7-replace-stage1-launch-2026-09-19.md) — `RUFLO_PIPELINE_MODE=v7` env var 在 server 启动时激活 v7 bridge；HTTP /ingest v2 path 21 s 成功（5 LLM calls / 1 source + 1 concept / H1-H5 OK / wiki-quality HEALTHY）；v3 path 23 calls 触发 budget abort（v7_failure.md 写 quarantine，按设计触发）；3 天观察期开始
 
 - [V7 Replace Plan Stage 1 排查](feedback-v7-replace-stage1-troubleshoot-2026-09-19.md) — 2 个 bug 修复：① v7 failure 不抛异常导致队列把 Stage 1 失败标记为 succeeded（现按 retryable/InvalidInput 分类抛异常）；② adapt_concept_page 忘了把 now 传给 WikiPage 导致 created_at=null；v3 budget cap 与 P1-3 dedup 均验证正常；MiniMax 429 限流阻塞真实验证
+
+- [V7 Stage 1 交接给远端机器](feedback-v7-stage1-handoff-remote-2026-09-19.md) — 源机 MiniMax 429 无法完成真实摄取故换机器；同步范围选 A（只同步可复现种子，不含 wiki/ 与 .index/）、provider 密钥走文档手动步骤；新增 `docs/ops/handoff-v7-stage1-remote.md` runbook 与 `scripts/smoke_v7_bridge.py`；**关键发现：V7 路径 Stage 6 关系抽取完全空转（bridge 没传 index + 返回值被 `_ =` 丢弃 + adapt_concept_page 不建 relations），H2 因此平凡通过**
 - [novel-wiki-v2 单文档摄取测试](feedback-novel-wiki-v2-single-ingest-2026-09-18.md) — HTTP 队列链路成功生成 4 页，但 lint/wiki-quality 未通过：模板占位正文、18 个断链、1 组重复标题、2 个 taxonomy gap
 - [novel-wiki-v2 质量门理由复核](feedback-novel-wiki-v2-quality-gate-judgment-2026-09-18.md) — 质量拒绝方向基本合理，但 18 个断链中 11 个是路径型链接误报，taxonomy 关系被错误按页面检查，source processing_depth 与 lint 合法值不一致
 - [novel-wiki-v2 初始化](project-novel-wiki-v2-2026-09-18.md) — 新建实例 `knowledge/novel-wiki-v2`，项目 ID `9be6839c-3a38-43e2-88cf-0fdb37fe3e1c`，使用 `novel` 模板
