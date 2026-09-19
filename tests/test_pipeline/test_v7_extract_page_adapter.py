@@ -74,6 +74,40 @@ def test_adapt_concept_page_basic_8_slots_yields_8_sections():
     assert "## 参考来源" in wp.body
 
 
+def test_adapt_concept_page_sets_timestamps():
+    """adapt_concept_page must set created_at/updated_at so the
+    frontmatter carries real ISO timestamps. WikiPage defaults both to
+    int 0, which _to_iso_dt maps to None → YAML renders ``created_at:
+    null`` (not an error, but breaks recency ordering and looks broken).
+
+    Regression guard for the Stage 1 灰度 finding.
+    """
+    page = ConceptPage(id="c", title="C", slots={"definition": "d"})
+    wp = adapt_concept_page(page)
+    assert wp.created_at != 0, "created_at must be set (not the int-0 default)"
+    assert wp.updated_at != 0, "updated_at must be set (not the int-0 default)"
+    fm = wp.to_frontmatter_dict()
+    assert fm["created_at"] is not None, "frontmatter created_at must be a real datetime"
+    assert fm["updated_at"] is not None, "frontmatter updated_at must be a real datetime"
+
+
+def test_build_source_stub_sets_timestamps(tmp_path: Path):
+    """build_source_stub_page must set created_at/updated_at (same
+    reasoning as adapt_concept_page)."""
+    paths = WikiPaths(tmp_path)
+    sp = build_source_stub_page(
+        source_path=Path("raw/sources/test/source.md"),
+        source_text="x",
+        task_id="kb-test-ts",
+        paths=paths,
+    )
+    assert sp.created_at != 0
+    assert sp.updated_at != 0
+    fm = sp.to_frontmatter_dict()
+    assert fm["created_at"] is not None
+    assert fm["updated_at"] is not None
+
+
 def test_adapt_concept_page_strips_section_suffix_from_sources():
     """V7's deterministic splitter appends ``#author-N`` / ``#section-N``
     item ordinals to source paths. The H1 lint rule treats ``source`` as

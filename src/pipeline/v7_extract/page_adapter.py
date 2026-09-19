@@ -132,6 +132,8 @@ def adapt_concept_page(page: ConceptPage) -> WikiPage:
         type=PageType.CONCEPT,
         sources=cleaned_sources,
         body=body,
+        created_at=now,
+        updated_at=now,
         processing_depth="concept",
         # V7-written pages inherit V7 metadata; commit_ingest writes
         # them with to_frontmatter_dict (V6 schema) but the V7 origin

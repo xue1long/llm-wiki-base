@@ -760,25 +760,31 @@ async def generate_ingest(
             use_fill_slots_v2=os.environ.get("RUFLO_V7_USE_FILL_SLOTS_V2", "0") == "1",
         )
         if _v7_result.failure_stage is not None:
-            # Surface the failure as a task-level failure (the
-            # `commit_ingest` call will see no pages, see failure_stage
-            # in meta, and write its own retry/queue handling).
-            return [], [], {
-                "analysis": None,
-                "source_slug": _source_slug_for_map,
-                "source_page_id": _source_slug_for_map + "-source",
-                "source_grade": "C",
-                "downstream_count": 0,
-                "extra_pages_count": 0,
-                "rejected": True,
-                "warnings": [
-                    f"v7-bridge aborted at stage {_v7_result.failure_stage}: "
-                    f"{_v7_result.failure_reason}"
-                ],
-                "v7_meta": dict(_v7_result.meta),
-                "v7_failure_stage": _v7_result.failure_stage,
-                "v7_failure_reason": _v7_result.failure_reason,
-            }
+            # Surface the failure as a TASK-LEVEL failure so the queue
+            # marks it failed instead of succeeded-with-zero-pages.
+            # The candidate path does the same via _reject_candidate.
+            #
+            # Error class matters — it decides whether the queue retries
+            # or dead-letters:
+            #   - "budget" / "timeout" / "stage1" (LLM unreachable after
+            #     retries, e.g. MiniMax 429) → RETRYABLE: the failure is
+            #     transient infrastructure, a later attempt may succeed.
+            #   - "stage3_incomplete" / "stage4_empty" /
+            #     "stage5_v2_not_implemented" → INVALID_INPUT: content
+            #     or config, retrying changes nothing.
+            from ..lib.errors import InvalidInputError, RetryableDependencyError
+            _transient_stages = {"budget", "timeout", "unhandled"}
+            _is_transient = (
+                _v7_result.failure_stage in _transient_stages
+                or _v7_result.failure_stage == "stage1"
+            )
+            _msg = (
+                f"v7-bridge aborted at stage {_v7_result.failure_stage}: "
+                f"{_v7_result.failure_reason}"
+            )
+            if _is_transient:
+                raise RetryableDependencyError(_msg)
+            raise InvalidInputError(_msg)
         # Normalise the v7 BridgeResult into the legacy 3-tuple shape
         # so commit_ingest + downstream consumers don't need to know
         # which pipeline ran.
