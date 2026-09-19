@@ -739,7 +739,67 @@ async def generate_ingest(
     _missing_resolver = make_missing_slugs_resolver(
         paths, produced_prefix={_source_slug_for_map},
     )
-    _candidate_mode = os.environ.get("RUFLO_PIPELINE_MODE", "candidate") == "candidate"
+    _pipeline_mode = os.environ.get("RUFLO_PIPELINE_MODE", "candidate")
+    _candidate_mode = _pipeline_mode == "candidate"
+    _v7_mode = _pipeline_mode == "v7"
+    if _v7_mode:
+        # V7 path: call run_v7_ingest (Tasks 1-4) which chains
+        # Stage 1/3/4/5/6 and adapts ConceptPage to WikiPage. The
+        # candidate-mode code below this branch is not executed.
+        from .v7_extract.bridge import run_v7_ingest as _run_v7_ingest
+        from .v7_extract.llm_bridge import ProviderAdapter as _ProviderAdapter
+        v7_llm = provider if isinstance(provider, _ProviderAdapter) else _ProviderAdapter(provider)
+        _v7_result = await _run_v7_ingest(
+            paths=paths,
+            source_path=Path(str(source_path)),
+            source_text=source_text,
+            provider=v7_llm,
+            folder_context=folder_context,
+            task_id=task_id,
+            schema_registry=schema_registry,
+            use_fill_slots_v2=os.environ.get("RUFLO_V7_USE_FILL_SLOTS_V2", "0") == "1",
+        )
+        if _v7_result.failure_stage is not None:
+            # Surface the failure as a task-level failure (the
+            # `commit_ingest` call will see no pages, see failure_stage
+            # in meta, and write its own retry/queue handling).
+            return [], [], {
+                "analysis": None,
+                "source_slug": _source_slug_for_map,
+                "source_page_id": _source_slug_for_map + "-source",
+                "source_grade": "C",
+                "downstream_count": 0,
+                "extra_pages_count": 0,
+                "rejected": True,
+                "warnings": [
+                    f"v7-bridge aborted at stage {_v7_result.failure_stage}: "
+                    f"{_v7_result.failure_reason}"
+                ],
+                "v7_meta": dict(_v7_result.meta),
+                "v7_failure_stage": _v7_result.failure_stage,
+                "v7_failure_reason": _v7_result.failure_reason,
+            }
+        # Normalise the v7 BridgeResult into the legacy 3-tuple shape
+        # so commit_ingest + downstream consumers don't need to know
+        # which pipeline ran.
+        return (
+            list(_v7_result.pages),
+            [],
+            {
+                "analysis": None,
+                "source_slug": _source_slug_for_map,
+                "source_page_id": _source_slug_for_map + "-source",
+                "source_grade": "B",
+                "downstream_count": sum(
+                    1 for p in _v7_result.pages if p.type.value != "source"
+                ),
+                "extra_pages_count": 0,
+                "rejected": False,
+                "warnings": [],
+                "v7_meta": dict(_v7_result.meta),
+                "v7_calls_count": v7_llm.calls_count,
+            },
+        )
     if _candidate_mode:
         from .analyzer import analyze
         from .generator import generate_from_candidate
