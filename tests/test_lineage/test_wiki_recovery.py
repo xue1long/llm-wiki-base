@@ -96,6 +96,33 @@ def test_helper_dedupes_duplicate_source_ids(tmp_path):
     assert store.artifact_sources("wiki-x") == ("src-1",)
 
 
+def test_helper_silently_skips_row_already_linked(tmp_path):
+    """Cross-call case: the (artifact_id, source_id) pair already exists in
+    the table (e.g. concurrent writer won the race, or the caller didn't
+    DELETE first). ``INSERT OR IGNORE`` swallows the UNIQUE conflict, so
+    the helper raises nothing and returns no errors — the row is simply
+    left as-is. This documents the contract W1 flagged: UNIQUE never
+    surfaces as an error, by design.
+
+    Spec: plan 2026-09-19-v7-stage2-i5-lineage-unblock §Task 2
+    ("UNIQUE violation 不抛").
+    """
+    store = LineageStore.open(tmp_path)
+    store.register_source("src-1", "raw/a.md", "hash", "ingested")
+    _insert_artifact_row(store._db, "wiki-x")
+    # Pre-link the pair, then call the helper again without deleting.
+    store._db.execute(
+        "INSERT INTO artifact_sources(artifact_id, source_id) VALUES (?, ?)",
+        ("wiki-x", "src-1"),
+    )
+    store._db.commit()
+
+    errors = _safe_insert_artifact_sources(store._db, "wiki-x", ["src-1"])
+
+    assert errors == []  # UNIQUE is swallowed, not reported
+    assert store.artifact_sources("wiki-x") == ("src-1",)  # still one row
+
+
 def test_helper_swallows_fk_violation_for_orphan_source_id(tmp_path):
     """FK violation (orphan source_id not in `sources`) → log warning, add to
     errors, do NOT raise. The artifact row simply has no source link for

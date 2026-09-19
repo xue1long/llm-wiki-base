@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+# Re-export for callers within src/lineage/* so they don't have to
+# cross-module-import lib.errors. Code-review V1 finding.
+from ..lib.errors import DataConsistencyError  # noqa: F401  (re-export)
+
 
 @dataclass(frozen=True)
 class LineageHealth:

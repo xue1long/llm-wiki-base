@@ -19,11 +19,21 @@ def _safe_insert_artifact_sources(
     artifact_id: str,
     source_ids: Iterable[str],
 ) -> list[tuple[str, str]]:
-    """Write source_ids into ``artifact_sources`` with dedup + orphan tolerance.
+    """Insert source_ids into ``artifact_sources``, deduping and skipping
+    only FK orphans. UNIQUE conflicts are never reported.
 
-    Returns ``[(source_id, error_msg), ...]`` for the ones that were
-    skipped due to FK orphan or duplicate. The caller decides whether to
-    log / clear pending state based on this list.
+    Swallows exactly one failure class — FK violation (orphan source_id
+    not registered in ``sources``): logs a warning and records
+    ``(source_id, "FK violation")`` in the return value. Any other
+    ``IntegrityError`` propagates.
+
+    UNIQUE conflicts cannot occur and are not reported: the ``seen`` set
+    dedupes within one call, and ``INSERT OR IGNORE`` swallows a
+    cross-call duplicate silently (the row is simply left as-is).
+
+    Returns:
+        ``[(source_id, error_msg), ...]`` for skipped orphans; empty when
+        everything landed.
 
     Plan: docs/superpowers/plans/2026-09-19-v7-stage2-i5-lineage-unblock.md Task 2
     """
@@ -40,15 +50,11 @@ def _safe_insert_artifact_sources(
                 (artifact_id, sid),
             )
         except sqlite3.IntegrityError as e:
-            msg = str(e)
-            if "FOREIGN KEY constraint" in msg:
+            if "FOREIGN KEY constraint" in str(e):
                 log.warning(
                     "orphan source_id skipped: %s/%s", artifact_id, sid,
                 )
                 errors.append((sid, "FK violation"))
-            elif "UNIQUE constraint" in msg:
-                # INSERT OR IGNORE should swallow this, but record defensively.
-                errors.append((sid, "UNIQUE violation"))
             else:
                 raise
     return errors
@@ -748,13 +754,16 @@ class LineageStore:
             # produced a source_id that wasn't registered). Surface it via
             # DataConsistencyError so commit_ingest fails loudly and the
             # `with self._db:` block rolls back the artifact row too.
-            errors = _safe_insert_artifact_sources(self._db, artifact_id, source_ids)
-            fk_orphans = [sid for sid, kind in errors if kind == "FK violation"]
-            if fk_orphans:
-                from ..lib.errors import DataConsistencyError
+            # The helper only ever reports FK orphans (UNIQUE is swallowed
+            # by INSERT OR IGNORE), so any non-empty result is fatal here.
+            orphans = _safe_insert_artifact_sources(
+                self._db, artifact_id, source_ids,
+            )
+            if orphans:
+                from .types import DataConsistencyError
                 raise DataConsistencyError(
                     f"link_artifact({artifact_kind}/{artifact_id}): "
-                    f"orphan source_ids={fk_orphans}"
+                    f"orphan source_ids={[sid for sid, _ in orphans]}"
                 )
 
     def record_wiki_commit(self, wiki_page_id: str,

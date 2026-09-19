@@ -25,9 +25,11 @@ from src.pipeline.v7_extract.segmentation import (
     CanonicalItem,
     CoverageReport,
     ItemKind,
+    MAX_TAIL_GAP_BYTES,
     SegmentationResult,
     SegmentationStatus,
     build_structural_summary,
+    wrap_items_as_segmentation_result,
 )
 
 
@@ -571,12 +573,16 @@ def test_payload_to_boundaries_uses_char_offsets_for_chinese() -> None:
 MAX_TAIL_GAP_BYTES = 1024
 
 
-def _make_result_with_tail_gap(*, gap_bytes: int) -> SegmentationResult:
+def _make_result_with_tail_gap(
+    *, gap_bytes: int, source_size: int = 200,
+) -> SegmentationResult:
     """Build a SegmentationResult where items cover everything except the
     final ``gap_bytes`` bytes of the source. Mirrors what real
     deterministic splitting produces on ASR transcripts.
+
+    ``source_size`` defaults to 200; tests for threshold boundaries
+    (1024, 1025 bytes) pass a larger value.
     """
-    source_size = 200
     span = source_size - gap_bytes
     items = [
         _make_item(
@@ -635,17 +641,55 @@ def test_build_structural_summary_half_confidence_for_failed_status():
     assert summary["boundary_confidence"] == 0.5
 
 
+def _segment_with_exact_tail_gap(gap_bytes: int) -> SegmentationResult:
+    """Drive ``wrap_items_as_segmentation_result`` with a source whose
+    deterministic partition covers everything but the final ``gap_bytes``
+    bytes. ``content.find(text, cursor)`` locates the single item, so the
+    gap size is exact. This exercises the real status decision — not a
+    placeholder status assignment.
+    """
+    item_text = "A" * 100
+    trailing = "B" * gap_bytes
+    content = item_text + trailing
+    return wrap_items_as_segmentation_result(
+        [{"id": "a", "text": item_text}],
+        content=content,
+        source_md5="md5",
+        relative="x.md",
+    )
+
+
 def test_tail_residue_threshold_boundary_1024_includes_exact():
-    """A tail gap of exactly MAX_TAIL_GAP_BYTES (1024) still classifies
-    as TAIL_RESIDUE — avoid off-by-one (the threshold uses <=, not <)."""
-    # We assert at the structural_summary level since that's the contract
-    # downstream Stage 3/7 consume. The segmentation_status decision
-    # itself lives in wrap_items_as_segmentation_result which is harder
-    # to drive deterministically from here.
-    result = _make_result_with_tail_gap(gap_bytes=1024)
-    object.__setattr__(result, "status", SegmentationStatus.TAIL_RESIDUE)
-    summary = build_structural_summary(result, content="x" * (1024 + 1024))
+    """A tail gap of exactly MAX_TAIL_GAP_BYTES (1024) classifies as
+    TAIL_RESIDUE — the threshold is inclusive (``<=``, not ``<``).
+    Spec: plan 2026-09-19-v7-stage2-i5-lineage-unblock §Task 1 Round 1 ③-C.
+    """
+    result = _segment_with_exact_tail_gap(MAX_TAIL_GAP_BYTES)
+    assert result.invariants.i5_complete_accounting is False  # I5 strictly fails
+    assert result.invariants.i5_gap_at_tail is True
+    assert result.invariants.i5_gap_bytes == MAX_TAIL_GAP_BYTES
+    assert result.status is SegmentationStatus.TAIL_RESIDUE
+    summary = build_structural_summary(
+        result, content="A" * 100 + "B" * MAX_TAIL_GAP_BYTES,
+    )
     assert summary["boundary_confidence"] == 1.0
+
+
+def test_tail_residue_threshold_boundary_1025_degrades():
+    """One byte over the threshold (1025) must NOT get the TAIL_RESIDUE
+    exemption — it degrades to DEGRADED with boundary_confidence 0.5, so
+    Stage 3 still sees the original "something is off" signal. This is the
+    off-by-one guard the spec asked for (plan §Task 1 Round 1 ③-C).
+    """
+    result = _segment_with_exact_tail_gap(MAX_TAIL_GAP_BYTES + 1)
+    assert result.invariants.i5_complete_accounting is False
+    assert result.invariants.i5_gap_at_tail is True
+    assert result.invariants.i5_gap_bytes == MAX_TAIL_GAP_BYTES + 1
+    assert result.status is SegmentationStatus.DEGRADED
+    summary = build_structural_summary(
+        result, content="A" * 100 + "B" * (MAX_TAIL_GAP_BYTES + 1),
+    )
+    assert summary["boundary_confidence"] == 0.5
 
 
 def test_build_structural_summary_half_confidence_for_uncertain_failed():
