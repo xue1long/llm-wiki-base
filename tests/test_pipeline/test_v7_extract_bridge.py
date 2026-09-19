@@ -183,8 +183,23 @@ async def test_bridge_runs_full_pipeline_short_source(project_root: Path):
 
 @pytest.mark.asyncio
 async def test_bridge_runs_v3_path_short_source(project_root: Path):
-    """V3 path (fill_slots_v2) — 8+ LLM calls per topic but more reliable
-    evidence trails. Tests the bridge's v3 branch end-to-end.
+    """V3 path (fill_slots_v2) — 9 LLM calls per topic, richer evidence trail.
+
+    COVERAGE GAP (found 2026-09-19 while adding the F-2 invariant): this
+    scripted stub cannot drive ``fill_slots_v2`` to ``FILLED``. Its claims
+    are all demoted to ``INSUFFICIENT_EVIDENCE``, so ``page_synthesizer``
+    returns ``FillStatus.INSUFFICIENT`` and no concept page is produced.
+
+    Until now the test asserted "the v3 branch was invoked" and ignored that
+    outcome — which meant it was passing **because** an all-topics-failed run
+    was reported as success (the F-2 bug). The assertions below now state the
+    truth: the v3 branch IS exercised, and with insufficient evidence the run
+    is a task-level failure rather than a silent success.
+
+    The v3 *happy path* therefore has no end-to-end test; driving it needs a
+    fixture whose claim span_ids match Stage 2's real span registry. Tracked
+    as a gap in
+    docs/superpowers/plans/2026-09-19-v7-verified-severe-defects.md.
     """
     paths = WikiPaths(project_root)
     llm = _ScriptedProvider()
@@ -219,15 +234,21 @@ async def test_bridge_runs_v3_path_short_source(project_root: Path):
         use_fill_slots_v2=True,
     )
 
-    # Bridge completed without failing stages
     assert isinstance(result, BridgeResult)
-    if result.failure_stage is not None:
-        pytest.fail(f"unexpected failure: stage={result.failure_stage} reason={result.failure_reason} meta={result.meta}")
-    # Source stub is always written
-    assert any(p.type.value == "source" for p in result.pages)
-    # v3 path was actually invoked (extract_slot_claims called ≥1 time)
+    # The v3 branch was actually invoked (extract_slot_claims called ≥1 time).
     v3_calls = [c for c in llm.calls if c.get("prompt_kind") in ("fill_slots_extract", "fill_slots", "evidence-backed claims")]
     assert len(v3_calls) >= 1, f"v3 path not invoked: prompt_kinds={[c.get('prompt_kind') for c in llm.calls]}"
+    # Source stub is always written.
+    assert any(p.type.value == "source" for p in result.pages)
+
+    # Truthful outcome with this stub: every topic is demoted to INSUFFICIENT,
+    # so this is a task-level failure — NOT the silent success it used to be.
+    assert result.failure_stage == "stage5_all_failed", (
+        f"expected stage5_all_failed for an all-insufficient v3 run, "
+        f"got failure_stage={result.failure_stage!r} meta={result.meta}"
+    )
+    assert result.meta["failed_topics"]
+    assert not [p for p in result.pages if p.type.value == "concept"]
 
 
 @pytest.mark.asyncio
@@ -548,3 +569,69 @@ async def test_bridge_dedupes_colliding_derived_page_ids(project_root: Path, mon
     assert len(page_ids) == 2, f"colliding base ids must be disambiguated, got {page_ids}"
     assert "deadbeef-collide-12345678" in page_ids
     assert "deadbeef-collide-12345678-1" in page_ids
+
+
+@pytest.mark.asyncio
+async def test_bridge_fails_when_every_topic_fails_stage5(project_root: Path):
+    """F-2: zero concept pages + recorded topic failures must be a
+    task-level failure, not a silent success.
+
+    Stage 5 wraps each topic in a broad ``except Exception`` that only
+    records ``failed_topics``; ``failure_stage`` stayed None, so the run
+    committed a lone source stub and the queue marked the task APPROVED.
+    Same class as the regression fixed in 09e8b4eb, different code path.
+    """
+    paths = WikiPaths(project_root)
+    llm = _ScriptedProvider()
+    llm.script('{"doc_type": "single_method", "confidence": 0.9, "rationale": "ok", "traits": [], "uncertain": false}')
+    llm.script('{"complete": true, "reason": "ok"}')
+    llm.script('{"topics": [{"id": "a", "title": "Topic One", "item_ids": ["raw/sources/test/source.md"]}, {"id": "b", "title": "Topic Two", "item_ids": ["raw/sources/test/source.md"]}]}')
+    # Stage 5 deliberately left unscripted → every fill_slots call fails.
+
+    result = await run_v7_ingest(
+        paths=paths,
+        source_path=Path("raw/sources/test/source.md"),
+        source_text="Substantial content for stage 1 to mark complete.",
+        provider=llm,
+        task_id="kb-test-all-failed",
+    )
+
+    assert result.failure_stage == "stage5_all_failed", (
+        f"expected task-level failure, got failure_stage={result.failure_stage!r} "
+        f"(pages={len(result.pages)})"
+    )
+    assert result.failure_reason
+    assert not [p for p in result.pages if p.type.value == "concept"]
+    assert result.meta["failed_topics"]
+    # empty_extraction means "nothing to extract" — it must NOT be used to
+    # describe "everything failed", or the two become indistinguishable.
+    assert not result.meta.get("empty_extraction")
+
+
+@pytest.mark.asyncio
+async def test_bridge_partial_topic_failure_is_not_a_task_failure(project_root: Path):
+    """The F-2 invariant must not over-fire: as long as ONE concept page
+    survives, the run is a partial success and must still land its pages."""
+    paths = WikiPaths(project_root)
+    llm = _ScriptedProvider()
+    llm.script('{"doc_type": "single_method", "confidence": 0.9, "rationale": "ok", "traits": [], "uncertain": false}')
+    llm.script('{"complete": true, "reason": "ok"}')
+    llm.script('{"topics": [{"id": "a", "title": "Topic One", "item_ids": ["raw/sources/test/source.md"]}, {"id": "b", "title": "Topic Two", "item_ids": ["raw/sources/test/source.md"]}]}')
+    # Only the FIRST fill_slots is scripted; the second runs out and fails.
+    llm.script('{"slots": {"definition": "d", "characteristics": "c", "context": "x", "anti_patterns": "a", "evidence": "e", "examples": "x", "related_concepts": "[]", "references": "[]"}, "evidence": {"definition": {"item_index": 0}, "characteristics": {"item_index": 0}, "context": {"item_index": 0}, "anti_patterns": {"item_index": 0}, "evidence": {"item_index": 0}, "examples": {"item_index": 0}, "related_concepts": {"item_index": 0}, "references": {"item_index": 0}}}')
+    llm.script('{"relations": []}')
+    llm.script('{"relations": []}')
+
+    result = await run_v7_ingest(
+        paths=paths,
+        source_path=Path("raw/sources/test/source.md"),
+        source_text="Substantial content for stage 1 to mark complete.",
+        provider=llm,
+        task_id="kb-test-partial",
+    )
+
+    assert result.failure_stage is None, (
+        f"partial success must not fail the task: {result.failure_stage} "
+        f"{result.failure_reason}"
+    )
+    assert [p for p in result.pages if p.type.value == "concept"]

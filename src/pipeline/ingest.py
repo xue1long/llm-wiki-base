@@ -769,11 +769,14 @@ async def generate_ingest(
             #   - "budget" / "timeout" / "stage1" (LLM unreachable after
             #     retries, e.g. MiniMax 429) → RETRYABLE: the failure is
             #     transient infrastructure, a later attempt may succeed.
+            #   - "stage5_all_failed" → RETRYABLE: the recorded cause is a
+            #     Stage 5 LLM error per topic (see the bridge's
+            #     enqueue_failure(stage="stage5")), i.e. infrastructure.
             #   - "stage3_incomplete" / "stage4_empty" /
             #     "stage5_v2_not_implemented" → INVALID_INPUT: content
             #     or config, retrying changes nothing.
             from ..lib.errors import InvalidInputError, RetryableDependencyError
-            _transient_stages = {"budget", "timeout", "unhandled"}
+            _transient_stages = {"budget", "timeout", "unhandled", "stage5_all_failed"}
             _is_transient = (
                 _v7_result.failure_stage in _transient_stages
                 or _v7_result.failure_stage == "stage1"

@@ -515,6 +515,23 @@ async def run_v7_ingest(
             # produced nothing. Mark the run as empty_extraction so the
             # caller can record this in the queue summary.
             result.meta["empty_extraction"] = True
+        elif not wiki_concept_pages and failed_topics:
+            # Every topic failed and no concept page survived. Stage 5 wraps
+            # each topic in a broad `except Exception` that records the topic
+            # in ``failed_topics`` but leaves ``failure_stage`` None — so the
+            # run would commit a lone source stub, report success, and the
+            # queue would mark the task APPROVED. That is the same
+            # "succeeded but wrote nothing" class as the regression fixed in
+            # 09e8b4eb, reached through a different path. Make it a
+            # task-level failure instead of a silent one.
+            result.failure_stage = "stage5_all_failed"
+            result.failure_reason = (
+                f"all {len(failed_topics)} topic(s) failed in stage5; "
+                f"no concept page produced (first: {failed_topics[0]})"
+            )
+            log.warning(
+                "[v7-bridge] %s: %s", result.failure_stage, result.failure_reason
+            )
 
         # Source stub — always written, even on partial / empty run.
         result.pages.append(build_source_stub_page(
