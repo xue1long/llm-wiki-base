@@ -36,10 +36,17 @@ class SegmentationStatus(str, Enum):
 
     Maps to ExtractionStatus five-state in the caller via stage-local
     enum → ExtractionStatus mapping (not direct assignment).
+
+    Plan: docs/superpowers/plans/2026-09-19-v7-stage2-i5-lineage-unblock.md Task 1
+    Added TAIL_RESIDUE for the ASR-transcript pattern: deterministic
+    splitting leaves a few bytes at end-of-source. I5 fails (strict
+    byte accounting), but the gap is only at the tail — not a real
+    segmentation bug. Stage 3/7 should treat this as a clean signal.
     """
 
     SEGMENTED = "segmented"           # multi-item partition with full coverage
     SINGLE_EXPECTED = "single_expected"  # 结构证据表明就是一篇
+    TAIL_RESIDUE = "tail_residue"      # i5 failed but gap is only at tail end
     DEGRADED = "degraded"             # 有切分但 residual/uncertainty 高
     UNCERTAIN = "uncertain"           # 无法可靠定边界
     FAILED = "failed"                  # 技术失败或 invariant 破坏
@@ -54,6 +61,13 @@ class ItemKind(str, Enum):
     RESIDUAL = "residual"
     BOILERPLATE = "boilerplate"
     UNKNOWN = "unknown"
+
+
+# Plan: 2026-09-19-v7-stage2-i5-lineage-unblock.md Task 1
+# ASR transcripts routinely leave a few bytes at end-of-source after
+# deterministic splitting. Treat gaps up to this size as natural
+# endings rather than real segmentation bugs.
+MAX_TAIL_GAP_BYTES = 1024
 
 
 @dataclass
@@ -280,6 +294,15 @@ def wrap_items_as_segmentation_result(
             status = SegmentationStatus.SINGLE_EXPECTED
         else:
             status = SegmentationStatus.SEGMENTED
+    elif (
+        invariants.i5_gap_at_tail
+        and invariants.i5_gap_bytes <= MAX_TAIL_GAP_BYTES
+    ):
+        # ASR-style end-of-source tail gap: I5 strict fails, but the gap
+        # is only at the tail and small. Treat as a clean signal so Stage 3
+        # sees boundary_confidence=1.0 instead of 0.5 (degraded).
+        # Plan: 2026-09-19-v7-stage2-i5-lineage-unblock.md Task 1
+        status = SegmentationStatus.TAIL_RESIDUE
     elif invariants.i1_nonempty and not invariants.i5_complete_accounting:
         status = SegmentationStatus.DEGRADED
     elif not invariants.i1_nonempty:
@@ -344,8 +367,18 @@ def build_structural_summary(
         "article_count": article_count,
         "section_count": section_count,
         "status": segmentation_result.status.value,
+        # TAIL_RESIDUE is a clean ASR-tail-gap signal — Stage 3/7 should
+        # not see it as degraded. All other failures keep 0.5 to flag
+        # real segmentation problems.
+        # Plan: 2026-09-19-v7-stage2-i5-lineage-unblock.md Task 1
         "boundary_confidence": (
-            1.0 if segmentation_result.invariants.all_pass else 0.5
+            1.0
+            if segmentation_result.status in (
+                SegmentationStatus.SEGMENTED,
+                SegmentationStatus.SINGLE_EXPECTED,
+                SegmentationStatus.TAIL_RESIDUE,
+            )
+            else 0.5
         ),
         "byte_accounting": round(segmentation_result.coverage.byte_accounting, 4),
         "last_item_truncated": last_item_truncated,

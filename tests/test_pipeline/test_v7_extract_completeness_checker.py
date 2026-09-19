@@ -649,3 +649,40 @@ async def test_long_doc_does_not_truncate_observation():
     assert len(pack.encode("utf-8")) <= EVIDENCE_PACK_BUDGET_BYTES
     assert meta["total_bytes"] == len(huge)
     assert meta["mid_samples"] == 3
+
+
+# ---------------------------------------------------------------------------
+# Plan: 2026-09-19-v7-stage2-i5-lineage-unblock.md Task 1
+# End-to-end assertion: when Stage 2 emits TAIL_RESIDUE + boundary_confidence=1.0,
+# the Stage 3 evidence pack must propagate those textual signals so the LLM
+# reads them (otherwise Stage 3 reverts to seeing the failure-shape).
+# ---------------------------------------------------------------------------
+
+
+def test_evidence_pack_propagates_tail_residue_signals_to_llm():
+    """When Stage 2 marks a tail gap as TAIL_RESIDUE, the evidence pack
+    must carry ``status=tail_residue`` and ``boundary_confidence=1.0`` —
+    not the degraded 0.5. The LLM uses these to judge completion.
+    """
+    content = "body " * 5000  # ~25 KB so evidence pack includes mid samples
+    structural_summary = {
+        "item_count": 2,
+        "article_count": 2,
+        "section_count": 0,
+        "status": "tail_residue",
+        "boundary_confidence": 1.0,
+        "byte_accounting": 0.9995,
+        "last_item_truncated": False,
+    }
+    pack, _ = _build_evidence_pack(
+        content, structural_summary, fingerprint="checker-v7",
+    )
+    assert "status=tail_residue" in pack
+    assert "boundary_confidence=1.0" in pack
+    # Also confirm the contrast: a DEGRADED signal would say 0.5 instead.
+    degraded = {**structural_summary, "status": "degraded", "boundary_confidence": 0.5}
+    degraded_pack, _ = _build_evidence_pack(
+        content, degraded, fingerprint="checker-v7",
+    )
+    assert "status=degraded" in degraded_pack
+    assert "boundary_confidence=0.5" in degraded_pack
