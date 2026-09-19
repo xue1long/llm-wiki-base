@@ -87,3 +87,73 @@ def test_relation_type_enum_has_built_ins():
     # V7.1.1 new relations
     assert RelationType.REFINES.value == "refines"
     assert RelationType.REFINED_BY.value == "refined_by"
+
+
+# ---------------------------------------------------------------------------
+# Relation-vocabulary drift guard (2026-09-19)
+#
+# The accepted-type set used to live in three hand-maintained copies that had
+# drifted: generator.RELATION_TYPES (23, the write side), lint's private
+# _BUILTIN_RELATIONS (21, missing refines/refined_by) and RelationType (19).
+# Because lint's copy decides PAGE legality, `refines` was writable by the
+# generator yet reported illegal by lint — and the batch gate, sharing the same
+# constant, blocked whole batches. Everything now derives from
+# relations.BUILTIN_RELATION_TYPES; the assertions below fail loudly if a
+# private copy is re-introduced or one side evolves alone.
+# ---------------------------------------------------------------------------
+
+
+def test_builtin_relation_types_is_single_source_of_truth():
+    from src.pipeline.generator import RELATION_TYPES
+    from src.wiki.features import lint
+    from src.wiki.features.relations import BUILTIN_RELATION_TYPES
+
+    assert set(RELATION_TYPES) == set(BUILTIN_RELATION_TYPES)
+    assert set(lint._BUILTIN_RELATIONS) == set(BUILTIN_RELATION_TYPES)
+    # Guards the enum list against accidental duplicates / reordering bugs.
+    assert len(RELATION_TYPES) == len(set(RELATION_TYPES))
+
+
+def test_every_relation_type_enum_member_is_accepted():
+    from src.wiki.features.relations import BUILTIN_RELATION_TYPES
+
+    missing = {t.value for t in RelationType} - set(BUILTIN_RELATION_TYPES)
+    assert not missing, f"RelationType members not accepted: {sorted(missing)}"
+
+
+def test_every_inverse_relation_is_accepted():
+    """``Relation.inverse()`` reads INVERSE_RELATIONS. If a pair member is not
+    in the accepted set, the inverse edge that gets written onto the TARGET
+    page is then reported illegal by lint."""
+    from src.wiki.features.relations import BUILTIN_RELATION_TYPES, INVERSE_RELATIONS
+
+    missing = set(INVERSE_RELATIONS) - set(BUILTIN_RELATION_TYPES)
+    assert not missing, f"INVERSE_RELATIONS members not accepted: {sorted(missing)}"
+
+
+def test_refines_and_refined_by_are_accepted():
+    from src.wiki.features.relations import BUILTIN_RELATION_TYPES
+
+    assert "refines" in BUILTIN_RELATION_TYPES
+    assert "refined_by" in BUILTIN_RELATION_TYPES
+
+
+def test_namespace_relation_types_are_accepted():
+    """The 4 domain relation types live in their own literal
+    (NAMESPACE_RELATION_TYPES) and are attached by ingest/schema routing, so
+    nothing derives them from RelationType. Without this assertion, dropping
+    one (e.g. taxonomy_of, written by ingest's taxonomy edges) would silently
+    make every taxonomy_of edge illegal to lint."""
+    from src.wiki.features.relations import (
+        BUILTIN_RELATION_TYPES,
+        NAMESPACE_RELATION_TYPES,
+    )
+
+    expected = {
+        "taxonomy_of",
+        "belongs_to_audience",
+        "hosted_on_platform",
+        "has_credibility",
+    }
+    assert set(NAMESPACE_RELATION_TYPES) == expected
+    assert expected <= set(BUILTIN_RELATION_TYPES)

@@ -54,6 +54,41 @@ INVERSE_RELATIONS = {
 USER_TYPE_PREFIX = "x-"
 
 
+# ---------------------------------------------------------------------------
+# Canonical "accepted relation type" set — SINGLE SOURCE OF TRUTH
+# ---------------------------------------------------------------------------
+# Before 2026-09-19 this set existed in three places that had silently drifted
+# apart, which is how `refines` / `refined_by` ended up legal to *write* but
+# illegal to *lint*:
+#
+#   generator.RELATION_TYPES  : 23 (write-side truth — used as the JSON schema
+#                                 enum and as the ingest filter)
+#   lint._BUILTIN_RELATIONS   : 21 (missing refines / refined_by)
+#   RelationType              : 19
+#
+# Relations that are written but rejected by lint are worse than no relations
+# at all: the page lands, then every lint/gate run reports
+# LINT-ILLEGAL-RELATION (and batch gate blocks the whole batch).
+#
+# The truth now lives here — the lowest layer of the three (`pipeline.generator`
+# already depends on this module; `lint` and `batch_gate` live beside it), so
+# every consumer derives from one definition and cannot drift.
+#
+# `RelationType` covers the graph edges; the namespace edges below are the
+# domain-specific types that are legal in frontmatter but are not part of the
+# enum (they are attached by ingest/schema routing, not by the LLM).
+NAMESPACE_RELATION_TYPES = frozenset({
+    "taxonomy_of",
+    "belongs_to_audience",
+    "hosted_on_platform",
+    "has_credibility",
+})
+
+BUILTIN_RELATION_TYPES: frozenset[str] = (
+    frozenset(t.value for t in RelationType) | NAMESPACE_RELATION_TYPES
+)
+
+
 @dataclass
 class Relation:
     target_id: str

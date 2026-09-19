@@ -75,7 +75,7 @@ def test_lint_placeholder_clean(tmp_path):
 
 
 def test_lint_illegal_relation(tmp_path):
-    """relations[].type outside 17 built-ins + x-* → LINT-ILLEGAL-RELATION."""
+    """relations[].type outside the built-in set + x-* → LINT-ILLEGAL-RELATION."""
     ensure_knowledge_base(tmp_path)
     p = WikiPaths(tmp_path)
     from src.wiki.features.relations import Relation
@@ -95,6 +95,28 @@ def test_lint_illegal_relation(tmp_path):
     report2 = lint_wiki(p)
     assert not [i for i in report2.issues
                 if i.code == "LINT-ILLEGAL-RELATION" and i.page_id == "rel-2"]
+
+
+def test_lint_accepts_refines(tmp_path):
+    """`refines` / `refined_by` are accepted by the WRITE path (they are in
+    generator.RELATION_TYPES and in RelationType), so lint must accept them
+    too. Regression: lint kept its own hand-maintained frozenset that had
+    drifted to 21 entries without these two, so every page carrying a
+    `refines` edge — e.g. 百炼法 refines 扩句法 — was reported as
+    LINT-ILLEGAL-RELATION (ERROR), and batch gate blocked the whole batch.
+    """
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    from src.wiki.features.relations import Relation
+    for page_id, rel_type in (("ref-1", "refines"), ("ref-2", "refined_by")):
+        _make_page(p, page_id, PageType.CONCEPT,
+                   "## 定义\n\n内容\n",
+                   sources=["raw/sources/a.md"],
+                   relations=[Relation(target_id="x", type=rel_type, weight=0.5)])
+    report = lint_wiki(p)
+    illegal = [i for i in report.issues if i.code == "LINT-ILLEGAL-RELATION"]
+    assert not illegal, [i.message for i in illegal]
+
 
 
 def test_lint_synthesis_gate(tmp_path):

@@ -317,6 +317,16 @@ TDD：先写测试（红）→ 实现（绿）→ 提交。每个 Task 一个逻
   T6 落地后它如实暴露为 `stage5_all_failed`，已改为断言真实语义。
   要让 v3 happy path 有覆盖，需要一个 claim `span_ids` 能匹配 Stage 2 真实 span 注册表的
   fixture（`fill_slots_v2` 走 inline `spans_per_slot`，格式 `span-{item_id}-{slot[:4]}-i{j}`）。
+- **G11（T3 实施中发现）**：`tests/test_wiki/test_lint_workflow_state.py` **既有的收集错误**——
+  它 `from src.wiki.features.lint import VALID_PROCESSING_DEPTHS`，但该符号在 `lint.py`
+  的 HEAD 版本里也不存在（已用 `git stash` 验证：暂存 T3 改动后同样
+  `ImportError`）。跑 `tests/test_wiki` 会因此 `Interrupted: 1 error during collection`，
+  需 `--ignore` 才能跑完（本次回归 575 passed）。属既有破损测试，未在本方案修。
+- **G12**：「17 built-in relation types」这一过时计数散落在 **53 处**，包括
+  **LLM 提示词正文**（`generator.py:478/655/1069`、`docs/reference/ingest-prompts.md`）与
+  `kc` 契约层、ADR、架构文档。T3 只修了实际判定逻辑与紧邻的两处代码文案；
+  提示词与其余文档未动——改提示词是行为变更，需单独评估（且有
+  `tests/test_pipeline/test_generator.py:552` 断言该文案）。
 - **G10**：跑 `tests/test_pipeline tests/test_scripts` 全量会**改写仓库源文件**
   `src/pipeline/wiki_rules_prompt.py`（`--ignore-cr-at-eol` 下仍 7+/23-）与
   `docs/guides/wiki-spec.md`（纯行尾差异）。疑为测试内触发的 wiki-spec 同步。

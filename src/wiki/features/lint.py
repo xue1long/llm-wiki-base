@@ -24,6 +24,7 @@ from pathlib import Path
 
 from ..storage.ensure import ensure_knowledge_base
 from .indexer import read_index
+from .relations import BUILTIN_RELATION_TYPES
 
 logger = logging.getLogger(__name__)
 from ..storage.page_writer import read_page
@@ -117,15 +118,12 @@ _PLACEHOLDER_SUBSTRINGS = (
     "来源未提供具体例子",
 )
 
-# 21 built-in relation types (17 graph edges + 4 namespace edges) — anything else
-# (unless x-*) is illegal.
-_BUILTIN_RELATIONS = frozenset({
-    "is_part_of", "contains", "references", "referenced_by", "causes",
-    "caused_by", "contradicts", "supports", "supported_by", "supersedes",
-    "superseded_by", "depends_on", "required_by", "analogous_to",
-    "opposite_of", "derived_from", "derives",
-    "taxonomy_of", "belongs_to_audience", "hosted_on_platform", "has_credibility",
-})
+# Accepted (non-x-*) relation types. DERIVED from the single source of truth in
+# ``relations.BUILTIN_RELATION_TYPES`` — do NOT re-list them here. This used to
+# be a hand-maintained frozenset that had drifted to 21 entries, missing
+# ``refines`` / ``refined_by``; the result was that pages carrying a `refines`
+# edge (which the write path accepts) were reported as LINT-ILLEGAL-RELATION.
+_BUILTIN_RELATIONS = BUILTIN_RELATION_TYPES
 
 # Heading under which the v3.0.0 synthesis template lists viewpoint rows.
 _VIEWPOINTS_HEADING = "各方观点"
@@ -581,8 +579,8 @@ def lint_wiki(
                             ),
                             page_id=page.id,
                             suggestion=(
-                                "Use one of the 17 built-in relation types or "
-                                "register an x-<name> type."
+                                f"Use one of the {len(_BUILTIN_RELATIONS)} built-in "
+                                "relation types or register an x-<name> type."
                             ),
                         )
                     )

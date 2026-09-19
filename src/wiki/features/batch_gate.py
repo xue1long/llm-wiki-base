@@ -84,9 +84,15 @@ def _gate_lint(page, paths: WikiPaths) -> list[str]:
       ERROR；RAW-PASTE run 超阈值在 lint 是 WARNING（不拦批）——本 gate
       只把 ERROR 项计入 block（与 batch_gate_v3 的 lint 步骤一致）。
     """
+    # Relation vocabulary comes from the single source of truth, NOT from
+    # lint's private alias (2026-09-19). Sharing lint's copy meant one edit
+    # silently widened/narrowed both single-page lint and this whole-batch
+    # gate at once; deriving both from relations.BUILTIN_RELATION_TYPES keeps
+    # them consistent by construction while leaving each entry point free to
+    # evolve its own rules.
+    from src.wiki.features.relations import BUILTIN_RELATION_TYPES as _BUILTIN_RELATIONS
     from src.wiki.features.lint import (
         _BODY_HEADING_RE,
-        _BUILTIN_RELATIONS,
         _PLACEHOLDER_SUBSTRINGS,
         _TEMPLATE_VERSION_RE,
         _bundled_template,

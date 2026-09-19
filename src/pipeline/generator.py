@@ -25,7 +25,10 @@ from ..utils.path import normalize_source_path
 from ..utils.slugify import slugify as _slugify
 from ..wiki.core.id_generator import normalize_id_chars
 from ..wiki.core.paths import WikiPaths
-from ..wiki.features.relations import parse_relations_from_response
+from ..wiki.features.relations import (
+    BUILTIN_RELATION_TYPES,
+    parse_relations_from_response,
+)
 from ..wiki.features.tag_namespace import (
     ACTIONABLE_TAG,
     TAG_PREFIXES,
@@ -227,21 +230,14 @@ _PLACEHOLDER_MARKERS = (
     "（占位）", "系统占位",
 )
 
-# 21 built-in relation types (17 graph edges + 4 namespace edges) + x-* custom.
-# Phase 3 follow-up：relations[].type 的 JSON schema 加 enum 约束，防止 LLM
-# 输出 `mentions` / `related` / `interacts_with` 等非标准类型（M9 非法 relation）。
-RELATION_TYPES = [
-    "is_part_of", "contains", "references", "referenced_by", "causes",
-    "caused_by", "contradicts", "supports", "supported_by", "supersedes",
-    "superseded_by", "depends_on", "required_by", "analogous_to",
-    "opposite_of", "derived_from", "derives",
-    "taxonomy_of", "belongs_to_audience", "hosted_on_platform", "has_credibility",
-    # V7.1.1 (RFC v6): "refines" / "refined_by" for parent→child method
-    # relationships (e.g. 百炼法 refines 扩句法). Inverse pair; the
-    # generator emits one of them at a time and the runtime computes
-    # the inverse.
-    "refines", "refined_by",
-]
+# Accepted relation types for the relations[].type JSON schema enum and the
+# ingest-side filter. Derived from the single source of truth in
+# ``wiki.features.relations`` (2026-09-19) — this list used to be hand-written
+# and had drifted apart from lint's copy, which is how ``refines`` became
+# writable but not lintable.
+# Layout: graph edges (RelationType) + namespace edges (domain types attached
+# by schema routing rather than by the LLM) + x-* custom types.
+RELATION_TYPES = sorted(BUILTIN_RELATION_TYPES)
 
 # Placeholder substrings that lint flags as ERROR (M4). Phase 3 实测：
 # LLM 即使 prompt 已改，仍可能惯性输出旧 fallback（如「来源未提供具体例子」），
