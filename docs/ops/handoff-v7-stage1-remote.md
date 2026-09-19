@@ -101,6 +101,14 @@ raw/sources/视频音频转录教程/音频教程/大纲写作技巧.md
 
 它是 V7 替换工作的 worst-case 源——旧 candidate 路径正是在这份文档上失败的。
 
+> **口径提醒**：上面的 md5 是**解码后文本**（universal newlines，`\r\n` 已归一为 `\n`）
+> 的 md5，由 `smoke_v7_bridge.py` 算出并写进报告。仓库没有对 `.md` 钉死 `eol`
+> （`.gitattributes` 只约束 `*.bat`），而 `core.autocrlf` 在对端可能为 `true`，
+> 于是 checkout 后文件的**物理字节数可能不同**。所以：
+> - ✅ 用脚本输出的 `source_md5` / `source_chars` 对指纹——脚本用
+>   `Path.read_text()` 读，自动归一换行，两端一致；
+> - ❌ 不要用 `certutil -hashfile` 之类对原始字节取 md5 来比对，CRLF 检出会误报不一致。
+
 ### 4.1 首次落地：建目录骨架
 
 clone 之后 `wiki/` 与 `.index/` 不存在。启动一次服务器即可建全
