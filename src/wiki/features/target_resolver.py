@@ -98,6 +98,14 @@ def resolve_wiki_target(
     context: ResolutionContext,
 ) -> TargetResolution:
     """按固定优先级解析 *raw_target*，见模块 docstring。"""
+    import warnings
+    warnings.warn(
+        "target_resolver.resolve_wiki_target is deprecated; "
+        "use ResolvabilityIndex.resolve_with_kind (Plan B). "
+        "Will be removed in 2026-Q4.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     target = _clean_target(raw_target)
     if not target:
         return TargetResolution(raw_target=raw_target, canonical_target=None,

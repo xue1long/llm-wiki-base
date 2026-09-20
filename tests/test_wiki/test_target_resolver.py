@@ -68,6 +68,12 @@ def _ctx(**kw) -> ResolutionContext:
     return ResolutionContext(**base)
 
 
+def test_resolver_emits_deprecation_warning():
+    """Verify that calling resolve_wiki_target raises DeprecationWarning."""
+    with pytest.deprecated_call(match="target_resolver.resolve_wiki_target is deprecated"):
+        resolve_wiki_target("概念甲", context=_ctx())
+
+
 def test_exact_id_unchanged():
     r = resolve_wiki_target("概念甲", context=_ctx())
     assert r.kind == "exact"
