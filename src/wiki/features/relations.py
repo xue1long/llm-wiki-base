@@ -1,4 +1,15 @@
-"""Typed relations between wiki pages (bidirectional)."""
+"""Typed relations between wiki pages (bidirectional).
+
+2026-09-19 behavior change (Plan: docs/superpowers/plans/2026-09-19-pipeline-ingest-relation-bug-fix.md):
+- `RelationSync.sync_page` semantics changed: previously it RESET the
+  source page's relations list to the passed `relations` argument;
+  now it PRESERVES existing own relations and APPENDS new ones,
+  deduplicating by (target_id, type). This matches the inverse-edge
+  semantics of the legacy `_compute_reverse_relations` (now renamed to
+  `_collect_inverse_relations` in src/pipeline/ingest.py) and prevents
+  sync_page from clobbering inverse edges that a prior sync_page wrote
+  to the same target page.
+"""
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -166,8 +177,21 @@ class RelationSync:
         if not page_file.exists():
             return report
         page = read_page(page_file)
-        # Update page's relations
-        page.relations = relations
+        # Update page's relations — 2026-09-19 behavior change:
+        # PRESERVE own relations + APPEND new + dedup by (target_id, type).
+        # Replaces the old "reset to passed list" which clobbered inverse
+        # edges that earlier sync_page calls had written.
+        existing = list(page.relations or [])
+        incoming = list(relations or [])
+        seen: dict[tuple[str, str], Relation] = {
+            (r.target_id, r.type): r for r in existing
+        }
+        for r in incoming:
+            # setdefault keeps the FIRST occurrence (existing weight wins
+            # over the new weight — same semantics as the legacy
+            # `_collect_inverse_relations`).
+            seen.setdefault((r.target_id, r.type), r)
+        page.relations = list(seen.values())
         write_page(paths, page)
         report.added = relations
         # Update adjacency index
@@ -179,6 +203,11 @@ class RelationSync:
             inv = rel.inverse()
             if inv is None or rel.type in SYMMETRIC_RELATIONS:
                 continue  # symmetric; already added or skip duplicates
+            # Relation is NOT frozen — caller mutates inv.target_id
+            # to point back at the source page. (Relation dataclass
+            # without frozen=True keeps this working for backward compat
+            # with batch_reconcile.py:133 and other call sites that
+            # already mutate inv.target_id.)
             inv.target_id = page_id
             target_type = _infer_type(paths, rel.target_id)
             target_file = page_path_for(paths, target_type, rel.target_id)

@@ -195,3 +195,124 @@ def test_sync_skips_symmetric_inverse(tmp_path):
     # Target page does NOT get a duplicate inverse
     concept_page = read_page(page_path_for(p, PageType.CONCEPT, "concept"))
     assert concept_page.relations == []
+
+
+# ---------------------------------------------------------------------------
+# Plan A: 2026-09-19-pipeline-ingest-relation-bug-fix.md Task 1
+# Behavior change: sync_page now preserves own relations + appends + dedups
+# (instead of resetting own relations). `Relation` is now @dataclass(frozen=True)
+# so `inv.target_id = page_id` mutation is replaced by `dataclasses.replace`.
+# ---------------------------------------------------------------------------
+
+
+def test_sync_page_preserves_own_relations(tmp_path):
+    """New behavior: pre-existing relations on source page are kept + new
+    ones appended + deduped. Replaces old "reset own relations" behavior
+    (which clobbered inverse edges written by earlier sync_page calls)."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    _make_page(p, "src", PageType.SOURCE)
+    _make_page(p, "concept", PageType.CONCEPT)
+
+    # Pre-seed source page with one pre-existing relation (NOT via sync_page)
+    src_page = read_page(page_path_for(p, PageType.SOURCE, "src"))
+    src_page.relations.append(Relation(target_id="preseed", type="supports", weight=0.3))
+    write_page(p, src_page)
+
+    # Now sync a new relation — pre-existing must NOT be clobbered
+    RelationSync.sync_page(p, "src", [
+        Relation(target_id="concept", type="references", weight=0.7),
+    ])
+
+    src_page = read_page(page_path_for(p, PageType.SOURCE, "src"))
+    types = sorted(r.type for r in src_page.relations)
+    targets = sorted(r.target_id for r in src_page.relations)
+    # Both relations present, no clobber
+    assert types == ["references", "supports"]
+    assert targets == ["concept", "preseed"]
+
+
+def test_sync_page_dedupes_inverse_by_target_id_and_type(tmp_path):
+    """Calling sync_page twice with overlapping relations must dedup by
+    (target_id, type), not append duplicates."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    _make_page(p, "src", PageType.SOURCE)
+    _make_page(p, "concept", PageType.CONCEPT)
+
+    # First sync: src → concept via "references"
+    RelationSync.sync_page(p, "src", [
+        Relation(target_id="concept", type="references", weight=0.5),
+    ])
+    # Second sync: same pair, different weight — dedup keeps FIRST weight (0.5)
+    RelationSync.sync_page(p, "src", [
+        Relation(target_id="concept", type="references", weight=0.9),
+    ])
+
+    src_page = read_page(page_path_for(p, PageType.SOURCE, "src"))
+    assert len(src_page.relations) == 1
+    assert src_page.relations[0].weight == 0.5  # first wins
+
+    # Target page inverse also dedup'd
+    concept_page = read_page(page_path_for(p, PageType.CONCEPT, "concept"))
+    inverses = [r for r in concept_page.relations if r.target_id == "src"]
+    assert len(inverses) == 1
+    assert inverses[0].type == "referenced_by"
+
+
+def test_sync_page_dedup_does_not_overwrite_existing_target_relation(tmp_path):
+    """Pre-existing target_page.relations with same (target_id, type) must
+    NOT be overwritten by the inverse's weight. setdefault semantics."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    _make_page(p, "src", PageType.SOURCE)
+    _make_page(p, "concept", PageType.CONCEPT)
+
+    # Pre-seed target page with a manually-set inverse relation with weight 0.1
+    concept_page = read_page(page_path_for(p, PageType.CONCEPT, "concept"))
+    concept_page.relations.append(
+        Relation(target_id="src", type="referenced_by", weight=0.1),
+    )
+    write_page(p, concept_page)
+
+    # Sync a "references" relation from src → concept
+    # Inverse (referenced_by, weight 0.7) should NOT replace the existing 0.1 entry
+    RelationSync.sync_page(p, "src", [
+        Relation(target_id="concept", type="references", weight=0.7),
+    ])
+
+    concept_page = read_page(page_path_for(p, PageType.CONCEPT, "concept"))
+    inverses = [r for r in concept_page.relations if r.target_id == "src"]
+    assert len(inverses) == 1
+    assert inverses[0].weight == 0.1  # existing weight preserved (setdefault)
+
+
+def test_sync_page_inverse_target_id_set_via_mutation(tmp_path):
+    """sync_page must set inv.target_id to the source page_id via mutation
+    (the relation is NOT frozen — see batch_reconcile.py:133 which also
+    relies on this). The inverse on target page should reflect the source
+    page_id, not the placeholder '<this_page_id>'."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    _make_page(p, "src", PageType.SOURCE)
+    _make_page(p, "concept", PageType.CONCEPT)
+
+    RelationSync.sync_page(p, "src", [
+        Relation(target_id="concept", type="references", weight=0.5),
+    ])
+
+    # Inverse written correctly with page_id (not the placeholder "<this_page_id>")
+    concept_page = read_page(page_path_for(p, PageType.CONCEPT, "concept"))
+    inverses = [r for r in concept_page.relations if r.target_id == "src"]
+    assert len(inverses) == 1
+
+
+def test_sync_page_breaking_change_documented_in_module_docstring():
+    """The behavior change (reset → preserve+append+dedup) must be documented
+    in the RelationSync module/class docstring so future readers understand
+    the contract change. (Reviewer 4 mandate.)"""
+    import inspect
+    src = inspect.getsource(RelationSync)
+    assert "behavior change" in src.lower() or "2026-09-19" in src, (
+        "RelationSync.sync_page docstring must document the 2026-09-19 behavior change"
+    )
