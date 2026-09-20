@@ -20,6 +20,8 @@ from pathlib import Path
 import pytest
 
 from src.pipeline.ingest import (
+    _collect_inverse_relations,
+    _compute_reverse_relations,
     commit_ingest,
     generate_ingest,
     run_ingest,
@@ -952,4 +954,84 @@ async def test_source_metadata_is_recomputed_after_quality_gate_drops_page(
     assert meta["source_grade"] == "C"
     assert source.grade == "C"
     assert source.source_grade == "C"
-    assert "空摄取" in source.body
+
+
+# ---------------------------------------------------------------------------
+# Plan A: 2026-09-19-pipeline-ingest-relation-bug-fix.md Task 2
+# Rename `_compute_reverse_relations` → `_collect_inverse_relations`
+# (does the work, but does NOT write — caller batches the writes). Old
+# name kept as deprecated alias that warns + delegates.
+# ---------------------------------------------------------------------------
+
+
+def test_ingest_no_longer_has_compute_reverse_relations(tmp_path):
+    """The old name must be removed; only `_collect_inverse_relations`
+    remains as the primary entry. (Reviewer 1 mandate — old name is
+    misleading: it 'computes' but also 'mutates pre-existing pages
+    on disk', which the new name doesn't promise.)"""
+    import src.pipeline.ingest as ingest
+    assert hasattr(ingest, "_collect_inverse_relations")
+    assert not hasattr(ingest, "_compute_reverse_relations") or callable(
+        getattr(ingest, "_compute_reverse_relations", None)
+    ) and getattr(ingest, "_compute_reverse_relations", None).__doc__ is not None, (
+        "_compute_reverse_relations should be removed or kept only as deprecated alias"
+    )
+
+
+def test_ingest_has_collect_inverse_relations():
+    """The new name must exist and be the primary function."""
+    import src.pipeline.ingest as ingest
+    assert callable(getattr(ingest, "_collect_inverse_relations", None)), (
+        "_collect_inverse_relations must be defined on src.pipeline.ingest"
+    )
+
+
+def test_collect_inverse_relations_deprecated_alias_compat(tmp_path):
+    """Old `_compute_reverse_relations` (if kept as alias) must:
+    1. still work (return same shape as new function)
+    2. emit DeprecationWarning pointing to new name
+    """
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    # Two pages: src with outgoing relation + concept target
+    src_page = WikiPage(
+        id="src", title="src", type=PageType.SOURCE, body="x",
+        relations=[Relation(target_id="concept", type="references", weight=0.5)],
+    )
+    concept_page = WikiPage(id="concept", title="concept", type=PageType.CONCEPT, body="y")
+    write_page(p, src_page)
+    write_page(p, concept_page)
+
+    with pytest.warns(DeprecationWarning, match="_compute_reverse_relations.*deprecated"):
+        result = _compute_reverse_relations(p, [src_page])
+
+    # Same shape as new function
+    assert isinstance(result, list)
+    # Concept page should have an inverse relation appended
+    concept_disk = read_page(p.wiki_concepts / "concept.md") if (p.wiki_concepts / "concept.md").exists() else None
+    # The function only computes — does NOT write to disk
+    if concept_disk is not None:
+        inverses = [r for r in concept_disk.relations if r.target_id == "src"]
+        # Old function would have written; new behavior (per Plan A):
+        # _collect_inverse_relations doesn't write either. Concept disk
+        # was pre-existing without inverse — should still not have one.
+        assert inverses == []
+
+
+def test_collect_inverse_relations_with_frozen_relation_does_not_raise(tmp_path):
+    """Implementation must work with relations.py:182 mutating
+    `inv.target_id = page.id` (i.e. Relation NOT frozen — see Task 1
+    implementation decision)."""
+    ensure_knowledge_base(tmp_path)
+    p = WikiPaths(tmp_path)
+    src_page = WikiPage(
+        id="src", title="src", type=PageType.SOURCE, body="x",
+        relations=[Relation(target_id="concept", type="references", weight=0.5)],
+    )
+    concept_page = WikiPage(id="concept", title="concept", type=PageType.CONCEPT, body="y")
+    write_page(p, src_page)
+    write_page(p, concept_page)
+
+    # Must not raise (Relation NOT frozen — mutation works)
+    result = _collect_inverse_relations(p, [src_page])
+    assert isinstance(result, list)

@@ -258,19 +258,30 @@ def _format_wiki_index(index: dict) -> str:
 # ``_extract_wikilink_targets`` is shared by resolver + gap collection);
 # this module-level helper was removed with the old auto-stub block.
 
-def _compute_reverse_relations(paths, pages):
-    """Add inverse edges so the relation graph is bidirectional on disk.
+def _collect_inverse_relations(paths, pages):
+    """Compute inverse edges in-memory so the relation graph is
+    bidirectional on disk. (Renamed 2026-09-19 from
+    ``_compute_reverse_relations``: the old name implied it both
+    computes and writes; this version only collects. The caller —
+    ``generate_ingest`` line ~1327 — receives the returned list of
+    ``extra_pages`` (pre-existing pages with new inverse edges) and
+    feeds them into ``commit_ingest``'s ``AtomicContext`` batch write.
 
-    New pages (in ``pages``) are mutated in-place. Pre-existing target
+    New pages in ``pages`` are mutated in-place. Pre-existing target
     pages referenced by a new relation (but not created this run) are
-    loaded from disk, merged with the new inverse edge, and returned so the
-    caller writes them in the same atomic batch. Only pre-existing pages are
-    returned; the caller must still append ``pages`` to the index (the
-    returned pages are already indexed).
+    loaded from disk, merged with the new inverse edge, and returned.
+    Only pre-existing pages are returned; the caller must still append
+    ``pages`` to the index (the returned pages are already indexed).
 
-    Uses in-memory computation (not ``RelationSync.sync_page``) because
-    sync_page resets a page's own relations to the passed list and would
-    clobber an inverse edge that a prior page's sync just wrote.
+    Implementation note: uses in-memory ``inv.target_id = page.id``
+    mutation (not ``dataclasses.replace``). ``Relation`` is intentionally
+    NOT ``@dataclass(frozen=True)`` because other callers (e.g.
+    ``src/wiki/features/batch_reconcile.py:133``) rely on this
+    mutation pattern. The new ``RelationSync.sync_page`` semantics
+    (preserve+append+dedup) make this safe — inverse edges are deduped
+    against existing relations before write.
+
+    Plan: docs/superpowers/plans/2026-09-19-pipeline-ingest-relation-bug-fix.md
     """
     from ..wiki.features.relations import SYMMETRIC_RELATIONS
     from ..wiki.storage.page_writer import read_page, page_path_for
@@ -321,6 +332,25 @@ def _compute_reverse_relations(paths, pages):
             target.relations = rels
 
     return list(extra.values())
+
+
+def _compute_reverse_relations(paths, pages):
+    """DEPRECATED alias for ``_collect_inverse_relations``.
+
+    Renamed 2026-09-19 because the old name misleadingly implied it both
+    computed AND wrote (it only computes). This alias is kept for one
+    minor release for backward compat with any in-flight callers. Will be
+    removed in 2026-Q4. Use ``_collect_inverse_relations`` instead.
+
+    Plan: docs/superpowers/plans/2026-09-19-pipeline-ingest-relation-bug-fix.md
+    """
+    import warnings
+    warnings.warn(
+        "_compute_reverse_relations is deprecated; use _collect_inverse_relations",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return _collect_inverse_relations(paths, pages)
 
 
 def finalize_generated_page(page: WikiPage, paths: WikiPaths, *,
@@ -1324,7 +1354,8 @@ async def generate_ingest(
     # is bidirectional on disk. New pages are mutated in-place; pre-existing
     # target pages (referenced by a new relation but not themselves created
     # this run) are loaded, merged, and written in the same atomic batch.
-    extra_pages = _compute_reverse_relations(paths, pages)
+    # Renamed 2026-09-19: _compute_reverse_relations -> _collect_inverse_relations
+    extra_pages = _collect_inverse_relations(paths, pages)
 
     # Q1-fix: defensive relation dedup on the final page set. Each page
     # must have at most one relation per target_id (highest weight wins).
