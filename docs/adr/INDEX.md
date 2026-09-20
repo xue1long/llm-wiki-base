@@ -13,6 +13,7 @@
 | [0010-skill-library-and-agent-deployment](0010-skill-library-and-agent-deployment.md) | Skill Artifact Library 与 Agent 部署隔离 | Accepted — v1 静态 Skill | 2026-09-13 | [plan](../superpowers/plans/2026-09-13-skill-plugin-manager.md) |
 | [0012-v7-knowledge-reconciliation-plane](0012-v7-knowledge-reconciliation-plane.md) | V7 Knowledge Reconciliation Plane 设计 | Proposed | 2026-09-15 | — |
 | [0015-v7-stage2-tail-residue-classification](0015-v7-stage2-tail-residue-classification.md) | V7 Stage 2 用 TAIL_RESIDUE 显式分类替代改 I5 容差 | Accepted | 2026-09-19 | [plan](../superpowers/plans/2026-09-19-v7-stage2-i5-lineage-unblock.md) |
+| [0017-relation-sync-breaking-change](0017-relation-sync-breaking-change.md) | RelationSync.sync_page 语义从重置改为保留+追加，及反向边收集函数重构 | Accepted | 2026-09-20 | [plan](../superpowers/plans/2026-09-19-pipeline-ingest-relation-bug-fix.md) |
 
 ## 命名规范
 
